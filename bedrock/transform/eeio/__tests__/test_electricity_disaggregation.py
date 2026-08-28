@@ -305,7 +305,7 @@ class Test2017EIAPurchaserAllocation:
                     _derive_post_reallocation_checkpoint_for_disagg.cache_clear()
                     with dollar_industrial_weights():
                         alloc = get_2017_eia_purchaser_allocation()
-                    assert ELECTRICITY_AGGREGATE in alloc.bill.index
+                    assert ELECTRICITY_AGGREGATE in alloc.electricity_purchases.index
                     bundle_mock.assert_not_called()
                     y_mock.assert_not_called()
         finally:
@@ -420,7 +420,7 @@ class TestReanchoredAqIdentities:
                 col_s = str(col)
                 if col_s in ELECTRICITY_DISAGG_SECTORS:
                     continue
-                if col_s not in alloc.bill.index:
+                if col_s not in alloc.electricity_purchases.index:
                     continue
                 assert _frame_cell_float(udom, g, col_s) == pytest.approx(
                     float(alloc.gen_dollars[col_s]), rel=1e-6, abs=1.0
@@ -432,7 +432,9 @@ class TestReanchoredAqIdentities:
                     float(alloc.d_dollars[col_s]), rel=1e-6, abs=1.0
                 )
             gen_self = float(alloc.gen_dollars[ELECTRICITY_AGGREGATE])
-            leftover = float(alloc.bill[ELECTRICITY_AGGREGATE]) - gen_self
+            leftover = (
+                float(alloc.electricity_purchases[ELECTRICITY_AGGREGATE]) - gen_self
+            )
             assert _frame_cell_float(udom, g, g) == pytest.approx(
                 gen_self, rel=1e-6, abs=1.0
             )
@@ -449,7 +451,7 @@ class TestReanchoredAqIdentities:
                     assert _frame_cell_float(udom, i, j) == pytest.approx(0.0, abs=1e-6)
             fd_keys = [
                 k
-                for k in alloc.bill.index
+                for k in alloc.electricity_purchases.index
                 if k in set(FINAL_DEMANDS) and k != IMPORT_FD_CODE
             ]
             assert float(y.loc[g]) == pytest.approx(
@@ -569,7 +571,7 @@ def test_import_fd_column_uses_child_sum_when_aggregate_missing(
 
     empty = pd.Series(dtype=float)
     alloc = EIAPurchaserAllocation(
-        bill=empty,
+        electricity_purchases=empty,
         end_use_class=empty,
         mwh=empty,
         gen_dollars=empty,

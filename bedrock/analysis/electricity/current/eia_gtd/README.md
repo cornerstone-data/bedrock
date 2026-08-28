@@ -19,10 +19,10 @@ use `get_2017_eia_purchaser_allocation`.
 | Table | Identity |
 |---|---|
 | Class MWh vs class targets | `_class_mwh_targets(eia_year, alloc.egrid_mwh)` vs `alloc.mwh.groupby(alloc.end_use_class).sum()` |
-| Leftover T&D | `bill − gen_dollars` (equals `t_dollars + d_dollars`) |
+| Leftover T&D | `electricity_purchases − gen_dollars` (equals `t_dollars + d_dollars`) |
 | Nibble vs clipped | class totals below class target; `clipped` is purchaser-level only |
-| Optional ¢/kWh | `bill / (10 × MWh)` vs Table 2.4 — check only, not class targets |
-| MECS vs dollar manufacturing | Dual-run `industrial_weights=mecs\|dollars` on the same bills |
+| Optional ¢/kWh | `electricity_purchases / (10 × MWh)` vs Table 2.4 — check only, not class targets |
+| MECS vs dollar manufacturing | Dual-run `industrial_weights=mecs\|dollars` on the same electricity_purchases |
 
 Markdown lands at `current/diagnostics/output/eia_gtd_purchaser_tables.md`.
 
@@ -84,7 +84,7 @@ The hand map of MECS across NAICS is consistent between the GHG MECS allocation 
 |---|---|
 | Survey Used | 7.7 follows EIA/eGRID year (2018 or 2022) vs 3.1 pinned 2018 |
 | Suppression treatment | 3-digit Q/D leftover vs Q/D → 0 |
-| Multi-IO (and residual) **split weights** | electricity bills vs BEA fuel Use |
+| Multi-IO (and residual) **split weights** | electricity purchases vs BEA fuel Use |
 
 ### Does it make sense to align 7.7 for electricity with GHG MECS?
 
@@ -92,4 +92,12 @@ The hand map of MECS across NAICS is consistent between the GHG MECS allocation 
 
 **Suppression treatment:** Align only if you value cross-method identity over this table. `load_mecs_3_1` zeroes `Q`/`D`. On 7.7 that would set 2022 `337` to 0 and dump 9,224 million kWh onto every other manufacturer, even though `31-33` still implies furniture’s total. The leftover fill makes sense for this table.
 
-**Split weights:** No. GHG does not have a generic “use BEA fuel Use” rule. It splits a MECS coal (or gas) total by BEA Use of that fuel. The parallel for 7.7 is BEA Use of electricity (purchaser bills on 221100), which is what this path already does. Splitting purchased kWh by coal/gas Use would assign furniture vs chemicals electricity with the wrong commodity. Residual `NON_MECS` is the same idea: leftover industrial electricity should follow electricity bills, not fuel Use.
+**Split weights:** No. GHG does not have a generic “use BEA fuel Use” rule. It splits a MECS coal (or gas) total by BEA Use of that fuel. The parallel for 7.7 is BEA Use of electricity (purchaser electricity purchases on 221100), which is what this path already does. Splitting purchased kWh by coal/gas Use would assign furniture vs chemicals electricity with the wrong commodity. Residual `NON_MECS` is the same idea: leftover industrial electricity should follow electricity purchases, not fuel Use.
+
+## Census electricity cost vs Table 7.7 kWh
+
+Nowcasting maps annual Census “cost of purchased electricity” onto `221100`: `CSTELEC` (ASM 2018–2021, EC 2017/2022) and `EXPS_ELEC_VAL` (AIES 2023, SAS 2018–2022), NAICS-6, on the `nowcast` expense FBAs (`Census_ASM_Expenses`, `Census_EC_Expenses`, `Census_AIES_Expenses`, `Census_AIES_Service_Expenses`, `Census_SAS_Expenses`). That is the right dollar series for SUT nowcasts. It is the wrong manufacturing **MWh** weight here.
+
+G/T/D Industrial manufacturing is a physical split: class MWh comes from Table 2.2 / eGRID, and 7.7 is purchased kWh. Cost = kWh × rate. Intra-manufacturing rates are not flat, so cost shares would move MWh toward high-price, low-intensity sectors. Implied ¢/kWh vs Table 2.4 is already a check only, not a class target, for the same reason.
+
+Census cost would help later for years between MECS surveys, or for Commercial/service NAICS-6 where 7.7 does not apply. Those FBAs are not on this branch and are not wired into the allocator.

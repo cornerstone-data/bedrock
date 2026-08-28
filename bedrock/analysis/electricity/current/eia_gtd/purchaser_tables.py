@@ -1,8 +1,8 @@
 """Slide 7/8/27–30 tables from the reanchored ``EIAPurchaserAllocation``.
 
 Class MWh is compared to ``_class_mwh_targets``, not raw Table 2.2.
-Leftover T&D is ``bill − gen_dollars``. Nibble is class totals vs those
-targets; ``clipped`` is purchaser-level only.
+Leftover T&D is ``electricity_purchases − gen_dollars``. Nibble is class
+totals vs those targets; ``clipped`` is purchaser-level only.
 """
 
 from __future__ import annotations
@@ -70,8 +70,10 @@ def allocated_class_mwh(alloc: EIAPurchaserAllocation) -> pd.Series:
 
 
 def leftover_td_usd(alloc: EIAPurchaserAllocation) -> pd.Series:
-    """Purchaser leftover T&D dollars: ``bill − gen_dollars``."""
-    return (alloc.bill.astype(float) - alloc.gen_dollars.astype(float)).astype(float)
+    """Purchaser leftover T&D dollars: ``electricity_purchases − gen_dollars``."""
+    return (
+        alloc.electricity_purchases.astype(float) - alloc.gen_dollars.astype(float)
+    ).astype(float)
 
 
 def class_mwh_targets_frame(
@@ -106,12 +108,14 @@ def class_mwh_targets_frame(
 
 def leftover_td_purchaser_frame(alloc: EIAPurchaserAllocation) -> pd.DataFrame:
     leftover = leftover_td_usd(alloc)
-    idx = alloc.bill.index
+    idx = alloc.electricity_purchases.index
     return pd.DataFrame(
         {
             'purchaser': list(idx.astype(str)),
             'end_use_class': alloc.end_use_class.reindex(idx).astype(str).to_numpy(),
-            'bill': alloc.bill.astype(float).to_numpy(),
+            'electricity_purchases': (
+                alloc.electricity_purchases.astype(float).to_numpy()
+            ),
             'gen_dollars': alloc.gen_dollars.reindex(idx).astype(float).to_numpy(),
             'leftover_td': leftover.reindex(idx).to_numpy(),
             't_dollars': alloc.t_dollars.reindex(idx).astype(float).to_numpy(),
@@ -125,7 +129,13 @@ def leftover_td_class_frame(alloc: EIAPurchaserAllocation) -> pd.DataFrame:
     purchasers = leftover_td_purchaser_frame(alloc)
     grouped = purchasers.groupby('end_use_class', sort=False)
     out = grouped[
-        ['bill', 'gen_dollars', 'leftover_td', 't_dollars', 'd_dollars']
+        [
+            'electricity_purchases',
+            'gen_dollars',
+            'leftover_td',
+            't_dollars',
+            'd_dollars',
+        ]
     ].sum()
     out['n_clipped'] = grouped['clipped'].sum().astype(int)
     out['n_purchasers'] = grouped.size().astype(int)
@@ -141,7 +151,8 @@ def class_nibble_frame(
     """Class nibble (totals vs class targets) alongside purchaser ``clipped`` counts.
 
     Nibble has no Series flag. ``clipped`` marks purchasers that hit their
-    bill cap during water-fill; a clipped purchaser does not imply class nibble.
+    electricity-purchase cap during water-fill; a clipped purchaser does not
+    imply class nibble.
     """
     class_mwh = class_mwh_targets_frame(alloc, eia_year, targets=targets)
     purchasers = leftover_td_purchaser_frame(alloc)
@@ -169,16 +180,23 @@ def optional_implied_cents_kwh_frame(
     alloc: EIAPurchaserAllocation,
     table_24_cents_kwh: dict[str, float],
 ) -> pd.DataFrame:
-    """Implied retail ¢/kWh from ``bill / MWh`` vs Table 2.4 (check only)."""
-    bills = alloc.bill.astype(float).groupby(alloc.end_use_class).sum()
+    """Implied retail ¢/kWh from ``electricity_purchases / MWh`` vs Table 2.4.
+
+    Check only; not a class-target identity.
+    """
+    electricity_purchases = (
+        alloc.electricity_purchases.astype(float).groupby(alloc.end_use_class).sum()
+    )
     mwh = allocated_class_mwh(alloc)
     rows: list[dict[str, Any]] = []
     for cls in CLASS_ORDER:
         if cls == 'Exports':
             continue
-        class_bill = float(bills.get(cls, 0.0))
+        class_purchases = float(electricity_purchases.get(cls, 0.0))
         class_mwh = float(mwh.get(cls, 0.0))
-        implied = class_bill / (10.0 * class_mwh) if class_mwh > 0 else float('nan')
+        implied = (
+            class_purchases / (10.0 * class_mwh) if class_mwh > 0 else float('nan')
+        )
         listed = float(table_24_cents_kwh.get(cls, float('nan')))
         rows.append(
             {
@@ -191,20 +209,23 @@ def optional_implied_cents_kwh_frame(
 
 
 def p_share_from_allocation(alloc: EIAPurchaserAllocation) -> float:
-    """Recover the 2017 UGO generation share from ``p = share × bills / eGRID``."""
-    bill_total = float(alloc.bill.sum())
-    if bill_total <= 0 or float(alloc.egrid_mwh) <= 0:
+    """Recover the 2017 UGO generation share from
+    ``p = share × electricity_purchases / eGRID``.
+    """
+    electricity_purchases_total = float(alloc.electricity_purchases.sum())
+    if electricity_purchases_total <= 0 or float(alloc.egrid_mwh) <= 0:
         raise ValueError(
-            'cannot recover generation share from non-positive bills or eGRID'
+            'cannot recover generation share from non-positive '
+            'electricity_purchases or eGRID'
         )
-    return float(alloc.p) * float(alloc.egrid_mwh) / bill_total
+    return float(alloc.p) * float(alloc.egrid_mwh) / electricity_purchases_total
 
 
 def dual_run_industrial_allocations(
     alloc: EIAPurchaserAllocation,
     eia_year: int,
 ) -> tuple[EIAPurchaserAllocation, EIAPurchaserAllocation]:
-    """Re-allocate the same bills with MECS vs dollar Industrial manufacturing weights."""
+    """Re-allocate the same electricity_purchases with MECS vs dollar weights."""
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         ELECTRICITY_AGGREGATE,
         allocate_purchaser_gtd,
@@ -212,7 +233,7 @@ def dual_run_industrial_allocations(
 
     p_share = p_share_from_allocation(alloc)
     mecs = allocate_purchaser_gtd(
-        alloc.bill,
+        alloc.electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=eia_year,
         p_share_2017=p_share,
@@ -220,7 +241,7 @@ def dual_run_industrial_allocations(
         industrial_weights='mecs',
     )
     dollars = allocate_purchaser_gtd(
-        alloc.bill,
+        alloc.electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=eia_year,
         p_share_2017=p_share,
@@ -234,7 +255,7 @@ def manufacturing_mecs_vs_dollar_frame(
     mecs_alloc: EIAPurchaserAllocation,
     dollar_alloc: EIAPurchaserAllocation,
 ) -> pd.DataFrame:
-    """Per manufacturing sector: MECS vs dollar MWh, clip flags, zero-bill assignees.
+    """Per manufacturing sector: MECS vs dollar MWh, clip flags, zero-purchase assignees.
 
     Cross-pool overflow marks residual Industrial purchasers whose generation
     dollars rose under MECS (water-fill from clipped energy-intensive manufacturers).
@@ -243,12 +264,16 @@ def manufacturing_mecs_vs_dollar_frame(
         industrial_manufacturing_pool,
     )
 
-    idx = mecs_alloc.bill.index.union(dollar_alloc.bill.index)
+    idx = mecs_alloc.electricity_purchases.index.union(
+        dollar_alloc.electricity_purchases.index
+    )
     mfg_pool = industrial_manufacturing_pool()
     classes = mecs_alloc.end_use_class.reindex(idx)
     industrial = classes.astype(str) == 'Industrial'
     is_mfg = pd.Series([str(i) in mfg_pool for i in idx], index=idx)
-    bill = mecs_alloc.bill.reindex(idx).astype(float).fillna(0.0)
+    electricity_purchases = (
+        mecs_alloc.electricity_purchases.reindex(idx).astype(float).fillna(0.0)
+    )
     mecs_mwh = mecs_alloc.mwh.reindex(idx).astype(float).fillna(0.0)
     dollar_mwh = dollar_alloc.mwh.reindex(idx).astype(float).fillna(0.0)
     mecs_gen = mecs_alloc.gen_dollars.reindex(idx).astype(float).fillna(0.0)
@@ -262,7 +287,7 @@ def manufacturing_mecs_vs_dollar_frame(
             'purchaser': idx.astype(str),
             'end_use_class': classes.astype(str).to_numpy(),
             'manufacturing': is_mfg.to_numpy(),
-            'bill': bill.to_numpy(),
+            'electricity_purchases': electricity_purchases.to_numpy(),
             'mecs_mwh': mecs_mwh.to_numpy(),
             'dollar_mwh': dollar_mwh.to_numpy(),
             'mwh_diff': (mecs_mwh - dollar_mwh).to_numpy(),
@@ -270,8 +295,8 @@ def manufacturing_mecs_vs_dollar_frame(
             'dollar_gen_dollars': dollar_gen.to_numpy(),
             'clipped_mecs': clipped_mecs.to_numpy(),
             'clipped_dollars': clipped_dollars.to_numpy(),
-            'zero_bill_mecs_assignee': (
-                is_mfg & (bill <= 0.0) & (mecs_mwh > 0.0)
+            'zero_electricity_purchases_mecs_assignee': (
+                is_mfg & (electricity_purchases <= 0.0) & (mecs_mwh > 0.0)
             ).to_numpy(),
             'cross_pool_overflow_recipient': overflow.to_numpy(),
         }
@@ -338,8 +363,8 @@ def render_purchaser_tables_md(
         'Class-target identity: `(class / Total End Use) * (eGRID - Table 2.14 exports)`, '
         'Industrial pool = Industrial + Direct Use, `F04000` = Exports. '
         'Do **not** read Model / raw Table 2.2 ~ 1.0 as the class-target claim. '
-        'Nibble (class bills cannot cover `p *` class MWh) is the expected '
-        'exception.',
+        'Nibble (class electricity purchases cannot cover `p *` class MWh) '
+        'is the expected exception.',
         '',
         *_markdown_table(
             class_mwh,
@@ -355,12 +380,12 @@ def render_purchaser_tables_md(
         f'Totals: class targets {_fmt_mwh(float(class_mwh["class_target_mwh"].sum()))}; '
         f'allocator {_fmt_mwh(float(class_mwh["allocator_mwh"].sum()))}.',
         '',
-        '## Leftover T&D = bill - gen_dollars',
+        '## Leftover T&D = electricity_purchases - gen_dollars',
         '',
         *_markdown_table(
             leftover,
             {
-                'bill': '${:,.2f}',
+                'electricity_purchases': '${:,.2f}',
                 'gen_dollars': '${:,.2f}',
                 'leftover_td': '${:,.2f}',
                 't_dollars': '${:,.2f}',
@@ -393,7 +418,8 @@ def render_purchaser_tables_md(
             [
                 '## Optional check - implied cents/kWh vs Table 2.4',
                 '',
-                'Implied cents/kWh = `bill / (10 * MWh)`. This is a check against '
+                'Implied cents/kWh = `electricity_purchases / (10 * MWh)`. '
+                'This is a check against '
                 'retail Table 2.4, **not** the class-target identity and not production '
                 '`c_row` (production `c_row` is flat `1/p`).',
                 '',
@@ -446,17 +472,18 @@ def build_live_report(config: str = MIXED_CONFIG) -> str:
         '',
         '## MECS vs dollar Industrial manufacturing weights',
         '',
-        'Same bills through `allocate_purchaser_gtd` with '
+        'Same electricity_purchases through `allocate_purchaser_gtd` with '
         '`industrial_weights=mecs` vs `dollars`. Generation share recovered as '
-        '`p × eGRID / bill_total`. Manufacturing rows use Table 7.7 purchased kWh; '
+        '`p × eGRID / electricity_purchases_total`. Manufacturing rows use '
+        'Table 7.7 purchased kWh; '
         'residual Industrial stays dollar-weighted. Class-wide water-fill can move '
         'generation dollars from clipped manufacturers onto residual ag/mining/'
         'construction.',
         '',
         f'Manufacturing purchasers: **{int(len(mfg))}**. '
         f'Clipped under MECS: **{int(mfg["clipped_mecs"].sum()) if not mfg.empty else 0}**. '
-        f'Zero-bill MECS assignees: '
-        f'**{int(mfg["zero_bill_mecs_assignee"].sum()) if not mfg.empty else 0}**. '
+        f'MECS assignees with zero electricity purchases: '
+        f'**{int(mfg["zero_electricity_purchases_mecs_assignee"].sum()) if not mfg.empty else 0}**. '
         f'Cross-pool overflow recipients: **{int(len(overflow))}**.',
         '',
     ]
@@ -468,7 +495,7 @@ def build_live_report(config: str = MIXED_CONFIG) -> str:
                 .drop(columns='_abs')
                 .head(25),
                 {
-                    'bill': '${:,.2f}',
+                    'electricity_purchases': '${:,.2f}',
                     'mecs_mwh': '{:,.0f}',
                     'dollar_mwh': '{:,.0f}',
                     'mwh_diff': '{:,.0f}',

@@ -69,7 +69,7 @@ def _fake_7_7_frame(
 
 
 def _allocate(
-    bills: pd.Series,
+    electricity_purchases: pd.Series,
     *,
     industrial_weights: str,
     targets: dict[str, float] | None = None,
@@ -97,7 +97,7 @@ def _allocate(
         ),
     ):
         return allocate_purchaser_gtd(
-            bills,
+            electricity_purchases,
             self_use_key=ELECTRICITY_AGGREGATE,
             eia_year=eia_year,
             p_share_2017=p_share,
@@ -171,6 +171,38 @@ def test_manufacturing_pool_matches_ghg_combustion_mecs_io_keys() -> None:
     ghg_mfg.update(str(c) for c in flatten_items(coal_sub.keys()))
     assert industrial_manufacturing_pool() == frozenset(ghg_mfg)
     assert not (industrial_manufacturing_pool() & set(NON_MECS_INDUSTRIES))
+
+
+def test_industrial_class_is_mecs_union_non_mecs_plus_utilities_and_fd() -> None:
+    """EIA Industrial ≠ 3.1 keys ∪ NON_MECS; extras stay dollar residual, not dropped.
+
+    A is commodity-by-commodity, so electricity_purchases columns are commodities + FD.
+    ``331314`` is a 3.1 industry key with no matching commodity column.
+    """
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        CORNERSTONE_COMMODITIES_ELEC,
+    )
+
+    industrial = {c for c, cls in build_end_use_map().items() if cls == 'Industrial'}
+    mfg = set(industrial_manufacturing_pool())
+    non_mecs = set(NON_MECS_INDUSTRIES)
+    commodities = set(map(str, CORNERSTONE_COMMODITIES_ELEC))
+    industrial_extras = frozenset(
+        {
+            '221110',
+            '221121',
+            '221122',
+            '221200',
+            '221300',
+            'F02E00',
+        }
+    )
+    assert non_mecs <= industrial
+    assert (mfg & commodities) <= industrial
+    assert industrial - mfg - non_mecs == industrial_extras
+    assert '331314' in mfg
+    assert '331314' not in commodities
+    assert '331314' not in industrial
 
 
 def test_self_use_industrial_fd_and_gtd_children_are_residual() -> None:
@@ -283,35 +315,37 @@ def test_star_is_zero_and_missing_mapped_naics_hard_errors() -> None:
 def test_io_kwh_sum_excludes_manufacturing_total_row() -> None:
     _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
-    bills = pd.Series(1.0, index=list(industrial_manufacturing_pool()), dtype=float)
+    electricity_purchases = pd.Series(
+        1.0, index=list(industrial_manufacturing_pool()), dtype=float
+    )
     with patch(
         'bedrock.extract.flowbyactivity.getFlowByActivity',
         return_value=frame,
     ):
         naics = mecs_purchased_kwh(2018)
-        io_kwh = io_manufacturing_purchased_kwh(bills, 2018)
+        io_kwh = io_manufacturing_purchased_kwh(electricity_purchases, 2018)
     assert '31-33' not in io_kwh.index
     assert float(io_kwh.sum()) != pytest.approx(float(naics.sum()))
     _mecs_purchased_kwh_cached.cache_clear()
 
 
-def test_one_to_one_zero_bill_still_gets_kwh() -> None:
+def test_one_to_one_zero_electricity_purchases_still_gets_kwh() -> None:
     _mecs_purchased_kwh_cached.cache_clear()
     frame = _fake_7_7_frame()
     pool = list(industrial_manufacturing_pool())
-    bills = pd.Series(1.0, index=pool, dtype=float)
-    bills[_MFG_A] = 0.0
+    electricity_purchases = pd.Series(1.0, index=pool, dtype=float)
+    electricity_purchases[_MFG_A] = 0.0
     with patch(
         'bedrock.extract.flowbyactivity.getFlowByActivity',
         return_value=frame,
     ):
-        io_kwh = io_manufacturing_purchased_kwh(bills, 2018)
+        io_kwh = io_manufacturing_purchased_kwh(electricity_purchases, 2018)
     assert _MFG_A in io_kwh.index
     assert float(io_kwh[_MFG_A]) > 0.0
     _mecs_purchased_kwh_cached.cache_clear()
 
 
-def test_many_to_one_zero_bill_member_gets_zero_kwh() -> None:
+def test_many_to_one_zero_electricity_purchases_member_gets_zero_kwh() -> None:
     _mecs_purchased_kwh_cached.cache_clear()
     naics_to_io: dict[str, list[str]] = {}
     for io_key, naics_vals in _overlaid_3_1_mapping(set(_required_7_7_naics())).items():
@@ -325,20 +359,20 @@ def test_many_to_one_zero_bill_member_gets_zero_kwh() -> None:
         pytest.skip('no many:1 MECS NAICS in the overlay mapping')
     frame = _fake_7_7_frame()
     pool = list(industrial_manufacturing_pool())
-    bills = pd.Series(1.0, index=pool, dtype=float)
-    bills[shared[0]] = 0.0
+    electricity_purchases = pd.Series(1.0, index=pool, dtype=float)
+    electricity_purchases[shared[0]] = 0.0
     with patch(
         'bedrock.extract.flowbyactivity.getFlowByActivity',
         return_value=frame,
     ):
-        io_kwh = io_manufacturing_purchased_kwh(bills, 2018)
+        io_kwh = io_manufacturing_purchased_kwh(electricity_purchases, 2018)
     assert float(io_kwh.get(shared[0], 0.0)) == pytest.approx(0.0)
     assert float(sum(float(io_kwh.get(c, 0.0)) for c in shared[1:])) > 0.0
     _mecs_purchased_kwh_cached.cache_clear()
 
 
 def test_two_pool_identities_and_class_total() -> None:
-    bills = pd.Series(
+    electricity_purchases = pd.Series(
         {
             _MFG_A: 600.0,
             _MFG_B: 200.0,
@@ -356,16 +390,18 @@ def test_two_pool_identities_and_class_total() -> None:
         'bedrock.transform.eeio.electricity_gtd_allocation.io_manufacturing_purchased_kwh',
         return_value=io_kwh,
     ):
-        mecs = _allocate(bills, industrial_weights='mecs')
-        dollars = _allocate(bills, industrial_weights='dollars')
+        mecs = _allocate(electricity_purchases, industrial_weights='mecs')
+        dollars = _allocate(electricity_purchases, industrial_weights='dollars')
     industrial = mecs.end_use_class == 'Industrial'
     assert float(mecs.mwh[industrial].sum()) == pytest.approx(
         float(dollars.mwh[industrial].sum())
     )
     assert float(mecs.mwh[industrial].sum()) == pytest.approx(industrial_t)
-    mfg_bills = 600.0 + 200.0
-    ind_bills = mfg_bills + 200.0 + 100.0
-    pool_mfg = industrial_t * mfg_bills / ind_bills
+    mfg_electricity_purchases = 600.0 + 200.0
+    industrial_electricity_purchases = mfg_electricity_purchases + 200.0 + 100.0
+    pool_mfg = (
+        industrial_t * mfg_electricity_purchases / industrial_electricity_purchases
+    )
     pool_res = industrial_t - pool_mfg
     assert float(mecs.mwh[_MFG_A]) == pytest.approx(pool_mfg * 3.0 / 4.0)
     assert float(mecs.mwh[_MFG_B]) == pytest.approx(pool_mfg * 1.0 / 4.0)
@@ -385,7 +421,7 @@ def test_two_pool_identities_and_class_total() -> None:
 
 
 def test_dollars_path_does_not_load_mecs() -> None:
-    bills = pd.Series(
+    electricity_purchases = pd.Series(
         {
             _MFG_A: 100.0,
             _RES_AG: 50.0,
@@ -398,12 +434,12 @@ def test_dollars_path_does_not_load_mecs() -> None:
     with patch(
         'bedrock.transform.eeio.electricity_gtd_allocation.mecs_purchased_kwh'
     ) as mecs_mock:
-        _allocate(bills, industrial_weights='dollars')
+        _allocate(electricity_purchases, industrial_weights='dollars')
         mecs_mock.assert_not_called()
 
 
 def test_manufacturing_kwh_sum_zero_falls_back_to_dollars_inside_mfg() -> None:
-    bills = pd.Series(
+    electricity_purchases = pd.Series(
         {
             _MFG_A: 80.0,
             _MFG_B: 20.0,
@@ -418,15 +454,17 @@ def test_manufacturing_kwh_sum_zero_falls_back_to_dollars_inside_mfg() -> None:
         'bedrock.transform.eeio.electricity_gtd_allocation.io_manufacturing_purchased_kwh',
         return_value=pd.Series({_MFG_A: 0.0, _MFG_B: 0.0}, dtype=float),
     ):
-        mecs = _allocate(bills, industrial_weights='mecs')
-        dollars = _allocate(bills, industrial_weights='dollars')
+        mecs = _allocate(electricity_purchases, industrial_weights='mecs')
+        dollars = _allocate(electricity_purchases, industrial_weights='dollars')
     assert float(mecs.mwh[_MFG_A]) == pytest.approx(float(dollars.mwh[_MFG_A]))
     assert float(mecs.mwh[_MFG_B]) == pytest.approx(float(dollars.mwh[_MFG_B]))
     assert float(mecs.mwh[_RES_AG]) == pytest.approx(float(dollars.mwh[_RES_AG]))
 
 
-def test_zero_residual_bills_assign_industrial_mwh_to_manufacturing() -> None:
-    bills = pd.Series(
+def test_zero_residual_electricity_purchases_assign_industrial_mwh_to_manufacturing() -> (
+    None
+):
+    electricity_purchases = pd.Series(
         {
             _MFG_A: 200.0,
             _RES_AG: -10.0,
@@ -440,15 +478,15 @@ def test_zero_residual_bills_assign_industrial_mwh_to_manufacturing() -> None:
         'bedrock.transform.eeio.electricity_gtd_allocation.io_manufacturing_purchased_kwh',
         return_value=pd.Series({_MFG_A: 5.0}, dtype=float),
     ):
-        mecs = _allocate(bills, industrial_weights='mecs')
+        mecs = _allocate(electricity_purchases, industrial_weights='mecs')
     industrial = mecs.end_use_class == 'Industrial'
     assert float(mecs.mwh[industrial].sum()) == pytest.approx(400.0)
     assert float(mecs.mwh[_MFG_A]) == pytest.approx(400.0)
     assert float(mecs.mwh[_RES_AG]) == pytest.approx(0.0)
 
 
-def test_industrial_clip0_sum_zero_hard_errors() -> None:
-    bills = pd.Series(
+def test_industrial_nonnegative_use_sum_zero_hard_errors() -> None:
+    electricity_purchases = pd.Series(
         {
             _MFG_A: -5.0,
             _RES_AG: 0.0,
@@ -459,7 +497,7 @@ def test_industrial_clip0_sum_zero_hard_errors() -> None:
         dtype=float,
     )
     with pytest.raises(ValueError, match='cannot split'):
-        _allocate(bills, industrial_weights='mecs')
+        _allocate(electricity_purchases, industrial_weights='mecs')
 
 
 def test_mecs_purchased_kwh_returns_copy() -> None:
