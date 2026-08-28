@@ -248,7 +248,7 @@ These are spot checks on three lines, not a fitted result.
 | CIPI column total | NIPA T1.1.5 line 14 | Free, exact, already extracted |
 | CIPI by holding industry, nonfarm | `U50705BU1` | **Already extracted 2012–2024, unused** |
 | Stage-of-fabrication split, durable/nondurable | `U50705BU1` lines 29–37 | **Already extracted, unused** |
-| Farm CIPI level | NIPA 5.7.5B, table id `T50705B` | **Not extracted, but confirmed available.** Farm is `B018RC` line 2 at **−5,679** in 2017 — exactly the figure §Farm infers — and the CIPI control total `A014RC` is line 1 at 32,674. Farm plus nonfarm ties to it. Adding `T50705B` to `BEA_NIPA.yaml`'s table list is the whole job |
+| Farm CIPI level | NIPA 5.7.5B, table id `T50705B` | ✅ **EXTRACTED.** Farm is `B018RC` line 2 at **−5,679** in 2017 — the figure §Farm used to infer — and the CIPI control total `A014RC` is line 1 at 32,674. Farm plus nonfarm ties to it |
 | Farm commodity split | `USDA_ERS_FIWS` `Inventory` variable | **Already in bedrock**, unused for this — see §Farm |
 | Finished goods / WIP → commodity | Step 4a commodity mix; 2017 Supply table | Published for 2017 — ⚠️ **use the nowcast year's mix once Step 4a builds one**, see below |
 | M&S manufacturing → commodity | Step 3 intermediate column; 2017 Use table | Published for 2017 |
@@ -787,6 +787,14 @@ that is one commodity for a three-sector block.
 
 ## The mining branch — sources found, deferred to #660
 
+⚠️ **Re-read this section knowing the failure mode INVERTED on 2026-08-28.** It
+was written when the branch was equal-allocated across every target sector. It
+now attributes on the product mix of the combined kind of business, which
+over-concentrates it: `211000` moved from −4,754 (under by 2,823) to **−12,137
+against a published −7,577** (over by 4,560). The sources below are still the
+answer; the problem they are solving is now over-concentration rather than
+absence of a rule.
+
 ⚠️ **Second priority.** The sources below are identified and probed; the build is
 deferred to [#660](https://github.com/cornerstone-data/bedrock/issues/660) —
 later in Phase 1 if there is time, otherwise Phase 2. Recorded here so the probe
@@ -879,6 +887,7 @@ there.
 | **EIA `petroleum/stoc/cu`** | crude oil | **annual** from 1936 | v2 API, `EIA_API_KEY` now in `.env` |
 | **EIA `natural-gas/stor/sum`** | natural gas | **annual** | v2 API |
 | **USGS Minerals Yearbook** | metal ores and industrial minerals | annual | 52 `USGS_MYB_*` extractors already in bedrock |
+| **`EIA_MineralStocks`** | ✅ **built 2026-08-27** (`8a625f40`), 2016 and 2017, levels checked against the benchmark | annual | the first of these actually wired |
 | Econ Census `ecnlifomine` | 6-digit NAICS, **beginning *and* end of year** | 2012/2017/2022 | not extracted; best 2017 cross-check |
 | AIES `basic` | — | — | ⛔ **ruled out.** Rows exist for NAICS 21/22/23 but **zero inventory values** |
 
@@ -909,24 +918,51 @@ to check the EIA-derived 2017 shape, not to set a level.
 
 ## Open questions
 
-1. **Trade crosswalk, or wait for #615?** The ~25-line version is cheap and
-   covers the column; the NAPCS concordance is the general solution and serves
-   margins too. Sequencing decision, not a data question.
-2. ~~**Rule for mining/utilities/construction**~~ — **sources identified,
-   deferred to [#660](https://github.com/cornerstone-data/bedrock/issues/660).**
-   The branch turns out to be mining-only in commodity space, and EIA MER plus
-   USGS Minerals Yearbook cover it annually. Second priority: return to it later
-   in Phase 1 if there is time, otherwise Phase 2. See §The mining branch.
+Reviewed 2026-08-28, after the column was built as a time series. **Two of the
+original five are now answered and one is settled**; four new ones arrived with
+the build.
+
+1. ~~**Trade crosswalk, or wait for #615?**~~ — **settled in favour of the cheap
+   version.** It is built and measured: 1,218 rows, 54 activities, reaching
+   **258 of 258 populated commodities and 100% of gross mass**. The #615 NAPCS
+   concordance question survives for margins, not for this column.
+2. **Rule for mining/utilities/construction** — **still open**, and the failure
+   mode has **inverted**. It is no longer an equal-allocation placeholder: the
+   branch now attributes on the product mix of that combined kind of business,
+   which over-concentrates it. `211000` went from −4,754 (under by 2,823) to
+   **−12,137 against a published −7,577** (over by 4,560).
+   ⚠️ **Abandoning NIPA line 2 was proposed and rejected** (2026-08-28): the
+   published column places **−9,398 of the −14,261, 66%, on mining commodities**
+   with no source needed, and the −4,863 residual is the industry-versus-
+   commodity axis rather than missing mass. See
+   [#660](https://github.com/cornerstone-data/bedrock/issues/660).
 3. **Which storable-goods filter** for the M&S manufacturing branch — a
    commodity-level goods/services flag, or port `EC1731MATFUEL` properly.
+   **Untouched.**
 4. ~~**Is the department-store/other-general-merchandise pair a
-   reclassification?**~~ — **yes, answered 2026-08-18.** Measured across every
-   published year: 2018-2024 always share a sign with gross equal to net, while
-   2017 alone has them opposed at 13.9x their own net. 2017 therefore takes
-   their parent, line 73. See `Inventories_2017.yaml`.
-5. **Splitting within farm crops and livestock** — 2017 detail shares, or FIWS
-   cash receipts by commodity? Same shape as #577's question, and probably wants
-   the same answer. **Also second priority, deferred to
-   [#660](https://github.com/cornerstone-data/bedrock/issues/660)**: the farm
-   level is published and settled, only the within-crops/livestock split is
-   open, and it governs -5,679.
+   reclassification?**~~ — **yes, answered 2026-08-18.** 2018-2024 always share
+   a sign with gross equal to net; 2017 alone has them opposed at 13.9x their
+   own net, so 2017 takes their parent, line 73.
+5. ~~**Splitting within farm crops and livestock**~~ — **answered 2026-08-28:
+   FIWS cash receipts**, reaching BEA through
+   `Sector_Crosswalk_USDA_ERS_FIWS_BEA.csv`, composed ERS → NAICS 2012 → BEA.
+   The group split above it uses ERS's published `Inventory change value`.
+
+### New with the build
+
+6. **`Other industries` has no rule** and is carried as **visibly unallocated**.
+   ⚠️ It is not small in every year: 3,537 in 2017 but **12,960 in 2020**
+   against a published column of −30,472. Same class as question 2 — one
+   published number, no sub-detail.
+7. **The selling trade industry is not retained** through attribution, and Step 6
+   needs it to distribute margins back to trade codes when converting Use to
+   producer prices. Retention rather than new data —
+   [#745](https://github.com/cornerstone-data/bedrock/issues/745).
+8. **The 2017 and 2022 census vintages are not on a comparable industry basis.**
+   NAICS 2022 restructured retail, so 2022 publishes 47 kinds of business
+   against 2017's 53 and `Department stores` has no counterpart. Anything the
+   later vintage does not publish currently **holds its 2017 share**; a proper
+   vintage bridge would replace that.
+9. **2024 is out of span.** ERS's farm change reads −9,744 against NIPA's +552 —
+   the only sign disagreement in 2012-2023 — and ERS's latest years are
+   forecasts the file carries **no flag** to detect, so the bound is hard-coded.
