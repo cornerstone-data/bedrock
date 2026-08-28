@@ -36,9 +36,17 @@ This file is **boundaries**. Implementer detail lives in a per-PR plan. Do not p
 
 ✅ **PR4 added 2026-08-27** — [`initial_sut_assembly_2026-08-27.plan.md`](initial_sut_assembly_2026-08-27.plan.md).
 PR1-PR3 built the balance and proved it on the **published 2017 panel**; PR4 gives it the
-nowcast's own blocks for 2017-2023 and shows the RAS converges on them. ⚠️ **It is blocked on
-`F03000` change in inventories for 2018-2023** — `derive_initial_Y_pur` has `if year == 2017`
-and every other year is all-zero, which would converge and mean nothing.
+nowcast's own blocks for 2017-2023 and shows the RAS converges on them.
+
+⚠️ **The stated blocker is half cleared, and the remaining half is one line — checked 2026-08-28.**
+`Inventories_<year>.yaml` now ships **2017-2023** ([#746](https://github.com/cornerstone-data/bedrock/pull/746)),
+so the method side is done. But [`nowcast.py`](../../../transform/eeio/nowcast.py) still reads
+`if year == 2017:` before it attaches `F03000`, so `derive_initial_Y_pur` **still returns an
+all-zero inventories column for 2018-2023** and its docstring still says so. The fix is the
+same shape as the line above it — an `INVENTORIES_YEARS = range(2017, 2024)` membership test,
+mirroring `TRADE_OVERLAY_YEARS`. ⚠️ **Until that lands, a 2018-2023 balance would converge on a
+seed with a structurally missing column and mean nothing** — which is exactly the failure the
+original blocker was written to prevent.
 
 [`plan.md`](../plan.md) recommendation: GRAS + KRAS-style soft layer, mask via offset. PR1 is GRAS. PR2 is the caller (**hard T1, T11–T17**). PR3 is the soft **mechanism** (blends + T4 closer). **Calibrated weights are not PR3** — starting `WEIGHTS` in `nowcast_targets.py` ship as-is.
 
