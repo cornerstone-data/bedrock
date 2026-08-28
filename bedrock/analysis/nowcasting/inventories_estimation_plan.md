@@ -410,19 +410,46 @@ able to borrow it.
 `U50705BU1` is nonfarm-only, so farm is a separate build. It is ≈ **−5,679** in 2017 against a
 32,674 total — **17% of the column**, and a build that omits it is silently wrong.
 
-**The level comes from NIPA, not USDA.** The one free thing about this column is that its total ties
-to NIPA CIPI exactly; sourcing farm elsewhere would break that identity for a piece that is published.
-Farm CIPI is simply **not extracted today** — `BEA_NIPA.yaml` carries `U50705BU1` (nonfarm underlying
-detail) but not the farm/nonfarm table. Adding **5.7.5B** to the table list replaces the inferred
-−5,679 with a published figure and closes this.
+✅ **The level is published AND extracted** (2026-08-27). `BEA_NIPA.yaml` now carries `T50705B`
+alongside `U50705BU1`, and the farm line is `B018RC`, line 2 — **−5,679 $M in 2017**, exactly the
+figure this section used to call "inferred". Nothing has to be inferred here any more.
 
-**The commodity split comes from ERS FIWS**, which already sits in bedrock as
-[`USDA_ERS_FIWS`](../../extract/usda/USDA_ERS_FIWS.yaml) — no API key, plain CSV. Its `Inventory`
-variable splits **`Crops` / `Livestock` / `Purchased inputs`**, national and state, **1939–2025**, and
-the existing parser already retains it (it builds `ActivityProducedBy` from the full variable list
-rather than filtering to expenses, so no parser change is needed).
+✅ **ERS publishes the CHANGE concept directly, and it is now extracted.** This section used to
+prescribe taking *structure* from the `Dec. 31 value of ... inventory` **stock** series and warn
+against differencing them. The warning is right; the prescription was unnecessary work.
+`Inventory change value` is published **1910–2025**, national and state, and was invisible only
+because `USDA_ERS_FIWS`'s `KEPT_CONCEPTS` filter dropped it.
 
-⚠️ **FIWS publishes stock levels, not changes — do not difference it and call the result CIPI.**
+⚠️ **The claim that "the existing parser already retains it, so no parser change is needed" was
+false** — the FBA carried **zero** inventory rows of any kind. One entry in `KEPT_CONCEPTS` fixed it.
+
+**Graded against the published NIPA farm line, 2012–2023:**
+
+| | |
+|---|---:|
+| correlation | **0.936** |
+| sign agreement | **12 of 13 years** |
+| mean absolute difference | 1,736 $M |
+| on a mean absolute level of | 7,409 $M |
+
+Against the stock-differencing route's ≈6× error, this is plainly the better instrument, and it is a
+published measurement of the concept rather than a reconstruction of it.
+
+⚠️ **2024 does not fit and must be excluded.** NIPA reads **+552 $M** against FIWS's **−9,744 $M** —
+the only sign disagreement in the span, and a 10.3bn gap. The February 2025 vintage's latest years are
+ERS *forecasts* rather than realized estimates, and **the file carries no flag distinguishing them**
+(the `Source` string is identical for every year), so the span has to be bounded in code rather than
+detected. Same caveat #577 records.
+
+⚠️ **The three rows NEST.** `All commodities` is the parent of `All crops` and `Animals and products`
+and equals their sum exactly — 2017: −7,108,016 + 1,056,304 = −6,051,712 ($1,000). Summing the FBA on
+the concept without filtering double-counts the farm column. Verified in the FBA at gap **0**.
+
+⚠️ **The change series carries no purchased-inputs component**, though the Dec. 31 stock series does.
+It is crops and livestock only — which is what the split needs, since the level comes from NIPA.
+
+⚠️ **The stock series is still the wrong instrument, and the original warning stands** — do not
+difference it and call the result CIPI:
 
 | $M | 2016 | 2017 | Δ |
 |---|---:|---:|---:|
@@ -436,9 +463,11 @@ Right sign, off by ≈6×. That gap is expected: a first difference of book-valu
 gains, which NIPA CIPI excludes via the inventory valuation adjustment. Differencing FIWS would import
 a price effect into a quantity concept.
 
-**So use FIWS the way §`MDTY` in [`plan.md`](plan.md) uses Census — structure from the source, level
-from NIPA.** FIWS supplies an annual, moving crops-vs-livestock split; the NIPA farm line sets the
-magnitude.
+**Use the published change series, with the level still from NIPA.** FIWS supplies an annual, moving
+crops-vs-livestock split that is itself a change measurement rather than a differenced stock; the NIPA
+farm line sets the magnitude, which keeps the column's tie to published CIPI exact. That is the same
+division §`MDTY` in [`plan.md`](plan.md) takes with Census — with the difference that the structure
+here now comes from the right concept.
 
 Two things fall out for free:
 
