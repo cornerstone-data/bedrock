@@ -155,6 +155,99 @@ ONE_TO_ONE_FD = ('F06C00', 'F07C00', 'F10C00', 'F06N00', 'F07N00', 'F10N00')
 #: two axes, and dropping it from both was a bug.
 EXCLUDED_COMMODITIES = ('S00900', '4200ID')
 
+#: Tier 0 exemptions. Columns whose 2017 zeros are **not** structural, because
+#: what a country trades changes from year to year.
+#:
+#: ⚠️ A structural zero here would assert that a commodity the US did not
+#: import in 2017 can never be imported, and that one it did not export cannot
+#: be exported. That is false as a matter of trade rather than arguable as a
+#: modelling choice: 2017's zero is one year's observation of a flow that moves.
+#: Measured on the 2017-seeded panel, holding these zeros made
+#: ``split_fixed_blocks`` raise on 20 Supply cells - ``339116 x MCIF`` at $522M,
+#: ``33211A x MCIF`` at $146M and 18 small ``MDTY`` cells - and on
+#: ``213111 x F04000`` at $771M on the Use side.
+#:
+#: Margin and tax columns are deliberately **not** exempt: their zeros mean a
+#: commodity bears no margin or no tax, which is a property of the commodity,
+#: and both columns have to net to zero for T15/T16. See #749 for the wider
+#: review of which Tier 0 zeros are justified.
+TRADE_FLOW_SUPPLY_COLUMNS = ('MCIF', 'MADJ', 'MDTY')
+
+#: Tier 0 exemption, Use side. Exports, for the same reason.
+TRADE_FLOW_USE_COLUMNS = ('F04000',)
+
+#: Commodities whose ``MCIF`` zero is **structure, not observation** - the
+#: wholesale and retail margin commodities, and customs duties.
+#:
+#: ✅ A wholesaler's or retailer's output *is* a trade margin, and a margin is
+#: not a thing that crosses a border: it is earned domestically on a good that
+#: may itself be imported, and the import is booked against that good. So these
+#: cannot be imported in any year, and the exemption above must not free them.
+#: All 20 carry a published 2017 ``MCIF`` of exactly zero, and 19 of them carry
+#: a large negative ``TRADE`` - they are the margin-*giving* side of the table.
+NEVER_IMPORTED_TRADE_COMMODITIES = (
+    '423100',
+    '423400',
+    '423600',
+    '423800',
+    '423A00',
+    '424200',
+    '424400',
+    '424700',
+    '424A00',
+    '425000',
+    '441000',
+    '444000',
+    '445000',
+    '446000',
+    '447000',
+    '448000',
+    '452000',
+    '454000',
+    '4B0000',
+    '4200ID',
+)
+
+#: Transport commodities BEA publishes at a zero ``MCIF``.
+#:
+#: ⚠️ **Weaker than the trade set, and a different kind of claim.** Water and
+#: rail freight genuinely are traded - IEA publishes them - so this is BEA's
+#: routing convention rather than an impossibility, and the tell is that the
+#: modes are *not* uniform: ``481000`` air carries 46,393, ``491000`` postal
+#: 289 and ``492000`` couriers 44, while these seven are exactly zero. Held
+#: because reproducing BEA is the job, but it should be confirmed against BEA's
+#: own treatment rather than inferred from one year - see #751.
+NEVER_IMPORTED_TRANSPORT_COMMODITIES = (
+    '482000',
+    '483000',
+    '484000',
+    '485000',
+    '486000',
+    '48A000',
+    '493000',
+)
+
+#: The guard that replaces the structural zero on ``MCIF`` (#749, #751). Freeing
+#: the whole column would let import mass land on a commodity that cannot be
+#: imported; freeing its complement keeps the observations free and the
+#: structure fixed.
+#:
+#: ✅ **The build is clean on this today** - ``Trade_Imports_2017`` puts nothing
+#: on any of the 27. That is worth stating because it is *not* what makes the
+#: guard unnecessary: the build is clean because the frozen 2017 ``MCIF``
+#: attribution weight is itself zero on these commodities, so the weight has
+#: been doing the guard's job by accident. Any change to that weight - which is
+#: exactly what #729 and #670 contemplate - removes the accident.
+#:
+#: ⚠️ The failure mode is already visible in a different form: ``BEA_IEA_imports``
+#: maps ``TransportRoadAndOth`` **only** to ``482000``, ``484000`` and ``486000``,
+#: all three of them here, so its ~$4B a year is silently dropped rather than
+#: misrouted. Fixing that crosswalk without this set in place would convert a
+#: drop into a misroute. See #670.
+NEVER_IMPORTED_COMMODITIES = (
+    NEVER_IMPORTED_TRADE_COMMODITIES + NEVER_IMPORTED_TRANSPORT_COMMODITIES
+)
+
 #: Tier 3, Supply side. Locked to their published sign per cell.
 SIGN_LOCKED_SUPPLY_COLUMNS = ('MADJ', 'TRADE ', 'TRANS', 'TOP', 'SUB')
 
@@ -277,8 +370,47 @@ def structural_zero_mask(
     On the Supply block this is the assertion that no industry produces a
     commodity it did not produce in 2017 - 3.1% density, so it is a large
     claim cheaply made.
+
+    ⚠️ **The trade-flow columns are exempt** - :data:`TRADE_FLOW_SUPPLY_COLUMNS`
+    and :data:`TRADE_FLOW_USE_COLUMNS`. A zero there is one year's observation
+    of a flow that moves annually, not a property of the commodity, so freezing
+    it asserts that what the US did not trade in 2017 it can never trade.
+
+    ⚠️ **The exemption stops at :data:`NEVER_IMPORTED_COMMODITIES`.** Some zeros
+    in ``MCIF`` are exactly the structure Tier 0 exists for - a trade margin
+    cannot be imported - so freeing the whole column would trade one error for
+    another. The complement is freed; those rows stay frozen.
     """
-    return _panel_or_default(block, panel) == 0
+    values = _panel_or_default(block, panel)
+    zeros = values == 0
+    exempt = TRADE_FLOW_SUPPLY_COLUMNS if block == 'supply' else TRADE_FLOW_USE_COLUMNS
+    present = [column for column in exempt if column in zeros.columns]
+    if present:
+        freed = pd.DataFrame(True, index=zeros.index, columns=present)
+        if block == 'supply' and 'MCIF' in present:
+            structural = [c for c in NEVER_IMPORTED_COMMODITIES if c in zeros.index]
+            freed.loc[structural, 'MCIF'] = False
+        zeros[present] = zeros[present] & ~freed
+    return zeros
+
+
+def never_imported_violations(mcif: pd.Series) -> pd.Series:
+    """Imports landing where :data:`NEVER_IMPORTED_COMMODITIES` forbids them.
+
+    The guard the mask cannot give, because a mask constrains the **balance**
+    and this has to catch the **build**. Returns the offending values, largest
+    first; empty when the vector is clean.
+
+    ✅ **Clean on the 2017 build today**, so this *can* be wired as a hard
+    assertion in ``derive_initial_supply_bridge`` rather than only reported.
+    Kept as a query for now because the trade crosswalk work in #670 / #729 is
+    in flight and will move import mass across these commodities; a gate that
+    lands mid-change is a gate that gets disabled.
+    """
+    codes = [code for code in NEVER_IMPORTED_COMMODITIES if code in mcif.index]
+    held = pd.to_numeric(mcif.reindex(codes), errors='coerce').fillna(0.0)
+    offending = held[held != 0.0]
+    return offending.reindex(offending.abs().sort_values(ascending=False).index)
 
 
 def fixed_value_mask(
