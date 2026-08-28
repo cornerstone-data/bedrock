@@ -557,30 +557,39 @@ def test_volume_allocations_are_identities_on_the_control_total() -> None:
         assert allocation.sum() == pytest.approx(1000.0)
 
 
-def test_the_difficulty_multiplier_changes_the_answer() -> None:
+def test_the_difficulty_multiplier_changes_the_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """
     Weighted ton-miles must differ from raw ton-miles, or the table is inert.
 
     BEA applies the multiplier *to* ton-miles rather than instead of them, so
     this pins that the weighting is actually reaching the allocation.
     """
-    flat = pd.Series(1.0, index=tm.load_difficulty_multipliers()['sctg']).rename_axis(
-        'sctg'
+    ton_miles = pd.Series({'bulk': 1.0, 'hard': 1.0}).rename_axis('sctg')
+    crosswalk = pd.DataFrame(
+        {'sctg': ['bulk', 'hard'], 'bea_2017_commodity': ['1111A0', '1111B0']}
     )
-    weighted = tm.water_allocation(2017)
+    basis = pd.Series({'1111A0': 1.0, '1111B0': 1.0})
+    multipliers = pd.DataFrame(
+        {
+            'sctg': ['bulk', 'hard'],
+            'water_multiplier': [1.0, 3.0],
+            'air_multiplier': [1.0, 1.0],
+        }
+    )
+    monkeypatch.setattr(tm, 'load_faf_ton_miles', lambda mode, year: ton_miles)
+    monkeypatch.setattr(tm, 'load_faf_sctg_crosswalk', lambda: crosswalk)
+    monkeypatch.setattr(tm, 'published_transport_by_commodity', lambda margins: basis)
+    monkeypatch.setattr(tm, 'load_difficulty_multipliers', lambda: multipliers)
 
-    ton_miles = tm.load_faf_ton_miles('Water', 2017)
-    shares = ton_miles / ton_miles.sum()
-    assert (
-        not shares.reindex(flat.index)
-        .fillna(0.0)
-        .equals(
-            (ton_miles * 2).div((ton_miles * 2).sum()).reindex(flat.index).fillna(0.0)
-            * 1.5
-        )
-    )
-    # the real check: water's top commodity ordering is not the raw ton-mile one
-    assert weighted.sum() == pytest.approx(tm.volume_mode_margin_2017('water'))
+    weighted = tm.volume_mode_allocation('water', control_total=100.0)
+
+    multipliers['water_multiplier'] = 1.0
+    unweighted = tm.volume_mode_allocation('water', control_total=100.0)
+
+    assert weighted['1111B0'] == pytest.approx(75.0)
+    assert unweighted['1111B0'] == pytest.approx(50.0)
 
 
 def test_five_modes_sum_to_the_published_column_in_aggregate() -> None:

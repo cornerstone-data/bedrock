@@ -138,7 +138,9 @@ def test_no_industry_is_weighted_to_zero(synthetic_weights: pd.DataFrame) -> Non
     assert synthetic_weights.loc['unobserved', 'applied'] == 1.0
 
 
-def test_the_coverage_floor_is_a_guard_not_a_selector() -> None:
+def test_the_coverage_floor_rejects_only_values_below_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """One percent, and it is deliberately not tuned.
 
     Graded on the 2012 -> 2017 holdout a 1% floor scores -10.016%, *identical*
@@ -147,4 +149,9 @@ def test_the_coverage_floor_is_a_guard_not_a_selector() -> None:
     because an industry QCEW observes at one part in a thousand is not being
     measured, which is an argument about the source rather than the score.
     """
-    assert COVERAGE_FLOOR == 0.01
+    coverage = pd.Series(
+        {'below': COVERAGE_FLOOR - 0.001, 'at': COVERAGE_FLOOR, 'above': 0.5}
+    )
+    monkeypatch.setattr(cm, 'qcew_coverage', lambda: coverage)
+
+    assert cm.unobserved_industries() == ('below',)

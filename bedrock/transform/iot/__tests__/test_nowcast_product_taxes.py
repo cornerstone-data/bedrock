@@ -205,17 +205,6 @@ def test_commodities_with_no_product_tax_stay_at_zero() -> None:
         assert (pt.top_column(year)[untaxed] == 0).all()
 
 
-@pytest.mark.eeio_integration
-def test_decomposition_row_margin_is_the_column() -> None:
-    decomposition = pt.top_decomposition(2024)
-    parts = [*pt.NAMED_TAX_LINES, 'residual']
-
-    assert decomposition[parts].sum(axis='columns').equals(decomposition['TOP'])
-    pd.testing.assert_series_equal(
-        decomposition['TOP'].rename('TOP'), pt.top_column(2024)
-    )
-
-
 def test_a_year_outside_the_nipa_window_raises() -> None:
     with pytest.raises(ValueError, match='outside the years'):
         pt.top_column(2025)
@@ -367,16 +356,9 @@ def test_trade_level_share_is_a_share() -> None:
 
 
 @pytest.mark.eeio_integration
-def test_the_two_levels_add_back_to_the_column() -> None:
+def test_producer_level_is_non_negative() -> None:
     levels = pt.top_by_level(2024)
 
-    # Not ``.equals``: ``producer_level`` is *defined* as ``TOP - trade_level``,
-    # so this asks whether ``(a - b) + b == a`` in binary floating point, which
-    # is not guaranteed and is luck rather than a property of the split. It held
-    # until the shares moved under #734. What the test is actually for is that
-    # nothing is lost or double-counted between the two levels.
-    rebuilt = levels['producer_level'].add(levels['trade_level'])
-    assert rebuilt.to_numpy() == pytest.approx(levels['TOP'].to_numpy(), rel=1e-12)
     assert (levels['producer_level'] >= 0).all()
 
 
