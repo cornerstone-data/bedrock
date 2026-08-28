@@ -13,7 +13,8 @@ by inflating or draining the row to meet the control.
 
 ⚠️ **A small share of the pool can be an enormous share of a row.** On the 2017
 build ``334610`` magnetic and optical media carries an ``MCIF`` excess of about
-10.2 B USD against an intermediate use of 2.3 B -- 448% of its own row.  Ranked
+10.2 B USD against an intermediate use of 2.3 B -- 281% of its own row once
+exports are netted against it.  Ranked
 against the 2.2 T USD import pool the same error is 0.5% and invisible.  This
 module ranks on the denominator that decides whether the balanced table is
 right.
@@ -30,13 +31,22 @@ Run from repo root::
 
 Writes under ``bedrock/analysis/nowcasting/trade_data/output/`` (gitignored).
 
-⚠️ **Read the two columns, not just the net.**  Roughly half the worst rows are
-driven by the **export** side, not by an import misroute.  ``336411`` aircraft
-carries an ``MCIF`` error of only +4.9 B against an ``F04000`` error of
-**-50.1 B**, so its 162% exposure is a missing export column and a product
-concordance would do nothing for it.  ``334118`` is wrong on both and they
-compound.  Check ``mcif_error_usd`` against ``f04000_error_usd`` before choosing
-an instrument.
+⚠️ **Read the two columns, not just the net.**  A large share of the worst rows
+are driven by the **export** side rather than by an import misroute --
+``334118`` is ``MCIF`` -15.0 B against ``F04000`` +21.1 B, wrong in both
+directions and compounding.  Check ``mcif_error_usd`` against
+``f04000_error_usd`` before choosing an instrument.
+
+❌ **The aircraft example this docstring used to give was a stale cache, not a
+finding.**  ``336411`` was reported at ``F04000`` -50.1 B and 162% exposure.
+Census publishes a residual code ``33641X`` carrying **121.0 B** of aircraft
+exports; the extractor learned to keep it in #720, but the cached FBA predated
+that fix and the FBS cache -- keyed on the *method* files, not on the FBA it
+consumes -- never rebuilt.  On a genuine rebuild ``336411`` is **+16.7 B and
+35%**, ``336413`` is 5%, and ``336*`` gross export error falls from 141.5 B to
+**85.3 B**.  ⚠️ Regenerating an FBA does **not** invalidate the FBS built on
+it; delete the FBS parquet and verify the rebuild, or the numbers will come
+back byte-identical and look like confirmation.
 
 Reading the three views
 -----------------------

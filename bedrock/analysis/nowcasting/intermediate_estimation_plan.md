@@ -529,9 +529,20 @@ All four are now [#701](https://github.com/cornerstone-data/bedrock/issues/701),
 - **[#606](https://github.com/cornerstone-data/bedrock/issues/606) is the single
   highest-value item in this area** — 29% of the exposure on its own — and the
   `EXTRA` lead above says where to start.
-- **The aircraft cluster is an exports problem, not an imports one.** `336411` /
+- ~~**The aircraft cluster is an exports problem, not an imports one.** `336411` /
   `336412` / `336413` are short 100,089 $M of exports between them, 39,395 of
-  exposure. One concordance, three commodities.
+  exposure. One concordance, three commodities.~~
+  ❌ **WITHDRAWN 2026-08-28 — this was a stale FBA cache, not a concordance gap.**
+  Census publishes a residual code `33641X` carrying **120,967 $M** of aircraft
+  exports. The extractor learned to keep it in #720 (`af6df6f2`, 2026-08-26), but
+  the cached FBA parquet predated the fix and the FBS cache — keyed on the method
+  files, not on the FBA it consumes — never rebuilt. On a genuine rebuild the
+  aircraft family carries **134,411 $M against 113,779 published** (was 13,444),
+  `336411`'s `F04000` error goes **−50,141 → +16,739** and its exposure **162% →
+  35%**, `336413` falls to 5%, and `336*` gross export error drops from 141,522
+  to **85,293 $M**. ⚠️ What remains is a genuine *within-family split* problem —
+  the level is right at 1.18 and the `T007` attribution over-allocates `336414`
+  (10,370 against 1,899 published) and under-allocates `336412`. See #670.
 - **`52A000` is the largest pure-imports error**: +30,983 on a published 6,646, a
   5.7× overstatement of financial service imports. ⚠️ Worth checking against the
   unapplied ITA goods-and-services scale
