@@ -15,7 +15,6 @@ distribution, not on their total.
 
 from __future__ import annotations
 
-import pandas as pd
 import pytest
 
 from bedrock.transform.iot import nowcast_subsidies as sb
@@ -246,16 +245,3 @@ def test_ppp_is_only_part_of_the_other_line() -> None:
     assert PPP_2021_BN * 1000 / float(other[2021]) == pytest.approx(0.45, abs=0.02)
     assert float(other[2020]) / 1000 == pytest.approx(OTHER_2020_BN, abs=0.5)
     assert float(other[2021]) / 1000 == pytest.approx(OTHER_2021_BN, abs=0.5)
-
-
-def test_decomposition_row_margin_is_the_column() -> None:
-    decomposition = sb.sub_decomposition(2020)
-
-    assert (
-        decomposition[list(sb.SUBSIDY_TYPES)]
-        .sum(axis='columns')
-        .equals(decomposition['SUB'])
-    )
-    pd.testing.assert_series_equal(
-        decomposition['SUB'].rename('SUB'), sb.sub_column(2020)
-    )

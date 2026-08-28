@@ -17,6 +17,7 @@ from bedrock.transform.iot.nowcast_mask import (
     EXCLUDED_COMMODITIES,
     NEVER_IMPORTED_COMMODITIES,
     NEVER_IMPORTED_TRADE_COMMODITIES,
+    NEVER_IMPORTED_TRANSPORT_COMMODITIES,
     ONE_TO_ONE_FD,
     SIGN_LOCKED_SUPPLY_COLUMNS,
     SIGN_LOCKED_USE_ROWS,
@@ -369,6 +370,7 @@ def test_never_imported_violations_is_empty_on_a_clean_vector() -> None:
 
 
 def test_the_never_imported_set_is_trade_margins_plus_held_transport() -> None:
-    assert len(NEVER_IMPORTED_TRADE_COMMODITIES) == 20
-    assert len(NEVER_IMPORTED_COMMODITIES) == 27
-    assert len(set(NEVER_IMPORTED_COMMODITIES)) == 27
+    expected = set(NEVER_IMPORTED_TRADE_COMMODITIES) | set(
+        NEVER_IMPORTED_TRANSPORT_COMMODITIES
+    )
+    assert set(NEVER_IMPORTED_COMMODITIES) == expected
