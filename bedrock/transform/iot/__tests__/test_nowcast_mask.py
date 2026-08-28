@@ -15,15 +15,20 @@ import pytest
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
     EXCLUDED_COMMODITIES,
+    NEVER_IMPORTED_COMMODITIES,
+    NEVER_IMPORTED_TRADE_COMMODITIES,
     ONE_TO_ONE_FD,
     SIGN_LOCKED_SUPPLY_COLUMNS,
     SIGN_LOCKED_USE_ROWS,
     SUPPLY_BRIDGE_COLUMNS,
+    TRADE_FLOW_SUPPLY_COLUMNS,
+    TRADE_FLOW_USE_COLUMNS,
     VA_ROWS,
     balance_commodities,
     balance_industries,
     build_sut_mask,
     fixed_value_mask,
+    never_imported_violations,
     panel_labels,
     sign_lock_mask,
     structural_zero_mask,
@@ -292,3 +297,78 @@ def test_the_one_to_one_columns_are_the_six_the_plan_names() -> None:
 def test_unknown_block_raises() -> None:
     with pytest.raises(ValueError, match='use or supply'):
         panel_labels('intermediate')  # type: ignore[arg-type]
+
+
+def test_trade_flow_columns_are_exempt_from_structural_zeros() -> None:
+    """What the US did not trade in 2017 it may still trade later (#749).
+
+    The zeros in these columns are one year's observation of a flow that moves,
+    not a property of the commodity, so freezing them would make a later year's
+    genuine import or export an unrepresentable cell.
+    """
+    supply = _supply_panel()
+    zeros = structural_zero_mask('supply', supply)
+    for column in TRADE_FLOW_SUPPLY_COLUMNS:
+        if column in zeros.columns:
+            assert not zeros[column].any(), column
+
+    use = _use_panel()
+    use_zeros = structural_zero_mask('use', use)
+    for column in TRADE_FLOW_USE_COLUMNS:
+        if column in use_zeros.columns:
+            assert not use_zeros[column].any(), column
+
+
+def test_margin_and_tax_zeros_stay_structural() -> None:
+    """The exemption is trade flows only - a margin zero is a real property."""
+    supply = _supply_panel()
+    supply.loc['111130', 'TRADE '] = 0.0
+    zeros = structural_zero_mask('supply', supply)
+    assert bool(zeros.loc['111130', 'TRADE '])
+
+
+def test_the_exempt_columns_are_flows_not_margins() -> None:
+    assert set(TRADE_FLOW_SUPPLY_COLUMNS) == {'MCIF', 'MADJ', 'MDTY'}
+    assert set(TRADE_FLOW_USE_COLUMNS) == {'F04000'}
+
+
+def test_never_imported_commodities_keep_their_mcif_structural_zero() -> None:
+    """The exemption must not free a commodity that cannot be imported (#751).
+
+    A wholesaler's output is a margin, and a margin does not cross a border.
+    Freeing the whole `MCIF` column would let import mass land there.
+    """
+    supply = _supply_panel()
+    held = NEVER_IMPORTED_TRADE_COMMODITIES[0]
+    supply.loc[held] = 0.0
+    supply.loc['111120', 'MCIF'] = 0.0
+    zeros = structural_zero_mask('supply', supply)
+    # the never-imported row stays frozen ...
+    assert bool(zeros.loc[held, 'MCIF'])
+    # ... while an ordinary commodity's MCIF zero is freed
+    assert not bool(zeros.loc['111120', 'MCIF'])
+
+
+def test_never_imported_violations_reports_offenders_largest_first() -> None:
+    mcif = pd.Series(
+        {
+            '483000': 28_361.0,
+            '425000': 2_234.0,
+            '441000': 0.0,
+            '111120': 9_999.0,
+        }
+    )
+    offending = never_imported_violations(mcif)
+    assert list(offending.index) == ['483000', '425000']
+    assert '111120' not in offending.index
+
+
+def test_never_imported_violations_is_empty_on_a_clean_vector() -> None:
+    mcif = pd.Series({code: 0.0 for code in NEVER_IMPORTED_COMMODITIES})
+    assert never_imported_violations(mcif).empty
+
+
+def test_the_never_imported_set_is_trade_margins_plus_held_transport() -> None:
+    assert len(NEVER_IMPORTED_TRADE_COMMODITIES) == 20
+    assert len(NEVER_IMPORTED_COMMODITIES) == 27
+    assert len(set(NEVER_IMPORTED_COMMODITIES)) == 27
