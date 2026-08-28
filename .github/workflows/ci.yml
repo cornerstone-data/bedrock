@@ -130,4 +130,4 @@ jobs:
         env:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
-          uv run pytest
+          uv run pytest --durations=25
