@@ -175,6 +175,24 @@ rows for final demand, value added and inventories retain `Table` / `Line` /
 key, so `supply_mix`'s `k` is measured off the summary→detail crosswalk instead
 and `F04000`'s is declared. `--check` prints which blocks are which.
 
+![Use table provenance](images/use_table_provenance_2017.png)
+
+![Supply table provenance](images/supply_table_provenance_2017.png)
+
+**How to read them.** Each table is drawn in its own geometry: the Use table
+puts final demand to the right of the intermediate interior and value added
+underneath it; the Supply table puts the bridge to the right of the
+domestic-output mix. Both axes are grouped into contiguous sector bands, as
+§Step 3's map is. ⚠️ **The thin blocks are not to scale** — value added is 5
+rows drawn at the height of about 20, or it would be invisible.
+
+**What to look at first.** The `V00300` and `T00OTOP` rows of the value-added
+strip are a flat, uniform pale green across all 402 industries: one datum each,
+spread everywhere. `V00100` directly above them is mottled with dark cells,
+which is a movement series with cell-specific evidence in it. In the final
+demand panel the government equipment columns are solid pale blocks, and
+`F03000` is the one column carrying visible purple.
+
 ### The table
 
 Subtotals (`T013`-`T016`) are excluded: they are their components summed, so

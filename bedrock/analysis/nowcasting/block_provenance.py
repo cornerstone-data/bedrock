@@ -97,8 +97,11 @@ STATE_NAMES = {
 ABSENT_COLOR = '#ffffff'
 MISSING_COLOR = '#6a3d9a'
 CARRIED_COLOR = '#8e99a8'
-#: ``(k = RAMP_TOP, k = 1)`` -- the dark end is the specific end.
-ALLOCATED_RAMP = ('#56c98a', '#052e16')
+#: ``(k = 1, k = RAMP_TOP)`` -- dark is specific, exactly as
+#: :data:`seed_coverage.SEEDED_RAMP`, and the same two hex values in the same
+#: order.  ``PRIMARY`` is the dark end of this ramp rather than a sixth colour:
+#: it and ``ALLOCATED`` are one measurement, so they share one scale.
+ALLOCATED_RAMP = ('#052e16', '#56c98a')
 
 #: Where the ``k`` ramp saturates.  Above this a datum is diffuse enough that
 #: more of it changes nothing about how the cell should be read.
@@ -482,6 +485,291 @@ def summary(block: str, year: int = DEFAULT_YEAR) -> pd.DataFrame:
         )
         rows.append(entry)
     return pd.DataFrame(rows).set_index('column')
+
+
+# ------------------------------------------------------------------- colour
+
+
+def _hex_to_rgb(value: str) -> np.ndarray:
+    raw = value.lstrip('#')
+    return np.array([int(raw[i : i + 2], 16) / 255 for i in (0, 2, 4)])
+
+
+def _swatch(rgb: np.ndarray) -> tuple[float, float, float]:
+    """An RGB triple matplotlib's ``Patch`` will accept as a facecolor."""
+    r, g, b = (float(v) for v in rgb[:3])
+    return r, g, b
+
+
+def ramp_position(k: np.ndarray) -> np.ndarray:
+    """``k`` -> 0..1 along the ramp, logarithmic, saturating at :data:`RAMP_TOP`.
+
+    Identical to :func:`seed_coverage.ramp_position` so a green here and a
+    green there mean the same fan-out.
+    """
+    clipped = np.clip(np.nan_to_num(k, nan=1.0), 1.0, RAMP_TOP)
+    return np.log(clipped) / np.log(RAMP_TOP)
+
+
+def state_rgb(state: np.ndarray, k: np.ndarray) -> np.ndarray:
+    """RGB raster for a ``(state, k)`` pair, shape ``(..., 3)``."""
+    out = np.empty((*state.shape, 3), dtype=float)
+    out[...] = _hex_to_rgb(ABSENT_COLOR)
+    out[state == MISSING] = _hex_to_rgb(MISSING_COLOR)
+    out[state == CARRIED] = _hex_to_rgb(CARRIED_COLOR)
+    graded = (state == ALLOCATED) | (state == PRIMARY)
+    if graded.any():
+        lo, hi = (_hex_to_rgb(c) for c in ALLOCATED_RAMP)
+        position = ramp_position(k[graded])[..., None]
+        out[graded] = lo + (hi - lo) * position
+    return out
+
+
+# ------------------------------------------------------------------- figures
+
+
+#: ``table -> (interior block, trailing block, trailing axis)``.  Drawn in the
+#: table's own geometry: the Use table puts final demand to the right of the
+#: intermediate interior and value added underneath it; the Supply table puts
+#: the bridge to the right of the domestic-output mix.
+TABLES: dict[str, dict[str, str]] = {
+    'use': {
+        'interior': 'intermediate',
+        'right': 'final_demand',
+        'below': 'value_added',
+    },
+    'supply': {'interior': 'supply_mix', 'right': 'supply_bridge'},
+}
+
+
+def _intermediate_state() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Step 3's map, mapped onto this module's five states.
+
+    ``seed_coverage`` predates the ``primary`` / ``allocated`` split and calls
+    both ``SEEDED``; the split is just ``N == 1``, so no re-measurement is
+    needed -- only a relabel.
+    """
+    from bedrock.analysis.nowcasting import seed_coverage as sc  # noqa: PLC0415
+
+    n = sc.fanout()
+    status = sc.status()
+    state = pd.DataFrame(
+        np.full(n.shape, ABSENT, dtype=int), index=n.index, columns=n.columns
+    )
+    state[status == sc.CARRIED] = CARRIED
+    seeded = status == sc.SEEDED
+    state[seeded & (n <= 1.0)] = PRIMARY
+    state[seeded & (n > 1.0)] = ALLOCATED
+    return state, n
+
+
+def _panel(block: str, year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if block == 'intermediate':
+        return _intermediate_state()
+    return provenance(block, year)
+
+
+def render(
+    table: str = 'use',
+    path: Path | None = None,
+    dpi: int = 200,
+    year: int = DEFAULT_YEAR,
+) -> Path:
+    """Draw one table's provenance in its own geometry and write it to *path*."""
+    import matplotlib  # noqa: PLC0415
+
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+    from matplotlib.patches import Patch  # noqa: PLC0415
+
+    from bedrock.analysis.nowcasting.seed_coverage import (  # noqa: PLC0415
+        _spread,
+        band_order,
+    )
+
+    spec = TABLES[table]
+    interior_state, interior_k = _panel(spec['interior'], year)
+    rows, row_spans = band_order(interior_state.index)
+    columns, column_spans = band_order(interior_state.columns)
+    interior_state = interior_state.reindex(index=rows, columns=columns)
+    interior_k = interior_k.reindex(index=rows, columns=columns)
+
+    right_state, right_k = _panel(spec['right'], year)
+    right_state = right_state.reindex(index=rows)
+    right_k = right_k.reindex(index=rows)
+
+    has_below = 'below' in spec
+    if has_below:
+        below_state, below_k = _panel(spec['below'], year)
+        below_state = below_state.reindex(columns=columns)
+        below_k = below_k.reindex(columns=columns)
+
+    n_int, n_right = len(columns), len(right_state.columns)
+    # A trailing column needs roughly four interior columns' worth of pixels
+    # before its code label is legible; at 1:1 the 19 final-demand codes come
+    # out as an unreadable smear.
+    width_ratios = [n_int, max(n_right * 4, int(n_int * 0.10))]
+    height_ratios = [len(rows), max(int(len(rows) * 0.055), 12)] if has_below else None
+
+    figure = plt.figure(figsize=(15.0, 13.0 if has_below else 12.0))
+    grid = figure.add_gridspec(
+        2 if has_below else 1,
+        2,
+        width_ratios=width_ratios,
+        height_ratios=height_ratios,
+        wspace=0.035,
+        hspace=0.045,
+    )
+
+    def draw(axes: plt.Axes, state: pd.DataFrame, k: pd.DataFrame, title: str) -> None:
+        axes.imshow(
+            state_rgb(state.to_numpy(), k.to_numpy(float)),
+            interpolation='nearest',
+            aspect='auto',
+            origin='upper',
+        )
+        axes.set_xticks([])
+        axes.set_yticks([])
+        axes.set_title(title, fontsize=10.5, pad=6)
+        for spine in axes.spines.values():
+            spine.set_edgecolor('#9ca3af')
+
+    ax_int = figure.add_subplot(grid[0, 0])
+    draw(ax_int, interior_state, interior_k, '')
+    for _, start, _ in row_spans[1:]:
+        ax_int.axhline(start - 0.5, color='#1f2937', linewidth=0.6, alpha=0.55)
+    for _, start, _ in column_spans[1:]:
+        ax_int.axvline(start - 0.5, color='#1f2937', linewidth=0.6, alpha=0.55)
+    ax_int.set_ylabel('←  commodity', labelpad=10)
+    ax_int.set_title(
+        (
+            'intermediate use  (Step 3)'
+            if table == 'use'
+            else 'domestic output  (Step 4a)'
+        ),
+        fontsize=10.5,
+        pad=6,
+    )
+
+    n_rows = len(rows)
+    label_y = _spread(
+        [(a + b) / 2 - 0.5 for _, a, b in row_spans], n_rows * 0.042, n_rows
+    )
+    for (name, a, b), y in zip(row_spans, label_y, strict=True):
+        ax_int.annotate(
+            name,
+            xy=(-0.004, (a + b) / 2 - 0.5),
+            xytext=(-0.10, y),
+            xycoords=('axes fraction', 'data'),
+            textcoords=('axes fraction', 'data'),
+            ha='right',
+            va='center',
+            fontsize=9,
+            arrowprops={'arrowstyle': '-', 'color': '#9ca3af', 'linewidth': 0.7},
+        )
+
+    ax_right = figure.add_subplot(grid[0, 1], sharey=ax_int)
+    draw(
+        ax_right,
+        right_state,
+        right_k,
+        'final demand  (Step 1)' if table == 'use' else 'bridge  (Step 4)',
+    )
+    ax_right.set_xticks(range(len(right_state.columns)))
+    ax_right.set_xticklabels(
+        [str(c) for c in right_state.columns], rotation=90, fontsize=6.5
+    )
+    for _, start, _ in row_spans[1:]:
+        ax_right.axhline(start - 0.5, color='#1f2937', linewidth=0.6, alpha=0.55)
+
+    if has_below:
+        ax_below = figure.add_subplot(grid[1, 0], sharex=ax_int)
+        draw(ax_below, below_state, below_k, '')
+        ax_below.set_yticks(range(len(below_state.index)))
+        ax_below.set_yticklabels([str(r) for r in below_state.index], fontsize=7)
+        ax_below.set_xlabel('industry  →', labelpad=42)
+        ax_below.set_ylabel('value added\n(Step 2)', fontsize=9, labelpad=10)
+        for _, start, _ in column_spans[1:]:
+            ax_below.axvline(start - 0.5, color='#1f2937', linewidth=0.6, alpha=0.55)
+    else:
+        ax_int.set_xlabel('industry  →', labelpad=42)
+
+    bottom = ax_below if has_below else ax_int
+    label_x = _spread(
+        [(a + b) / 2 - 0.5 for _, a, b in column_spans], n_int * 0.075, n_int
+    )
+    for position, ((name, a, b), x) in enumerate(
+        zip(column_spans, label_x, strict=True)
+    ):
+        bottom.annotate(
+            name,
+            xy=((a + b) / 2 - 0.5, -0.01),
+            xytext=(x, -0.055 if position % 2 == 0 else -0.105),
+            xycoords=('data', 'axes fraction'),
+            textcoords=('data', 'axes fraction'),
+            ha='center',
+            va='top',
+            fontsize=9,
+            arrowprops={'arrowstyle': '-', 'color': '#9ca3af', 'linewidth': 0.7},
+        )
+
+    lo, hi = (_hex_to_rgb(c) for c in ALLOCATED_RAMP)
+    handles = [
+        Patch(facecolor=_swatch(lo), edgecolor='#9ca3af', label='primary  (k = 1)'),
+        Patch(
+            facecolor=_swatch(lo + (hi - lo) * 0.5),
+            edgecolor='#9ca3af',
+            label='allocated  (k ≈ 8)',
+        ),
+        Patch(
+            facecolor=_swatch(hi),
+            edgecolor='#9ca3af',
+            label=f'allocated  (k ≥ {RAMP_TOP:.0f})',
+        ),
+        Patch(
+            facecolor=_swatch(_hex_to_rgb(CARRIED_COLOR)),
+            edgecolor='#9ca3af',
+            label='carried',
+        ),
+        Patch(
+            facecolor=_swatch(_hex_to_rgb(MISSING_COLOR)),
+            edgecolor='#9ca3af',
+            label='missing',
+        ),
+        Patch(
+            facecolor=_swatch(_hex_to_rgb(ABSENT_COLOR)),
+            edgecolor='#9ca3af',
+            label='absent',
+        ),
+    ]
+    figure.legend(
+        handles=handles,
+        loc='lower center',
+        ncol=6,
+        frameon=False,
+        fontsize=9,
+        bbox_to_anchor=(0.5, 0.012 if has_below else -0.045),
+    )
+    figure.suptitle(
+        f'{table.capitalize()} table {year} — where each cell comes from',
+        fontsize=15,
+        y=0.965,
+    )
+    figure.text(
+        0.5,
+        0.935,
+        'darker green = fewer cells share the source datum.  '
+        'The thin blocks are not to scale.',
+        ha='center',
+        fontsize=9.5,
+        color='#4b5563',
+    )
+
+    path = path or IMAGE_DIR / f'{table}_table_provenance_{year}.png'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(path, dpi=dpi, bbox_inches='tight', facecolor='white')
+    plt.close(figure)
+    return path
 
 
 def check(year: int = DEFAULT_YEAR) -> int:
