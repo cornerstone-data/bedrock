@@ -869,7 +869,9 @@ def render_block(
         fontsize=9,
         bbox_to_anchor=(0.5, -0.005),
     )
-    axes.set_ylabel('←  commodity', labelpad=10)
+    # Value added is transposed by the block above, so its long axis is the
+    # industry, not the commodity every other block puts there.
+    axes.set_ylabel('←  industry' if on_rows else '←  commodity', labelpad=10)
     figure.suptitle(
         f'{block.replace("_", " ").capitalize()} {year} — where each cell comes from',
         fontsize=13,

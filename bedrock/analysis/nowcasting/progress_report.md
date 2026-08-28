@@ -256,6 +256,66 @@ which is exactly what a QCEW-driven movement series should look like.
 at 8.1% *and* uninformative on provenance. When a row is both, the problem is
 the method, not the grader.
 
+### Final demand, on its own
+
+![Final demand provenance](images/final_demand_provenance_2017.png)
+
+| code | primary | allocated | missing | absent | $M | median `k` | primary $ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `F01000` PCE | **56** | 203 | 0 | 143 | 13,718,607 | 3 | **61%** |
+| `F02E00` | 1 | 106 | 0 | 295 | 1,373,369 | 7 | 1% |
+| `F02N00` | 1 | 13 | 1 | 387 | 906,246 | 3 | 48% |
+| `F02R00` | 4 | 15 | 1 | 382 | 772,526 | 11 | **77%** |
+| `F02S00` | **9** | 2 | 1 | 390 | 600,073 | **1** | **84%** |
+| **`F03000`** | 2 | 159 | **98** | 143 | 91,193 | 7 | 1% |
+| **`F04000`** | 0 | 302 | **43** | 57 | 2,211,333 | 4 | 0% |
+| `F06C00` | 1 | 0 | 0 | 401 | 599,358 | **1** | **100%** |
+| `F06E00` | 0 | 54 | 0 | 348 | 77,264 | **54** | 0% |
+| `F06N00` | 1 | 3 | 0 | 398 | 63,714 | 3 | 79% |
+| `F06S00` | 0 | 11 | 0 | 391 | 7,964 | 11 | 0% |
+| `F07C00` | 1 | 0 | 0 | 401 | 379,143 | **1** | **100%** |
+| `F07E00` | 0 | 68 | 0 | 334 | 19,203 | **68** | 0% |
+| `F07N00` | 1 | 3 | 0 | 398 | 109,262 | 3 | 74% |
+| `F07S00` | 0 | 8 | 0 | 394 | 15,527 | 8 | 0% |
+| `F10C00` | 0 | 3 | 0 | 399 | 1,737,213 | 3 | 0% |
+| `F10E00` | 0 | 72 | 0 | 330 | 73,200 | **72** | 0% |
+| `F10N00` | 1 | 3 | 0 | 398 | 44,768 | 3 | 48% |
+| `F10S00` | 0 | 11 | 0 | 391 | 304,902 | 11 | 0% |
+
+⚠️ **The two columns with missing cells are the two the match table also
+faults** — `F03000`'s 98 and `F04000`'s 43 are the 141 of 144 misses §Step 1
+attributes to them. This is the one place the two views agree.
+
+✅ **`F02S00` and the two `*C00` structures columns are the best-evidenced in
+the block** — median `k = 1`, 84-100% of dollars primary. They are also small.
+
+⚠️ **`F10C00` is 1.7T at `k = 3` with 0% primary**, the largest column in the
+block after PCE, and every dollar of it is allocated.
+
+### Value added, on its own
+
+![Value added provenance](images/value_added_provenance_2017.png)
+
+Transposed relative to the others — the 402 industries run down the page and the
+five value-added codes across it.
+
+| row | primary | allocated | missing | absent | $M | median `k` | primary $ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `V00100` compensation | **17** | 383 | 0 | 2 | 10,434,980 | 11 | **15%** |
+| `T00OTOP` other taxes | 0 | 389 | 0 | 13 | 608,533 | **389** | 0% |
+| `V00300` surplus | 0 | 400 | 0 | 2 | 7,946,864 | **400** | 0% |
+| `T00TOP` product taxes | 0 | 380 | 1 | 21 | 755,438 | 20 | 0% |
+| `T00SUB` subsidies | 0 | 16 | 0 | 386 | 59,875 | 8 | 0% |
+
+✅ **`V00100` is the only column in the whole block with a visible texture**,
+and the figure shows why: its shading varies band by band, because the 69 NIPA
+control groups are coarse over manufacturing and fine over parts of services and
+transportation. Every other row is a flat wash.
+
+⚠️ **`T00OTOP` and `V00300` are literally uniform** — one datum each, `k = 389`
+and `k = 400`. There is no cell in either row that any source observes
+individually, and both score 100% on the 2017 match.
+
 ### The supply bridge, on its own
 
 ⚠️ **The bridge is a tenth of the supply figure's width, which is enough to see
