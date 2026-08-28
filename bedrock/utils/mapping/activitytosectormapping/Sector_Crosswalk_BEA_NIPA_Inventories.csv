@@ -1217,3 +1217,13 @@ BEA_NIPA,Farm,BEA_2017_Code,112120,,Farm; NAICS 111; B018RC
 BEA_NIPA,Farm,BEA_2017_Code,1121A0,,Farm; NAICS 111; B018RC
 BEA_NIPA,Farm,BEA_2017_Code,112300,,Farm; NAICS 111; B018RC
 BEA_NIPA,Farm,BEA_2017_Code,112A00,,Farm; NAICS 111; B018RC
+BEA_NIPA,"Farm, crops",BEA_2017_Code,1111A0,,Farm crops; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, crops",BEA_2017_Code,1111B0,,Farm crops; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, crops",BEA_2017_Code,111200,,Farm crops; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, crops",BEA_2017_Code,111300,,Farm crops; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, crops",BEA_2017_Code,111400,,Farm crops; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, crops",BEA_2017_Code,111900,,Farm crops; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, livestock",BEA_2017_Code,112120,,Farm livestock; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, livestock",BEA_2017_Code,1121A0,,Farm livestock; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, livestock",BEA_2017_Code,112300,,Farm livestock; B018RC split on FIWS inventory change
+BEA_NIPA,"Farm, livestock",BEA_2017_Code,112A00,,Farm livestock; B018RC split on FIWS inventory change

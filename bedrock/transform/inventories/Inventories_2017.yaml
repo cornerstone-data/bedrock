@@ -5,7 +5,9 @@
 # three independent methods - NIPA_final_dom_uses (1A), Trade (1B) and
 # inventories (1C).
 #
-# ⚠️ PHASE 1 SCAFFOLDING - NOT YET RUNNABLE.
+# ✅ RUNNABLE as of 2026-08-27. The header below described the state before the
+# crosswalk and the PxI attribution were built; both exist now and the method
+# generates. What remains open is named in the activity sets themselves.
 # The line selection below is verified and complete. What is missing is the
 # industry -> commodity allocation, which is Phase 2/3 of
 # analysis/nowcasting/inventories_estimation_plan.md:
@@ -114,9 +116,23 @@ source_names:
         activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+        # Splits the single 'Farm' line into 'Farm, crops' and 'Farm, livestock'
+        # on ERS's own inventory-CHANGE concept, rescaled onto NIPA's total so
+        # the column's tie to published CIPI is unaffected. See the function.
+        clean_fba_before_mapping: !script_function:BEA_NIPA split_farm_by_fiws_inventory
         selection_fields:
           Table: T50705B  # Table 5.7.5B. Change in Private Inventories by Industry
           Line: 2         # B018RC "Farm"; line 1 is the CIPI control total
+        # ⚠️ WITHIN each group the split is currently EQUAL across that group's
+        # commodities, and that is the open piece of this branch. ERS publishes
+        # cash receipts by commodity - the farm analogue of PxI product-line
+        # sales - but Sector_Crosswalk_USDA_ERS_FIWS maps to NAICS while this
+        # target is BEA detail, so the receipts cannot weight it without a
+        # FIWS -> BEA commodity crosswalk. Building one is the next step; the
+        # group split below is the part that carries the annual movement.
+        #
+        # The plan records the same limit: two ERS groups against ten BEA
+        # agriculture commodities.
 
       # ---- Manufacturing, by stage of fabrication ----------------------
       # 818 in 2017, only 2% of nonfarm - the branch BEA describes in most
@@ -310,6 +326,16 @@ source_names:
 
       # ---- Other industries --------------------------------------------
       # 3,537, also published without sub-detail.
+      # ⚠️ VISIBLY UNALLOCATED, not silently dropped (Wes, 2026-08-27).
+      # 'Other industries' has no sub-detail in U50705BU1 and no row in
+      # Sector_Crosswalk_BEA_NIPA_Inventories, so it mapped to nothing and
+      # flowsa discarded the set with "Error, dataframe is empty" - 3,537 $M
+      # leaving the column with no trace in the output.
+      #
+      # It is kept here so the omission is legible in the method rather than
+      # only in a log line, and `--check` reports the shortfall by name. Giving
+      # it a rule is open question 2's sibling: like mining/utilities/
+      # construction, BEA publishes it as one number with no commodity detail.
       inventories_other:
         activity_to_sector_mapping: BEA_NIPA_Inventories
         clean_parameter: F03000

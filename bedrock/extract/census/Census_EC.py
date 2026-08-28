@@ -1055,6 +1055,87 @@ def normalize_pxi_product(description: pd.Series) -> pd.Series:
     )
 
 
+#: ⚠️ **Two NIPA trade lines have no kind of business in ``Census_EC_PxI`` at
+#: all**, so attributing them on it drops their whole value -- flowsa discards
+#: any target whose attribution denominator is zero, which cost the retail set
+#: its line-73 -3,281 (reported as a +18.3% *gain*, because dropping a negative
+#: raises a total) and the nonmerchant nondurable set its entire 483.
+#:
+#: Each is rebuilt from lines PxI does publish:
+#:
+#: ``General merchandise stores``
+#:     the sum of its two children, ``Department stores`` and ``Other general
+#:     merchandise stores``. ⚠️ The parent is used deliberately -- 2017 is a
+#:     NAICS revision year in which establishments moved between 4521 and 4529,
+#:     so the children carry +21,237 and -24,518 of reclassification against a
+#:     parent of -3,281 that sits inside every other year's range. Taking the
+#:     parent's *value* and the children's *product mix* keeps both.
+#:
+#: ``Nonmerchant wholesale, nondurable goods``
+#:     the sum of every NAICS 424 merchant wholesaler below. Agents and brokers
+#:     sell no product of their own, which is why PxI publishes none for them,
+#:     so the assumption is that **they broker what the merchants sell**. Stated
+#:     rather than measured (Wes, 2026-08-27); PxI does publish a nonmerchant
+#:     *durable* line, so only the nondurable half needs this.
+SYNTHETIC_PXI_LINES: dict[str, tuple[str, ...]] = {
+    'General merchandise stores': (
+        'Department stores',
+        'Other general merchandise stores',
+    ),
+    'Nonmerchant wholesale, nondurable goods': (
+        'Paper and paper products wholesalers',
+        "Drugs and druggists' sundries wholesalers",
+        'Apparel, piece goods, and notions wholesalers',
+        'Grocery and related products wholesalers',
+        'Farm product raw material wholesalers',
+        'Chemical and allied products wholesalers',
+        'Petroleum and petroleum products wholesalers',
+        'Beer, wine, and distilled alcoholic beverages wholesalers',
+        'Miscellaneous nondurable goods wholesalers',
+    ),
+}
+
+
+def synthesize_missing_trade_lines(fba: pd.DataFrame) -> pd.DataFrame:
+    """Add the two kinds of business PxI does not publish, per SYNTHETIC_PXI_LINES.
+
+    ⚠️ **These are attribution WEIGHTS, never additive mass.** Each new label
+    duplicates value that is already in the frame under its component lines, so
+    summing this FBA over ``ActivityProducedBy`` without filtering double-counts
+    -- the same nesting trap ``Census_AWTS_Inventories`` and
+    ``Census_ARTS_Inventories`` carry. Attribution reads one
+    ``(PrimarySector, ActivityProducedBy)`` key at a time and is unaffected.
+    """
+    parts = [fba]
+    for label, components in SYNTHETIC_PXI_LINES.items():
+        if label in set(fba['ActivityProducedBy'].dropna().astype(str)):
+            continue
+        source = fba[fba['ActivityProducedBy'].astype(str).isin(components)]
+        missing = set(components) - set(source['ActivityProducedBy'].astype(str))
+        if missing:
+            raise ValueError(
+                f'cannot synthesize {label!r} for Census_EC_PxI: its components '
+                f'{sorted(missing)} are absent. Census has most likely renamed a '
+                f'kind of business - reconcile SYNTHETIC_PXI_LINES rather than '
+                f'letting the line silently attribute to nothing, which drops '
+                f'its whole value.'
+            )
+        grouped = (
+            source.groupby('ActivityConsumedBy', as_index=False)['FlowAmount']
+            .sum()
+            .assign(
+                **{
+                    column: source[column].iloc[0]
+                    for column in source.columns
+                    if column not in ('ActivityConsumedBy', 'FlowAmount')
+                }
+            )
+            .assign(ActivityProducedBy=label)
+        )
+        parts.append(grouped[source.columns])
+    return pd.concat(parts, ignore_index=True)
+
+
 def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
     """Recover suppressed cells, then reshape for attribution - in that order.
 
@@ -1069,7 +1150,9 @@ def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFram
     Recovery must come first regardless: it needs the ``00`` parent rows to
     subtract published children from, and the reshape is what removes them.
     """
-    return move_pxi_product_to_activity(estimate_suppressed_ec_pxi(fba, **kwargs))
+    return synthesize_missing_trade_lines(
+        move_pxi_product_to_activity(estimate_suppressed_ec_pxi(fba, **kwargs))
+    )
 
 
 if __name__ == "__main__":
