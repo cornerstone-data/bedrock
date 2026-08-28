@@ -1,1 +1,1 @@
-"""Trade FBS helpers (ITA scale, MDTY/MADJ, attribution clean functions)."""
+"""Trade FBS helpers (ITA scale, MDTY/MADJ, attribution, utilities trade)."""

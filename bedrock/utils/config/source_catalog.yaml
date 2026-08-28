@@ -387,6 +387,14 @@ Census_USATrade:
     - Money
   activity_schema: null
   sector_hierarchy: flat
+EIA_ElectricPowerAnnual:
+  data_format: FBA
+  # Trade FBS dollarizes Table 2.14 to Money; source FBA also carries Energy tables.
+  class:
+    - Energy
+    - Money
+  activity_schema: null
+  sector_hierarchy: flat
 EIA_AEO:
   data_format: FBA
   class:
