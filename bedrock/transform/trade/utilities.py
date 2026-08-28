@@ -112,6 +112,62 @@ def dollarize_electricity_trade_fba(fba: FlowByActivity, **_: Any) -> FlowByActi
     )
 
 
+#: Census vehicle children, and the parent they are relabelled onto (#702).
+VEHICLE_CHILDREN = ('336111', '336112')
+VEHICLE_PARENT = '336110'
+
+
+def consolidate_vehicle_activities(frame: pd.DataFrame) -> pd.DataFrame:
+    """Relabel Census ``336111`` / ``336112`` onto the parent ``336110``.
+
+    ⚠️ **Census's own child split is not BEA's** and taking it directly is what
+    put $111B on the wrong commodity (#702, #670). Census classifies imports by
+    HS code mapped to NAICS, which lands light trucks and SUVs under passenger
+    vehicles; BEA reallocates them to ``336112`` on a product basis. Published
+    2017 detail ``MCIF`` is 66,068 / 128,742 against Census's 177,108 / 18,481
+    - the *pair total* agrees to 0.4%, so the disagreement is entirely about
+    the split.
+
+    ⚠️ **Census changes axis at 2023**, publishing only the parent ``336110``
+    from then on. So 2017-2022 rode Census's split and 2023-2024 rode the
+    crosswalk's 1:m family, which put an **$80B discontinuity** between 2022
+    and 2023 into two commodities that carry both trade and transport margins.
+    Relabelling every year onto the parent removes the discontinuity by letting
+    one rule - the 1:m family - decide the split in all years.
+
+    Deliberately a *relabel*, not an aggregation: rows keep their own
+    ``FlowName`` and ``Description``, so every flow the caller selects
+    (``GEN_CIF_YR``, ``ALL_VAL_YR``, ``GEN_VAL_YR``, ``CAL_DUT_YR``) is
+    consolidated the same way, and the attribution step does the summing.
+    """
+    if frame.empty or 'ActivityProducedBy' not in frame.columns:
+        return frame
+    activities = frame['ActivityProducedBy'].astype(str)
+    if not activities.isin(VEHICLE_CHILDREN).any():
+        return frame
+    out = frame.copy()
+    out['ActivityProducedBy'] = activities.where(
+        ~activities.isin(VEHICLE_CHILDREN), VEHICLE_PARENT
+    )
+    return out
+
+
+def consolidate_vehicle_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """:func:`consolidate_vehicle_activities` as a ``clean_fba`` hook.
+
+    ⚠️ Rebuilt through :class:`FlowByActivity` rather than mutated in place so
+    the frame keeps its ``config`` - a bare DataFrame returned here loses it
+    and fails downstream on ``KeyError: 'year'``.
+    """
+    out = consolidate_vehicle_activities(pd.DataFrame(fba))
+    return FlowByActivity(
+        out,
+        full_name=fba.full_name,
+        config=fba.config,
+        convert_df_to_flowby=True,
+    )
+
+
 if __name__ == '__main__':
     import pandas as pd
 
