@@ -152,6 +152,7 @@ def _clear_electricity_caches_if_loaded() -> None:
             (
                 'eia_table_2_2_end_use_mwh',
                 'eia_table_2_14_export_mwh',
+                'eia_table_2_14_import_mwh',
                 'eia_table_2_14_year_for_egrid_year',
                 'eia_table_3_1_total_mwh',
                 'egrid_mwh_for_io_year',

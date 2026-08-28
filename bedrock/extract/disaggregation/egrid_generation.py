@@ -271,10 +271,15 @@ def eia_table_2_2_end_use_mwh(year: int) -> dict[str, float]:
     return out
 
 
-def _export_mwh_from_fba(df: pd.DataFrame, year: int) -> float | None:
+_TABLE_2_14_EXPORT_FLOW = 'electricity exports'
+_TABLE_2_14_IMPORT_FLOW = 'electricity imports'
+
+
+def _trade_mwh_from_fba(df: pd.DataFrame, year: int, flow_name: str) -> float | None:
+    """Canada + Mexico Table 2.14 MWh for one flow name, or None if missing."""
     mask = (
         (df['Year'] == year)
-        & (df['FlowName'].astype(str) == 'electricity exports')
+        & (df['FlowName'].astype(str) == flow_name)
         & df['Description'].astype(str).str.contains('Table 2.14', na=False)
     )
     sub = df.loc[mask]
@@ -290,12 +295,16 @@ def _export_mwh_from_fba(df: pd.DataFrame, year: int) -> float | None:
     return float(rows['FlowAmount'].sum())
 
 
+def _export_mwh_from_fba(df: pd.DataFrame, year: int) -> float | None:
+    return _trade_mwh_from_fba(df, year, _TABLE_2_14_EXPORT_FLOW)
+
+
 _TABLE_2_14_MIN_YEAR = 2014
 
 
 @functools.cache
 def eia_table_2_14_year_for_egrid_year(egrid_year: int) -> int:
-    """Latest EPA Table 2.14 year at or before ``egrid_year``.
+    """Latest EIA Table 2.14 year at or before ``egrid_year``.
 
     Table 2.14 (Canada/Mexico electricity trade) can lag the eGRID inventory
     year. Callers that need a lag must resolve the table year here and pass it
@@ -308,7 +317,7 @@ def eia_table_2_14_year_for_egrid_year(egrid_year: int) -> int:
         if _export_mwh_from_fba(df, table_year) is not None:
             if table_year != egrid_year:
                 logger.info(
-                    'EPA Table 2.14 not available for eGRID year %s; '
+                    'EIA Table 2.14 not available for eGRID year %s; '
                     'using Table 2.14 year %s',
                     egrid_year,
                     table_year,
@@ -324,14 +333,28 @@ def eia_table_2_14_year_for_egrid_year(egrid_year: int) -> int:
 def eia_table_2_14_export_mwh(year: int) -> float:
     """Canada + Mexico electricity exports from EIA Table 2.14 for *year*, MWh.
 
-    ``epa_02_14`` uses ``flow_amount_scale: 1`` (not Table 3.1's 1000).
-    Requires Table 2.14 for this exact year. If EPA lags eGRID, resolve the
-    table year with ``eia_table_2_14_year_for_egrid_year`` at the call site.
+    Workbook key ``epa_02_14`` uses ``flow_amount_scale: 1`` (not Table 3.1's
+    1000). Requires Table 2.14 for this exact year. If the table lags eGRID,
+    resolve the table year with ``eia_table_2_14_year_for_egrid_year`` at the
+    call site.
     """
     df = _epa_fba(year)
     val = _export_mwh_from_fba(df, year)
     if val is None:
         raise ValueError(f'Table 2.14 Canada+Mexico exports missing for year {year}')
+    return val
+
+
+@functools.cache
+def eia_table_2_14_import_mwh(year: int) -> float:
+    """Canada + Mexico electricity imports from EIA Table 2.14 for *year*, MWh.
+
+    Same scale and exact-year rules as ``eia_table_2_14_export_mwh``.
+    """
+    df = _epa_fba(year)
+    val = _trade_mwh_from_fba(df, year, _TABLE_2_14_IMPORT_FLOW)
+    if val is None:
+        raise ValueError(f'Table 2.14 Canada+Mexico imports missing for year {year}')
     return val
 
 
