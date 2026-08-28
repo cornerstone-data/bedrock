@@ -625,6 +625,89 @@ Three things the picture says that the totals do not:
    condition is in
    [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md).
 
+### What was tested to get there, and what was rejected
+
+The map says where the block is observed. It does not say what was graded to
+arrive at that, and without it the three grey blocks read as unfinished work
+rather than as the recorded verdicts they are.
+
+**Six seeds are wired**, composed cell-wise by `composed_seed` (never added —
+summing `materials_seed` and `nonmaterial_seed` double-counts the 23
+non-materials rows and put `334111` 55% above the benchmark at 2017). They
+partition the 402 columns, checked in code rather than assumed:
+
+| block | columns | source | graded |
+|---|---:|---|---|
+| manufacturing | 232 | Economic Census materials, then the survey index on the non-materials cells | **ships ungraded**, by decision |
+| services / transportation | 100 | `Census_SAS_Expenses` / AIES | ✅ **GO**, +11.5% on `N` |
+| agriculture | 10 | ERS | ✅ **GO**, +17.9%, 9 of 10 columns |
+| utilities | 3 | EIA 923 fuel receipts | ✅ **GO**, +16.0% on `N`, 3 of 3 columns |
+| mining | 6 | Economic Census materials, sector 21 | **ships ungraded**, as manufacturing does |
+| — | 51 | hold 2017 | nothing observes their movement |
+
+⚠️ **Two blocks ship ungraded on purpose, and that is a policy rather than an
+oversight.** Manufacturing and mining are seeded from the Economic Census
+materials detail, which is *the only observation of those cells that exists*.
+Grading it against a holdout would compare the census to itself. The gate is
+overridden where the source is the only observation; the continuity and
+coverage checks still run.
+
+### What is held, and on what verdict
+
+$3.5T — 24% of the block — carries no annual observation. **Every part of it is
+a measured verdict except one**, and the distinction matters because a verdict
+does not get re-litigated and a gap does.
+
+| held block | verdict | the measurement |
+|---|---|---|
+| **trade** (`42`, `4A0`) | ❌ **no-go**, survived a regrade | a wash: dollar **+0.3%** (9 of 18 columns), impact `N` **−5.6%** (8 of 18). It tracks the items that carry no `N`. |
+| **construction** (`23`) | ❌ **no-go**, closed 2026-08-27 | 51% of the column is one undifferentiated cell (`CSTMPRT`) and no Census product splits it — `ecnmatfuel` is manufacturing and mining only. The seed already **loses** to frozen, 0.044 against 0.038. |
+| **government** (`G*`) | ❌ function bridge rejected (#578) | the function mix moves **0.046** in five years against a **0.201** commodity drift — an exact ceiling, and far too small. |
+| `221200` gas distribution | ❌ EIA form 176 rejected | $29.4B holds, with `221300` |
+| `221300` water | ⚠️ **no source** — a gap, not a verdict | |
+| `213111`, `21311A` mining support | ✅ held deliberately | they buy labour and services, not the materials the census measures; coverage agrees rather than leads (6.7% / 15.6% against 25-34%). **$53.0B holds.** |
+
+⚠️ **Government is the one to read carefully.** What is closed is the *function
+bridge as a route to the mix*. What is **not** closed is the underlying problem:
+the `G*` columns still drift by **230-258 $B**, and the drift is
+**within-function** — a school district buying a different basket than it bought
+in 2012, not a shift from schools to highways. Nothing here sources that, and
+nothing here should be read as evidence those columns are stable. `S00500` alone
+is **83,851 $M misplaced at 0.383, the worst-drifting column in the Use table**,
+and it is federal and out of reach of that source at any depth.
+
+⚠️ **Two things were tested and are recorded as "do not build".** The trade BES
+**suppression recovery** — suppression is real, but recovering it does not buy
+the verdict back — and **EIA form 176** for `221200`, where a 2014 change to the
+form's establishment split manufactured a spurious **+29%** win. Both are the
+kind of plausible next step that would otherwise be attempted twice.
+
+### How the verdicts are graded — and why one of them reversed
+
+⚠️ **The answer key is not BEA's published 2018-2024 tables.** Those carry the
+2017 benchmark mix forward by construction, so grading a seed against them
+scores the seed on how well it reproduces *a frozen mix* — which is the thing
+the seed exists to move away from. A seed that correctly moves the mix loses.
+
+✅ **[`benchmark_holdout.py`](benchmark_holdout.py) is the sound key**: seed the
+**observed 2012** detail block with the source's own 2012 → 2017 movement, and
+score against the **observed 2017** detail block. Both endpoints are published
+benchmarks, so the movement being tested is the movement that actually happened.
+
+**This has already changed the answer.** Agriculture was a no-go on the
+carried-forward key and **reverses to a GO** on the holdout (+17.9%, 9 of 10
+columns). Trade was rejected the same way and does **not** reverse — but its
+reasons were rewritten, and the old −43.6% figure is withdrawn. The size of the
+answer-key effect is measurable on one column: `441` scores **−16.8%** on the
+sound key against −43.6% on BEA's carry-forward.
+
+⚠️ **And the weighting matters as much as the key.** Verdicts are ranked on `N`,
+total emission factor (direct **and** indirect, `C B L`), not on dollars and not
+on direct EF. Manufacturing roughly doubles between the two, services double,
+utilities halve. **Two SAS verdicts flipped** when the dollar ranking was
+replaced with the `N` ranking, which is why the table above quotes `N` wherever
+one exists.
+
 ### Data quality — pedigree scores
 
 The map says *whether* a cell is observed. This scores *how well*, on a variant
