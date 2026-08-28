@@ -19,6 +19,8 @@ from bedrock.transform.iot.nowcast_mask import (
     SIGN_LOCKED_SUPPLY_COLUMNS,
     SIGN_LOCKED_USE_ROWS,
     SUPPLY_BRIDGE_COLUMNS,
+    TRADE_FLOW_SUPPLY_COLUMNS,
+    TRADE_FLOW_USE_COLUMNS,
     VA_ROWS,
     balance_commodities,
     balance_industries,
@@ -292,3 +294,36 @@ def test_the_one_to_one_columns_are_the_six_the_plan_names() -> None:
 def test_unknown_block_raises() -> None:
     with pytest.raises(ValueError, match='use or supply'):
         panel_labels('intermediate')  # type: ignore[arg-type]
+
+
+def test_trade_flow_columns_are_exempt_from_structural_zeros() -> None:
+    """What the US did not trade in 2017 it may still trade later (#749).
+
+    The zeros in these columns are one year's observation of a flow that moves,
+    not a property of the commodity, so freezing them would make a later year's
+    genuine import or export an unrepresentable cell.
+    """
+    supply = _supply_panel()
+    zeros = structural_zero_mask('supply', supply)
+    for column in TRADE_FLOW_SUPPLY_COLUMNS:
+        if column in zeros.columns:
+            assert not zeros[column].any(), column
+
+    use = _use_panel()
+    use_zeros = structural_zero_mask('use', use)
+    for column in TRADE_FLOW_USE_COLUMNS:
+        if column in use_zeros.columns:
+            assert not use_zeros[column].any(), column
+
+
+def test_margin_and_tax_zeros_stay_structural() -> None:
+    """The exemption is trade flows only - a margin zero is a real property."""
+    supply = _supply_panel()
+    supply.loc['111130', 'TRADE '] = 0.0
+    zeros = structural_zero_mask('supply', supply)
+    assert bool(zeros.loc['111130', 'TRADE '])
+
+
+def test_the_exempt_columns_are_flows_not_margins() -> None:
+    assert set(TRADE_FLOW_SUPPLY_COLUMNS) == {'MCIF', 'MADJ', 'MDTY'}
+    assert set(TRADE_FLOW_USE_COLUMNS) == {'F04000'}

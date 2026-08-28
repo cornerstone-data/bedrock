@@ -155,6 +155,27 @@ ONE_TO_ONE_FD = ('F06C00', 'F07C00', 'F10C00', 'F06N00', 'F07N00', 'F10N00')
 #: two axes, and dropping it from both was a bug.
 EXCLUDED_COMMODITIES = ('S00900', '4200ID')
 
+#: Tier 0 exemptions. Columns whose 2017 zeros are **not** structural, because
+#: what a country trades changes from year to year.
+#:
+#: ⚠️ A structural zero here would assert that a commodity the US did not
+#: import in 2017 can never be imported, and that one it did not export cannot
+#: be exported. That is false as a matter of trade rather than arguable as a
+#: modelling choice: 2017's zero is one year's observation of a flow that moves.
+#: Measured on the 2017-seeded panel, holding these zeros made
+#: ``split_fixed_blocks`` raise on 20 Supply cells - ``339116 x MCIF`` at $522M,
+#: ``33211A x MCIF`` at $146M and 18 small ``MDTY`` cells - and on
+#: ``213111 x F04000`` at $771M on the Use side.
+#:
+#: Margin and tax columns are deliberately **not** exempt: their zeros mean a
+#: commodity bears no margin or no tax, which is a property of the commodity,
+#: and both columns have to net to zero for T15/T16. See #749 for the wider
+#: review of which Tier 0 zeros are justified.
+TRADE_FLOW_SUPPLY_COLUMNS = ('MCIF', 'MADJ', 'MDTY')
+
+#: Tier 0 exemption, Use side. Exports, for the same reason.
+TRADE_FLOW_USE_COLUMNS = ('F04000',)
+
 #: Tier 3, Supply side. Locked to their published sign per cell.
 SIGN_LOCKED_SUPPLY_COLUMNS = ('MADJ', 'TRADE ', 'TRANS', 'TOP', 'SUB')
 
@@ -277,8 +298,19 @@ def structural_zero_mask(
     On the Supply block this is the assertion that no industry produces a
     commodity it did not produce in 2017 - 3.1% density, so it is a large
     claim cheaply made.
+
+    ⚠️ **The trade-flow columns are exempt** - :data:`TRADE_FLOW_SUPPLY_COLUMNS`
+    and :data:`TRADE_FLOW_USE_COLUMNS`. A zero there is one year's observation
+    of a flow that moves annually, not a property of the commodity, so freezing
+    it asserts that what the US did not trade in 2017 it can never trade.
     """
-    return _panel_or_default(block, panel) == 0
+    values = _panel_or_default(block, panel)
+    zeros = values == 0
+    exempt = TRADE_FLOW_SUPPLY_COLUMNS if block == 'supply' else TRADE_FLOW_USE_COLUMNS
+    present = [column for column in exempt if column in zeros.columns]
+    if present:
+        zeros[present] = False
+    return zeros
 
 
 def fixed_value_mask(
