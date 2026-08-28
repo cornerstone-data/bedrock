@@ -36,9 +36,25 @@ This file is **boundaries**. Implementer detail lives in a per-PR plan. Do not p
 
 ✅ **PR4 added 2026-08-27** — [`initial_sut_assembly_2026-08-27.plan.md`](initial_sut_assembly_2026-08-27.plan.md).
 PR1-PR3 built the balance and proved it on the **published 2017 panel**; PR4 gives it the
-nowcast's own blocks for 2017-2023 and shows the RAS converges on them. ⚠️ **It is blocked on
-`F03000` change in inventories for 2018-2023** — `derive_initial_Y_pur` has `if year == 2017`
-and every other year is all-zero, which would converge and mean nothing.
+nowcast's own blocks for 2017-2023 and shows the RAS converges on them.
+
+✅ **The stated blocker is CLEARED as of 2026-08-28.**
+`Inventories_<year>.yaml` ships **2017-2023** ([#746](https://github.com/cornerstone-data/bedrock/pull/746)),
+and [`nowcast.py`](../../../transform/eeio/nowcast.py) now gates on
+`INVENTORIES_YEARS = range(2017, 2024)` rather than `if year == 2017:`, so
+`derive_initial_Y_pur` attaches `F03000` for every year the method covers.
+
+⚠️ **It was a two-part blocker and only the first part was visible.** The method
+landed with #746; the *consumer* was never switched on, so for a day this file
+read as cleared while `derive_initial_Y_pur` still returned an all-zero
+inventories column for 2018-2023. Verified per year after the fix: 2017 unchanged
+at 29,144 $M / 161 commodities, 2018-2023 populated (2020 **−43,392**, the
+pandemic drawdown; 2022 **184,885**, the restock), 2024 still zero because no
+`Inventories_2024` method exists.
+
+⚠️ **PR4 is therefore unblocked on `F03000`, but not on everything** — the
+structural-zero violations and the `TRADE` / `TRADE ` label mismatch in #749 are
+still open.
 
 [`plan.md`](../plan.md) recommendation: GRAS + KRAS-style soft layer, mask via offset. PR1 is GRAS. PR2 is the caller (**hard T1, T11–T17**). PR3 is the soft **mechanism** (blends + T4 closer). **Calibrated weights are not PR3** — starting `WEIGHTS` in `nowcast_targets.py` ship as-is.
 

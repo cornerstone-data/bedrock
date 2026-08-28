@@ -267,8 +267,8 @@ source to try; the fix is the next AIES release, not more sourcing work.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
-| cells / `T007` | Domestic output, commodity × industry, basic value | Nowcast gross industry output (`derived_gross_industry_output.py`) × commodity mix (port from `CalculateIntermediateUseAndCommodityMix.R`, #497) | ❌ **unsourced method** |
-| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017-2024 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528), extended by [#730](https://github.com/cornerstone-data/bedrock/issues/730)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647). 1:m import rows still split on **frozen 2017 `MCIF`** ([#729](https://github.com/cornerstone-data/bedrock/issues/729)) |
+| cells / `T007` | Domestic output, commodity × industry, basic value | `Detail_Supply_<year>` FBS — published summary domestic output disaggregated on the 2017 detail mix, with the mix itself moving on Economic Census product lines from 2022 ([#570](https://github.com/cornerstone-data/bedrock/issues/570)) | ✅ **built, 2017-2024** — scores **100.0% coverage / 99.6% accuracy** on the 2017 block (`supply_output_detail_sut`, 5,059 of 5,080 present cells exact, no misses). ⚠️ 2017 is near-circular; the method rests on the held-out mix test (0.94% over five years) and on `annual_mix_test.py` |
+| `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017-2024 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528), extended by [#730](https://github.com/cornerstone-data/bedrock/issues/730)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647). 1:m import rows split on **frozen 2017 `MCIF`**, and that is now a measured decision rather than a default — [#729](https://github.com/cornerstone-data/bedrock/issues/729) proposed swapping the weight to Use `T019` total uses; built and graded, it moved imports **spearman 0.941 → 0.893** and **n_match 26 → 19**, so it was reverted and the issue closed 2026-08-28. ⚠️ The zeros in published `MCIF` are BEA's allocation, not a sparse column |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017-2024 candidate** — charges + destination reassignment in `derive_initial_supply_bridge`. 2017 ties to published; later years carry that year's mapped charge total with the published sign |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017-2024 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge`. ⚠️ Calculated Census duty ≠ collected duty in the tariff era, which is why the national sum is leveled to `B235RC` |
 | `TRADE` | Wholesale + retail margins, by commodity | 2017 published column moved by the Census wholesale/retail gross margin (`nowcast_trade_margins.py`, #612/#613) — **not** an aggregate of the nowcast Margins dataset | ⏳ **2017-2023 candidate** — receiving split is the **frozen 2017 mix** |
@@ -317,8 +317,16 @@ the same object. Two consequences for sequencing:
 
 Ranked by how much they block:
 
-1. **Commodity mix for the Supply table's domestic-output block** — biggest single gap. Without it
-   there is no Supply table at all.
+1. ~~**Commodity mix for the Supply table's domestic-output block**~~ — **built and merged**
+   ([#570](https://github.com/cornerstone-data/bedrock/issues/570), 2026-08-21). `Detail_Supply_<year>` carries the
+   block for 2017-2024 and the 2017 run scores 100.0% coverage / 99.6% accuracy. What is
+   left is not sourcing but **movement between censuses**: the mix is the 2017 benchmark's
+   until 2022, when Economic Census product lines take over for 133 of 178 columns.
+   ⚠️ `annual_mix_test.py` measured the annual surveys and found they **cannot** move the mix
+   between censuses — the signal is at the noise floor — so holding it is a finding, not a gap.
+   Open follow-ons are [#724](https://github.com/cornerstone-data/bedrock/issues/724) (detail industry
+   output from Economic Census source data), [#722](https://github.com/cornerstone-data/bedrock/issues/722) and
+   [#723](https://github.com/cornerstone-data/bedrock/issues/723).
 2. ~~**Trade data source (#527)**~~ — **settled** in
    [#557](https://github.com/cornerstone-data/bedrock/pull/557): Census goods + BEA services as the
    primary extract, BEA ITA as the national totals control, BACI out of scope. See §Trade data below.
@@ -364,9 +372,12 @@ Ranked by how much they block:
    column**, while **wholesale + retail is 126%** of it. The stage split is already published in
    `U50705BU1` — which bedrock already extracts and never reads — and three of BEA's four allocation
    rules are functions of tables this project already builds. What remains is one crosswalk of ~25
-   trade industries to BEA commodities. ✅ **Built 2026-08-19 (#666)** — the crosswalk went to 54 NIPA
-   lines over 260 commodities, and the column is live at −2.28% on its total. It comes off this list
-   as a *sourcing* question; what is left is allocation accuracy (#660, #664, #665).
+   trade industries to BEA commodities. ✅ **Built 2026-08-19 (#666), and a time series 2017-2023 as of
+   2026-08-28 ([#746](https://github.com/cornerstone-data/bedrock/pull/746))** — the crosswalk went to 54 NIPA
+   lines over 260 commodities. ⚠️ **The column total is now −10.8%, not −2.28%**, and the whole
+   difference is the `Other industries` line (3,537 in 2017) being carried as *visibly unallocated*
+   rather than smeared — the total stopped being free by construction, deliberately. It comes off
+   this list as a *sourcing* question; what is left is allocation accuracy (#660, #664, #665).
 6. ~~Import matrix allocation method~~ — **settled**: proportional to the commodity's use shares along
    its Use-matrix row (Step 6c). Not a data gap; it needs the Step 6b Use matrix as input, which makes
    6c strictly downstream of 6b.
@@ -727,14 +738,21 @@ commodities. Built from `U50705BU1`, already extracted and unused, plus the farm
 
 ✅ **First pass landed 2026-08-19 (#666).** `Inventories_2017` generates, attributes across all five
 branches, and is wired into `derive_initial_Y_pur` — `F03000` was a hardcoded all-zero column and is
-now 256 commodities totalling 31,936 against a published 32,682 (−2.28%). Trade weights come from
-`Census_EC_PxI` product lines, the same data BEA reaches for in its margin method; manufacturing
-follows the finished-goods rule on the 22 industry leaves; mining and farm are equal-split
-placeholders.
+now live. ⚠️ **Superseded 2026-08-28 by [#746](https://github.com/cornerstone-data/bedrock/pull/746)**, which
+made it a time series 2017-2023 and moved every branch onto a measured weight. The first pass put
+256 commodities at 31,936 against a published 32,682 (−2.28%); it now populates **161 commodities
+at 29,144 (−10.8%)**, and the fall in count is the improvement — three activity sets had been
+falling through to flowsa's equal-allocation default and populating cells no source observes.
+Trade weights come from `Census_EC_PxI` product lines, the same data BEA reaches for in its margin
+method; manufacturing follows the finished-goods rule on the 22 industry leaves; farm now moves on
+ERS inventory change, and mining/utilities/construction is still one published number for three sectors.
 
 ⚠️ **Read the column, not its total.** The total is the one free thing here — it equals NIPA CIPI by
-construction — while gross mass is 3× net. Per commodity the first pass is **69.7% sign agreement and
-101% absolute error against published gross**, so the column total says almost nothing. Three follow-ons
+construction — while gross mass is 3× net. Per commodity the first pass was **69.7% sign agreement and
+101% absolute error against published gross**; after #746 it is **75.6% and 80%**, so the column total
+still says almost nothing. ⚠️ At the section's tolerance **not one** of the 160 populated cells lands
+inside it — `F03000` scores 62.0% coverage and **0.0% accuracy**, the worst column in Step 1.
+Three follow-ons
 carry the remaining error, all measured rather than suspected: **#660** (mining and farm commodity
 splits — EIA MER / USGS for mining, the FIWS crops-livestock split for farm), **#664** (manufacturing
 needs per-industry stage shares; `336411` aircraft is −288 against a published −6,314), **#665**
@@ -762,11 +780,17 @@ build instead. Same silent-empty family as #635.
   government columns and for PCE/equipment against their bridges; `F03000` now reconciles at the
   column total but not per commodity; outstanding for `F04000` (blocked) and the two gaps below.
 
-⚠️ **The board-level state of Step 1, as of 2026-08-19:** all 19 final-demand columns are sourced,
+⚠️ **The board-level state of Step 1, re-measured 2026-08-28:** all 19 final-demand columns are sourced,
 **no column is a whole-column `miss` any more**, and two are outside tolerance at the column total —
-`F04000` (+6.15%) and `F03000` (−2.28%). Coverage against the published detail SUT is 95.5% and
-accuracy 55.1%; the two moved in opposite directions because `F03000` added 256 cells that are right
-in aggregate and mostly wrong per commodity. [`progress_report.md`](progress_report.md).
+`F04000` (+6.16%) and `F03000` (−10.8%). Coverage against the published detail SUT is **88.5%** and
+accuracy **59.1%** (was 95.5% / 55.1% on 2026-08-19).
+
+⚠️ **The two columns that move are the only two that are wrong.** Per column, `F03000` runs 62.0%
+coverage / **0.0%** accuracy and `F04000` 87.4% / 3.7%; between them they carry **141 of the 144
+cell misses in the block**. The other seventeen columns are at 100% coverage, and the twelve
+government columns plus `F06*`/`F07*`/`F10*` are **100% accurate cell for cell**. Reading the block's
+59.1% as an even spread of error across nineteen columns would be wrong.
+[`progress_report.md`](progress_report.md).
 
 ⚠️ **A catalog regression rode in with #666 and was caught by the diagnostic, not by a test.** The
 `Census_EC_PxI` entry was inserted *inside* `BEA_PEQBridge` in `source_catalog.yaml`, taking
@@ -1294,8 +1318,13 @@ gap may be misallocated rather than missing, which changes #606 from sourcing to
   `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml` builds 236 BEA detail
   commodities per year for 2018-2021 from Annual Survey of Manufactures product data, at basic
   prices, scoring 0.94-0.97 of level and 4.5-6.8% weighted error against published summary `T007`.
-  Still outstanding for 4a: mining `q` (no annual product survey exists), the services half
-  (industry output × mix), 2022-2024, and the rebalance to the summary control.
+  ✅ **And 4a as a whole shipped 2026-08-26** — `Detail_Supply_<year>` covers 2017-2024, the 2022
+  Economic Census product mix drives 133 of 178 columns from 2022, and the 2017 block scores
+  100.0% coverage / 99.6% accuracy. Still outstanding for 4a: mining `q` (no annual product
+  survey exists), detail **industry** output from Economic Census source data
+  ([#724](https://github.com/cornerstone-data/bedrock/issues/724)), and the 45 columns held at the
+  2017 mix. ⚠️ Moving the mix between censuses from annual surveys is a measured **no-go**
+  (`annual_mix_test.py`), not an unfinished task.
 
   ⚠️ **The estimand is *commodity* output, not industry output.** `T007`'s column sums are commodity
   output; industry output is an input to the construction, not the deliverable. That admits two
@@ -2255,8 +2284,10 @@ the issue they close.
    primary extract (from flowsa `imports`, not USEEIO's imports-only downloader), BEA ITA 2.1/3.1 as
    the national totals control, BACI out of scope. Details and the carried-forward reconciliation work
    in §Trade data. `MDTY` was *not* covered by the pick and stays open (§Still unsourced).
-2. **Commodity mix method for Step 4a** — port the R script's approach wholesale, or derive from
-   2017 detail Supply shares moved by industry output? Nothing is built here yet.
+2. ~~**Commodity mix method for Step 4a**~~ — **answered and built** (#570, 2026-08-21): 2017 detail
+   Supply shares, moved from 2022 by Economic Census product lines, not a port of the R script.
+   ⚠️ The residual question is not the method but the **between-census years**, and it is closed as
+   a no-go — no annual survey moves the mix better than holding it (`annual_mix_test.py`).
 3. ~~**Reconcile #497's after-redefinitions instruction.**~~ — **resolved**: the pipeline is
    **SUT → MUT before redefinitions → MUT after redefinitions → MUT in Cornerstone schema**, i.e.
    Steps 6 → 7 → 8 exactly as written. Everything upstream of Step 7 stays before-redefinitions,
