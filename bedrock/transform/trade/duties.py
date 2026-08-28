@@ -7,6 +7,7 @@ import pandas as pd
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.flowbysector import getFlowBySector
+from bedrock.transform.trade.utilities import consolidate_vehicle_activities
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
@@ -33,6 +34,11 @@ def _census_flow_by_activity(year: int, flow_name: str) -> pd.Series:
     sub = fba.loc[fba['FlowName'] == flow_name]
     if sub.empty:
         raise ValueError(f'{_CENSUS} FBA missing FlowName {flow_name!r} for {year}')
+    # ⚠️ The same vehicle consolidation the Trade FBS applies (#702). The rate
+    # below is a ratio of two mapped Census flows and it multiplies the
+    # Trade_Imports FBS's own mass, so both sides have to consolidate 336111 /
+    # 336112 or the rate is built on one commodity axis and applied to another.
+    sub = consolidate_vehicle_activities(sub)
     return (
         pd.to_numeric(sub['FlowAmount'], errors='coerce')
         .groupby(sub['ActivityProducedBy'].astype(str))
