@@ -298,6 +298,85 @@ def motor_vehicle_auto_share(year: int | str) -> float:
     return float(auto / (auto + truck))
 
 
+#: The two groups ERS splits farm inventories into, and the BEA activity label
+#: each becomes.  ⚠️ ``All commodities`` is their parent and is deliberately not
+#: here -- see :func:`split_farm_by_fiws_inventory`.
+FIWS_INVENTORY_GROUPS = {
+    'All crops': 'Farm, crops',
+    'Animals and products': 'Farm, livestock',
+}
+
+#: The ERS concept carrying the change.  ⚠️ **Not the ``Dec. 31 value of ...``
+#: stock series.** Differencing stocks imports the holding gains CIPI excludes
+#: through the inventory valuation adjustment -- measured at -887 against a true
+#: -5,679, out by roughly six times.
+FIWS_INVENTORY_CONCEPT = 'Inventory change value'
+
+
+def split_farm_by_fiws_inventory(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    """Split NIPA's single ``Farm`` line into crops and livestock on ERS shares.
+
+    ``F03000``'s farm branch is 17% of the column and NIPA publishes it as one
+    number (``T50705B`` ``B018RC``, -5,679 $M in 2017). ERS publishes the same
+    concept split two ways, so the **level stays NIPA's** -- which is what keeps
+    the column's tie to published CIPI exact -- and only the **split** is ERS's.
+
+    ⚠️ **The two ERS groups are rescaled onto NIPA's total**, not used at their
+    own level. ERS reads -6,052 $M against NIPA's -5,679 in 2017; taking ERS's
+    level would break the tie for a piece that is published.
+
+    ⚠️ **Rescaling is by the ratio of totals, which preserves each group's own
+    sign.** Crops and livestock move in opposite directions in most years
+    (2017: -7,108 and +1,056), so a share-of-total normalisation would divide by
+    a small net and produce shares outside [0, 1]. Scaling both legs by
+    ``NIPA_total / ERS_total`` keeps the signs and sums to NIPA exactly.
+
+    ⚠️ **``All commodities`` is skipped** -- it is the parent of the two groups
+    and equals their sum, so including it would double the farm branch.
+    """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    farm = fba['ActivityProducedBy'].astype(str) == 'Farm'
+    if not farm.any():
+        return fba
+
+    year = int(kwargs.get('year') or fba['Year'].iloc[0])
+    ers = getFlowByActivity('USDA_ERS_FIWS', year)
+    ers = ers[
+        (ers['FlowName'] == FIWS_INVENTORY_CONCEPT) & (ers['Location'] == US_FIPS)
+    ]
+    groups = (
+        ers[ers['ActivityProducedBy'].isin(FIWS_INVENTORY_GROUPS)]
+        .groupby('ActivityProducedBy')['FlowAmount']
+        .sum()
+    )
+    missing = set(FIWS_INVENTORY_GROUPS) - set(groups.index)
+    if missing:
+        raise ValueError(
+            f'USDA_ERS_FIWS {year} is missing the inventory groups '
+            f'{sorted(missing)}, so the farm split cannot be built. Check that '
+            f'KEPT_CONCEPTS still carries {FIWS_INVENTORY_CONCEPT!r}.'
+        )
+    ers_total = float(groups.sum())
+    if ers_total == 0:
+        raise ValueError(f'USDA_ERS_FIWS {year} farm inventory change sums to 0')
+
+    nipa_total = float(fba.loc[farm, 'FlowAmount'].sum())
+    scale = nipa_total / ers_total
+
+    # ⚠️ Each leg is built by copying the FBA's own farm rows, never from a bare
+    # DataFrame. ``_FlowBy.__finalize__`` keeps only the config SHARED across a
+    # concat, so mixing in a plain DataFrame silently empties it, and the next
+    # step then fails with ``KeyError: 'year'`` far from here.
+    legs = []
+    for group, label in FIWS_INVENTORY_GROUPS.items():
+        leg = fba.loc[farm].copy()
+        leg['ActivityProducedBy'] = label
+        leg['FlowAmount'] = float(groups.loc[group]) * scale / int(farm.sum())
+        legs.append(leg)
+    return pd.concat([fba.loc[~farm], *legs], ignore_index=True)
+
+
 def drop_unassigned(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
     """clean_fba_w_sec fxn"""
     # Because ACB is assigned in the method yaml, need to drop those that don't

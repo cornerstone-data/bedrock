@@ -7,9 +7,10 @@ https://www.ers.usda.gov/data-products/farm-income-and-wealth-statistics/
 
 Downloads the February 2025 update (the zip carries 1910-2025).
 
-Carries two concepts, per KEPT_CONCEPTS: cash receipts, and intermediate
-product expenses -- the concept BEA itself uses to build the agriculture
-input column (Table C2), and what #577 is built on.
+Carries three concepts, per KEPT_CONCEPTS: cash receipts; intermediate product
+expenses -- the concept BEA itself uses to build the agriculture input column
+(Table C2), and what #577 is built on; and inventory change, the farm branch of
+``F03000`` (#529).
 """
 
 import io
@@ -41,9 +42,37 @@ from bedrock.utils.mapping.location import (
 #: ``Cash receipt value`` -- 129 rows over 2008-2023.  The previous
 #: ``contains('Cash receipts')`` test dropped them: $626M of $1,470,607M in
 #: 2017, 0.04%.  Small, and a source typo rather than a real distinction.
+#: ⚠️ **``Inventory change value`` is a CHANGE, and it is the farm branch of
+#: ``F03000``.** ``inventories_estimation_plan.md`` used to prescribe
+#: differencing the ``Dec. 31 value of ... inventory`` **stock** series and
+#: warned that doing so imports holding gains -- measured at -887 against a true
+#: farm CIPI of -5,679, out by roughly six times. That warning is right and the
+#: prescription was unnecessary: ERS publishes the change concept directly, 1910
+#: -2025, and it was invisible only because this filter dropped it.
+#:
+#: Graded against NIPA's published farm line (``T50705B`` ``B018RC``) over
+#: 2012-2023: **correlation 0.936, sign agreement 12 of 13 years**, mean
+#: absolute difference 1,736 $M on a mean absolute level of 7,409 $M. Against
+#: the stock-differencing route's 6x error, this is the better instrument.
+#:
+#: ⚠️ **2024 does not fit and must not be used.** NIPA reads +552 $M against
+#: FIWS's -9,744 $M -- the only sign disagreement in the span. The February 2025
+#: vintage's latest years are ERS forecasts rather than realized estimates, and
+#: the file carries no flag distinguishing them, so the span has to be bounded
+#: here rather than detected. Same caveat as #577.
+#:
+#: ⚠️ **The three inventory-change rows NEST.** ``All commodities`` is the parent
+#: of ``All crops`` and ``Animals and products`` and equals their sum exactly
+#: (2017: -7,108,016 + 1,056,304 = -6,051,712 $1,000). Summing this FBA on the
+#: concept without filtering double-counts the farm column.
+#:
+#: ⚠️ **The change series has no purchased-inputs component**, though the Dec. 31
+#: stock series does. It is crops and livestock only, which is what the farm
+#: split needs; the level comes from NIPA either way.
 KEPT_CONCEPTS = (
     'Cash receipt',
     'Intermediate product expenses',
+    'Inventory change value',
 )
 
 #: ⚠️ Marks the operator-dwellings variant of an expense series.  See the parse.

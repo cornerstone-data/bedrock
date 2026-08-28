@@ -1,0 +1,76 @@
+# Annual Wholesale Trade Survey - inventories by kind of business.
+#
+# The wholesale half of the trade branch of the change-in-private-inventories
+# column (`F03000`, Step 1C, #529/#530/#531). Wholesale is the largest single
+# holder in the column: on the INDUSTRY axis, trade holds 126% of `F03000`
+# gross in 2017 (wholesale 79%, retail 47%) while manufacturing holds 2%.
+#
+# ⚠️ **Rank this branch on the industry axis, not the commodity axis.** On the
+# COMMODITY axis wholesale and retail are 0% of the column, because a
+# wholesaler holds inventories *of manufactured goods* and carries none of its
+# own commodity. Both readings are true and they disagree completely; reading
+# only the commodity axis once demoted these sources to fifth priority when
+# they are the 126% branch. See `analysis/nowcasting/inventories_estimation_plan.md`
+# §The magnitudes invert the emphasis.
+#
+# ⚠️ **STOCK LEVELS, NOT CHANGES. Do not difference these across years to build
+# `F03000`.** Beginning- and end-of-year stocks differ by holding gains as well
+# as by real accumulation, and CIPI excludes holding gains through the
+# inventory valuation adjustment. The plan measures that error on FIWS:
+# differencing gives -887 against a true farm CIPI of -5,679, out by roughly six
+# times. Structure from here, level from NIPA.
+#
+# ⚠️ **Three types of operation, and they nest.** `Merchant Wholesalers` is the
+# parent of `Merchant Wholesalers, except manufacturers' sales branches and
+# offices` and `Manufacturers' sales branches and offices`, and equals their
+# sum. Summing this FBA unfiltered counts wholesale inventory twice. All three
+# are kept because the consumers want different cuts: the F03000 trade branch
+# wants the whole of wholesale, a margin consumer wants the `nomsbo` cut that
+# `Census_AWTS` table 4 and `Census_AIES` TYPOP `1X` are both on.
+#
+# ⚠️ **This is table 3, and it is NOT the `nomsbo` table.** `Census_AWTS`
+# (table 4, purchases and margins) is filtered to merchant wholesalers by the
+# filename; table 3 is not, which is why the type of operation has to be carried
+# as a dimension here and is asserted away there.
+#
+# ⚠️ **2012 NAICS basis**, as the sheet's own first column is labelled. At the
+# 2- to 4-digit wholesale codes this table publishes, 2012 and 2017 NAICS agree.
+#
+# ⚠️ **The span stops at 2022.** The annual economic surveys were consolidated
+# into the Annual Integrated Economic Survey from data year 2023, so
+# `Census_AIES` `timeseries/aies/inv` carries 2023 onward - totals only, with no
+# kind-of-business split at this resolution.
+
+author: US Census Bureau
+source_name: Annual Wholesale Trade Survey (AWTS) - Inventories
+source_url: https://www.census.gov/programs-surveys/awts.html
+source_publication_date: 2024
+bib_id: Census_AWTS
+api_name: None
+api_key_required: false
+format: xlsx
+url:
+  # Table 3, estimated total inventories of merchant wholesalers. Other tables
+  # are listed at
+  # https://www.census.gov/data/tables/2022/econ/awts/annual-reports.html
+  base_url: https://www2.census.gov/programs-surveys/awts/tables/2022/2022_awts_inv_table3.xlsx
+
+call_response_fxn: !script_function:Census_AWTS census_awts_inventories_call
+parse_response_fxn: !script_function:Census_AWTS census_awts_inventories_parse
+
+# The 2022 vintage publishes every year back to 1992 as columns, so the workbook
+# is read once and each year selected out of it rather than fetched separately.
+call_all_years: True
+
+years:
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022

@@ -44,6 +44,11 @@ estimate. Read the Step 2 section before reading its numbers as quality.
 | `use_intermediate_detail_sut` | 3 — intermediate interior | 402 × 402 | 44,281 cells | $14.86T | live | **100.0%** | **100.0%** |
 | `supply_bridge_detail_sut` | 4 — supply bridge | 402 × 12 | 3,202 cells | $111.28T | live (all 12 columns) | **99.2%** | **62.1%** |
 
+⚠️ **The `use_fd_detail_sut` row is from the 2026-08-24 run and predates
+`F03000`'s rebuild** (2026-08-28), which moved that column from 256 populated
+commodities to 161. Coverage will fall and accuracy should rise when the section
+is next run; §`F03000` carries the measured per-commodity scores in the meantime.
+
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
 
@@ -60,6 +65,11 @@ and the only move left is the column rescale. A perfect score here says the
 plumbing is right, and says nothing at all about the years that matter. The
 movement is scored on the published summary panel by
 [`intermediate_structure_drift`](intermediate_structure_drift.py), not here.
+
+⚠️ **Superseded for `F03000` on 2026-08-28** — it now populates **161**
+commodities, not 256, having been moved off equal allocation onto measured
+weights. See §`F03000`. The snapshot narrative below is kept as the record of
+what moved on 2026-08-24.
 
 ⚠️ **Coverage and accuracy moved in opposite directions this snapshot, and that
 is the honest result.** `F03000` landing adds 256 populated cells against a
@@ -97,7 +107,9 @@ regression on one of the two numbers.
 
 **No column is a whole-column `miss` any more.** All 19 final-demand codes are
 sourced. Two are outside tolerance at the column total: `F04000` (+6.15% vs
-published, #528) and `F03000` (−2.28%, #529). The other seventeen reconcile at
+published, #528) and `F03000` (**−10.8%** as of 2026-08-28, #529 — it was
+−2.28% when this was written; the whole difference is the `Other industries`
+line now being carried as visibly unallocated rather than smeared, see §`F03000`). The other seventeen reconcile at
 the column level, including the twelve government columns, which land cell for
 cell.
 
@@ -128,26 +140,52 @@ aggregate while its commodity split is wrong, and only the row strip shows it.
 
 ### `F03000` — read the column, not its total
 
-| | ours | published |
-|---|---:|---:|
-| column total | 31,936 | 32,682 |
-| commodities populated | 256 | 258 |
-| gross mass (sum of absolute cells) | 92,459 | 98,764 |
+Re-scored 2026-08-28, after every activity set was moved onto a measured weight
+(#529). **Both scores improved and the commodity count fell, and the second is
+the reason for the first:**
 
-Sign agreement on the 254 commodities both sides populate: **69.7%**. Absolute
-error against published gross: **101%**.
+| | 2026-08-24 | now | published |
+|---|---:|---:|---:|
+| column total | 31,936 | **29,144** | 32,682 |
+| commodities populated | 256 | **161** | 258 |
+| gross mass (sum of absolute cells) | 92,459 | **91,193** | 98,764 |
+| sign agreement | 69.7% | **75.6%** | |
+| absolute error vs published gross | 101% | **80%** | |
 
-**The total is the one thing that is free here** — it equals NIPA CIPI by
-construction — while gross mass is 3× net across 61 negative commodities. So
-−2.28% at the column total says almost nothing about the allocation, and the
-per-commodity numbers above are the real score. The largest cells outstanding
+⚠️ **The drop from 256 commodities to 161 is the improvement, not a
+regression.** Three activity sets - farm, manufacturing, and
+mining/utilities/construction - were falling through to flowsa's default and
+being spread **equally across every target sector**, which populated cells no
+source observes. Each now attributes on something that measures what those
+industries actually sell, so the mass is concentrated where there is evidence
+for it. 161 commodities with a defensible weight beats 256 with an equal split.
+
+⚠️ **The column total is 3,538 short of published, and all of it is one named
+line.** `Other industries` (3,537 in 2017) has no sub-detail in `U50705BU1` and
+no crosswalk row, so it is carried in the method as **visibly unallocated**
+rather than silently dropped.
+
+**The total is NOT free any more, and that is deliberate.** It used to equal
+NIPA CIPI by construction, which is why −2.28% at the column total said almost
+nothing about the allocation. It is now −10.8%, and every dollar of the
+difference is one named line the method declines to allocate. Gross mass is
+still 3× net across 61 negative commodities, so the per-commodity numbers above
+remain the real score. The largest cells outstanding
 are all previously scoped rather than new:
 
 | commodity | ours | published | why |
 |---|---:|---:|---|
-| `336411` aircraft | −288 | −6,314 | manufacturing branch needs the industry's own stage split (#664) |
+| `336411` aircraft | −312 | −6,314 | manufacturing branch needs the industry's own stage split (#664) |
+| `324110` petroleum refineries | −2,362 | −7,387 | sits in the mining/utilities/construction line, which is one number for three sectors |
+| `211000` oil and gas | −12,137 | −7,577 | same line; now over rather than under, because the PxI mix concentrates it |
+| `336991` motorcycles etc. | −4,268 | 186 | sign disagreement inside the manufacturing branch |
 | `S00402` used goods | 380 | 3,969 | used-goods value sits in wholesale lines routing to `S00401` (#665) |
-| `211000` oil and gas | −4,754 | −7,577 | mining is still an equal-split placeholder (#660) |
+
+⚠️ **`211000` moved from −4,754 to −12,137 while its published value is
+−7,577** — it was under, and is now over by more. That is the
+mining/utilities/construction line being concentrated by a product mix rather
+than smeared: better placed in principle, and still one published number
+covering three sectors with no stage split, which is open question 2.
 | `325414` biological products | 41 | 2,484 | trade-branch product-line split |
 
 **`F04000` still dominates the worst cells.** All ten worst cells in the frame
