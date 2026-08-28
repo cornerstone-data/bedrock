@@ -207,6 +207,37 @@ def test_reaggregate_aq_is_noop_when_flag_off() -> None:
         _teardown()
 
 
+def test_usa_derives_route_to_reaggregated_when_flag_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bedrock.transform.eeio import derived as derived_mod  # noqa: PLC0415
+
+    sentinel_aq = object()
+    sentinel_b = object()
+    sentinel_y = object()
+    monkeypatch.setattr(derived_mod, '_reaggregation_published', lambda: True)
+    monkeypatch.setattr(
+        derived_mod, 'derive_cornerstone_Aq_reaggregated', lambda: sentinel_aq
+    )
+    monkeypatch.setattr(
+        derived_mod, 'derive_cornerstone_B_reaggregated', lambda: sentinel_b
+    )
+    monkeypatch.setattr(
+        derived_mod, 'derive_cornerstone_y_nab_reaggregated', lambda: sentinel_y
+    )
+    derived_mod.derive_Aq_usa.cache_clear()
+    derived_mod.derive_B_usa_non_finetuned.cache_clear()
+    derived_mod.derive_y_for_national_accounting_balance_usa.cache_clear()
+    try:
+        assert derived_mod.derive_Aq_usa() is sentinel_aq
+        assert derived_mod.derive_B_usa_non_finetuned() is sentinel_b
+        assert derived_mod.derive_y_for_national_accounting_balance_usa() is sentinel_y
+    finally:
+        derived_mod.derive_Aq_usa.cache_clear()
+        derived_mod.derive_B_usa_non_finetuned.cache_clear()
+        derived_mod.derive_y_for_national_accounting_balance_usa.cache_clear()
+
+
 def test_reaggregate_raises_when_children_missing() -> None:
     _setup('test_usa_config_waste_disagg_electricity_reaggregation.yaml')
     try:
@@ -327,6 +358,15 @@ def test_reagg_internals_stay_407_published_are_405() -> None:
             aq_scaled = derive_cornerstone_Aq_scaled()
             aq = derive_cornerstone_Aq_reaggregated()
             b = derive_cornerstone_B_reaggregated()
+            from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+                derive_Aq_usa,
+                derive_B_usa_non_finetuned,
+                derive_y_for_national_accounting_balance_usa,
+            )
+
+            aq_usa = derive_Aq_usa()
+            b_usa = derive_B_usa_non_finetuned()
+            y_nab_usa = derive_y_for_national_accounting_balance_usa()
             n = get_N()
             u = get_U()
             v_pub = get_V()
@@ -350,6 +390,14 @@ def test_reagg_internals_stay_407_published_are_405() -> None:
         assert ELECTRICITY_AGGREGATE in q.index
         assert ELECTRICITY_AGGREGATE in x.index
         assert list(b.columns) == CORNERSTONE_COMMODITIES
+        assert list(aq_usa.Adom.columns) == CORNERSTONE_COMMODITIES
+        assert list(b_usa.columns) == CORNERSTONE_COMMODITIES
+        assert list(y_nab_usa.index) == CORNERSTONE_COMMODITIES
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            assert code not in aq_usa.Adom.columns
+            assert code not in b_usa.columns
+            assert code not in y_nab_usa.index
+        assert ELECTRICITY_AGGREGATE in y_nab_usa.index
         assert list(u.index[: len(CORNERSTONE_COMMODITIES)]) == list(
             CORNERSTONE_COMMODITIES
         )

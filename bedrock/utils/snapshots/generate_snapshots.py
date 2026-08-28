@@ -169,10 +169,32 @@ def generate_snapshots(
     logger.info(f'Generating snapshots for config: {config_name}')
     logger.info(f'Snapshot prefix: {snapshot_prefix_override or snapshot_prefix()}')
 
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        collapse_electricity_children_columns,
+        electricity_reaggregation_enabled,
+    )
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        CORNERSTONE_COMMODITIES,
+        CORNERSTONE_INDUSTRIES,
+        ELECTRICITY_DISAGG_SECTORS,
+    )
+
+    reagg = electricity_reaggregation_enabled()
+    if reagg:
+        logger.info(
+            'implement_electricity_reaggregation: snapshots use published 405 '
+            '(G/T/D collapsed to 221100)'
+        )
+
     # Generate E_USA_ES
     t0 = time.time()
     logger.info('Generating E_USA_ES snapshot')
-    write_snapshot(derive_E_usa(), 'E_USA_ES')
+    e_usa = derive_E_usa()
+    if reagg:
+        e_usa = collapse_electricity_children_columns(
+            e_usa, col_codes=CORNERSTONE_INDUSTRIES
+        )
+    write_snapshot(e_usa, 'E_USA_ES')
     logger.info(f'[TIMING] E_USA_ES completed in {time.time() - t0:.1f}s')
 
     # Generate B_USA_non_finetuned
@@ -218,10 +240,15 @@ def generate_snapshots(
 
     t0 = time.time()
     logger.info('Generating Phi snapshot')
-    write_snapshot(
-        derive_phi_cornerstone_usa_panel(default_phi_panel_years()),
-        'Phi',
-    )
+    phi = derive_phi_cornerstone_usa_panel(default_phi_panel_years())
+    if reagg:
+        phi = phi.drop(
+            index=[c for c in ELECTRICITY_DISAGG_SECTORS if c in phi.index],
+            errors='ignore',
+        )
+        phi.loc['221100'] = 1.0
+        phi = phi.reindex(CORNERSTONE_COMMODITIES)
+    write_snapshot(phi, 'Phi')
     logger.info(f'[TIMING] Phi completed in {time.time() - t0:.1f}s')
 
     # Upload to GCS
