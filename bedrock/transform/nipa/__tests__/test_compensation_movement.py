@@ -18,14 +18,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.transform.nipa import compensation_movement as cm
 from bedrock.transform.nipa.compensation_movement import (
     BENCHMARK_YEAR,
     COVERAGE_FLOOR,
-    UNRESOLVABLE_GROUPS,
     apply_qcew_movement,
-    benchmark_compensation,
-    compensation_weights,
-    detail_to_summary,
 )
 
 
@@ -72,49 +69,73 @@ def test_the_benchmark_year_is_the_identity() -> None:
     pd.testing.assert_series_equal(moved['FlowAmount'], fba['FlowAmount'])
 
 
-def test_industries_the_weights_do_not_name_are_left_alone() -> None:
+def test_industries_the_weights_do_not_name_are_left_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """``T001`` and the other Use-table totals ride along in the FBA.
 
     They are dropped later by ``exclusion_fields``; until then they must not be
     scaled by a growth factor that does not exist, and above all must not
     become ``NaN``.
     """
+    factors = pd.DataFrame({'applied': [2.0, 0.5]}, index=['1111A0', '1111B0'])
+    monkeypatch.setattr(cm, 'compensation_weights', lambda year: factors)
+
     moved = apply_qcew_movement(_fba({'movement_year': 2018}))
+
+    assert moved['FlowAmount'].tolist()[:2] == [200.0, 100.0]
     totals_row = float(np.asarray(moved['FlowAmount'].iloc[2]).item())
     assert totals_row == pytest.approx(999.0)
     assert moved['FlowAmount'].notna().all()
 
 
-def test_the_carve_out_leaves_group_shares_untouched() -> None:
+@pytest.fixture
+def synthetic_weights(monkeypatch: pytest.MonkeyPatch) -> pd.DataFrame:
+    industries = ['construction', 'government', 'measured', 'missing', 'unobserved']
+    benchmark = pd.Series(100.0, index=industries, name='benchmark')
+    growth = pd.Series([2.0, 3.0, 4.0, np.nan, 5.0], index=industries)
+    parents = {
+        'construction': '23',
+        'government': 'GSLG',
+        'measured': '44',
+        'missing': '44',
+        'unobserved': '44',
+    }
+    monkeypatch.setattr(cm, 'benchmark_compensation', lambda: benchmark)
+    monkeypatch.setattr(cm, 'qcew_growth', lambda year: growth)
+    monkeypatch.setattr(cm, 'detail_to_summary', lambda: parents)
+    monkeypatch.setattr(cm, 'unobserved_industries', lambda: ('unobserved',))
+    return cm.compensation_weights(2024)
+
+
+def test_the_carve_out_leaves_group_shares_untouched(
+    synthetic_weights: pd.DataFrame,
+) -> None:
     """Construction and government must come through frozen, exactly.
 
     Applied to them QCEW makes the block *worse* - ``GSLG`` alone goes from
     4,748 misplaced to 71,694 - because the concordance puts 47 NAICS codes
     under more than one BEA detail industry and cannot express the split.
     """
-    weights = compensation_weights(2024)
-    parents = detail_to_summary()
-    carved = [
-        industry
-        for industry in weights.index
-        if parents.get(industry, '') in UNRESOLVABLE_GROUPS
-    ]
-    assert carved, 'the carve-out reached no industries at all'
-    assert np.allclose(weights.loc[carved, 'applied'], 1.0)
-    assert (weights.loc[carved, 'reason'] != 'qcew').all()
+    carved = ['construction', 'government']
+    assert np.allclose(synthetic_weights.loc[carved, 'applied'], 1.0)
+    assert (
+        synthetic_weights.loc[carved, 'reason']
+        == 'concordance cannot resolve the group'
+    ).all()
+    assert synthetic_weights.loc['measured', 'applied'] == 4.0
 
 
-def test_no_industry_is_weighted_to_zero() -> None:
+def test_no_industry_is_weighted_to_zero(synthetic_weights: pd.DataFrame) -> None:
     """A zero weight deletes the industry from its group.
 
     QCEW reaches 379 of 402; the rest keep their group's movement rather than a
     zero, which is the difference between "no opinion" and "no compensation".
     """
-    weights = compensation_weights(2024)
-    benchmark = benchmark_compensation()
-    live = benchmark[benchmark > 0].index
-    assert (weights.loc[live, 'weight'] > 0).all()
-    assert weights['applied'].notna().all()
+    assert (synthetic_weights['weight'] > 0).all()
+    assert synthetic_weights['applied'].notna().all()
+    assert synthetic_weights.loc['missing', 'applied'] == 1.0
+    assert synthetic_weights.loc['unobserved', 'applied'] == 1.0
 
 
 def test_the_coverage_floor_is_a_guard_not_a_selector() -> None:
