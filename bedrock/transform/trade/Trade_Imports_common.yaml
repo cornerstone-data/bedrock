@@ -19,6 +19,12 @@ source_names:
     geoscale: national
     data_format: FBA
     activity_to_sector_mapping: Census_USATrade
+    # 336111/336112 are relabelled onto the parent 336110 in every year, so the
+    # 1:m family - not Census's own child split - decides the vehicle split
+    # (#702). Census's split disagrees with published MCIF by $111B on a pair
+    # total that agrees to 0.4%, and Census drops the children at 2023, which
+    # put an $80B discontinuity between 2022 and 2023.
+    clean_fba_before_activity_sets: !clean_function:trade.utilities consolidate_vehicle_activities_fba
     activity_sets:
       goods_imports_cif:
         selection_fields:

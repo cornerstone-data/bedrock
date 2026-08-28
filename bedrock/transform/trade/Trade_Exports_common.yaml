@@ -14,6 +14,11 @@ source_names:
     geoscale: national
     data_format: FBA
     activity_to_sector_mapping: Census_USATrade
+    # See Trade_Imports_common.yaml: 336111/336112 relabelled onto 336110 in
+    # every year so one rule splits the pair (#702). The export side carries the
+    # same defect - published 2017 F04000 is 23,537/31,734 against Census's
+    # 46,622/11,354 - and the same 2022->2023 flip.
+    clean_fba_before_activity_sets: !clean_function:trade.utilities consolidate_vehicle_activities_fba
     activity_sets:
       goods_exports:
         selection_fields:
