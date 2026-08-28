@@ -83,6 +83,36 @@ ranking of how much each is actually known.**
 **coverage** = of the cells the reference populates, how many we populate.
 **accuracy** = of the cells we populate, how many land within tolerance.
 
+### Which years each block reaches
+
+The scores above are all 2017, because 2017 is the only year with a published
+detail answer. The question the build schedule turns on is a different one —
+how far forward each block runs at all:
+
+| block / column | years | what stops it |
+|---|---|---|
+| Step 1 — NIPA final domestic uses | 2017-2024 | — |
+| Step 1 — `F04000` exports | 2017-2024 | — |
+| Step 1 — **`F03000` inventories** | **2017-2023** | census-vintage mix; `U50705BU1` |
+| Step 2 — value added, all 5 rows | 2017-2024 | — |
+| Step 3 — intermediate interior | 2017-2024 | — |
+| Step 4a — domestic output | 2017-2024 | — |
+| Step 4 — `T007` `MCIF` `MADJ` `MDTY` `TOP` `SUB` | 2017-2024 | — |
+| Step 4 — **`TRADE`** | **2017-2023** | Census annual trade release |
+| Step 4 — **`TRANS`** | **2017-2023** | AIES release (204/400 for 2024) |
+| ⇒ `T014`, `T016` | **2017-2023** | inherited from the two margin columns |
+
+✅ **So the SUT series is 2017-2023, and every one of the three binding
+constraints is a publication date rather than an engineering gap.** Nothing in
+the list is waiting on work; all three wait on a data release. 2024 is a Phase 2
+question, alongside the BEA annual update.
+
+⚠️ **`F03000` only joined this list on 2026-08-28.** `Inventories_<year>.yaml`
+shipped 2017-2023 with #746, but `derive_initial_Y_pur` still gated on
+`if year == 2017`, so the column was all-zero for 2018-2023 — the method was
+built and its consumer was never switched on. Now wired. See §`F03000` as a
+series.
+
 The reference columns are the denominator: they are what "done" looks like, and
 they are known before the corresponding step is built.
 
@@ -260,6 +290,43 @@ mining/utilities/construction line being concentrated by a product mix rather
 than smeared: better placed in principle, and still one published number
 covering three sectors with no stage split, which is open question 2.
 | `325414` biological products | 41 | 2,484 | trade-branch product-line split |
+
+### `F03000` as a series, 2017-2023
+
+New on 2026-08-28. The column is now attached for every year the method
+covers, not only the benchmark:
+
+| year | total $M | commodities | negative | gross $M |
+|---:|---:|---:|---:|---:|
+| 2017 | 29,144 | 161 | 39 | 91,193 |
+| 2018 | 52,125 | 161 | 31 | 107,681 |
+| 2019 | 69,930 | 161 | 17 | 107,333 |
+| 2020 | **−43,392** | 161 | 90 | 112,725 |
+| 2021 | 18,972 | 161 | 65 | 209,486 |
+| 2022 | **184,885** | 158 | 15 | 227,047 |
+| 2023 | 50,108 | 158 | 72 | 175,360 |
+| 2024 | 0 | 0 | — | — |
+
+✅ **The series has the shape the period should have.** 2020 is the only
+negative year — the pandemic drawdown, and the only year where a majority of
+commodities (90 of 161) run negative — and 2022 is the restocking spike at 6.3×
+the 2017 level. Neither is imposed; both come from NIPA's own annual CIPI.
+
+⚠️ **Gross mass more than doubles across the span** (91,193 → 227,047) while the
+net total moves without a trend. That is the column behaving as designed — it is
+a *change* series whose net is small and whose offsetting components are not —
+and it is why every check on this column has to be per commodity.
+
+⚠️ **2024 is zero and should be.** There is no `Inventories_2024` method: the
+trade branch's Economic Census product mix is interpolated between the 2017 and
+2022 vintages and held, and `U50705BU1` supplies the level. 2024 waits on the
+same release the transport margin does.
+
+⚠️ **The per-commodity allocation is unvalidated for 2018-2023.** There is no
+published detail SUT to score those years against, so the 75.6% sign agreement
+and 80% absolute error above are 2017 figures and do not carry forward. What the
+series buys is that the column exists and moves on measured annual data, not
+that its split is right.
 
 **`F04000` still dominates the worst cells.** All ten worst cells in the frame
 are trade: `336411`, `S00402`, `336412`, `339910`, `336111`. With the
@@ -1005,12 +1072,12 @@ largest single obstacle to the balance.**
    `'TRADE'`; the balance panel expects BEA's trailing space, and reindexing
    drops it silently. ⚠️ **Latent, not active** — nothing in production joins
    the bridge to the panel yet, so whoever wires Step 5 hits it first.
-3. ⚠️ **`F03000` is all-zero for 2018-2023 in the seed.**
-   `Inventories_<year>.yaml` ships 2017-2023
-   ([#746](https://github.com/cornerstone-data/bedrock/pull/746)), but
-   `derive_initial_Y_pur` still gates on `if year == 2017` before attaching the
-   column. **A 2018-2023 balance today would converge on a seed with a
-   structurally missing column.** One line, mirroring `TRADE_OVERLAY_YEARS`.
+3. ✅ **`F03000` was all-zero for 2018-2023 in the seed — fixed 2026-08-28.**
+   `Inventories_<year>.yaml` had shipped 2017-2023
+   ([#746](https://github.com/cornerstone-data/bedrock/pull/746)) while
+   `derive_initial_Y_pur` still gated on `if year == 2017`, so the method was
+   built and the consumer was never switched on. Now an `INVENTORIES_YEARS`
+   membership test, mirroring `TRADE_OVERLAY_YEARS`. See §`F03000` as a series.
 
 
 ## Caveats
@@ -1040,8 +1107,9 @@ number for three sectors (#660), manufacturing needs per-industry stage shares
 (#664), and `S00402` is an order of magnitude short (#665). Treat the column as
 a first pass, not as a solved block.
 
-⚠️ **And it is all-zero for 2018-2023 in `derive_initial_Y_pur` today**, despite
-`Inventories_<year>.yaml` shipping those years — see §Step 5, blocker 3.
+✅ **Wired for 2017-2023 on 2026-08-28** — it had been all-zero for 2018-2023
+in `derive_initial_Y_pur` despite the method shipping those years. See
+§`F03000` as a series.
 
 **`TRANS` lands on the right commodities and the wrong amounts.** 100% coverage,
 zero misses, but 6 of 263 cells inside tolerance. The receiving sets and the

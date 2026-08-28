@@ -89,6 +89,13 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 #: of ``F04000`` / ``MCIF`` / ``MDTY`` / ``MADJ`` (#727).
 TRADE_OVERLAY_YEARS = range(2017, 2025)
 
+#: Years with an ``Inventories_<year>`` method supplying ``F03000`` (#529,
+#: #746). Stops at 2023 because the Economic Census product mix the trade
+#: branch attributes on is interpolated between the 2017 and 2022 vintages and
+#: held after, and because ``U50705BU1`` is the level for every year: 2024
+#: needs the next AIES release the same way ``TRANSPORT_MARGIN_YEARS`` does.
+INVENTORIES_YEARS = range(2017, 2024)
+
 #: Years the transport margin can be built for. Truck and pipeline come from
 #: the Service Annual Survey through 2022 and from AIES for 2023, which is the
 #: last published year: ``aies/basic`` and ``aies/miscsector`` both return 204
@@ -262,9 +269,18 @@ def _inventories_fbs_commodity_vector(
     with 61 negative commodities - so a column-total check is close to
     uninformative here. **Validate per commodity** (#529, #587).
 
-    ⚠️ Mining and farm are still equal-split placeholders pending #660, so the
-    per-commodity picture is not yet meaningful for those two branches even
-    though the column total is.
+    ⚠️ The column total is **no longer free**. It equalled NIPA CIPI by
+    construction until #746, which stopped smearing the ``Other industries``
+    line (3,537 in 2017, 12,960 in 2020) across commodities no source observes
+    and started carrying it as visibly unallocated instead. 2017 is now 29,144
+    against the published 32,682, and every dollar of the difference is that
+    one line.
+
+    ⚠️ Mining/utilities/construction is one published number for three sectors,
+    pending #660. Farm is no longer an equal split -- it moves on ERS inventory
+    change (#746) -- but manufacturing still needs per-industry stage shares
+    (#664) and ``S00402`` is an order of magnitude short (#665), so validate
+    per commodity rather than on the total.
     """
     fbs = getFlowBySector(
         method,
@@ -330,7 +346,8 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     Initial (pre-RAS-balanced) final-demand section of the Use table, purchaser
     price, commodity x SUT final-demand codes (no F05000).
 
-    F03000 is Inventories_<year> for 2017 (#529); other years all-zero.
+    F03000 is Inventories_<year> for every year in ``INVENTORIES_YEARS``
+    (#529, #746); 2024 is all-zero.
     F04000 is mapped Trade_Exports_<year> Detail mass for every year in
     ``TRADE_OVERLAY_YEARS``. S00900/F04000 uses the rest-of-world identity
     against frozen 2017 Supply T016.
@@ -367,7 +384,7 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
         y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
 
-    if year == 2017:
+    if year in INVENTORIES_YEARS:
         inventories = _inventories_fbs_commodity_vector(
             f'Inventories_{year}', download_sources_ok
         )
