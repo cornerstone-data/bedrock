@@ -1,43 +1,56 @@
-"""Can a product mix re-split imports inside a NAICS family? (#670) -- NO.
+"""Can a product mix re-split imports inside a NAICS family? (#670)
 
 ``row_exposure --decompose`` found families where our import **level** is right
-and the **mix** inside the family is wrong -- ``3341`` computers at level 0.98,
-``3371`` furniture at 1.03.  That is the shape a product concordance should
-fix, so this module tested two candidate weights against the published answer
-key rather than assuming one would work.
+and the **mix** inside the family is wrong.  This module grades two candidate
+weights against the published answer key instead of assuming one works.
 
-❌ **Both lose, and not narrowly.**
+⚠️ **Read the per-family table, never the aggregate.**  Summed over all 58
+families both arms look like a rout -- PxI nets -266,566M and the PCE bridge
+-305,856M against published.  That number is an artefact of applying a proxy
+**everywhere**, which nobody proposed.  Half the families have an identity
+mapping that is already near-exact (median ``l1_current`` 0.067, and 24 of 58
+below 0.05), so a proxy can only damage them.
 
-===============  =====================  ===============================
-arm              families improved      net toward published split
-===============  =====================  ===============================
-PxI (supply)     10 of 58               **-266,566M** (away)
-PCE bridge       10 of 55               **-305,856M** (away)
-===============  =====================  ===============================
+✅ **Where the identity mapping is actually bad, the proxies win, and they win
+big.**  The arms sort almost perfectly on ``l1_current``:
 
-⚠️ **The reason is that the identity mapping is already good.**  ``l1_current``
-is 0.002 on ``3121``, 0.004 on ``3313``, 0.007 on ``3352``.  The importer's
-NAICS reproduces BEA's within-family split closely for most families, the mix
-error is concentrated in a handful, and neither product proxy improves even
-those.  So BEA's import allocation really is HS-driven, and **neither a
-production-side nor a consumption-side product mix substitutes for it.**
+=========  ==============  ==========  ==========  =====================
+family     l1_current      PxI         PCE         best gain
+=========  ==============  ==========  ==========  =====================
+``3118``   **0.841**       **0.014**   0.168       +756M
+``3259``   **0.575**       0.061       **0.028**   +7,993M
+``3361``   **0.533**       0.613       **0.258**   **+57,430M**
+``3119``   0.309           **0.189**   0.216       +1,123M
+``3332``   0.303           **0.168**   0.191       +3,622M
+``3399``   0.218           0.438       **0.058**   +13,885M
+``3341``   0.143           0.228       **0.101**   +4,154M
+=========  ==============  ==========  ==========  =====================
 
-✅ **What this rules in.**  Leave the import split alone.  The remaining route
-for the import mix is BEA's actual HS-to-I-O concordance, and the case for
-paying for it is now much weaker: the row damage this issue is about is
-roughly half on the **export** side (``336411`` is ``MCIF`` +4.9bn against
-``F04000`` -50.1bn), and that half is untouched by anything here.
+**14 of 58 families improve under at least one arm**, and they are the families
+carrying the mix error that ``row_exposure`` flagged.  ``3361`` alone -- the
+motor-vehicle family behind #702 -- moves **57.4bn** onto the published split.
+
+❌ **What is NOT yet established: when to use which arm.**  Choosing the
+families by which arm wins *on 2017* is fitting to the answer key, which is the
+one thing [[benchmark holdout]] policy forbids.  A rule is only usable if it is
+validated on a span the key did not choose -- and #700 put the **2007 and 2012**
+benchmark detail panels on disk precisely so that is possible.  Until a
+selection rule survives 2012 -> 2017, this module reports a measurement, not a
+recommendation.
 
 The two arms
 ------------
 **PxI** (:func:`pxi_mix`) is ``Census_EC_PxI`` joined to
 ``census_pxi/napcs_to_bea_2017.csv``: the **domestic production** product mix.
-Its natural home is the Supply mix and exports, not imports.
+It wins on food and chemicals -- families whose imports resemble what US plants
+make.
 
 **PCE bridge** (:func:`pce_bridge_mix`) allocates each NIPA consumption
 category across BEA commodities: the **consumption** product mix, at producers'
-value because ``MCIF`` is a basic-value column.  It covers only what households
-buy, so it is silent on capital goods and its silence is not evidence.
+value because ``MCIF`` is a basic-value column.  It wins on consumer durables --
+vehicles, misc manufacturing, computers -- which is exactly where you would
+expect a demand-side split to carry information, and it covers only what
+households buy, so silence on capital goods is not evidence against it.
 
 ⚠️ **NAPCS is on a five-year vintage, exactly like NAICS** -- the 2022
 Economic Census is on NAPCS 2022 and is bridged back through
