@@ -19,6 +19,8 @@ from bedrock.transform.iot.nowcast_mask import (
     SIGN_LOCKED_SUPPLY_COLUMNS,
     SIGN_LOCKED_USE_ROWS,
     SUPPLY_BRIDGE_COLUMNS,
+    NEVER_IMPORTED_COMMODITIES,
+    NEVER_IMPORTED_TRADE_COMMODITIES,
     TRADE_FLOW_SUPPLY_COLUMNS,
     TRADE_FLOW_USE_COLUMNS,
     VA_ROWS,
@@ -28,6 +30,7 @@ from bedrock.transform.iot.nowcast_mask import (
     fixed_value_mask,
     panel_labels,
     sign_lock_mask,
+    never_imported_violations,
     structural_zero_mask,
 )
 from bedrock.utils.economic.balance.mask import assert_subsidies_negative
@@ -327,3 +330,45 @@ def test_margin_and_tax_zeros_stay_structural() -> None:
 def test_the_exempt_columns_are_flows_not_margins() -> None:
     assert set(TRADE_FLOW_SUPPLY_COLUMNS) == {'MCIF', 'MADJ', 'MDTY'}
     assert set(TRADE_FLOW_USE_COLUMNS) == {'F04000'}
+
+
+def test_never_imported_commodities_keep_their_mcif_structural_zero() -> None:
+    """The exemption must not free a commodity that cannot be imported (#751).
+
+    A wholesaler's output is a margin, and a margin does not cross a border.
+    Freeing the whole `MCIF` column would let import mass land there.
+    """
+    supply = _supply_panel()
+    held = NEVER_IMPORTED_TRADE_COMMODITIES[0]
+    supply.loc[held] = 0.0
+    supply.loc['111120', 'MCIF'] = 0.0
+    zeros = structural_zero_mask('supply', supply)
+    # the never-imported row stays frozen ...
+    assert bool(zeros.loc[held, 'MCIF'])
+    # ... while an ordinary commodity's MCIF zero is freed
+    assert not bool(zeros.loc['111120', 'MCIF'])
+
+
+def test_never_imported_violations_reports_offenders_largest_first() -> None:
+    mcif = pd.Series(
+        {
+            '483000': 28_361.0,
+            '425000': 2_234.0,
+            '441000': 0.0,
+            '111120': 9_999.0,
+        }
+    )
+    offending = never_imported_violations(mcif)
+    assert list(offending.index) == ['483000', '425000']
+    assert '111120' not in offending.index
+
+
+def test_never_imported_violations_is_empty_on_a_clean_vector() -> None:
+    mcif = pd.Series({code: 0.0 for code in NEVER_IMPORTED_COMMODITIES})
+    assert never_imported_violations(mcif).empty
+
+
+def test_the_never_imported_set_is_trade_margins_plus_held_transport() -> None:
+    assert len(NEVER_IMPORTED_TRADE_COMMODITIES) == 20
+    assert len(NEVER_IMPORTED_COMMODITIES) == 27
+    assert len(set(NEVER_IMPORTED_COMMODITIES)) == 27
