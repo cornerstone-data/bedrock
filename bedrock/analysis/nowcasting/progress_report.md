@@ -143,6 +143,134 @@ numbers rather than blending them into one score.
 
 ---
 
+---
+
+## Where the numbers come from — provenance across all five blocks
+
+New on 2026-08-28, from
+[`block_provenance.py`](block_provenance.py). §Step 3 has carried a provenance
+map since 2026-08-27 — the 402 × 402 intermediate block coloured by where each
+cell's movement comes from. This extends the same question to the other four
+blocks, so the whole SUT pair can be read on one axis.
+
+**The states**, generalising Step 3's three:
+
+| | |
+|---|---|
+| **primary** | a source observes *this cell*. `k = 1` — the datum **is** the cell |
+| **allocated** | a source observes an aggregate *containing* this cell, spread onto it by a weight. `k > 1` |
+| **carried** | no annual source; the cell holds its 2017 structure |
+| **missing** | the reference has a value and we produce none, or the method declines to allocate a line it can name |
+| absent | neither side populates it |
+
+`k` counts **how many cells share the single source datum behind this cell**.
+It is the same measurement as Step 3's `N`, and primary-vs-allocated is just its
+two ends.
+
+✅ **Derived, not asserted, for three of the four blocks.** The FlowBySector
+rows for final demand, value added and inventories retain `Table` / `Line` /
+`Code` — the NIPA table, line and series each row was built from. That triple
+*is* the datum's identity, so `k` is counted off the build itself. ⚠️
+`Detail_Supply` and `Trade_Exports` carry only `MetaSources` with no per-row
+key, so `supply_mix`'s `k` is measured off the summary→detail crosswalk instead
+and `F04000`'s is declared. `--check` prints which blocks are which.
+
+### The table
+
+Subtotals (`T013`-`T016`) are excluded: they are their components summed, so
+counting them would count the same evidence twice.
+
+| block | populated cells | primary | allocated | carried | missing | observed $ | **primary $** | median `k` |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| final demand | 1,258 | 78 | 1,036 | 0 | 144 | 100% | **48.1%** | 4 |
+| value added | 1,586 | 17 | 1,568 | 0 | 1 | 100% | **7.9%** | **29** |
+| supply mix | 5,080 | 273 | 4,807 | 0 | 0 | 100% | **20.4%** | 14 |
+| supply bridge | 1,804 | 0 | 1,505 | 274 | 25 | 85.4% | **0.0%** | 4 |
+| intermediate (§Step 3) | 44,281 | — | — | 33,883 | 0 | 35.7% | — | 7 |
+
+⚠️ **"Observed" is a much weaker word than it looks in the first four rows.**
+Every populated cell of final demand, value added and the supply mix traces to
+*some* source, so all three read 100%. That is not a quality claim — it is the
+statement that nothing is invented. The column that carries the information is
+**primary $**, and it falls as low as **7.9%** on value added and **0%** on the
+bridge.
+
+### ⚠️ The match table and this table disagree about which columns are good
+
+**And both are right.** A column allocated from one NIPA line onto the 2017
+benchmark mix reproduces 2017 *exactly* — the mix is what it was built from — so
+it scores 100% on the match while resting on a single observation.
+
+The clearest cases are the columns §Step 1 reports as flawless:
+
+| column | match accuracy | median `k` | what that means |
+|---|---:|---:|---|
+| `F10E00` | **100%** | **72** | one NIPA datum spread over 72 commodities |
+| `F07E00` | **100%** | **68** | one datum, 68 commodities |
+| `F06E00` | **100%** | **54** | one datum, 54 commodities |
+| `F10S00`, `F06S00` | **100%** | 11 | |
+| `F01000` PCE | 99.6% | 3 | 61.4% of its dollars are primary |
+| `F02S00` | 90.9% | **1** | the most specific column in the block |
+
+**`F01000` is the honest inversion.** PCE scores *worse* on the match than the
+government equipment columns and is built on far better evidence — median `k` of
+3 against 72, and **61.4% of its dollars primary** against 0%.
+
+⚠️ **Value added is the extreme case, and it is the block this report has twice
+called a solid green floor.** Now it has a number:
+
+| row | match accuracy | median `k` | primary $ |
+|---|---:|---:|---:|
+| `V00300` operating surplus | **100%** | **400** | 0% |
+| `T00OTOP` other taxes | **100%** | **389** | 0% |
+| `V00100` compensation | **100%** | 11 | **15.0%** |
+| `T00SUB` | **100%** | 8 | 0% |
+| `T00TOP` | 8.1% | 20 | 0% |
+
+✅ **`V00300` is one NIPA line spread across 400 industries, and it scores
+100%/100%.** That is the sharpest statement available of why a 2017 match score
+is not a quality measure — and it is consistent with what §Step 2 says in
+prose, that `V00300`'s shares are frozen at 2017 and drift **12.51%** by 2022.
+`V00100` is the only value-added row with cell-specific evidence anywhere in it,
+which is exactly what a QCEW-driven movement series should look like.
+
+⚠️ **`T00TOP` is the one row where the two tables agree** — worst on the match
+at 8.1% *and* uninformative on provenance. When a row is both, the problem is
+the method, not the grader.
+
+### What this says about the bridge
+
+**The supply bridge is the only block with no primary data at all**, and the
+only one where a whole column is carried:
+
+- **`TRADE` is carried** — the 2017 published column moved by a Census gross
+  margin, with the receiving split frozen at the 2017 mix
+  ([#672](https://github.com/cornerstone-data/bedrock/issues/672)). 14.6% of the
+  block's component dollars.
+- **`TOP` is the closest thing to primary** — ten named NIPA product lines sit
+  on their own commodities, 29.8% of the column at `k = 1`; the sales-tax
+  residual on the other 70.2% is not.
+- **25 missing cells**, all `MCIF` and `MDTY`.
+
+⚠️ **`T007` is 33.8T of the block's 44.6T and it is allocated**, at median
+`k = 3` — it is the row margin of the supply mix, so it inherits that block's
+provenance rather than adding evidence of its own.
+
+### How to read this against the pedigree scores
+
+§Data quality scores the intermediate block on reliability and technological
+correlation, 1 best and 5 worst. This section is deliberately **not** that: it
+counts fan-out and stops. A datum can be highly reliable *and* spread across 400
+cells — `V00300`'s NIPA level is about as reliable as US statistics get, and its
+industry split is still one number over 400 industries. **Reliability and
+specificity are independent, and collapsing them is what makes a 100% match
+score look like a finished block.**
+
+⚠️ **Not yet extended:** the pedigree indicators are only computed for the
+intermediate block. The FlowBySector rows for these four carry flowsa's own
+`DataReliability` and `TechnologicalCorrelation` columns already, so scoring
+them is a next step rather than new research.
+
 ## Step 1 — Use table, final-demand columns
 
 `use_fd_detail_sut` · 402 commodities × 19 final-demand codes · tolerance
