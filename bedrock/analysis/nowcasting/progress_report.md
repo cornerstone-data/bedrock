@@ -256,6 +256,45 @@ which is exactly what a QCEW-driven movement series should look like.
 at 8.1% *and* uninformative on provenance. When a row is both, the problem is
 the method, not the grader.
 
+### The supply bridge, on its own
+
+⚠️ **The bridge is a tenth of the supply figure's width, which is enough to see
+that a column is grey and not enough to read which.** Drawn on its own, at the
+width its twelve codes need:
+
+![Supply bridge provenance](images/supply_bridge_provenance_2017.png)
+
+| code | primary | allocated | carried | missing | absent | $M | median `k` | what it is |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| `T007` | 0 | **399** | 0 | 0 | 3 | 33,772,550 | 3 | allocated — row margin of the supply mix |
+| `MCIF` | 0 | 279 | 0 | **21** | 102 | 2,669,377 | 4 | allocated — Census CIF + IEA, 1:m on frozen 2017 |
+| `MADJ` | 0 | 6 | 0 | 0 | 396 | 23,116 | 8 | allocated — Census charges reassigned |
+| `T013` | 0 | 0 | **401** | 0 | 1 | 36,418,811 | — | **subtotal** — adds no observation |
+| `TRADE` | 0 | 0 | **274** | 0 | 128 | 6,529,862 | — | **carried** — receiving split frozen at 2017 |
+| `TRANS` | 0 | 263 | 0 | 0 | 139 | 831,096 | 11 | allocated — eleven AIES/SAS groups |
+| `T014` | 0 | 0 | **282** | 0 | 120 | 7,360,958 | — | **subtotal** |
+| `MDTY` | 0 | 204 | 0 | **4** | 194 | 38,513 | **2** | allocated — Census duty rate × NIPA level |
+| `TOP` | 0 | 339 | 0 | 0 | 63 | 716,925 | 6 | allocated — 29.8% on named NIPA lines |
+| `SUB` | 0 | 15 | 0 | 0 | 387 | 59,875 | 12 | allocated — NIPA type lines, 2017 anchor |
+| `T015` | 0 | 0 | **343** | 0 | 59 | 793,922 | — | **subtotal** |
+| `T016` | 0 | 0 | **399** | 0 | 3 | 37,114,377 | — | **subtotal** |
+
+**Three things the picture says that the table does not.**
+
+1. ⚠️ **`MCIF`'s 21 missing cells are not scattered — they are a block in
+   services**, visible as the one solid purple run in the figure. That is a
+   mapping gap in one place, not thin coverage everywhere, and it is the
+   `BEA_IEA_imports` crosswalk dropping `TransportRoadAndOth`,
+   `OthPersonalCulturalAndRecreational` and `OperatingLeasing` — about $7.2B a
+   year attributed to nothing ([#670](https://github.com/cornerstone-data/bedrock/issues/670)).
+2. ✅ **`MDTY` is the most specific column in the block** at median `k = 2`, and
+   its dark band sits exactly on manufacturing — the Census duty rate is
+   collected at NAICS-6, which is close to BEA detail for goods. It is also
+   tiny, $38.5B, so the block's best evidence carries almost none of its money.
+3. ⚠️ **Four of the twelve columns are grey subtotals**, and a fifth (`TRADE`)
+   is genuinely carried. Reading the figure without that distinction makes the
+   bridge look half-unsourced when the truth is that half of it is arithmetic.
+
 ### What this says about the bridge
 
 **The supply bridge is the only block with no primary data at all**, and the

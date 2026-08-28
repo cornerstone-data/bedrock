@@ -772,6 +772,116 @@ def render(
     return path
 
 
+def render_block(
+    block: str,
+    path: Path | None = None,
+    dpi: int = 200,
+    year: int = DEFAULT_YEAR,
+) -> Path:
+    """Draw one block on its own, wide enough to read its column codes.
+
+    ⚠️ The combined table figures squeeze the trailing blocks into a tenth of
+    their width, which is enough to see that a column is grey and not enough to
+    read *which* column.  The bridge is the case that needs this: 12 columns
+    whose whole story is per-column state.
+    """
+    import matplotlib  # noqa: PLC0415
+
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+    from matplotlib.patches import Patch  # noqa: PLC0415
+
+    from bedrock.analysis.nowcasting.seed_coverage import (  # noqa: PLC0415
+        _spread,
+        band_order,
+    )
+
+    state, k = _panel(block, year)
+    on_rows = RULE_AXIS.get(block, 'column') == 'row'
+    # Put the long axis vertical so the short axis gets the readable labels.
+    if on_rows:
+        state, k = state.T, k.T
+    rows, row_spans = band_order(state.index)
+    state = state.reindex(index=rows)
+    k = k.reindex(index=rows)
+
+    figure, axes = plt.subplots(figsize=(9.0, 12.0))
+    axes.imshow(
+        state_rgb(state.to_numpy(), k.to_numpy(float)),
+        interpolation='nearest',
+        aspect='auto',
+        origin='upper',
+    )
+    axes.set_xticks(range(len(state.columns)))
+    axes.set_xticklabels([str(c) for c in state.columns], rotation=90, fontsize=9)
+    axes.set_yticks([])
+    for _, start, _ in row_spans[1:]:
+        axes.axhline(start - 0.5, color='#1f2937', linewidth=0.6, alpha=0.55)
+    for spine in axes.spines.values():
+        spine.set_edgecolor('#9ca3af')
+
+    n_rows = len(rows)
+    label_y = _spread(
+        [(a + b) / 2 - 0.5 for _, a, b in row_spans], n_rows * 0.042, n_rows
+    )
+    for (name, a, b), y in zip(row_spans, label_y, strict=True):
+        axes.annotate(
+            name,
+            xy=(-0.004, (a + b) / 2 - 0.5),
+            xytext=(-0.09, y),
+            xycoords=('axes fraction', 'data'),
+            textcoords=('axes fraction', 'data'),
+            ha='right',
+            va='center',
+            fontsize=9,
+            arrowprops={'arrowstyle': '-', 'color': '#9ca3af', 'linewidth': 0.7},
+        )
+
+    lo, hi = (_hex_to_rgb(c) for c in ALLOCATED_RAMP)
+    handles = [
+        Patch(facecolor=_swatch(lo), edgecolor='#9ca3af', label='primary  (k = 1)'),
+        Patch(
+            facecolor=_swatch(lo + (hi - lo) * 0.5),
+            edgecolor='#9ca3af',
+            label='allocated',
+        ),
+        Patch(
+            facecolor=_swatch(_hex_to_rgb(CARRIED_COLOR)),
+            edgecolor='#9ca3af',
+            label='carried',
+        ),
+        Patch(
+            facecolor=_swatch(_hex_to_rgb(MISSING_COLOR)),
+            edgecolor='#9ca3af',
+            label='missing',
+        ),
+        Patch(
+            facecolor=_swatch(_hex_to_rgb(ABSENT_COLOR)),
+            edgecolor='#9ca3af',
+            label='absent',
+        ),
+    ]
+    figure.legend(
+        handles=handles,
+        loc='lower center',
+        ncol=5,
+        frameon=False,
+        fontsize=9,
+        bbox_to_anchor=(0.5, -0.005),
+    )
+    axes.set_ylabel('←  commodity', labelpad=10)
+    figure.suptitle(
+        f'{block.replace("_", " ").capitalize()} {year} — where each cell comes from',
+        fontsize=13,
+        y=0.955,
+    )
+    path = path or IMAGE_DIR / f'{block}_provenance_{year}.png'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(path, dpi=dpi, bbox_inches='tight', facecolor='white')
+    plt.close(figure)
+    return path
+
+
 def check(year: int = DEFAULT_YEAR) -> int:
     """Assert the map holds together, and print what it found."""
     failures = 0
