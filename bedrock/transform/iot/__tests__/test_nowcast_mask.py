@@ -15,12 +15,12 @@ import pytest
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
     EXCLUDED_COMMODITIES,
+    NEVER_IMPORTED_COMMODITIES,
+    NEVER_IMPORTED_TRADE_COMMODITIES,
     ONE_TO_ONE_FD,
     SIGN_LOCKED_SUPPLY_COLUMNS,
     SIGN_LOCKED_USE_ROWS,
     SUPPLY_BRIDGE_COLUMNS,
-    NEVER_IMPORTED_COMMODITIES,
-    NEVER_IMPORTED_TRADE_COMMODITIES,
     TRADE_FLOW_SUPPLY_COLUMNS,
     TRADE_FLOW_USE_COLUMNS,
     VA_ROWS,
@@ -28,9 +28,9 @@ from bedrock.transform.iot.nowcast_mask import (
     balance_industries,
     build_sut_mask,
     fixed_value_mask,
+    never_imported_violations,
     panel_labels,
     sign_lock_mask,
-    never_imported_violations,
     structural_zero_mask,
 )
 from bedrock.utils.economic.balance.mask import assert_subsidies_negative
