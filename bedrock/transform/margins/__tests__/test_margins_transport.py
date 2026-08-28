@@ -16,7 +16,7 @@ import pandas as pd
 import pytest
 
 import bedrock.transform.iot.nowcast_transport_margins as tm
-from bedrock.transform.flowbysector import FlowBySector
+from bedrock.transform.flowbysector import getFlowBySector
 from bedrock.transform.margins import transport
 from bedrock.utils.config.settings import crosswalkpath
 
@@ -233,8 +233,8 @@ def test_truck_allocator_drops_other_goods() -> None:
 
 @pytest.fixture(scope='module')
 def fbs_2017() -> pd.DataFrame:
-    return FlowBySector.generateFlowBySector(
-        f'Margins_Transport_{ANCHOR}', download_sources_ok=True
+    return getFlowBySector(
+        f'Margins_Transport_{ANCHOR}', download_FBAs_if_missing=True
     )
 
 
@@ -310,9 +310,7 @@ def test_a_nowcast_year_moves_off_the_anchor() -> None:
     each source by inheritance is the whole mechanism - if it did not, every
     year would silently rebuild the anchor.
     """
-    fbs = FlowBySector.generateFlowBySector(
-        'Margins_Transport_2022', download_sources_ok=True
-    )
+    fbs = getFlowBySector('Margins_Transport_2022', download_FBAs_if_missing=True)
     assert set(fbs['Year'].astype(int)) == {2022}
     got = fbs.groupby('SectorConsumedBy')['FlowAmount'].sum()
     for mode, commodity in tm.MODE_COMMODITIES.items():
