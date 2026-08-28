@@ -159,6 +159,135 @@ def census_awts_parse(
     )
 
 
+#: Table 3's three types of operation. ⚠️ **``Merchant Wholesalers`` is the
+#: parent of the other two and equals their sum**, so a consumer that sums this
+#: FBA without filtering counts the wholesale inventory stock twice. The three
+#: are all kept because the nowcast needs different cuts of them: the F03000
+#: trade branch wants the whole of wholesale, while a margin consumer wants the
+#: ``nomsbo`` cut that ``Census_AWTS``'s table 4 and ``Census_AIES``'s ``TYPOP``
+#: ``1X`` are both on. See :func:`census_awts_inventories_parse`.
+_INVENTORY_OPERATIONS = (
+    'Merchant Wholesalers',
+    "Merchant Wholesalers, except manufacturers' sales branches and offices",
+    "Manufacturers' sales branches and offices",
+)
+
+#: The parent of the pair, for the sum check.
+_INVENTORY_TOTAL_OPERATION = 'Merchant Wholesalers'
+
+
+def census_awts_inventories_call(*, resp: Any, **_: Any) -> list[pd.DataFrame]:
+    """Read table 3 and cut the footnotes off the bottom.
+
+    Table 3 has the same shape as table 4 -- header on row 3, a spacer beneath,
+    prose at the foot -- but one extra dimension, ``Type of Operation``, and it
+    is not filtered to merchant wholesalers the way ``nomsbo`` table 4 is.
+    """
+    df = pd.read_excel(io.BytesIO(resp.content), header=3)
+    df.columns = df.columns.astype(str).str.strip()
+    df = df.dropna(how='all').reset_index(drop=True)
+
+    # Everything from the footnotes down is prose. The NAICS column carries it,
+    # so the cut is "the first row whose code is not a code" rather than a
+    # search for a particular word -- Census has spelled the marker
+    # "Note:", "Notes:" and "Footnotes:" across vintages of these tables.
+    code = df.iloc[:, 0].astype(str).str.strip()
+    is_code = code.str.fullmatch(r'\d{2,6}')
+    if not is_code.any():
+        raise ValueError('Census_AWTS table 3 has no NAICS codes in column 1')
+    # Keeping only the code rows drops the footnote prose at the foot in one
+    # step, so there is no separate "cut at the Notes row" search -- Census has
+    # spelled that marker three ways across vintages of these tables.
+    return [df.loc[is_code].reset_index(drop=True)]
+
+
+def census_awts_inventories_parse(
+    *, df_list: list[pd.DataFrame], source: str, year: int | None, **_: Any
+) -> pd.DataFrame:
+    """Melt table 3's year columns into a long FBA of **stock levels**.
+
+    ``ActivityConsumedBy`` is the holding NAICS industry and ``FlowName`` the
+    type of operation -- the same orientation ``Census_ASM_Inventories`` uses,
+    so the manufacturing and wholesale branches of ``F03000`` join without a
+    transpose.
+
+    ⚠️ **STOCK LEVELS, NOT CHANGES. Do not difference these across years to
+    build ``F03000``.** Beginning- and end-of-year stocks differ by holding
+    gains as well as by real accumulation, and CIPI excludes holding gains
+    through the inventory valuation adjustment.
+    ``analysis/nowcasting/inventories_estimation_plan.md`` measures that error on
+    FIWS: differencing gives -887 against a true farm CIPI of -5,679, out by
+    roughly six times. Structure from here, level from NIPA.
+
+    ⚠️ **The three types of operation nest**, and ``Merchant Wholesalers`` is
+    their parent. Summing this FBA unfiltered double-counts every dollar. The
+    identity is asserted below rather than assumed, because it is the only thing
+    that says which rows are the children.
+
+    ⚠️ **2012 NAICS basis**, as the sheet's own first column is labelled. At the
+    2- to 4-digit wholesale codes this table publishes, 2012 and 2017 NAICS
+    agree -- the same note ``source_catalog.yaml`` carries for table 4.
+    """
+    df = pd.concat(df_list, sort=False)
+
+    operations = set(df['Type of Operation'].dropna().unique())
+    unexpected = operations - set(_INVENTORY_OPERATIONS)
+    if unexpected:
+        raise ValueError(
+            f'{source} table 3 publishes unexpected types of operation '
+            f'{sorted(unexpected)}. The wholesale inventory basis has changed - '
+            f'reconcile it against Census_AIES before using either.'
+        )
+
+    naics = df.columns[0]
+    df = (
+        df.drop(columns=['Data Item', 'Kind of Business'])
+        .melt(
+            id_vars=[naics, 'Type of Operation'],
+            var_name='Year',
+            value_name='Amount',
+        )
+        # year columns are labelled "2017r" when revised
+        .assign(Year=lambda x: x['Year'].astype(str).str[:4])
+        .rename(columns={naics: 'ActivityConsumedBy', 'Type of Operation': 'FlowName'})
+    )
+    df = df[df['Year'].str.fullmatch(r'\d{4}')].copy()
+    df['ActivityConsumedBy'] = df['ActivityConsumedBy'].astype(str).str.strip()
+    df['FlowName'] = df['FlowName'].astype(str).str.strip()
+
+    if year is not None:
+        df = df.loc[df['Year'] == str(year)].copy()
+    if df.empty:
+        raise ValueError(f'{source} has no rows for {year}')
+
+    amount = df['Amount'].astype(str).str.strip()
+    suppressed = amount.isin(_SUPPRESSION_FLAGS)
+    df = df.assign(
+        Suppressed=np.where(suppressed, amount, np.nan),
+        FlowAmount=pd.to_numeric(amount.where(~suppressed, 0), errors='coerce'),
+    ).drop(columns='Amount')
+    df = df[df['FlowAmount'].notna()].copy()
+
+    return (
+        df.assign(
+            FlowAmount=df['FlowAmount'] * _MILLIONS,
+            Unit='USD',
+            Class='Money',
+            SourceName=source,
+            ActivityProducedBy=None,
+            Description='Inventories, end of year, at cost or market',
+            Compartment=None,
+            FlowType='TECHNOSPHERE_FLOW',
+            Location=US_FIPS,
+            # provisional pending a source-specific assessment
+            DataReliability=5,
+            DataCollection=5,
+        )
+        .pipe(assign_fips_location_system, 2024)
+        .reset_index(drop=True)
+    )
+
+
 if __name__ == '__main__':
     from bedrock.extract.flowbyactivity import getFlowByActivity
     from bedrock.extract.generateflowbyactivity import generateFlowByActivity

@@ -11,6 +11,7 @@ EX: --year 2015 --source USGS_NWIS_WU
 import argparse
 import os
 import posixpath
+import re
 import time
 from typing import Any, List, Optional, Union, cast
 from urllib import parse
@@ -123,6 +124,23 @@ def assemble_urls_for_query(
         return [build_url]
 
 
+def _redact_secrets(url: str | None) -> str:
+    """A url with its API key replaced, for logging.
+
+    ⚠️ **The key is a query parameter, so logging the url logs the secret.**
+    Census, EIA and BEA all authenticate this way, and this line runs for every
+    request - so an unredacted log puts a live key into CI output, into any
+    captured pytest log, and into whatever ships those onward.
+    """
+    if url is None:
+        return '<no url>'
+    return re.sub(
+        r'(?i)((?:key|api_key|apikey|token)=)[^&\s]+',
+        lambda m: m.group(1) + '***',
+        url,
+    )
+
+
 def call_urls(
     *,
     url_list: List[str | None],
@@ -157,7 +175,7 @@ def call_urls(
                 # The second half of this if statement will be deprecated once
                 # all FBAs have been shifted over to GCS, but is needed to be backwards
                 # compatible.
-                log.info('Calling %s', url)
+                log.info('Calling %s', _redact_secrets(url))
                 resp = make_url_request(
                     url,
                     set_cookies=set_cookies,

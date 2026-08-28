@@ -179,6 +179,105 @@ ASM_EXPENSE_CONTROLS = ('CSTMTOT', 'PCHTT', 'RCPTOT', 'VALADD')
 ASM_NON_COMMODITY = ('PCHTAX',)
 
 
+#: ASM inventory variables, ``B`` beginning of year and ``E`` end of year.
+#: ⚠️ **Both ends are published**, which is why this source does not need the
+#: differencing the plan warns about for AWTS/ARTS/FIWS: within a year the two
+#: are measured on the same basis. Differencing *across* years still imports
+#: holding gains, so this is structure, not a change.
+ASM_INVENTORY_FLOWS = {
+    'INVFINB': 'Finished goods inventories, beginning of year',
+    'INVFINE': 'Finished goods inventories, end of year',
+    'INVWIPB': 'Work-in-process inventories, beginning of year',
+    'INVWIPE': 'Work-in-process inventories, end of year',
+    'INVMATB': 'Materials and supplies inventories, beginning of year',
+    'INVMATE': 'Materials and supplies inventories, end of year',
+}
+
+#: The stage totals. ⚠️ Summing this FBA unfiltered counts the table twice --
+#: once as stages and once as the total.
+ASM_INVENTORY_CONTROLS = ('INVTOTB', 'INVTOTE')
+
+#: ⚠️ **LIFO reserve, not an inventory stage.** ``INVRSVB/E`` is the gap between
+#: LIFO book value and current cost. It is exactly the valuation effect the
+#: inventory valuation adjustment exists to strip, so it is kept -- a consumer
+#: checking whether a movement is real or a price effect needs it -- but it must
+#: never be added to the stages.
+ASM_INVENTORY_VALUATION = ('INVRSVB', 'INVRSVE')
+
+
+def asm_inventories_parse(*, df_list, year, **_):
+    """Format the ASM inventories-by-industry table into a long FBA.
+
+    ``ActivityConsumedBy`` is the holding NAICS industry and ``FlowName`` the
+    inventory stage, the same orientation :func:`asm_expenses_parse` uses so the
+    two can be joined without a transpose.
+
+    ⚠️ **Stock levels, not changes.** ``F03000`` is a change concept that
+    excludes holding gains through the inventory valuation adjustment, so
+    differencing these across years imports a price effect --
+    ``analysis/nowcasting/inventories_estimation_plan.md`` measures that on FIWS,
+    where differencing gives -887 against a true -5,679, out by roughly six
+    times. Use these for **structure**, with the level from NIPA.
+
+    ⚠️ **``timeseries/asm/industry`` is not the endpoint**, though it publishes
+    the same variable names. It returns 204 No Content for every year 2018-2023.
+    ``area2017`` is the one that answers, and it stops at **2021** -- 2022 comes
+    from ``Census_EC_Inventories`` and 2023 from AIES ``inv``.
+    """
+    df = pd.concat(df_list, sort=False)
+
+    value_columns = [
+        column
+        for column in (
+            *ASM_INVENTORY_FLOWS,
+            *ASM_INVENTORY_CONTROLS,
+            *ASM_INVENTORY_VALUATION,
+        )
+        if column in df.columns
+    ]
+    long = df.melt(
+        id_vars=['NAICS2017'],
+        value_vars=value_columns,
+        var_name='FlowName',
+        value_name='FlowAmount',
+    ).rename(columns={'NAICS2017': 'ActivityConsumedBy'})
+    long['FlowAmount'] = pd.to_numeric(long['FlowAmount'], errors='coerce')
+    # ⚠️ A missing cell is withheld, not zero, and ASM publishes no flag column
+    # here to tell them apart. Dropped rather than zero-filled, so a consumer
+    # cannot read suppression as an industry holding no inventory.
+    withheld = int(long['FlowAmount'].isna().sum())
+    long = long[long['FlowAmount'].notna()].copy()
+
+    long['Description'] = long['FlowName'].map(
+        ASM_INVENTORY_FLOWS
+        | {code: f'{code} (stage total)' for code in ASM_INVENTORY_CONTROLS}
+        | {code: f'{code} (LIFO reserve)' for code in ASM_INVENTORY_VALUATION}
+    )
+    long['ActivityProducedBy'] = None
+    long['Year'] = year
+    long['Location'] = US_FIPS
+    long['Unit'] = 'Thousand USD'
+    long['Class'] = 'Money'
+    long['FlowType'] = 'TECHNOSPHERE_FLOW'
+
+    long = assign_fips_location_system(long, year)
+    long['SourceName'] = 'Census_ASM_Inventories'
+    long['DataReliability'] = 5
+    long['DataCollection'] = 5
+    long['Compartment'] = None
+
+    log.info(
+        'Census_ASM_Inventories %s: %s rows over %s industries and %s flows; '
+        '%s cells withheld and dropped.',
+        year,
+        len(long),
+        long['ActivityConsumedBy'].nunique(),
+        long['FlowName'].nunique(),
+        withheld,
+    )
+    return long
+
+
 def asm_expenses_parse(*, df_list, year, **_):
     """Format the ASM expense-by-kind table into a long FBA.
 

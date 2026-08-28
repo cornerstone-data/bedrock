@@ -523,6 +523,17 @@ Full treatment in [`inventories_estimation_plan.md`](inventories_estimation_plan
 emails from David Hill (BEA, National Economic Accounts, 2025-03/05), reproduced in #530's body.
 **This section replaces the previous "deferred, needs ASM and Economic Census" position.**
 
+✅ **Status 2026-08-28: built as a TIME SERIES, 2017-2023.** `Inventories_<year>.yaml`
+generates for seven years off `Inventories_common.yaml`. Every branch now attributes on a measured
+weight — farm on ERS inventory change then cash receipts, everything else on Economic Census
+product-line sales — and none is left on flowsa's equal-allocation default, which three sets had
+silently been using. The census mix is interpolated **geometrically between the 2017 and 2022
+vintages and held after**, reusing the form fitted for the materials mix. ⚠️ `Other industries` is
+**visibly unallocated** (3,537 in 2017, 12,960 in 2020) and the trade branch's **selling industry is
+not retained** ([#745](https://github.com/cornerstone-data/bedrock/issues/745), needed for Step 6's
+margin distribution). Per-year tie table and the full method inventory are in
+[`inventories_estimation_plan.md`](inventories_estimation_plan.md) §Status.
+
 ✅ **Status 2026-08-19: built and wired (#666).** The scoping below held up — the trade branch is the
 126% branch and it ran on the simplest rule, the crosswalk was the one gap and it was closable, and
 farm did need its own level from NIPA. What the build added to the scoping is §Step 1C's three

@@ -282,6 +282,18 @@ Census_ARTS:
       # the gross margin tables publish 4411 and 4413 but not 4412, so a
       # published parent does not always have its full set of children beneath it
       hierarchy: parent-incompleteChild
+Census_ARTS_Inventories:
+  data_format: FBA
+  class:
+  - Money
+  activity_schema:
+    naics:
+      year: 2017
+      # invent.xlsx has the same incomplete hierarchy as the margin tables:
+      # 441 publishes 4411 and 4413 but not 4412. ⚠️ It also publishes TWO
+      # total rows - all of retail, and retail excluding 441 - which arrive as
+      # the activities "Total" and "Total excluding 441".
+      hierarchy: parent-incompleteChild
 Census_ASM:
   data_format: FBA
   class:
@@ -313,6 +325,18 @@ Census_AWTS:
   - Money
   # the table's first column is labelled "2012 NAICS Code"; at the 3- and
   # 4-digit wholesale codes this method uses, 2012 and 2017 NAICS agree
+  activity_schema:
+    naics:
+      year: 2012
+      hierarchy: parent-completeChild
+Census_AWTS_Inventories:
+  data_format: FBA
+  class:
+  - Money
+  # Same table family and the same "2012 NAICS Code" first column as
+  # Census_AWTS. ⚠️ Table 3 carries a Type of Operation dimension table 4 does
+  # not, and its three values NEST - "Merchant Wholesalers" is the sum of the
+  # other two. See Census_AWTS_Inventories.yaml.
   activity_schema:
     naics:
       year: 2012

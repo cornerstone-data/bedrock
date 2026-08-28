@@ -1,0 +1,59 @@
+# Annual Survey of Manufactures - inventories by industry and stage.
+#
+# The manufacturing branch of the change-in-private-inventories column
+# (`F03000`, Step 1C, #529/#530/#531). Hill's allocation rules operate at the
+# 6-digit industry and by stage, and this is the annual source that carries
+# both.
+#
+# ⚠️ **STOCK LEVELS, NOT CHANGES. Do not difference these across years to build
+# `F03000`.** Beginning- and end-of-year stocks differ by holding gains as well
+# as by real accumulation, and CIPI excludes holding gains through the inventory
+# valuation adjustment. `analysis/nowcasting/inventories_estimation_plan.md`
+# measures the size of that error on FIWS: differencing gives -887 against a
+# true farm CIPI of -5,679, out by roughly six times. Structure from here, level
+# from NIPA.
+#
+# ⚠️ **`timeseries/asm/industry` is not the endpoint**, although it publishes
+# these same variable names and the plan named it. Probed 2026-08-27: it returns
+# **204 No Content for every year 2018-2023**. `area2017` is the one that
+# answers - the same endpoint `Census_ASM_Expenses` uses - and it returns 648
+# rows a year.
+#
+# ⚠️ **The span stops at 2021.** `area2017` returns 204 for 2022 and 2023. The
+# 2018-2023 chain is therefore three instruments:
+#     2018-2021  this source
+#     2022       Census_EC_Inventories (#664) - a census year, so the gap lands
+#                on an observation rather than an interpolation
+#     2023       AIES `timeseries/aies/inv` - totals only, no stage split
+#
+# ⚠️ **`INVRSVB/E` is the LIFO reserve, not a stage.** It is the gap between
+# LIFO book value and current cost - exactly the valuation effect the IVA
+# strips. Kept because a consumer deciding whether a movement is real or a price
+# effect needs it, but it must never be added to the stages. Likewise
+# `INVTOTB/E` are the stage totals: summing this FBA unfiltered counts the table
+# twice.
+
+author: Cornerstone
+source_name: Census Annual Survey of Manufactures - Inventories
+source_url: https://www.census.gov/programs-surveys/asm.html
+bib_id: census_asm
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: timeseries/asm/area2017?
+  url_params:
+    get: NAICS2017,INVFINB,INVFINE,INVWIPB,INVWIPE,INVMATB,INVMATE,INVTOTB,INVTOTE,INVRSVB,INVRSVE
+    for: "us:*&time=__year__"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_ASM asm_pxi_URL_helper
+call_response_fxn: !script_function:Census_ASM asm_call
+parse_response_fxn: !script_function:Census_ASM asm_inventories_parse
+
+years:
+- 2018
+- 2019
+- 2020
+- 2021
