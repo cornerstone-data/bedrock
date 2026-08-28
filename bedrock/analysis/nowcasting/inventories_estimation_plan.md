@@ -19,6 +19,70 @@ deferral was waiting on has been sitting in bedrock's extract list all along.
 
 ---
 
+## Status — built as a time series, 2017-2023 (2026-08-28)
+
+`Inventories_<year>.yaml` generates for **2017 through 2023**, sharing
+`Inventories_common.yaml` for the documented line selections. Every activity set
+now attributes on a source that measures what those industries sell; nothing is
+left on flowsa's equal-allocation default.
+
+| branch | level | commodity split |
+|---|---|---|
+| farm | NIPA `T50705B` `B018RC` | ERS **inventory change** for the crops/livestock split, then ERS **cash receipts** by commodity within each group |
+| manufacturing | `U50705BU1` industry leaves | Economic Census **product-line sales** (`Census_EC_PxI`) — Hill's finished-goods rule is the industry's primary product |
+| wholesale, merchant | `U50705BU1` merchant leaves | product-line sales |
+| wholesale, nonmerchant | `U50705BU1` lines 65/66 | product-line sales; the **nondurable** line is rebuilt from the nine NAICS 424 merchants, since brokers publish no product of their own |
+| retail | `U50705BU1` retail leaves | product-line sales; **`General merchandise stores` is rebuilt from its two children** |
+| mining / utilities / construction | `U50705BU1` line 2 | product-line sales for that kind of business ⚠️ still one number for three sectors — open question 2 |
+| other industries | `U50705BU1` line 77 | ❌ **none — visibly unallocated** |
+
+### How the column ties, per year
+
+`expected` is the line selection less the unallocated `Other industries` line:
+
+| year | published CIPI | other (unallocated) | expected | built | residual |
+|---|---:|---:|---:|---:|---:|
+| 2017 | 32,674 | 3,537 | 29,138 | 29,144 | +6 |
+| 2018 | 56,408 | 3,879 | 52,530 | 52,125 | −405 |
+| 2019 | 72,955 | 2,948 | 70,006 | 69,930 | −76 |
+| 2020 | −30,472 | 12,960 | −43,431 | −43,392 | +39 |
+| 2021 | 26,872 | 7,598 | 19,272 | 18,972 | −300 |
+| 2022 | 181,237 | −4,586 | 185,825 | 184,885 | −940 |
+| 2023 | 53,709 | 4,808 | 48,900 | 50,108 | +1,208 |
+
+⚠️ **The residuals are flowsa dropping targets whose attribution denominator is
+zero**, and they take either sign: dropping a *negative* line raises the total.
+They run −940 to +1,208, under 2.5% of the column in every year.
+
+⚠️ **`Other industries` is a real hole and it is not small in every year** — 
+12,960 in 2020 against a published column of −30,472. It has no sub-detail and
+no rule; see §The gap.
+
+### Extending the census mix between vintages
+
+Product-line sales are quinquennial. `Census_EC.pxi_weights_for_year`
+interpolates the mix **geometrically between the 2017 and 2022 vintages and
+holds it after**, reusing `inputs_structure.interpolate_shares`'s shipped form
+rather than inventing a second answer — it was fitted on a holdout for the
+manufacturing materials mix, which is the same quinquennial-mix problem.
+
+⚠️ **Only the MIX is interpolated. The LEVEL moves annually from real data**,
+because NIPA publishes the column every year. And `Census_AWTS_Inventories` /
+`Census_ARTS_Inventories` give annual trade inventory **stocks** by kind of
+business, so a trade line's size is observed annually even though its commodity
+mix is not.
+
+⚠️ **The 2022 vintage is not on a comparable industry basis.** NAICS 2022
+restructured retail (44-45 gained 455/456/457/458/459), so 2022 publishes **47
+kinds of business against 2017's 53**, and `Department stores` has no 2022
+counterpart at all. A kind of business — or a single (product, kind of business)
+pair — that the later vintage does not publish **holds its 2017 share** rather
+than interpolating toward zero. Filling those with zero cost 9,395 $M at 2022
+and 3,551 $M at 2023, because a zero weight makes flowsa drop the target
+entirely. Bridging the vintages properly is the open item here.
+
+---
+
 ## The object
 
 One column of the SUT Use table: 402 commodities, purchaser value, *what* is

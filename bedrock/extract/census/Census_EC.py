@@ -1112,7 +1112,12 @@ def synthesize_missing_trade_lines(fba: pd.DataFrame) -> pd.DataFrame:
             continue
         source = fba[fba['ActivityProducedBy'].astype(str).isin(components)]
         missing = set(components) - set(source['ActivityProducedBy'].astype(str))
-        if missing:
+        # ⚠️ A LATER census vintage may not publish these components at all --
+        # NAICS 2022 restructured retail, so the 2022 PxI has no `Department
+        # stores`. Missing every component means the vintage cannot express this
+        # line, which `pxi_weights_for_year` handles by holding the base shares;
+        # missing only SOME of them is a rename and must still be loud.
+        if missing and missing != set(components):
             raise ValueError(
                 f'cannot synthesize {label!r} for Census_EC_PxI: its components '
                 f'{sorted(missing)} are absent. Census has most likely renamed a '
@@ -1120,6 +1125,8 @@ def synthesize_missing_trade_lines(fba: pd.DataFrame) -> pd.DataFrame:
                 f'letting the line silently attribute to nothing, which drops '
                 f'its whole value.'
             )
+        if missing:
+            continue
         grouped = (
             source.groupby('ActivityConsumedBy', as_index=False)['FlowAmount']
             .sum()
@@ -1136,6 +1143,99 @@ def synthesize_missing_trade_lines(fba: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True)
 
 
+#: The Economic Census vintages ``Census_EC_PxI`` publishes.  Product-line sales
+#: are quinquennial, so every year between them is interpolated and every year
+#: after the last is held.
+PXI_VINTAGES = (2017, 2022)
+
+
+def pxi_weights_for_year(fba: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Product-line shares for *year*, interpolated between census vintages.
+
+    Attribution reads only the **relative** weight of each product within a kind
+    of business, so this interpolates shares and leaves levels alone.
+
+    ⚠️ **Geometric between vintages, held past the last** -- the form
+    ``inputs_structure.interpolate_shares`` ships, fitted on a holdout for the
+    manufacturing materials mix. This is the same quinquennial-mix problem, so
+    the fitted answer is reused rather than a second one being invented.
+
+    ⚠️ **Holding past 2022 is a decision, not an oversight.** Annual movers were
+    tested for the materials mix and rejected at the noise floor; ``AWTS`` and
+    ``ARTS`` publish annual sales by kind of business but **not by product
+    line**, so a trade line's LEVEL moves annually from real data while its MIX
+    across commodities has no annual observation at all.
+
+    ⚠️ **Rows are only ever copied from *fba*, never built from a bare
+    DataFrame** -- ``_FlowBy.__finalize__`` keeps just the config shared across
+    a concat, and mixing in a plain frame silently empties it.
+    """
+    from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
+        interpolate_shares,
+    )
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    base_year, end_year = PXI_VINTAGES
+    if int(year) <= base_year:
+        return fba
+
+    other = prepare_pxi_for_attribution(getFlowByActivity('Census_EC_PxI', end_year))
+    span = end_year - base_year
+    t = min((int(year) - base_year) / span, 1.0)
+
+    def _shares(frame: pd.DataFrame) -> pd.DataFrame:
+        # ⚠️ Plain DataFrame, not the FlowBy subclass. `pivot_table` calls
+        # `dropna` on the result, which reaches into the block manager and
+        # raises `ufunc 'invert' not supported` on a FlowBy - far from here and
+        # with nothing in the message to point back at this line.
+        wide = pd.DataFrame(frame).pivot_table(
+            index='ActivityConsumedBy',
+            columns='ActivityProducedBy',
+            values='FlowAmount',
+            aggfunc='sum',
+        )
+        total = wide.sum(axis=0)
+        return wide.div(total.where(total != 0, np.nan), axis=1).fillna(0.0)
+
+    base_shares = _shares(fba)
+    end_shares = _shares(other).reindex(
+        index=base_shares.index, columns=base_shares.columns
+    )
+    # ⚠️ A kind of business absent from the later vintage HOLDS its base shares
+    # rather than blending toward zero. The 2022 Economic Census is on NAICS
+    # 2022, which restructured retail trade (44-45 gained 455/456/457/458/459),
+    # so 2022 publishes 46 kinds of business against 2017's 53 and the retail
+    # names do not line up -- `Department stores` has no 2022 counterpart at
+    # all. Reindexing those to zero would interpolate a real 2017 mix toward
+    # nothing, which is worse than not interpolating.
+    held = [c for c in base_shares.columns if c not in _shares(other).columns]
+    end_shares[held] = base_shares[held]
+    # ⚠️ Same rule one level down: a (product, kind of business) PAIR the later
+    # vintage does not publish holds its base share rather than going to zero.
+    # 2022 publishes 47 kinds of business against 2017's 53 and fewer products
+    # within them, so filling those with 0 does not say "this line stopped
+    # selling that product", it says "this vintage does not describe it" - and
+    # a zero weight makes flowsa drop the target, which cost 9,395 $M at 2022
+    # and 3,551 $M at 2023 before this.
+    end_shares = end_shares.where(end_shares.notna(), base_shares)
+    blended = interpolate_shares(base_shares, end_shares, t)
+
+    long = blended.stack().rename('share').reset_index()
+    long = long[long['share'] > 0]
+    keyed = long.set_index(['ActivityConsumedBy', 'ActivityProducedBy'])['share']
+
+    # ⚠️ One row per (product, kind of business) before the share is written.
+    # PxI publishes several rows per pair, and assigning a column share to each
+    # of them multiplies that pair's weight by however many rows it happens to
+    # have -- measured at 3.2x on average, and not uniform across pairs, so it
+    # would silently distort the mix rather than cancel.
+    out = fba.drop_duplicates(subset=['ActivityConsumedBy', 'ActivityProducedBy'])
+    out = out.set_index(['ActivityConsumedBy', 'ActivityProducedBy'], drop=False)
+    out = out.loc[out.index.isin(keyed.index)].copy()
+    out['FlowAmount'] = keyed.reindex(out.index).to_numpy()
+    return out.reset_index(drop=True)
+
+
 def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
     """Recover suppressed cells, then reshape for attribution - in that order.
 
@@ -1150,9 +1250,23 @@ def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFram
     Recovery must come first regardless: it needs the ``00`` parent rows to
     subtract published children from, and the reshape is what removes them.
     """
-    return synthesize_missing_trade_lines(
+    prepared = synthesize_missing_trade_lines(
         move_pxi_product_to_activity(estimate_suppressed_ec_pxi(fba, **kwargs))
     )
+    # ⚠️ The target year comes from the FBA's own config, NOT from kwargs.
+    # ``function_socket`` invokes this hook with no extra arguments, so a
+    # ``kwargs.get('year')`` here is always None and the interpolation would
+    # never fire -- silently shipping 2017 shares for every nowcast year.
+    #
+    # ⚠️ ``target_year`` is separate from ``year`` on purpose. ``year`` selects
+    # which census VINTAGE to load, and must stay 2017; ``target_year`` is the
+    # year whose shares are wanted. Setting ``year`` to a nowcast year would
+    # look for a Census_EC_PxI vintage that does not exist.
+    config = getattr(prepared, 'config', None) or {}
+    target = config.get('target_year')
+    if target is None:
+        return prepared
+    return pxi_weights_for_year(prepared, int(target))
 
 
 if __name__ == "__main__":

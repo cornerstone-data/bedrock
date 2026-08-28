@@ -1,8 +1,8 @@
-# Change in private inventories, 2017 - see Inventories_common.yaml
+# Change in private inventories, 2022 - see Inventories_common.yaml
 # for what every activity set is and why its lines were chosen.
 
 !include:BEA_detail_commodity_target.yaml
-year: &inv_year 2017
+year: &inv_year 2022
 target_schema_year: 2017
 geoscale: national
 activity_schema: null
@@ -110,7 +110,7 @@ source_names:
       inventories_mining_utilities_construction: !include:Inventories_common.yaml:activity_sets:inventories_mining_utilities_construction
         attribution_source:
           Census_EC_PxI: *pxi_weights
-      inventories_retail: !include:Inventories_common.yaml:activity_sets:inventories_retail
+      inventories_retail: !include:Inventories_common.yaml:activity_sets:inventories_retail_annual
         attribution_source:
           Census_EC_PxI: *pxi_weights
       inventories_other: !include:Inventories_common.yaml:activity_sets:inventories_other

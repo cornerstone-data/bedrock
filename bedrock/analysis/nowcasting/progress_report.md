@@ -128,14 +128,30 @@ aggregate while its commodity split is wrong, and only the row strip shows it.
 
 ### `F03000` — read the column, not its total
 
-| | ours | published |
-|---|---:|---:|
-| column total | 31,936 | 32,682 |
-| commodities populated | 256 | 258 |
-| gross mass (sum of absolute cells) | 92,459 | 98,764 |
+Re-scored 2026-08-28, after every activity set was moved onto a measured weight
+(#529). **Both scores improved and the commodity count fell, and the second is
+the reason for the first:**
 
-Sign agreement on the 254 commodities both sides populate: **69.7%**. Absolute
-error against published gross: **101%**.
+| | 2026-08-24 | now | published |
+|---|---:|---:|---:|
+| column total | 31,936 | **29,144** | 32,682 |
+| commodities populated | 256 | **161** | 258 |
+| gross mass (sum of absolute cells) | 92,459 | **91,193** | 98,764 |
+| sign agreement | 69.7% | **75.6%** | |
+| absolute error vs published gross | 101% | **80%** | |
+
+⚠️ **The drop from 256 commodities to 161 is the improvement, not a
+regression.** Three activity sets - farm, manufacturing, and
+mining/utilities/construction - were falling through to flowsa's default and
+being spread **equally across every target sector**, which populated cells no
+source observes. Each now attributes on something that measures what those
+industries actually sell, so the mass is concentrated where there is evidence
+for it. 161 commodities with a defensible weight beats 256 with an equal split.
+
+⚠️ **The column total is 3,538 short of published, and all of it is one named
+line.** `Other industries` (3,537 in 2017) has no sub-detail in `U50705BU1` and
+no crosswalk row, so it is carried in the method as **visibly unallocated**
+rather than silently dropped.
 
 **The total is the one thing that is free here** — it equals NIPA CIPI by
 construction — while gross mass is 3× net across 61 negative commodities. So
@@ -145,9 +161,17 @@ are all previously scoped rather than new:
 
 | commodity | ours | published | why |
 |---|---:|---:|---|
-| `336411` aircraft | −288 | −6,314 | manufacturing branch needs the industry's own stage split (#664) |
+| `336411` aircraft | −312 | −6,314 | manufacturing branch needs the industry's own stage split (#664) |
+| `324110` petroleum refineries | −2,362 | −7,387 | sits in the mining/utilities/construction line, which is one number for three sectors |
+| `211000` oil and gas | −12,137 | −7,577 | same line; now over rather than under, because the PxI mix concentrates it |
+| `336991` motorcycles etc. | −4,268 | 186 | sign disagreement inside the manufacturing branch |
 | `S00402` used goods | 380 | 3,969 | used-goods value sits in wholesale lines routing to `S00401` (#665) |
-| `211000` oil and gas | −4,754 | −7,577 | mining is still an equal-split placeholder (#660) |
+
+⚠️ **`211000` moved from −4,754 to −12,137 while its published value is
+−7,577** — it was under, and is now over by more. That is the
+mining/utilities/construction line being concentrated by a product mix rather
+than smeared: better placed in principle, and still one published number
+covering three sectors with no stage split, which is open question 2.
 | `325414` biological products | 41 | 2,484 | trade-branch product-line split |
 
 **`F04000` still dominates the worst cells.** All ten worst cells in the frame
