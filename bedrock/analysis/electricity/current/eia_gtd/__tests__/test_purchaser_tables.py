@@ -30,17 +30,17 @@ def _alloc(
     td_share: float = 0.25,
 ) -> EIAPurchaserAllocation:
     idx = list(electricity_purchases)
-    electricity_purchases = pd.Series(electricity_purchases, dtype=float)
     if gen is None:
         gen = {k: 0.4 * v for k, v in electricity_purchases.items()}
+    purchases = pd.Series(electricity_purchases, dtype=float)
     gen_s = pd.Series(gen, dtype=float).reindex(idx).astype(float)
-    leftover = electricity_purchases - gen_s
+    leftover = purchases - gen_s
     clip = pd.Series(False, index=idx, dtype=bool)
     if clipped:
         for k, v in clipped.items():
             clip[k] = v
     return EIAPurchaserAllocation(
-        electricity_purchases=electricity_purchases,
+        electricity_purchases=purchases,
         end_use_class=pd.Series(classes),
         mwh=pd.Series(mwh, dtype=float),
         gen_dollars=gen_s,
