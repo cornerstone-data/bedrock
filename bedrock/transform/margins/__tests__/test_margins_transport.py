@@ -233,9 +233,7 @@ def test_truck_allocator_drops_other_goods() -> None:
 
 @pytest.fixture(scope='module')
 def fbs_2017() -> pd.DataFrame:
-    return getFlowBySector(
-        f'Margins_Transport_{ANCHOR}', download_FBAs_if_missing=True
-    )
+    return getFlowBySector(f'Margins_Transport_{ANCHOR}', download_FBAs_if_missing=True)
 
 
 @pytest.mark.eeio_integration

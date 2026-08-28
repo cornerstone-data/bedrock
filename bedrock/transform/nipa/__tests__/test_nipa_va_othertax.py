@@ -62,9 +62,7 @@ def _estimate(year: int) -> 'pd.Series[float]':
     the same shape ``NIPA_final_dom_uses`` has (192 of its 651 sector pairs are
     likewise split). Consumers of either method aggregate; this does too.
     """
-    fbs = getFlowBySector(
-        f'NIPA_VA_othertax_{year}', download_FBAs_if_missing=True
-    )
+    fbs = getFlowBySector(f'NIPA_VA_othertax_{year}', download_FBAs_if_missing=True)
     by_industry = fbs.groupby('SectorConsumedBy')['FlowAmount'].sum() / MILLION
     return by_industry.reindex(published_row().index).fillna(0.0)
 
