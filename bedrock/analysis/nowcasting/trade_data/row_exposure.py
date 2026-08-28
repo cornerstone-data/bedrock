@@ -62,6 +62,15 @@ with a small ``mix_error`` is a **coverage gap wearing a misroute's clothes** --
 the family is short overall and re-splitting inside it recovers nothing.
 ``concordance_can_fix_M`` is the honest upper bound on what a product
 concordance buys for that family.
+
+⚠️ **``--decompose`` overrules ``--family``, and on the 2017 build it does.**
+The headroom test compares our excess against the family's *published* total
+without asking whether our own family total is right, so a family we
+over-supply looks like it has room.  ``334418`` scores 0.48 on headroom -- a
+textbook split error -- while family ``3344`` carries a ``level_ratio`` of
+**1.77**, meaning we load 77% more into that family than BEA publishes and
+there is no room at all.  Read headroom for the sibling names; read the
+decomposition for the verdict.
 """
 
 from __future__ import annotations
