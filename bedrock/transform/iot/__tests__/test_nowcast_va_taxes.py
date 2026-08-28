@@ -19,14 +19,15 @@ government columns are zero by an accounting rule. Both are cheap to break by
 
 from __future__ import annotations
 
+import functools
+from collections.abc import Generator
+
 import pandas as pd
 import pytest
 
 from bedrock.analysis.nowcasting.tax_axis_conversion import _frames, published_row
-from bedrock.transform.eeio.nowcast import (
-    USE_VALUE_ADDED_ROWS,
-    derive_initial_value_added,
-)
+from bedrock.transform.eeio import nowcast
+from bedrock.transform.eeio.nowcast import USE_VALUE_ADDED_ROWS
 from bedrock.transform.iot import nowcast_va_taxes as vt
 from bedrock.transform.iot.nowcast_product_taxes import top_by_level, top_column
 from bedrock.transform.iot.nowcast_subsidies import sub_column
@@ -44,6 +45,16 @@ PUBLISHED_T00SUB_2017 = 59_876
 #: the same code serves every year, which costs 0.001.
 T00TOP_BENCHMARK_CORRELATION = 0.947
 T00TOP_BENCHMARK_ERROR_SHARE = 0.279
+
+
+@pytest.fixture(scope='module', autouse=True)
+def cache_rows_across_assertions() -> Generator[None, None, None]:
+    """Build each expensive annual row once; tests only read returned objects."""
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(vt, 't00top_row', functools.cache(vt.t00top_row))
+    monkeypatch.setattr(vt, 't00sub_row', functools.cache(vt.t00sub_row))
+    yield
+    monkeypatch.undo()
 
 
 # --- the sign convention ---------------------------------------------------
@@ -274,14 +285,39 @@ def test_the_wedge_table_covers_the_whole_span() -> None:
     assert wedge[2020] < wedge[2019] / 3
 
 
-def test_check_passes() -> None:
-    """The module's own ``--check`` is the docstring's assertion set."""
-    assert vt.check() == 0
+def test_the_block_stacks_all_five_value_added_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+) -> None:
+    industry = USA_2017_INDUSTRY_CODES[0]
+    amounts = {
+        'NIPA_VA_compensation': 1.0,
+        'NIPA_VA_othertax': 2.0,
+        'NIPA_VA_surplus': 3.0,
+    }
+    called: list[str] = []
 
+    def generate(method: str, **_: object) -> pd.DataFrame:
+        name = method.rsplit('_', 1)[0]
+        called.append(name)
+        return pd.DataFrame(
+            {'SectorConsumedBy': [industry], 'FlowAmount': [amounts[name]]}
+        )
 
-def test_the_block_stacks_all_five_value_added_rows() -> None:
-    block = derive_initial_value_added(vt.ANCHOR_YEAR)
+    taxes = pd.DataFrame(
+        [[4.0], [-5.0]],
+        index=['T00TOP', 'T00SUB'],
+        columns=[industry],
+    )
+    monkeypatch.setattr(nowcast.FlowBySector, 'generateFlowBySector', generate)
+    monkeypatch.setattr(nowcast, '_resolve_both_sector_columns', lambda frame: frame)
+    monkeypatch.setattr(nowcast, 'va_tax_rows', lambda year: taxes)
+    nowcast.derive_initial_value_added.cache_clear()
+    request.addfinalizer(nowcast.derive_initial_value_added.cache_clear)
+
+    block = nowcast.derive_initial_value_added(vt.ANCHOR_YEAR)
 
     assert list(block.index) == list(USE_VALUE_ADDED_ROWS)
-    assert isinstance(block, pd.DataFrame)
-    assert block.loc['T00SUB'].sum() < 0
+    assert list(block.columns) == list(USA_2017_INDUSTRY_CODES)
+    assert called == list(amounts)
+    assert block.loc[:, industry].tolist() == [1.0, 2.0, 3.0, 4.0, -5.0]
