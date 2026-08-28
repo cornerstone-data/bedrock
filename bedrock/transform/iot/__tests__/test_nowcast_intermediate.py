@@ -28,9 +28,20 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.analysis.nowcasting.agriculture_expense_seed import farm_industries
+from bedrock.analysis.nowcasting.inputs_structure import (
+    MINING_SEEDED,
+    _manufacturing_bea_industries,
+)
+from bedrock.analysis.nowcasting.services_transport_expense_seed import (
+    services_transport_industries,
+)
+from bedrock.analysis.nowcasting.utilities_expense_seed import ELECTRIC
+from bedrock.transform.iot import nowcast_intermediate as ni
 from bedrock.transform.iot.nowcast_intermediate import (
     INTERMEDIATE_YEARS,
     MARGIN_YEARS,
+    MILLION_CURRENCY_TO_CURRENCY,
     PRICE_SURGE,
     SEED_YEAR,
     SUPPLY_VALUATION_COLUMNS,
@@ -46,6 +57,7 @@ from bedrock.transform.iot.nowcast_intermediate import (
     derive_intermediate_use,
     margin_rate,
 )
+from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -309,3 +321,132 @@ def test_a_zero_producer_value_gives_no_margin_rate_rather_than_infinity() -> No
         index=pd.Index(['S00900'], name='commodity'),
     )
     assert np.isnan(margin_rate(valuation).loc['S00900'])
+
+
+def _census_key_available() -> bool:
+    """Whether a Census API key resolves, without raising if it does not.
+
+    ⚠️ **The seed tests reach live Census endpoints.** That is deliberate -- what
+    they guard is how the real seeds compose, and a toy frame composes however
+    the toy was built -- but it means they cannot run where no key is
+    configured. They skip there rather than fail, and run in full wherever one
+    exists.
+
+    ⚠️ **Asks the real accessor rather than reading the environment.** The key
+    normally lives in the project-root ``.env`` and only reaches ``os.environ``
+    when ``get_api_key`` loads it, so an ``os.getenv`` check reports "no key" on
+    a machine that has one -- which skipped all seven tests locally instead of
+    running them.
+    """
+    try:
+        return bool(load_env_file_key('api_key', 'Census'))
+    except Exception:  # noqa: BLE001 - any failure to resolve means "cannot run"
+        return False
+
+
+needs_census = pytest.mark.skipif(
+    not _census_key_available(),
+    reason='no Census API key: set CENSUS_API_KEY (repo secret in CI, .env locally)',
+)
+
+
+# --- the composed seed ------------------------------------------------------
+#
+# Real sources rather than synthetic frames, for the reason the module docstring
+# gives: the defects worth guarding against here are properties of how the seeds
+# compose, and a toy frame composes however the toy was built.
+
+
+@needs_census
+@pytest.mark.parametrize('block', ['manufacturing', 'services', 'agriculture'])
+def test_every_seed_is_the_identity_at_2017(block: str) -> None:
+    """The composition must not move 2017, whatever it overlays.
+
+    ⚠️ **This is the test that caught the first composition.** Every seed is a
+    ratio against its own 2017 base, so at 2017 each is the identity and so is
+    any correct composition of them. Adding ``materials_seed`` to
+    ``nonmaterial_seed`` instead of overlaying them put ``334111`` **55% above**
+    the benchmark here, while still producing a well-formed 402 x 402 block of
+    plausible dollars.
+    """
+    benchmark = ni.benchmark_intermediate()
+    composed = ni.composed_seed(ni.SEED_YEAR)
+
+    difference = (composed - benchmark).abs()
+    # The grain is BEA's own $1M rounding; this is float noise on a $14.9T block.
+    assert difference.to_numpy().max() < 1.0
+
+
+@needs_census
+def test_the_composition_loses_no_dollars_and_invents_no_gaps() -> None:
+    """Overlaying must not strand mass or leave a cell unfilled.
+
+    ⚠️ **The NaN is the failure this guards.** Reindexing an overlay onto all 402
+    commodity rows fills the rows that seed does not carry with ``NaN`` rather
+    than leaving them at their benchmark value, which makes the grand total
+    ``NaN`` -- and a column of NaNs is not something ``carry_shares`` refuses.
+    """
+    benchmark = ni.benchmark_intermediate()
+    composed = ni.composed_seed(ni.SEED_YEAR)
+
+    assert not composed.isna().to_numpy().any()
+    assert composed.shape == benchmark.shape
+    assert float(composed.to_numpy().sum()) == pytest.approx(
+        float(benchmark.to_numpy().sum()), rel=1e-9
+    )
+
+
+@needs_census
+def test_no_column_is_seeded_by_two_blocks() -> None:
+    """The blocks must partition the industries they reach.
+
+    A column claimed twice is indexed twice, and the second index compounds the
+    first rather than replacing it. ``composed_seed`` raises on this; the point
+    here is that the real seeds do not trip it, which is a fact about the source
+    mappings rather than about the guard.
+    """
+    blocks = {
+        'manufacturing': set(_manufacturing_bea_industries()),
+        'services': set(services_transport_industries()),
+        'agriculture': set(farm_industries()),
+        'utilities': set(ELECTRIC),
+        'mining': set(MINING_SEEDED),
+    }
+    names = sorted(blocks)
+    for i, left in enumerate(names):
+        for right in names[i + 1 :]:
+            overlap = blocks[left] & blocks[right]
+            assert not overlap, f'{left} and {right} both claim {sorted(overlap)}'
+
+
+@needs_census
+def test_a_later_year_actually_moves_off_the_2017_shape() -> None:
+    """The counterpart to the identity test: a seed that never moves is not one.
+
+    ⚠️ **Both failures are silent.** A composition that moves 2017 is wrong, and
+    one that moves *nothing* in a later year is equally wrong and even easier to
+    miss, because every total still ties and the block is still a valid 402 x 402
+    of dollars -- it is just the frozen benchmark wearing a seed's name.
+    """
+    benchmark = ni.benchmark_intermediate()
+    later = ni.composed_seed(2022)
+
+    moved = (later - benchmark).abs().sum(axis=0) > MILLION_CURRENCY_TO_CURRENCY
+    # 342 columns are reachable by some seed; requiring most of them to move
+    # keeps this from passing on one column while the rest quietly freeze.
+    assert int(moved.sum()) > 300
+
+
+@needs_census
+def test_the_columns_no_seed_reaches_hold_their_benchmark() -> None:
+    """Government, trade and construction hold 2017, and that is the claim.
+
+    ⚠️ **Holding is a statement, not an omission.** Nothing observes the movement
+    of these columns, so the seed says so by leaving them alone. A change that
+    started moving them would be claiming an observation that does not exist.
+    """
+    benchmark = ni.benchmark_intermediate()
+    later = ni.composed_seed(2022)
+
+    for column in ('GSLGO', '441000', '230301', '213111'):
+        assert later[column].equals(benchmark[column]), column

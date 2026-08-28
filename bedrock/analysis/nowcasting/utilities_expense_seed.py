@@ -342,6 +342,64 @@ def utilities_holdout(
     return holdout_score(lambda _column: index, list(ELECTRIC), weighting)
 
 
+def _use_2017_detail() -> pd.DataFrame:
+    """2017 benchmark detail Use intermediate block, commodity x industry, $M."""
+    from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
+        _use_2017_detail as use,
+    )
+
+    return use()
+
+
+def utilities_seed(year: int, base_year: int = 2017) -> pd.DataFrame:
+    """The seed: BEA's 2017 electric-power columns, moved on EIA's fuel index.
+
+    ``commodity x BEA detail industry`` in $M on the benchmark Use axes, for the
+    three :data:`ELECTRIC` columns -- the same shape ``inputs_structure``'s and
+    ``services_transport_expense_seed``'s seeds return, so they compose in
+    ``nowcast_intermediate.composed_seed``.
+
+    Four rows move: coal ``212100``, gas ``211000``, oil ``324110`` and
+    purchased power ``221100``. ⚠️ **Rows EIA does not name hold their 2017
+    value**, which is :func:`relative_index`'s ``escalator = 1.0`` and is the
+    configuration that was graded -- dividing by the column's own growth scored
+    worse (:func:`escalators`).
+
+    ⚠️ **The three columns take the same index.** BEA's split between private
+    ``221100`` and the two government utility columns is not one EIA can
+    reproduce, which is why :data:`ELECTRIC` is scored as a group; see its note.
+
+    ⚠️ **No renormalisation**, matching ``ore_seed``. Only column *shares* are
+    read downstream -- Step 3 owns the level through ``GO - VAPRO`` -- so a
+    column rescale here would be a no-op on everything that consumes this.
+
+    ⚠️ **``221200`` and ``221300`` are not seeded** and are not oversights:
+    :data:`UNSEEDED` records that form 176 was tested on gas distribution and
+    rejected, and that water has no EIA source at all. **$29.4B stays open.**
+
+    ⚠️ **All four rows are seeded. Nothing is dropped here** -- the note below is
+    about the *evidence*, not about this function, and it sat close enough to the
+    held-column notes above to be misread as an exclusion.
+
+    ⚠️ **The graded span is the one coal dominated.** :func:`legs` re-ran the
+    holdout with each fuel removed to find which leg carried the +16.0%: without
+    coal the gain is **-0.3%**, and coal alone is **+10.3%**. Coal was 51.7% of
+    the fuel bill in 2012 and **16.6% in 2022**, so the leg that earned the
+    verdict is the one shrinking fastest, and 2023-24 shape leans on legs the
+    holdout never really tested. That is a caveat on confidence, not a reason to
+    drop a fuel: dropping one would discard observed movement to make the seed
+    match the span that graded it.
+    """
+    use = _use_2017_detail()
+    index = relative_index(year, base_year)
+    seed = use[list(ELECTRIC)].copy()
+    touched = [code for code in index.index if code in seed.index]
+    seed.loc[touched, :] = seed.loc[touched, :].mul(
+        index.reindex(touched).to_numpy(), axis=0
+    )
+    return seed
+
+
 def carriers() -> pd.DataFrame:
     """Per row: what EIA says it did, what BEA observed, and what it carries.
 

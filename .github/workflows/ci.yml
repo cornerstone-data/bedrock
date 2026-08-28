@@ -2,6 +2,15 @@ on:
   workflow_call:
   workflow_dispatch:
   pull_request:
+  # ⚠️ GitHub scopes caches by branch: a cache written during a pull_request run
+  # is visible to that PR and to descendants of its base, but NOT to a sibling
+  # branch. With `pull_request` as the only trigger nothing ever writes a cache
+  # on nowcast, so every PR missed and rebuilt the sources from scratch - #742
+  # saved bedrock-data-c8253d6c and #743 missed the identical key minutes later.
+  # Running on pushes to nowcast gives the base branch a cache for PRs to
+  # restore, and gives nowcast its own signal after each merge.
+  push:
+    branches: [nowcast]
 
 env:
   FORCE_COLOR: 2
@@ -114,5 +123,11 @@ jobs:
           service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
 
       - name: Run tests
+        # The seed tests reach live Census endpoints. Without a key they skip
+        # rather than fail - see the skipif in test_nowcast_intermediate - so
+        # this job is green either way and the tests run in full the moment the
+        # secret is configured.
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
           uv run pytest

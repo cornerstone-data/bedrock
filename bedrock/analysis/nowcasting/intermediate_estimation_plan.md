@@ -1,9 +1,55 @@
 # Plan — estimating the Use table's intermediate block (Step 3)
 
 Step 3 of [`plan.md`](plan.md) — the commodity × industry interior of the SUT Use
-table, 402 × 402, **purchaser value, before redefinitions**. The last incomplete
-block of the 2017 build and the only one with no section in
-[`sections.py`](sections.py).
+table, 402 × 402, **purchaser value, before redefinitions**.
+
+✅ **Status, 2026-08-27: built, sectioned, and seeded from the surveys.** The
+line above used to read "the last incomplete block of the 2017 build and the only
+one with no section in `sections.py`"; both halves are now false.
+`use_intermediate_detail_sut` is registered and runnable, and
+`nowcast_intermediate.composed_seed` starts the carry from the graded survey
+seeds rather than the frozen 2017 benchmark.
+
+⚠️ **The level was never this step's to estimate.** `GO − VAPRO` supplies it, and
+Step 2 now supplies `VAPRO`'s split for 2017-2024 (#538). What the seeds changed
+is the **shape**, which had been 2017's in every year.
+
+| block | columns | source | graded |
+|---|---:|---|---|
+| manufacturing | 232 | Economic Census materials, then the survey index on the non-materials cells | ships ungraded — the census mix is the only observation there is |
+| services / transportation | 100 | `Census_SAS_Expenses` / AIES | **GO**, +11.5% on `N` |
+| agriculture | 10 | ERS | **GO**, +17.9%, 9 of 10 columns |
+| utilities | 3 | EIA 923 fuel receipts | **GO**, +16.0% on `N`, 3 of 3 columns |
+| mining | 6 | Economic Census materials, sector 21 | ships ungraded, as manufacturing does |
+| — | 51 | hold 2017 | nothing observes their movement |
+
+The five partition the industries they reach — checked in `composed_seed`, not
+assumed — and at 2017 the composition is the identity to **0.000008 USD on a
+$14.86T block**, so `reproduction_check` still measures the column rescale alone.
+At 2022, **330 of 402 columns** move off the 2017 shape.
+
+⚠️ **The seeds are overlaid cell-wise, never added.** `materials_seed` returns the
+*whole* manufacturing column renormalised to its 2017 total; `nonmaterial_seed`
+returns only the 23 non-materials rows. Summing them double-counts those rows —
+it put `334111` **55% above** the benchmark at 2017, where every seed must be the
+identity, while still producing a well-formed 402 × 402 of plausible dollars.
+
+⚠️ **What stays held is a claim, not a gap in the work.** Mining seeds six of
+eight columns: `213111` and `21311A` support activities buy labour and services
+rather than the materials the census measures, and coverage agrees rather than
+leads (6.7% and 15.6% against 25-34% for extraction) — **$53.0B holds 2017**, the
+same exclusion agriculture already makes with its ten farm columns and no `115`.
+Utilities reaches `221100`/`S00101`/`S00202` only: `221200` gas distribution was
+tested on EIA form 176 and rejected, and `221300` water has no EIA source —
+**$29.4B holds 2017**. Government, trade and construction are held on verdicts
+recorded below.
+
+⚠️ **Trade stays out.** It is a **no-go** on the benchmark holdout — it tracks
+where `N` is not — and `trade_expense_supplement.trade_seed` is built and
+imports cleanly, which makes it the seed most likely to be wired in by reflex.
+
+⚠️ **`ore_seed` is not applied separately** — `531ORE` is already one of the 100
+columns `services_transport_seed` moves; applying both indexes it twice.
 
 Issues: [#497](https://github.com/cornerstone-data/bedrock/issues/497) (the
 method), [#577](https://github.com/cornerstone-data/bedrock/issues/577)
@@ -1712,7 +1758,30 @@ the way the seven-year agriculture test does.
 ⚠️ **Nothing continues this after 2022.** AIES publishes no expense cell for 42 or
 44-45 at any NAICS level, so the trade BES pair ends at 2022 with no successor.
 
-### `23` Construction — ❌ **no-go**
+### `23` Construction — ❌ **no-go, and closed** (Wes, 2026-08-27)
+
+✅ **Held, and not reopened on re-weighting.** The 2026-08-27 review asked whether
+this verdict was an artefact of dollar-weighting, as the SAS verdicts were. It is
+not, for three reasons that survive any weighting:
+
+1. ⚠️ **51% of the column is one undifferentiated cell** (`CSTMPRT`), and no
+   Census product publishes a construction materials breakout — `ecnmatfuel` is
+   manufacturing and mining only. **No weighting splits a cell that is not
+   split.**
+2. ❌ **The seed already loses to frozen**, 0.044 against 0.038, on the only
+   comparison run.
+3. ⚠️ **The drift rate is the lowest in the top ten** — 0.038 over 2017 → 2022.
+   Construction ranks by column size ($1.2T), not instability, so the ceiling on
+   what a correct seed could buy here is small.
+
+⚠️ **It was also never run through [`benchmark_holdout.py`](benchmark_holdout.py)**
+— the pair tested is 2017 → 2022 and the holdout runs 2012 → 2017, which would
+need an `ecnbasic` 2012 vintage that is not extracted.
+
+✅ **The condition that would reopen it**: a construction materials breakout, from
+any source. Until one exists the binding constraint is (1), and re-scoring is
+effort spent on the 17.3% the named items reach.
+
 
 ✅ **`ecnbasic` covers construction expenses fully, in both vintages, cleanly.**
 Sector 23 populates eleven expense cells at NAICS-6 for 2017 and 2022 —

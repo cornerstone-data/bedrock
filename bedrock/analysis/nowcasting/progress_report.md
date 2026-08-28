@@ -65,6 +65,9 @@ and the only move left is the column rescale. A perfect score here says the
 plumbing is right, and says nothing at all about the years that matter. The
 movement is scored on the published summary panel by
 [`intermediate_structure_drift`](intermediate_structure_drift.py), not here.
+✅ **§Which cells actually carry annual data is the answer to what this row
+cannot say** — the same block coloured by where each cell's movement comes from,
+where the honest number is **35.7% of dollars observed**, not 100%.
 
 ⚠️ **Superseded for `F03000` on 2026-08-28** — it now populates **161**
 commodities, not 256, having been moved off equal allocation onto measured
@@ -320,64 +323,230 @@ $6.0M on a $19.2B cell.
 ✅ **The seven published negative cells survive**, and the two structurally empty
 columns — `4200ID` customs duties and `814000` private households — stay empty.
 
-⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
-Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
-value-added share of gross output forward; it is right economy-wide to within
-2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
-2022. ⚠️ **That `GSLG` figure is the column *level*, not
+⚠️ **The column control's `VAPRO` is no longer a seed.** It was, when this
+section was first written and Step 2 was unbuilt; Step 2 now supplies `VAPRO`'s
+split for 2017-2024 (#538, merged) and Step 5 pins it as T18. ⚠️ **`GSLG` at
+18.3% low in 2022 was the column *level*, not
 [#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
-commodity *mix* inside the government columns and is a separate, later job. NIPA
-`T31005` already matches the published government `T005` at $0 / $0 / $2M in
-2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
-finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
-[#699](https://github.com/cornerstone-data/bedrock/issues/699).
+commodity *mix* inside the government columns and is a separate, later job. And
+**θ is no longer #497's 1.0**: it is fitted per span, 0.75 off the 2021-22 surge
+and 0.0 across it ([#699](https://github.com/cornerstone-data/bedrock/issues/699)).
 
----
+### Which cells actually carry annual data
 
-## Step 3 — Use table, the intermediate interior
+The match picture above says the block reproduces 2017. It says nothing about
+where the block's movement *away* from 2017 comes from, and that is the only
+question Step 3 is answerable on.
 
-`use_intermediate_detail_sut` · 402 commodities × 402 industries · tolerance
-`rtol=0.01, atol=5e5, ramp=0.25`
+![Step 3 seed coverage](images/intermediate_seed_coverage_2021.png)
 
-![Step 3 intermediate block match](images/use_intermediate_detail_sut_2017.png)
+**How to read it.** This is the same 402 × 402 intermediate block as the match
+picture — commodities down the side, the industries that buy them across the
+top — but coloured by **provenance** rather than by score. Both axes are
+regrouped into contiguous sector bands, in the order the sectors fall in the
+table, because BEA's detail order interleaves them enough that the seeds would
+otherwise read as scattered speckle rather than as the blocks they are. Every
+cell is in one of three states:
 
-| scope | absent | match | partial | miss | extra |
+- **white** — no cell. The 2017 benchmark is zero here, so there is nothing to
+  seed and nothing to carry. This is 73% of the raster and it is why the
+  cell-count share and the dollar share are so far apart.
+- **grey** — carried. The cell keeps its 2017 structure and moves only on the
+  commodity price carry. No annual source observes it.
+- **green** — seeded. An annual survey observes this cell's movement.
+
+**The green is graded, and that is the part of the picture that does the work.**
+"Seeded" is not one thing. A survey datum almost never lands on a single cell:
+`Purchased freight transportation` is one number in the Service Annual Survey
+that has to be spread over 8 BEA commodities, and ERS publishes one farm sector
+whose index drives all 10 farm columns at once. So the green carries `N` — **how
+many cells share the single observation behind this cell** — computed as the
+commodities a datum is split across times the industry columns the same index
+drives. The darkest green is `N = 1`, where the datum *is* the cell: the
+Economic Census reported that material, for that industry, and it resolves to
+exactly one BEA commodity. The ramp is logarithmic and saturates at 64.
+
+Reporting a cell fed by a number shared with 79 others in the same colour as one
+fed by a number about it alone would flatter the coverage badly, which is the
+whole reason for the gradation rather than a flat green.
+
+**What to look at first.** The dark diagonal through manufacturing is the
+Economic Census materials detail — the densest cell-specific evidence in the
+block. The pale green horizontal bands low in the picture are services rows
+reaching across nearly every buying industry on a small number of shared survey
+items: wide, but weak per cell. And the three solid grey column blocks —
+construction, trade, government — are where no annual source reaches at all.
+
+⚠️ **One figure, not one per year, and 2021 is chosen by measurement.** The
+mappings behind `N` do not depend on the year, so the map is nearly
+year-invariant; measured, the seeded share moves **1.9 points across 2020-2023**
+(35.7 / 35.7 / 33.8 / 34.6), inside the band where one picture stands for the
+span. `best_year` ranks 2021 first — see §Data quality below for why that is a
+weaker claim than it sounds. ⚠️ **2018 and 2019 are excluded on purpose** — the
+SAS expense panel jumps straight from 2017 to 2020, with no 2018 or 2019 vintage
+in it, so services and transportation hold their 2017 columns entirely and the
+block reads **19.5%**. A 2018 figure would be showing the missing SAS vintages,
+not the seeds. `--check-years` re-measures this rather than trusting it.
+
+Dollar-weighted, at 2021:
+
+| band | columns | $M | seeded | of which N = 1 | median N |
 |---|---:|---:|---:|---:|---:|
-| cells | 117,323 | 44,281 | 0 | 0 | 0 |
-| row totals | 36 | 366 | 0 | 0 | 0 |
-| column totals | 2 | 400 | 0 | 0 | 0 |
+| agriculture | 13 | 272,102 | 78.7% | 0.0% | 20 |
+| mining | 8 | 195,477 | 31.7% | 22.5% | 1 |
+| utilities | 3 | 160,406 | 22.3% | 0.0% | 3 |
+| construction | 12 | 737,745 | — | — | — |
+| manufacturing | 231 | 3,561,508 | **71.4%** | **51.2%** | 4 |
+| trade | 20 | 1,545,723 | — | — | — |
+| transportation | 9 | 591,808 | 42.8% | 19.9% | 8 |
+| services | 94 | 6,494,741 | 33.3% | 6.6% | 9 |
+| government | 8 | 1,222,147 | — | — | — |
+| **total** | **402** | **14,856,988** | **35.7%** | | **7** |
 
-Grand total $14.856T against $14.856T, off by **0.002%**.
+**35.7% of the block's dollars are observed; 10,398 of 44,281 non-empty cells.**
 
-**Read the picture as a coverage map, not a score.** The candidate is
-`derive_initial_U_intermediate`: the published 2017 interior column-normalised,
-carried on the detail commodity price ratio at θ = 1, and rescaled to
-`GO_producer − VAPRO_seed`. At 2017 every carry factor is 1.0, so the block is
-the reference put through a per-column rescale — everything green is what that
-should look like, and anything else would have been a plumbing bug.
+⚠️ **Read the dollars, not the cell count, and read this against the column
+count rather than instead of it.** 330 of 402 *columns* move off the 2017 shape
+— that is the number in the plan and it is the optimistic reading, because a
+seeded column is not a column of seeded cells. `materials_seed` returns the
+whole manufacturing column renormalised, but the census only *observes* the
+materials rows; the rest of that column is the 2017 mix rescaled, which is
+carried. 35.7% of dollars is the honest reading of the same fact.
 
-⚠️ **The rescale is not the identity, and the residual is BEA's own rounding.**
-Published `T005` is one rounded number; the interior sums 402 separately rounded
-cells to a different one — $350M on $14.9T, at most $13M on a column. A *small*
-column wears that as a large fraction, so `atol` is what carries those cells
-rather than `rtol`: `334610` is $482M of intermediates and is rescaled by 1.05%,
-the largest relative error in the block, while the largest absolute error is
-$6.0M on a $19.2B cell.
+Three things the picture says that the totals do not:
 
-✅ **The seven published negative cells survive**, and the two structurally empty
-columns — `4200ID` customs duties and `814000` private households — stay empty.
+1. ✅ **Manufacturing is the strong block and it is strong in the right way** —
+   71.4% of its dollars observed and **51.2% at `N = 1`**, the only block where
+   most of the evidence is cell-specific. That is the Economic Census materials
+   detail, and it is visible as the dark diagonal.
+2. ⚠️ **Agriculture's 78.7% is the widest coverage and the weakest evidence** —
+   median `N` of 20, nothing at all at `N = 1`. ERS publishes one farm sector,
+   so every farm column moves identically in the commodities ERS names. High
+   coverage and low specificity are not the same property.
+3. ❌ **Construction, trade and government are entirely grey** — $3.5T, 24% of
+   the block, with no annual observation of their input mix at all. Those are
+   recorded verdicts rather than gaps in the work: trade is a measured no-go on
+   the benchmark holdout, construction has no Census product that splits its one
+   undifferentiated 51% cell, and government is #578. Each verdict's reopening
+   condition is in
+   [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md).
 
-⚠️ **Two things here are seeds and will be overwritten at Step 5.** `VAPRO` is
-Step 2's, and Step 2 is unbuilt, so the column control carries 2017's
-value-added share of gross output forward; it is right economy-wide to within
-2.3% in every year 2018-2024 but drifts by industry, with `GSLG` 18.3% low at
-2022. ⚠️ **That `GSLG` figure is the column *level*, not
-[#578](https://github.com/cornerstone-data/bedrock/issues/578)** — #578 is the
-commodity *mix* inside the government columns and is a separate, later job. NIPA
-`T31005` already matches the published government `T005` at $0 / $0 / $2M in
-2017 and is not wired up anywhere. And **θ = 1 is #497 as written, not a
-finding** — it fits **negative** at 2023 (−0.25) and 2024 (−0.50). θ is
-[#699](https://github.com/cornerstone-data/bedrock/issues/699).
+### Data quality — pedigree scores
+
+The map says *whether* a cell is observed. This scores *how well*, on a variant
+of the EPA LCA data-quality pedigree: **1 is best, 5 is worst**, and the two
+indicators are kept separate rather than blended into one number.
+
+**Reliability** is how the data were collected — complete mandatory enumeration
+(1), a mandatory plant-level filing (2), a probability sample or a cell Census
+withheld and we re-estimated (3), modelled national estimates (4), no
+observation at all (5).
+
+**Technological correlation** is whether the datum is about *this* cell, on two
+axes that fail independently. *Commodity*: 1 when the reported item is that BEA
+commodity, degrading as one item is spread over more of them. *Industry*: 1 when
+the source reports that specific BEA industry, degrading on the **worse** of two
+things — collecting at an aggregation BEA splits finer (a 2-digit survey NAICS
+against a 6-digit BEA industry) or one index driving many columns. The two are
+combined by the mean, rounded up.
+
+By source, at 2021, dollar-weighted:
+
+| source | cells | $M | % of block | reliability | tc commodity | tc industry | tc |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| carried | 33,883 | 9,550,627 | 64.3% | 5.00 | 5.00 | 5.00 | 5.00 |
+| SAS | 1,538 | 2,414,907 | 16.3% | 3.00 | 1.97 | 3.83 | 3.17 |
+| Economic Census materials | 4,122 | 2,335,200 | 15.7% | **1.00** | 1.76 | **1.00** | **1.44** |
+| ASM expenses | 4,300 | 222,289 | 1.5% | 3.00 | 2.33 | 1.00 | 1.85 |
+| ERS | 179 | 214,053 | 1.4% | 4.00 | 2.09 | 5.00 | 3.72 |
+| EIA 923 | 11 | 68,772 | 0.5% | 2.00 | 1.00 | 3.00 | 2.00 |
+| Census, suppression recovered | 248 | 51,140 | 0.3% | 3.00 | 1.80 | 1.00 | 1.46 |
+
+**The two aggregations**, by band. `$` weights each cell by its dollars — what a
+dollar of this block is worth as evidence. `N$` weights by `N × dollars`, which
+deliberately *up*-weights the spread-thin evidence, so **the gap between the two
+columns is a direct read on how much of a band's quality rests on data that had
+to be allocated**:
+
+| band | seeded | reliability `$` | tc `$` | reliability `N$` | tc `N$` |
+|---|---:|---:|---:|---:|---:|
+| agriculture | 78.7% | 4.21 | 4.00 | 4.01 | 3.89 |
+| mining | 31.7% | 3.76 | 3.88 | 2.14 | 3.34 |
+| utilities | 22.3% | 4.33 | 4.33 | 3.61 | 3.61 |
+| construction | — | 5.00 | 5.00 | 5.00 | 5.00 |
+| manufacturing | 71.4% | **2.30** | **2.49** | 1.50 | 2.82 |
+| trade | — | 5.00 | 5.00 | 5.00 | 5.00 |
+| transportation | 42.8% | 4.14 | 4.35 | 3.48 | 4.14 |
+| services | 33.3% | 4.33 | 4.38 | 3.36 | 4.03 |
+| government | — | 5.00 | 5.00 | 5.00 | 5.00 |
+| **total** | **35.7%** | **3.98** | **4.05** | **3.04** | **3.76** |
+
+⚠️ **The whole-block score is poor and it should be** — two thirds of the
+block's dollars are carried and score 5 on both indicators by construction.
+The number that says something about the *work* is manufacturing's **2.30 / 2.49**,
+and the Economic Census materials row's **1.00 / 1.44**: where this pipeline has
+a census, the evidence is close to the best the pedigree allows.
+
+⚠️ **Reliability and tc disagree about agriculture, and that is the point of
+keeping them apart.** ERS scores 4 on reliability (modelled national estimates)
+*and* 5 on industry correlation (one farm sector driving ten columns) — it is
+weak on both counts for different reasons. SAS is the mirror image: reliability
+3, commodity correlation 1.97 — the items are close to BEA commodities — but
+industry correlation 3.83, because the survey NAICS are coarser than BEA detail.
+Blending these into one number would hide which fix would help.
+
+⚠️ **Two things are deliberately not scored.** **Temporal correlation** is a
+third pedigree indicator, scored on data age, and is not computed yet (Wes).
+It is the indicator that would separate the candidate years: `materials_seed`
+interpolates the census mix between the 2017 and 2022 vintages and holds it
+afterwards, so **2022 is the only year whose largest seeded block is read in the
+year the census actually ran** — but on reliability and tc alone the four years
+separate by under 0.06, so what picks 2021 is coverage. Expect the presentation
+year to move to 2022 once temporal correlation lands. **Data collection** (share
+of establishments represented) is also unscored.
+
+⚠️ **The ladders are choices, not findings.** The 1/2/3-4/5-9/≥10 steps and the
+per-source reliability assignments sit in one table at the top of
+[`seed_coverage.py`](seed_coverage.py) so a disagreement is a one-line change.
+The degrade-on-mapping-down principle follows
+[`dqi.py`](../../utils/mapping/dqi.py), which already applies it repo-wide.
+
+Reproduced by [`seed_coverage.py`](seed_coverage.py) — `--check` re-asserts the
+map, `--check-years` re-measures the one-figure claim, and `--check-palette`
+re-runs the colour separation (worst pair dE 29.0 against a floor of 27, binding
+on grey against the light end of the ramp under deuteranopia).
+
+#### Where this stopped — 2026-08-27
+
+Shipped and checked: the provenance map at 2021, the prose figure description,
+and the two pedigree indicators with both aggregations. `--check`,
+`--check-years`, `--check-palette` and `--best-year` all pass.
+
+Open, in the order they were set down:
+
+1. ▶️ **Letters on the figure.** Wes: annotate regions with letters keyed to
+   descriptions in the caption, rather than text drawn on the raster. Deferred
+   deliberately — the prose description above was to come first and is the
+   thing to judge before adding marks.
+2. ▶️ **Temporal correlation**, the third pedigree indicator, scored on data age
+   (the EPA rubric bands roughly 1-25 years). Not started, by decision. ⚠️ It is
+   the indicator that decides the presentation year: without it 2021 wins on
+   coverage, with it 2022 should win because its census mix is read in-year.
+   ⚠️ **Do not fold data age into reliability** — that crosses DQ categories,
+   and an earlier pass of this work did exactly that and had to be reverted.
+3. ▶️ **Data collection**, a fourth indicator (share of establishments
+   represented), also unscored.
+4. ⚠️ **`Census_EC_Expenses` 2022 covers 222 of 232 BEA manufacturing
+   industries** where `Census_ASM_Expenses` 2021 covers all 232, for all ten
+   expense kinds. That 4.3% shortfall is most of why the census year has *lower*
+   coverage than the sample years around it. Not diagnosed — it may be
+   suppression, or an extraction gap.
+5. ⚠️ **The SAS expense panel has no 2018 or 2019 vintage**, so those years read
+   19.5% against 35.7%. The vintages exist and are not fetched.
+
+The rubric's ladders and per-source reliability scores are judgements, collected
+at the top of [`seed_coverage.py`](seed_coverage.py) so they can be argued with
+in one place rather than re-derived.
 
 ---
 
