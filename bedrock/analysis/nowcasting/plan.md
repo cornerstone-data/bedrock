@@ -402,6 +402,8 @@ and Step 6c's import matrix. ITA G+S scale is [#647](https://github.com/cornerst
 | Sector bridge | `Sector_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `Sector_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. Methods include `BEA_detail_commodity_target.yaml`. |
 | 2017 structure/specials benchmark | Use `F04000` and Supply `MCIF` (`F05000` is MUT-only) |
 
+**Which trade rows are still out of balance, and which issue closes each, is kept in [`trade_data/About_row_exposure.md`](trade_data/About_row_exposure.md)** — regenerate it with `row_exposure --decompose` before quoting, since every figure in it is a measurement of the artifacts on disk at the time it was taken.
+
 ### Census special-classification codes — three mapped, one deliberately dropped
 
 Census publishes four `9xxxxx` special-classification codes beside its industry NAICS, carrying
@@ -441,7 +443,8 @@ while distributing moves the goods level off in both directions (+9,222 $M expor
 import error). ⚠️ The known cost is that 42,788 $M of exports and 21,635 $M of imports of real but
 unidentifiable ordinary trade are excluded rather than distributed. `930000 → S00402` stays and lands at
 1.61× on imports, which is the residue [#703](https://github.com/cornerstone-data/bedrock/issues/703)
-still owns alongside the price-index question.
+still owns. The **price** treatment of scrap and used goods is a separate Step 3 question and is
+[#768](https://github.com/cornerstone-data/bedrock/issues/768).
 
 ### `MDTY` — rate from Census, level from NIPA
 
@@ -510,9 +513,10 @@ identity and Supply `MCIF`; inventory in `bedrock/transform/trade/README.md`):
 | MCIF imports | +1.29% | 0.62 / 0.84 | 0.67 / 0.74 |
 
 F040 national miss is Census FAS goods vs SUT goods F040 (~+14%); mapped IEA leaves sit ~2% under SUT
-service F040. Census + IEA `AllTypesOfService` tracks ITA G+S; SUT F040 is the lower frame. MCIF
+service F040. Census + IEA `AllTypesOfService` tracks ITA G+S; SUT F040 is the lower frame. ~~MCIF
 national sits inside ~2–3% because `S00300` miss (260 B) offsets CIF goods and mapped-service
-overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is just short of 0.85.
+overshoot.~~ ✅ That offset is gone: `S00300` is sourced as of #606, and MCIF national now reads **+7.3%**
+with the goods-side concept gap no longer cancelled by a missing special. Export Pearson on non-specials clears the #557 bar; import Pearson is just short of 0.85.
 
 **Three carried-forward problems, all on the reconciliation side, none of them a source problem:**
 
@@ -551,11 +555,20 @@ overshoot. Export Pearson on non-specials clears the #557 bar; import Pearson is
    States by nonresidents* (−199,435) plus U20405 line 149 personal remittances in kind (−1,562) — the
    two lines `FD_PCE_less_nonresident` already handles with `negate_flows` (`7a04a71`). The export
    identity matches published F040 within 1 M USD.
-4. **Specials and margins policy.** `S00300` (noncomparable imports, ~260B) needs an explicit rule —
+4. **Specials and margins policy.** ~~`S00300` (noncomparable imports, ~260B) needs an explicit rule —
    held from Supply, taken as a residual after mapped commodities, or out of the extract's scope —
-   rather than a silent zero. **`S00900`'s rule is the supply identity** (item 2). `S00300` is 0 in
-   `F04000`; its ~260B is import and intermediate presence. Totals can look fine while structure is
-   wrong — ITA scale after specials and the service map, not before.
+   rather than a silent zero.~~ ✅ **Rule written and sourced (#606).** `S00300` is **built from IEA
+   leaves**, not held or residualised: the nine `TypeOfService` leaves that match BEA's three
+   noncomparable types — travel expenditure abroad, government goods and services n.i.e., explicit
+   financial fees, other business services n.i.e., and construction abroad — map to `S00300` on the
+   **imports** Crosswalk only. 2017 lands at **261,261 $M against 260,421 published, 1.003**, and row
+   exposure falls **127.5% → 0.6%**. **`S00900`'s rule is the supply identity** (item 2). `S00300` is 0
+   in `F04000`; its ~260B is import and intermediate presence.
+
+   ⚠️ **This unmasks a goods-side overshoot rather than creating one.** The import national total was
+   sitting at +1.2% because the `S00300` shortfall was cancelling a goods excess of the same order; with
+   `S00300` right it reads **+7.3%**, and what remains is the import-side I-O concept gap (BEA's goods
+   rows sit ~13% below the gross concept). Do not read that move as a regression caused by #606.
 
 **Exports are FAS/BOP; the Use column is PUR** — a margins bridge that doesn't exist yet. Provisionally
 accept FAS and flag it.

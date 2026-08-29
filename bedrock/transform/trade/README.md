@@ -9,7 +9,7 @@ Method bodies live in `Trade_Exports_common.yaml` / `Trade_Imports_common.yaml`.
 Thin `Trade_Exports_<year>` / `Trade_Imports_<year>` stubs (`year: 2017` … `2024`)
 set the calendar year; Census and IEA sources inherit that year.
 
-- `Trade_Exports_<year>` — Census `ALL_VAL_YR` goods + BEA IntlServTrade exports + EIA Table 2.14 electricity (dollarized). `SectorConsumedBy` is `F04000` after aggregation. 1:m Crosswalk rows are split in proportion to same-year domestic commodity output `T007` (row margin of `Detail_Supply_<year>`; [#729](https://github.com/cornerstone-data/bedrock/issues/729)). Weights are basic price; a PUR lift is optional follow-on.
+- `Trade_Exports_<year>` — Census domestic goods exports (`ALL_VAL_YR_DOM`, Census `DF=1`; [#762](https://github.com/cornerstone-data/bedrock/issues/762)) + BEA IntlServTrade exports + EIA Table 2.14 electricity (dollarized). `SectorConsumedBy` is `F04000` after aggregation. 1:m Crosswalk rows are split in proportion to same-year domestic commodity output `T007` (row margin of `Detail_Supply_<year>`; [#729](https://github.com/cornerstone-data/bedrock/issues/729)). Weights are basic price; a PUR lift is optional follow-on.
 - `Trade_Imports_<year>` — Census `GEN_CIF_YR` goods + BEA IntlServTrade imports (CIF-family mass for Supply `MCIF`) + EIA Table 2.14 electricity (dollarized). 1:m rows are split in proportion to frozen 2017 Supply `MCIF` until same-year total uses exist (#729). Duties (`CAL_DUT_YR`) and charges (`GEN_CHA_YR`) stay selectable on the Census FBA via `FlowName`; they are not applied here.
 
 Crosswalks: `Sector_Crosswalk_Census_USATrade.csv` (shared by exports and imports) and direction-specific IEA files `Sector_Crosswalk_BEA_IEA_exports.csv` / `Sector_Crosswalk_BEA_IEA_imports.csv` (`SectorSourceName` `BEA_2017_Code`). `Trade_Exports_<year>` selects `BEA_IEA_exports`; `Trade_Imports_<year>` selects `BEA_IEA_imports`. Non-financial IEA rows are identical across both files. IEA rows are deepest `TypeOfService` codes whose label names the Detail commodity (or a small family the type spans). Parent totals are omitted when children are mapped (`AllTypesOfService`, `Transport`, `ChargesForTheUseOfIpNie`, `TelecomCompAndInfo`, `OtherBusiness`, `ProfMgmtConsult`, `Travel`, `Financial`, `FinExplicitAndOth`). Crosswalk membership is not chosen by closing 2017 Use/Supply cells. Methods include `BEA_detail_commodity_target.yaml` so FBS output stays on BEA 2017 Detail commodities. Calling FBAs are `TECHNOSPHERE_FLOW` with empty `ActivityConsumedBy`; activity sets select by `FlowName` (and IEA exclusions). Export 1:m weights come from cached `Detail_Supply_<year>` collapsed to commodity `T007` via `trade.attribution.collapse_detail_supply_to_t007`; import weights select Supply `MCIF` via `selection_fields`.
@@ -29,7 +29,11 @@ Exports and imports share one Census goods Crosswalk. IEA uses two files because
 | `TransportSeaFreight` | → `483000` | → **`S00300`** | Foreign vessel services consumed abroad; `483000` `MCIF` is zero ([#606](https://github.com/cornerstone-data/bedrock/issues/606)). |
 | `TransportAirPort` / `TransportSeaPort` | *unmapped* | → **`S00300`** | Port services consumed abroad (textbook type‑1 noncomparable; no `488000` Detail commodity). Exports wait for a support-activities home or a written mode-commodity rule. |
 | `TradeRelated` | → `425000` | → **`S00300`** | Wholesale electronic markets; `425000` `MCIF` is zero. |
-| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | *unmapped* | Explicit fees (~$31 B imports); no Detail `MCIF` home. |
+| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | → **`S00300`** | Explicit fees (~$31 B imports); no Detail `MCIF` home — published `52A000` `MCIF` is complete with FISIM alone (ours 6,601 vs 6,646, −45 M). |
+| `TravelPersonalOth` / `TravelBusinessOth` / `TravelEducation` / `TravelShortTermWork` | *unmapped* | → **`S00300`** | Expenditures abroad by U.S. residents — type‑1 noncomparable, "services produced and consumed abroad" (~$117 B). `TravelHealth` keeps `622000`. `TravelEducation` does **not** go to `611*`: published `611100` `MCIF` is zero. |
+| `GovtGoodsAndServicesNie` | *unmapped* | → **`S00300`** | Government goods and services n.i.e. (~$22 B) — the DoD direct-defense-expenditure component BEA's own `S00300` distribution is built on. |
+| `OthBusinessNie` | *unmapped* | → **`S00300`** | Other business services n.i.e. (~$10 B) — type‑3, "cannot be identified by type". |
+| `ConstExpend` / `ConstAbroadUs` | *unmapped* | → **`S00300`** | Construction abroad (~$2 B); type‑1. |
 | `FinCredCardOthCredRelated` | *unmapped* | *unmapped* | Explicit credit services; `522A00` `MCIF` is zero in SUT. |
 | `FinSecBrokAndMM` | *unmapped* | *unmapped* | Explicit brokerage; `523A00` `MCIF` is ~$57 M in SUT vs ~$4.8 B in IEA. |
 | `FinUwAndPP` | *unmapped* | *unmapped* | Explicit underwriting; no SUT `MCIF` cell. |
@@ -65,28 +69,23 @@ Scored against the assembled nowcast columns (`use_fd_detail_sut` F04000 / `supp
 
 | direction | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` | n_miss |
 | --- | --- | --- | --- | --- | --- |
-| F040 exports | +6.16% | 0.92 / 0.87 | 0.87 / 0.86 | 0.60 / 0.60 | 43 |
-| MCIF imports | +0.68% | 0.77 / 0.85 | 0.94 / 0.94 | 0.74 / 0.82 | 22 |
+| F040 exports | −1.30% | 0.97 / 0.94 | 0.87 / 0.87 | 0.74 / 0.67 | 39 |
+| MCIF imports | +7.29% | 0.98 / 0.97 | 0.95 / 0.95 | 0.82 / 0.82 | 17 |
 
-⚠️ **Re-scored 2026-08-26, and exports moved in two directions at once.** Mapping
-the NAICS-2022 Census leaves onto the goods Crosswalk (#734) and extending the
-FBS span (#730) roughly **halved the export national error, +12.20% to +6.16%**,
-while the rank statistics *fell* — Pearson 0.96 → 0.92, top-20 Jaccard 0.67 →
-0.60, and `n_miss` 39 → 43. Imports improved on level (+1.14% → +0.68%) with the
-same `n_miss` movement, 18 → 22. Read the pair together rather than either alone:
-the extra mass lands closer to the published national total but is distributed
-across more Detail codes, so more leaves end up populated and a few of the
-previous top-20 hits drop out. The prior row is kept below for comparison.
+⚠️ **Re-scored 2026-08-29 after domestic-export selection (#762).** Census goods
+exports use `ALL_VAL_YR_DOM` (net of re-exports) instead of gross `ALL_VAL_YR`.
+That moves the export national error from **+6.16% to −1.30%** and clears the
+#557 national bar; rank statistics improve (Pearson 0.92 → 0.97, top-20 Jaccard
+0.60 → 0.74). Import rows are unchanged — same `Trade_Imports_*` mass and
+scorecard path as the prior row. The gross-export row is kept below for comparison.
 
-| prior (2026-08-14) | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` | n_miss |
+| prior (2026-08-26, gross exports) | National % vs SUT | Pearson all / non-`S00*` | Spearman all / non-`S00*` | Top-20 Jaccard all / non-`S00*` | n_miss |
 | --- | --- | --- | --- | --- | --- |
-| F040 exports | +12.20% | 0.96 / 0.94 | 0.90 / 0.90 | 0.67 / 0.67 | 39 |
-| MCIF imports | +1.14% | 0.77 / 0.85 | 0.95 / 0.95 | 0.74 / 0.82 | 18 |
+| F040 exports | +6.16% | 0.92 / 0.87 | 0.87 / 0.86 | 0.60 / 0.60 | 43 |
+| MCIF imports | +7.29% | 0.98 / 0.97 | 0.95 / 0.95 | 0.82 / 0.82 | 17 |
 
-⚠️ **The stored per-commodity baseline was NOT refreshed.** `score_2017_trade_detail`
-reports a handful of status changes against it (`311810` and `1121A0` exports,
-`112120`/`112300`/`311810` imports). They follow from the Crosswalk change and are
-expected, but `--update-baseline` is a deliberate call and has not been made.
+Per-commodity regression baseline: `score_2017_trade_detail_baseline.csv` (export
+rows refreshed for #762; import rows unchanged).
 
 ## Residual / specials
 

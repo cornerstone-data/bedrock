@@ -22,7 +22,7 @@ source_names:
     activity_sets:
       goods_exports:
         selection_fields:
-          FlowName: ALL_VAL_YR
+          FlowName: ALL_VAL_YR_DOM
         attribution_method: proportional
         # attribution_source: set in Trade_Exports_<year>.yaml
         clean_parameter: F04000

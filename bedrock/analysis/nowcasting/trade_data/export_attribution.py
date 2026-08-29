@@ -129,6 +129,13 @@ def _census_exports(year: int = YEAR) -> pd.Series:
     path = _SOURCE_DIR / str(year) / f"Census_USATrade_{year}_exports.csv"
     df = pd.read_csv(path, dtype={"NAICS": str})
     df["NAICS"] = df["NAICS"].astype(str).str.strip()
+    if "DF" not in df.columns:
+        raise ValueError(
+            f'{path.name} missing DF column — delete stale export CSVs under '
+            f'extract/input_data/Census_USATrade/ and re-fetch (#762)'
+        )
+    df["DF"] = df["DF"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+    df = df.loc[df["DF"] == "1"]
     value = pd.to_numeric(df["ALL_VAL_YR"], errors="coerce").fillna(0.0)
     return value.groupby(df["NAICS"]).sum()
 

@@ -137,7 +137,7 @@ def consolidate_vehicle_activities(frame: pd.DataFrame) -> pd.DataFrame:
 
     Deliberately a *relabel*, not an aggregation: rows keep their own
     ``FlowName`` and ``Description``, so every flow the caller selects
-    (``GEN_CIF_YR``, ``ALL_VAL_YR``, ``GEN_VAL_YR``, ``CAL_DUT_YR``) is
+    (``GEN_CIF_YR``, ``ALL_VAL_YR_DOM``, ``ALL_VAL_YR_FGN``, ``GEN_VAL_YR``, ``CAL_DUT_YR``) is
     consolidated the same way, and the attribution step does the summing.
     """
     if frame.empty or 'ActivityProducedBy' not in frame.columns:
