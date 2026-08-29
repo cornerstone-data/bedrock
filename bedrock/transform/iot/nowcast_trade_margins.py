@@ -265,9 +265,19 @@ def load_trade_crosswalk() -> pd.DataFrame:
 
 
 def _census_fba(kind: str, year: int) -> tuple[pd.DataFrame, str]:
-    """The FBA carrying *kind*'s margin in *year*, and the source it came from."""
+    """The FBA carrying *kind*'s margin in *year*, and the source it came from.
+
+    ⚠️ ``download_FBA_if_missing=True`` is deliberate.  The default is ``False``
+    (:data:`settings.DEFAULT_DOWNLOAD_IF_MISSING`), which makes the load order
+    *local, then rebuild from the live Census endpoint* -- so a cache miss goes
+    straight to the network and a bad response surfaces as
+    ``ValueError: Excel file format cannot be determined`` from deep inside
+    ``pandas``, hundreds of frames from anything that names Census.  With this
+    flag the order is *local, then the published GCS artifact, then rebuild*,
+    which is the same choice ``EPA_GHGI`` already makes for its curated FBAs.
+    """
     source = 'Census_AIES' if year >= FIRST_AIES_YEAR else _SOURCE_FOR_KIND[kind]
-    fba = getFlowByActivity(source, year)
+    fba = getFlowByActivity(source, year, download_FBA_if_missing=True)
     rows = fba[fba['FlowName'].astype(str).str.strip() == GROSS_MARGIN_ITEM].copy()
     if source == 'Census_AIES':
         type_of_operation = _AIES_TYPE_OF_OPERATION[kind]
