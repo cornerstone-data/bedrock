@@ -54,6 +54,13 @@ pro-rata moves the goods level off in both directions and adds 9,222 $M of
 export error and 14,426 $M of import error.  ⚠️ The known cost of dropping is
 that 42,788 $M of exports and 21,635 $M of imports of real, if unidentifiable,
 ordinary trade are excluded rather than distributed.
+
+Export domestic vs re-exports (#762)
+------------------------------------
+Census ``exports/naics`` carries a ``DF`` dimension: ``1`` domestic exports,
+``2`` foreign exports (re-exports).  BEA's I-O ``F04000`` column is net of
+re-exports; the Trade export FBS selects ``ALL_VAL_YR_DOM`` only.  Both
+series are kept in the FBA so gross totals remain auditable against Census.
 """
 
 from __future__ import annotations
@@ -79,6 +86,15 @@ from bedrock.utils.mapping.location import US_FIPS
 
 _IMPORT_FLOW = 'imports'
 _EXPORT_FLOW = 'exports'
+
+_EXPORT_FLOW_BY_DF = {
+    '1': 'ALL_VAL_YR_DOM',
+    '2': 'ALL_VAL_YR_FGN',
+}
+_EXPORT_FLOW_DESCRIPTIONS = {
+    'ALL_VAL_YR_DOM': 'domestic exports (Census DF=1)',
+    'ALL_VAL_YR_FGN': 're-exports (Census DF=2)',
+}
 
 TradeDirection = Literal['exports', 'imports']
 
@@ -142,6 +158,48 @@ def census_usatrade_load_gcs(**kwargs: Any) -> pd.DataFrame:
     )
 
 
+def _flow_description(flow_name: str) -> str:
+    if flow_name in _EXPORT_FLOW_DESCRIPTIONS:
+        return _EXPORT_FLOW_DESCRIPTIONS[flow_name]
+    return 'imports'
+
+
+def _normalize_naics(series: pd.Series) -> pd.Series:
+    return (
+        series.astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.zfill(6)
+    )
+
+
+def _naics_code_mask(naics: pd.Series) -> pd.Series:
+    return naics.str.fullmatch(r'\d{6}|\d{5}X|\d{4}XX', na=False)
+
+
+def _parse_export_with_df(raw: pd.DataFrame) -> pd.DataFrame:
+    """Split export ``ALL_VAL_YR`` by Census ``DF`` into domestic and re-export flows."""
+    cols = {str(c).upper(): c for c in raw.columns}
+    missing = {'NAICS', 'ALL_VAL_YR', 'DF'} - set(cols)
+    if missing:
+        raise ValueError(
+            f'Census USA Trade export dump missing columns: {sorted(missing)}'
+        )
+    keep = raw[[cols['NAICS'], cols['ALL_VAL_YR'], cols['DF']]].copy()
+    keep.columns = ['NAICS', 'ALL_VAL_YR', 'DF']
+    keep['NAICS'] = _normalize_naics(keep['NAICS'])
+    keep = keep.loc[_naics_code_mask(keep['NAICS'])]
+    keep['DF'] = keep['DF'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+    keep = keep.loc[keep['DF'].isin(_EXPORT_FLOW_BY_DF)]
+    if keep.empty:
+        raise ValueError('Census USA Trade export dump has no domestic/re-export rows')
+    unknown = set(keep['DF'].unique()) - set(_EXPORT_FLOW_BY_DF)
+    if unknown:
+        raise ValueError(f'Unexpected Census export DF values: {sorted(unknown)}')
+    keep['FlowName'] = keep['DF'].map(_EXPORT_FLOW_BY_DF)
+    keep['FlowAmount'] = pd.to_numeric(keep['ALL_VAL_YR'], errors='coerce').fillna(0.0)
+    melted = keep[['NAICS', 'FlowName', 'FlowAmount']].copy()
+    melted['Description'] = melted['FlowName'].map(_EXPORT_FLOW_DESCRIPTIONS)
+    return melted
+
+
 def census_usatrade_parse(
     *, df_list: list[pd.DataFrame], year: str, config: dict[str, Any], **_kwargs: Any
 ) -> pd.DataFrame:
@@ -152,6 +210,15 @@ def census_usatrade_parse(
         cols = {str(c).upper(): c for c in df.columns}
         if 'NAICS' not in cols:
             raise ValueError('Census USA Trade dump missing NAICS column')
+        if 'ALL_VAL_YR' in cols:
+            if 'DF' not in cols:
+                raise ValueError(
+                    'Census USA Trade export dump missing DF column — delete stale '
+                    'export CSVs under extract/input_data/Census_USATrade/ and '
+                    're-fetch with export_get_fields including DF (#762)'
+                )
+            frames.append(_parse_export_with_df(raw))
+            continue
         naics_col = cols['NAICS']
         present = [name for name in _flow_names_in_frame(df, config) if name in cols]
         if not present:
@@ -160,17 +227,11 @@ def census_usatrade_parse(
         keep = keep.rename(
             columns={naics_col: 'NAICS', **{cols[n]: n for n in present}}
         )
-        keep['NAICS'] = (
-            keep['NAICS']
-            .astype(str)
-            .str.replace(r'\.0$', '', regex=True)
-            .str.strip()
-            .str.zfill(6)
-        )
+        keep['NAICS'] = _normalize_naics(keep['NAICS'])
         # Keep digit-6 NAICS and Census residual codes (trailing X / XX), e.g.
         # 33641X, 31181X, 11211X, 1123XX. Residuals carry suppressed detail mass
         # that Sector_Crosswalk_Census_USATrade maps 1:m onto BEA Detail.
-        keep = keep.loc[keep['NAICS'].str.fullmatch(r'\d{6}|\d{5}X|\d{4}XX', na=False)]
+        keep = keep.loc[_naics_code_mask(keep['NAICS'])]
         melted = keep.melt(
             id_vars=['NAICS'],
             value_vars=present,
@@ -180,9 +241,7 @@ def census_usatrade_parse(
         melted['FlowAmount'] = pd.to_numeric(
             melted['FlowAmount'], errors='coerce'
         ).fillna(0.0)
-        melted['Description'] = melted['FlowName'].map(
-            lambda n: 'imports' if n != 'ALL_VAL_YR' else 'exports'
-        )
+        melted['Description'] = melted['FlowName'].map(_flow_description)
         frames.append(melted)
 
     if not frames:

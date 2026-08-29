@@ -55,7 +55,7 @@ def fetch_extracts() -> ExtractTotals:
     bea = getFlowByActivity("BEA_IEA", YEAR)
 
     census_imp = census.loc[census["FlowName"] == "GEN_CIF_YR"]
-    census_exp = census.loc[census["FlowName"] == "ALL_VAL_YR"]
+    census_exp = census.loc[census["FlowName"] == "ALL_VAL_YR_DOM"]
     bea_imp = bea.loc[
         (bea["FlowName"] == "Imports")
         & (bea["ActivityProducedBy"] == "AllTypesOfService")
@@ -65,7 +65,9 @@ def fetch_extracts() -> ExtractTotals:
         & (bea["ActivityProducedBy"] == "AllTypesOfService")
     ]
     if census_imp.empty or census_exp.empty:
-        raise RuntimeError("Census_USATrade FBA missing GEN_CIF_YR or ALL_VAL_YR rows")
+        raise RuntimeError(
+            "Census_USATrade FBA missing GEN_CIF_YR or ALL_VAL_YR_DOM rows"
+        )
     if bea_imp.empty or bea_exp.empty:
         raise RuntimeError("BEA_IEA FBA missing AllTypesOfService Imports/Exports rows")
 

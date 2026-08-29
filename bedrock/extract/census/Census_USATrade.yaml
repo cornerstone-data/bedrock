@@ -36,12 +36,16 @@ years:
 #   CAL_DUT_YR  calculated import duties
 #   GEN_CHA_YR  general imports, c.i.f. charges (freight/insurance wedge vs customs)
 #   ALL_VAL_YR  exports, FAS-family total value (free alongside ship)
+#   DF          exports only — Census returns three values per NAICS:
+#               '-' gross (dropped at parse), '1' domestic, '2' re-exports.
+#               Parsed to ALL_VAL_YR_DOM / ALL_VAL_YR_FGN (#762).
 import_get_fields: NAICS,GEN_CIF_YR,GEN_VAL_YR,CAL_DUT_YR,GEN_CHA_YR
-export_get_fields: NAICS,ALL_VAL_YR
+export_get_fields: NAICS,ALL_VAL_YR,DF
 import_flow_names:
   - GEN_CIF_YR
   - GEN_VAL_YR
   - CAL_DUT_YR
   - GEN_CHA_YR
 export_flow_names:
-  - ALL_VAL_YR
+  - ALL_VAL_YR_DOM
+  - ALL_VAL_YR_FGN
