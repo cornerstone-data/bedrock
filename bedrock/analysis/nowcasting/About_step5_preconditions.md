@@ -95,8 +95,11 @@ Three things the after-numbers mean, so they are not re-litigated later:
    `454000` alone recovered ~146,000) but 3–4 small givers tipped marginally negative as `T007`
    redistributed (insolvent count 8 → 11 in 2023). #769's guard is still owed.
 
-`T11` is expected to improve with the same change (`T007` is the controlled block's row margin) but was
-not re-measured here; the 21–23% figure above predates the control.
+`T11` was re-measured at 2023 after the control: **21.5% — unchanged.** That is the expected result, not
+a disappointment: the pre-ship comparison showed the industry pin closes only ~7% of the commodity-row
+gap, and the measured worst rows are the row-side owners already filed — `531ORE` (residual 291,382,
+exposure 252,540), the #769 insolvencies (`424200` −118,277, `424700` −45,764 with negative `T016`),
+`533000`, `522A00`. `T17` was the identity this change owned; `T11` belongs to the row-side issues.
 
 ### → [#769](https://github.com/cornerstone-data/bedrock/issues/769) · the trade margin give-up
 
