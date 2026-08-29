@@ -995,8 +995,14 @@ measuring the suppression fill rather than the economy. All three fall out of th
 clean subsample above, which is the right treatment, and this is the clearest
 single demonstration of why the clean subsample is the one to quote.
 
-⚠️ `336411` is separately the industry the trade work flagged for a 100,089 $M
-export shortfall (§The row control), so it is doubly one to distrust.
+⚠️ ~~`336411` is separately the industry the trade work flagged for a 100,089 $M
+export shortfall (§The row control), so it is doubly one to distrust.~~
+❌ **WITHDRAWN 2026-08-29** — that shortfall was a stale FBA cache, not a trade
+defect (#758). On rebuilt artifacts `336411` exports run **69,459 $M against
+52,720 published**, over rather than short. Its remaining gap is re-exports
+(#762), which apply to the whole goods column, not to this industry. The
+suppression-fill concern in the paragraph above stands on its own and is
+unaffected.
 
 ### What is now built, and what it changed
 

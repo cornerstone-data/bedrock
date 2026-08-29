@@ -17,8 +17,8 @@ code       Census description                      BEA Detail target
 =========  ======================================  ====================
 ``910000`` waste and scrap                         ``S00401`` scrap
 ``930000`` used or second-hand merchandise         ``S00402`` used goods
-``990000`` other special classification provisions ``S00402`` used goods
 ``980000`` goods returned                          **none — dropped**
+``990000`` other special classification provisions **none — dropped**
 =========  ======================================  ====================
 
 ⚠️ **The ``980000`` drop is intentional.**  "Goods returned" is re-imported
@@ -30,11 +30,30 @@ would put mass in ``MCIF`` that the target column does not contain.  Omitting
 it from the Crosswalk is how that exclusion is implemented.  ✅ Verified: our
 mapped goods rows carry none of it.
 
-⚠️ **``990000`` is a catch-all and is the weaker of the three mappings.**
-"Other special classification provisions" is a grab-bag, not used merchandise,
-and sending it to ``S00402`` overstates that row — 2017 exports land at
-62,219 $M against 15,515 $M published, and 42,788 $M of the excess is
-``990000`` alone.  Tracked as part of #703.
+⚠️ **``990000`` is also dropped, and for a different reason (#703).**  It used
+to map to ``S00402`` used goods, which is wrong in kind: 78% of the 2017
+export mass is HS ``988000`` **low-value shipments** — ordinary commercial
+goods below the reporting threshold, estimated in aggregate — plus 16% repair
+and alteration value, with donations and unidentified military making up the
+rest.  None of that is used or secondhand merchandise, and the mapping put
+``S00402`` at **3.6x** published on exports and **4.6x** on imports.
+
+Three dispositions were graded against published 2017 (see #703):
+
+===================  ===========  =============  =================
+arm                  goods level  goods \|err\|   ``S00402`` ratio
+===================  ===========  =============  =================
+``990000 -> S00402``  0.995        333,234        **3.58**
+**drop**              0.995        **333,234**    **0.84**
+distribute pro-rata   1.029        342,456        0.84
+===================  ===========  =============  =================
+
+✅ **Drop wins.**  It repairs ``S00402`` at **no cost to the goods column** --
+the gross error is identical to the dollar -- while distributing the mass
+pro-rata moves the goods level off in both directions and adds 9,222 $M of
+export error and 14,426 $M of import error.  ⚠️ The known cost of dropping is
+that 42,788 $M of exports and 21,635 $M of imports of real, if unidentifiable,
+ordinary trade are excluded rather than distributed.
 """
 
 from __future__ import annotations
