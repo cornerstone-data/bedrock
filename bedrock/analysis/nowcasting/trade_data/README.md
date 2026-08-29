@@ -8,11 +8,16 @@ Lives at `bedrock/analysis/nowcasting/trade_data/`. Notes and probes stay here u
 
 | File | Contents |
 |---|---|
+| [`About_row_exposure.md`](About_row_exposure.md) | **Standing triage: which trade rows are out of balance, and which issue closes each.** Regenerate before quoting |
 | [`plan_527_long.md`](plan_527_long.md) | Intended plan (with annual-summary IO note and 2017 `compare()` results) |
 | [`trade_data_source_options_527.md`](trade_data_source_options_527.md) | Full options writeup + 2017 validation findings |
 | [`probe_2017_trade_totals.py`](probe_2017_trade_totals.py) | 2017 national Census+BEA FBA totals vs the SUT targets and ITA (sanity; not the 2–3% bar) |
 | [`score_2017_trade_fbs.py`](score_2017_trade_fbs.py) | Fast Trade FBS vs SUT `F04000` / `MCIF` (Crosswalk iteration; no NIPA / Inventories / `S00900`) |
 | [`score_2017_trade_detail.py`](score_2017_trade_detail.py) | Full nowcast-column `F04000` / `MCIF` scorecard (baseline gate; rebuilds FD + Inventories) |
+| [`row_exposure.py`](row_exposure.py) | Trade error against **the row it lands on**; `--decompose` splits level from mix |
+| [`family_resplit.py`](family_resplit.py) | Grades candidate import re-split weights against published |
+| [`export_attribution.py`](export_attribution.py) | Grades export 1:m residual attribution arms |
+| [`naics_vintage.py`](naics_vintage.py) | Which NAICS vintage each Census source year is actually on |
 
 ### Working decision
 
