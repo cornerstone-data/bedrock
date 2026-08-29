@@ -118,6 +118,7 @@ stated bar where the plan states one (Step 1's final demand reconciles to
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -136,6 +137,10 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_DESC,
 )
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
+from bedrock.utils.taxonomy.bea.v2017_value_added import (
+    USA_2017_VALUE_ADDED_CODES,
+    USA_2017_VALUE_ADDED_DESC,
+)
 
 #: Half of BEA's publication grain.  The detail SUT workbook is published in
 #: millions of dollars, so any difference smaller than this is below the
@@ -482,6 +487,95 @@ def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
     return derive_initial_U_intermediate(year)
 
 
+@functools.cache
+def _mut_after_redef_2017(
+    year: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Published 2017 before-redef MUT run through :func:`apply_redefinition_ratios`."""
+    _require_2017(year)
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        load_2017_margins_before_redef_usa,
+        load_2017_Uimp_before_redef_usa,
+        load_2017_Utot_before_redef_usa,
+        load_2017_V_before_redef_usa,
+        load_2017_value_added_before_redef_usa,
+    )
+    from bedrock.transform.iot.nowcast_redefinition_ratios import (  # noqa: PLC0415
+        apply_redefinition_ratios,
+        load_redefinition_ratios,
+    )
+
+    return apply_redefinition_ratios(
+        load_2017_V_before_redef_usa(),
+        load_2017_Utot_before_redef_usa(),
+        load_2017_value_added_before_redef_usa(),
+        load_2017_Uimp_before_redef_usa(),
+        load_2017_margins_before_redef_usa(),
+        ratios=load_redefinition_ratios(),
+    )
+
+
+def make_after_redef_2017_candidate(year: int) -> pd.DataFrame:
+    """Make table after redefinitions, BEA 2017 detail, in USD."""
+    return _mut_after_redef_2017(year)[0].copy()
+
+
+def use_after_redef_2017_candidate(year: int) -> pd.DataFrame:
+    """Use intermediate after redefinitions, BEA 2017 detail, in USD."""
+    return _mut_after_redef_2017(year)[1].copy()
+
+
+def va_mut_after_redef_2017_candidate(year: int) -> pd.DataFrame:
+    """MUT value added after redefinitions, BEA 2017 detail, in USD."""
+    return _mut_after_redef_2017(year)[2].copy()
+
+
+def uimp_after_redef_2017_candidate(year: int) -> pd.DataFrame:
+    """Import matrix after redefinitions, BEA 2017 detail, in USD."""
+    return _mut_after_redef_2017(year)[3].copy()
+
+
+def margins_after_redef_2017_candidate(year: int) -> pd.DataFrame:
+    """Margins after redefinitions, BEA 2017 detail, in USD."""
+    return _mut_after_redef_2017(year)[4].copy()
+
+
+def make_after_redef_detail_mut_reference(year: int = 2017) -> pd.DataFrame:
+    """Published Make after redefinitions, BEA 2017 detail MUT, in USD."""
+    _require_2017(year)
+    from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa  # noqa: PLC0415
+
+    return load_2017_V_after_redef_usa()
+
+
+def use_after_redef_detail_mut_reference(year: int = 2017) -> pd.DataFrame:
+    """Published Use intermediate after redefinitions, BEA 2017 detail MUT, in USD."""
+    _require_2017(year)
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        load_2017_Utot_after_redef_usa,
+    )
+
+    return load_2017_Utot_after_redef_usa()
+
+
+def va_after_redef_detail_mut_reference(year: int = 2017) -> pd.DataFrame:
+    """Published MUT value added after redefinitions, BEA 2017 detail, in USD."""
+    _require_2017(year)
+    from bedrock.extract.iot.io_2017 import load_2017_value_added_usa  # noqa: PLC0415
+
+    return load_2017_value_added_usa()
+
+
+def uimp_after_redef_detail_mut_reference(year: int = 2017) -> pd.DataFrame:
+    """Published Import matrix after redefinitions, BEA 2017 detail MUT, in USD."""
+    _require_2017(year)
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        load_2017_Uimp_after_redef_usa,
+    )
+
+    return load_2017_Uimp_after_redef_usa()
+
+
 #: Where ``initial_Y_pur_baseline.export_cellwise_comparison`` writes.
 INITIAL_Y_PUR_EXPORT = (
     Path(__file__).parent
@@ -675,6 +769,78 @@ USE_INTERMEDIATE_DETAIL_SUT = Section(
     ),
 )
 
+MAKE_AFTER_REDEF_DETAIL_MUT = Section(
+    name='make_after_redef_detail_mut',
+    title='Make after redefinitions, BEA 2017 detail MUT',
+    step='Step 7 - after-redef MUT',
+    rows=tuple(USA_2017_INDUSTRY_CODES),
+    columns=tuple(USA_2017_COMMODITY_CODES),
+    row_axis='industry',
+    column_axis='commodity',
+    tolerance=Tolerance(rtol=0, atol=ROUNDING_ATOL),
+    reference=make_after_redef_detail_mut_reference,
+    candidate=make_after_redef_2017_candidate,
+    note=(
+        'Cellwise 2017 GO-ratio apply; full-grid assert_ok(max_partial=0, '
+        'max_miss=0, max_extra=0, max_margin_partial=0) is the acceptance gate.'
+    ),
+)
+
+USE_AFTER_REDEF_DETAIL_MUT = Section(
+    name='use_after_redef_detail_mut',
+    title='Use intermediate after redefinitions, BEA 2017 detail MUT',
+    step='Step 7 - after-redef MUT',
+    rows=tuple(USA_2017_COMMODITY_CODES),
+    columns=tuple(USA_2017_INDUSTRY_CODES),
+    row_axis='commodity',
+    column_axis='industry',
+    tolerance=Tolerance(rtol=0, atol=ROUNDING_ATOL),
+    reference=use_after_redef_detail_mut_reference,
+    candidate=use_after_redef_2017_candidate,
+)
+
+VA_AFTER_REDEF_DETAIL_MUT = Section(
+    name='va_after_redef_detail_mut',
+    title='Value added after redefinitions, BEA 2017 detail MUT',
+    step='Step 7 - after-redef MUT',
+    rows=tuple(USA_2017_VALUE_ADDED_CODES),
+    columns=tuple(USA_2017_INDUSTRY_CODES),
+    row_axis='value_added_code',
+    column_axis='industry',
+    tolerance=Tolerance(rtol=0, atol=ROUNDING_ATOL),
+    row_names=USA_2017_VALUE_ADDED_DESC,
+    reference=va_after_redef_detail_mut_reference,
+    candidate=va_mut_after_redef_2017_candidate,
+)
+
+UIMP_AFTER_REDEF_DETAIL_MUT = Section(
+    name='uimp_after_redef_detail_mut',
+    title='Import matrix after redefinitions, BEA 2017 detail MUT',
+    step='Step 7 - after-redef MUT',
+    rows=tuple(USA_2017_COMMODITY_CODES),
+    columns=tuple(USA_2017_INDUSTRY_CODES),
+    row_axis='commodity',
+    column_axis='industry',
+    tolerance=Tolerance(rtol=0, atol=ROUNDING_ATOL),
+    reference=uimp_after_redef_detail_mut_reference,
+    candidate=uimp_after_redef_2017_candidate,
+)
+
+
+def compare_redef_margins_2017(year: int = 2017) -> TableMatch:
+    """Score after-redef margins against the published 2017 MUT, five columns together."""
+    _require_2017(year)
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        load_2017_margins_after_redef_usa,
+    )
+
+    return compare_tables(
+        margins_after_redef_2017_candidate(year),
+        load_2017_margins_after_redef_usa(),
+        tolerance=Tolerance(atol=ROUNDING_ATOL, rtol=0),
+    )
+
+
 #: Every section, by name.  The renderer and the tests both select from here.
 SECTIONS: dict[str, Section] = {
     section.name: section
@@ -684,6 +850,10 @@ SECTIONS: dict[str, Section] = {
         USE_INTERMEDIATE_DETAIL_SUT,
         SUPPLY_OUTPUT_DETAIL_SUT,
         SUPPLY_BRIDGE_DETAIL_SUT,
+        MAKE_AFTER_REDEF_DETAIL_MUT,
+        USE_AFTER_REDEF_DETAIL_MUT,
+        VA_AFTER_REDEF_DETAIL_MUT,
+        UIMP_AFTER_REDEF_DETAIL_MUT,
     )
 }
 
