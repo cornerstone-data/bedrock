@@ -95,12 +95,8 @@ CLASS_ORDER: tuple[str, ...] = (
     'Exports',
 )
 
-EIA_CLASS_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ('Residential', ('Residential',)),
-    (
-        'Com+Ind+Trans+Exports',
-        ('Commercial', 'Industrial', 'Transportation', 'Exports'),
-    ),
+EIA_CLASS_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = tuple(
+    (name, (name,)) for name in CLASS_ORDER
 )
 
 ORIGINAL_CLASS_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (

@@ -66,9 +66,14 @@ implementations:
         mixed_units: 0.085
   eia_gtd:
     footing_label: v0.3.1
+    # Class rows expanded from the published Com+Ind+Trans+Exports total using
+    # EIA Table 2.2 class identities (model = target per class).
     class_mwh:
       - {label: Residential, model_mwh: 1548800000.0, target_mwh: 1548800000.0}
-      - {label: Com+Ind+Trans+Exports, model_mwh: 2763800000.0, target_mwh: 2763800000.0}
+      - {label: Commercial, model_mwh: 1515432000.0, target_mwh: 1515432000.0}
+      - {label: Industrial, model_mwh: 1221612000.0, target_mwh: 1221612000.0}
+      - {label: Transportation, model_mwh: 7293210.0, target_mwh: 7293210.0}
+      - {label: Exports, model_mwh: 19437050.0, target_mwh: 19437050.0}
       - {label: Total, model_mwh: 4312600000.0, target_mwh: 4312600000.0}
     D:
       '221100':

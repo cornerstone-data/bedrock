@@ -204,6 +204,14 @@ def test_class_mwh_same_when_totals_match() -> None:
     bottom = ImplBundle('eia_gtd', {'mixed_units': mixed})
     pair = PAIRS['mecs_mixed_units_vs_eia_gtd']
     top_grid, bottom_grid = class_mwh_grids(pair, top, bottom)
+    assert [row[0] for row in top_grid.rows] == [
+        'Residential',
+        'Commercial',
+        'Industrial',
+        'Transportation',
+        'Exports',
+        'Total',
+    ]
     assert bottom_grid.rows[0][1] == SAME
     assert top_grid.rows[-1][1] == '4,312.6 TWh'
 
