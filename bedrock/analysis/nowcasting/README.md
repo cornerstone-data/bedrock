@@ -28,6 +28,9 @@ uv run python -m bedrock.analysis.nowcasting.intermediate_structure_drift --all
 # what the imports and exports estimates cost the Use interior (Steps 3/4b/1d)
 uv run python -m bedrock.analysis.nowcasting.row_control_exposure
 
+# what the seed owes the two hard cross-block identities, 2017-2023 (Step 5)
+uv run python -m bedrock.analysis.nowcasting.control_residuals --check
+
 # what Step 2 estimates for 2018-2024, now that VAPRO and its three components
 # are both published annually (Step 2)
 uv run python -m bedrock.analysis.nowcasting.value_added_timeseries --check
@@ -133,6 +136,19 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   `T001 = T016 − Σ_FD Y`, so trade error lands in the interior; this scores it per
   commodity, weighted by how much of the commodity goes to industry rather than to
   final demand. Prints only; writes nothing.
+- `control_residuals.py` — the same question generalised to the balance's two
+  hard cross-block identities, and asked where the published reference does not
+  reach. `T11` is `T016 = T019` per commodity; `T17` is
+  `supply.col + T00TOP + T00SUB = use.col` per industry. Both sides of both are
+  our own seed, so neither needs an answer key and both run on **2018–2023** —
+  which matters, because the blocks anchored on the published 2017 tables
+  reproduce it by construction and score near-perfect there. `--t17` and `--t11`
+  give the per-industry and per-commodity detail, `--solvency` the trade-margin
+  feasibility bound (whether a giver's margin fits inside its own output), and
+  `--check` scores the span against a recorded baseline and exits non-zero on a
+  regression. Findings in
+  [`About_step5_preconditions.md`](About_step5_preconditions.md). Prints only;
+  writes nothing.
 - `inputs_structure.py` — what can be sourced for manufacturing's intermediate
   input column. Was `materials_structure.py`; renamed because the sources it
   reads now reach **86% of that column**, 79 points of which are materials.
@@ -248,6 +264,12 @@ local run.
   thing under `images/`.
 - [`About_table_match.md`](About_table_match.md) — what the first Step 1 run
   showed.
+- [`About_step5_preconditions.md`](About_step5_preconditions.md) — the standing
+  triage list for the two hard cross-block identities: which row and column the
+  seed breaks, by how much in each year 2017–2023, and which issue closes each.
+  ⚠️ Its first section is why the anchor year cannot be used on its own. Sibling
+  of [`trade_data/About_row_exposure.md`](trade_data/About_row_exposure.md),
+  which does the same job for the trade columns alone.
 - [`About_the_price_carry.md`](About_the_price_carry.md) — reference for Step 3's
   carry: what `theta` is, the two legs of the commodity deflator, the valuation
   chain the margin leg sits in, the `theta = 1 - sigma` reading, and the
