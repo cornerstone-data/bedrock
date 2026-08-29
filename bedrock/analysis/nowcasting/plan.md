@@ -402,6 +402,8 @@ and Step 6c's import matrix. ITA G+S scale is [#647](https://github.com/cornerst
 | Sector bridge | `Sector_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `Sector_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. Methods include `BEA_detail_commodity_target.yaml`. |
 | 2017 structure/specials benchmark | Use `F04000` and Supply `MCIF` (`F05000` is MUT-only) |
 
+**Which trade rows are still out of balance, and which issue closes each, is kept in [`trade_data/About_row_exposure.md`](trade_data/About_row_exposure.md)** — regenerate it with `row_exposure --decompose` before quoting, since every figure in it is a measurement of the artifacts on disk at the time it was taken.
+
 ### Census special-classification codes — three mapped, one deliberately dropped
 
 Census publishes four `9xxxxx` special-classification codes beside its industry NAICS, carrying
