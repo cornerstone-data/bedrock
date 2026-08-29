@@ -412,8 +412,8 @@ statement, not an accident of the Crosswalk:
 |---|---|---|
 | `910000` | waste and scrap | → `S00401` scrap |
 | `930000` | used or second-hand merchandise | → `S00402` used and secondhand goods |
-| `990000` | other special classification provisions | → `S00402` ⚠️ catch-all, see below |
 | `980000` | goods returned | **dropped — intentional** |
+| `990000` | other special classification provisions | **dropped — intentional** ([#703](https://github.com/cornerstone-data/bedrock/issues/703)) |
 
 ⚠️ **`980000` is dropped on purpose.** It is re-imported U.S. merchandise — 71,503 $M c.i.f. in 2017,
 against 138 $M in the export direction. The I-O accounts are **net of re-imports and re-exports** so that
@@ -424,10 +424,24 @@ goods row carries any of it. ✅ This is the import-side counterpart of the re-e
 [#762](https://github.com/cornerstone-data/bedrock/issues/762) applies to exports, where Census exposes the
 split as a `DF` dimension rather than a separate code.
 
-⚠️ **`990000 → S00402` is the weak link.** "Other special classification provisions" is a grab-bag rather
-than used merchandise, and routing it to `S00402` overstates that row: 2017 exports land at 62,219 $M
-against 15,515 $M published, of which `990000` alone contributes 42,788 $M. Tracked on
-[#703](https://github.com/cornerstone-data/bedrock/issues/703).
+⚠️ **`990000` is dropped for a different reason.** It used to map to `S00402` used goods, which is wrong
+in kind — 78% of the 2017 export mass is HS `988000` low-value shipments (ordinary commercial goods below
+the reporting threshold, estimated in aggregate), 16% is repair and alteration value, and the rest is
+donations and unidentified military. The mapping put `S00402` at **3.58×** published on exports and
+**4.55×** on imports. Three dispositions were graded against published 2017:
+
+| arm | goods level | goods \|err\| $M | `S00402` vs published |
+|---|---:|---:|---:|
+| `990000 → S00402` | 0.995 | 333,234 | **3.58×** |
+| **drop** | 0.995 | **333,234** | **0.84×** |
+| distribute pro-rata | 1.029 | 342,456 | 0.84× |
+
+✅ **Drop wins**: it repairs `S00402` at no cost to the goods column — gross error identical to the dollar —
+while distributing moves the goods level off in both directions (+9,222 $M export error, +14,426 $M
+import error). ⚠️ The known cost is that 42,788 $M of exports and 21,635 $M of imports of real but
+unidentifiable ordinary trade are excluded rather than distributed. `930000 → S00402` stays and lands at
+1.61× on imports, which is the residue [#703](https://github.com/cornerstone-data/bedrock/issues/703)
+still owns alongside the price-index question.
 
 ### `MDTY` — rate from Census, level from NIPA
 
