@@ -1598,8 +1598,27 @@ route.
   ~1 economy-wide, so an aggregate check passes while every cell is wrong. ⚠️ And label which checks
   are **by-construction**: `T016` = `T019` is imposed by the balance and proves only that the solver
   ran, as does anything Decision 3 promotes to a target.
-- The **seed** is not in question: it is the Steps 1-4 output, block by block. What is in question is
-  what the balancer is allowed to do to it, and what it is aimed at.
+- ⚠️ **The seed IS in question.** An earlier draft of this line said it was not — "it is the Steps 1-4
+  output, block by block; what is in question is what the balancer is allowed to do to it". That was
+  written against 2017. Measured across **2018-2023** by
+  [`control_residuals.py`](control_residuals.py), the seed violates both hard cross-block identities
+  badly enough to put four items in front of #588:
+
+  | | 2017 | 2023 | |
+  |---|---:|---:|---|
+  | `T17` gross residual, % of `T005` | 1.4% | **15.9%** | 366 of 402 industries >1%, 73 >50% — [#724](https://github.com/cornerstone-data/bedrock/issues/724) |
+  | `T11` gross residual, % of `T001` | 4.9% | **22.9%** | |
+  | trade commodities with negative `T016` | 2 (−$2M) | **8 (−$530,409M)** | infeasible, not inaccurate — [#769](https://github.com/cornerstone-data/bedrock/issues/769) |
+  | years the Use interior builds | ✅ | ✅ | ❌ **2018 and 2019 raise** — [#770](https://github.com/cornerstone-data/bedrock/issues/770) |
+
+  ⚠️ **Do not read the anchor year on its own.** `TRADE`, `TOP`, `SUB`, `T007`, the Use interior, PCE
+  and all twelve government columns are anchored on or rescaled to the published 2017 tables and
+  reproduce them by construction, so they score near-perfect at 2017 whatever their method.
+  `T11` and `T17` avoid this because both sides of each are our own seed — no answer key is involved,
+  so they are the one check that runs on the nowcast years. Full triage, with the two unowned row-axis
+  errors that 2017 *can* see ([#771](https://github.com/cornerstone-data/bedrock/issues/771),
+  [#772](https://github.com/cornerstone-data/bedrock/issues/772)), in
+  [`About_step5_preconditions.md`](About_step5_preconditions.md).
 
 **What is no longer assumed:** earlier drafts of this step said "summary SUT totals by default, with
 industry/commodity gross output as the named alternative." **Strike the default.** The targets are now
