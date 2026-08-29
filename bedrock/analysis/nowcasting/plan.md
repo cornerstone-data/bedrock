@@ -443,7 +443,8 @@ while distributing moves the goods level off in both directions (+9,222 $M expor
 import error). ⚠️ The known cost is that 42,788 $M of exports and 21,635 $M of imports of real but
 unidentifiable ordinary trade are excluded rather than distributed. `930000 → S00402` stays and lands at
 1.61× on imports, which is the residue [#703](https://github.com/cornerstone-data/bedrock/issues/703)
-still owns alongside the price-index question.
+still owns. The **price** treatment of scrap and used goods is a separate Step 3 question and is
+[#768](https://github.com/cornerstone-data/bedrock/issues/768).
 
 ### `MDTY` — rate from Census, level from NIPA
 

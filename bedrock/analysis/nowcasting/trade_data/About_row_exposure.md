@@ -93,11 +93,15 @@ join class first (the route #675 verified), HS product concordance only if that 
 #766 sourced the commodity total. The **use side** — 142,497 $M across 342 industries, 110,221 $M `F01000`
 PCE, 7,711 $M `F02N00` — is unbuilt. Concentrated enough to be tractable: 10 industries carry 58.7%.
 
-### → #703 · scrap and used goods, price rule
+### → #703 · the `930000` residue
 
-The trade half is closed (#764). What remains is that `S00402` has **no price index** — it is given a
-neutral 1.0 — and scrap and used goods are *recovered* rather than produced, so an output index is the
-wrong instrument in principle.
+The `990000` catch-all is removed (#764, which closes #703's main finding). What remains under it is
+`930000 → S00402`, leaving imports at **1.61×** published — small, and still a trade question.
+
+⚠️ The **price** treatment of scrap and used goods is **not** a trade question and is now
+[#768](https://github.com/cornerstone-data/bedrock/issues/768): `S00401` and `S00402` have no price index,
+`S00402` is given a neutral 1.0 in the carry, and both are *recovered* rather than produced, so an output
+index is the wrong instrument in principle.
 
 ### → #747 · IEA publisher leaves
 
