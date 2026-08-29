@@ -1196,8 +1196,13 @@ structural drift, and **extremely concentrated — `S00300` alone is 29%, ten co
 twenty are 71%.** Measured by [`row_control_exposure.py`](row_control_exposure.py). Two findings worth
 carrying: the five `MCIF` `EXTRA` commodities include **`533000` lessors of intangibles (33,285) and
 `483000` water transportation (28,361), both textbook `S00300` categories** — so 24% of the `S00300`
-gap may be misallocated rather than missing, which changes #606 from sourcing to reallocation; and the
-**aircraft cluster `336411`/`336412`/`336413` is short 100,089 $M of *exports***, not imports.
+gap may be misallocated rather than missing, which changes #606 from sourcing to reallocation; and and ~~the
+**aircraft cluster `336411`/`336412`/`336413` is short 100,089 $M of *exports***, not imports~~ —
+❌ **that second finding is withdrawn (2026-08-29)**: it was a stale FBA cache, not a trade defect
+(#758). Rebuilt, the aircraft family carries **134,411 $M against 113,779 published**, and what remains
+is a **+18% re-export level gap** ([#762](https://github.com/cornerstone-data/bedrock/issues/762))
+affecting the whole goods column rather than this cluster. The `S00300` reallocation finding above is
+unaffected and was since confirmed — see [#606](https://github.com/cornerstone-data/bedrock/issues/606).
 
 - **Seed from the actual dollar Use matrix**, not the `A` coefficient matrix. Going `A → U` via
   `U ≈ A @ diag(x)` discards the rounding/negative-clipping baked in when `A` was built.

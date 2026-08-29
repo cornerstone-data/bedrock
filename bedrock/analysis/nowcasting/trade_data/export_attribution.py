@@ -24,12 +24,24 @@ activity     ``t007``  ``direct``  ``pxi``   residual
 ✅ **And the aircraft error is mostly not a split problem at all.**  Census
 exports for ``3364`` total **134,411 M** against BEA's published ``F04000`` of
 **113,759 M** -- a **level** gap of 20,652 M, +18%, before any split question
-arises.  BEA adjusts Census for coverage and valuation onto a
-balance-of-payments basis (NIPA Handbook ch. 8), so a Census-sourced export
-column is *expected* to sit above BEA's concept.  Roughly half the remaining
-aircraft error is that adjustment, not attribution.
+arises.
 
-⚠️ **So the useful follow-up is the BoP adjustment, not a better weight.**
+⚠️ **That level gap is re-exports (#762), not a valuation adjustment.**  BEA's
+I-O export column is net of re-exports so gross trade matches domestic supply
+(Concepts and Methods ch. 7); ours is gross.  Census publishes the split as a
+``DF`` dimension on the endpoint this module reads -- 2017 re-exports are
+**238,801 M, 15.4%** of gross -- and netting them out moves the ``3364`` family
+level from **1.182 to 1.057** and the whole goods column from **+18.1% to
+-0.5%** against published.
+
+❌ **Do not reach for a national scalar instead.**  BEA's Census-to-BoP
+adjustment (NIPA Handbook ch. 8) is about **+0.7%** on 2017 goods exports and
+NIPA Table 4.3C (ITA to NIPA: gold, territories and Puerto Rico, statistical
+differences) is **-0.66%**.  Both are national aggregates with no commodity
+detail, and scaling to raw ITA is worse still -- it was rejected in #647,
+because ITA sits above NIPA which sits above the I-O concept.
+
+⚠️ **So the useful follow-up is the re-export removal, not a better weight.**
 ``T007`` at L1 0.166 is imperfect and no alternative here beats it.
 
 The arms
