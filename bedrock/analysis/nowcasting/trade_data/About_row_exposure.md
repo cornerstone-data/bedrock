@@ -11,7 +11,7 @@ uv run python -m bedrock.analysis.nowcasting.trade_data.row_exposure --decompose
 uv run python -m bedrock.utils.validation.stale_artifacts --name Trade_   # are they current?
 ```
 
-**State reflected:** 2017, after the `S00300` sourcing (#766) and the `990000` removal (#764).
+**State reflected:** 2017, after re-export removal (#762), `S00300` sourcing (#766), and `990000` removal (#764).
 `row_exposure` reports **43 of 359** commodities above 25% of their own intermediate use.
 
 ## How to read it
@@ -36,28 +36,9 @@ A family whose level is 21 is not a mapping problem however bad its mix looks.
 | `S00300` noncomparable imports | 127.5% exposure, −181,645 $M | **0.6%**, +840 $M | [#766](https://github.com/cornerstone-data/bedrock/pull/766) — nine IEA leaves routed to `S00300` |
 | `S00402` used and secondhand goods | 61.0% exposure, −20,613 $M | **1.6%**, +540 $M | [#764](https://github.com/cornerstone-data/bedrock/pull/764) — Census `990000` catch-all removed |
 | aircraft `336411` / `336412` / `336413` | 162% / 184% / 52% exposure | **35% / 88% / 5%** | #720 + #748 applied by rebuild ([#758](https://github.com/cornerstone-data/bedrock/pull/758)) |
+| goods export level (economy-wide) | **+18.1%** vs published goods `F04000` | **−0.5%** | [#762](https://github.com/cornerstone-data/bedrock/issues/762) — Census `DF` domestic exports (`ALL_VAL_YR_DOM`) |
 
 ## Open
-
-### → #762 · the export level gap
-
-Our export column is **gross**; BEA's I-O column is **net of re-exports**. Economy-wide, not aircraft-specific.
-
-| | |
-|---|---|
-| goods exports vs published | **+18.1%** |
-| after removing re-exports on the Census `DF` split | **−0.5%** |
-| gross \|error\| removed | **152,172 $M (−31.3%)** |
-
-Source is a `DF` dimension on the endpoint the extractor already calls; 2017 re-exports are 238,801 $M,
-15.4% of gross. No holdout needed — it is a concept correction, not a fitted weight.
-
-❌ **Not** the balance-of-payments adjustment: Census→BoP is ~+0.7% and NIPA Table 4.3C is −0.66%, both
-national scalars with no commodity detail. Raw ITA scaling is worse and was rejected in #647.
-
-Residue after the level is right: `T007` over-allocates to `336414` / `33641A` and starves `336412`. `T007`
-was graded against two alternatives and won on every residual (`33641X` L1 0.166 vs `direct` 0.386, `pxi`
-0.211), so **keep it**.
 
 ### → #763 · the import within-family split
 
@@ -110,7 +91,7 @@ interpolation gap rather than a mapping problem.
 
 ## The import goods level gap, unowned
 
-Not yet an issue, and after #762 lands it becomes the largest remaining error in the block.
+Not yet an issue, and it is the largest remaining error in the block.
 
 Against the gross (NIPA) concept, using the measured c.i.f./customs wedge of +2.84%, **BEA's published
 goods rows sit −13.0%** while ours sit −4.1%; goods rows run **+190,623 $M (+9.0%)** against published.
