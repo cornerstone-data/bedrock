@@ -72,6 +72,9 @@ from bedrock.transform.iot.nowcast_intermediate import (
 )
 from bedrock.transform.iot.nowcast_product_taxes import TOP_YEARS, top_column
 from bedrock.transform.iot.nowcast_subsidies import SUB_YEARS, sub_column
+from bedrock.transform.iot.nowcast_supply_go_control import (
+    go_controlled_supply_block,
+)
 from bedrock.transform.iot.nowcast_trade_margins import (
     TRADE_MARGIN_YEARS,
     trade_margin_column,
@@ -317,16 +320,20 @@ def _supply_fbs_commodity_vector(year: int, download_sources_ok: bool) -> pd.Ser
     ``T007`` is zero by definition: they are not domestic output and enter the
     Supply table through ``MCIF`` / ``MDTY`` / margins instead. They reindex to
     0.0 here, which is their correct value, not a gap.
+
+    ⚠️ **From 2018 the block is GO-controlled** (#724,
+    :mod:`~bedrock.transform.iot.nowcast_supply_go_control`): its detail industry
+    columns are pinned to their share of BEA detail gross output within each
+    summary industry group. The block *total* is untouched - the fit is
+    biproportional and preserves every published summary Supply cell - but
+    ``T007`` is the block's **row** margin, so commodity output redistributes:
+    2,945,025 $M gross in 2023 against a level change of 0.00%. That is the same
+    coupling #570 documented in the other direction, and it is the reason this
+    reads the block rather than the raw FBS.
     """
-    fbs = getFlowBySector(
-        f'Detail_Supply_{year}',
-        download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
-    )
     return (
-        pd.DataFrame(fbs)
-        .groupby('SectorConsumedBy')['FlowAmount']
-        .sum()
+        go_controlled_supply_block(int(year), download_sources_ok)
+        .sum(axis=1)
         .reindex(USA_2017_COMMODITY_CODES)
         .fillna(0.0)
     )

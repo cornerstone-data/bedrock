@@ -105,10 +105,13 @@ from bedrock.transform.eeio.nowcast import (
     derive_initial_value_added,
     derive_initial_Y_pur,
 )
-from bedrock.transform.flowbysector import getFlowBySector
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     detail_gross_output_panel,
     detail_intermediate_inputs_panel,
+)
+from bedrock.transform.iot.nowcast_supply_go_control import (
+    go_controlled_supply_block,
+    raw_supply_block,
 )
 from bedrock.transform.iot.nowcast_trade_margins import (
     GIVER_COMMODITIES,
@@ -129,22 +132,36 @@ ANCHOR_YEAR = 2017
 #: The five Use value-added rows, summing to ``VAPRO``.
 VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 
-#: Measured 2026-08-29 on the seed at ``44c1dd6`` -- nowcast plus #766's
-#: ``S00300`` sourcing, which is open at the time of writing and moves ``MCIF``
-#: and ``F02N00`` on one commodity.  ``--check`` fails if a year comes in
-#: **worse** than its entry, and reports any that come in better so the baseline
-#: can be advanced deliberately rather than drifting.
+#: Measured 2026-08-29 with the #724 GO control applied (branch
+#: ``step4a_go_control_724``).  ``--check`` fails if a year comes in **worse**
+#: than its entry, and reports any that come in better so the baseline can be
+#: advanced deliberately rather than drifting.
 #:
 #: ``t17_pct`` is gross \|residual\| as a percent of that year's own ``T005``;
 #: ``insolvent`` counts trade commodities whose ``T007 + TRADE`` is negative.
+#:
+#: ⚠️ The pre-control numbers, for the record (same seed, ``controlled=False``):
+#: ``t17_pct`` ran 1.4 / 4.8 / 7.3 / 13.7 / 14.8 / 16.9 / 15.9 across
+#: 2017-2023.  The control removes the *within-group* term; what remains is the
+#: **between-group** disagreement of BEA's own summary Supply and detail GO
+#: series, which peaks in 2020-2022 -- the years
+#: :mod:`~bedrock.analysis.nowcasting.summary_axis_audit` shows the pinned
+#: summary workbook vintage (2017-2022) diverging from the vintage the GO panel
+#: is read from.  That residual is not reducible by any within-group operator.
+#:
+#: ⚠️ ``insolvent`` moved BOTH ways under the control: the negative mass fell
+#: (2023: -530,409 -> -389,570 $M, and ``454000`` alone recovered ~146,000) but
+#: three-to-four small givers tipped marginally negative as ``T007``
+#: redistributed.  Solvency is #769's to guard; this baseline records the state,
+#: it does not bless it.
 BASELINE: dict[int, dict[str, float]] = {
     2017: {'t17_pct': 1.4, 'insolvent': 2},
-    2018: {'t17_pct': 4.8, 'insolvent': 7},
-    2019: {'t17_pct': 7.3, 'insolvent': 6},
-    2020: {'t17_pct': 13.7, 'insolvent': 6},
-    2021: {'t17_pct': 14.8, 'insolvent': 7},
-    2022: {'t17_pct': 16.9, 'insolvent': 11},
-    2023: {'t17_pct': 15.9, 'insolvent': 8},
+    2018: {'t17_pct': 1.3, 'insolvent': 4},
+    2019: {'t17_pct': 1.9, 'insolvent': 5},
+    2020: {'t17_pct': 5.5, 'insolvent': 6},
+    2021: {'t17_pct': 5.7, 'insolvent': 11},
+    2022: {'t17_pct': 6.7, 'insolvent': 12},
+    2023: {'t17_pct': 1.4, 'insolvent': 11},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA
@@ -169,28 +186,28 @@ def _published_use(column: str) -> pd.Series:
     return values.fillna(0.0).astype(float)
 
 
-def _supply_interior(year: int) -> pd.DataFrame:
-    """``Detail_Supply_<year>`` as commodity x industry, million USD.
+def _supply_interior(year: int, controlled: bool = True) -> pd.DataFrame:
+    """The Supply block as commodity x industry, million USD.
 
-    ⚠️ The axes are the reverse of what the names suggest -- in this FBS the
+    ⚠️ **Controlled by default** (#724): from 2018 the detail industry columns
+    are pinned to their share of BEA detail gross output within each summary
+    industry group.  ``controlled=False`` returns the raw
+    ``Detail_Supply_<year>`` FBS, which is what every number recorded in
+    :data:`BASELINE` before 2026-08-29 was measured on -- pass it to reproduce
+    them, not to measure the build.
+
+    ⚠️ The axes are the reverse of what the names suggest -- in the FBS the
     commodity is ``SectorConsumedBy`` and the industry ``SectorProducedBy``,
     because the Supply table's rows are commodities.  Reading them the intuitive
     way round transposes the block, which still balances economy-wide and so is
     not caught by a totals check.
     """
-    fbs = pd.DataFrame(
-        getFlowBySector(
-            f'Detail_Supply_{year}',
-            download_FBAs_if_missing=True,
-            download_FBS_if_missing=True,
-        )
+    block = (
+        go_controlled_supply_block(int(year), True)
+        if controlled
+        else raw_supply_block(int(year), True)
     )
-    wide = (
-        fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
-        .sum()
-        .unstack()
-    )
-    reindexed = wide.reindex(index=_commodities(), columns=_industries())
+    reindexed = block.reindex(index=_commodities(), columns=_industries())
     return reindexed.fillna(0.0) / MILLION_CURRENCY_TO_CURRENCY
 
 
@@ -202,7 +219,7 @@ def _value_added(year: int) -> pd.DataFrame:
 # ------------------------------------------------------------------ T17, columns
 
 
-def t17_residual(year: int) -> pd.DataFrame:
+def t17_residual(year: int, controlled: bool = True) -> pd.DataFrame:
     """Per-industry residual on the basic-to-producer identity, million USD.
 
     Positive means the Supply column carries more than the Use column and the
@@ -210,7 +227,9 @@ def t17_residual(year: int) -> pd.DataFrame:
     interior to close.
     """
     industries = _industries()
-    supply = _supply_interior(year).sum(axis=0).reindex(industries).fillna(0.0)
+    supply = (
+        _supply_interior(year, controlled).sum(axis=0).reindex(industries).fillna(0.0)
+    )
     va = _value_added(year)
     wedge = va.reindex(['T00TOP', 'T00SUB']).fillna(0.0).sum(axis=0)
     output = detail_gross_output_panel()[year].reindex(industries).astype(float)

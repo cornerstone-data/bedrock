@@ -68,6 +68,36 @@ BEA detail GO rather than through the identity.
 
 `T11` behaves the same way: **4.9%** of `T001` at 2017 and **21–23%** in every nowcast year.
 
+**RESOLVED in `step4a_go_control_724`** (2026-08-29):
+[`nowcast_supply_go_control`](../../transform/iot/nowcast_supply_go_control.py) pins each detail industry
+column to its share of BEA detail GO within its summary group, biproportionally, preserving every published
+summary Supply cell to <$1M. After the control:
+
+| year | t17_pct before | after | ind >50% before | after |
+|---|---:|---:|---:|---:|
+| 2018 | 4.8% | **1.3%** | 10 | 0 |
+| 2020 | 13.7% | **5.5%** | 47 | 2 |
+| 2022 | 16.9% | **6.7%** | 65 | 4 |
+| 2023 | 15.9% | **1.4%** | 73 | 1 |
+
+Three things the after-numbers mean, so they are not re-litigated later:
+
+1. **The pre-control residual was BEA's detail GO moving, not our seed drifting** — decomposed, 2023 was
+   97.9% within-summary-group, and of that the GO mix moved 1,714,908 $M (half-gross) against our mix's
+   128,532. The control imports BEA's within-group movement; it does not invent one.
+2. **What remains is the between-group term** — BEA's own summary Supply and detail GO series disagreeing
+   at group level — and it peaks in 2020–2022, the years
+   [`summary_axis_audit`](summary_axis_audit.py) shows the pinned 2017–2022 summary workbook diverging
+   from the newer vintage the GO panel reads (gross workbook-to-workbook diff 9.1tn on Supply 2022,
+   confined to 2019–2022; 2017 and 2018 identical in both). No within-group operator can reduce it;
+   re-pinning the summary vintage is a separate decision with its own blast radius.
+3. **Solvency (#769) moved both ways and is NOT resolved**: negative mass fell (2023 −530,409 → −389,570,
+   `454000` alone recovered ~146,000) but 3–4 small givers tipped marginally negative as `T007`
+   redistributed (insolvent count 8 → 11 in 2023). #769's guard is still owed.
+
+`T11` is expected to improve with the same change (`T007` is the controlled block's row margin) but was
+not re-measured here; the 21–23% figure above predates the control.
+
 ### → [#769](https://github.com/cornerstone-data/bedrock/issues/769) · the trade margin give-up
 
 Not an accuracy question — a **feasibility** one. Trade output essentially *is* margin, so the 19 givers

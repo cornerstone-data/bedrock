@@ -473,10 +473,19 @@ def purchaser_base(year: int) -> pd.Series:
     ``TOP`` itself, so including it would make the tax its own allocator.
     ``T013 + T014`` is the largest slice of purchaser value that ``TOP`` does not
     appear in.
+
+    ⚠️ ``T007`` is read from
+    :func:`~bedrock.transform.iot.nowcast_supply_go_control.seed_commodity_output`,
+    the **uncontrolled** block, for the same reason: ``TOP`` feeds ``T00TOP``,
+    which is the wedge the GO control subtracts from its own target, so reading
+    the controlled ``T007`` back here closes the cycle. Summary commodity totals
+    are identical either way - see that function.
     """
     from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
-        _supply_fbs_commodity_vector,
         _trade_fbs_commodity_vector,
+    )
+    from bedrock.transform.iot.nowcast_supply_go_control import (  # noqa: PLC0415
+        seed_commodity_output,
     )
     from bedrock.transform.iot.nowcast_trade_margins import (  # noqa: PLC0415
         trade_margin_column,
@@ -493,7 +502,7 @@ def purchaser_base(year: int) -> pd.Series:
 
     # T013 = T007 + MCIF + MADJ
     base = (
-        _v(_supply_fbs_commodity_vector(year, False))
+        _v(seed_commodity_output(year, False))
         + _v(_trade_fbs_commodity_vector(f'Trade_Imports_{year}', False))
         + _v(madj_detail_usd(year, False))
         # T014 = TRADE + TRANS
