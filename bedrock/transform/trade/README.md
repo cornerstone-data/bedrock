@@ -29,7 +29,11 @@ Exports and imports share one Census goods Crosswalk. IEA uses two files because
 | `TransportSeaFreight` | → `483000` | → **`S00300`** | Foreign vessel services consumed abroad; `483000` `MCIF` is zero ([#606](https://github.com/cornerstone-data/bedrock/issues/606)). |
 | `TransportAirPort` / `TransportSeaPort` | *unmapped* | → **`S00300`** | Port services consumed abroad (textbook type‑1 noncomparable; no `488000` Detail commodity). Exports wait for a support-activities home or a written mode-commodity rule. |
 | `TradeRelated` | → `425000` | → **`S00300`** | Wholesale electronic markets; `425000` `MCIF` is zero. |
-| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | *unmapped* | Explicit fees (~$31 B imports); no Detail `MCIF` home. |
+| `FinExplicitAndOth` | *unmapped* (included in parent `Financial`) | → **`S00300`** | Explicit fees (~$31 B imports); no Detail `MCIF` home — published `52A000` `MCIF` is complete with FISIM alone (ours 6,601 vs 6,646, −45 M). |
+| `TravelPersonalOth` / `TravelBusinessOth` / `TravelEducation` / `TravelShortTermWork` | *unmapped* | → **`S00300`** | Expenditures abroad by U.S. residents — type‑1 noncomparable, "services produced and consumed abroad" (~$117 B). `TravelHealth` keeps `622000`. `TravelEducation` does **not** go to `611*`: published `611100` `MCIF` is zero. |
+| `GovtGoodsAndServicesNie` | *unmapped* | → **`S00300`** | Government goods and services n.i.e. (~$22 B) — the DoD direct-defense-expenditure component BEA's own `S00300` distribution is built on. |
+| `OthBusinessNie` | *unmapped* | → **`S00300`** | Other business services n.i.e. (~$10 B) — type‑3, "cannot be identified by type". |
+| `ConstExpend` / `ConstAbroadUs` | *unmapped* | → **`S00300`** | Construction abroad (~$2 B); type‑1. |
 | `FinCredCardOthCredRelated` | *unmapped* | *unmapped* | Explicit credit services; `522A00` `MCIF` is zero in SUT. |
 | `FinSecBrokAndMM` | *unmapped* | *unmapped* | Explicit brokerage; `523A00` `MCIF` is ~$57 M in SUT vs ~$4.8 B in IEA. |
 | `FinUwAndPP` | *unmapped* | *unmapped* | Explicit underwriting; no SUT `MCIF` cell. |
