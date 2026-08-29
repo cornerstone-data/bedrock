@@ -3,6 +3,38 @@
 Also provides ``refresh_hs2716_electricity_unit_value_csv`` for HS10
 ``2716000000`` unit values used by Trade electricity dollarization (#668) —
 a shortcut until a full Census HS FBA extract exists.
+
+Special-classification NAICS codes, and why one of them is dropped
+-----------------------------------------------------------------
+Census publishes four ``9xxxxx`` special-classification codes beside its
+industry NAICS.  They carry real mass — 111,288 $M of 2017 imports (4.6% of
+the direction) and 80,673 $M of exports (5.2%) — so what happens to them is a
+methods decision, not a rounding question.  ``Sector_Crosswalk_Census_USATrade``
+maps three and deliberately omits the fourth:
+
+=========  ======================================  ====================
+code       Census description                      BEA Detail target
+=========  ======================================  ====================
+``910000`` waste and scrap                         ``S00401`` scrap
+``930000`` used or second-hand merchandise         ``S00402`` used goods
+``990000`` other special classification provisions ``S00402`` used goods
+``980000`` goods returned                          **none — dropped**
+=========  ======================================  ====================
+
+⚠️ **The ``980000`` drop is intentional.**  "Goods returned" is re-imported
+U.S. merchandise (71,503 $M c.i.f. in 2017; the export direction is a rounding
+error at 138 $M).  BEA's I-O import column is **net of re-imports** — the I-O
+accounts remove re-exports and re-imports so gross trade matches domestic
+supply (Concepts and Methods ch. 7) — so routing ``980000`` to a commodity row
+would put mass in ``MCIF`` that the target column does not contain.  Omitting
+it from the Crosswalk is how that exclusion is implemented.  ✅ Verified: our
+mapped goods rows carry none of it.
+
+⚠️ **``990000`` is a catch-all and is the weaker of the three mappings.**
+"Other special classification provisions" is a grab-bag, not used merchandise,
+and sending it to ``S00402`` overstates that row — 2017 exports land at
+62,219 $M against 15,515 $M published, and 42,788 $M of the excess is
+``990000`` alone.  Tracked as part of #703.
 """
 
 from __future__ import annotations

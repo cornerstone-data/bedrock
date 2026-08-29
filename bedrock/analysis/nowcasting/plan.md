@@ -402,6 +402,33 @@ and Step 6c's import matrix. ITA G+S scale is [#647](https://github.com/cornerst
 | Sector bridge | `Sector_Crosswalk_Census_USATrade.csv` (Census NAICS-6 → Detail); `Sector_Crosswalk_BEA_IEA.csv` (IntlServTrade TypeOfService leaves → Detail). Parents omitted when children are mapped. Methods include `BEA_detail_commodity_target.yaml`. |
 | 2017 structure/specials benchmark | Use `F04000` and Supply `MCIF` (`F05000` is MUT-only) |
 
+### Census special-classification codes — three mapped, one deliberately dropped
+
+Census publishes four `9xxxxx` special-classification codes beside its industry NAICS, carrying
+**111,288 $M of 2017 imports (4.6%)** and **80,673 $M of exports (5.2%)**. Their treatment is a method
+statement, not an accident of the Crosswalk:
+
+| Census code | description | treatment |
+|---|---|---|
+| `910000` | waste and scrap | → `S00401` scrap |
+| `930000` | used or second-hand merchandise | → `S00402` used and secondhand goods |
+| `990000` | other special classification provisions | → `S00402` ⚠️ catch-all, see below |
+| `980000` | goods returned | **dropped — intentional** |
+
+⚠️ **`980000` is dropped on purpose.** It is re-imported U.S. merchandise — 71,503 $M c.i.f. in 2017,
+against 138 $M in the export direction. The I-O accounts are **net of re-imports and re-exports** so that
+gross trade matches domestic supply (Concepts and Methods ch. 7), so mapping `980000` onto a commodity row
+would add mass that Supply `MCIF` does not contain. Leaving it out of
+`Sector_Crosswalk_Census_USATrade.csv` is how that exclusion is implemented, and it is verified: no mapped
+goods row carries any of it. ✅ This is the import-side counterpart of the re-export removal that
+[#762](https://github.com/cornerstone-data/bedrock/issues/762) applies to exports, where Census exposes the
+split as a `DF` dimension rather than a separate code.
+
+⚠️ **`990000 → S00402` is the weak link.** "Other special classification provisions" is a grab-bag rather
+than used merchandise, and routing it to `S00402` overstates that row: 2017 exports land at 62,219 $M
+against 15,515 $M published, of which `990000` alone contributes 42,788 $M. Tracked on
+[#703](https://github.com/cornerstone-data/bedrock/issues/703).
+
 ### `MDTY` — rate from Census, level from NIPA
 
 The duties column was listed above as unsourced, but it does not need a separate source decision: the
