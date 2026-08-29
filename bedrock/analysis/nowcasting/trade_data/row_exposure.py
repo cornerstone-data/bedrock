@@ -195,9 +195,9 @@ def family_headroom(commodities: list[str]) -> pd.DataFrame:
     for code in commodities:
         family = code[:4]
         siblings = {
-            c: float(v)
+            str(c): float(v)
             for c, v in mcif.items()
-            if len(c) >= 4 and c[:4] == family and c != code
+            if len(str(c)) >= 4 and str(c)[:4] == family and str(c) != code
         }
         family_total = sum(siblings.values()) + float(mcif.get(code, 0.0))
         top = sorted(siblings.items(), key=lambda kv: -kv[1])[:2]
@@ -300,10 +300,13 @@ def main() -> None:
     if want_family:
         goods = over.loc[~over["special"]]
         fam = family_headroom(list(goods.index[:20]))
-        fam["excess_vs_family"] = (
-            goods["net_row_error_usd"].abs().reindex(fam["commodity"]).to_numpy()
-            / fam["family_published_mcif_usd"].replace(0.0, float("nan")).to_numpy()
+        excess = (
+            goods["net_row_error_usd"].abs().reindex(fam["commodity"]).to_numpy(float)
         )
+        family_mcif = (
+            fam["family_published_mcif_usd"].replace(0.0, float("nan")).to_numpy(float)
+        )
+        fam["excess_vs_family"] = excess / family_mcif
         fam.to_csv(FAMILY_CSV, index=False)
         print()
         print("Family headroom (excess_vs_family < 1 => within-family split error):")

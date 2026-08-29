@@ -133,7 +133,7 @@ def residual_activities() -> dict[str, list[str]]:
     crosswalk = _crosswalk()
     residual = crosswalk.loc[~crosswalk["Activity"].str.fullmatch(r"\d{6}")]
     grouped = residual.groupby("Activity")["Sector"].apply(list)
-    return {a: t for a, t in grouped.items() if len(t) > 1}
+    return {str(a): t for a, t in grouped.items() if len(t) > 1}
 
 
 def _t007_weight(targets: list[str]) -> pd.Series:

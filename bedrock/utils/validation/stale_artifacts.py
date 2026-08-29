@@ -48,6 +48,7 @@ import sys
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -73,7 +74,7 @@ def _parse_date(value: str | None) -> datetime | None:
         return None
 
 
-def _walk_sources(meta: dict) -> Iterator[dict]:
+def _walk_sources(meta: dict[str, Any]) -> Iterator[dict[str, Any]]:
     """Every nested source blob, at any depth.
 
     ⚠️ ``primary_source_meta`` sits **inside ``tool_meta``**, not beside it, and
@@ -99,9 +100,9 @@ def _walk_sources(meta: dict) -> Iterator[dict]:
                 yield from _walk_sources(blob)
 
 
-def load_metadata() -> dict[str, dict]:
+def load_metadata() -> dict[str, dict[str, Any]]:
     """Every ``*_metadata.json`` on disk, keyed by its file stem."""
-    found: dict[str, dict] = {}
+    found: dict[str, dict[str, Any]] = {}
     for directory in OUTPUT_DIRS:
         if not directory.exists():
             continue
@@ -113,7 +114,7 @@ def load_metadata() -> dict[str, dict]:
     return found
 
 
-def newest_on_disk(metadata: dict[str, dict]) -> dict[str, datetime]:
+def newest_on_disk(metadata: dict[str, dict[str, Any]]) -> dict[str, datetime]:
     """Latest ``date_created`` per ``name_data`` across everything cached."""
     newest: dict[str, datetime] = {}
     for blob in metadata.values():
@@ -126,7 +127,7 @@ def newest_on_disk(metadata: dict[str, dict]) -> dict[str, datetime]:
     return newest
 
 
-def find_stale(name_filter: str = "") -> list[dict]:
+def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
     """Artifacts built before something they depend on.
 
     Returns one row per (artifact, source) problem, with ``kind`` set to
@@ -136,7 +137,7 @@ def find_stale(name_filter: str = "") -> list[dict]:
     metadata = load_metadata()
     newest = newest_on_disk(metadata)
 
-    problems: list[dict] = []
+    problems: list[dict[str, Any]] = []
     for blob in metadata.values():
         name = blob.get("name_data", "")
         if name_filter and name_filter not in name:

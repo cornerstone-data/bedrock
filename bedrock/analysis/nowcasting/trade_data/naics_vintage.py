@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -111,7 +112,7 @@ def infer_vintage(years: tuple[int, ...] = YEARS) -> pd.DataFrame:
         counts = {v: len(codes & valid[v]) for v in vintages}
         best = max(counts, key=lambda v: counts[v])
         assumed = ASSUMED_VINTAGE.get(year, "")
-        row = {"year": year, "n_codes": len(codes)}
+        row: dict[str, Any] = {"year": year, "n_codes": len(codes)}
         row.update({_short(v): counts[v] for v in vintages})
         row["best_fit"] = _short(best)
         row["assumed"] = _short(assumed) if assumed else ""
@@ -173,10 +174,10 @@ def main() -> None:
     if disagree.empty:
         print("All cached years match the vintage ASSUMED_VINTAGE records.")
     else:
-        for row in disagree.itertuples():
+        for row in disagree.to_dict("records"):
             print(
-                f"MISMATCH {int(row.year)}: fits {row.best_fit}, "
-                f"ASSUMED_VINTAGE says {row.assumed}"
+                f"MISMATCH {int(row['year'])}: fits {row['best_fit']}, "
+                f"ASSUMED_VINTAGE says {row['assumed']}"
             )
         print(
             "A mismatch costs mass only where a code that changed meaning is "
@@ -184,9 +185,9 @@ def main() -> None:
         )
 
     if "--codes" in sys.argv:
-        for row in df.itertuples():
-            year, fitted = int(row.year), row.best_fit
-            assumed = row.assumed
+        for row in df.to_dict("records"):
+            year, fitted = int(row["year"]), str(row["best_fit"])
+            assumed = str(row["assumed"])
             if not assumed or fitted == assumed:
                 continue
             print()
