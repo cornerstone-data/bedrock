@@ -154,14 +154,20 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: three-to-four small givers tipped marginally negative as ``T007``
 #: redistributed.  Solvency is #769's to guard; this baseline records the state,
 #: it does not bless it.
+#: ⚠️ ``insolvent`` counts strict ``T016 < 0``, which after #769's water-filling
+#: cap counts only published-rounding dust (residuals of a few $M parked where
+#: a group's published give-up exceeds its output by rounding).  The
+#: substantive counts before the fix were 2-12 per year; the guard in
+#: ``nowcast_trade_margins.check_giveup_solvency`` now fails the build itself
+#: on anything beyond dust, so this baseline is a backstop, not the instrument.
 BASELINE: dict[int, dict[str, float]] = {
     2017: {'t17_pct': 1.4, 'insolvent': 2},
-    2018: {'t17_pct': 1.3, 'insolvent': 4},
-    2019: {'t17_pct': 1.9, 'insolvent': 5},
-    2020: {'t17_pct': 5.5, 'insolvent': 6},
-    2021: {'t17_pct': 5.7, 'insolvent': 11},
-    2022: {'t17_pct': 6.7, 'insolvent': 12},
-    2023: {'t17_pct': 1.4, 'insolvent': 11},
+    2018: {'t17_pct': 1.3, 'insolvent': 1},
+    2019: {'t17_pct': 1.9, 'insolvent': 1},
+    2020: {'t17_pct': 5.5, 'insolvent': 1},
+    2021: {'t17_pct': 5.7, 'insolvent': 0},
+    2022: {'t17_pct': 6.7, 'insolvent': 1},
+    2023: {'t17_pct': 1.4, 'insolvent': 0},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA
@@ -309,8 +315,13 @@ def giveup_solvency(year: int) -> pd.DataFrame:
     """
     givers = sorted({c for kind in GIVER_COMMODITIES for c in GIVER_COMMODITIES[kind]})
     scale = MILLION_CURRENCY_TO_CURRENCY
-    margin = trade_margin_column(year).reindex(givers) / scale
-    output = _supply_fbs_commodity_vector(year, True).reindex(givers) / scale
+    output_usd = _supply_fbs_commodity_vector(year, True)
+    # #769: pass the output so the within-group water-filling cap applies -
+    # this measures the column as the bridge builds it, not the uncapped shape.
+    margin = (
+        trade_margin_column(year, commodity_output=output_usd).reindex(givers) / scale
+    )
+    output = output_usd.reindex(givers) / scale
 
     table = pd.DataFrame({'T007': output, 'TRADE': margin})
     table['T016_partial'] = table['T007'] + table['TRADE']

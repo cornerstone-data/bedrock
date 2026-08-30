@@ -390,3 +390,71 @@ def test_receiving_shares_are_frozen_at_2017() -> None:
     assert min(levels.values()) < max(
         levels.values()
     ), 'the levels are identical too, so the shares matching proves nothing'
+
+
+# --- #769: published levels, the cap, and the guard -------------------------
+
+
+def test_published_control_reproduces_the_2017_anchor() -> None:
+    """At 2017 the published cells and the detail give-up are the same money."""
+    total = sum(tr.trade_control_total(k, 2017) for k in tr.TRADE_KINDS)
+
+    assert total == pytest.approx(3_264_931 * MILLION, abs=2 * MILLION)
+
+
+def test_giver_groups_partition_the_givers() -> None:
+    """Every giver in exactly one group, and the group kinds match."""
+    grouped = [g for members in tr.GIVER_GROUPS.values() for g in members]
+    all_givers = {
+        c for kind in tr.GIVER_COMMODITIES for c in tr.GIVER_COMMODITIES[kind]
+    }
+
+    assert sorted(grouped) == sorted(all_givers)
+    for group, members in tr.GIVER_GROUPS.items():
+        kind = tr._GROUP_KIND[group]
+        assert set(members) <= set(tr.GIVER_COMMODITIES[kind]), group
+
+
+def test_water_filling_caps_and_conserves() -> None:
+    split = pd.Series({'a': 60.0, 'b': 30.0, 'c': 10.0})
+    output = pd.Series({'a': 40.0, 'b': 100.0, 'c': 100.0})
+
+    capped = tr._cap_to_output(split, output, 'test', 2099)
+
+    assert capped['a'] == pytest.approx(40.0)
+    assert float(capped.sum()) == pytest.approx(100.0)
+    assert (capped <= output + 1e-9).all()
+    # the excess is shared on the surviving shape, 3:1
+    assert capped['b'] / capped['c'] == pytest.approx(3.0)
+
+
+def test_water_filling_refuses_an_infeasible_group() -> None:
+    split = pd.Series({'a': 60.0, 'b': 60.0})
+    output = pd.Series({'a': 50.0, 'b': 50.0})
+
+    with pytest.raises(ValueError, match='exceeds'):
+        tr._cap_to_output(split, output, 'test', 2099)
+
+
+def test_capped_allocation_leaves_every_giver_solvent() -> None:
+    """The 2023 column, built with output as the bridge builds it."""
+    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        _supply_fbs_commodity_vector,
+    )
+
+    output = _supply_fbs_commodity_vector(2023, True)
+    column = tr.trade_margin_column(2023, commodity_output=output)
+
+    table = tr.check_giveup_solvency(output, column, 2023)  # must not raise
+    assert float(table['T016_partial'].min()) > -0.005 * float(
+        table['T007'].abs().max()
+    )
+
+
+def test_the_guard_names_a_new_insolvency() -> None:
+    output = pd.Series({g: 100.0 * MILLION for g in tr.GIVER_COMMODITIES['retail']})
+    trade = pd.Series({g: -10.0 * MILLION for g in tr.GIVER_COMMODITIES['retail']})
+    trade['445000'] = -200.0 * MILLION
+
+    with pytest.raises(ValueError, match='445000'):
+        tr.check_giveup_solvency(output, trade, 2099)

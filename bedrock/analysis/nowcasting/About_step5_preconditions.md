@@ -132,6 +132,24 @@ Supply side. That has since been fixed. The fix is right at 2017 and unsafe in e
 
 Sequence with #724 — trade output *is* margin, so the two are measuring the same dollars from opposite axes.
 
+**RESOLVED in `trade_giveup_referee_769`** (2026-08-30), in three moves the referee analysis
+([`trade_data/giveup_solvency.py`](trade_data/giveup_solvency.py)) licensed:
+
+1. **The give-up level now comes from the published summary `Trade` cells, per giver group and year** —
+   the same workbook `T007` comes from, so the two sides of `T016` share one source. The referee showed
+   ours was the wrong side: BEA's implied coverage ratio ran 1.561 → 1.435–1.489 (wholesale, 2021–23)
+   and 0.966 (retail 2023, the AIES splice's rate step), and the frozen ratio turned that into −341bn of
+   give-up overstatement by 2023. Census keeps what it is evidence for: the within-group split and the
+   tax index. The frozen-ratio construction survives as `census_index_control_total`, retired.
+2. **Within a group the split is water-filled under each giver's own output** — published group `T016 ≥ 0`
+   guarantees capacity; `454000`'s excess parks on its group-mates until the EC-2022 work (next on this
+   stack) re-observes its output.
+3. **`check_giveup_solvency` runs inside `derive_initial_supply_bridge`** — any giver beyond rounding
+   dust fails the build; the baseline's `insolvent` column is a backstop, not the instrument.
+
+After: **0 substantively insolvent givers in every year 2017–2023** (dust of a few $M where a published
+group give-up exceeds group output by rounding); 2017 anchor preserved to $2M on 3,264,931.
+
 ### → [#770](https://github.com/cornerstone-data/bedrock/issues/770) · no Use interior for 2018 or 2019
 
 **RESOLVED in `sas_cut_list_770`** (2026-08-30). The refusal's premise was wrong in a useful way: 2018–19
