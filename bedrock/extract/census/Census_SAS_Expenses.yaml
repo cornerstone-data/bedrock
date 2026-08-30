@@ -15,15 +15,35 @@ bib_id: Census_SAS_Expenses
 # This is the source #564 recorded as "one row for the entire sector" - that is
 # true of AIES `exp02` in 2023 and false of SAS.
 #
-# ⚠️ **2018 and 2019 publish none of the general purchased-input cells.** The
-# sheet exists for them in both vintages but carries only payroll, temporary
-# staff, depreciation and the sector-specific items, so the years are omitted
-# below rather than generated empty.
+# ✅ **2018 and 2019 are published on a CUT item list, and are read from
+# `sas-19.xlsx`.** Census consolidated the questionnaire for those two
+# collection years: the four fringe items became `Employer's cost for fringe
+# benefits`, the two expensed-materials items became `Expensed equipment,
+# materials, parts, and supplies`, and twelve detailed items - electricity,
+# fuels, both repairs, both leases, communication, data processing,
+# professional and technical, advertising, water/sewer, and governmental
+# taxes - were absorbed into `All other operating expenses`. 63 NAICS x 23
+# items per year, fully populated. The consolidation map lives in
+# `services_transport_expense_seed`, which seeds the two years by constraining
+# at the published aggregates and assigning within them on 2017 proportions.
 #
-# ⚠️ **The two vintages sit on different Economic Census benchmarks** - 2012 for
-# `sas-17`, 2017 for `sas-22` - and no restated 2017 exists, because the
-# detailed-expense series restarts at 2020. A ratio across that gap carries a
-# rebenchmark. The benchmark is written into `Description` on every row so the
+# ⚠️ **`sas-19` is benchmarked to the 2017 Economic Census and restates
+# 2013-2018 on that basis** - so a restated 2017 DOES exist at cut-list
+# granularity, and 2018/2017 and 2019/2017 ratios can be taken inside one
+# workbook with no benchmark seam. `sas-18.xlsx` (2012 EC basis) is
+# deliberately NOT read: its 2018 duplicates sas-19's on the older benchmark.
+#
+# ⚠️ **Each vintage contributes ONLY the years listed in its `years:` key.**
+# sas-19 carries restated 2013-2017 columns, and without the carve its rows
+# would silently replace sas-17's in every earlier FBA year (the dedup keeps
+# the later benchmark). The restated history is still reachable - read the
+# cached workbook via `restated_cut_vintage()` - it is just not the FBA.
+#
+# ⚠️ **The two DETAILED-list vintages sit on different Economic Census
+# benchmarks** - 2012 for `sas-17`, 2017 for `sas-22` - and no restated 2017
+# exists at detailed-item granularity, because that series restarts at 2020
+# (the sas-19 restatement is cut-list only). A detailed-item ratio across that
+# gap carries a rebenchmark. The benchmark is written into `Description` on every row so the
 # seam is visible in the FBA rather than only in this comment. #705 scored a
 # seed built across it and it loses to a frozen 2017 column for every service
 # column except `ORE`; see
@@ -63,9 +83,17 @@ vintages:
     # releases and left the older vintages where they were.
     url: https://www2.census.gov/programs-surveys/services/tables/time-series/sas-latest/sas-17.xlsx
     benchmark: 2012 Economic Census
+    years: [2013, 2014, 2015, 2016, 2017]
+  sas-19.xlsx:
+    # Also under `services/`. Cut item list; restates 2013-2018 on the 2017
+    # benchmark, but contributes only its two new years - see the carve note.
+    url: https://www2.census.gov/programs-surveys/services/tables/time-series/sas-latest/sas-19.xlsx
+    benchmark: 2017 Economic Census
+    years: [2018, 2019]
   sas-22.xlsx:
     url: https://www2.census.gov/programs-surveys/sas/tables/time-series/sas-latest/sas-22.xlsx
     benchmark: 2017 Economic Census
+    years: [2020, 2021, 2022]
 
 url_replace_fxn: !script_function:Census_SAS_Expenses census_sas_expenses_url_helper
 call_response_fxn: !script_function:Census_SAS_Expenses census_sas_expenses_call
@@ -77,19 +105,21 @@ parse_response_fxn: !script_function:Census_SAS_Expenses census_sas_expenses_par
 # True to refresh from Census, then upload the new files.
 extract_data_from_raw_sources: False
 
-# Both vintages are read once and each year selected out of the result.
+# Every vintage is read once and each year selected out of the result.
 call_all_years: True
 
-# ⚠️ 2018 and 2019 are deliberately absent - see the note above. 2012 is where
-# the nowcast's interest starts and 2013 is where Table 5's item detail does;
-# 2022 is where SAS itself stops, after which the annual economic surveys were
-# consolidated into the Annual Integrated Economic Survey.
+# 2012 is where the nowcast's interest starts and 2013 is where Table 5's item
+# detail does; 2022 is where SAS itself stops, after which the annual economic
+# surveys were consolidated into the Annual Integrated Economic Survey. 2018
+# and 2019 are the cut-list years, from sas-19.
 years:
   - 2013
   - 2014
   - 2015
   - 2016
   - 2017
+  - 2018
+  - 2019
   - 2020
   - 2021
   - 2022

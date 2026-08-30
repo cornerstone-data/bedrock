@@ -81,6 +81,7 @@ Write a real entry when the first FBS consumes this.
 
 from __future__ import annotations
 
+import functools
 import io
 import os
 from typing import Any
@@ -98,9 +99,26 @@ from bedrock.utils.mapping.location import US_FIPS
 #: releases, so the name is stable even though the year columns are not.
 SAS_EXPENSE_SHEET = 'Table 5'
 
-#: Years the sheet exists for but publishes no general purchased-input cells in.
-#: **An absence, not a zero** - see the module docstring.
+#: ⚠️ **The cut-list years** -- collection years Census consolidated the
+#: questionnaire for, published in ``sas-19.xlsx`` with 23 items instead of 40.
+#: The name is historical: they were "unobserved" while ``sas-19`` went
+#: unfetched, and every consumer built on the FULL item list must go on
+#: refusing them, so the constant keeps its name and its members.  What changed
+#: is that a seed CAN now be built for them -- by constraining at the published
+#: aggregates and assigning within them on 2017 proportions, which is
+#: :mod:`bedrock.analysis.nowcasting.services_transport_expense_seed`'s
+#: cut-list bridge, not this module's concern.
 SAS_EXPENSE_UNOBSERVED_YEARS = (2018, 2019)
+
+#: The same two years under the name the bridge uses.
+SAS_CUT_LIST_YEARS = SAS_EXPENSE_UNOBSERVED_YEARS
+
+#: The cut-list workbook.  ⚠️ ``sas-19`` is benchmarked to the **2017
+#: Economic Census** and restates 2013-2018 on that basis, so ratios from its
+#: restated 2017 to its 2018 and 2019 stay inside one instrument and one
+#: benchmark.  ``sas-18.xlsx`` (2012-EC basis) is deliberately not read; its
+#: 2018 duplicates this workbook's on the older benchmark.
+SAS_CUT_LIST_WORKBOOK = 'sas-19.xlsx'
 
 #: Census's suppression flags, as :mod:`Census_SAS` handles them. ``(s)`` is a
 #: suffix on an otherwise real number rather than a replacement for one.
@@ -123,13 +141,25 @@ def _vintage_for(config: dict[str, Any], url: str) -> tuple[str, dict[str, Any]]
         ) from None
 
 
-def _read_table_5(handle: Any, filename: str, benchmark: str) -> pd.DataFrame:
+def _read_table_5(
+    handle: Any,
+    filename: str,
+    benchmark: str,
+    years: list[int] | None = None,
+) -> pd.DataFrame:
     """Read the sheet, finding its header row rather than assuming one.
 
     ⚠️ **The header row moves between vintages** - row 4 in ``sas-17`` and row 5
     in ``sas-22``, because the later workbook carries an extra note line. Both
     are found by looking for the row whose first cell is ``NAICS``, which is
     stable where a row offset is not.
+
+    ⚠️ ``years`` carves the vintage down to the years it *contributes*, per the
+    config's per-vintage ``years:`` key.  ``sas-19`` restates 2013-2018 on the
+    2017 benchmark, and without this carve those columns would silently replace
+    ``sas-17``'s in every earlier FBA year -- the duplicate rule in the parser
+    keeps the later benchmark.  The restated history stays reachable through
+    :func:`restated_cut_vintage`; it is just not the FBA.
     """
     raw = pd.read_excel(handle, sheet_name=SAS_EXPENSE_SHEET, header=None, nrows=12)
     first = raw[0].astype(str).str.strip()
@@ -155,6 +185,10 @@ def _read_table_5(handle: Any, filename: str, benchmark: str) -> pd.DataFrame:
     df['NAICS'] = df['NAICS'].astype(str).str.strip()
     df = df[df['NAICS'].str.fullmatch(r'\d{2,6}')]
     df['Item'] = df['Item'].astype(str).str.strip()
+
+    if years is not None:
+        wanted = {str(y) for y in years}
+        df = df[[c for c in df.columns if not c[:4].isdigit() or c[:4] in wanted]]
 
     # The vintage and the benchmark it was built on ride along on every row.
     # This is the seam a consumer has to see (module docstring), so it is data
@@ -195,7 +229,12 @@ def census_sas_expenses_call(
     local_path = os.path.join(local_extract_input_dir(source, year=None), filename)
     with open(local_path, 'wb') as f:
         f.write(resp.content)
-    return _read_table_5(io.BytesIO(resp.content), filename, vintage['benchmark'])
+    return _read_table_5(
+        io.BytesIO(resp.content),
+        filename,
+        vintage['benchmark'],
+        years=vintage.get('years'),
+    )
 
 
 def census_sas_expenses_load_gcs(
@@ -224,7 +263,9 @@ def census_sas_expenses_load_gcs(
             f'extract_data_from_raw_sources: True in {source}.yaml to fetch it '
             f'from Census and cache it, then upload it so others need not.'
         )
-    return _read_table_5(local_path, filename, vintage['benchmark'])
+    return _read_table_5(
+        local_path, filename, vintage['benchmark'], years=vintage.get('years')
+    )
 
 
 def census_sas_expenses_parse(*, df_list: list, **_: Any) -> pd.DataFrame:
@@ -310,6 +351,58 @@ def census_sas_expenses_parse(*, df_list: list, **_: Any) -> pd.DataFrame:
         )
         .pipe(assign_fips_location_system, 2024)
         .reset_index(drop=True)
+    )
+
+
+@functools.cache
+def restated_cut_vintage() -> pd.DataFrame:
+    """The whole ``sas-19`` workbook as tidy ``naics x item x year``, in $M.
+
+    ⚠️ **This is the one road to the restated 2013-2017.**  The FBA carves each
+    vintage to the years it contributes (2018-2019 for ``sas-19``), because
+    letting the restated history in would silently replace ``sas-17``'s rows
+    under every earlier year.  The cut-list bridge in
+    :mod:`~bedrock.analysis.nowcasting.services_transport_expense_seed` needs
+    the restated **2017** as the base of its within-``sas-19`` ratios, and the
+    rebenchmark measurement needs 2013-2016 too, so the cached workbook is read
+    directly here rather than through the FBA.
+
+    Suppressed cells (``S``/``Z``/``D``/``ZZ``/``NA``) are dropped -- an absent
+    movement is not a movement of zero -- and ``(s)``-flagged low-quality cells
+    are kept as numbers, both exactly as :func:`census_sas_expenses_parse` does.
+    """
+    directory = local_extract_input_dir('Census_SAS_Expenses', year=None)
+    local_path = os.path.join(directory, SAS_CUT_LIST_WORKBOOK)
+    if not os.path.exists(local_path):
+        download_extract_input_from_gcs_if_not_exists(
+            {'source': 'Census_SAS_Expenses', 'year': None},
+            local_dir=directory,
+            object_name=SAS_CUT_LIST_WORKBOOK,
+        )
+    frame = _read_table_5(local_path, SAS_CUT_LIST_WORKBOOK, '2017 Economic Census')
+    estimates = [c for c in frame.columns if c.endswith('Estimate')]
+    long = frame.melt(
+        id_vars=['NAICS', 'Item'],
+        value_vars=estimates,
+        var_name='column',
+        value_name='value',
+    )
+    long['year'] = long['column'].str[:4].astype(int)
+    amount = long['value'].astype(str).str.strip()
+    long = long[~amount.isin(_SUPPRESSION_FLAGS)].copy()
+    cleaned = (
+        long['value']
+        .astype(str)
+        .str.strip()
+        .str.replace(',', '', regex=False)
+        .str.replace(r'\(s\)$', '', regex=True)
+    )
+    long['value'] = pd.to_numeric(cleaned, errors='coerce')
+    long = long[long['value'].notna()]
+    return pd.DataFrame(
+        long.rename(columns={'NAICS': 'naics', 'Item': 'item'})
+        .groupby(['naics', 'item', 'year'], as_index=False)['value']
+        .sum()
     )
 
 
