@@ -147,8 +147,12 @@ def _industry_parent() -> dict[str, str]:
 
 
 @functools.cache
-def ec_growth_factors() -> pd.DataFrame:
-    """Per manufacturing BEA industry: the EC-conditioned 2017→2022 growth.
+def ec_growth_factors(
+    prefixes: tuple[str, ...] = ('31', '32', '33'),
+    coverage_bounds: tuple[float, float] = COVERAGE_BOUNDS,
+    pending_review: frozenset[str] = PENDING_REVIEW,
+) -> pd.DataFrame:
+    """Per BEA industry of one EC sector family: the census-conditioned growth.
 
     Columns: ``g_ec`` (the growth applied), ``g_bea`` (what it replaces),
     ``screened`` (kept BEA and why-relevant coverage).  Bridged-family members
@@ -166,14 +170,16 @@ def ec_growth_factors() -> pd.DataFrame:
         detail_gross_output_panel,
     )
 
-    frame = implied_bea_growth()[['r17', 'g_ec', 'g_bea', 'coverage_2017']].copy()
+    frame = implied_bea_growth(prefixes)[
+        ['r17', 'g_ec', 'g_bea', 'coverage_2017']
+    ].copy()
 
     # Bridged families: overwrite each member's growth with the family EC
     # growth times BEA's within-family relative movement, weighted on raw GO.
     raw = detail_gross_output_panel(ec_adjusted=False)
     go17 = raw[BASE_YEAR].astype(float)
     go22 = raw[CENSUS_YEAR].astype(float)
-    table = units()
+    table = units(prefixes)
     bridged = table[table['bridged']]
     allocation = _bridged_members_to_bea(bridged)
     for unit, members in allocation.items():
@@ -189,11 +195,11 @@ def ec_growth_factors() -> pd.DataFrame:
             relative = float(go22[member] / go17[member]) / family_bea
             frame.loc[member, 'g_ec'] = family_ec * relative
 
-    low, high = COVERAGE_BOUNDS
+    low, high = coverage_bounds
     screened = (
         (frame['coverage_2017'] < low)
         | (frame['coverage_2017'] > high)
-        | frame.index.isin(PENDING_REVIEW)
+        | frame.index.isin(pending_review)
     )
     frame['screened'] = screened
     frame.loc[screened, 'g_ec'] = frame.loc[screened, 'g_bea']
@@ -207,8 +213,36 @@ def ec_growth_factors() -> pd.DataFrame:
 #: chain BEA's own annual movement on top.  Entries must not overlap on
 #: industries; :func:`apply_ec_adjustment` refuses if they do.
 SECTOR_CONDITIONERS: dict[str, tuple[ta.Callable[[], pd.DataFrame], tuple[int, ...]]]
+#: ⚠️ Wave 1 beyond manufacturing (Wes + C1, 2026-08-30): the families where
+#: ``RCPTOT`` is already the output-shaped EC variable and C1's *annual* column
+#: is SAS/QSS -- so BEA's 2022+ detail is survey-carried and the census
+#: absorption gap is real, exactly as for manufacturing.  Families where C1
+#: names a different EC variable (trade margins, construction work value, the
+#: 81 taxable/tax-exempt split) or a different census entirely (Census of
+#: Governments) are follow-ups in ``About_ec_sector_extension.md``, not
+#: entries here.
 SECTOR_CONDITIONERS = {
     'manufacturing': (ec_growth_factors, EC_ADJUSTED_YEARS),
+    'health': (
+        functools.partial(ec_growth_factors, ('62',), COVERAGE_BOUNDS, frozenset()),
+        EC_ADJUSTED_YEARS,
+    ),
+    'admin_waste': (
+        functools.partial(ec_growth_factors, ('56',), COVERAGE_BOUNDS, frozenset()),
+        EC_ADJUSTED_YEARS,
+    ),
+    'accommodation_food': (
+        functools.partial(ec_growth_factors, ('72',), COVERAGE_BOUNDS, frozenset()),
+        EC_ADJUSTED_YEARS,
+    ),
+    'professional': (
+        functools.partial(ec_growth_factors, ('54',), COVERAGE_BOUNDS, frozenset()),
+        EC_ADJUSTED_YEARS,
+    ),
+    'arts': (
+        functools.partial(ec_growth_factors, ('71',), COVERAGE_BOUNDS, frozenset()),
+        EC_ADJUSTED_YEARS,
+    ),
 }
 
 
@@ -320,18 +354,18 @@ def report() -> pd.DataFrame:
 
     raw = detail_gross_output_panel(ec_adjusted=False)
     adjusted = detail_gross_output_panel()
-    factors = ec_growth_factors()
-    members = [m for m in factors.index if m in raw.index]
     rows = []
-    for year in EC_ADJUSTED_YEARS:
-        if year not in raw.columns:
-            continue
+    for name, (factors_fn, years) in SECTOR_CONDITIONERS.items():
+        factors = factors_fn()
+        members = [m for m in factors.index if m in raw.index]
+        year = years[0]
         delta = adjusted.loc[members, year] - raw.loc[members, year]
         moved = float(delta.abs().sum()) / 2
         rows.append(
             {
+                'entry': name,
                 'year': year,
-                'mfg_total_$M': float(raw.loc[members, year].sum()),
+                'sector_total_$M': float(raw.loc[members, year].sum()),
                 'moved_$M_half_gross': moved,
                 'industries_over_2pct': int(
                     (
@@ -346,7 +380,7 @@ def report() -> pd.DataFrame:
                 'screened': int(factors['screened'].sum()),
             }
         )
-    return pd.DataFrame(rows).set_index('year')
+    return pd.DataFrame(rows).set_index('entry')
 
 
 def main() -> int:

@@ -57,14 +57,42 @@ BEA's gas growth already matches the EC to 3% — EIA-sourced annually).
   already tracks it. Crops and animal aggregates agree within ±2% in most years 2018-2023; member gaps
   are single-digit and mean-reverting (`1121A0` −6→−1%, `112300` +3-4%), nothing like a structural
   census gap. BEA's annual ag source *is* USDA farm income; conditioning would re-derive BEA with noise.
-- **State & local government**: not EC-covered at all — the census excludes government-owned
-  establishments. No census instrument exists for it, full stop.
+- **State & local government**: not EC-covered — the *Economic* Census excludes government-owned
+  establishments. C1 names its real census: the Census of Governments — see §C1 below and Wave 3.
 - **Oil and gas** `211`: single-industry summary group — a within-group conditioner has nothing to move.
 
-## What this changes in the plan
+## C1 grounds the whole program (Wes, reading `bea_2017_benchmark_sources.md`)
 
-The registry's next entries are **not** ag/electricity/mining (all held: incorporated, wrong-instrument,
-or structural no-op) but the **class-1 services families**, which carry ~2x manufacturing's GO under
-comparable instruments — plus the class-2 repairs if their re-verdicts hold. Each entry is the same
-construction `ec_go_adjustment` already implements; the work per family is the member-exclusion list or
-concordance entries plus a wedge screen, not new machinery.
+Three rows of C1 settle questions the wedge table alone could not:
+
+- **The annual column for nearly every service family reads "Census Bureau SAS data; for 2022 only
+  Census Bureau QSS data"** — BEA's 2022 detail for these sectors is quarterly-survey-carried, not
+  census-based. That *is* the absorption gap, in BEA's own words; the class-1 signals measure it.
+- **Where RCPTOT failed, C1 shows BEA used a different EC variable, not no census**: trade margins for
+  42/44-45; for `81`, *"2017 Economic Census taxable revenue and tax-exempt expenses"* — the nonprofit
+  side is measured by expenses, which is exactly the wedge instability the receipts-only check saw.
+  The repairs are written in C1's own sources column.
+- **State and local government's benchmark source is the 2017 Census of Governments** (+ Government
+  Finances + Public Employment) — not the Economic Census, so a COG-2022 conditioner is the analogue,
+  on a different instrument. (Federal is budget data; no census applies.)
+
+## The waves
+
+**Wave 1 — IMPLEMENTED** (`SECTOR_CONDITIONERS`): manufacturing + health `62` + admin/waste `56` +
+accommodation/food `72` + professional `54` + arts `71`, ~379bn/yr of within-group conditioning at 2022.
+Screens per family caught exactly the nonemployer-heavy industries the EC cannot see (`711500`
+independent artists, `5419A0`/`541920`) plus manufacturing's `334111` and the `334118` hold.
+
+**Wave 2 — member exclusions / concordance, then re-verdict**: `48-49` minus rail+postal (C1: EC except
+rail), `52` minus funds/trusts `525000`, `81` via the taxable/tax-exempt two-part construction, `212`
+on the bridged machinery, `44-45` and `51` with explicit NAICS-2022 concordance entries, `53` restricted
+to the establishment subfamily (dwellings are NIPA-imputed per C1).
+
+**Wave 3 — different variables or instruments**: trade via EC-2022 margins (interacts with #778 — trade
+output *is* margin), construction via EC value of construction work (or VIP), utilities' private
+universe, and **S&L government via the 2022 Census of Governments** (the repo's #578 gov-finance
+machinery is the starting point; note the gov *commodity-mix* bridge was a measured no-go — this is the
+industry-output axis, a different question).
+
+Confirmed holds: agriculture (BEA already tracks FIWS), oil-gas `211` (single-industry group), federal
+government (no census instrument).

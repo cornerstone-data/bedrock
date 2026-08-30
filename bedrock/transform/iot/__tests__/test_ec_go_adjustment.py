@@ -46,8 +46,10 @@ def test_nothing_before_2022_and_nothing_outside_manufacturing_moves(
     early = [c for c in raw.columns if int(c) < adj.CENSUS_YEAR]
     pd.testing.assert_frame_equal(adjusted[early], raw[early])
 
-    factors = adj.ec_growth_factors()
-    outside = [i for i in raw.index if i not in factors.index]
+    conditioned: set[str] = set()
+    for factors_fn, _years in adj.SECTOR_CONDITIONERS.values():
+        conditioned |= set(factors_fn().index)
+    outside = [i for i in raw.index if i not in conditioned]
     pd.testing.assert_frame_equal(adjusted.loc[outside], raw.loc[outside])
 
 
@@ -61,12 +63,14 @@ def test_the_adjustment_actually_moves_the_mix(
 
 
 def test_screened_industries_keep_bea(raw: pd.DataFrame) -> None:
-    factors = adj.ec_growth_factors()
-    screened = factors[factors['screened']]
-
-    assert set(adj.PENDING_REVIEW) <= set(screened.index)
-    pd.testing.assert_series_equal(
-        screened['g_ec'], screened['g_bea'], check_names=False
+    for factors_fn, _years in adj.SECTOR_CONDITIONERS.values():
+        factors = factors_fn()
+        screened = factors[factors['screened']]
+        pd.testing.assert_series_equal(
+            screened['g_ec'], screened['g_bea'], check_names=False
+        )
+    assert set(adj.PENDING_REVIEW) <= set(
+        adj.ec_growth_factors()[adj.ec_growth_factors()['screened']].index
     )
 
 
