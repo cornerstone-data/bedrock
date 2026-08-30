@@ -43,7 +43,7 @@ def test_group_totals_stay_bea_in_every_adjusted_year(
 def test_nothing_before_2022_and_nothing_outside_manufacturing_moves(
     raw: pd.DataFrame, adjusted: pd.DataFrame
 ) -> None:
-    early = [c for c in raw.columns if c < adj.CENSUS_YEAR]
+    early = [c for c in raw.columns if int(c) < adj.CENSUS_YEAR]
     pd.testing.assert_frame_equal(adjusted[early], raw[early])
 
     factors = adj.ec_growth_factors()
@@ -89,8 +89,12 @@ def test_bridged_families_keep_beas_within_family_split(raw: pd.DataFrame) -> No
             continue
         # g_ec ratios between two family members equal their g_bea ratios
         first, second = inside[0], inside[1]
-        got = factors.loc[first, 'g_ec'] / factors.loc[second, 'g_ec']
-        want = factors.loc[first, 'g_bea'] / factors.loc[second, 'g_bea']
+        got = float(str(factors.loc[first, 'g_ec'])) / float(
+            str(factors.loc[second, 'g_ec'])
+        )
+        want = float(str(factors.loc[first, 'g_bea'])) / float(
+            str(factors.loc[second, 'g_bea'])
+        )
         assert got == pytest.approx(want, rel=1e-9), (first, second)
         checked += 1
     assert checked > 0
