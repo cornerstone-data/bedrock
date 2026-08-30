@@ -103,6 +103,9 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+# ⚠️ Every read below is the RAW arm: this module measures the census AGAINST
+# BEA's unadjusted extrapolation, and it is also what ec_go_adjustment builds
+# its factors from -- reading the default arm here would be circular.
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     detail_gross_output_panel,
 )
@@ -156,7 +159,7 @@ def _allocation() -> pd.DataFrame:
     six = six.drop_duplicates().rename(
         columns={'NAICS_2017_Code': 'naics', 'BEA_2017_Detail_Code': 'bea'}
     )
-    go = detail_gross_output_panel()[BASE_YEAR]
+    go = detail_gross_output_panel(ec_adjusted=False)[BASE_YEAR]
     six['weight'] = six['bea'].map(go).fillna(0.0)
     totals = six.groupby('naics')['weight'].transform('sum')
     # a NAICS whose BEA industries all have zero GO keeps an equal split
@@ -259,7 +262,7 @@ def implied_bea_growth() -> pd.DataFrame:
     table = units()
 
     pieces: list[pd.DataFrame] = []
-    go17 = detail_gross_output_panel()[BASE_YEAR]
+    go17 = detail_gross_output_panel(ec_adjusted=False)[BASE_YEAR]
     for row in table.itertuples():
         members = [str(member) for member in ta.cast('tuple[str, ...]', row.members17)]
         reachable = allocation[allocation['naics'].isin(members)]
@@ -285,7 +288,7 @@ def implied_bea_growth() -> pd.DataFrame:
         )
     by_bea = pd.concat(pieces).groupby('bea')[['r17', 'r22', 'bridged_r17']].sum()
 
-    go = detail_gross_output_panel()
+    go = detail_gross_output_panel(ec_adjusted=False)
     frame = by_bea.copy()
     frame['go17'] = go[BASE_YEAR].reindex(frame.index).astype(float)
     frame['go22'] = go[CENSUS_YEAR].reindex(frame.index).astype(float)
