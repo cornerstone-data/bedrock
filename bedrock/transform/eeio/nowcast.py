@@ -144,8 +144,21 @@ _SUPPLY_BRIDGE_SUBTOTALS: dict[str, tuple[str, ...]] = {
     'T016': ('T013', 'T014', 'T015'),
 }
 
-#: Value-added rows of the Use panel, same five as ``nowcast_mask.VA_ROWS``.
-USE_VALUE_ADDED_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
+#: Value-added rows of the Use panel.
+#:
+#: ⚠️ ``T00OSUB`` — subsidies on production (#784) — is one MORE row than
+#: ``nowcast_mask.VA_ROWS`` carries, deliberately: the mask machinery is
+#: about to be reworked as an early Step-5 item, and wiring the row there
+#: now would only mean giving it a Tier-0 zero exemption (it is all-zero at
+#: 2017) twice. Until then the mask panel simply does not include the row.
+USE_VALUE_ADDED_ROWS = (
+    'V00100',
+    'T00OTOP',
+    'T00OSUB',
+    'V00300',
+    'T00TOP',
+    'T00SUB',
+)
 
 #: Value-added subtotal rows of the Use panel, as ``{row: {component: sign}}``,
 #: in evaluation order. ``T005`` is the intermediate-use column total and is
@@ -160,7 +173,12 @@ USE_VALUE_ADDED_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: Use row positive and subtracts it. Feeding a BEA-signed panel in silently
 #: doubles the subsidy wedge in ``VAPRO``.
 _USE_VALUE_ADDED_SUBTOTALS: dict[str, dict[str, int]] = {
-    'VABAS': {'V00100': 1, 'T00OTOP': 1, 'V00300': 1},
+    # T00OSUB (stored negative, like T00SUB) joins VABAS because gross
+    # operating surplus includes subsidy income: without the offsetting
+    # production-subsidy row, the seed's VABAS/VAPRO overstate the published
+    # identity by the production wedge (~580bn $M in 2020) (#784). Zero at
+    # 2017, so the verification note above is unchanged.
+    'VABAS': {'V00100': 1, 'T00OTOP': 1, 'T00OSUB': 1, 'V00300': 1},
     'T018': {'T005': 1, 'VABAS': 1},
     'VAPRO': {'VABAS': 1, 'T00TOP': 1, 'T00SUB': 1},
 }
@@ -530,7 +548,8 @@ def derive_initial_value_added(
     # see the note on _VALUE_ADDED_METHODS above.
     tax_rows = va_tax_rows(year)
     rows.extend(
-        ta.cast('pd.Series[float]', tax_rows.loc[code]) for code in ('T00TOP', 'T00SUB')
+        ta.cast('pd.Series[float]', tax_rows.loc[code])
+        for code in ('T00TOP', 'T00SUB', 'T00OSUB')
     )
 
     block = pd.DataFrame(rows).reindex(

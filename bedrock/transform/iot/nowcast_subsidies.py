@@ -18,29 +18,33 @@ this wrong produces a plausible-looking table that fails ``T015`` by twice the
 subsidy total, and comparing the two sides without it yields a tidy
 "200.0017% error" that is nothing but the sign.
 
-**The total is observed.** NIPA T31300 ``A107RC``: 59,875 in 2017 against a
-published Supply column of 59,876. Like ``TOP``, the annual level carries no
-modelling content at all - only the commodity split does.
+**The total is observed, and it is the published summary Supply column's**
+(#784). This column holds subsidies on *products* — money that reduces a
+commodity's purchaser price. NIPA T31300 is *total* subsidies, products plus
+subsidies on *production* (payments to industries: PPP, Employee Retention
+Credit, Provider Relief, ...), which belong on the industry side of the
+accounts and on no commodity row at all. The two totals are identical
+2017-2019 to the dollar (59,875 / 63,320 / 72,956 $M), and then diverge
+hard: **5.9x in 2020, 6.0x in 2021** (698,507 against a published 118,366),
+still +25% in 2022 and +5.5% in 2024. Leveling this column to T31300 —
+the construction before #784 — booked every pandemic production subsidy
+onto commodities, understating total supply by up to 580bn $M in exactly
+the years the supply-equals-use gap spikes. The annual control is therefore
+the published summary Supply ``SUB`` total, and the commodity allocation is
+conditioned on that column's ~14 summary groups (annual, observed); NIPA
+T31300 remains a diagnostic, and the gap between the two readings *is* the
+production-subsidy mass (:func:`control_total_table` shows both).
 
 Why this is not ``TOP`` with the sign flipped
 ----------------------------------------------
 
 ⚠️ **The 2017 share vector is safe for ``TOP`` and dangerous for ``SUB``.**
-``TOP``'s composition moves slowly. ``SUB``'s does not: the total is 11.7x its
-2017 level in 2020 and 10.5x in 2021, and the *composition* inverts with it.
-
-===================  ======  ======  =========  =========  ======  ======
-share of the total     2017    2019     **2020**   **2021**   2022    2024
-===================  ======  ======  =========  =========  ======  ======
-housing               59.7%   55.1%    **6.3%**      7.2%   37.5%   63.9%
-other                 19.6%   12.9%   **84.1%**     84.2%   49.8%   26.1%
-agricultural          19.3%   30.8%      6.7%       4.5%   11.6%    8.7%
-===================  ======  ======  =========  =========  ======  ======
-
-Holding the 2017 commodity shares constant puts **~420bn of 2020 pandemic
-support onto housing**, against an actual 6.3%, because the 2017 column is 66.2%
-housing (``531HST`` alone is 59.8%) and the 587bn of PPP has no 2017 counterpart
-to attach to.
+``TOP``'s composition moves slowly. ``SUB``'s does not: even products-only,
+the published total is 2.0x its 2017 level by 2020 and the group mix moves
+with programmes (transit ``485`` appears from nothing to 21% of the 2022
+column). Holding the 2017 commodity shares constant misallocates whatever a
+programme year adds, because the 2017 column is 66.2% housing (``531HST``
+alone is 59.8%) and new programmes have no 2017 counterpart to attach to.
 
 Anchor and move, per NIPA type
 -------------------------------
@@ -72,72 +76,58 @@ to the dollar - NIPA housing is 35,771 in 2017 where the three housing
 commodities carry 39,636. Anchoring on the published column rather than on NIPA's
 type totals is the deliberate choice: in the one year BEA publishes a commodity
 split, BEA's split wins over our reading of which type a commodity belongs to.
-The gap is absorbed by the final scale to the NIPA grand total.
 
-⚠️ 2020-2021: *other* is 84% of the column and the anchor is worthless there
---------------------------------------------------------------------------
+The conditioning, and the one injected commodity
+------------------------------------------------
 
-The eight anchored *other* commodities are 64% insurance carriers. Moving them by
-the *other* line's own growth puts **~377bn of PPP onto ``5241XX`` in 2020** -
-wrong by roughly the magnitude of the housing failure the frozen vector produces,
-just in a different direction. Growth of the right line is not enough when the
-line's *composition* changed completely.
+The anchored-and-moved vector is a *shape*, and the published summary Supply
+``SUB`` column is the annual answer for where product subsidies actually sit,
+at summary-group resolution. So the column is finished the same way as the
+final-demand block (#786): each summary group scaled to its published value,
+the within-group split kept from the anchor. The fifteen anchored commodities
+cover thirteen of the fourteen groups the published column ever touches — of
+course they do, they were read off the published 2017 column — with one
+exception:
 
-✅ So for 2020 and 2021 only, *other* is allocated on **BEA's own published
-allocation of PPP across industries** - `Paycheck Protection Program Subsidies by
-Industry in the National Accounts <https://www.bea.gov/federal-recovery-programs-and-bea-statistics/covid-19-recovery>`_,
-2023 Comprehensive Update vintage, annual, 21 NAICS sectors. BEA states it *"used
-data from the Small Business Administration to allocate the forgivable portion of
-the business loans across industries"*, so the SBA-to-NIPA mapping is already
-done, on the basis of the very line being decomposed. Within a sector the split
-is that year's ``T007``.
+✅ **Transit.** ``485`` carries no product subsidy in 2017 and −21,948 $M in
+2022 (federal transit operating support, 21% of that year's column), so there
+is nothing to scale. Its summary group holds exactly one detail commodity, so
+the published group value lands on ``485000`` directly. Any *other* published
+group the anchored shape cannot reach raises rather than being dropped — a new
+programme year deserves a decision, not a silent hole.
 
-⚠️ **PPP is not the whole line, and this is the standing assumption to attack
-first.** 447.5bn against 587.3bn is **76% of 2020**; 235.8bn against 527.3bn is
-only **45% of 2021**. The remainder is Employee Retention Credit, Provider Relief,
-Restaurant Revitalization and Shuttered Venue Operators, and applying the PPP
-vector to the whole line assumes they distribute like PPP. They do not.
-`#689 <https://github.com/cornerstone-data/bedrock/issues/689>`_ sources them
-properly from USAspending, where the CFDA axis names each programme directly.
-
-⚠️ **2022-2024 have no treatment.** PPP is zero from 2022, so those years fall
-back to the anchored vector while *other* is still 2-5x its 2017 level - 63,763
-in 2022 against 11,733 in 2017. That is the same insurance-carrier concentration
-at smaller scale, and it is also #689's.
-
-⚠️ **Within a sector the weight is output, and PPP went to small firms.** BEA's
-table stops at 19 industries, so something has to split each one across its
-commodities, and ``T007`` is the only annual commodity-level scale the build has.
-It biases toward the large-firm end of each sector: ``541700`` scientific R&D
-takes 18,153 $M of 2020 professional-services PPP on its output share, and R&D is
-not where small-business lending went. Payroll by commodity would be the right
-weight and arrives with Step 2. The sector totals - which is where BEA's actual
-information is - are unaffected either way.
+⚠️ **What happened to the PPP machinery.** Before #784 this module carried
+BEA's PPP-by-industry allocation to spread the 2020-21 NIPA *other* line
+across ~387 commodities. That line is production subsidies; production
+subsidies are no longer in this column, so the machinery is gone (git history
+has it, and ``BEA_PPP_Subsidies`` remains cached on GCS should the industry
+side of the accounts ever want it). #689's USAspending decomposition is
+likewise an industry-side question now, not a ``SUB`` one.
 """
 
 from __future__ import annotations
 
 import functools
-import os
 from collections.abc import Iterable, Mapping
 
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
-from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
+from bedrock.extract.iot.io_2017 import (
+    _load_2017_detail_supply_use_usa,
+    _load_usa_summary_sut,
+)
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
-from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
+from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
+    load_bea_v2017_commodity_to_bea_v2017_summary,
+)
 
 #: The one year with a published detail Supply table.
 ANCHOR_YEAR = 2017
 
-#: Years ``SUB`` is built for. NIPA publishes the whole window.
+#: Years ``SUB`` is built for - the years the summary Supply workbook covers.
 SUB_YEARS = range(2017, 2025)
-
-#: The years *other* is allocated on the PPP vector instead of the 2017 anchor.
-PANDEMIC_YEARS = (2020, 2021)
 
 _NIPA_SOURCE = 'BEA_NIPA'
 SUBSIDY_TABLE = 'T31300'
@@ -170,90 +160,27 @@ SUBSIDY_TYPES: Mapping[str, tuple[str, tuple[str, ...]]] = {
 
 #: State and local subsidies (line 8), 555 in 2017 against a 59,875 total. NIPA
 #: gives no type for them and the published column no separate home, so they ride
-#: the *other* line's commodities via the final scale to the grand total.
+#: the *other* line's commodities via the conditioning.
 STATE_LOCAL_SERIES = 'B114RC'
 
-#: The *other* type, named because it is the one the anchor cannot carry in
-#: 2020-2021.
-OTHER_TYPE = 'other'
+#: The one summary group the published column reaches that the 2017 anchor
+#: cannot: federal transit operating support appears from 2020 (−15,617 $M)
+#: and peaks at −21,948 in 2022, 21% of that year's column. The group holds
+#: exactly this one detail commodity, so the published group value lands on it
+#: directly.
+INJECTED_COMMODITIES: Mapping[str, str] = {'485': '485000'}
 
-# --- BEA's PPP-by-industry table -------------------------------------------
+#: The type label the injected commodities carry in :func:`sub_decomposition` —
+#: they belong to no NIPA type line, and the industry-side conversion routes
+#: this type to the state and local transit enterprise (the published summary
+#: Use ``T00SUB`` row books the 2022 transit subsidy on ``GSLE``, none on
+#: private ``485``).
+INJECTED_TYPE = 'transit'
 
-#: Cached under ``extract/input_data/BEA_PPP_Subsidies/`` and mirrored to
-#: ``gs://cornerstone-default/extract/input-data/BEA_PPP_Subsidies/``. Not an FBA
-#: on purpose: PPP ended, the 2022 column is 0.0 and this Comprehensive Update
-#: vintage is final, so there is nothing for an FBA's refresh machinery to do.
-PPP_SOURCE = 'BEA_PPP_Subsidies'
-PPP_WORKBOOK = 'NEA-CU23-Subsidies-by-Industry-A.xlsx'
-PPP_SOURCE_URL = (
-    'https://www.bea.gov/sites/default/files/2023-09/'
-    'NEA-CU23-Subsidies-by-Industry-A.xlsx'
-)
-
-#: Workbook line numbers that are subtotals of other lines, not sectors of their
-#: own. Line 1 is the total; 7 and 8 are durable and nondurable goods beneath
-#: line 6 manufacturing. Summing without dropping these double counts.
-_PPP_SUBTOTAL_LINES = (1, 7, 8)
-
-#: PPP industry row -> the NAICS prefixes of the BEA 2017 commodities it covers.
-#: BEA 2017 Detail codes are NAICS-based, so a prefix rule reaches all 390
-#: private commodities; the 12 that no prefix reaches are listed in
-#: :data:`_PPP_EXCLUDED_COMMODITIES` and are excluded on purpose.
-_PPP_ROW_PREFIXES: Mapping[str, tuple[str, ...]] = {
-    'Agriculture, forestry, fishing, and hunting': ('11',),
-    'Mining': ('21',),
-    'Utilities': ('22',),
-    'Construction': ('23',),
-    'Manufacturing': ('31', '32', '33'),
-    'Wholesale trade': ('42',),
-    'Retail trade': ('44', '45', '4B'),
-    'Transportation and warehousing': ('48', '49'),
-    'Information': ('51',),
-    'Finance and insurance': ('52',),
-    'Real estate and rental and leasing': ('53',),
-    'Professional, scientific, and technical services': ('54',),
-    'Management of companies and enterprises': ('55',),
-    'Administrative and waste management services': ('56',),
-    'Educational services': ('61',),
-    'Health care and social assistance': ('62',),
-    'Arts, entertainment, and recreation': ('71',),
-    'Accommodation and food services': ('72',),
-    'Other services, except government': ('81',),
-}
-
-#: Commodities kept out of the PPP base, and why. BEA's table is explicitly
-#: *"Subsidies to Private Industries"*, so government, scrap, used goods and the
-#: import/rest-of-world specials take none of it.
-#:
-#: ⚠️ ``4200ID`` customs duties is the trap: it starts ``42`` and a bare prefix
-#: rule silently files it under wholesale trade. ``491000`` postal service is a
-#: federal government enterprise wearing a NAICS code, and ``531HST``/``531HSO``
-#: are excluded because imputed and tenant housing already carry the *housing*
-#: subsidy line - leaving them in would let real-estate PPP land on the largest
-#: imputed-rent commodity in the table and double up with that line.
-_PPP_EXCLUDED_COMMODITIES: frozenset[str] = frozenset(
-    {
-        '4200ID',
-        '491000',
-        '531HST',
-        '531HSO',
-        'S00102',
-        'S00203',
-        'S00300',
-        'S00401',
-        'S00402',
-        'S00500',
-        'S00600',
-        'S00900',
-        'GSLGE',
-        'GSLGH',
-        'GSLGO',
-    }
-)
-
-#: Slack on the identity checks, in USD - the published table is in whole
-#: millions, so an exact comparison trips on BEA's own rounding.
-_ROUNDING_TOLERANCE = 1.0 * MILLION_CURRENCY_TO_CURRENCY
+#: Slack on the identity checks, in USD - the published tables are in whole
+#: millions, so an exact comparison trips on BEA's own rounding. The summary
+#: total stacks ~14 rounded group cells.
+_ROUNDING_TOLERANCE = 20.0 * MILLION_CURRENCY_TO_CURRENCY
 
 
 # --- NIPA, the annual level ------------------------------------------------
@@ -302,10 +229,13 @@ def nipa_line(code: str, year: int) -> float:
 
 
 def sub_control_total(year: int) -> float:
-    """The ``SUB`` column total for *year*, USD, **positive** as NIPA publishes it.
+    """NIPA **total** subsidies for *year*, USD, **positive** as NIPA publishes it.
 
-    ⚠️ :func:`sub_column` stores this negative. 59,875 in 2017 against a published
-    Supply column of −59,876.
+    ⚠️ **A diagnostic, not the column control** (#784): this is products plus
+    production subsidies, identical to the published products-only column
+    2017-2019 and up to 6x it in 2020-21. The column control is
+    :func:`published_sub_total`; the gap between the two readings is the
+    production-subsidy mass that belongs on industries, not commodities.
     """
     total = nipa_line(SUBSIDY_TOTAL_SERIES, year)
     if total <= 0:
@@ -316,6 +246,43 @@ def sub_control_total(year: int) -> float:
             f'twice.'
         )
     return total
+
+
+@functools.cache
+def published_sub_by_group(year: int) -> pd.Series:
+    """The published summary Supply ``SUB`` column for *year*, USD, **negative**.
+
+    Summary commodity groups only — the ``T017`` total row is dropped (it is
+    checked against the group sum instead). Nonzero on ~14 groups.
+    """
+    supply = _load_usa_summary_sut('Supply_summary', year)  # type: ignore[arg-type]
+    column = pd.to_numeric(supply['SUB'], errors='coerce').fillna(0.0)
+    total = float(column.get('T017', 0.0)) * MILLION_CURRENCY_TO_CURRENCY
+    groups = (
+        column.drop(index=['T017'], errors='ignore').astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    if (groups > 0).any():
+        raise ValueError(
+            f'The {year} summary Supply SUB column is positive on '
+            f'{sorted(groups.index[groups > 0])}. BEA stores this column negative; '
+            f'a positive cell means the workbook was read on the Use table\'s sign '
+            f'convention.'
+        )
+    if abs(float(groups.sum()) - total) > _ROUNDING_TOLERANCE:
+        raise ValueError(
+            f'The {year} summary Supply SUB groups sum to {groups.sum():,.0f} USD '
+            f'against the workbook\'s own T017 of {total:,.0f}. A group row is '
+            f'being dropped or double-read.'
+        )
+    return groups.rename('SUB')
+
+
+def published_sub_total(year: int) -> float:
+    """The ``SUB`` column control for *year*: the published summary total, USD,
+    **positive** (the magnitude; :func:`sub_column` stores the column negative).
+    """
+    return float(-published_sub_by_group(year).sum())
 
 
 def subsidy_type_totals(year: int) -> pd.Series:
@@ -416,163 +383,19 @@ def type_growth(year: int) -> pd.Series:
     return (current / anchor).rename(f'growth_{year}')
 
 
-# --- BEA's PPP allocation, for 2020-2021 -----------------------------------
-
-
-def ppp_workbook_path() -> str:
-    """Local path to BEA's PPP-by-industry workbook, pulling from GCS if absent."""
-    local_dir = local_extract_input_dir(PPP_SOURCE, year=None)
-    path = os.path.join(local_dir, PPP_WORKBOOK)
-    if not os.path.exists(path):
-        os.makedirs(local_dir, exist_ok=True)
-        download_extract_input_from_gcs_if_not_exists(
-            {'source': PPP_SOURCE, 'year': None, 'url': PPP_SOURCE_URL},
-            local_dir=local_dir,
-            object_name=PPP_WORKBOOK,
-        )
-    if not os.path.exists(path):
-        raise FileNotFoundError(
-            f'{PPP_WORKBOOK} is neither cached at {path} nor available from '
-            f'gs://cornerstone-default/extract/input-data/{PPP_SOURCE}/. It is a '
-            f'final BEA vintage and can be re-fetched from {PPP_SOURCE_URL}.'
-        )
-    return path
-
-
-@functools.cache
-def ppp_by_sector() -> pd.DataFrame:
-    """BEA's PPP subsidies by industry, USD positive, industries x years.
-
-    Annual levels for 2019-2022. 447.5bn in 2020 and 235.8bn in 2021, zero from
-    2022 - the programme ended.
-    """
-    raw = pd.read_excel(ppp_workbook_path(), header=None)
-    numbered = raw[raw[0].notna() & raw[0].astype(str).str.match(r'^\d+$')].copy()
-    numbered['line'] = numbered[0].astype(int)
-
-    years = [2019, 2020, 2021, 2022]
-    table = numbered.loc[~numbered['line'].isin(_PPP_SUBTOTAL_LINES), [1, 2, 3, 4, 5]]
-    table.columns = pd.Index(['industry', *years])
-    table['industry'] = table['industry'].astype(str).str.strip()
-    frame = table.set_index('industry')
-    frame = frame.apply(pd.to_numeric, errors='coerce').fillna(0.0)
-    frame = frame * 1e9  # the workbook is in billions
-
-    published_total = (
-        float(pd.to_numeric(numbered.loc[numbered['line'] == 1, 3]).iloc[0]) * 1e9
-    )
-    industry_total = float(frame[2020].sum())
-    if abs(industry_total - published_total) > 0.5e9:
-        raise ValueError(
-            f'The PPP industry rows sum to {industry_total / 1e9:,.1f}bn in 2020 '
-            f'against a published total of {published_total / 1e9:,.1f}bn. Either a '
-            f'subtotal row is being counted as an industry or an industry is being '
-            f'dropped; _PPP_SUBTOTAL_LINES is what decides.'
-        )
-    return frame
-
-
-@functools.cache
-def ppp_base_commodities() -> pd.Series:
-    """Commodity -> PPP industry row, for the 387 commodities in the PPP base.
-
-    ⚠️ Raises if any commodity outside :data:`_PPP_EXCLUDED_COMMODITIES` fails to
-    match a prefix. A silently unmatched commodity takes no PPP and the shares
-    still sum to 1, so the loss would be invisible in every total.
-    """
-    mapping: dict[str, str] = {}
-    unmatched: list[str] = []
-    for code in USA_2017_COMMODITY_CODES:
-        code = str(code)
-        if code in _PPP_EXCLUDED_COMMODITIES:
-            continue
-        for row, prefixes in _PPP_ROW_PREFIXES.items():
-            if code.startswith(prefixes):
-                mapping[code] = row
-                break
-        else:
-            unmatched.append(code)
-    if unmatched:
-        raise ValueError(
-            f'{sorted(unmatched)} match no NAICS prefix in _PPP_ROW_PREFIXES and are '
-            f'not listed as excluded. BEA 2017 Detail codes are NAICS-based, so an '
-            f'unmatched code is either a new special code or a prefix rule that has '
-            f'drifted - decide which, rather than letting it take no PPP silently.'
-        )
-    return pd.Series(mapping, name='ppp_industry').rename_axis('commodity')
-
-
-def ppp_commodity_shares(year: int) -> pd.Series:
-    """PPP shares by commodity for *year*, summing to 1.
-
-    BEA's sector amounts, split within a sector by that year's ``T007``. Domestic
-    output is the right within-sector weight here in a way it is not for a tax
-    base: PPP went to *producers*, in proportion to their payroll, and output is
-    the only annual commodity-level scale the build has.
-    """
-    # deferred: eeio.nowcast imports this module to fill the SUB column, so a
-    # top-level import here would close the cycle
-    from bedrock.transform.iot.nowcast_supply_go_control import (  # noqa: PLC0415
-        seed_commodity_output,
-    )
-
-    if int(year) not in ppp_by_sector().columns:
-        raise ValueError(
-            f'BEA publishes PPP by industry for '
-            f'{sorted(ppp_by_sector().columns)}; {year} is outside that.'
-        )
-    sectors = ppp_by_sector()[int(year)]
-    industry_of = ppp_base_commodities()
-    output = (
-        seed_commodity_output(int(year), False)
-        .reindex(industry_of.index)
-        .fillna(0.0)
-        .clip(lower=0.0)
-    )
-
-    amounts = pd.Series(0.0, index=industry_of.index, name='ppp')
-    for industry, amount in sectors.items():
-        members = industry_of.index[industry_of == industry]
-        weights = output[members]
-        weight_total = float(weights.sum())
-        if weight_total <= 0:
-            raise ValueError(
-                f'PPP industry {industry!r} has {amount:,.0f} USD to place but its '
-                f'commodities carry no {year} T007 to split it on.'
-            )
-        amounts.loc[members] = float(amount) * weights / weight_total
-
-    total = float(amounts.sum())
-    if total <= 0:
-        raise ValueError(f'PPP allocates nothing in {year}; shares are undefined.')
-    return (
-        amounts.reindex(USA_2017_COMMODITY_CODES)
-        .fillna(0.0)
-        .div(total)
-        .rename('ppp_share')
-    )
-
-
 # --- the column ------------------------------------------------------------
 
 
-def sub_decomposition(year: int) -> pd.DataFrame:
-    """``SUB`` for *year* by type, USD **negative**, plus the ``SUB`` row margin.
+def anchored_shape(year: int) -> pd.Series:
+    """The pre-conditioning shape: each type's 2017 mass moved by its NIPA line.
 
-    One column per :data:`SUBSIDY_TYPES` type. In :data:`PANDEMIC_YEARS` the
-    ``other`` column is BEA's PPP allocation rather than the 2017 anchor moved.
+    USD **positive**. Unscaled — the conditioning in :func:`sub_decomposition`
+    sets every group's level, so only the within-group proportions of this
+    vector survive into the column.
     """
-    if int(year) not in SUB_YEARS:
-        raise ValueError(
-            f'SUB is built for {SUB_YEARS.start}-{SUB_YEARS.stop - 1}; {year} is '
-            f'outside the years the BEA_NIPA extract carries.'
-        )
     published = published_sub_by_commodity().abs()
-    totals = subsidy_type_totals(year)
     shares = anchor_shares()
     growth = type_growth(year)
-
-    # anchor: the type's own 2017 mass, moved by the type's own NIPA growth
     anchored = pd.Series(
         {
             subsidy_type: float(published[list(commodities)].sum())
@@ -580,15 +403,82 @@ def sub_decomposition(year: int) -> pd.DataFrame:
             for subsidy_type, (_, commodities) in SUBSIDY_TYPES.items()
         }
     )
-    parts = shares.mul(anchored, axis='columns')
+    return shares.mul(anchored, axis='columns').sum(axis='columns')
 
-    if int(year) in PANDEMIC_YEARS:
-        parts[OTHER_TYPE] = ppp_commodity_shares(year) * float(totals[OTHER_TYPE])
 
-    scale = sub_control_total(year) / float(parts.to_numpy().sum())
-    parts = parts * scale
+@functools.cache
+def _commodity_to_summary() -> pd.Series:
+    mapping = load_bea_v2017_commodity_to_bea_v2017_summary()
+    return pd.Series({code: parents[0] for code, parents in mapping.items()})
 
-    out = -parts
+
+def sub_decomposition(year: int) -> pd.DataFrame:
+    """``SUB`` for *year* by type, USD **negative**, plus the ``SUB`` row margin.
+
+    One column per :data:`SUBSIDY_TYPES` type plus :data:`INJECTED_TYPE`. The
+    construction: each summary group of the anchored shape is scaled to the
+    published summary Supply ``SUB`` value for that group and year; each
+    :data:`INJECTED_COMMODITIES` group's published value lands on its single
+    commodity directly. A published group the shape cannot reach any other
+    way raises — a new programme year deserves a decision, not a silent hole.
+
+    The typing survives the conditioning untouched because every commodity
+    belongs to exactly one type; the type columns are what
+    :func:`~bedrock.transform.iot.nowcast_va_taxes.t00sub_row` keys its
+    government-enterprise routings on.
+    """
+    if int(year) not in SUB_YEARS:
+        raise ValueError(
+            f'SUB is built for {SUB_YEARS.start}-{SUB_YEARS.stop - 1}; {year} is '
+            f'outside the years the summary Supply workbook covers.'
+        )
+    shape = anchored_shape(int(year))
+    if int(year) == ANCHOR_YEAR:
+        # At the anchor the published detail column IS the answer - conditioning
+        # it onto whole-million summary group cells would only add rounding
+        # dust, and downstream (t00sub_row) reproduces the published row to the
+        # dollar on this exactness.
+        conditioned = published_sub_by_commodity().abs()
+    else:
+        groups = _commodity_to_summary().reindex(shape.index)
+        ours = shape.groupby(groups).sum()
+        pub = published_sub_by_group(int(year)).abs()
+
+        conditioned = pd.Series(0.0, index=shape.index)
+        for group, target in pub[pub > 0].items():
+            if group in INJECTED_COMMODITIES:
+                conditioned.loc[INJECTED_COMMODITIES[str(group)]] = float(target)
+                continue
+            base = float(ours.get(group, 0.0))
+            if base <= 0:
+                raise ValueError(
+                    f'The {year} published summary SUB column carries '
+                    f'{target:,.0f} USD on group {group!r}, but the anchored '
+                    f'shape reaches no commodity there and INJECTED_COMMODITIES '
+                    f'names none. A new subsidy programme needs a home, not a '
+                    f'silent drop.'
+                )
+            members = groups.index[groups == group]
+            conditioned.loc[members] = shape[members] * (float(target) / base)
+
+    type_of = pd.Series(
+        {
+            commodity: subsidy_type
+            for subsidy_type, (_, commodities) in SUBSIDY_TYPES.items()
+            for commodity in commodities
+        }
+    )
+    for injected in INJECTED_COMMODITIES.values():
+        type_of[injected] = INJECTED_TYPE
+
+    out = pd.DataFrame(
+        0.0,
+        index=shape.index,
+        columns=pd.Index([*SUBSIDY_TYPES, INJECTED_TYPE], name='subsidy_type'),
+    )
+    carrying = conditioned[conditioned != 0.0]
+    for commodity, amount in carrying.items():
+        out.loc[str(commodity), str(type_of[str(commodity)])] = -float(amount)
     out['SUB'] = out.sum(axis='columns')
     out.index.name = 'commodity'
     return out
@@ -597,7 +487,8 @@ def sub_decomposition(year: int) -> pd.DataFrame:
 def sub_column(year: int = ANCHOR_YEAR) -> pd.Series:
     """The Supply table's ``SUB`` column for *year*. USD, **negative**.
 
-    Sums to −:func:`sub_control_total` exactly.
+    Sums to −:func:`published_sub_total` exactly — the products-only concept
+    (#784), not NIPA's combined total.
 
     ⚠️ **Negative is the Supply table's convention, not a bug and not ours.** The
     Use table's ``T00SUB`` row carries the same money positive. ``T015`` *adds*
@@ -605,12 +496,13 @@ def sub_column(year: int = ANCHOR_YEAR) -> pd.Series:
     """
     column = sub_decomposition(year)['SUB'].rename('SUB')
 
-    control = -sub_control_total(year)
+    control = -published_sub_total(year)
     if abs(float(column.sum()) - control) > _ROUNDING_TOLERANCE:
         raise ValueError(
-            f'SUB {year} sums to {column.sum():,.0f} USD against a NIPA control of '
-            f'{control:,.0f}. Every type is scaled to that total by construction, so '
-            f'a gap means one of them was scaled twice.'
+            f'SUB {year} sums to {column.sum():,.0f} USD against the published '
+            f'summary control of {control:,.0f}. Every group is scaled to its '
+            f'published value by construction, so a gap means a group was '
+            f'dropped or scaled twice.'
         )
     if (column > 0).any():
         raise ValueError(
@@ -622,15 +514,24 @@ def sub_column(year: int = ANCHOR_YEAR) -> pd.Series:
 
 
 def control_total_table(years: Iterable[int] | None = None) -> pd.DataFrame:
-    """The annual NIPA type lines behind the column, in $M positive, for diagnostics."""
+    """The two annual totals and NIPA's type lines, $M positive, for diagnostics.
+
+    ``SUB`` is the products-only column control (published summary);
+    ``nipa_total`` is NIPA T31300; ``production_wedge`` is their difference —
+    the production-subsidy mass that belongs on industries, 0 through 2019
+    and ~580,000 $M at the 2020 peak.
+    """
     years = list(SUB_YEARS if years is None else years)
     rows = {}
     for year in years:
         totals = subsidy_type_totals(year)
-        control = sub_control_total(year)
+        nipa_total = sub_control_total(year)
+        control = published_sub_total(year)
         rows[year] = {
             **totals.to_dict(),
             'state and local': nipa_line(STATE_LOCAL_SERIES, year),
             'SUB': control,
+            'nipa_total': nipa_total,
+            'production_wedge': nipa_total - control,
         }
     return (pd.DataFrame(rows).T / MILLION_CURRENCY_TO_CURRENCY).rename_axis('year')

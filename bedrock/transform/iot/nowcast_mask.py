@@ -134,6 +134,14 @@ Block = Literal['use', 'supply']
 #: the industry-output identity - they are the wedge from basic to producer
 #: prices - but the industry column margin is ``T005 + VAPRO``, so all five rows
 #: participate.
+#:
+#: ⚠️ **One row behind the block on purpose** (#784):
+#: ``nowcast.USE_VALUE_ADDED_ROWS`` also carries ``T00OSUB`` — subsidies on
+#: production, all-zero at 2017 and ~580bn $M in 2020. Wiring it here needs a
+#: Tier-0 zero exemption on the row axis (its 2017 zeros are one year's
+#: observation of a pandemic-era row, not structure) plus a sign lock, and the
+#: mask machinery is about to be reworked as an early Step-5 item — the row
+#: joins then, once, rather than twice.
 VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 
 #: Supply columns between basic (``T013``) and purchaser (``T016``) value. The

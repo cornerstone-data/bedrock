@@ -192,14 +192,22 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: the conditioning is correct row targets for the interior fit, not this
 #: aggregate.  The row-level effect is where to look: 541511's 2023 residual
 #: fell -75,754 -> -29,878 $M.
+#: ⚠️ The subsidy concept fix (#784) moved BOTH identities in the pandemic
+#: years: T17 2020 5.5 -> 2.8 and 2021 5.7 -> 3.4 (the new ``T00OSUB`` row
+#: closed the ~580/522bn of production subsidies the ``V00300`` seed carried
+#: with no offsetting row), and T11 2020 18.5 -> 17.1, 2021 16.7 -> 15.5
+#: (the ``SUB`` column no longer subtracts that mass from commodity supply).
+#: The insolvency counts moved by one in 2019/2021 as published-rounding dust
+#: (-1 $M magnitudes) landed differently; the substantive guard is
+#: ``check_giveup_solvency`` in the build.
 BASELINE: dict[int, dict[str, float]] = {
     2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 3.8},
-    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 8.5},
-    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 10.9},
-    2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 18.5},
-    2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 16.7},
-    2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 18.7},
-    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 20.4},
+    2018: {'t17_pct': 1.2, 'insolvent': 1, 't11_pct': 8.5},
+    2019: {'t17_pct': 1.9, 'insolvent': 2, 't11_pct': 10.9},
+    2020: {'t17_pct': 2.8, 'insolvent': 1, 't11_pct': 17.1},
+    2021: {'t17_pct': 3.4, 'insolvent': 1, 't11_pct': 15.5},
+    2022: {'t17_pct': 6.4, 'insolvent': 1, 't11_pct': 18.4},
+    2023: {'t17_pct': 1.3, 'insolvent': 0, 't11_pct': 20.3},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA

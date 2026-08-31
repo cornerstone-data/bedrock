@@ -32,6 +32,9 @@ from bedrock.transform.iot.nowcast_product_taxes import top_by_level, top_column
 from bedrock.transform.iot.nowcast_subsidies import sub_column
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
+from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
+    load_bea_v2017_industry_to_bea_v2017_summary,
+)
 
 MILLION = 1e6
 
@@ -88,7 +91,11 @@ def test_t00sub_conserves_the_supply_column(year: int) -> None:
 
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
 def test_the_wedge_agrees_with_the_supply_bridge(year: int) -> None:
-    """``T00TOP + T00SUB`` is the Supply table's ``T015`` block, by identity."""
+    """``T00TOP + T00SUB`` is the Supply table's ``T015`` block, by identity.
+
+    ``T00OSUB`` is deliberately outside this sum: subsidies on production are
+    industry money with no Supply-bridge counterpart (#784).
+    """
     supply_side = float(
         top_column(year).sum()
         + sub_column(year).sum()
@@ -96,7 +103,9 @@ def test_the_wedge_agrees_with_the_supply_bridge(year: int) -> None:
     )
     rows = vt.va_tax_rows(year)
 
-    assert rows.to_numpy().sum() == pytest.approx(supply_side, abs=MILLION)
+    assert rows.loc[['T00TOP', 'T00SUB']].to_numpy().sum() == pytest.approx(
+        supply_side, abs=MILLION
+    )
 
 
 # --- the two exact pieces ---------------------------------------------------
@@ -180,23 +189,28 @@ def test_the_routings_are_the_whole_code_identity_residual() -> None:
 
 
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
-def test_the_insurance_routing_fires_only_outside_the_ppp_years(year: int) -> None:
-    """2020-21 ``other`` is private-sector PPP, not a federal enterprise line.
-
-    Routing it would put pandemic support on ``S00102``. The two cells swap:
-    outside the PPP years the whole of ``5241XX``'s subsidy goes to the federal
-    enterprise and the private industry takes none, and inside them it is the
-    other way round.
+def test_the_insurance_routing_fires_every_year(year: int) -> None:
+    """Products-only (#784), ``5241XX``'s subsidy is the federal insurance line
+    in every year — the PPP carve-out that used to leave it on the private
+    industry in 2020-21 retired with the production subsidies themselves.
     """
     federal = -vt.t00sub_row(year)['S00102']
     private = -vt.t00sub_row(year)['5241XX']
 
-    if year in (2020, 2021):
-        assert federal == pytest.approx(0.0, abs=MILLION)
-        assert private > 0
-    else:
-        assert federal > 0
-        assert private == pytest.approx(0.0, abs=MILLION)
+    assert federal > 0
+    assert private == pytest.approx(0.0, abs=MILLION)
+
+
+@pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
+def test_transit_routes_to_the_state_and_local_enterprise(year: int) -> None:
+    """The injected ``485000`` subsidy (from 2020) belongs to ``S00201`` — the
+    published summary row books it all on the enterprises, none on private
+    transit."""
+    row = vt.t00sub_row(year)
+
+    assert row['485000'] == pytest.approx(0.0, abs=MILLION)
+    if year >= 2020:
+        assert -row['S00201'] > 1_000 * MILLION
 
 
 def test_public_housing_keeps_taking_its_share_every_year() -> None:
@@ -212,7 +226,7 @@ def test_public_housing_keeps_taking_its_share_every_year() -> None:
 def test_both_rows_span_every_industry(year: int) -> None:
     rows = vt.va_tax_rows(year)
 
-    assert list(rows.index) == ['T00TOP', 'T00SUB']
+    assert list(rows.index) == ['T00TOP', 'T00SUB', 'T00OSUB']
     assert list(rows.columns) == list(USA_2017_INDUSTRY_CODES)
     assert not rows.isna().to_numpy().any()
 
@@ -268,10 +282,12 @@ def test_the_wedge_table_covers_the_whole_span() -> None:
     assert list(table.index) == list(vt.VA_TAX_YEARS)
     assert (table['T00TOP'] > 0).all()
     assert (table['T00SUB'] < 0).all()
-    # 2020-21 pandemic subsidies swamp the tax side: the wedge narrows sharply
-    # and must not be allowed to silently go negative or stay flat.
+    # Products-only (#784), the wedge no longer collapses in 2020: the old
+    # sub-third-of-2019 reading was ~580bn of production subsidies (PPP) booked
+    # onto commodities. It still dips - the products column itself grows 62% -
+    # but must stay well above half of 2019's.
     wedge = table['wedge'].astype(float)
-    assert wedge[2020] < wedge[2019] / 3
+    assert wedge[2019] / 2 < wedge[2020] < wedge[2019]
 
 
 def test_check_passes() -> None:
@@ -279,9 +295,51 @@ def test_check_passes() -> None:
     assert vt.check() == 0
 
 
-def test_the_block_stacks_all_five_value_added_rows() -> None:
+def test_the_block_stacks_all_six_value_added_rows() -> None:
     block = derive_initial_value_added(vt.ANCHOR_YEAR)
 
     assert list(block.index) == list(USE_VALUE_ADDED_ROWS)
     assert isinstance(block, pd.DataFrame)
     assert block.loc['T00SUB'].sum() < 0
+    # subsidies on production are zero at the anchor - the row exists for the
+    # pandemic years (#784)
+    assert block.loc['T00OSUB'].abs().sum() == 0.0
+
+
+# --- T00OSUB, subsidies on production (#784) --------------------------------
+
+
+def test_t00osub_is_zero_before_the_pandemic_and_the_published_total_after() -> None:
+    assert vt.t00osub_row(2017).abs().sum() == 0.0
+    assert vt.t00osub_row(2019).abs().sum() == 0.0
+    total_2020 = -vt.t00osub_row(2020).sum() / MILLION
+    assert total_2020 == pytest.approx(538_490, abs=30)
+
+
+def test_t00osub_reaches_the_industries_the_products_column_no_longer_carries() -> None:
+    """The 21*/72*/81 cells Wes traced: same money, industry axis, this row."""
+    row = -vt.t00osub_row(2021)
+
+    for industry in ('722110', '811100', '211000'):
+        assert row[industry] > 0
+    # and the products row for those industries stays empty
+    sub = -vt.t00sub_row(2021)
+    for industry in ('722110', '811100', '211000'):
+        assert sub[industry] == pytest.approx(0.0, abs=MILLION)
+
+
+def test_t00osub_groups_conserve_the_published_row() -> None:
+    """Compensation is a within-group weight only - group totals are BEA's."""
+    row = vt.t00osub_row(2020)
+
+    grouped: dict[str, float] = {}
+    group_of: dict[str, str] = {
+        str(code): str(groups[0])
+        for code, groups in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    for industry, amount in row.items():
+        grouped[group_of[str(industry)]] = grouped.get(
+            group_of[str(industry)], 0.0
+        ) + float(amount)
+    assert grouped['722'] / MILLION == pytest.approx(-36_200, abs=2)
+    assert grouped['81'] / MILLION == pytest.approx(-20_837, abs=2)
