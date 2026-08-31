@@ -32,7 +32,7 @@ from bedrock.analysis.nowcasting.compensation_allocation import (
     surplus_assembly,
     use_row,
 )
-from bedrock.transform.flowbysector import FlowBySector
+from bedrock.transform.flowbysector import getFlowBySector
 
 #: The FBS is in USD; the Use SUT workbook is in millions.
 MILLION = 1e6
@@ -44,6 +44,7 @@ METHODS = {
 }
 
 
+@functools.cache
 def _estimate(method: str, row: str) -> 'pd.Series[float]':
     """The method's row by industry, in $M, on the published row's index.
 
@@ -51,7 +52,7 @@ def _estimate(method: str, row: str) -> 'pd.Series[float]':
     FBA -- every NIPA line produces its own row per industry, the same shape
     ``NIPA_final_dom_uses`` has.
     """
-    fbs = FlowBySector.generateFlowBySector(method, download_sources_ok=True)
+    fbs = getFlowBySector(method, download_FBAs_if_missing=True)
     by_industry = fbs.groupby('SectorConsumedBy')['FlowAmount'].sum() / MILLION
     return by_industry.reindex(use_row(row).index).fillna(0.0)
 
@@ -74,7 +75,7 @@ def test_row_code_is_on_sector_produced_by(method: str, row: str) -> None:
     as a Use column. Nothing downstream raises -- the money is simply in the
     wrong half of the table.
     """
-    fbs = FlowBySector.generateFlowBySector(method, download_sources_ok=True)
+    fbs = getFlowBySector(method, download_FBAs_if_missing=True)
     assert set(fbs['SectorProducedBy']) == {row}
     assert fbs['SectorConsumedBy'].notna().all()
 
