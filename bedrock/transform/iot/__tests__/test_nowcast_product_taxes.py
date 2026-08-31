@@ -163,6 +163,7 @@ def test_named_lines_are_about_thirty_percent_of_the_column() -> None:
 # --- the column -------------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 def test_2017_replays_the_published_column_per_commodity() -> None:
     """Per commodity, not in aggregate.
 
@@ -179,6 +180,7 @@ def test_2017_replays_the_published_column_per_commodity() -> None:
     assert difference.max() < MILLION, difference.sort_values().tail()
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', list(pt.TOP_YEARS))
 def test_column_is_non_negative_and_ties_to_nipa(year: int) -> None:
     column = pt.top_column(year)
@@ -188,6 +190,7 @@ def test_column_is_non_negative_and_ties_to_nipa(year: int) -> None:
     assert len(column) == 402
 
 
+@pytest.mark.eeio_integration
 def test_commodities_with_no_product_tax_stay_at_zero() -> None:
     """Zero is sourced information here, not an unfilled cell.
 
@@ -202,6 +205,7 @@ def test_commodities_with_no_product_tax_stay_at_zero() -> None:
         assert (pt.top_column(year)[untaxed] == 0).all()
 
 
+@pytest.mark.eeio_integration
 def test_decomposition_row_margin_is_the_column() -> None:
     decomposition = pt.top_decomposition(2024)
     parts = [*pt.NAMED_TAX_LINES, 'residual']
@@ -241,6 +245,7 @@ def test_named_lines_move_against_the_column_rather_than_with_it() -> None:
     assert growth('severance', 2022) > 2.5
 
 
+@pytest.mark.eeio_integration
 def test_purchaser_base_reaches_what_domestic_output_cannot() -> None:
     """``S00402`` is why the base is T013+T014 and not ``T007``.
 
@@ -254,6 +259,7 @@ def test_purchaser_base_reaches_what_domestic_output_cannot() -> None:
     assert (base >= 0).all(), 'a tax base cannot be negative'
 
 
+@pytest.mark.eeio_integration
 def test_residual_does_not_drift_against_its_control() -> None:
     """The rejected one-sided mover reached 1.86x; this base must not drift.
 
@@ -272,6 +278,7 @@ def test_residual_does_not_drift_against_its_control() -> None:
         )
 
 
+@pytest.mark.eeio_integration
 def test_2024_holds_2023_shares_rather_than_reverting_to_2017() -> None:
     """The margin columns stop at 2023, so 2024 is a hold, not a measurement.
 
@@ -281,6 +288,7 @@ def test_2024_holds_2023_shares_rather_than_reverting_to_2017() -> None:
     assert pt.residual_share_for_year(2024).equals(pt.residual_share_for_year(2023))
 
 
+@pytest.mark.eeio_integration
 def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     """Sized on commodities, not just lines, against the default proposal itself.
 
@@ -358,6 +366,7 @@ def test_trade_level_share_is_a_share() -> None:
     assert share['481000'] == 0.0
 
 
+@pytest.mark.eeio_integration
 def test_the_two_levels_add_back_to_the_column() -> None:
     levels = pt.top_by_level(2024)
 
@@ -371,6 +380,7 @@ def test_the_two_levels_add_back_to_the_column() -> None:
     assert (levels['producer_level'] >= 0).all()
 
 
+@pytest.mark.eeio_integration
 def test_the_2017_split_reproduces_the_observed_trade_level_tax() -> None:
     """391,162 $M, straight from ``Wholesale + Retail - TRADE`` with nothing modelled."""
     levels = pt.top_by_level(pt.ANCHOR_YEAR)

@@ -67,6 +67,7 @@ def test_subsidies_are_returned_negative() -> None:
         assert (row <= 0).all(), f'{year} has a positive T00SUB cell'
 
 
+@pytest.mark.eeio_integration
 def test_product_taxes_are_returned_positive() -> None:
     row = vt.t00top_row(vt.ANCHOR_YEAR)
 
@@ -81,6 +82,7 @@ def test_product_taxes_are_returned_positive() -> None:
 # --- mass conservation ------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
 def test_t00top_conserves_the_supply_columns(year: int) -> None:
     """``T00TOP`` is ``TOP + MDTY`` redistributed, so its total is theirs."""
@@ -97,6 +99,7 @@ def test_t00sub_conserves_the_supply_column(year: int) -> None:
     )
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
 def test_the_wedge_agrees_with_the_supply_bridge(year: int) -> None:
     """``T00TOP + T00SUB`` is the Supply table's ``T015`` block, by identity."""
@@ -113,6 +116,7 @@ def test_the_wedge_agrees_with_the_supply_bridge(year: int) -> None:
 # --- the two exact pieces ---------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
 def test_duties_land_whole_on_the_customs_industry(year: int) -> None:
     """A lookup, not an allocation - BEA books all of them to ``4200ID``."""
@@ -123,6 +127,7 @@ def test_duties_land_whole_on_the_customs_industry(year: int) -> None:
     )
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
 def test_government_industries_take_no_product_tax(year: int) -> None:
     """Zero by an accounting rule, and a wrong seed here reaches Step 7."""
@@ -140,6 +145,7 @@ def test_the_customs_industry_is_not_treated_as_wholesale() -> None:
 # --- the benchmark, which is the whole argument for the operator ------------
 
 
+@pytest.mark.eeio_integration
 def test_t00top_reproduces_the_published_row_at_the_measured_score() -> None:
     scores = vt.benchmark_scores()['T00TOP']
 
@@ -171,6 +177,7 @@ def test_t00sub_reproduces_the_published_row_exactly() -> None:
     assert estimate.sum() == pytest.approx(PUBLISHED_T00SUB_2017, abs=1.5)
 
 
+@pytest.mark.eeio_integration
 def test_t00top_total_matches_the_published_row() -> None:
     """The level is observed; only the split is estimated."""
     total = float(vt.t00top_row(vt.ANCHOR_YEAR).sum()) / MILLION
@@ -219,6 +226,7 @@ def test_public_housing_keeps_taking_its_share_every_year() -> None:
 # --- the frame --------------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', list(vt.VA_TAX_YEARS))
 def test_both_rows_span_every_industry(year: int) -> None:
     rows = vt.va_tax_rows(year)
@@ -246,6 +254,7 @@ def test_market_shares_sum_to_one_where_a_commodity_has_output() -> None:
         assert totals.max() == pytest.approx(1.0, abs=1e-9)
 
 
+@pytest.mark.eeio_integration
 def test_excluding_government_moves_mass_rather_than_deleting_it() -> None:
     """Renormalisation, not zeroing - the tax stays with its own commodity.
 
@@ -273,6 +282,7 @@ def test_excluding_government_moves_mass_rather_than_deleting_it() -> None:
     assert kept.sum() == pytest.approx(float(plain.sum()), abs=MILLION)
 
 
+@pytest.mark.eeio_integration
 def test_the_wedge_table_covers_the_whole_span() -> None:
     table = vt.wedge_table()
 

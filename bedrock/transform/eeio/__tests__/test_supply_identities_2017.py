@@ -154,6 +154,7 @@ def test_supply_purchaser_equals_total_use_per_commodity(
     _assert_identity(residual, 'T016 = T019 per commodity', 0.0)
 
 
+@pytest.mark.eeio_integration
 def test_the_derived_bridge_reproduces_the_identities(supply: pd.DataFrame) -> None:
     """Our own bridge satisfies them too, so a refactor cannot quietly break it.
 

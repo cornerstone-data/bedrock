@@ -806,6 +806,7 @@ def test_the_crosswalk_covers_every_year_the_column_runs() -> None:
 # --------------------------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 def test_supply_bridge_trans_satisfies_target_t16() -> None:
     """
     The column must net to zero in every sourced year, which is target T16.
@@ -819,6 +820,7 @@ def test_supply_bridge_trans_satisfies_target_t16() -> None:
         assert not bridge['TRANS'].isna().any()
 
 
+@pytest.mark.eeio_integration
 def test_supply_bridge_trans_is_zero_not_nan_off_the_receiving_set() -> None:
     """
     A commodity bearing no transport margin has zero, which is information.
@@ -831,6 +833,7 @@ def test_supply_bridge_trans_is_zero_not_nan_off_the_receiving_set() -> None:
     assert set(trans[trans < 0].index) == set(MODE_COMMODITIES.values())
 
 
+@pytest.mark.eeio_integration
 def test_supply_bridge_leaves_unsourced_years_alone() -> None:
     """
     2024 has no truck or pipeline source, so TRANS must stay unfilled.
@@ -846,6 +849,7 @@ def test_supply_bridge_leaves_unsourced_years_alone() -> None:
     assert derive_initial_supply_bridge(2024)['TRANS'].isna().all()
 
 
+@pytest.mark.eeio_integration
 def test_supply_bridge_trade_and_trans_both_reach_2023() -> None:
     """
     Both margin columns now land in 2023, and both net to zero there.
@@ -939,6 +943,7 @@ def test_air_volume_index_refuses_years_with_a_published_revenue() -> None:
         tm.air_revenue_from_volume(2022)
 
 
+@pytest.mark.eeio_integration
 def test_supply_bridge_leaves_2024_trade_unsourced() -> None:
     """
     2024 is inside the bridge's year range but outside the Census series.

@@ -60,6 +60,7 @@ def test_crosswalk_kinds_do_not_cross() -> None:
 # --- the anchor ------------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('kind', tr.TRADE_KINDS)
 def test_census_gross_margin_reads_the_published_total_row(kind: str) -> None:
     """
@@ -74,6 +75,7 @@ def test_census_gross_margin_reads_the_published_total_row(kind: str) -> None:
     )
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('kind', tr.TRADE_KINDS)
 def test_coverage_ratio_is_the_2017_give_up_over_the_census_margin(kind: str) -> None:
     """
@@ -89,6 +91,7 @@ def test_coverage_ratio_is_the_2017_give_up_over_the_census_margin(kind: str) ->
     )
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('kind', tr.TRADE_KINDS)
 def test_2017_control_total_reproduces_the_published_give_up(kind: str) -> None:
     """The anchor year is an identity, which is what anchor-and-move buys."""
@@ -97,6 +100,7 @@ def test_2017_control_total_reproduces_the_published_give_up(kind: str) -> None:
     )
 
 
+@pytest.mark.eeio_integration
 def test_2017_column_reproduces_the_published_trade_column_per_commodity() -> None:
     """
     ⚠️ The whole construction rests on this, on **both** sides.
@@ -121,6 +125,7 @@ def test_2017_column_reproduces_the_published_trade_column_per_commodity() -> No
 # --- the column identity ---------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
 def test_column_sums_to_zero_every_year(year: int) -> None:
     """
@@ -133,6 +138,7 @@ def test_column_sums_to_zero_every_year(year: int) -> None:
     assert abs(column.sum()) / column.abs().sum() < 1e-9
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
 def test_all_nineteen_givers_are_present_every_year(year: int) -> None:
     """
@@ -151,6 +157,7 @@ def test_all_nineteen_givers_are_present_every_year(year: int) -> None:
     assert (present < 0).all()
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
 def test_receivers_are_never_negative(year: int) -> None:
     """
@@ -170,6 +177,7 @@ def test_receivers_are_never_negative(year: int) -> None:
 # --- suppression -----------------------------------------------------------
 
 
+@pytest.mark.eeio_integration
 def test_suppressed_retail_2022_is_recovered_at_the_measured_gap() -> None:
     """
     ARTS 2022 retail sums 130,671 $M short of its published total.
@@ -187,6 +195,7 @@ def test_suppressed_retail_2022_is_recovered_at_the_measured_gap() -> None:
     assert residual / MILLION == pytest.approx(130_671, rel=1e-4)
 
 
+@pytest.mark.eeio_integration
 def test_suppressed_codes_get_a_plausible_share_not_zero() -> None:
     """
     ⚠️ The failure this guards is silent, not loud.
@@ -217,6 +226,7 @@ def test_the_unsourced_giver_still_gets_a_share() -> None:
 # --- the two controls are not interchangeable ------------------------------
 
 
+@pytest.mark.eeio_integration
 def test_gross_margin_control_exceeds_the_trade_control_by_the_trade_tax() -> None:
     """
     ``sum(W + R) = TRADE + TOP``, so the two controls differ by 391,163 $M.
@@ -324,6 +334,7 @@ def test_no_commodity_pays_more_tax_than_the_margin_it_is_levied_on() -> None:
     assert (split <= gross + MILLION).all().all()
 
 
+@pytest.mark.eeio_integration
 @pytest.mark.parametrize('year', tr.TRADE_MARGIN_YEARS)
 def test_each_kind_sums_to_zero_on_its_own(year: int) -> None:
     """
@@ -340,6 +351,7 @@ def test_each_kind_sums_to_zero_on_its_own(year: int) -> None:
         assert abs(column.sum()) / column.abs().sum() < 1e-9
 
 
+@pytest.mark.eeio_integration
 def test_components_add_back_to_the_trade_column() -> None:
     """``trade_margin_column`` is exactly the two margin components summed."""
     components = tr.trade_margin_components(2022)
@@ -349,6 +361,7 @@ def test_components_add_back_to_the_trade_column() -> None:
     assert (rebuilt - column).abs().max() < 1
 
 
+@pytest.mark.eeio_integration
 def test_the_tax_is_positive_everywhere_and_only_on_receivers() -> None:
     """
     Tax is collected on the transaction, so it lands on the good being sold.
@@ -362,6 +375,7 @@ def test_the_tax_is_positive_everywhere_and_only_on_receivers() -> None:
     assert components.loc[givers, 'trade_tax'].abs().max() < 1
 
 
+@pytest.mark.eeio_integration
 def test_receiving_shares_are_frozen_at_2017() -> None:
     """
     Every year's receiving split is the 2017 mix exactly - and must stay so.
