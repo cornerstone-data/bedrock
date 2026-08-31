@@ -60,9 +60,7 @@ def commodity_first_parent_map() -> dict[str, str]:
     return first_parent_map(load_bea_v2017_commodity_to_bea_v2017_summary())
 
 
-def _require_mapped(
-    codes: list[str], parent_map: dict[str, str], *, axis: str
-) -> None:
+def _require_mapped(codes: list[str], parent_map: dict[str, str], *, axis: str) -> None:
     missing = sorted({code for code in codes if code not in parent_map})
     if missing:
         raise ValueError(f'unmapped {axis} codes for summary rollup: {missing}')
@@ -166,17 +164,13 @@ def compare_rollup_block(
     )
     left, right = candidate.align(reference, fill_value=0.0)
     max_abs = float(
-        np.nanmax(
-            np.abs(left.to_numpy(dtype=float) - right.to_numpy(dtype=float))
-        )
+        np.nanmax(np.abs(left.to_numpy(dtype=float) - right.to_numpy(dtype=float)))
     )
     cell_counts = match.counts().loc['cells']
     n_partial = int(cell_counts['partial'])
     n_miss = int(cell_counts['miss'])
     n_extra = int(cell_counts['extra'])
-    ok = match.ok(
-        max_partial=0, max_miss=0, max_extra=0, max_margin_partial=0
-    )
+    ok = match.ok(max_partial=0, max_miss=0, max_extra=0, max_margin_partial=0)
     return RollupGateResult(
         label=label,
         ok=ok,

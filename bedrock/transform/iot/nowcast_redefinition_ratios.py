@@ -185,9 +185,7 @@ def compute_redefinition_ratios(
         to the BEA 2017 detail industry set. Pass a summary (or other) industry
         code set when learning on non-detail tables.
     """
-    effective_industries = (
-        industry_set if industry_set is not None else _INDUSTRY_SET
-    )
+    effective_industries = industry_set if industry_set is not None else _INDUSTRY_SET
     x = industry_gross_output(V_before)
     return RedefinitionRatios(
         V=_cellwise_ratios(

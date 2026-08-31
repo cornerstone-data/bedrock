@@ -1101,8 +1101,7 @@ def load_summary_value_added_before_redef_usa(
     raw = _load_usa_summary_mut_before_redef('Use_summary_before_redef', year)
     _assert_summary_va_rows(raw, context='before-redef summary Use')
     df = (
-        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES]
-        .astype(float)
+        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     df.index = pd.Index(list(SUMMARY_VA_CODES), name='value_added')
@@ -1185,8 +1184,7 @@ def load_summary_value_added_usa_2024_vintage(
     )
     _assert_summary_va_rows(raw, context='2024-vintage after-redef summary Use')
     df = (
-        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES]
-        .astype(float)
+        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     df.index = pd.Index(list(SUMMARY_VA_CODES), name='value_added')

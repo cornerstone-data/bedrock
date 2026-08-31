@@ -319,9 +319,7 @@ def write_report(report: SpanTestReport, path: Path = REPORT_PATH) -> None:
         scores=report.scores,
     )
     use_l1_text = (
-        f'**{use_l1[0]:.1%}** – **{use_l1[1]:.1%}**'
-        if use_l1 is not None
-        else 'n/a'
+        f'**{use_l1[0]:.1%}** – **{use_l1[1]:.1%}**' if use_l1 is not None else 'n/a'
     )
 
     if verdict == 'setup-fail':
@@ -340,9 +338,7 @@ def write_report(report: SpanTestReport, path: Path = REPORT_PATH) -> None:
             'gaps stay small without widespread industry blow-ups.**'
         )
     elif verdict == 'incomplete':
-        overall = (
-            '**Verdict: incomplete — no Use L1 scores were produced.**'
-        )
+        overall = '**Verdict: incomplete — no Use L1 scores were produced.**'
     else:
         overall = (
             '**Verdict: mixed — do not treat 2017 reconstruction alone as '

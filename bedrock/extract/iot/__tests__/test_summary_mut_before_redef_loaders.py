@@ -14,9 +14,9 @@ from bedrock.utils.taxonomy.bea.v2017_value_added import SUMMARY_VA_CODES
 
 def test_span_year_guard_rejects_pre_2017() -> None:
     with pytest.raises(ValueError, match='out of span domain'):
-        io_2017.load_summary_V_before_redef_usa(2016)  # type: ignore[arg-type]
+        io_2017.load_summary_V_before_redef_usa(2016)
     with pytest.raises(ValueError, match='out of span domain'):
-        io_2017.load_summary_V_usa_2024_vintage(2016)  # type: ignore[arg-type]
+        io_2017.load_summary_V_usa_2024_vintage(2016)
 
 
 def test_2024_vintage_mapping_filenames() -> None:
