@@ -89,7 +89,7 @@ then require moving it.
 | Use interior | `derive_initial_U_intermediate(year)` |
 | Use VA rows | `derive_initial_value_added(year)` |
 | Use FD columns | `derive_initial_Y_pur(year)` |
-| Supply output | `Detail_Supply_<year>` FBS |
+| Supply output | `Detail_Supply_Mix_<year>` FBS |
 | Supply bridge | `derive_initial_supply_bridge(year)` |
 
 ⚠️ **`published_2017_panel` is the shape specification**, not a fallback. Same

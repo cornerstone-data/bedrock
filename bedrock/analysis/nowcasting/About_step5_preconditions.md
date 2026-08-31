@@ -10,7 +10,7 @@ time it was taken, and the artifacts change:
 
 ```bash
 uv run python -m bedrock.analysis.nowcasting.control_residuals --check
-uv run python -m bedrock.utils.validation.stale_artifacts --name Detail_Supply_   # are they current?
+uv run python -m bedrock.utils.validation.stale_artifacts --name Detail_Supply_Mix_   # are they current?
 ```
 
 **State reflected:** the seed at `44c1dd6` — `nowcast` plus [#766](https://github.com/cornerstone-data/bedrock/pull/766)'s
@@ -45,7 +45,7 @@ Read them as a **trend away from the anchor**, never as a level at 2017.
 
 ### → [#724](https://github.com/cornerstone-data/bedrock/issues/724) · the Supply industry column
 
-`Detail_Supply_<year>` disaggregates a published *summary* control onto a detail mix, and that summary
+`Detail_Supply_Mix_<year>` disaggregates a published *summary* control onto a detail mix, and that summary
 block is its only control — so the detail **industry** axis is unconstrained.
 [`nowcast_targets`](../../transform/iot/nowcast_targets.py) records that `T17` is *"the only constraint the
 Supply industry columns have — without it that whole axis is free"*, so the entire residual is absorbed by
@@ -113,7 +113,7 @@ unadjusted FBA parquet.
 
 Not an accuracy question — a **feasibility** one. Trade output essentially *is* margin, so the 19 givers
 hand over 90.8–100% of their own `T007` in the anchor year. The give-up then moves on a Census margin index
-× a frozen 2017 coverage ratio while the output moves on `Detail_Supply`: two independent series
+× a frozen 2017 coverage ratio while the output moves on `Detail_Supply_Mix`: two independent series
 differenced on a knife edge.
 
 | year | insolvent givers | negative total supply, $M | max give-up |
@@ -243,6 +243,30 @@ column whose own gross size is 65,723 — **146.5%** — but only 44,097 of expo
 small and signed. **Relative severity is not the promotion test; what the hard control *moves* is.** That
 contrast is the clearest available statement of what the test actually is, and it is the same arithmetic
 that keeps #772 above #665/#660.
+
+## The stack, summed (2026-08-30, branch `supply_mix_rename_cap`)
+
+The first measurement of the whole span on one tree — every stack level live, all blocks rebuilt:
+
+| year | industry-output inconsistency (% of intermediate inputs) | trade commodities with negative total supply | supply-equals-use gap per commodity (% of intermediate use) |
+|---|---:|---:|---:|
+| 2017 | 1.4 | 2 (rounding dust) | 4.9 |
+| 2018 | 1.3 *(was 4.8)* | 1 *(was 7)* | **9.1** *(unmeasurable before)* |
+| 2019 | 1.9 *(was 7.3)* | 1 *(was 6)* | **11.6** *(unmeasurable before)* |
+| 2020 | 5.5 *(was 13.7)* | 1 *(was 6)* | 19.3 |
+| 2021 | 5.7 *(was 14.8)* | 0 *(was 7)* | 18.1 |
+| 2022 | 6.7 *(was 16.9)* | 1 *(was 11)* | 20.0 *(was ~22)* |
+| 2023 | 1.4 *(was 15.9)* | 0 *(was 8, −530bn)* | 20.4 *(was 21.5)* |
+
+What the stack targeted, it fixed: the industry columns are consistent to near the anchor year's own
+level, and no trade commodity's margin exceeds its output anywhere. What it never targeted — **the
+commodity rows** — is now the one standing blocker: an 18–20% supply-equals-use gap in 2020–2023,
+moved only ~2pp by everything above because its owners are the row-side estimates. The 2023 exposure
+ranking says where it lives: the two real-estate rows (`531ORE` 252,479 of exposure, `533000` 78,686),
+banking (`522A00` 69,303), the professional-services family (`541610`/`541800`/`54151A` ~147,000
+together), services exports (#771) and the transport mix (#772) behind them. That ranking is the queue
+for the row-side work, and the supply-equals-use gap is now in the `--check` baseline so it cannot
+drift unremarked.
 
 ## Two instruments, not interchangeable
 

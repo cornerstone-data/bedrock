@@ -39,7 +39,7 @@ row           operator                              2017 r    2017 ``|err|``
 ⚠️ ``T00TOP`` scores 0.947 here against ``tax_axis_conversion``'s 0.948 on the
 same operator, and the difference is the **make matrix**, not the method. The
 analysis prototype reads the published 2017 Supply table; this module reads
-``Detail_Supply_2017``, so that the same code serves every year. The FBS
+``Detail_Supply_Mix_2017``, so that the same code serves every year. The FBS
 reproduces published ``T007`` to rounding (33,772,550m against 33,772,566m) but
 not cell by cell. 0.001 of correlation is the price of the operator being
 annual.
@@ -175,7 +175,7 @@ Everything here is annual
 --------------------------
 
 The market-share matrix and the industry-output weights come from
-``Detail_Supply_<year>`` rather than from the 2017 benchmark, so the operator
+``Detail_Supply_Mix_<year>`` rather than from the 2017 benchmark, so the operator
 moves with the Supply block Step 4a builds. What is frozen is named and
 enumerable: ``trade_level_share`` inside ``top_by_level``, the motor-fuel
 routing, the government-column rule, and the two subsidy routing shares.
@@ -267,7 +267,7 @@ _ROUNDING_TOLERANCE = 1.0 * MILLION_CURRENCY_TO_CURRENCY
 
 
 def make_block(year: int) -> pd.DataFrame:
-    """The ``Detail_Supply_<year>`` domestic-output block, commodity x industry, USD.
+    """The ``Detail_Supply_Mix_<year>`` domestic-output block, commodity x industry, USD.
 
     ⚠️ **GO-controlled from 2018 on** (#724): the detail industry columns are
     pinned to their share of BEA's detail gross output within each summary

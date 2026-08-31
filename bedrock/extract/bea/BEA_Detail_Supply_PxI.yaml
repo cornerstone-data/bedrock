@@ -22,7 +22,7 @@ bib_id: BEA_Detail_Supply
 #
 # ⚠️⚠️ **Editing supply_mix_2022.csv does NOT invalidate this FBA.** The parquet
 # in extract/output_data is cached and getFlowByActivity returns it without
-# re-reading the csv, so a rebuilt mix silently does not reach Detail_Supply -
+# re-reading the csv, so a rebuilt mix silently does not reach Detail_Supply_Mix -
 # and the FBS logs look completely normal while serving the old block. This
 # already happened once. After running write_supply_mix_update.py you must
 # regenerate the FBA before the FBS:
@@ -34,12 +34,12 @@ bib_id: BEA_Detail_Supply
 # million_usd column - they must agree to 1e-6.
 #
 # ⚠️ The parse branch for this source must be tested BEFORE the plain
-# Detail_Supply branch in bea_parse: the substring check there matches this
+# Detail_Supply_Mix branch in bea_parse: the substring check there matches this
 # source name too, and would silently serve the unmoved 2017 block.
 #
 # ⚠️ **The year here is the MIX vintage, not the table year.** There is one
-# block and it is the 2022 one; Detail_Supply_2022 and later attribute onto it,
-# and Detail_Supply_2017 to 2021 keep BEA_Detail_Supply. Declaring more years
+# block and it is the 2022 one; Detail_Supply_Mix_2022 and later attribute onto it,
+# and Detail_Supply_Mix_2017 to 2021 keep BEA_Detail_Supply. Declaring more years
 # would imply a mix that moves annually, and it does not - annual_mix_test.py
 # measured that no annual survey can improve on holding the mix between
 # censuses.

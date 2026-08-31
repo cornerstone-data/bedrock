@@ -10,7 +10,7 @@ fix, the question is *which of the two differenced series is wrong*:
 
 - the **give-up**, ``census margin index x trade_coverage_ratio`` frozen at
   2017, or
-- the givers' **own output**, ``T007`` from the ``Detail_Supply`` block.
+- the givers' **own output**, ``T007`` from the ``Detail_Supply_Mix`` block.
 
 The referee
 -----------

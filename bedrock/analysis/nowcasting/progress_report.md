@@ -41,7 +41,7 @@ Step 1 is a live `derive_initial_Y_pur` (`NIPA_final_dom_uses_2017`, Trade
 `derive_initial_U_intermediate`
 ([#497](https://github.com/cornerstone-data/bedrock/issues/497),
 [#742](https://github.com/cornerstone-data/bedrock/pull/742)). Step 4a is the
-`Detail_Supply_2017` FBS
+`Detail_Supply_Mix_2017` FBS
 ([#570](https://github.com/cornerstone-data/bedrock/issues/570)). Step 4 is
 `derive_initial_supply_bridge`, and with `TOP` and `SUB` (#580) it populates all
 twelve bridge columns, so `T013`, `T014`, `T015` and `T016` are evaluable rather
@@ -171,7 +171,7 @@ two ends.
 rows for final demand, value added and inventories retain `Table` / `Line` /
 `Code` — the NIPA table, line and series each row was built from. That triple
 *is* the datum's identity, so `k` is counted off the build itself. ⚠️
-`Detail_Supply` and `Trade_Exports` carry only `MetaSources` with no per-row
+`Detail_Supply_Mix` and `Trade_Exports` carry only `MetaSources` with no per-row
 key, so `supply_mix`'s `k` is measured off the summary→detail crosswalk instead
 and `F04000`'s is declared. `--check` prints which blocks are which.
 
@@ -1112,7 +1112,7 @@ tolerance leaves both-zero cells as `absent` deliberately, so the 100% / 99.6%
 above is over present cells only.
 
 ⚠️ **2017 is close to circular — do not read this as the best-verified block.**
-The candidate is the `Detail_Supply_2017` FBS, which disaggregates the published
+The candidate is the `Detail_Supply_Mix_2017` FBS, which disaggregates the published
 *summary* domestic-output block onto the 2017 *detail* mix. The same detail mix
 appears on both sides of the comparison, so a green result means the
 disaggregation has not broken, not that the method predicts anything. **What

@@ -760,7 +760,7 @@ _GROUP_KIND = {
 def published_group_giveup(year: int) -> pd.Series:
     """The published summary ``Trade`` give-up per giver group, USD, positive.
 
-    Read from the same summary Supply workbook the ``Detail_Supply`` control
+    Read from the same summary Supply workbook the ``Detail_Supply_Mix`` control
     comes from, so the two sides of ``T016 = T007 + TRADE`` share one source by
     construction -- which is the entire fix for #769.  At 2017 these cells sum
     to the published detail give-up exactly (3,264,931 $M), so the anchor is

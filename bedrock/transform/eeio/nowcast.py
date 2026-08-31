@@ -303,8 +303,8 @@ def _inventories_fbs_commodity_vector(
 def _supply_fbs_commodity_vector(year: int, download_sources_ok: bool) -> pd.Series:
     """Domestic commodity output ``T007``, USD, indexed by BEA 2017 Detail.
 
-    Source is the ``Detail_Supply_<year>`` FBS
-    (``bedrock/transform/detail/Detail_Supply_<year>.yaml``), which
+    Source is the ``Detail_Supply_Mix_<year>`` FBS
+    (``bedrock/transform/iot/Detail_Supply_Mix_Mix_<year>.yaml``), which
     disaggregates the published summary Supply domestic-output block onto the
     2017 detail mix. That block is commodity x industry, so ``T007`` is its
     **row margin** - and in the FBS the commodity is ``SectorConsumedBy``, the
@@ -539,7 +539,7 @@ def derive_initial_supply_bridge(
     2017, and to that year's charge total with the published MADJ sign in
     later years.
 
-    ``T007`` is the row margin of the ``Detail_Supply_<year>`` FBS
+    ``T007`` is the row margin of the ``Detail_Supply_Mix_<year>`` FBS
     domestic-output block, and is sourced for every year **2017-2024** (#570).
 
     ``TRANS`` is Step 4c's transport margin, built per mode on the basis BEA

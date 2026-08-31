@@ -1,7 +1,7 @@
 # National goods + services exports mapped to BEA 2017 Detail.
 #
-# Everything except the year and Detail_Supply attribution lives here. Each
-# Trade_Exports_<year> stub caches Detail_Supply_<year> with
+# Everything except the year and Detail_Supply_Mix attribution lives here. Each
+# Trade_Exports_<year> stub caches Detail_Supply_Mix_<year> with
 # collapse_detail_supply_to_t007 and names that cache key as attribution_source
 # (#729).
 !include:BEA_detail_commodity_target.yaml

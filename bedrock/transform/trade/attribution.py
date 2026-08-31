@@ -10,7 +10,7 @@ from bedrock.transform.flowbysector import FlowBySector
 
 
 def collapse_detail_supply_to_t007(fbs: FlowBySector, **_kwargs: Any) -> FlowBySector:
-    """Collapse ``Detail_Supply`` industry×commodity rows to commodity ``T007``.
+    """Collapse ``Detail_Supply_Mix`` industry×commodity rows to commodity ``T007``.
 
     Proportional Trade attribution merges on ``PrimarySector``. Multiple
     industry rows per commodity would under-count in the denominator (only one
