@@ -1,16 +1,16 @@
-# Detail Supply table for 2022. Body and rationale in Detail_Supply.yaml.
+# Detail Supply table for 2024. Body and rationale in Detail_Supply_Mix.yaml.
 #
 # ⚠️ `source_names` MUST be redeclared here, not just `year`. The !include is a
-# shallow dict update, and Detail_Supply.yaml resolves `year: *summary_year`
+# shallow dict update, and Detail_Supply_Mix.yaml resolves `year: *summary_year`
 # INSIDE its source block at parse time - so overriding only the top-level year
 # leaves the source pinned to the base file's 2018 while the method reports
-# 2022. get_flowby_from_config merges the source's own dict last, so the source
+# 2024. get_flowby_from_config merges the source's own dict last, so the source
 # wins. The failure is silent: a full table for the wrong year.
-!include:Detail_Supply.yaml
-year: &year 2022
+!include:Detail_Supply_Mix.yaml
+year: &year 2024
 source_names:
   BEA_Summary_Supply:
-    !include:Detail_Supply.yaml:source_names:BEA_Summary_Supply
+    !include:Detail_Supply_Mix.yaml:source_names:BEA_Summary_Supply
     year: *year
     # ⚠️ Attribute onto the census-moved mix, not the frozen 2017 one. From 2022
     # the detail split rests on the Economic Census product lines rather than on
@@ -19,7 +19,7 @@ source_names:
     #
     # No exclusion_fields: BEA_Detail_Supply_PxI is already cut to commodity x
     # industry, so it carries none of the bridge columns or the T017 total the
-    # plain Detail_Supply source has to drop.
+    # plain Detail_Supply_Mix source has to drop.
     attribution_source:
       BEA_Detail_Supply_PxI:
         year: 2022

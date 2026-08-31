@@ -40,7 +40,7 @@ PUBLISHED_T00TOP_2017 = 755_451
 PUBLISHED_T00SUB_2017 = 59_876
 
 #: The measured operator's benchmark score. ``tax_axis_conversion`` gets 0.948
-#: from the published Supply table; this module reads ``Detail_Supply_2017`` so
+#: from the published Supply table; this module reads ``Detail_Supply_Mix_2017`` so
 #: the same code serves every year, which costs 0.001.
 T00TOP_BENCHMARK_CORRELATION = 0.947
 T00TOP_BENCHMARK_ERROR_SHARE = 0.279

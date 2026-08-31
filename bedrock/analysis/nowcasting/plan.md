@@ -194,8 +194,8 @@ conversion and redefinition steps need is already loadable** — no new extract 
   before→after transform.
 - [`inflation_helpers_cornerstone.py`](../../utils/economic/inflation_helpers_cornerstone.py) —
   bedrock's own commodity-inflation approach, referenced by #497.
-- [`Detail_Supply.yaml`](../../transform/detail/Detail_Supply.yaml) /
-  [`Detail_Use_SUT.yaml`](../../transform/detail/Detail_Use_SUT.yaml) — existing FBS methods that
+- [`Detail_Supply_Mix.yaml`](../../transform/iot/Detail_Supply_Mix.yaml) /
+  [`Detail_Use_SUT.yaml`](../../transform/iot/Detail_Use_SUT.yaml) — existing FBS methods that
   disaggregate a **Summary SUT** to detail using 2017 detail proportions. Their own headers warn *"The
   resulting tables do not reflect valid balanced Supply/Use tables"*, so they are not the deliverable —
   but they are a ready-made **fallback seed / cross-check** for any SUT block we can't source directly,
@@ -267,7 +267,7 @@ source to try; the fix is the next AIES release, not more sourcing work.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
-| cells / `T007` | Domestic output, commodity × industry, basic value | `Detail_Supply_<year>` FBS — published summary domestic output disaggregated on the 2017 detail mix, with the mix itself moving on Economic Census product lines from 2022 ([#570](https://github.com/cornerstone-data/bedrock/issues/570)) | ✅ **built, 2017-2024** — scores **100.0% coverage / 99.6% accuracy** on the 2017 block (`supply_output_detail_sut`, 5,059 of 5,080 present cells exact, no misses). ⚠️ 2017 is near-circular; the method rests on the held-out mix test (0.94% over five years) and on `annual_mix_test.py` |
+| cells / `T007` | Domestic output, commodity × industry, basic value | `Detail_Supply_Mix_<year>` FBS — published summary domestic output disaggregated on the 2017 detail mix, with the mix itself moving on Economic Census product lines from 2022 ([#570](https://github.com/cornerstone-data/bedrock/issues/570)) | ✅ **built, 2017-2024** — scores **100.0% coverage / 99.6% accuracy** on the 2017 block (`supply_output_detail_sut`, 5,059 of 5,080 present cells exact, no misses). ⚠️ 2017 is near-circular; the method rests on the held-out mix test (0.94% over five years) and on `annual_mix_test.py` |
 | `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017-2024 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528), extended by [#730](https://github.com/cornerstone-data/bedrock/issues/730)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647). 1:m import rows split on **frozen 2017 `MCIF`**, and that is now a measured decision rather than a default — [#729](https://github.com/cornerstone-data/bedrock/issues/729) proposed swapping the weight to Use `T019` total uses; built and graded, it moved imports **spearman 0.941 → 0.893** and **n_match 26 → 19**, so it was reverted and the issue closed 2026-08-28. ⚠️ The zeros in published `MCIF` are BEA's allocation, not a sparse column |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017-2024 candidate** — charges + destination reassignment in `derive_initial_supply_bridge`. 2017 ties to published; later years carry that year's mapped charge total with the published sign |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017-2024 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge`. ⚠️ Calculated Census duty ≠ collected duty in the tariff era, which is why the national sum is leveled to `B235RC` |
@@ -318,7 +318,7 @@ the same object. Two consequences for sequencing:
 Ranked by how much they block:
 
 1. ~~**Commodity mix for the Supply table's domestic-output block**~~ — **built and merged**
-   ([#570](https://github.com/cornerstone-data/bedrock/issues/570), 2026-08-21). `Detail_Supply_<year>` carries the
+   ([#570](https://github.com/cornerstone-data/bedrock/issues/570), 2026-08-21). `Detail_Supply_Mix_<year>` carries the
    block for 2017-2024 and the 2017 run scores 100.0% coverage / 99.6% accuracy. What is
    left is not sourcing but **movement between censuses**: the mix is the 2017 benchmark's
    until 2022, when Economic Census product lines take over for 133 of 178 columns.
@@ -1377,7 +1377,7 @@ unaffected and was since confirmed — see [#606](https://github.com/cornerstone
   `transform/commodity_output/Commodity_output_manufacturing_<year>.yaml` builds 236 BEA detail
   commodities per year for 2018-2021 from Annual Survey of Manufactures product data, at basic
   prices, scoring 0.94-0.97 of level and 4.5-6.8% weighted error against published summary `T007`.
-  ✅ **And 4a as a whole shipped 2026-08-26** — `Detail_Supply_<year>` covers 2017-2024, the 2022
+  ✅ **And 4a as a whole shipped 2026-08-26** — `Detail_Supply_Mix_<year>` covers 2017-2024, the 2022
   Economic Census product mix drives 133 of 178 columns from 2022, and the 2017 block scores
   100.0% coverage / 99.6% accuracy. Still outstanding for 4a: mining `q` (no annual product
   survey exists), detail **industry** output from Economic Census source data

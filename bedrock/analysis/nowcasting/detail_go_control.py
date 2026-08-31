@@ -11,7 +11,7 @@ aggregation was the suspected source of this prototype's implausible moves; and
 the fit stops on an absolute $1M miss with infeasible groups reverted whole.
 This module stays as the measurement that motivated the work.
 
-``Detail_Supply_<year>`` attributes the published **summary** Supply block onto
+``Detail_Supply_Mix_<year>`` attributes the published **summary** Supply block onto
 a detail mix. Its only control is that summary block, so the **detail industry
 axis is unconstrained**: within a summary industry group the split across detail
 industries is whatever the 2017 benchmark said, carried forward untouched, while
@@ -48,7 +48,7 @@ What this prototype does
 Refits the detail block so that **both** controls hold at once:
 
 1. every published summary Supply cell (commodity group x industry group) keeps
-   its value — this is what ``Detail_Supply`` already guarantees, and it must
+   its value — this is what ``Detail_Supply_Mix`` already guarantees, and it must
    not be given up
 2. each detail industry column takes the share of its summary group that BEA's
    detail GO gives it — the constraint that is currently missing
@@ -127,13 +127,13 @@ MAX_ITERATIONS = 200
 
 
 def supply_block(year: int) -> pd.DataFrame:
-    """The Detail_Supply FBS domestic-output block, commodity x industry, USD.
+    """The Detail_Supply_Mix FBS domestic-output block, commodity x industry, USD.
 
     ⚠️ Commodity is ``SectorConsumedBy`` and industry is ``SectorProducedBy`` —
     the Supply table's rows are commodities. Reading them the intuitive way
     round transposes the block, which still balances economy-wide.
     """
-    fbs = pd.DataFrame(getFlowBySector(f'Detail_Supply_{year}'))
+    fbs = pd.DataFrame(getFlowBySector(f'Detail_Supply_Mix_{year}'))
     return (
         fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
         .sum()

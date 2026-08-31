@@ -1,6 +1,6 @@
 """Is the detail-to-summary crosswalk still a valid aggregator? (#724, precondition)
 
-``Detail_Supply_<year>`` disaggregates the published **summary** Supply block
+``Detail_Supply_Mix_<year>`` disaggregates the published **summary** Supply block
 onto a detail mix, and :mod:`bedrock.transform.iot.nowcast_supply_go_control`
 adds a second control on the same block.  Both rest on one assumption that is
 never checked anywhere else: **that summary code ``g`` holds exactly the sum of

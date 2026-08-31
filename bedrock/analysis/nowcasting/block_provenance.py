@@ -38,7 +38,7 @@ off the build itself rather than asserted here:
                 within this column}|
 
 ⚠️ **Two blocks cannot be derived this way and are declared instead.**
-``Detail_Supply`` and ``Trade_Exports`` carry only ``MetaSources``, with no
+``Detail_Supply_Mix`` and ``Trade_Exports`` carry only ``MetaSources``, with no
 per-row datum key, so their rules sit in :data:`DECLARED` with the evidence for
 each.  :func:`check` asserts which blocks are derived and which are declared,
 so the distinction cannot quietly erode.
@@ -178,7 +178,7 @@ DECLARED: dict[str, dict[str, tuple[int, float, str]]] = {
         ),
     },
     'supply_bridge': {
-        'T007': (ALLOCATED, 3.0, 'row margin of the Detail_Supply block'),
+        'T007': (ALLOCATED, 3.0, 'row margin of the Detail_Supply_Mix block'),
         'MCIF': (
             ALLOCATED,
             4.0,
@@ -222,7 +222,7 @@ DECLARED: dict[str, dict[str, tuple[int, float, str]]] = {
         ),
     },
     'supply_mix': {
-        # Detail_Supply carries no datum key. At 2017 the whole block is the
+        # Detail_Supply_Mix carries no datum key. At 2017 the whole block is the
         # published summary domestic-output block disaggregated onto the 2017
         # detail mix, so every cell shares its summary parent's observation.
         '*': (
@@ -325,7 +325,7 @@ def _detail_to_summary() -> dict[str, str]:
 def supply_mix_fanout(populated: pd.DataFrame) -> pd.DataFrame:
     """``k`` for the domestic-output block, measured rather than declared.
 
-    ``Detail_Supply`` disaggregates the **published summary** domestic-output
+    ``Detail_Supply_Mix`` disaggregates the **published summary** domestic-output
     block onto the 2017 detail mix, so one summary observation is shared by
     every populated detail cell inside it.  ``k`` is therefore the count of
     populated cells sharing a ``(summary commodity, summary industry)`` parent

@@ -4,7 +4,7 @@ Census publishes **suppressed-detail residuals** beside its digit-6 NAICS --
 ``33641X`` carries 121.0 bn of 2017 aircraft exports, more than nine times the
 directly-coded aircraft rows put together.  ``Sector_Crosswalk_Census_USATrade``
 maps each residual 1:m onto its family, and #729 set the export 1:m attribution
-source to ``Detail_Supply`` **``T007``**, commodity output.
+source to ``Detail_Supply_Mix`` **``T007``**, commodity output.
 
 Commodity output is not export composition, so the premise of #762 was that
 ``T007`` is the wrong weight -- ``336414`` guided missiles takes 10,370 M
@@ -47,7 +47,7 @@ because ITA sits above NIPA which sits above the I-O concept.
 The arms
 --------
 ``t007``
-    What the build does today: same-year ``Detail_Supply`` ``T007``.
+    What the build does today: same-year ``Detail_Supply_Mix`` ``T007``.
 
 ``direct``
     Split the residual in proportion to the family's **own directly-coded
@@ -156,7 +156,7 @@ def residual_activities() -> dict[str, list[str]]:
 
 
 def _t007_weight(targets: list[str]) -> pd.Series:
-    """Same-year Detail_Supply T007 -- what the build uses today."""
+    """Same-year Detail_Supply_Mix T007 -- what the build uses today."""
     labeled = bea_matrix_column("T007", matrix="Supply_SUT_detail")
     frame = labeled.frame
     series = (

@@ -2,18 +2,18 @@
 Move the 2017 detail Supply mix onto what the 2022 Economic Census measured.
 
 Writes :data:`OUT`, the domestic output block — commodity x industry, million
-USD — that ``Detail_Supply_2022`` and later attribute onto. It is the published
+USD — that ``Detail_Supply_Mix_2022`` and later attribute onto. It is the published
 2017 detail block with the Economic Census's own 2017 -> 2022 movement applied,
 column totals unchanged.
 
 ⚠️ **Writing this file is not enough.** ``BEA_Detail_Supply_PxI`` caches it as
 an FBA parquet, and ``getFlowByActivity`` serves that parquet without re-reading
-the csv — so a rebuilt mix does not reach ``Detail_Supply`` until the FBA is
+the csv — so a rebuilt mix does not reach ``Detail_Supply_Mix`` until the FBA is
 regenerated too, and nothing in the FBS logs says otherwise. The full sequence:
 
 1. ``uv run python bedrock/utils/mapping/write_supply_mix_update.py``
 2. ``generateFlowByActivity(source='BEA_Detail_Supply_PxI', year=2022)``
-3. rebuild ``Detail_Supply_2022`` / ``_2023`` / ``_2024``
+3. rebuild ``Detail_Supply_Mix_2022`` / ``_2023`` / ``_2024``
 
 Skipping step 2 silently keeps the previous block. It has already happened once.
 
@@ -22,7 +22,7 @@ Run: ``uv run python bedrock/utils/mapping/write_supply_mix_update.py``
 Why this exists
 ---------------
 
-``Detail_Supply_<year>.yaml`` disaggregates the published **summary** Supply
+``Detail_Supply_Mix_<year>.yaml`` disaggregates the published **summary** Supply
 block onto a detail mix, and that mix was the 2017 benchmark for every year.
 The 2022 Economic Census is an observation BEA has not used and the only
 independent measurement of where the mix went, so from 2022 it is what the
@@ -37,7 +37,7 @@ any part of the offset that is stable across the two vintages, which is the
 same reasoning that made chaining the fair form in ``annual_mix_test.py``.
 
 ⚠️ **Column totals are preserved and the grand total is unchanged.** This block
-is consumed as *attribution shares* — ``Detail_Supply`` splits each summary
+is consumed as *attribution shares* — ``Detail_Supply_Mix`` splits each summary
 cell proportionally — so only relative weights matter. Renormalising each
 column to its published total keeps the change to the mix and out of the level,
 where the summary control belongs.

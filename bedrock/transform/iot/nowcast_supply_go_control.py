@@ -1,6 +1,6 @@
 """Give the Supply block's detail industry axis the control it does not have (#724).
 
-``Detail_Supply_<year>`` disaggregates the published **summary** Supply block
+``Detail_Supply_Mix_<year>`` disaggregates the published **summary** Supply block
 onto a detail mix.  That summary block is its only control, so within a summary
 industry group the split across detail industries is whatever the 2017 benchmark
 said, carried forward untouched.  Nothing holds that axis - which is why a
@@ -192,7 +192,7 @@ def _commodity_parent() -> dict[str, str]:
 
 @functools.cache
 def raw_supply_block(year: int, download_sources_ok: bool = False) -> pd.DataFrame:
-    """The uncontrolled ``Detail_Supply_<year>`` block, commodity x industry, USD.
+    """The uncontrolled ``Detail_Supply_Mix_<year>`` block, commodity x industry, USD.
 
     ⚠️ Commodity is ``SectorConsumedBy`` and industry is ``SectorProducedBy`` -
     the Supply table's rows are commodities.  Reading them the intuitive way
@@ -201,7 +201,7 @@ def raw_supply_block(year: int, download_sources_ok: bool = False) -> pd.DataFra
     """
     fbs = pd.DataFrame(
         getFlowBySector(
-            f'Detail_Supply_{year}',
+            f'Detail_Supply_Mix_{year}',
             download_FBAs_if_missing=download_sources_ok,
             download_FBS_if_missing=download_sources_ok,
         )

@@ -2277,7 +2277,7 @@ on top of it rather than beside it.
 
 ### The 2022 census mix, wired in — Supply block and commodity output, 2022-2024
 
-✅ **Done.** `Detail_Supply_2022/2023/2024` now attribute onto a detail mix that
+✅ **Done.** `Detail_Supply_Mix_2022/2023/2024` now attribute onto a detail mix that
 carries the 2022 Economic Census's own movement, rather than the frozen 2017
 benchmark. Since `T007` is the row margin of that block, the commodity output
 estimate moves with it — this is one change, not two.
@@ -2296,7 +2296,7 @@ stable across the two vintages. Same reasoning that made chaining the fair form
 in `annual_mix_test.py`.
 
 ⚠️ **Column totals are preserved, so the change is confined to the mix.** The
-block is consumed as attribution shares — `Detail_Supply` splits each summary
+block is consumed as attribution shares — `Detail_Supply_Mix` splits each summary
 cell proportionally — so only relative weights matter. Renormalising each column
 to its published total keeps the summary control exactly where it was: the
 rebuilt 2022, 2023 and 2024 tables come out to **+0.000000%** on the grand
@@ -2367,7 +2367,7 @@ can improve on holding the mix between censuses (above).
 ⚠️ **A pre-existing warning is not new.** The rebuild logs `Could not attribute
 activities in BEA_Summary_Supply due to lack of flows in attribution source` for
 a long list of summary cells whose 2017 detail children are all zero. Checked
-against `Detail_Supply_2021`, which is untouched and still on
+against `Detail_Supply_Mix_2021`, which is untouched and still on
 `BEA_Detail_Supply`: it logs the same warning. Row counts before and after the
 switch are identical (5,066 / 5,064 / 5,061), which is the direct evidence that
 no cell was lost.
@@ -2383,7 +2383,7 @@ as a **diagnostic**, because the gap it measures is real and was not previously
 visible, and it is marked in its own docstring as not usable for the build.
 
 ✅ **What the diagnostic establishes, and it stands on its own.**
-`Detail_Supply` has **no constraint on the detail industry axis at all** — its
+`Detail_Supply_Mix` has **no constraint on the detail industry axis at all** — its
 only control is the summary block, so the within-group split is frozen at 2017
 while BEA's detail GO moves annually. The within-group share differs from BEA's
 detail GO by a median of **0.53 percentage points**, with **125 of 401**
@@ -2557,7 +2557,7 @@ value, whose row margin is commodity output `q` and whose column margin is
 industry output `x`. Not the `q` vector alone, and not the full Supply table —
 the margin and valuation columns belong to 4b/4c/4d.
 
-✅ **The method already existed.** `transform/detail/Detail_Supply.yaml`
+✅ **The method already existed.** `transform/iot/Detail_Supply_Mix.yaml`
 disaggregates the published summary Supply table proportionally to the 2017
 detail block, which *is* the carried-mix construction the held-out test scored at
 0.94%. Its `exclusion_fields` already drop every margin and total column, so what
@@ -2576,7 +2576,7 @@ belongs in this method at all**. Switched to
 comparison. `typing.cast` at the call site is a no-op at runtime. Fixed at the
 call sites and in the loaders.
 
-⚠️ **3. The per-year include has a silent wrong-year trap.** `Detail_Supply.yaml`
+⚠️ **3. The per-year include has a silent wrong-year trap.** `Detail_Supply_Mix.yaml`
 resolves `year: *summary_year` **inside** its source block at parse time, and
 `!include` is a shallow dict update. Overriding only the top-level `year` leaves
 the source pinned to the base file's 2018 while the method reports the new year,

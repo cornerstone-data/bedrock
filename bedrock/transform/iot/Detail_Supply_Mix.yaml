@@ -4,12 +4,12 @@
 
 # The full FBS for any year can be cached using:
 # sources_to_cache:
-#   Detail_Supply_2019:
-#     !include:Detail_Supply.yaml
+#   Detail_Supply_Mix_2019:
+#     !include:Detail_Supply_Mix.yaml
 #     year: *year
 #     source_names:
 #       BEA_Summary_Supply:
-#         !include:Detail_Supply.yaml:source_names:BEA_Summary_Supply
+#         !include:Detail_Supply_Mix.yaml:source_names:BEA_Summary_Supply
 #         year: *year
 
 # ⚠️ Targets BEA COMMODITY codes, not NAICS. Both Sector_Crosswalk_BEA_2017_*

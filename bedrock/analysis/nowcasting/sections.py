@@ -414,8 +414,8 @@ def initial_value_added_candidate(year: int) -> pd.DataFrame:
 def detail_supply_output_candidate(year: int) -> pd.DataFrame:
     """Our Step 4a domestic output block, commodity x industry, in USD.
 
-    Reads the ``Detail_Supply_<year>`` FBS
-    (``bedrock/transform/detail/Detail_Supply_<year>.yaml``), which
+    Reads the ``Detail_Supply_Mix_<year>`` FBS
+    (``bedrock/transform/iot/Detail_Supply_Mix_Mix_<year>.yaml``), which
     disaggregates the published **summary** Supply domestic-output block onto
     the 2017 detail mix.
 
@@ -443,7 +443,7 @@ def detail_supply_output_candidate(year: int) -> pd.DataFrame:
     """
     from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415
 
-    fbs = pd.DataFrame(getFlowBySector(f'Detail_Supply_{year}'))
+    fbs = pd.DataFrame(getFlowBySector(f'Detail_Supply_Mix_{year}'))
     return (
         fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
         .sum()
@@ -596,7 +596,7 @@ SUPPLY_OUTPUT_DETAIL_SUT = Section(
         '2017 runs at 100.0% coverage and 99.6% accuracy - 5,059 match, 21 '
         'partial, no misses and no extras, of 5,080 present cells '
         '(re-measured 2026-08-28). '
-        'Candidate is the Detail_Supply_<year> FBS, '
+        'Candidate is the Detail_Supply_Mix_<year> FBS, '
         'which disaggregates the published summary domestic-output block onto '
         'the 2017 detail mix; from 2022 the mix itself moves on Economic '
         'Census product lines (pxi_mix_test.py, 133 of 178 columns). '
@@ -628,7 +628,7 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
         'mapped Trade_Imports_2017 Detail mass; MDTY from Census duty rate × '
         'goods MCIF leveled to NIPA B235RC; MADJ from Census GEN_CHA_YR '
         'reassigned onto 2017 Supply MADJ destination codes and leveled to '
-        'published Supply MADJ; T007 the row margin of the Detail_Supply_2017 '
+        'published Supply MADJ; T007 the row margin of the Detail_Supply_Mix_2017 '
         'FBS domestic-output block; TRADE/TRANS from step 4c; TOP from step 4d '
         '(NIPA T30500 less customs duties, named product lines annually and the '
         'sales-tax residual on frozen 2017 shares); SUB from step 4d (NIPA '

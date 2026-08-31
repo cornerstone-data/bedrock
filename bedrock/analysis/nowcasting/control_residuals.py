@@ -77,7 +77,7 @@ that the column sums to zero (target ``T16``) and nothing else.
 Cost
 ----
 
-``T17`` and the solvency bound need only the ``Detail_Supply`` FBS, the value
+``T17`` and the solvency bound need only the ``Detail_Supply_Mix`` FBS, the value
 added and ``UGO305-A``; ``T11`` additionally builds the Use interior and the
 final-demand block, which is minutes per year.  ``--check`` therefore runs the
 two cheap ones across the whole span and leaves ``T11`` behind ``--t11``.
@@ -160,14 +160,23 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: substantive counts before the fix were 2-12 per year; the guard in
 #: ``nowcast_trade_margins.check_giveup_solvency`` now fails the build itself
 #: on anything beyond dust, so this baseline is a backstop, not the instrument.
+#: ``t11_pct`` — the supply-equals-use gap per commodity as a percent of total
+#: intermediate use — joined the baseline 2026-08-30, the first time the whole
+#: span was measurable on one tree (the 2018-19 interiors, the published-level
+#: trade margins and the census-conditioned output all landed in one stack).
+#: ⚠️ **It is the remaining pre-Step-5 blocker**: ~18-20% in 2020-2023, owned
+#: by the commodity-ROW blocks (real estate rows, services exports #771,
+#: transport mix #772, imports) that the stack never targeted.  The stack
+#: moved it 21-23% -> 18-20%; the column identity and feasibility it did
+#: target went 15.9% -> 1.4% and 8-12 infeasible commodities -> 0.
 BASELINE: dict[int, dict[str, float]] = {
-    2017: {'t17_pct': 1.4, 'insolvent': 2},
-    2018: {'t17_pct': 1.3, 'insolvent': 1},
-    2019: {'t17_pct': 1.9, 'insolvent': 1},
-    2020: {'t17_pct': 5.5, 'insolvent': 1},
-    2021: {'t17_pct': 5.7, 'insolvent': 0},
-    2022: {'t17_pct': 6.7, 'insolvent': 1},
-    2023: {'t17_pct': 1.4, 'insolvent': 0},
+    2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 4.9},
+    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 9.1},
+    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 11.6},
+    2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 19.3},
+    2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 18.1},
+    2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 20.0},
+    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 20.4},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA
@@ -198,7 +207,7 @@ def _supply_interior(year: int, controlled: bool = True) -> pd.DataFrame:
     ⚠️ **Controlled by default** (#724): from 2018 the detail industry columns
     are pinned to their share of BEA detail gross output within each summary
     industry group.  ``controlled=False`` returns the raw
-    ``Detail_Supply_<year>`` FBS, which is what every number recorded in
+    ``Detail_Supply_Mix_<year>`` FBS, which is what every number recorded in
     :data:`BASELINE` before 2026-08-29 was measured on -- pass it to reproduce
     them, not to measure the build.
 
@@ -387,6 +396,18 @@ def check(summary: pd.DataFrame) -> tuple[list[str], list[str]]:
             regressions.append(f'{year} T17 {pct:.1f}% of T005, was {was_pct:.1f}%')
         elif pct < was_pct - TOLERANCE_PP:
             improvements.append(f'{year} T17 {pct:.1f}% of T005, was {was_pct:.1f}%')
+
+        if 't11_pct' in expected and 't11_pct' in got.index:
+            t11, was_t11 = float(got['t11_pct']), float(expected['t11_pct'])
+            if t11 == t11:  # measured this run (--t11 passed)
+                if t11 > was_t11 + TOLERANCE_PP:
+                    regressions.append(
+                        f'{year} T11 {t11:.1f}% of T001, was {was_t11:.1f}%'
+                    )
+                elif t11 < was_t11 - TOLERANCE_PP:
+                    improvements.append(
+                        f'{year} T11 {t11:.1f}% of T001, was {was_t11:.1f}%'
+                    )
 
         n, was_n = int(got['insolvent']), int(expected['insolvent'])
         if n > was_n:
