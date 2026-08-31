@@ -300,6 +300,55 @@ the interior targets. The same answer key extended to the supply bridge found th
 ~6x published in 2020–21) and the imports composition gap (#785: MCIF 18–22% off every year, with
 `MDTY`/`MADJ` required to follow any conditioning of it).
 
+## → [#784](https://github.com/cornerstone-data/bedrock/issues/784) · the two subsidy concepts, both sides
+
+**RESOLVED in `sub_products_784`** (2026-08-31). The `SUB` column was leveled to NIPA T31300 —
+*total* subsidies, products **plus production**. The two concepts are the same money to the dollar in
+2017–2019 and then split hard: pandemic support (PPP, Employee Retention Credit, Provider Relief) is
+production subsidies — payments to industries — and leveling the products column to the combined total
+booked all of it onto commodities: **5.9x the published column in 2020, 6.0x in 2021** (698,507
+against a published 118,366 $M), still +25% in 2022. That is where the mining, restaurant and
+other-services subsidy cells Wes traced came from — right magnitudes (BEA's own PPP-by-industry
+allocation), wrong axis. It sat directly on total supply per commodity in exactly the years the
+supply-equals-use gap spikes.
+
+The fix is the whole journal entry, both sides:
+
+- **Commodity side**: the column control is the published summary Supply `SUB` total, and the
+  allocation is conditioned on that column's ~14 summary groups (annual, observed) — the same
+  instrument as the final-demand conditioning. The fifteen 2017-anchored commodities cover thirteen
+  groups; transit (`485000`) is *injected* from its published group (it appears from 2020, −15,617
+  $M, peaking at −21,948 in 2022 — federal transit operating support), and any other unreachable
+  published group raises. 2017 uses the published detail column exactly. The PPP spread machinery is
+  deleted; the NIPA total stays as a diagnostic, and the difference — the **production wedge** — is
+  reported explicitly: 0 / 0 / 0 / 580,140 / 522,383 / 24,915 / 11,692 / 4,882 $M across 2017–2024.
+- **Industry side**: a new `T00OSUB` value-added row — subsidies on production, exactly the row BEA
+  carries — from the published annual summary Use row (−538,490 $M in 2020, −379,052 in 2021, zero
+  before 2020), split within summary groups by compensation (PPP was allocated by payroll). This also
+  closes a defect nobody had named: the `V00300` seed is NIPA gross operating surplus, which includes
+  subsidy income, so without the offsetting row the seed's `VABAS`/`VAPRO` overstated the published
+  value-added identity by the full wedge in 2020–21. The insurance routing to `S00102` fires every
+  year again (its old PPP carve-out protected against money that is no longer in the column, and the
+  2022+ over-subsidisation of `S00102` corrected itself); transit routes 100% to `S00201` per the
+  published row.
+- **Mask**: `nowcast_mask.VA_ROWS` deliberately stays one row behind (Wes's call) — `T00OSUB` is
+  all-zero at 2017 and would be Tier-0 locked without a row-axis exemption; the mask rework is an
+  early Step-5 item and the row joins there once, not twice.
+
+⚠️ BEA's `T00OSUB` row and the NIPA-minus-products wedge do not reconcile exactly (538,490 against
+580,140 in 2020) — vintage and state-and-local nuances; each published row is taken as its own truth.
+
+**Measured effect — both hard identities move, concentrated in the pandemic years:**
+
+| | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 |
+|---|--:|--:|--:|--:|--:|--:|
+| industry-column identity (T17, % of intermediate inputs) | 1.3→1.2 | 1.9 | **5.5→2.8** | **5.7→3.4** | 6.7→6.4 | 1.4→1.3 |
+| supply-equals-use gap (T11, % of intermediate use) | 8.5 | 10.9 | **18.5→17.1** | **16.7→15.5** | 18.7→18.4 | 20.4→20.3 |
+
+The T17 halving is the `T00OSUB` row closing the value-added identity; the T11 point-and-a-half is
+the ~580bn of production subsidies no longer subtracted from commodity supply. Two insolvency counts
+moved by one (2019, 2021) as published-rounding dust of −1 $M landed differently.
+
 ## Deferred, with the reason
 
 The 2017 ι-weighted exposure ranking, $M — the error times the share of the row that goes to industry,

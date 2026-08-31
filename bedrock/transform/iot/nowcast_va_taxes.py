@@ -140,36 +140,19 @@ landlords. So ``S00203``'s 54.4% of the housing line is an anchor moved by that
 line's own annual growth, exactly as the commodity axis anchors and moves. The
 levels are observed; this one split is not.
 
-⚠️ **The routings do not fire on the PPP years' ``other`` column.** In 2020-2021
-:func:`~bedrock.transform.iot.nowcast_subsidies.sub_decomposition` replaces the
-``other`` type with BEA's PPP-by-industry allocation, so ``5241XX``'s subsidy in
-those years is private-insurance PPP rather than the federal enterprise line.
-Routing it to ``S00102`` would put 587bn of pandemic support programme on a
-government enterprise. :data:`PANDEMIC_YEARS` is where that is decided, and it
-is the upstream module's decision being carried, not a new one.
+⚠️ **The pandemic-era caveats this section used to carry retired with #784.**
+The ``SUB`` column is products-only now — production subsidies (PPP, ERC,
+Provider Relief) never enter it, so there is no PPP allocation to shield the
+``S00102`` routing from, and the 2022-24 over-subsidisation of ``S00102``
+(36.6bn routed in 2022 under the old NIPA-total leveling, against a published
+group of ~11.9bn) corrected itself when the column total became the published
+products-only reading. The routings fire on every year uniformly.
 
-⚠️ **PPP is already industry-shaped, which is why identity is right for it.**
-BEA publishes PPP *by industry*; the commodity axis gets it by spreading each
-sector's amount over that sector's commodities by ``T007``. Converting back by
-code identity very nearly recovers the original allocation, so the pandemic
-years are the ones this operator is best on, not worst.
-
-⚠️ **``S00102`` is over-subsidised from 2022, and the cause is upstream.** The
-insurance routing is 100%, so the federal enterprise takes whatever the
-commodity axis puts on ``5241XX`` - 36.6bn in 2022 against 6.3bn in 2017, a
-5.8x rise. That is the NIPA ``other`` line still carrying pandemic-era
-programmes that are not federal insurance subsidies, moved by
-:func:`~bedrock.transform.iot.nowcast_subsidies.type_growth`. The conversion is
-faithful: the *same* 36.6bn sits on commodity ``5241XX`` whether or not this
-module runs, so the axis change neither causes the problem nor hides it. Fixing
-it means splitting NIPA's ``other`` line, which ``T31300`` does not do. Read the
-2022-2024 ``S00102`` cell as the ``other`` line's residue, not as a measurement.
-
-===============  =======  =======  =======  =======  =======
-``S00102``, $bn     2017     2019     2020     2022     2024
-===============  =======  =======  =======  =======  =======
-routed                6.3      5.1      0.0     36.6     13.2
-===============  =======  =======  =======  =======  =======
+⚠️ **One routing has no 2017 base: transit.** Federal transit operating
+support appears as a product subsidy from 2020, peaking at −21,948 $M on
+commodity ``485000`` in 2022; the published summary Use ``T00SUB`` row books
+all of it on ``GSLE`` and none on private ``485``, so :data:`FIXED_ROUTINGS`
+sends 100% to ``S00201`` with the share written down rather than derived.
 
 Everything here is annual
 --------------------------
@@ -211,8 +194,8 @@ from bedrock.transform.iot.nowcast_product_taxes import (
     top_by_level,
 )
 from bedrock.transform.iot.nowcast_subsidies import (
-    PANDEMIC_YEARS,
-    sub_control_total,
+    INJECTED_TYPE,
+    published_sub_total,
     sub_decomposition,
 )
 from bedrock.transform.iot.nowcast_supply_go_control import go_controlled_supply_block
@@ -256,6 +239,16 @@ RETAIL_PREFIXES = ('44', '45', '4B')
 GOVERNMENT_ENTERPRISE_ROUTINGS: ta.Mapping[tuple[str, str], str] = {
     ('housing', '531HST'): 'S00203',
     ('other', '5241XX'): 'S00102',
+}
+
+#: Routings whose share is fixed rather than derived from the 2017 benchmark,
+#: because the commodity carries no 2017 subsidy to derive it from. Transit
+#: product subsidy appears from 2020 (federal transit operating support,
+#: #784); the published summary Use ``T00SUB`` row books it entirely on
+#: ``GSLE`` — the state and local enterprises — with nothing on private
+#: ``485``, so the whole amount goes to the transit enterprise.
+FIXED_ROUTINGS: ta.Mapping[tuple[str, str], tuple[str, float]] = {
+    (INJECTED_TYPE, '485000'): ('S00201', 1.0),
 }
 
 #: Slack on the identity checks, in USD. The published tables are in whole
@@ -492,17 +485,17 @@ def t00sub_row(year: int) -> pd.Series:
 
     row = pd.Series(0.0, index=industries)
     for subsidy_type in parts.columns:
-        # In 2020-2021 the `other` column is BEA's PPP allocation rather than
-        # the anchored line, and PPP on 5241XX is private-insurance support that
-        # does not belong to a federal enterprise.
-        ppp_replaced = subsidy_type == 'other' and int(year) in PANDEMIC_YEARS
         column = parts[subsidy_type]
         for raw_commodity, raw_amount in column[column != 0.0].items():
             commodity, amount = str(raw_commodity), float(raw_amount)
             key = (str(subsidy_type), commodity)
-            share = 0.0 if ppp_replaced else float(routed.get(key, 0.0))
-            if share > 0:
-                row[GOVERNMENT_ENTERPRISE_ROUTINGS[key]] += amount * share
+            if key in FIXED_ROUTINGS:
+                target, share = FIXED_ROUTINGS[key]
+                row[target] += amount * share
+            else:
+                share = float(routed.get(key, 0.0))
+                if share > 0:
+                    row[GOVERNMENT_ENTERPRISE_ROUTINGS[key]] += amount * share
             remainder = amount * (1.0 - share)
             if commodity in industry_set:
                 row[commodity] += remainder
@@ -524,22 +517,94 @@ def t00sub_row(year: int) -> pd.Series:
     return (-row).rename('T00SUB')
 
 
+def t00osub_row(year: int) -> pd.Series:
+    """``T00OSUB`` by industry for *year*, USD **negative** — subsidies on
+    production (#784).
+
+    The other half of the #784 concept split: the production subsidies the
+    ``SUB`` column no longer carries (PPP, Employee Retention Credit, Provider
+    Relief, ...) are payments to industries, and BEA books them in this
+    separate value-added row — zero on every industry in 2017-2019, ~580bn $M
+    at the 2020 peak, near zero again by 2022. Without this row the block's
+    ``VAPRO`` overstates the published value-added identity by exactly that
+    mass in the pandemic years, because the ``V00300`` seed (NIPA gross
+    operating surplus) already includes subsidy income.
+
+    Level and industry-group allocation are the published summary Use SUT's
+    ``T00OSUB`` row (annual, observed); the split within a summary group rides
+    **compensation** — BEA allocated PPP by payroll, so payroll-proportional
+    is the right within-group weight, and ``NIPA_VA_compensation`` is annual
+    at detail.
+    """
+    _guard_year(year)
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_usa_summary_sut,
+    )
+    from bedrock.transform.flowbysector import getFlowBySector  # noqa: PLC0415
+    from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_industry_to_bea_v2017_summary,
+    )
+
+    industries = list(USA_2017_INDUSTRY_CODES)
+    group_of: dict[str, str] = {
+        str(code): str(groups[0])
+        for code, groups in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    use = _load_usa_summary_sut('Use_SUT_summary', year)  # type: ignore[arg-type]
+    published = (
+        pd.to_numeric(pd.Series(use.loc['T00OSUB']), errors='coerce').fillna(0.0)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    # keep the summary industry columns; the workbook row also carries T001,
+    # the final-demand columns and T017, none of which are industry groups
+    published = published[published.index.isin(set(group_of.values()))]
+
+    fbs = getFlowBySector(f'NIPA_VA_compensation_{year}', download_FBS_if_missing=True)
+    compensation = (
+        (pd.DataFrame(fbs).groupby('SectorConsumedBy')['FlowAmount'].sum())
+        .reindex(industries)
+        .fillna(0.0)
+    )
+    row = pd.Series(0.0, index=industries)
+    for group, amount in published[published != 0.0].items():
+        members = [i for i in industries if group_of.get(i) == group]
+        weights = compensation[members].clip(lower=0.0)
+        weight_total = float(weights.sum())
+        if weight_total <= 0:
+            raise ValueError(
+                f'The {year} published T00OSUB row carries {amount:,.0f} USD '
+                f'on summary group {group!r}, but its industries carry no '
+                f'compensation to split it on.'
+            )
+        row[members] = float(amount) * weights / weight_total
+
+    total = float(published.sum())
+    if abs(float(row.sum()) - total) > _ROUNDING_TOLERANCE * 20:
+        raise ValueError(
+            f'T00OSUB {year} sums to {row.sum():,.0f} USD against a published '
+            f'summary total of {total:,.0f}. Every group is split conservatively, '
+            f'so a gap means a group was dropped.'
+        )
+    return (-row).rename('T00OSUB')
+
+
 # --- the block -------------------------------------------------------------
 
 
 def va_tax_rows(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
-    """``T00TOP`` and ``T00SUB`` for *year*, rows x industries, USD.
+    """``T00TOP``, ``T00SUB`` and ``T00OSUB`` for *year*, rows x industries, USD.
 
-    ``T00SUB`` is negative; see the module docstring's sign convention note.
+    The subsidy rows are negative; see the module docstring's sign convention
+    note.
 
     ⚠️ ``block`` overrides the make block ``T00TOP`` is allocated on. Only
     :mod:`~bedrock.transform.iot.nowcast_supply_go_control` passes it, and only
-    while iterating its fixed point. ``T00SUB`` ignores it - that row is code
-    identity plus two named routings and never touches the block.
+    while iterating its fixed point. The subsidy rows ignore it - identity,
+    named routings and a published-row split never touch the block.
     """
-    return pd.DataFrame([t00top_row(year, block=block), t00sub_row(year)]).rename_axis(
-        index='value_added_code', columns='industry'
-    )
+    return pd.DataFrame(
+        [t00top_row(year, block=block), t00sub_row(year), t00osub_row(year)]
+    ).rename_axis(index='value_added_code', columns='industry')
 
 
 def _guard_year(year: int) -> None:
@@ -676,7 +741,7 @@ def check() -> int:
             f'so a gap means a third routing has appeared.'
         )
     control_gap = abs(
-        float(published_sub_row.sum()) - sub_control_total(ANCHOR_YEAR) / million
+        float(published_sub_row.sum()) - published_sub_total(ANCHOR_YEAR) / million
     )
     if sub_error > control_gap + 1e-6:
         failures.append(

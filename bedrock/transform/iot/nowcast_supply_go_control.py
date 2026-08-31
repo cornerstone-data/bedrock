@@ -228,9 +228,11 @@ def seed_commodity_output(
     by the tax wedge this module subtracts from its own target:
 
     * :func:`~bedrock.transform.iot.nowcast_product_taxes.purchaser_base` -
-      ``T013 + T014``, the base ``TOP``'s residual moves on;
-    * :func:`~bedrock.transform.iot.nowcast_subsidies.ppp_commodity_shares` -
-      the within-sector split of 2020-21 PPP.
+      ``T013 + T014``, the base ``TOP``'s residual moves on.
+
+    (``nowcast_subsidies`` used to be the second such allocator, through its
+    PPP-by-industry split; that machinery left with #784 and ``SUB`` touches
+    no commodity-output weight now.)
 
     Routing those through the controlled block closes a cycle -
     ``T007 -> TOP -> T00TOP -> GO target -> T007`` - which raises
