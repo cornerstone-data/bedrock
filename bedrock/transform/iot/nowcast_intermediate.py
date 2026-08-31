@@ -800,9 +800,14 @@ def derive_intermediate_use(
     control = (
         intermediate_column_control(year) if column_control is None else column_control
     )
-    return apply_column_control(
+    block = apply_column_control(
         carried_column_shares(year, theta, margins=margins), control
     )
+    from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
+        overlay_s00300_intermediate_block,
+    )
+
+    return overlay_s00300_intermediate_block(block, year)
 
 
 def reproduction_check(theta: float | None = None) -> pd.Series:

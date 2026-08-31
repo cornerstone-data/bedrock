@@ -422,12 +422,17 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
         y = condition_fd_on_summary(y, year)
 
     if year in TRADE_OVERLAY_YEARS:
+        from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
+            s00300_f02n00_usd,
+        )
+
         exports = _trade_fbs_commodity_vector(
             f'Trade_Exports_{year}', download_sources_ok
         )
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
         y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
+        y.loc['S00300', 'F02N00'] = s00300_f02n00_usd(year, download_sources_ok)
 
     if year in INVENTORIES_YEARS:
         inventories = _inventories_fbs_commodity_vector(
