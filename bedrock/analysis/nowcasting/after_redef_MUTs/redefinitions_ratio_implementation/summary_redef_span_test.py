@@ -74,6 +74,11 @@ class SpanBlockScore:
     n_industries_off_gt_25pct: int
     n_industries_off_gt_50pct: int
     worst_industries: tuple[str, ...]
+    # Largest |built − published| among scored cells (|published| > ATOL).
+    worst_cell_abs_diff: float | None
+    worst_cell_row: str | None
+    worst_cell_col: str | None
+    worst_cell_rel_error: float | None
 
 
 @dataclass(frozen=True)
@@ -209,12 +214,24 @@ def score_span_year_block(
             n_industries_off_gt_25pct=0,
             n_industries_off_gt_50pct=0,
             worst_industries=(),
+            worst_cell_abs_diff=None,
+            worst_cell_row=None,
+            worst_cell_col=None,
+            worst_cell_rel_error=None,
         )
 
     abs_diff = (left_f - right_f).abs()
     denom = float(right_f.where(mask, 0.0).abs().to_numpy().sum())
     numer = float(abs_diff.where(mask, 0.0).to_numpy().sum())
     l1 = numer / denom if denom > 0 else None
+
+    scored_diff = abs_diff.where(mask, 0.0)
+    flat = scored_diff.stack(future_stack=True)
+    worst_pos = flat.idxmax()
+    worst_abs = float(flat.loc[worst_pos])
+    worst_row, worst_col = str(worst_pos[0]), str(worst_pos[1])
+    pub_worst = float(right_f.loc[worst_pos[0], worst_pos[1]])
+    worst_rel = (worst_abs / abs(pub_worst)) if abs(pub_worst) > 0 else None
 
     axis = _industry_axis(block)
     industries = list(right_f.index if axis == 0 else right_f.columns)
@@ -252,6 +269,10 @@ def score_span_year_block(
         n_industries_off_gt_25pct=off_25,
         n_industries_off_gt_50pct=off_50,
         worst_industries=worst,
+        worst_cell_abs_diff=worst_abs,
+        worst_cell_row=worst_row,
+        worst_cell_col=worst_col,
+        worst_cell_rel_error=worst_rel,
     )
 
 
@@ -565,21 +586,45 @@ def write_report(report: SpanTestReport, path: Path = REPORT_PATH) -> None:
             '- **>1% / >25% / >50% inds** — how many industries have at least '
             'one scored cell whose relative error exceeds that threshold '
             '(Make: industry rows; Use / value added / import: industry '
-            'columns). High counts mean the gap is not just a few big cells.',
-            '- **worst** — industries contributing the most absolute dollar '
-            'error (top five shown).',
+            'columns). High counts mean the gap is not just a few big cells. '
+            'The three columns are **nested**, not exclusive bins: an industry '
+            'with max cell rel err >50% is counted in all three.',
+            '- **worst cell** — the single scored cell with the largest '
+            'absolute dollar mismatch `|built − published|` (same '
+            '`$0.5M` published floor as L1). Shown as gap in millions of '
+            'USD, then `row×col`, then that cell’s relative error '
+            '`|built − published| / |published|`. This is one cell’s dollar '
+            'miss, not the industry L1 contribution in **worst inds**.',
+            '- **worst inds** — industries contributing the most absolute '
+            'dollar error across all of their scored cells (top five shown).',
             '',
-            '| Year | Block | L1 rel err | cells | >1% inds | >25% | >50% | worst |',
-            '| ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |',
+            '| Year | Block | L1 rel err | cells | >1% inds | >25% | >50% | worst cell | worst inds |',
+            '| ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |',
         ]
     )
     for s in report.scores:
         l1 = 'n/a' if s.l1_relative_error is None else f'{s.l1_relative_error:.2%}'
         worst = ', '.join(s.worst_industries[:5]) if s.worst_industries else '—'
+        if (
+            s.worst_cell_abs_diff is None
+            or s.worst_cell_row is None
+            or s.worst_cell_col is None
+        ):
+            worst_cell = '—'
+        else:
+            rel = (
+                'n/a'
+                if s.worst_cell_rel_error is None
+                else f'{s.worst_cell_rel_error:.1%}'
+            )
+            worst_cell = (
+                f'${s.worst_cell_abs_diff / 1_000_000:,.0f}M '
+                f'({s.worst_cell_row}×{s.worst_cell_col}, {rel})'
+            )
         lines.append(
             f'| {s.year} | {s.block} | {l1} | {s.n_cells_scored} | '
             f'{s.n_industries_off_gt_1pct} | {s.n_industries_off_gt_25pct} | '
-            f'{s.n_industries_off_gt_50pct} | {worst} |'
+            f'{s.n_industries_off_gt_50pct} | {worst_cell} | {worst} |'
         )
 
     if verdict == 'reject':
@@ -769,11 +814,19 @@ def main(argv: list[str] | None = None) -> int:
         scores.extend(year_scores)
         for s in year_scores:
             l1 = 'n/a' if s.l1_relative_error is None else f'{s.l1_relative_error:.2%}'
+            if s.worst_cell_abs_diff is None:
+                worst_cell = '—'
+            else:
+                worst_cell = (
+                    f'${s.worst_cell_abs_diff:,.0f} '
+                    f'{s.worst_cell_row}×{s.worst_cell_col}'
+                )
             print(
                 f'{s.year} {s.block}: L1={l1} '
                 f'>1%={s.n_industries_off_gt_1pct} '
                 f'>25%={s.n_industries_off_gt_25pct} '
-                f'>50%={s.n_industries_off_gt_50pct}'
+                f'>50%={s.n_industries_off_gt_50pct} '
+                f'worst_cell={worst_cell}'
             )
 
     report = SpanTestReport(

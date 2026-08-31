@@ -365,6 +365,10 @@ class SpanBlockScore:
     n_industries_off_gt_25pct: int
     n_industries_off_gt_50pct: int
     worst_industries: tuple[str, ...]  # top contributors by abs L1 mass, capped (e.g. 10)
+    worst_cell_abs_diff: float | None  # max |built − published| among scored cells
+    worst_cell_row: str | None
+    worst_cell_col: str | None
+    worst_cell_rel_error: float | None  # that cell's |built − published| / |published|
 
 @dataclass(frozen=True)
 class SpanTestReport:
@@ -379,7 +383,8 @@ class SpanTestReport:
 | Metric | Definition |
 | --- | --- |
 | L1 relative error | `sum(\|built − published\|) / sum(\|published\|)` over cells with `\|published\| > ATOL` |
-| Columns/rows off >1% / >25% / >50% | Count industries (Use/VA/Import columns; Make rows) whose max abs relative error on those cells exceeds the threshold |
+| Columns/rows off >1% / >25% / >50% | Count industries (Use/VA/Import columns; Make rows) whose max abs relative error on those cells exceeds the threshold (nested counts, not exclusive bins) |
+| Worst cell | Among scored cells, the one with largest `\|built − published\|`; report gap in $M, `row×col`, and that cell’s relative error |
 | Worst summary sectors | Rank by abs L1 contribution; highlight `22`, `23`, `721`, `722`, `42`, `HS`, government groups when present in the top list |
 | Rollup gate | Pass/fail + per-block `RollupGateResult` |
 | 2017 round-trip | Pass/fail from `learn_2017_summary_ratios` / apply check |
