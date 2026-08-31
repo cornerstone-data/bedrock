@@ -257,6 +257,49 @@ at 2017), the anchor-true trade vectors improve every year of the span: 2017 4.9
 2023 → 19.9. The lesson that survives: a T11 rise under a fix is only an unmasking after the fix itself
 is verified — here a one-row supply-vs-use autopsy would have caught it same-day.
 
+## The final-demand freeze inspection (2026-08-31)
+
+Before the interior fit, Wes asked whether 2017-frozen ratios in the final-demand columns (the PCE and
+equipment bridge mixes above all) were stressing the row identity from the use side. The inspection got
+its own instrument: **the published annual summary Use SUT is a direct answer key** for every NIPA-built
+final-demand column, because BEA runs our exact construction — annual line levels distributed across
+commodities — with *unfrozen* annual bridges. Aggregate our detail column to summary commodity groups
+(one parent per detail code), compare per year. It is the same evaluate-the-span instrument that caught
+the supply-mix freeze, and it needs nothing beyond workbooks already in GCS. Two caveats: it is a lower
+bound (a freeze inside one summary group — `533000` inside `532RL` — is invisible to it), and levels
+prove nothing (the NIPA totals are observed annually; every error is composition).
+
+**How each freeze scored** (composition error, value-weighted; 2017 rounds to zero by construction —
+the worthless anchor-year check, again):
+
+| column | what is frozen | 2019 | 2021 | 2023 |
+|---|---|---:|---:|---:|
+| `F01000` PCE | within-NIPA-line PCE bridge mix | 0.8% | 1.9% | 2.3% |
+| `F02E00` equipment | within-line PEQ bridge mix | 3.6% | 21.6% | 17.9% |
+| `F10E00` S&L equipment | the **entire 2017 Use column shape** | 72.9% | 90.1% | 149.0% |
+
+The named suspects split: the PCE freeze is benign (the NIPA lines are fine-grained enough that the
+annual levels carry the signal), equipment is seriously wrong (motor vehicles −58.7bn, the Used row
++63.3bn, computer-systems design −31.5bn at 2023), and the columns nobody suspected are the worst in
+the block — `F06E00`/`F07E00`/`F10E00`/`F07S00` attribute on the whole frozen 2017 Use column
+(`attribution_source: BEA_Detail_Use_SUT`) and rot to 50–152%.
+
+**The counterfactual, measured before wiring:** conditioning all seventeen columns on the published
+summary allocation moves the supply-equals-use aggregate less than a point in either direction across
+the span — the final-demand errors partially offset interior-row errors. Row-level it is decisive
+where final demand owns the row: `541511` custom programming (interior share ≈ 0) improved
+−75.8 → −29.9bn; `531ORE` (interior share 0.9) barely moved; `533000` moved $0 (no reachable final
+demand). **Value added is exonerated by construction**: the Step-2 rows are annual observed or
+deliberately residual, and they sit in the column identity, which the commodity-row balance never sees.
+
+**What shipped:** `nowcast_fd_conditioning.py`, applied inside `derive_initial_Y_pur` for every year
+the summary workbook covers — expected T11-neutral and shipped anyway, because the interior fit's row
+targets are supply minus final demand, so every misplaced final-demand dollar would otherwise land in
+the interior targets. The same answer key extended to the supply bridge found the S00300 wiring hole
+(above), the subsidies concept error (#784: production subsidies leveled into the products column,
+~6x published in 2020–21) and the imports composition gap (#785: MCIF 18–22% off every year, with
+`MDTY`/`MADJ` required to follow any conditioning of it).
+
 ## Deferred, with the reason
 
 The 2017 ι-weighted exposure ranking, $M — the error times the share of the row that goes to industry,
