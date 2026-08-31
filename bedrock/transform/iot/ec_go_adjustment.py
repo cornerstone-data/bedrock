@@ -213,6 +213,142 @@ def ec_growth_factors(
 #: chain BEA's own annual movement on top.  Entries must not overlap on
 #: industries; :func:`apply_ec_adjustment` refuses if they do.
 SECTOR_CONDITIONERS: dict[str, tuple[ta.Callable[[], pd.DataFrame], tuple[int, ...]]]
+CROSSWALK = 'bedrock/utils/mapping/naics/NAICS_to_BEA_Crosswalk_2017.csv'
+
+#: The committed alternative-measure table written by
+#: ``bedrock.utils.mapping.write_ec_alt_measures`` — wholesale gross margin and
+#: the 81 taxable-revenue-plus-tax-exempt-expenses two-part, both vintages.
+ALT_MEASURES_CSV = 'bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv'
+
+#: Wholesale: BEA detail industry -> its 4-digit NAICS margin lines.  The two
+#: A-groups pool several lines; ``425000`` books commissions rather than margin
+#: (``ecncomm``, no annual analogue) and carries the kind average, exactly as
+#: ``nowcast_trade_margins`` does for the same code.
+WHOLESALE_MARGIN_LINES: dict[str, tuple[str, ...]] = {
+    '423100': ('4231',),
+    '423400': ('4234',),
+    '423600': ('4236',),
+    '423800': ('4238',),
+    '424200': ('4242',),
+    '424400': ('4244',),
+    '424700': ('4247',),
+    '423A00': ('4232', '4233', '4235', '4237', '4239'),
+    '424A00': ('4241', '4243', '4245', '4246', '4248', '4249'),
+}
+
+#: ⚠️ Held on BEA within the alt-measure families, with the measured reason.
+#: ``424700`` petroleum wholesale: margin coverage 0.416 — MSBOs dominate the
+#: BEA concept there and sit outside the census margin.  ``493000``
+#: warehousing: coverage 0.308, mostly captive/contract space the EC does not
+#: price.  ``485000`` transit: coverage 0.562 and a −23% claim that rides the
+#: government-transit boundary rather than the private industry.
+ALT_MEASURE_HOLDS = frozenset({'424700', '493000', '485000'})
+
+
+@functools.cache
+def _alt_measures() -> pd.DataFrame:
+    frame = pd.read_csv(ALT_MEASURES_CSV, dtype={'naics': str})
+    frame['value'] = frame['value'].astype(float)
+    return frame
+
+
+def _raw_panel() -> pd.DataFrame:
+    from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415, E501
+        detail_gross_output_panel,
+    )
+
+    return detail_gross_output_panel(ec_adjusted=False)
+
+
+@functools.cache
+def wholesale_margin_factors() -> pd.DataFrame:
+    """Wholesale 42 on the census MARGIN — BEA's own concept for trade output.
+
+    Receipts failed the wedge test at coverage 3.9 because they carry cost of
+    goods; the margin is what C1 says the benchmark used, and its 2017 wedge is
+    0.74-0.95 on the merchant lines.  Same shape as :func:`ec_growth_factors`:
+    ``g_ec`` per BEA industry, screened members keep ``g_bea``.
+    """
+    table = _alt_measures()
+    margin = table[table['measure'] == 'wholesale_margin']
+    by_year = {
+        year: margin[margin['year'] == year].set_index('naics')['value']
+        for year in (BASE_YEAR, CENSUS_YEAR)
+    }
+    raw = _raw_panel()
+    rows = {}
+    for bea, lines in WHOLESALE_MARGIN_LINES.items():
+        m17 = float(by_year[BASE_YEAR].reindex(list(lines)).sum())
+        m22 = float(by_year[CENSUS_YEAR].reindex(list(lines)).sum())
+        go_base = float(str(raw.loc[bea, BASE_YEAR]))
+        go_census = float(str(raw.loc[bea, CENSUS_YEAR]))
+        rows[bea] = {
+            'r17': m17,
+            'g_ec': m22 / m17 if m17 else float('nan'),
+            'g_bea': go_census / go_base,
+            'coverage_2017': m17 / 1e3 / go_base,
+        }
+    frame = pd.DataFrame(rows).T.rename_axis('bea')
+    kind_average = float(by_year[CENSUS_YEAR].sum() / by_year[BASE_YEAR].sum())
+    frame.loc['425000'] = {
+        'r17': 0.0,
+        'g_ec': kind_average,
+        'g_bea': float(str(raw.loc['425000', CENSUS_YEAR]))
+        / float(str(raw.loc['425000', BASE_YEAR])),
+        'coverage_2017': float('nan'),
+    }
+    frame['screened'] = frame.index.isin(ALT_MEASURE_HOLDS)
+    frame.loc[frame['screened'], 'g_ec'] = frame.loc[frame['screened'], 'g_bea']
+    return frame
+
+
+@functools.cache
+def services81_two_part_factors() -> pd.DataFrame:
+    """``81`` on C1's own measure: taxable revenue plus tax-exempt expenses.
+
+    Receipts alone put the wedge at 0.816 with a 0.338 IQR because the
+    nonprofit half is measured by expenses; combined, the core industries sit
+    at 0.80-0.91.  The standard screens still apply — they catch grantmaking's
+    pass-through expenses (``813A00`` at 2.16) and the nonemployer-heavy
+    personal services (``811400``, ``812100``, ``812900``).
+    """
+    table = _alt_measures()
+    part = table[table['measure'] == 'services81_two_part']
+    by_year = {
+        year: part[part['year'] == year].set_index('naics')['value']
+        for year in (BASE_YEAR, CENSUS_YEAR)
+    }
+    matched = sorted(set(by_year[BASE_YEAR].index) & set(by_year[CENSUS_YEAR].index))
+    crosswalk = pd.read_csv(CROSSWALK, dtype=str)
+    six = (
+        crosswalk[crosswalk['NAICS_2017_Code'].str.len() == 6][
+            ['NAICS_2017_Code', 'BEA_2017_Detail_Code']
+        ]
+        .dropna()
+        .drop_duplicates()
+    )
+    mapping = dict(zip(six['NAICS_2017_Code'], six['BEA_2017_Detail_Code']))
+    tab = pd.DataFrame(
+        {
+            'v17': by_year[BASE_YEAR][matched],
+            'v22': by_year[CENSUS_YEAR][matched],
+        }
+    )
+    tab['bea'] = pd.Series(tab.index, index=tab.index).map(mapping)
+    by_bea = tab.dropna(subset=['bea']).groupby('bea')[['v17', 'v22']].sum()
+
+    raw = _raw_panel()
+    frame = by_bea[by_bea.index.isin(raw.index)].copy()
+    frame['r17'] = frame['v17']
+    frame['g_ec'] = frame['v22'] / frame['v17']
+    frame['g_bea'] = raw.loc[frame.index, CENSUS_YEAR] / raw.loc[frame.index, BASE_YEAR]
+    frame['coverage_2017'] = frame['v17'] / 1e3 / raw.loc[frame.index, BASE_YEAR]
+    low, high = COVERAGE_BOUNDS
+    frame['screened'] = (frame['coverage_2017'] < low) | (frame['coverage_2017'] > high)
+    frame.loc[frame['screened'], 'g_ec'] = frame.loc[frame['screened'], 'g_bea']
+    return frame[['r17', 'g_ec', 'g_bea', 'coverage_2017', 'screened']]
+
+
 #: ⚠️ Wave 1 beyond manufacturing (Wes + C1, 2026-08-30): the families where
 #: ``RCPTOT`` is already the output-shaped EC variable and C1's *annual* column
 #: is SAS/QSS -- so BEA's 2022+ detail is survey-carried and the census
@@ -241,6 +377,15 @@ SECTOR_CONDITIONERS = {
     ),
     'arts': (
         functools.partial(ec_growth_factors, ('71',), COVERAGE_BOUNDS, frozenset()),
+        EC_ADJUSTED_YEARS,
+    ),
+    # -- the C1 alternative-measure entries (see write_ec_alt_measures) --
+    'wholesale': (wholesale_margin_factors, EC_ADJUSTED_YEARS),
+    'other_services': (services81_two_part_factors, EC_ADJUSTED_YEARS),
+    'transport': (
+        functools.partial(
+            ec_growth_factors, ('48', '49'), COVERAGE_BOUNDS, ALT_MEASURE_HOLDS
+        ),
         EC_ADJUSTED_YEARS,
     ),
 }

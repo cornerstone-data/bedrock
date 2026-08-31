@@ -94,5 +94,23 @@ universe, and **S&L government via the 2022 Census of Governments** (the repo's 
 machinery is the starting point; note the gov *commodity-mix* bridge was a measured no-go — this is the
 industry-output axis, a different question).
 
+**Wave 2 — SAMPLED AND SETTLED** (Wes's directive: sample first, wire only what clearly works):
+
+| candidate | measure sampled | verdict |
+|---|---|---|
+| wholesale `42` | `GRMARG`, `ecnmargin`/`ecngrmargprof` | **WIRED** — merchant wedge 0.74–0.95, moves 71bn; `424700` held (0.42, MSBOs), `425000` on kind average |
+| other services `81` | taxable `RCPTOT` + exempt `OPEX` (`TAXSTAT`) | **WIRED** — core wedge 0.80–0.91, moves 22bn; screens catch grantmaking pass-through (2.16) and nonemployer personal services |
+| transport `48-49` | RCPTOT (rail/postal absent from EC naturally) | **WIRED but structurally near-neutral** (2.4bn): the surviving members are singleton summary groups, so within-group conditioning cannot express the EC's 7% disagreement — that lives between groups, i.e. levels we hold on BEA; `493000` (0.31) and `485000` (0.56, gov-transit boundary) held |
+| construction `23` | `RCPNCW`; hunted type-of-work tables | **NOT wired** — net-value by *contractor* NAICS is the wrong axis for BEA's by-*structure-type* detail (coverage 0.18–3.64); `ecnvalcon` is by state, `ecnconact` is other industries' capex. The type-of-construction table is not in the API's obvious datasets |
+| finance `52` ex-funds | RCPTOT re-verdict | **NOT wired** — member-level wedges say the C1 supplements are load-bearing: `524113` at 5.46 (premiums vs premiums-less-benefits), `522A00` at 1.79 (FISIM) |
+| real estate `532/533` | RCPTOT re-verdict | **NOT wired** — `533000` at 0.30 (IP imputations), diffs to 46% |
+| mining `212` / support `213` | bridged RCPTOT | **HELD, ag-class** — C1's annual column is EIA/USGS/MSHA/trade-source, observation-grade independents, and the census *conflicts* with them (coal receipts flat in EC 2022 against the price surge EIA carries; drilling flat against rig counts). Overwriting BEA here needs arbitration, not a growth carry |
+
 Confirmed holds: agriculture (BEA already tracks FIWS), oil-gas `211` (single-industry group), federal
-government (no census instrument).
+government (no census instrument), retail `44-45` + information `51` (the NAICS-2022 redesigns cross
+3-digit boundaries — nonstore dissolved into the store lines — so per-industry bridging to the BEA-2017
+axis is not possible from 2022-vintage tables at any variable).
+
+Registry after wave 2: **nine entries, ~475bn/yr of conditioning at 2022.** The committed
+alternative-measure data lives in `census_alt/ec_alt_measures.csv`, written by
+`bedrock/utils/mapping/write_ec_alt_measures.py`.
