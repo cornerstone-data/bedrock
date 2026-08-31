@@ -116,11 +116,24 @@ def mdty_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
     Rate is mapped ``CAL_DUT_YR`` / mapped ``GEN_VAL_YR``. Services stay at
     zero. Works for every year with ``Trade_Imports_<year>`` and ``BEA_NIPA``
     ``B235RC``.
+
+    ⚠️ The goods base rides the **conditioned** imports (#785): the bridge's
+    ``MCIF`` is scaled to the published annual summary groups, and duties
+    computed on a raw Census read would disagree with it about where imports
+    sit. The total is unaffected — ``B235RC`` is observed — only the commodity
+    split of duties moves with the conditioning.
     """
+    from bedrock.transform.iot.nowcast_import_conditioning import (  # noqa: PLC0415
+        mcif_condition_factors,
+    )
+
     duty = map_census_import_flow_to_detail(year, _DUTY_FLOW)
     customs = map_census_import_flow_to_detail(year, _CUSTOMS_FLOW)
     rate = (duty / customs).where(customs != 0.0, 0.0).fillna(0.0)
     goods_mcif = census_goods_mcif_by_detail(year, download_sources_ok)
+    goods_mcif = goods_mcif * mcif_condition_factors(int(year)).reindex(
+        goods_mcif.index
+    ).fillna(1.0)
     provisional = rate * goods_mcif
     prov_sum = float(provisional.sum())
     if prov_sum == 0.0:
