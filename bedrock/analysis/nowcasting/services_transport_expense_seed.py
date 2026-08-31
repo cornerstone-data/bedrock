@@ -151,10 +151,16 @@ mapping are still worth having** -- when AIES publishes a second year, 2024
 against 2023 is a within-instrument ratio and this becomes usable without the
 seam.
 
-⚠️ **2018 and 2019 have no seed at all** and are not interpolated.  Neither SAS
-vintage publishes the detailed items for them and the gap sits exactly on the
-benchmark seam, so the interpolation form fitted for the census mix
-(``inputs_structure``) does not license crossing it.
+✅ **2018 and 2019 build through the cut-list bridge** (#770, 2026-08-30).
+Census consolidated the questionnaire for those two collection years --
+``sas-19.xlsx``, 23 items against 40 -- and the bridge constrains at the
+published aggregates and assigns within them on 2017 proportions
+(:data:`CUT_ALL_OTHER_ABSORBED`, :func:`_cut_list_panel`).  ``sas-19`` is
+benchmarked to the **2017 Economic Census and restates 2017**, so its ratios
+cross no seam -- these two years are in that one respect *cleaner* than
+2020-2022, whose 2017 base is sas-17.  What is coarser: an industry's twelve
+absorbed items share one ratio, so within-group relative movement is flattened
+to 2017 proportions.
 
 ✅ What BEA says it used, and the denominator bug that found
 ------------------------------------------------------------
@@ -217,7 +223,10 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.census.Census_SAS_Expenses import SAS_EXPENSE_UNOBSERVED_YEARS
+from bedrock.extract.census.Census_SAS_Expenses import (
+    SAS_CUT_LIST_YEARS,
+    restated_cut_vintage,
+)
 from bedrock.extract.flowbyactivity import getFlowByActivity
 
 #: The FBA this reads, and the years it publishes the detailed items for.
@@ -313,6 +322,60 @@ SAS_DISCONTINUED_AFTER_2017 = (
 #: The industry's own total, used as the denominator that turns a level movement
 #: into a relative one.  Not an expense item.
 SAS_TOTAL_ITEM = 'Expenses'
+
+#: ⚠️ **The 2018-2019 cut list** (Census's change notes, via Wes).  For those
+#: two collection years the questionnaire was consolidated: twelve detailed
+#: items were absorbed into ``All other operating expenses``, the two expensed
+#: items merged, and the four fringe items merged (fringe is compensation, not
+#: an intermediate input, so that one never mattered here).
+#:
+#: The bridge is exactly the directive it implements: **constrain at the
+#: published aggregate, assign within it on 2017 proportions.**
+#: :func:`_cut_list_panel` synthesises a panel in which each absorbed member is
+#: priced at its own sas-17 2017 value times the aggregate's within-``sas-19``
+#: ratio, so :func:`relative_index` and :func:`industry_growth` run unchanged:
+#: every member of a group carries the group's growth, members' 2017 dollars do
+#: the assignment, and the industry's whole-bill denominator compares matched
+#: definitions on both sides.
+#:
+#: ✅ **No benchmark seam.**  ``sas-19`` is benchmarked to the 2017 Economic
+#: Census and restates 2017, so the ratio numerator and denominator are one
+#: instrument on one basis -- unlike 2020+, whose 2017 base crosses the
+#: sas-17/sas-22 rebenchmark.
+#:
+#: ✅ **The three discontinued items come back to life for exactly these two
+#: years.**  Their 2017 bases exist (published through 2017) and they sit
+#: inside the absorbed set, so ``517*``, ``221300``/``562000`` and
+#: ``532100``/``532400`` receive movement for 2018-2019 that 2020+ can never
+#: give them.
+#:
+#: ⚠️ What is genuinely coarser: all twelve absorbed members of an industry
+#: share one ratio, so within-group *relative* movement is flattened to the
+#: 2017 proportions for these two years.
+CUT_ALL_OTHER = 'All other operating expenses'
+CUT_ALL_OTHER_ABSORBED: tuple[str, ...] = (
+    'Data processing and other purchased computer services',
+    'Purchased communication services',
+    'Purchased repairs and maintenance to machinery and equipment',
+    'Purchased repairs and maintenance to buildings, structures, and offices',
+    'Purchased electricity',
+    'Purchased fuels (except motor fuels)',
+    'Water, sewer, refuse removal, and other utility payments',
+    'Lease and rental payments for machinery, equipment, and other tangible items',
+    'Lease and rental payments for land, buildings, structures, store spaces, '
+    'and offices',
+    'Purchased professional and technical services',
+    'Purchased advertising and promotional services',
+    # ⚠️ In the absorbed set but never synthesised: taxes are NOT_INTERMEDIATE.
+    # Removing a fixed 2017 share from both years of the aggregate would leave
+    # the ratio unchanged, so nothing further is needed.
+    'Governmental taxes and license fees',
+)
+CUT_EXPENSED = 'Expensed equipment, materials, parts, and supplies'
+CUT_EXPENSED_MEMBERS: tuple[str, ...] = (
+    'Expensed equipment',
+    'Expensed purchases of other materials, parts, and supplies',
+)
 
 #: ⚠️ **Published items that are not intermediate inputs** -- labour, capital
 #: consumption, taxes, interest and transfers -- plus the published total
@@ -564,19 +627,19 @@ def ore_seed(year: int, drop: str | None = None) -> pd.DataFrame:
     ⚠️ **Rows no item maps to hold their 2017 value**, which is what "no
     information about movement" means.  They are not dropped and not zeroed.
 
-    ⚠️ **Raises for an unobserved year** rather than inventing one.  2018 and
-    2019 have no detailed items in either SAS vintage, and 2023 onward is AIES
-    (#707).
+    ✅ **2018 and 2019 build through the cut-list bridge** -- the published
+    all-other aggregate constrains the absorbed items as a group, 2017
+    proportions assign within it, and the ratio is taken inside ``sas-19``
+    (2017-benchmarked, restated 2017) so no seam is crossed.  See
+    :data:`CUT_ALL_OTHER_ABSORBED`.  2023 onward is AIES (#707).
     """
-    if year not in SAS_EXPENSE_YEARS:
-        gap = ', '.join(str(y) for y in SAS_EXPENSE_UNOBSERVED_YEARS)
+    if year not in (*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS):
         raise ValueError(
             f'{year} is not observed for the SAS expense cells; observed years '
-            f'are {list(SAS_EXPENSE_YEARS)} and {gap} publish none of the '
-            f'detailed items in either vintage.'
+            f'are {sorted((*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS))}.'
         )
     use = _use_2017_detail()
-    index = relative_index(SEED_NAICS, year, drop=drop)
+    index = relative_index(SEED_NAICS, year, drop=drop, panel=_panel_for(year))
     seed = use[[SEED_INDUSTRY]].copy()
     touched = [code for code in index.index if code in seed.index]
     seed.loc[touched, SEED_INDUSTRY] = (
@@ -630,8 +693,9 @@ AIES_SERVICE_SOURCE = 'Census_AIES_Service_Expenses'
 #: The one year AIES answers for.  2021, 2022 and 2024 return ``204 No Content``.
 AIES_OBSERVED_YEARS = (2023,)
 
-#: Every year the service panel observes, SAS then AIES.
-OBSERVED_YEARS = (*SAS_EXPENSE_YEARS, *AIES_OBSERVED_YEARS)
+#: Every year the service panel observes: SAS full-list, the 2018-2019 cut
+#: list, then AIES.
+OBSERVED_YEARS = (*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS, *AIES_OBSERVED_YEARS)
 
 
 @functools.cache
@@ -888,8 +952,86 @@ def sector_coverage(seeded_only: bool = True) -> pd.DataFrame:
     return table.sort_values('dollars_M', ascending=False)
 
 
+@functools.cache
+def _cut_list_panel(year: int) -> pd.DataFrame:
+    """The synthetic panel for a cut-list year: aggregates constrained, 2017 assigns.
+
+    Three kinds of rows for *year*, appended to :func:`expense_panel` (which
+    supplies the sas-17 2017 bases):
+
+    1. **kept items pass through** from the FBA -- temporary staff, freight,
+       transport fuels and repairs, printing, insurance, medical supplies,
+       software -- except the two consolidated aggregates themselves, which
+       must not pair against 2017 cells with narrower definitions;
+    2. **each absorbed member** is synthesised at ``base_2017(sas-17) x r_G``,
+       where ``r_G`` is the aggregate's ratio *within* ``sas-19`` (its year
+       against its restated 2017) -- one instrument, one benchmark;
+    3. the **old all-other** itself is synthesised the same way, so the
+       unmappable remainder stays inside :func:`industry_growth`'s denominator
+       at a matched definition.
+
+    An aggregate suppressed for a NAICS in either year yields no synthetic rows
+    there -- the kept items still move, and rows no item names hold 2017, which
+    is what partial information means.  A member whose own 2017 base is
+    suppressed is skipped the same way.
+    """
+    if year not in SAS_CUT_LIST_YEARS:
+        raise ValueError(f'{year} is not a cut-list year ({SAS_CUT_LIST_YEARS})')
+    fba = getFlowByActivity(SAS_EXPENSE_SOURCE, year)
+    published = fba[fba['Suppressed'].isna()]
+    kept = pd.DataFrame(
+        {
+            'naics': published['ActivityConsumedBy'].astype(str),
+            'item': published['FlowName'].astype(str),
+            'year': int(year),
+            'value': published['FlowAmount'].astype(float) / MILLION,
+        }
+    )
+    kept = kept[~kept['item'].isin((CUT_ALL_OTHER, CUT_EXPENSED))]
+
+    restated = restated_cut_vintage()
+    base17 = expense_panel().query('year == 2017').set_index(['naics', 'item'])['value']
+
+    def _ratio(naics: str, item: str) -> float | None:
+        rows = restated[(restated['naics'] == naics) & (restated['item'] == item)]
+        wide = rows.set_index('year')['value']
+        if int(year) not in wide.index or 2017 not in wide.index:
+            return None
+        base = float(wide[2017])
+        return float(wide[int(year)]) / base if base > 0 else None
+
+    synthetic: list[dict[str, object]] = []
+    for naics in sorted(kept['naics'].unique()):
+        groups = [
+            (_ratio(naics, CUT_ALL_OTHER), (*CUT_ALL_OTHER_ABSORBED, CUT_ALL_OTHER)),
+            (_ratio(naics, CUT_EXPENSED), CUT_EXPENSED_MEMBERS),
+        ]
+        for ratio, members in groups:
+            if ratio is None:
+                continue
+            for member in members:
+                if member in NOT_INTERMEDIATE:
+                    continue
+                base = base17.get((naics, member))
+                if base is None or not base > 0:
+                    continue
+                synthetic.append(
+                    {
+                        'naics': naics,
+                        'item': member,
+                        'year': int(year),
+                        'value': float(base) * ratio,
+                    }
+                )
+    return pd.concat(
+        [expense_panel(), kept, pd.DataFrame(synthetic)], ignore_index=True
+    )
+
+
 def _panel_for(year: int) -> pd.DataFrame:
-    """The observation panel for a year -- SAS, or AIES for 2023."""
+    """The observation panel for a year -- SAS, the cut-list bridge, or AIES."""
+    if year in SAS_CUT_LIST_YEARS:
+        return _cut_list_panel(year)
     if year in AIES_OBSERVED_YEARS:
         return pd.concat([expense_panel(), _aies_service_panel()], ignore_index=True)
     return expense_panel()
@@ -967,9 +1109,13 @@ def services_transport_seed(
     (:data:`AIES_TO_SAS_ITEM`) but the instrument is not the same one.  Treat a
     2023 movement as weaker evidence than a 2020-2022 one.
 
-    ⚠️ **2018 and 2019 raise.**  Neither SAS vintage publishes the detailed
-    items for them, and the interpolation form fitted for the census mix does
-    not license crossing this gap: it sits exactly on the benchmark seam.
+    ✅ **2018 and 2019 build through the cut-list bridge** (#770): the
+    published ``All other operating expenses`` aggregate constrains its twelve
+    absorbed items as a group, their sas-17 2017 dollars assign within it, and
+    the group ratio is taken inside ``sas-19`` -- 2017-benchmarked and
+    restating 2017, so no seam is crossed.  Coarser than a full-list year: the
+    absorbed items share one ratio per industry.  See
+    :data:`CUT_ALL_OTHER_ABSORBED` and :func:`_cut_list_panel`.
     """
     if year in SURVEY_CHANGE_YEARS and not allow_survey_change:
         raise ValueError(
@@ -982,9 +1128,7 @@ def services_transport_seed(
     if year not in OBSERVED_YEARS:
         raise ValueError(
             f'{year} is not observed for the surveyed expense cells; observed '
-            f'years are {list(OBSERVED_YEARS)}. 2018 and 2019 publish none of '
-            f'the detailed items in either SAS vintage, and they sit on the '
-            f'sas-17/sas-22 benchmark seam, so they are not interpolated.'
+            f'years are {sorted(OBSERVED_YEARS)}.'
         )
     use = _use_2017_detail()
     columns = services_transport_industries()

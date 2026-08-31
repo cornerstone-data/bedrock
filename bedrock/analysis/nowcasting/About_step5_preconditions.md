@@ -134,12 +134,30 @@ Sequence with #724 — trade output *is* margin, so the two are measuring the sa
 
 ### → [#770](https://github.com/cornerstone-data/bedrock/issues/770) · no Use interior for 2018 or 2019
 
-`derive_initial_U_intermediate(2018)` and `(2019)` **raise**. The refusal inside
-[`services_transport_expense_seed`](services_transport_expense_seed.py) is correct — neither SAS vintage
-publishes the detailed items and the two years sit on the sas-17/sas-22 benchmark seam. The defect is that
-[`composed_seed`](../../transform/iot/nowcast_intermediate.py) calls it *unconditionally*, so one block's
-honest refusal takes down the whole 402 × 402 interior including the five blocks that **do** have 2018–19
-observations.
+**RESOLVED in `sas_cut_list_770`** (2026-08-30). The refusal's premise was wrong in a useful way: 2018–19
+are not unobserved, they are published on a **cut item list** in `sas-19.xlsx` — 63 NAICS × 23 items,
+fully populated — which this repo simply never fetched. Census's consolidation notes (via Wes) define the
+bridge: twelve detailed items absorbed into `All other operating expenses`, two expensed items merged,
+fringe merged (compensation, irrelevant here).
+
+The fix is the directive it implements — **constrain at the published aggregate, assign within it on 2017
+proportions**: `_cut_list_panel` synthesises each absorbed member at its sas-17 2017 value × the
+aggregate's ratio taken *inside* `sas-19`, and the existing `relative_index`/`industry_growth` machinery
+runs unchanged. Three facts that made it clean:
+
+1. **`sas-19` is 2017-EC-benchmarked and restates 2017**, so the ratios cross no seam — these two years
+   are in that respect *cleaner* than 2020–22, whose base is sas-17.
+2. The two merged expensed items were both unmappable already (denominator-only), and fringe was already
+   `NOT_INTERMEDIATE` — so the numerator bridge is one group.
+3. The three discontinued items (`517*`, `221300`/`562000`, `532100`/`532400`) revive for exactly these
+   two years: their 2017 bases exist and they sit inside the absorbed set.
+
+Result: 83 (2018) and 81 (2019) of the 100 service/transport columns move;
+`derive_initial_U_intermediate` builds **15.85T (2018)** and **16.12T (2019)**, bracketing sensibly
+against 14.86T (2017) and the 15.34T COVID-dip (2020). The FBA carve keeps every existing year
+byte-identical (max |diff| 0 on regeneration). Coarser than a full-list year — the absorbed members share
+one ratio per industry — and the earlier caution stands recorded: the year-constant check was not a check
+that the builders run.
 
 ⚠️ The earlier reading that "every block spans 2017–2023 and none is year-gated below the milestone" was a
 check of the **year constants**, not of whether the builders run.
