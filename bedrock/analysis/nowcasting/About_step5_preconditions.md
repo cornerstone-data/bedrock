@@ -349,6 +349,36 @@ The T17 halving is the `T00OSUB` row closing the value-added identity; the T11 p
 the ~580bn of production subsidies no longer subtracted from commodity supply. Two insolvency counts
 moved by one (2019, 2021) as published-rounding dust of −1 $M landed differently.
 
+## → [#785](https://github.com/cornerstone-data/bedrock/issues/785) · imports conditioned, and the columns that follow
+
+**RESOLVED in `import_conditioning_785`** (2026-08-31). The imports column was the last supply-bridge
+component built from primary sources with no anchor to the published tables: Census/IEA
+classification is not BEA's, and against the summary answer key the composition ran 18–22% off every
+year *before* the S00300 restoration and **8.8% at the 2017 anchor after it** — pure between-group
+classification error, sitting on the second-largest component of total supply.
+
+`nowcast_import_conditioning.py` scales each detail cell to its published summary group value, per
+year, **2017 included** — the leave-the-anchor-alone doctrine protects anchors that reproduce
+published, and imports never did. Three consumers read the same factors so the bridge can never
+disagree with itself (Wes's requirement): the bridge assembly, the `purchaser_base` tax base, and
+`MDTY` — whose goods base used to be derived internally from Census. `MADJ`'s level moves to the
+published summary total (annual, observed), retiring the Census-charge-magnitude rule that ran
++185% to +279% over published in 2018–2023. What conditioning cannot see — the within-group
+classification reshuffles (`334220`/`334418`) — remains #670's. The `Other` group re-levels S00300
+to BEA's published value; the IEA leaves stay the shape.
+
+**Measured: the supply-equals-use gap improves in every year of the span, no regressions:**
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| T11, % of intermediate use | 3.8→**3.3** | 8.5→**7.8** | 10.9→**10.3** | 17.1→**16.6** | 15.5 | 18.4→**17.8** | 20.3→**20.0** |
+
+T17 is untouched (imports never enter the column identity), and the insolvency dust counts fell back
+(2019 2→1, 2021 1→0). With this, every supply-bridge column and every NIPA-built final-demand column
+is either anchored on published 2017 detail, observed annually, or conditioned on the published
+annual summary tables — the interior fit starts from row targets with no known concept errors left
+in them.
+
 ## Deferred, with the reason
 
 The 2017 ι-weighted exposure ranking, $M — the error times the share of the row that goes to industry,

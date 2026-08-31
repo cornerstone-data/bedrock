@@ -16,11 +16,13 @@ purchaser codes), and the Use table's 402 x 402 intermediate interior
 via mapped Detail mass in ``_trade_fbs_commodity_vector``. ``F03000``
 (change in private inventories, #529) is sourced for 2017 only. ``F05000``
 is MUT-only and is not a Y column. The Supply bridge fills ``MCIF`` from
-``Trade_Imports_<year>`` (same mapped Detail mass), ``MDTY`` from Census
-duty rates leveled to NIPA ``B235RC``, and ``MADJ`` from Census import
-charges (``GEN_CHA_YR``) reassigned onto 2017 Supply ``MADJ`` destination
-codes — for 2017 leveled to published Supply ``MADJ``, for later years to
-that year's charge total with the published ``MADJ`` sign — for every year
+``Trade_Imports_<year>`` mapped Detail mass **conditioned on the published
+annual summary Supply column** (#785,
+``bedrock.transform.iot.nowcast_import_conditioning``), ``MDTY`` from Census
+duty rates on the same conditioned goods base leveled to NIPA ``B235RC``,
+and ``MADJ`` from Census import charges (``GEN_CHA_YR``) reassigned onto
+2017 Supply ``MADJ`` destination codes and leveled to the published Supply
+``MADJ`` total (detail for 2017, summary for later years) — for every year
 in ``TRADE_OVERLAY_YEARS``. ``TRADE``/``TRANS`` are step 4c's margin columns
 and ``TOP``/``SUB`` are step 4d's tax and subsidy columns, all sourced for
 a run of years. ⚠️ ``SUB`` is stored negative, as BEA publishes it in the
@@ -71,6 +73,7 @@ from bedrock.transform.iot.nowcast_fd_conditioning import (
     SUMMARY_SUT_YEARS,
     condition_fd_on_summary,
 )
+from bedrock.transform.iot.nowcast_import_conditioning import conditioned_mcif
 from bedrock.transform.iot.nowcast_intermediate import (
     derive_intermediate_use,
 )
@@ -567,12 +570,12 @@ def derive_initial_supply_bridge(
 ) -> pd.DataFrame:
     """Commodity x Supply-bridge codes, USD, BEA 2017 Detail rows.
 
-    MCIF is mapped Trade_Imports_<year> Detail mass for every year in
-    ``TRADE_OVERLAY_YEARS``. MDTY is Census duty rate × goods MCIF, leveled to
-    NIPA B235RC, for those years. MADJ is Census GEN_CHA_YR reassigned onto
-    2017 Supply MADJ destination codes — leveled to published Supply MADJ in
-    2017, and to that year's charge total with the published MADJ sign in
-    later years.
+    MCIF is mapped Trade_Imports_<year> Detail mass conditioned on the
+    published annual summary Supply column (#785) for every year in
+    ``TRADE_OVERLAY_YEARS``. MDTY is Census duty rate × the same conditioned
+    goods MCIF, leveled to NIPA B235RC, for those years. MADJ is Census
+    GEN_CHA_YR reassigned onto 2017 Supply MADJ destination codes — leveled
+    to the published Supply MADJ total (detail 2017, summary later years).
 
     ``T007`` is the row margin of the ``Detail_Supply_Mix_<year>`` FBS
     domestic-output block, and is sourced for every year **2017-2024** (#570).
@@ -636,9 +639,10 @@ def derive_initial_supply_bridge(
     bridge.columns.name = 'supply_bridge_code'
     bridge['T007'] = _supply_fbs_commodity_vector(year, download_sources_ok)
     if year in TRADE_OVERLAY_YEARS:
-        bridge['MCIF'] = _trade_fbs_commodity_vector(
-            f'Trade_Imports_{year}', download_sources_ok
-        )
+        # #785: the imports column is conditioned on the published annual
+        # summary Supply MCIF; MDTY and MADJ read the same factors so the
+        # three columns cannot disagree about where imports sit.
+        bridge['MCIF'] = conditioned_mcif(year, download_sources_ok)
         bridge['MDTY'] = mdty_detail_usd(year, download_sources_ok)
         bridge['MADJ'] = madj_detail_usd(year, download_sources_ok)
     if year in TRANSPORT_MARGIN_YEARS:

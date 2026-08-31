@@ -481,8 +481,8 @@ def purchaser_base(year: int) -> pd.Series:
     the controlled ``T007`` back here closes the cycle. Summary commodity totals
     are identical either way - see that function.
     """
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
-        _trade_fbs_commodity_vector,
+    from bedrock.transform.iot.nowcast_import_conditioning import (  # noqa: PLC0415
+        conditioned_mcif,
     )
     from bedrock.transform.iot.nowcast_supply_go_control import (  # noqa: PLC0415
         seed_commodity_output,
@@ -500,10 +500,11 @@ def purchaser_base(year: int) -> pd.Series:
     def _v(series: pd.Series) -> pd.Series:
         return pd.Series(series).reindex(index).fillna(0.0).astype(float)
 
-    # T013 = T007 + MCIF + MADJ
+    # T013 = T007 + MCIF + MADJ; imports conditioned (#785) so the tax base
+    # and the bridge agree about where import mass sits
     base = (
         _v(seed_commodity_output(year, False))
-        + _v(_trade_fbs_commodity_vector(f'Trade_Imports_{year}', False))
+        + _v(conditioned_mcif(year, False))
         + _v(madj_detail_usd(year, False))
         # T014 = TRADE + TRANS
         + _v(trade_margin_column(year))

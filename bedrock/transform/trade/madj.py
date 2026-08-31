@@ -57,15 +57,31 @@ def _madj_destination_shares() -> pd.Series:
 def _madj_national_level_usd(year: int, charge_sum: float) -> float:
     """National ``MADJ`` level for *year*, USD.
 
-    2017 matches published Supply ``MADJ``. Later years use the year's mapped
-    ``GEN_CHA_YR`` magnitude with the published Supply ``MADJ`` sign so the
-    column stays a negative c.i.f./f.o.b. adjustment.
+    2017 matches published detail Supply ``MADJ``. Later years take the
+    **published summary Supply ``MADJ`` total** — annual and observed (#785).
+    The rule this replaces used the year's mapped ``GEN_CHA_YR`` magnitude
+    with the published sign, and Census import charges are not BEA's
+    c.i.f./f.o.b. adjustment concept: measured against the summary answer
+    key it ran +185% to +279% over the published level in 2018-2023.
+    ``charge_sum`` stays a guard input only — a zero means the Census extract
+    changed, whatever the level rule.
     """
+    _ = charge_sum
     if int(year) == 2017:
         return supply_madj_national_usd()
-    published = supply_madj_national_usd()
-    sign = -1.0 if published < 0.0 else 1.0
-    return sign * abs(float(charge_sum))
+    from bedrock.extract.iot.io_2017 import _load_usa_summary_sut  # noqa: PLC0415
+
+    supply = _load_usa_summary_sut('Supply_summary', int(year))  # type: ignore[arg-type]
+    column = pd.to_numeric(pd.Series(supply['MADJ']), errors='coerce').fillna(0.0)
+    total = float(column.get('T017', 0.0)) * MILLION_CURRENCY_TO_CURRENCY
+    if total == 0.0:
+        raise ValueError(
+            f'The {year} published summary Supply MADJ total reads zero; the '
+            f'column is a structurally negative c.i.f./f.o.b. adjustment, so a '
+            f'zero means the workbook row moved rather than the adjustment '
+            f'vanishing.'
+        )
+    return total
 
 
 def madj_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
