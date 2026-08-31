@@ -26,11 +26,14 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_BENCHMARK_DETAIL_SUT_ARCHIVE,
     USA_BENCHMARK_DETAIL_SUT_MEMBER_MAPPING,
     USA_BENCHMARK_DETAIL_SUT_YEARS,
+    USA_SUMMARY_MUT_BEFORE_REDEF_MAPPING,
+    USA_SUMMARY_MUT_BEFORE_REDEF_NAMES,
     USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
+    USA_SUMMARY_SPAN_MUT_YEARS,
     USA_SUMMARY_SUT_MAPPING_1997_2024,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
@@ -55,6 +58,7 @@ from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
 )
 from bedrock.utils.taxonomy.bea.v2017_value_added import (
+    SUMMARY_VA_CODES,
     USA_2017_VALUE_ADDED_CODES,
 )
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
@@ -946,6 +950,58 @@ def load_summary_Yimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     return df
 
 
+def _require_summary_span_year(year: int | str) -> int:
+    """Coerce and validate years for before-redef / 2024-vintage span loaders."""
+    year_int = int(year)
+    if year_int < 2017 or year_int > 2024:
+        raise ValueError(f'year {year_int} out of span domain 2017–2024')
+    return year_int
+
+
+def _assert_summary_va_rows(df: pd.DataFrame, *, context: str) -> None:
+    missing = [code for code in SUMMARY_VA_CODES if code not in df.index]
+    if missing:
+        raise ValueError(f'{context}: missing VA rows {missing}')
+
+
+def _load_usa_summary_mut_from_mapping(
+    mapping: ta.Mapping[str, str],
+    matrix_name: str,
+    year: int,
+) -> pd.DataFrame:
+    """Load one sheet from a summary MUT workbook dict (million USD, raw)."""
+    filename = mapping[matrix_name]
+    try:
+        df = (
+            load_from_gcs(
+                name=filename,
+                sub_bucket=GCS_USA_MAKE_USE_DIR,
+                local_dir=LOCAL_USA_MAKE_USE_DIR,
+                loader=lambda pth: pd.read_excel(
+                    pth,
+                    sheet_name=str(year),
+                    skiprows=5,
+                    dtype={'Unnamed: 0': str},
+                ),
+            )
+            .set_index('Unnamed: 0')
+            .replace('...', 0)
+            .fillna(0)
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            f'failed loading summary MUT year={year} file={filename}: {exc}'
+        ) from exc
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
+    assert (
+        len(df.shape) == 2
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
+
+    return df
+
+
 def _load_usa_summary_mut(
     matrix_name: USA_SUMMARY_MUT_NAMES, year: USA_SUMMARY_MUT_YEARS
 ) -> pd.DataFrame:
@@ -968,29 +1024,173 @@ def _load_usa_summary_mut(
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2023
     else:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2022
-    df = (
-        load_from_gcs(
-            name=mapping[matrix_name],
-            sub_bucket=GCS_USA_MAKE_USE_DIR,
-            local_dir=LOCAL_USA_MAKE_USE_DIR,
-            loader=lambda pth: pd.read_excel(
-                pth,
-                sheet_name=str(year_int),
-                skiprows=5,
-                dtype={'Unnamed: 0': str},
-            ),
-        )
-        .set_index('Unnamed: 0')
-        .replace('...', 0)
-        .fillna(0)
+    return _load_usa_summary_mut_from_mapping(mapping, matrix_name, year_int)
+
+
+def _load_usa_summary_mut_before_redef(
+    matrix_name: USA_SUMMARY_MUT_BEFORE_REDEF_NAMES,
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Load before-redef summary MUT sheet (million USD, raw)."""
+    year_int = _require_summary_span_year(year)
+    return _load_usa_summary_mut_from_mapping(
+        USA_SUMMARY_MUT_BEFORE_REDEF_MAPPING, matrix_name, year_int
     )
-    df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
-    assert (
-        len(df.shape) == 2
-    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
+@functools.cache
+def load_summary_V_before_redef_usa(year: USA_SUMMARY_SPAN_MUT_YEARS) -> pd.DataFrame:
+    """Make table before redefinitions, industry x commodity, USD."""
+    df = (
+        _load_usa_summary_mut_before_redef('Make_summary_before_redef', year)
+        .loc[
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+            USA_2017_SUMMARY_COMMODITY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Utot_before_redef_usa(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Use intermediate before redefinitions, commodity x industry, USD."""
+    df = (
+        _load_usa_summary_mut_before_redef('Use_summary_before_redef', year)
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Uimp_before_redef_usa(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Import matrix before redefinitions, commodity x industry, USD."""
+    df = (
+        _load_usa_summary_mut_before_redef('Import_summary_before_redef', year)
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_value_added_before_redef_usa(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Value added before redefinitions, V001/V002/V003 x summary industry, USD."""
+    raw = _load_usa_summary_mut_before_redef('Use_summary_before_redef', year)
+    _assert_summary_va_rows(raw, context='before-redef summary Use')
+    df = (
+        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = pd.Index(list(SUMMARY_VA_CODES), name='value_added')
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_V_usa_2024_vintage(year: USA_SUMMARY_SPAN_MUT_YEARS) -> pd.DataFrame:
+    """Make after redefinitions from the 1997–2024-named workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    df = (
+        _load_usa_summary_mut_from_mapping(
+            USA_SUMMARY_MUT_MAPPING_1997_2024, 'Make_summary', year_int
+        )
+        .loc[
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+            USA_2017_SUMMARY_COMMODITY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Utot_usa_2024_vintage(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Use intermediate after redefinitions from the 1997–2024-named workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    df = (
+        _load_usa_summary_mut_from_mapping(
+            USA_SUMMARY_MUT_MAPPING_1997_2024, 'Use_summary', year_int
+        )
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Uimp_usa_2024_vintage(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Import matrix after redefinitions from the 1997–2024-named workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    df = (
+        _load_usa_summary_mut_from_mapping(
+            USA_SUMMARY_MUT_MAPPING_1997_2024, 'Import_summary', year_int
+        )
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_value_added_usa_2024_vintage(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """VA after redefinitions from the 1997–2024 Use workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    raw = _load_usa_summary_mut_from_mapping(
+        USA_SUMMARY_MUT_MAPPING_1997_2024, 'Use_summary', year_int
+    )
+    _assert_summary_va_rows(raw, context='2024-vintage after-redef summary Use')
+    df = (
+        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = pd.Index(list(SUMMARY_VA_CODES), name='value_added')
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
     return df
 
 

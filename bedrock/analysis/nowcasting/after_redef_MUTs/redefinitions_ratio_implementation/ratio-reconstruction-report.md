@@ -77,7 +77,9 @@ The BEA-style reconstruction already showed that Chapter 9 default mix plus name
 
 ### 3. What remains open for later years?
 
-A 2017 ratio carry **describes** 2017 and freezes that year’s movement structure. It is not BEA’s production-function rule for year `t`. Extrapolation quality for 2018–2025 is unproven until Step 6 supplies before-redef MUTs; this implementation only makes the apply API ready (synthetic GO-scale tests cover linear `go_ratio` behavior and frozen absolute margin residuals).
+A 2017 ratio carry **describes** 2017 and freezes that year’s movement structure. It is not BEA’s production-function rule for year `t`.
+
+**Summary-level out-of-sample gate (first):** published before-redef summary MUT + matched 2024-vintage after for 2018–2024 — see [`summary-span-test-report.md`](summary-span-test-report.md) (plan: [`summary-span-test-plan.md`](summary-span-test-plan.md)). Headline: 2017 summary round-trip **PASS**; Use L1 relative error about **0.3%–1.2%** across 2018–2024 with many industries still >1% off on max cell relative error (review judgment for #775). Detail year-`t` evaluation still needs Step 6 before-redef MUTs; margins remain untested on the summary span (no annual summary margins series).
 
 Practical summary:
 
@@ -85,6 +87,7 @@ Practical summary:
 | --- | --- |
 | **2017 acceptance** | Passed on all five frames |
 | **Production path** | Ratio module + sections rewired; BEA stack archived under `after_redef_MUTs/.../code/` |
-| **Year `t`** | Apply API ready; needs Step 6 before-redef inputs for real non-2017 evaluation |
+| **Summary span 2018–2024** | Report artifact posted; Use L1 ~0.3%–1.2%; see linked report |
+| **Detail year `t`** | Apply API ready; needs Step 6 before-redef inputs |
 
 So: **yes**, the ratio implementation achieves the after-redefinitions tables at the #572 cell-by-cell bar, including Make, with a single documented operator.

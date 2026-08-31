@@ -348,3 +348,41 @@ def test_atol_filters_dust() -> None:
         empty_m,
     )
     assert ratios.U.empty
+
+
+def test_industry_set_allows_summary_buyer_codes() -> None:
+    """Summary industry codes are dropped unless industry_set is passed."""
+    V = pd.DataFrame([[100.0 * M]], index=['22'], columns=['22'])
+    U_before = pd.DataFrame([[50.0 * M]], index=['22'], columns=['22'])
+    U_after = pd.DataFrame([[40.0 * M]], index=['22'], columns=['22'])
+    empty_va = pd.DataFrame(0.0, index=['V001'], columns=['22'])
+    empty_m = _margins({('22', '22'): {"Producers' Value": 0.0}})
+    without = compute_redefinition_ratios(
+        V,
+        U_before,
+        empty_va,
+        U_before,
+        empty_m,
+        V,
+        U_after,
+        empty_va,
+        U_after,
+        empty_m,
+    )
+    assert without.U.empty
+    with_set = compute_redefinition_ratios(
+        V,
+        U_before,
+        empty_va,
+        U_before,
+        empty_m,
+        V,
+        U_after,
+        empty_va,
+        U_after,
+        empty_m,
+        industry_set=frozenset({'22'}),
+    )
+    assert len(with_set.U) == 1
+    assert with_set.U.iloc[0]['industry'] == '22'
+    assert _f(with_set.U.iloc[0]['ratio']) == pytest.approx(0.1)

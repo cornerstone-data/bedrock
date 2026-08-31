@@ -80,6 +80,7 @@ def _cellwise_ratios(
     row_name: str,
     col_name: str,
     industry_is_column: bool,
+    industry_set: frozenset[str],
 ) -> pd.DataFrame:
     """Sparse ratios for a dense table; control industry is row or column."""
     left, right = before.align(after, fill_value=0.0)
@@ -97,7 +98,7 @@ def _cellwise_ratios(
     frame[col_name] = frame[col_name].astype(str)
     industry_col = col_name if industry_is_column else row_name
     if industry_is_column:
-        frame = frame.loc[frame[industry_col].isin(_INDUSTRY_SET)].copy()
+        frame = frame.loc[frame[industry_col].isin(industry_set)].copy()
     if frame.empty:
         return pd.DataFrame(columns=[row_name, col_name, 'ratio'])
 
@@ -110,6 +111,8 @@ def _margins_ratios(
     margins_before: pd.DataFrame,
     margins_after: pd.DataFrame,
     x: pd.Series,
+    *,
+    industry_set: frozenset[str],
 ) -> pd.DataFrame:
     left, right = margins_before.align(margins_after, fill_value=0.0)
     cols = [c for c in MARGINS_VALUE_COLUMNS if c in left.columns]
@@ -142,7 +145,7 @@ def _margins_ratios(
     frame['commodity_code'] = frame['commodity_code'].astype(str)
     frame['value_column'] = frame['value_column'].astype(str)
 
-    is_industry = frame['industry_code'].isin(_INDUSTRY_SET)
+    is_industry = frame['industry_code'].isin(industry_set)
     go = frame['industry_code'].map(lambda code: _go(x, str(code))).astype(float)
     amount = np.where(
         is_industry,
@@ -172,8 +175,19 @@ def compute_redefinition_ratios(
     VA_after: pd.DataFrame,
     Uimp_after: pd.DataFrame,
     margins_after: pd.DataFrame,
+    *,
+    industry_set: frozenset[str] | None = None,
 ) -> RedefinitionRatios:
-    """Learn sparse GO ratios from a before/after MUT pair (no path I/O)."""
+    """Learn sparse GO ratios from a before/after MUT pair (no path I/O).
+
+    :param industry_set: Buyer industry codes used to filter Use / VA / Import
+        columns and to split margins industry vs non-industry buyers. Defaults
+        to the BEA 2017 detail industry set. Pass a summary (or other) industry
+        code set when learning on non-detail tables.
+    """
+    effective_industries = (
+        industry_set if industry_set is not None else _INDUSTRY_SET
+    )
     x = industry_gross_output(V_before)
     return RedefinitionRatios(
         V=_cellwise_ratios(
@@ -183,6 +197,7 @@ def compute_redefinition_ratios(
             row_name='industry',
             col_name='commodity',
             industry_is_column=False,
+            industry_set=effective_industries,
         ),
         U=_cellwise_ratios(
             U_before,
@@ -191,6 +206,7 @@ def compute_redefinition_ratios(
             row_name='row_code',
             col_name='industry',
             industry_is_column=True,
+            industry_set=effective_industries,
         ),
         VA=_cellwise_ratios(
             VA_before,
@@ -199,6 +215,7 @@ def compute_redefinition_ratios(
             row_name='row_code',
             col_name='industry',
             industry_is_column=True,
+            industry_set=effective_industries,
         ),
         Uimp=_cellwise_ratios(
             Uimp_before,
@@ -207,8 +224,14 @@ def compute_redefinition_ratios(
             row_name='row_code',
             col_name='industry',
             industry_is_column=True,
+            industry_set=effective_industries,
         ),
-        margins=_margins_ratios(margins_before, margins_after, x),
+        margins=_margins_ratios(
+            margins_before,
+            margins_after,
+            x,
+            industry_set=effective_industries,
+        ),
     )
 
 
