@@ -123,6 +123,7 @@ source_names:
         assign_fields:
           FlowName: Petroleum
           Class: Money
+        clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
         clean_source:
           EIA_MECS_Energy:
             year: *mecs_year

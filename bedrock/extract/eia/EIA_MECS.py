@@ -669,26 +669,24 @@ def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByAc
     return fba.query("ActivityConsumedBy.str.startswith('325')").reset_index(drop=True)
 
 
-# 2013 MECS Other energy / (energy + nonfuel) when the mapped NAICS has no
-# Table 2.1 / 3.1 Other ratio. Keys are MECS NAICS prefixes.
-PETROL_FUEL_RATIO_FALLBACKS: dict[str, float] = {
-    '311221': 0.93,
-    '324110': 0.43,
-    '324199': 0.45,
-    '324121': 0.45,
-    '324122': 0.45,
-    '325110': 0.95,
-    '325180': 0.91,
-    '325194': 0.76,
-    '325211': 0.99,
-    '325212': 0.84,
-    '325311': 0.50,
-    '327211': 0.00,
-    '327310': 0.98,
-    '331110': 0.96,
-    '3312': 0.70,
-    '336': 0.83,
-}
+def keep_industrial_petroleum_consumers(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
+    '''
+    clean_fba on petrol activity set. Keep ag/mining/construction/manufacturing
+    and 221200 consumers.
+    '''
+    sector_col = (
+        'SectorConsumedBy'
+        if 'SectorConsumedBy' in fba.columns
+        else 'ActivityConsumedBy'
+    )
+    sector = fba[sector_col].astype(str)
+    keep = sector.str.startswith(('11', '21', '23', '31', '32', '33')) | sector.isin(
+        frozenset({'221200'})
+    )
+
+    return fba.loc[keep].reset_index(drop=True)
 
 
 def multiply_bea_by_mecs_petroleum_energy_fraction(
@@ -697,9 +695,8 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
     '''
     clean_fba_after_attribution. Industrial petrol weights are BEA 324110
     purchases times MECS Other energy fraction Table 3.1 / (Table 2.1 + Table 3.1).
-    Join on mapped NAICS (SectorConsumedBy after Cornerstone_2025), prefix-matching
-    published MECS lines. Sectors with no MECS ratio use 2013 fallback values,
-    else 1.0. Restricts to ag/mining/construction/manufacturing plus 221200.
+    MECS ratios are mapped via Cornerstone_2025 and joined on SectorConsumedBy;
+    sectors with no MECS line use 1.0.
     '''
     clean_source = fba.config['clean_source']
     if isinstance(clean_source, str):
@@ -710,17 +707,35 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
     mecs = FlowByActivity(
         getFlowByActivity(name, year),
         full_name=name,
-        config={**get_catalog_info(name), **src_config, 'year': year},
+        config={
+            **get_catalog_info(name),
+            **src_config,
+            'year': year,
+            'activity_to_sector_mapping': fba.config['activity_to_sector_mapping'],
+            'target_naics_year': fba.config['target_naics_year'],
+            'industry_spec': fba.config['industry_spec'],
+        },
     )
-    mecs = mecs.function_socket('estimate_suppressed').select_by_fields()
+    mecs = (
+        mecs.function_socket('estimate_suppressed')
+        .select_by_fields()
+        .convert_units_and_flows()
+        .reset_index(drop=True)
+        .reset_index(names='group_id')
+        .assign(group_total=lambda x: x.FlowAmount)
+    )
+    target_year = fba.config['target_naics_year']
+    sector_col = 'SectorConsumedBy'
     t21 = (
         mecs.query("Description == 'Table 2.1'")
-        .groupby('ActivityConsumedBy')['FlowAmount']
+        .map_to_sectors(target_year=target_year)
+        .groupby(sector_col)['FlowAmount']
         .sum()
     )
     t31 = (
         mecs.query("Description == 'Table 3.1'")
-        .groupby('ActivityConsumedBy')['FlowAmount']
+        .map_to_sectors(target_year=target_year)
+        .groupby(sector_col)['FlowAmount']
         .sum()
     )
     idx = t21.index.union(t31.index)
@@ -729,29 +744,13 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
     den = t21 + t31
     ratios = (t31 / den).where(den != 0).fillna(1.0)
 
-    sector_col = (
+    bea_sector_col = (
         'SectorConsumedBy'
         if 'SectorConsumedBy' in fba.columns
         else 'ActivityConsumedBy'
     )
-    sector = fba[sector_col].astype(str)
-    industrial = sector.str.startswith(
-        ('11', '21', '23', '31', '32', '33')
-    ) | sector.eq('221200')
-    out = fba.loc[industrial].copy()
-    ratio_index = set(ratios.index.astype(str))
-
-    def ratio_for_sector(naics: str) -> float:
-        for n in range(len(naics), 0, -1):
-            key = naics[:n]
-            if key in ratio_index:
-                return float(ratios[key])
-            if key in PETROL_FUEL_RATIO_FALLBACKS:
-                return PETROL_FUEL_RATIO_FALLBACKS[key]
-        return 1.0
-
-    matched = out[sector_col].astype(str).map(ratio_for_sector)
-    return out.assign(FlowAmount=out['FlowAmount'] * matched)
+    matched = fba[bea_sector_col].astype(str).map(ratios).fillna(1.0)
+    return fba.assign(FlowAmount=fba['FlowAmount'] * matched)
 
 
 def household_petroleum_transport_fraction(config: dict[str, Any]) -> float:
