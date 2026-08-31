@@ -45,7 +45,7 @@ def y() -> pd.DataFrame:
 def test_reachable_groups_land_on_the_published_allocation(y: pd.DataFrame) -> None:
     out = condition_fd_on_summary(y, YEAR)
     groups = _commodity_to_summary()
-    published = _load_usa_summary_sut('Use_SUT_summary', YEAR)
+    published = _load_usa_summary_sut('Use_SUT_summary', YEAR)  # type: ignore[arg-type]
     published = published.apply(pd.to_numeric, errors='coerce').fillna(0.0) * 1e6
     ours = out['F01000'].groupby(groups.reindex(out.index)).sum()
     pub = published['F010'].reindex(ours.index).fillna(0.0)
