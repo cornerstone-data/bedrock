@@ -140,7 +140,7 @@ class FitResult:
 
 def interior_row_targets(year: int) -> pd.Series:
     """Per-commodity intermediate-use target: ``T016 − Σ Y``, USD."""
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         derive_initial_supply_bridge,
         derive_initial_Y_pur,
     )
@@ -168,7 +168,7 @@ def interior_column_targets(year: int) -> pd.Series:
     its stored signs (the subsidy rows are negative, so a plain sum is the
     identity).
     """
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         derive_initial_value_added,
     )
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415
@@ -211,7 +211,7 @@ def fit_interior(
     """Fit the interior for *year* to both hard-identity margins.
 
     ``seed`` defaults to
-    :func:`~bedrock.transform.eeio.nowcast.derive_initial_U_intermediate`;
+    :func:`~bedrock.transform.iot.nowcast.derive_initial_U_intermediate`;
     passing one is for tests and for re-running on an upstream row rework
     (#767) without rebuilding.
     """
@@ -222,7 +222,7 @@ def fit_interior(
             f'(transport and inventories wait on the next AIES release).'
         )
     if seed is None:
-        from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+        from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
             derive_initial_U_intermediate,
         )
 
