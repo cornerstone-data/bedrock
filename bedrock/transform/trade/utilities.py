@@ -182,11 +182,39 @@ if __name__ == '__main__':
 #: The fitted 2017 bridge (#771): which IEA categories move each export row,
 #: written by ``bedrock.utils.mapping.write_iea_export_bridge``.
 IEA_EXPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv'
+IEA_IMPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv'
 
 #: The IEA extract for the anchor year, used for the growth denominators.
 IEA_EXPORTS_2017_CSV = (
     'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Exports.csv'
 )
+
+IEA_IMPORTS_2017_CSV = (
+    'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Imports.csv'
+)
+
+
+def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """The imports mirror of :func:`bridge_iea_service_exports` (#771).
+
+    Same anchor-and-move: each service commodity's imports are its published
+    2017 Supply-table imports value times a growth blend of the IEA import
+    categories the fitted bridge feeds it from.  The prior construction
+    already weighted within-set by published imports, but the sets carried
+    the same defects as the export side - the repair category forced onto
+    rows BEA barely uses, orphaned rows omitted outright - measured at 32.8%
+    gross on the services imports column.  Noncomparable imports (S00300)
+    stay with their #766 construction; the bridge never touches S-coded
+    rows.
+    """
+    return _bridge_iea_services(
+        fba,
+        flow='Imports',
+        bridge_csv=IEA_IMPORT_BRIDGE_CSV,
+        base_csv=IEA_IMPORTS_2017_CSV,
+        anchor_table='Supply_detail',
+        anchor_column='MCIF',
+    )
 
 
 def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
@@ -211,6 +239,24 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     traveler spending) and the used/scrap rows are deliberately absent — the
     first is re-derived after the balance, the second two have no IEA source.
     """
+    return _bridge_iea_services(
+        fba,
+        flow='Exports',
+        bridge_csv=IEA_EXPORT_BRIDGE_CSV,
+        base_csv=IEA_EXPORTS_2017_CSV,
+        anchor_table='Use_SUT_detail',
+        anchor_column='F04000',
+    )
+
+
+def _bridge_iea_services(
+    fba: FlowByActivity,
+    flow: str,
+    bridge_csv: str,
+    base_csv: str,
+    anchor_table: str,
+    anchor_column: str,
+) -> FlowByActivity:
     import numpy as np  # noqa: PLC0415
 
     if fba.empty:
@@ -219,11 +265,11 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         int(fba['Year'].iloc[0]) if 'Year' in fba.columns else int(fba.config['year'])
     )
 
-    bridge = pd.read_csv(IEA_EXPORT_BRIDGE_CSV, dtype={'commodity': str})
-    base_raw = pd.read_csv(IEA_EXPORTS_2017_CSV)
+    bridge = pd.read_csv(bridge_csv, dtype={'commodity': str})
+    base_raw = pd.read_csv(base_csv)
     base = (
         base_raw[
-            (base_raw['TradeDirection'] == 'Exports')
+            (base_raw['TradeDirection'] == flow)
             & (base_raw['Affiliation'] == 'AllAffiliations')
             & (base_raw['AreaOrCountry'] == 'AllCountries')
         ]
@@ -232,7 +278,7 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     )
 
     frame = pd.DataFrame(fba)
-    exports = frame[frame['FlowName'].astype(str) == 'Exports']
+    exports = frame[frame['FlowName'].astype(str) == flow]
     now = (
         exports.groupby(exports['ActivityProducedBy'].astype(str))['FlowAmount']
         .sum()
@@ -247,9 +293,9 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         _load_2017_detail_supply_use_usa,
     )
 
-    use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
-    use.columns = use.columns.str.strip()
-    published = pd.to_numeric(use['F04000'], errors='coerce').fillna(0.0)
+    anchor = _load_2017_detail_supply_use_usa(anchor_table)  # type: ignore[arg-type]
+    anchor.columns = anchor.columns.str.strip()
+    published = pd.to_numeric(anchor[anchor_column], errors='coerce').fillna(0.0)
 
     bridge['g'] = bridge['category'].map(growth)
     # a category unpublished in year t contributes its 2017 weight at growth 1
@@ -266,7 +312,7 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         if amount <= 0:
             continue
         row = template.copy()
-        row['FlowName'] = 'Exports'
+        row['FlowName'] = flow
         row['FlowAmount'] = float(amount)
         row['Unit'] = 'USD'
         row['Class'] = 'Money'
@@ -274,7 +320,8 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         row['ActivityProducedBy'] = commodity
         row['ActivityConsumedBy'] = None
         row['Description'] = (
-            'published 2017 F04000 x IEA category growth blend (#771 bridge)'
+            f'published 2017 {anchor_column} x IEA category growth blend '
+            f'(#771 bridge, {flow})'
         )
         rows.append(row)
     out = pd.concat(rows, ignore_index=True)

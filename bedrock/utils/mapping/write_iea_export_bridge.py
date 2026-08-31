@@ -36,35 +36,55 @@ import pandas as pd
 
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 
-OUTPUT = Path('bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv')
-CROSSWALK = Path(
-    'bedrock/utils/mapping/activitytosectormapping/Sector_Crosswalk_BEA_IEA_exports.csv'
-)
-IEA_2017 = Path('bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Exports.csv')
+#: Per direction: (bridge csv, crosswalk, IEA 2017 extract, anchor column,
+#: anchor table).  Exports anchor on the Use table's export column; imports
+#: on the Supply table's imports column.  The S-coded rows (rest-of-world
+#: adjustment, noncomparable imports, used/scrap) are excluded by the
+#: service-row filter in :func:`build` — #766 owns noncomparable imports.
+DIRECTIONS: dict[str, tuple[str, str, str, str, str]] = {
+    'Exports': (
+        'bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv',
+        'bedrock/utils/mapping/activitytosectormapping/'
+        'Sector_Crosswalk_BEA_IEA_exports.csv',
+        'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Exports.csv',
+        'F04000',
+        'Use_SUT_detail',
+    ),
+    'Imports': (
+        'bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv',
+        'bedrock/utils/mapping/activitytosectormapping/'
+        'Sector_Crosswalk_BEA_IEA_imports.csv',
+        'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Imports.csv',
+        'MCIF',
+        'Supply_detail',
+    ),
+}
 
 #: RAS sweeps.  The support is ~45 x 90 and converges in tens of sweeps; the
 #: cap is generous because the margins are inconsistent and never fully close.
 SWEEPS = 500
 
 
-def category_totals_2017() -> pd.Series:
-    frame = pd.read_csv(IEA_2017)
+def category_totals_2017(direction: str = 'Exports') -> pd.Series:
+    frame = pd.read_csv(DIRECTIONS[direction][2])
     frame = frame[
-        (frame['TradeDirection'] == 'Exports')
+        (frame['TradeDirection'] == direction)
         & (frame['Affiliation'] == 'AllAffiliations')
         & (frame['AreaOrCountry'] == 'AllCountries')
     ]
     return frame.set_index('TypeOfService')['DataValue'].astype(float)
 
 
-def build() -> pd.DataFrame:
-    crosswalk = pd.read_csv(CROSSWALK, dtype=str)
-    totals = category_totals_2017()
+def build(direction: str = 'Exports') -> pd.DataFrame:
+    _, crosswalk_path, _, anchor_column, anchor_table = DIRECTIONS[direction]
+    crosswalk = pd.read_csv(crosswalk_path, dtype=str)
+    totals = category_totals_2017(direction)
     categories = sorted(set(crosswalk['Activity']) & set(totals.index))
 
-    use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
-    use.columns = use.columns.str.strip()
-    published = pd.to_numeric(use['F04000'], errors='coerce').fillna(0.0)
+    table = _load_2017_detail_supply_use_usa(anchor_table)  # type: ignore[arg-type]
+    table.columns = table.columns.str.strip()
+    published = pd.to_numeric(table[anchor_column], errors='coerce').fillna(0.0)
+    published = published[[c for c in published.index if str(c)[0] in '45678']]
 
     support = {
         category: sorted(crosswalk.loc[crosswalk['Activity'] == category, 'Sector'])
@@ -101,15 +121,17 @@ def build() -> pd.DataFrame:
 
 
 def main() -> int:
-    table = build()
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    table.to_csv(OUTPUT, index=False, float_format='%.6f')
-    check = table.groupby('commodity')['share'].sum()
-    print(
-        f'wrote {len(table)} coefficients for {check.size} commodities to '
-        f'{OUTPUT}; worst share-sum deviation from 1: '
-        f'{float((check - 1).abs().max()):.2e}'
-    )
+    for direction, (output, *_rest) in DIRECTIONS.items():
+        table = build(direction)
+        out = Path(output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        table.to_csv(out, index=False, float_format='%.6f')
+        check = table.groupby('commodity')['share'].sum()
+        print(
+            f'{direction}: {len(table)} coefficients for {check.size} '
+            f'commodities -> {out}; worst share-sum deviation from 1: '
+            f'{float((check - 1).abs().max()):.2e}'
+        )
     return 0
 
 

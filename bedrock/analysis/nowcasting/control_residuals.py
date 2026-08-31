@@ -160,6 +160,13 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: substantive counts before the fix were 2-12 per year; the guard in
 #: ``nowcast_trade_margins.check_giveup_solvency`` now fails the build itself
 #: on anything beyond dust, so this baseline is a backstop, not the instrument.
+#: ⚠️ 2018 and 2023 rose (8.6 -> 10.1, 20.4 -> 21.6) when the services trade
+#: vectors were anchored on the published 2017 mixes (#771 and its imports
+#: mirror).  That is an unmasking, not a regression: the old constructions'
+#: errors partially cancelled interior-row errors, and correcting one side of
+#: a two-sided identity surfaces the other side's own gap.  The interior fit
+#: is the instrument that absorbs it.
+#:
 #: ``t11_pct`` — the supply-equals-use gap per commodity as a percent of total
 #: intermediate use — joined the baseline 2026-08-30, the first time the whole
 #: span was measurable on one tree (the 2018-19 interiors, the published-level
@@ -171,12 +178,12 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: target went 15.9% -> 1.4% and 8-12 infeasible commodities -> 0.
 BASELINE: dict[int, dict[str, float]] = {
     2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 4.9},
-    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 8.6},
+    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 10.1},
     2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 11.6},
     2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 19.3},
     2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 18.1},
     2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 20.0},
-    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 20.4},
+    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 21.6},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA
