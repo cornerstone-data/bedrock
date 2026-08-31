@@ -184,14 +184,22 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: targeted.  The stack moved it 21-23% -> 17.5-19.9%; the column identity
 #: and feasibility it did target went 15.9% -> 1.4% and 8-12 infeasible
 #: commodities -> 0.
+#: ⚠️ ``t11_pct`` values include the final-demand summary conditioning
+#: (:mod:`~bedrock.transform.iot.nowcast_fd_conditioning`), which moved the
+#: span 3.8/8.4/11.0/18.7/17.5/19.6/19.9 -> the recorded values: within a
+#: point everywhere, as its pre-wiring counterfactual predicted -- the
+#: final-demand errors partially offset interior-row errors, and the point of
+#: the conditioning is correct row targets for the interior fit, not this
+#: aggregate.  The row-level effect is where to look: 541511's 2023 residual
+#: fell -75,754 -> -29,878 $M.
 BASELINE: dict[int, dict[str, float]] = {
     2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 3.8},
-    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 8.4},
-    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 11.0},
-    2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 18.7},
-    2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 17.5},
-    2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 19.6},
-    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 19.9},
+    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 8.5},
+    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 10.9},
+    2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 18.5},
+    2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 16.7},
+    2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 18.7},
+    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 20.4},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA

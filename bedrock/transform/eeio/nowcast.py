@@ -67,6 +67,10 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.iot.nowcast_fd_conditioning import (
+    SUMMARY_SUT_YEARS,
+    condition_fd_on_summary,
+)
 from bedrock.transform.iot.nowcast_intermediate import (
     derive_intermediate_use,
 )
@@ -359,6 +363,15 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     F04000 is mapped Trade_Exports_<year> Detail mass for every year in
     ``TRADE_OVERLAY_YEARS``. S00900/F04000 uses the rest-of-world identity
     against frozen 2017 Supply T016.
+
+    The seventeen NIPA-built columns are **conditioned on the published annual
+    summary Use SUT** before the overlays
+    (:mod:`~bedrock.transform.iot.nowcast_fd_conditioning`): each detail cell
+    scaled to its summary group's published value, per column, per year, so
+    the 2017-frozen bridge and Use-column shapes inside each NIPA line cannot
+    drift the allocation where BEA publishes an annual observation. Ordered
+    before the trade overlay so the rest-of-world identity reads the
+    conditioned PCE.
     """
     fbs = FlowBySector.generateFlowBySector(
         f'NIPA_final_dom_uses_{year}', download_sources_ok=download_sources_ok
@@ -383,6 +396,9 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
     if 'S00900' not in y.index:
         y.loc['S00900'] = 0.0
+
+    if year in SUMMARY_SUT_YEARS:
+        y = condition_fd_on_summary(y, year)
 
     if year in TRADE_OVERLAY_YEARS:
         exports = _trade_fbs_commodity_vector(
