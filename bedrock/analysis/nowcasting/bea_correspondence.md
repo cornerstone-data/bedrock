@@ -285,7 +285,49 @@ answer is framed around a different set.
 
 ---
 
-## 2025-06-24 — Negative margins in the 2017 Margins table
+## 2026-08-31 — Why couriers and messengers are not a margin sector
+
+**Question put by Wes:** why `492000` couriers and messengers is not considered
+a margin sector.
+
+**Answered:** reply received 2026-08-31 (forwarded by Wes; correspondent not
+named in the forward — same BEA distributive-services thread as above).
+
+### What BEA said
+
+> In response to your first question, courier transportation is not considered
+> margin. Couriers are paid to transport products that have already been
+> purchased so they don't affect the price of the good. It is considered a
+> separate transaction. That said, we do believe a portion of courier output
+> is, in fact, freight-related and therefore technically margin-related, but
+> the Economic Census does not give us specific freight product lines for
+> couriers so we don't know how much or little of the couriers output is
+> margin-related. Also, the imports/exports of couriers is actually related to
+> air freight transportation. Our international trade data estimates more
+> exports of air transportation than Census provides as revenue so we have to
+> convert a portion of air couriers as air freight in order to meet our export
+> controls. Imports also come from the international directorate, but those
+> data are treated as non-margin like all other courier revenue.
+
+### What it changed
+
+1. **Confirmed the courier exclusion from `TRANS`, and closed it as
+   unimprovable.** Couriers are non-margin **by convention** — payment for
+   transporting an already-purchased good is a separate transaction, not part
+   of the purchaser price. BEA itself believes a portion of courier output is
+   "technically margin-related" but cannot split it, because the Economic
+   Census publishes no freight product lines for couriers. So our margin modes
+   reproduce BEA exactly here, and no data source exists for either side to do
+   better — the gap is a property of the source, not of the method.
+2. **Explained the courier trade booking.** BEA *converts* a portion of air
+   courier exports into air freight (`481000`-side) because ITA's air
+   transport exports exceed Census's revenue reading — which supports the IEA
+   crosswalk mapping `TransportAirFreight` onto both `481000` and `492000`
+   rather than air carriers alone. Courier **imports** come from the
+   international directorate and are treated non-margin like all other courier
+   revenue — consistent with the small but nonzero published courier `MCIF`
+   (44 $M in 2017) that the never-imported mask set deliberately does not
+   cover.
 
 **Answered by:** William (Billy) Jolliff, BEA.
 
