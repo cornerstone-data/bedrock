@@ -25,7 +25,7 @@ import pandas as pd
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
-from bedrock.transform.eeio.nowcast import derive_initial_Y_pur
+from bedrock.transform.iot.nowcast import derive_initial_Y_pur
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 

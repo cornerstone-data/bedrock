@@ -13,11 +13,11 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
-from bedrock.transform.eeio.nowcast import (
+from bedrock.transform.iot import nowcast_transport_margins as tm
+from bedrock.transform.iot.nowcast import (
     TRANSPORT_MARGIN_YEARS,
     derive_initial_supply_bridge,
 )
-from bedrock.transform.iot import nowcast_transport_margins as tm
 from bedrock.transform.iot.nowcast_transport_margins import (
     MODE_COMMODITIES,
     PIPELINE_ITEM_CODES,

@@ -40,7 +40,7 @@ nowcast's own blocks for 2017-2023 and shows the RAS converges on them.
 
 ✅ **The stated blocker is CLEARED as of 2026-08-28.**
 `Inventories_<year>.yaml` ships **2017-2023** ([#746](https://github.com/cornerstone-data/bedrock/pull/746)),
-and [`nowcast.py`](../../../transform/eeio/nowcast.py) now gates on
+and [`nowcast.py`](../../../transform/iot/nowcast.py) now gates on
 `INVENTORIES_YEARS = range(2017, 2024)` rather than `if year == 2017:`, so
 `derive_initial_Y_pur` attaches `F03000` for every year the method covers.
 

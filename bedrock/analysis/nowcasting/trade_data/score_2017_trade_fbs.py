@@ -23,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
-from bedrock.transform.eeio.nowcast import _trade_fbs_commodity_vector
+from bedrock.transform.iot.nowcast import _trade_fbs_commodity_vector
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 

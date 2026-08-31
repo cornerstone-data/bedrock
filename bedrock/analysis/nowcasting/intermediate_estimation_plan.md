@@ -2515,7 +2515,7 @@ did not stay candidate-less.** S1 landed in the same change, so
 **S1. The seed, per #497, plus the column control** — ✅ **built.**
 [`nowcast_intermediate.py`](../../transform/iot/nowcast_intermediate.py) carries
 the three moves and
-[`nowcast.py`](../../transform/eeio/nowcast.py)`.derive_initial_U_intermediate`
+[`nowcast.py`](../../transform/iot/nowcast.py)`.derive_initial_U_intermediate`
 is the entry point. Seed from `Use_SUT_Framework_2017_DET` (native SUT, native
 purchaser, native before-redefinitions — no conversion round-trip), carry the
 column shares on the commodity price ratio at **θ as an argument**, defaulting to

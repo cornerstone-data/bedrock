@@ -223,7 +223,7 @@ def seed_commodity_output(
     """``T007`` from the **uncontrolled** block, USD by commodity.
 
     ⚠️ **The allocators that sit upstream of this control must call this, not
-    :func:`~bedrock.transform.eeio.nowcast._supply_fbs_commodity_vector`.**  Two
+    :func:`~bedrock.transform.iot.nowcast._supply_fbs_commodity_vector`.**  Two
     of them use commodity output as a weight and are then consumed, indirectly,
     by the tax wedge this module subtracts from its own target:
 
