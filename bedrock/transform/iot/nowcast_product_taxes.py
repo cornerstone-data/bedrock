@@ -453,7 +453,7 @@ def residual_share() -> pd.Series:
 
 
 #: Last year the margin columns reach, so the last year the purchaser-price base
-#: can be built. Kept local rather than imported from ``eeio.nowcast``, which
+#: can be built. Kept local rather than imported from ``iot.nowcast``, which
 #: imports this module.
 _LAST_MARGIN_YEAR = 2023
 
@@ -465,7 +465,7 @@ def purchaser_base(year: int) -> pd.Series:
 
     This is the annual base the residual moves on. It is assembled from the
     bridge's *components* rather than from
-    :func:`~bedrock.transform.eeio.nowcast.derive_initial_supply_bridge`, which
+    :func:`~bedrock.transform.iot.nowcast.derive_initial_supply_bridge`, which
     would be circular: the bridge calls :func:`top_column`, so ``TOP`` cannot
     read the finished bridge back.
 

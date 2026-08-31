@@ -392,7 +392,7 @@ def initial_Y_pur_candidate(year: int) -> pd.DataFrame:
     the one the section should use once the FBS runs again; see
     :func:`initial_Y_pur_exported_candidate` for why it currently does not.
     """
-    from bedrock.transform.eeio.nowcast import derive_initial_Y_pur  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import derive_initial_Y_pur  # noqa: PLC0415
 
     return derive_initial_Y_pur(year)
 
@@ -404,7 +404,7 @@ def initial_value_added_candidate(year: int) -> pd.DataFrame:
     ``NIPA_VA_*_2017`` methods. 2017 only -- the later-year files wait on the
     compensation movement series.
     """
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         derive_initial_value_added,
     )
 
@@ -459,7 +459,7 @@ def initial_supply_bridge_candidate(year: int) -> pd.DataFrame:
     Runs ``derive_initial_supply_bridge``. T007 and MCIF are sourced; other
     columns are unsourced.
     """
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         derive_initial_supply_bridge,
     )
 
@@ -475,7 +475,7 @@ def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
     the movement is scored on the summary panel by
     ``intermediate_structure_drift``, not here.
     """
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         derive_initial_U_intermediate,
     )
 

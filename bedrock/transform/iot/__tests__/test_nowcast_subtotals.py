@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.transform.eeio.nowcast import (
+from bedrock.transform.iot.nowcast import (
     _SUPPLY_BRIDGE_CODES,
     USE_VALUE_ADDED_ROWS,
     fill_supply_bridge_subtotals,

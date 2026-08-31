@@ -23,11 +23,11 @@ import pandas as pd
 import pytest
 
 from bedrock.analysis.nowcasting.tax_axis_conversion import _frames, published_row
-from bedrock.transform.eeio.nowcast import (
+from bedrock.transform.iot import nowcast_va_taxes as vt
+from bedrock.transform.iot.nowcast import (
     USE_VALUE_ADDED_ROWS,
     derive_initial_value_added,
 )
-from bedrock.transform.iot import nowcast_va_taxes as vt
 from bedrock.transform.iot.nowcast_product_taxes import top_by_level, top_column
 from bedrock.transform.iot.nowcast_subsidies import sub_column
 from bedrock.transform.trade.duties import mdty_detail_usd

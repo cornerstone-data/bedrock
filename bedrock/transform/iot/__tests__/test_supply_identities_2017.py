@@ -161,7 +161,7 @@ def test_the_derived_bridge_reproduces_the_identities(supply: pd.DataFrame) -> N
     subtotals from the components — which is exactly why it is worth pinning:
     the construction is what a change would alter.
     """
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         derive_initial_supply_bridge,
     )
 

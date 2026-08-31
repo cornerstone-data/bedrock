@@ -438,7 +438,7 @@ def test_water_filling_refuses_an_infeasible_group() -> None:
 
 def test_capped_allocation_leaves_every_giver_solvent() -> None:
     """The 2023 column, built with output as the bridge builds it."""
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
         _supply_fbs_commodity_vector,
     )
 

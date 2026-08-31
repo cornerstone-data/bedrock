@@ -167,7 +167,7 @@ Sign convention
 ----------------
 
 ⚠️ ``T00SUB`` is returned **negative** here, matching
-:data:`~bedrock.transform.eeio.nowcast._USE_VALUE_ADDED_SUBTOTALS` and
+:data:`~bedrock.transform.iot.nowcast._USE_VALUE_ADDED_SUBTOTALS` and
 ``nowcast_mask.published_2017_panel`` - the balance's convention, so ``VAPRO``
 *adds* it. BEA publishes the Use row positive and subtracts it. Feeding a
 BEA-signed row into the subtotals silently doubles the subsidy wedge.

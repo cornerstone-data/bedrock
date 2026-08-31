@@ -45,7 +45,7 @@ from bedrock.analysis.nowcasting.table_match import (
     TableMatch,
     compare_tables,
 )
-from bedrock.transform.eeio.nowcast import _trade_fbs_commodity_vector
+from bedrock.transform.iot.nowcast import _trade_fbs_commodity_vector
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 
 YEAR = 2017

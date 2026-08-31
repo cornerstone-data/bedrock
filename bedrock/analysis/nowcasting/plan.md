@@ -160,7 +160,7 @@ Two consequences run through the whole plan:
 
 ## Grounding: what already exists
 
-**Module.** [`bedrock/transform/eeio/nowcast.py`](../../transform/eeio/nowcast.py) exists and
+**Module.** [`bedrock/transform/iot/nowcast.py`](../../transform/iot/nowcast.py) exists and
 currently implements exactly one thing: `derive_initial_Y_pur(year)` — the final-demand block of the
 SUT Use table, purchaser price, BEA_2017_Detail schema, from the `NIPA_final_dom_uses_<year>` FBS methods. It
 handles the Cornerstone-schema collapse problem via `map_fbs_sectors_to_model_schema` applied to both

@@ -98,16 +98,16 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
-from bedrock.transform.eeio.nowcast import (
+from bedrock.transform.iot.derived_intermediate_and_value_added import (
+    detail_gross_output_panel,
+    detail_intermediate_inputs_panel,
+)
+from bedrock.transform.iot.nowcast import (
     _supply_fbs_commodity_vector,
     derive_initial_supply_bridge,
     derive_initial_U_intermediate,
     derive_initial_value_added,
     derive_initial_Y_pur,
-)
-from bedrock.transform.iot.derived_intermediate_and_value_added import (
-    detail_gross_output_panel,
-    detail_intermediate_inputs_panel,
 )
 from bedrock.transform.iot.nowcast_supply_go_control import (
     go_controlled_supply_block,
@@ -305,7 +305,7 @@ def t11_residual(year: int) -> pd.DataFrame:
     """Per-commodity residual on the supply-equals-use identity, million USD.
 
     ⚠️ Slow, and it **raises for 2018 and 2019** (#770):
-    :func:`~bedrock.transform.eeio.nowcast.derive_initial_U_intermediate` has no
+    :func:`~bedrock.transform.iot.nowcast.derive_initial_U_intermediate` has no
     Use interior for those years.  That is the finding, not a defect here.
     """
     scale = MILLION_CURRENCY_TO_CURRENCY

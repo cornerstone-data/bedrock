@@ -57,7 +57,7 @@ Prototypes scored on 2017 Trade FBS; not shipped.
 
 ### Overlay (nowcast)
 
-`bedrock.transform.eeio.nowcast._trade_fbs_commodity_vector` aggregates Trade FBS to Detail and drops non-SUT commodity codes (e.g. industry-only `331314`) before writing Use `F04000` and Supply `MCIF` for every year in `TRADE_OVERLAY_YEARS` (2017–2024). FBS parquet is the same mapped mass. `S00900` / `F04000` is the Y identity after overlay (not part of the Trade vector); the Supply `T016[S00900]` half is the frozen 2017 published value. `bedrock.transform.trade.scale.scale_amounts_to_ita` can multiply a Detail series to ITA G+S; nowcast does not call it (#647).
+`bedrock.transform.iot.nowcast._trade_fbs_commodity_vector` aggregates Trade FBS to Detail and drops non-SUT commodity codes (e.g. industry-only `331314`) before writing Use `F04000` and Supply `MCIF` for every year in `TRADE_OVERLAY_YEARS` (2017–2024). FBS parquet is the same mapped mass. `S00900` / `F04000` is the Y identity after overlay (not part of the Trade vector); the Supply `T016[S00900]` half is the frozen 2017 published value. `bedrock.transform.trade.scale.scale_amounts_to_ita` can multiply a Detail series to ITA G+S; nowcast does not call it (#647).
 
 ## 2017 nowcast scorecard
 
