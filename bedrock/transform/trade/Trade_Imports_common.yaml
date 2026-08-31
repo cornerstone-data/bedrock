@@ -37,17 +37,25 @@ source_names:
   BEA_IEA:
     geoscale: national
     data_format: FBA
-    activity_to_sector_mapping: BEA_IEA_imports
+    # ⚠️ The service rows arrive PRE-BRIDGED to BEA commodities, mirroring the
+    # export side (#771): published 2017 imports value per row, moved by a
+    # growth blend of the IEA import categories the fitted bridge
+    # (iea_import_bridge.csv) feeds it from. The prior within-set published
+    # weighting kept category sets that fabricated on rows BEA barely uses and
+    # omitted rows outright - 32.8% gross on the services imports column.
+    # Noncomparable imports (S00300) bypass the bridge: the sixteen IEA leaves
+    # the crosswalk routes to S00300 pass through as one direct row whose sum
+    # is the #766 construction (the bridge itself never emits S-coded rows).
+    activity_schema:
+      bea:
+        year: 2017
+        hierarchy: flat
+    clean_fba_before_activity_sets: !clean_function:trade.utilities bridge_iea_service_imports
     activity_sets:
       service_imports:
         selection_fields:
           FlowName: Imports
-        exclusion_fields:
-          ActivityProducedBy: [AllTypesOfService]
-        attribution_method: proportional
-        attribution_source:
-          BEA_Detail_Supply:
-            <<: *supply_mcif
+        attribution_method: direct
 
   # Physical electricity trade (#668): EIA Table 2.14 MWh × Census HS 2716
   # unit value. Import stubs inherit this source from the common body.

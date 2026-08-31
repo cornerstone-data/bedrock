@@ -160,23 +160,38 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: substantive counts before the fix were 2-12 per year; the guard in
 #: ``nowcast_trade_margins.check_giveup_solvency`` now fails the build itself
 #: on anything beyond dust, so this baseline is a backstop, not the instrument.
+#: ⚠️ The first imports mirror of #771 dropped ``S00300`` noncomparable imports
+#: entirely — the bridged clean function replaced every IEA category row and
+#: the fitted bridge never emits S-coded rows, so the sixteen leaves the
+#: crosswalk routes to ``S00300`` (253,131-357,492 $M of supply per year,
+#: #766's construction) vanished, zeroing the supply of the largest T11
+#: residual row.  A rise recorded at the time (2018 8.6 -> 10.1, 2023
+#: 20.4 -> 21.6) was read as an unmasking of interior-row error; most of it
+#: was this bug.  With the pass-through restored the #771/#772 anchor-true
+#: vectors IMPROVE the row identity against the pre-#771 numbers (2018 8.4
+#: against 8.6, 2023 19.9 against 20.4).  What remains true from that
+#: episode: correcting one side of a two-sided identity can surface the other
+#: side's own gap, so a T11 rise under a verified-correct fix is not by
+#: itself a regression — but verify the fix before writing the narrative.
+#:
 #: ``t11_pct`` — the supply-equals-use gap per commodity as a percent of total
 #: intermediate use — joined the baseline 2026-08-30, the first time the whole
 #: span was measurable on one tree (the 2018-19 interiors, the published-level
 #: trade margins and the census-conditioned output all landed in one stack).
-#: ⚠️ **It is the remaining pre-Step-5 blocker**: ~18-20% in 2020-2023, owned
-#: by the commodity-ROW blocks (real estate rows, services exports #771,
-#: transport mix #772, imports) that the stack never targeted.  The stack
-#: moved it 21-23% -> 18-20%; the column identity and feasibility it did
-#: target went 15.9% -> 1.4% and 8-12 infeasible commodities -> 0.
+#: ⚠️ **It is the remaining pre-Step-5 blocker**: ~17.5-19.9% in 2020-2023,
+#: owned by the commodity-ROW blocks (real estate rows, subsidies #784,
+#: imports composition #785, the interior carry) that the stack never
+#: targeted.  The stack moved it 21-23% -> 17.5-19.9%; the column identity
+#: and feasibility it did target went 15.9% -> 1.4% and 8-12 infeasible
+#: commodities -> 0.
 BASELINE: dict[int, dict[str, float]] = {
-    2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 4.9},
-    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 9.1},
-    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 11.6},
-    2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 19.3},
-    2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 18.1},
-    2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 20.0},
-    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 20.4},
+    2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 3.8},
+    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 8.4},
+    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 11.0},
+    2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 18.7},
+    2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 17.5},
+    2022: {'t17_pct': 6.7, 'insolvent': 1, 't11_pct': 19.6},
+    2023: {'t17_pct': 1.4, 'insolvent': 0, 't11_pct': 19.9},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA

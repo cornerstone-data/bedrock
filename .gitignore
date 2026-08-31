@@ -31,6 +31,11 @@ __pycache__/
 !bedrock/utils/**/*.csv
 # Nowcasting scorecard baselines must be tracked in git.
 !bedrock/analysis/nowcasting/trade_data/score_2017_trade_detail_baseline.csv
+# The fitted IEA service bridges (#771): the build reads these at FBS
+# generation time, so an untracked copy means every imports/exports consumer
+# fails on a fresh clone (CI included) with FileNotFoundError.
+!bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv
+!bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
 !bedrock/extract/external_data/*.csv

@@ -178,3 +178,181 @@ if __name__ == '__main__':
     written = refresh_hs2716_electricity_unit_value_csv()
     print(f'Wrote {written}')
     print(pd.read_csv(written).to_string(index=False))
+
+#: The fitted 2017 bridge (#771): which IEA categories move each export row,
+#: written by ``bedrock.utils.mapping.write_iea_export_bridge``.
+IEA_EXPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv'
+IEA_IMPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv'
+
+#: The IEA extract for the anchor year, used for the growth denominators.
+IEA_EXPORTS_2017_CSV = (
+    'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Exports.csv'
+)
+
+IEA_IMPORTS_2017_CSV = (
+    'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Imports.csv'
+)
+
+#: The activity-to-sector crosswalk for IEA imports; `_bridge_iea_services`
+#: reads the S00300 rows off it so the noncomparable pass-through and the
+#: FBS attribution can never disagree about which leaves are noncomparable.
+IEA_IMPORTS_CROSSWALK_CSV = (
+    'bedrock/utils/mapping/activitytosectormapping/'
+    'Sector_Crosswalk_BEA_IEA_imports.csv'
+)
+
+
+def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """The imports mirror of :func:`bridge_iea_service_exports` (#771).
+
+    Same anchor-and-move: each service commodity's imports are its published
+    2017 Supply-table imports value times a growth blend of the IEA import
+    categories the fitted bridge feeds it from.  The prior construction
+    already weighted within-set by published imports, but the sets carried
+    the same defects as the export side - the repair category forced onto
+    rows BEA barely uses, orphaned rows omitted outright - measured at 32.8%
+    gross on the services imports column.
+
+    ⚠️ Noncomparable imports (``S00300``) do NOT go through the bridge - the
+    bridge never emits S-coded rows.  The sixteen IEA leaves the crosswalk
+    routes to ``S00300`` (port charges, travel-other, construction abroad,
+    the non-software IP licenses, ...) pass through as one direct row
+    instead: their plain sum **is** the #766 construction, 261,261 against
+    260,421 published at 2017.  Every one of them maps to ``S00300`` alone,
+    so the sum equals what the pre-bridge proportional attribution produced.
+    Dropping them - which the first version of this mirror did - zeroes the
+    entire supply of the largest T11 residual row (369,911m of 2023 use
+    against no supply at all).
+    """
+    return _bridge_iea_services(
+        fba,
+        flow='Imports',
+        bridge_csv=IEA_IMPORT_BRIDGE_CSV,
+        base_csv=IEA_IMPORTS_2017_CSV,
+        anchor_table='Supply_detail',
+        anchor_column='MCIF',
+        noncomparable_csv=IEA_IMPORTS_CROSSWALK_CSV,
+    )
+
+
+def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """Anchor-and-move the service exports onto BEA commodities (#771).
+
+    ``clean_fba_before_activity_sets`` on ``BEA_IEA``: replaces the
+    service-category export rows with one row per BEA commodity whose amount is
+    the commodity's **published 2017 exports times a growth index** — the index
+    a share-weighted blend of the IEA categories the fitted bridge says feed
+    that row, each category's growth taken against its own 2017 total.
+
+    Why not attribute categories onto commodities directly: ITA's service
+    definitions are not BEA's commodity bridge.  Fitted jointly at 2017, the
+    category totals and the published rows disagree by ~254bn gross —
+    splitting each category across a commodity set fabricated exports wherever
+    the set was wrong (electronics repair carried 815x its published exports).
+    Anchoring each row on its published 2017 value makes 2017 exact by
+    construction and confines the category-definition mismatch to the growth
+    weights.
+
+    ⚠️ The rest-of-world adjustment row (``S00900``, where BEA books most
+    traveler spending) and the used/scrap rows are deliberately absent — the
+    first is re-derived after the balance, the second two have no IEA source.
+    """
+    return _bridge_iea_services(
+        fba,
+        flow='Exports',
+        bridge_csv=IEA_EXPORT_BRIDGE_CSV,
+        base_csv=IEA_EXPORTS_2017_CSV,
+        anchor_table='Use_SUT_detail',
+        anchor_column='F04000',
+    )
+
+
+def _bridge_iea_services(
+    fba: FlowByActivity,
+    flow: str,
+    bridge_csv: str,
+    base_csv: str,
+    anchor_table: str,
+    anchor_column: str,
+    noncomparable_csv: str | None = None,
+) -> FlowByActivity:
+    import numpy as np  # noqa: PLC0415
+
+    if fba.empty:
+        return fba
+
+    bridge = pd.read_csv(bridge_csv, dtype={'commodity': str})
+    base_raw = pd.read_csv(base_csv)
+    base = (
+        base_raw[
+            (base_raw['TradeDirection'] == flow)
+            & (base_raw['Affiliation'] == 'AllAffiliations')
+            & (base_raw['AreaOrCountry'] == 'AllCountries')
+        ]
+        .set_index('TypeOfService')['DataValue']
+        .astype(float)
+    )
+
+    frame = pd.DataFrame(fba)
+    exports = frame[frame['FlowName'].astype(str) == flow]
+    now = (
+        exports.groupby(exports['ActivityProducedBy'].astype(str))['FlowAmount']
+        .sum()
+        .astype(float)
+    )
+    # FBA amounts are USD; the 2017 extract csv is $M — growth is a ratio, so
+    # only consistency within each side matters.
+    growth = (now / 1e6) / base.reindex(now.index)
+    growth = growth.replace([np.inf, -np.inf], np.nan)
+
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    anchor = _load_2017_detail_supply_use_usa(anchor_table)  # type: ignore[arg-type]
+    anchor.columns = anchor.columns.str.strip()
+    published = pd.to_numeric(anchor[anchor_column], errors='coerce').fillna(0.0)
+
+    bridge['g'] = bridge['category'].map(growth)
+    # a category unpublished in year t contributes its 2017 weight at growth 1
+    # (absence is not a collapse) — same rule the SAS panel applies.
+    bridge['g'] = bridge['g'].fillna(1.0)
+    index = bridge.groupby('commodity').apply(
+        lambda t: float((t['share'] * t['g']).sum() / t['share'].sum())
+    )
+    amounts = published.reindex(index.index).fillna(0.0) * index * 1e6  # USD
+
+    # The categories the crosswalk routes to S00300 bypass the bridge: each
+    # maps to S00300 alone, so their plain sum reproduces the pre-bridge
+    # proportional attribution exactly (#766).
+    if noncomparable_csv is not None:
+        crosswalk = pd.read_csv(noncomparable_csv, dtype=str)
+        noncomparable = sorted(
+            set(crosswalk.loc[crosswalk['Sector'] == 'S00300', 'Activity'])
+        )
+        amounts['S00300'] = float(now.reindex(noncomparable).fillna(0.0).sum())
+
+    template = fba.iloc[[0]].copy()
+    rows = []
+    for commodity, amount in amounts.items():
+        if amount <= 0:
+            continue
+        row = template.copy()
+        row['FlowName'] = flow
+        row['FlowAmount'] = float(amount)
+        row['Unit'] = 'USD'
+        row['Class'] = 'Money'
+        row['Location'] = US_FIPS
+        row['ActivityProducedBy'] = commodity
+        row['ActivityConsumedBy'] = None
+        row['Description'] = (
+            'sum of the IEA leaves crosswalked to S00300 (#766)'
+            if commodity == 'S00300'
+            else f'published 2017 {anchor_column} x IEA category growth blend '
+            f'(#771 bridge, {flow})'
+        )
+        rows.append(row)
+    out = pd.concat(rows, ignore_index=True)
+    return FlowByActivity(
+        out, full_name=fba.full_name, config=fba.config, convert_df_to_flowby=True
+    )
