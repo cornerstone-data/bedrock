@@ -2,6 +2,15 @@
 Should the Supply block's industry axis be controlled to BEA's detail gross
 output? (Step 4a, #570) — a prototype, not a build step.
 
+✅ **SUPERSEDED (2026-08-29): the answer is yes, and the build step exists** —
+:mod:`bedrock.transform.iot.nowcast_supply_go_control`, shipped with #724/PR
+#776. Both defects flagged below are resolved there differently than here: the
+target reads ``detail_gross_output_panel`` (``UGO305-A``, the series ``T1``
+imposes) rather than :func:`derive_gross_output`, whose duplicate-code
+aggregation was the suspected source of this prototype's implausible moves; and
+the fit stops on an absolute $1M miss with infeasible groups reverted whole.
+This module stays as the measurement that motivated the work.
+
 ``Detail_Supply_<year>`` attributes the published **summary** Supply block onto
 a detail mix. Its only control is that summary block, so the **detail industry
 axis is unconstrained**: within a summary industry group the split across detail

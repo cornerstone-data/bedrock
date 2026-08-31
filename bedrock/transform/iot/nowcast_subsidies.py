@@ -512,8 +512,8 @@ def ppp_commodity_shares(year: int) -> pd.Series:
     """
     # deferred: eeio.nowcast imports this module to fill the SUB column, so a
     # top-level import here would close the cycle
-    from bedrock.transform.eeio.nowcast import (  # noqa: PLC0415
-        _supply_fbs_commodity_vector,
+    from bedrock.transform.iot.nowcast_supply_go_control import (  # noqa: PLC0415
+        seed_commodity_output,
     )
 
     if int(year) not in ppp_by_sector().columns:
@@ -524,7 +524,7 @@ def ppp_commodity_shares(year: int) -> pd.Series:
     sectors = ppp_by_sector()[int(year)]
     industry_of = ppp_base_commodities()
     output = (
-        _supply_fbs_commodity_vector(int(year), False)
+        seed_commodity_output(int(year), False)
         .reindex(industry_of.index)
         .fillna(0.0)
         .clip(lower=0.0)

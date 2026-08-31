@@ -206,7 +206,6 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.flowbysector import getFlowBySector
 from bedrock.transform.iot.nowcast_product_taxes import (
     NAMED_TAX_LINES,
     top_by_level,
@@ -216,6 +215,7 @@ from bedrock.transform.iot.nowcast_subsidies import (
     sub_control_total,
     sub_decomposition,
 )
+from bedrock.transform.iot.nowcast_supply_go_control import go_controlled_supply_block
 from bedrock.transform.trade.duties import mdty_detail_usd
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
@@ -266,25 +266,23 @@ _ROUNDING_TOLERANCE = 1.0 * MILLION_CURRENCY_TO_CURRENCY
 # --- the annual axes -------------------------------------------------------
 
 
-@functools.cache
 def make_block(year: int) -> pd.DataFrame:
     """The ``Detail_Supply_<year>`` domestic-output block, commodity x industry, USD.
+
+    ⚠️ **GO-controlled from 2018 on** (#724): the detail industry columns are
+    pinned to their share of BEA's detail gross output within each summary
+    industry group, with every published summary Supply cell preserved. See
+    :mod:`~bedrock.transform.iot.nowcast_supply_go_control`. 2017 is returned as
+    seeded, because there the detail split is the published benchmark.
 
     ⚠️ Commodity is ``SectorConsumedBy`` and industry is ``SectorProducedBy`` -
     the Supply table's rows are commodities. Reading them the intuitive way
     round transposes the block, which still balances economy-wide and is
     therefore invisible in every total.
+
+    ⚠️ Do not mutate the result; it is cached upstream.
     """
-    fbs = pd.DataFrame(getFlowBySector(f'Detail_Supply_{year}'))
-    block = (
-        fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
-        .sum()
-        .unstack('SectorProducedBy')
-        .astype(float)
-    )
-    return block.reindex(
-        index=list(USA_2017_COMMODITY_CODES), columns=list(USA_2017_INDUSTRY_CODES)
-    ).fillna(0.0)
+    return go_controlled_supply_block(int(year))
 
 
 def government_industries() -> list[str]:
@@ -338,7 +336,20 @@ def market_share_matrix(year: int, exclude_government: bool = False) -> pd.DataF
     unrenormalised rather than losing the money; no commodity produced entirely
     by government carries any product tax, so the fallback never fires.
     """
-    block = make_block(year)
+    return market_shares_of(make_block(year), exclude_government)
+
+
+def market_shares_of(
+    block: pd.DataFrame, exclude_government: bool = False
+) -> pd.DataFrame:
+    """:func:`market_share_matrix` on a block passed in rather than fetched.
+
+    ⚠️ Exists because :mod:`~bedrock.transform.iot.nowcast_supply_go_control`
+    needs the shares of the **uncontrolled** block to seed its fixed point: the
+    GO target subtracts a tax wedge that this very operator allocates, so target
+    and answer chase each other and the loop has to be able to ask for the
+    shares of a block that is not the cached one.
+    """
     output = block.sum(axis=1)
     shares = block.div(output.replace(0.0, np.nan), axis=0).fillna(0.0)
     if not exclude_government:
@@ -357,7 +368,7 @@ def market_share_matrix(year: int, exclude_government: bool = False) -> pd.DataF
 # --- T00TOP ----------------------------------------------------------------
 
 
-def t00top_row(year: int) -> pd.Series:
+def t00top_row(year: int, block: pd.DataFrame | None = None) -> pd.Series:
     """``T00TOP`` by industry for *year*, USD positive.
 
     Three legs, summed:
@@ -380,13 +391,17 @@ def t00top_row(year: int) -> pd.Series:
     trade = levels['trade_level'].reindex(commodities).fillna(0.0)
     duties = float(mdty_detail_usd(year, False).sum())
 
-    shares = market_share_matrix(year, exclude_government=True)
+    # ⚠️ ``block`` is the injection point for the GO control's fixed point, not a
+    # convenience: passing None must keep the cached path, because every other
+    # caller wants the one block the model is built on.
+    supply = make_block(year) if block is None else block
+    shares = market_shares_of(supply, exclude_government=True)
     row = shares.mul(producer, axis=0).sum(axis=0).reindex(industries).fillna(0.0)
 
     fuel_commodities = [c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index]
     fuel_tax = float(trade.loc[fuel_commodities].sum())
     others = [i for i in trade_industries() if i != PETROLEUM_WHOLESALERS]
-    weight = industry_output(year).reindex(others).fillna(0.0).clip(lower=0.0)
+    weight = supply.sum(axis=0).reindex(others).fillna(0.0).clip(lower=0.0)
     weight_total = float(weight.sum())
     if weight_total <= 0:
         raise ValueError(
@@ -512,12 +527,17 @@ def t00sub_row(year: int) -> pd.Series:
 # --- the block -------------------------------------------------------------
 
 
-def va_tax_rows(year: int) -> pd.DataFrame:
+def va_tax_rows(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
     """``T00TOP`` and ``T00SUB`` for *year*, rows x industries, USD.
 
     ``T00SUB`` is negative; see the module docstring's sign convention note.
+
+    ⚠️ ``block`` overrides the make block ``T00TOP`` is allocated on. Only
+    :mod:`~bedrock.transform.iot.nowcast_supply_go_control` passes it, and only
+    while iterating its fixed point. ``T00SUB`` ignores it - that row is code
+    identity plus two named routings and never touches the block.
     """
-    return pd.DataFrame([t00top_row(year), t00sub_row(year)]).rename_axis(
+    return pd.DataFrame([t00top_row(year, block=block), t00sub_row(year)]).rename_axis(
         index='value_added_code', columns='industry'
     )
 
