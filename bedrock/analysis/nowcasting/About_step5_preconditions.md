@@ -242,9 +242,20 @@ column as the other, seeded with each mode's independent allocation. Implemented
 so rail's per-commodity revenue observations survive). The 21.6% misplacement and the 45bn five-mode
 collision both collapse to the **0.24%** irreducible aggregate gap at 2017. All 65 transport tests pass.
 
-⚠️ Neither fix moves the 2023 supply-equals-use aggregate (20.4%, unchanged; 2018 improves 9.1 → 8.6) —
-their combined exposure was ~4% of the gross gap. That is the concentration finding confirming itself:
-the aggregate belongs to the interior-row fit, not to row-error surgery.
+⚠️ Neither fix moves the 2023 supply-equals-use aggregate much (2018 improves 9.1 → 8.6) — their
+combined exposure was ~4% of the gross gap. That is the concentration finding confirming itself: the
+aggregate belongs to the interior-row fit, not to row-error surgery.
+
+⚠️ **The first imports mirror of #771 broke `S00300` and the breakage was misread as signal.** The
+bridged clean function replaces every IEA category row, and the fitted bridge never emits S-coded rows —
+so the sixteen leaves the crosswalk routes to `S00300` noncomparable imports (#766's construction,
+253–357bn of supply per year) silently vanished, zeroing the supply of the largest supply-equals-use
+residual row while its 2017-carried use stood. The resulting rise (2018 8.6 → 10.1, 2023 20.4 → 21.6)
+was recorded as an *unmasking* of interior-row error; most of it was this bug. With the leaves passed
+through as one direct `S00300` row (their plain sum is #766's number: 261,261 against 260,421 published
+at 2017), the anchor-true trade vectors improve every year of the span: 2017 4.9 → 3.8, 2018 → 8.4,
+2023 → 19.9. The lesson that survives: a T11 rise under a fix is only an unmasking after the fix itself
+is verified — here a one-row supply-vs-use autopsy would have caught it same-day.
 
 ## Deferred, with the reason
 
@@ -266,23 +277,24 @@ small and signed. **Relative severity is not the promotion test; what the hard c
 contrast is the clearest available statement of what the test actually is, and it is the same arithmetic
 that keeps #772 above #665/#660.
 
-## The stack, summed (2026-08-30, branch `supply_mix_rename_cap`)
+## The stack, summed (2026-08-31, branch `services_export_mix_771`)
 
-The first measurement of the whole span on one tree — every stack level live, all blocks rebuilt:
+The whole span on one tree — every stack level live, all blocks rebuilt, the `S00300` pass-through
+restored:
 
 | year | industry-output inconsistency (% of intermediate inputs) | trade commodities with negative total supply | supply-equals-use gap per commodity (% of intermediate use) |
 |---|---:|---:|---:|
-| 2017 | 1.4 | 2 (rounding dust) | 4.9 |
-| 2018 | 1.3 *(was 4.8)* | 1 *(was 7)* | **9.1** *(unmeasurable before)* |
-| 2019 | 1.9 *(was 7.3)* | 1 *(was 6)* | **11.6** *(unmeasurable before)* |
-| 2020 | 5.5 *(was 13.7)* | 1 *(was 6)* | 19.3 |
-| 2021 | 5.7 *(was 14.8)* | 0 *(was 7)* | 18.1 |
-| 2022 | 6.7 *(was 16.9)* | 1 *(was 11)* | 20.0 *(was ~22)* |
-| 2023 | 1.4 *(was 15.9)* | 0 *(was 8, −530bn)* | 20.4 *(was 21.5)* |
+| 2017 | 1.4 | 2 (rounding dust) | 3.8 *(was 4.9)* |
+| 2018 | 1.3 *(was 4.8)* | 1 *(was 7)* | **8.4** *(unmeasurable before)* |
+| 2019 | 1.9 *(was 7.3)* | 1 *(was 6)* | **11.0** *(unmeasurable before)* |
+| 2020 | 5.5 *(was 13.7)* | 1 *(was 6)* | 18.7 |
+| 2021 | 5.7 *(was 14.8)* | 0 *(was 7)* | 17.5 |
+| 2022 | 6.7 *(was 16.9)* | 1 *(was 11)* | 19.6 *(was ~22)* |
+| 2023 | 1.4 *(was 15.9)* | 0 *(was 8, −530bn)* | 19.9 *(was 21.5)* |
 
 What the stack targeted, it fixed: the industry columns are consistent to near the anchor year's own
 level, and no trade commodity's margin exceeds its output anywhere. What it never targeted — **the
-commodity rows** — is now the one standing blocker: an 18–20% supply-equals-use gap in 2020–2023,
+commodity rows** — is now the one standing blocker: a 17.5–19.9% supply-equals-use gap in 2020–2023,
 moved only ~2pp by everything above because its owners are the row-side estimates. The 2023 exposure
 ranking says where it lives: the two real-estate rows (`531ORE` 252,479 of exposure, `533000` 78,686),
 banking (`522A00` 69,303), the professional-services family (`541610`/`541800`/`54151A` ~147,000

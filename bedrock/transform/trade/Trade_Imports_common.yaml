@@ -43,8 +43,9 @@ source_names:
     # (iea_import_bridge.csv) feeds it from. The prior within-set published
     # weighting kept category sets that fabricated on rows BEA barely uses and
     # omitted rows outright - 32.8% gross on the services imports column.
-    # Noncomparable imports (S00300) stay with their #766 construction; the
-    # bridge never emits S-coded rows.
+    # Noncomparable imports (S00300) bypass the bridge: the sixteen IEA leaves
+    # the crosswalk routes to S00300 pass through as one direct row whose sum
+    # is the #766 construction (the bridge itself never emits S-coded rows).
     activity_schema:
       bea:
         year: 2017

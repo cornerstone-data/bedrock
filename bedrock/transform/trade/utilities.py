@@ -193,6 +193,14 @@ IEA_IMPORTS_2017_CSV = (
     'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Imports.csv'
 )
 
+#: The activity-to-sector crosswalk for IEA imports; `_bridge_iea_services`
+#: reads the S00300 rows off it so the noncomparable pass-through and the
+#: FBS attribution can never disagree about which leaves are noncomparable.
+IEA_IMPORTS_CROSSWALK_CSV = (
+    'bedrock/utils/mapping/activitytosectormapping/'
+    'Sector_Crosswalk_BEA_IEA_imports.csv'
+)
+
 
 def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """The imports mirror of :func:`bridge_iea_service_exports` (#771).
@@ -203,9 +211,18 @@ def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     already weighted within-set by published imports, but the sets carried
     the same defects as the export side - the repair category forced onto
     rows BEA barely uses, orphaned rows omitted outright - measured at 32.8%
-    gross on the services imports column.  Noncomparable imports (S00300)
-    stay with their #766 construction; the bridge never touches S-coded
-    rows.
+    gross on the services imports column.
+
+    ⚠️ Noncomparable imports (``S00300``) do NOT go through the bridge - the
+    bridge never emits S-coded rows.  The sixteen IEA leaves the crosswalk
+    routes to ``S00300`` (port charges, travel-other, construction abroad,
+    the non-software IP licenses, ...) pass through as one direct row
+    instead: their plain sum **is** the #766 construction, 261,261 against
+    260,421 published at 2017.  Every one of them maps to ``S00300`` alone,
+    so the sum equals what the pre-bridge proportional attribution produced.
+    Dropping them - which the first version of this mirror did - zeroes the
+    entire supply of the largest T11 residual row (369,911m of 2023 use
+    against no supply at all).
     """
     return _bridge_iea_services(
         fba,
@@ -214,6 +231,7 @@ def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         base_csv=IEA_IMPORTS_2017_CSV,
         anchor_table='Supply_detail',
         anchor_column='MCIF',
+        noncomparable_csv=IEA_IMPORTS_CROSSWALK_CSV,
     )
 
 
@@ -256,14 +274,12 @@ def _bridge_iea_services(
     base_csv: str,
     anchor_table: str,
     anchor_column: str,
+    noncomparable_csv: str | None = None,
 ) -> FlowByActivity:
     import numpy as np  # noqa: PLC0415
 
     if fba.empty:
         return fba
-    year = (
-        int(fba['Year'].iloc[0]) if 'Year' in fba.columns else int(fba.config['year'])
-    )
 
     bridge = pd.read_csv(bridge_csv, dtype={'commodity': str})
     base_raw = pd.read_csv(base_csv)
@@ -306,6 +322,16 @@ def _bridge_iea_services(
     )
     amounts = published.reindex(index.index).fillna(0.0) * index * 1e6  # USD
 
+    # The categories the crosswalk routes to S00300 bypass the bridge: each
+    # maps to S00300 alone, so their plain sum reproduces the pre-bridge
+    # proportional attribution exactly (#766).
+    if noncomparable_csv is not None:
+        crosswalk = pd.read_csv(noncomparable_csv, dtype=str)
+        noncomparable = sorted(
+            set(crosswalk.loc[crosswalk['Sector'] == 'S00300', 'Activity'])
+        )
+        amounts['S00300'] = float(now.reindex(noncomparable).fillna(0.0).sum())
+
     template = fba.iloc[[0]].copy()
     rows = []
     for commodity, amount in amounts.items():
@@ -320,7 +346,9 @@ def _bridge_iea_services(
         row['ActivityProducedBy'] = commodity
         row['ActivityConsumedBy'] = None
         row['Description'] = (
-            f'published 2017 {anchor_column} x IEA category growth blend '
+            'sum of the IEA leaves crosswalked to S00300 (#766)'
+            if commodity == 'S00300'
+            else f'published 2017 {anchor_column} x IEA category growth blend '
             f'(#771 bridge, {flow})'
         )
         rows.append(row)
