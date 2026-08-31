@@ -270,7 +270,165 @@ def score_families(families: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("pce_gain_M", ascending=False)
 
 
+# --- the selection rule and its 2012 holdout (#763) -------------------------
+
+#: The rule's thresholds, declared before looking at any key (#763). A family
+#: takes the **PCE arm** when households are the majority buyer of its
+#: commodities -- consumer share of total use above 0.5 -- because a
+#: demand-side split carries information exactly there; it takes the **PxI
+#: arm** when households are a marginal buyer (share below 0.2) and imports
+#: resemble what US plants make; between the two, no proxy applies. The
+#: consumer share is read off the same-year published Use table's structure --
+#: never off the MCIF key being predicted.
+PCE_CONSUMER_SHARE = 0.5
+PXI_CONSUMER_SHARE = 0.2
+
+#: An arm is credible on a family only if it puts mass on at least this many
+#: of the family's members; silence is not a split.
+MIN_ARM_MEMBERS = 2
+
+
+def benchmark_mcif(year: int) -> pd.Series:
+    """Published detail ``MCIF`` for a benchmark year, USD, 2017 codes.
+
+    The #700 benchmark panel carries 2007, 2012 and 2017 on the 2017 code
+    basis in one frame, so the years difference without a crosswalk.
+    """
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_benchmark_detail_supply_use_usa,
+    )
+
+    supply = _load_benchmark_detail_supply_use_usa("Supply_detail", year)  # type: ignore[arg-type]
+    supply.columns = supply.columns.str.strip()
+    return (
+        pd.to_numeric(supply["MCIF"], errors="coerce").fillna(0.0).clip(lower=0.0)
+        * MILLION
+    )
+
+
+def consumer_share(year: int) -> pd.Series:
+    """Per-commodity household share of total use, from the benchmark Use SUT.
+
+    ``F01000 / T019`` on the published table for *year* -- structure the rule
+    may look at, because it is not the import key being predicted.
+    """
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_benchmark_detail_supply_use_usa,
+    )
+
+    use = _load_benchmark_detail_supply_use_usa("Use_SUT_detail", year)  # type: ignore[arg-type]
+    use.columns = use.columns.str.strip()
+    pce = pd.to_numeric(use["F01000"], errors="coerce").fillna(0.0)
+    total = pd.to_numeric(use["T019"], errors="coerce").fillna(0.0)
+    return (pce / total.replace(0.0, float("nan"))).fillna(0.0)
+
+
+def rule_pick(family_members: list[str], share: pd.Series, arm: pd.Series) -> str:
+    """Which arm the rule assigns a family: 'pce', 'pxi' or 'none'."""
+    weights = arm.reindex(family_members).fillna(0.0)
+    covered = int((weights > 0).sum())
+    family_share = float(share.reindex(family_members).fillna(0.0).mean())
+    if family_share > PCE_CONSUMER_SHARE and covered >= MIN_ARM_MEMBERS:
+        return "pce"
+    if family_share < PXI_CONSUMER_SHARE:
+        return "pxi"
+    return "none"
+
+
+def holdout() -> pd.DataFrame:
+    """Grade the rule on the 2012 benchmark the key did not choose (#763).
+
+    Two tests, both against the published **2012** detail ``MCIF``:
+
+    - **selection stability**: the rule's pick per family, computed from the
+      2012 Use structure and again from the 2017 one -- a rule is a rule if it
+      picks the same arm at both benchmarks;
+    - **arm transport**: for rule-picked families, the within-family L1 of the
+      2017-vintage arm mix against the 2012 key, beside the **stricter**
+      baseline of the published 2017 mix itself carried back
+      (``l1_carry``). ⚠️ The arms exist only at 2017 vintage -- 2012 PCE
+      bridge and 2012 EC product lines are not extracted -- so this tests
+      whether the arm's information is *structural* rather than 2017-fitted,
+      against a baseline far harder than the identity split the arm would
+      actually replace (``l1_current`` ran 0.2-0.8 on these families at 2017).
+    """
+    key_2012 = benchmark_mcif(2012)
+    key_2017 = benchmark_mcif(2017)
+    share_2012 = consumer_share(2012)
+    share_2017 = consumer_share(2017)
+    pce = pce_bridge_mix()
+    pxi = pxi_mix()
+
+    families = sorted({str(c)[:4] for c in key_2012.index if str(c)[:1].isdigit()})
+    rows = []
+    for family in families:
+        members = sorted(
+            c for c in key_2012.index if str(c)[:4] == family and key_2012[c] > 0
+        )
+        if len(members) < 2 or float(key_2012.reindex(members).sum()) < MIN_FAMILY_USD:
+            continue
+        arms = {"pce": pce, "pxi": pxi}
+        pick_2012 = {
+            arm: rule_pick(members, share_2012, mix) for arm, mix in arms.items()
+        }
+        pick12 = (
+            "pce"
+            if pick_2012["pce"] == "pce"
+            else ("pxi" if pick_2012["pxi"] == "pxi" else "none")
+        )
+        pick_2017v = {
+            arm: rule_pick(members, share_2017, mix) for arm, mix in arms.items()
+        }
+        pick17 = (
+            "pce"
+            if pick_2017v["pce"] == "pce"
+            else ("pxi" if pick_2017v["pxi"] == "pxi" else "none")
+        )
+        if pick17 == "none" and pick12 == "none":
+            continue
+        chosen = arms[pick17] if pick17 != "none" else arms[pick12]
+        k12 = key_2012.reindex(members).fillna(0.0)
+        rows.append(
+            {
+                "family": family,
+                "members": len(members),
+                "key_2012_M": float(k12.sum()) / MILLION,
+                "pick_2012": pick12,
+                "pick_2017": pick17,
+                "stable": pick12 == pick17,
+                "l1_arm_vs_2012": _l1(chosen.reindex(members).fillna(0.0), k12),
+                "l1_carry_vs_2012": _l1(key_2017.reindex(members).fillna(0.0), k12),
+            }
+        )
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    df["arm_beats_carry"] = df["l1_arm_vs_2012"] < df["l1_carry_vs_2012"]
+    return df.sort_values("key_2012_M", ascending=False)
+
+
 def main() -> None:
+    if "--holdout" in sys.argv:
+        df = holdout()
+        print("#763: the selection rule on the 2012 benchmark the key did not choose.")
+        print(
+            f"Rule (declared a priori): PCE arm where consumer share > "
+            f"{PCE_CONSUMER_SHARE}, PxI where < {PXI_CONSUMER_SHARE}, no proxy "
+            f"between; share from the same-year Use structure, never the key."
+        )
+        print()
+        with pd.option_context("display.width", 170):
+            print(df.to_string(index=False, float_format=lambda x: f"{x:,.3f}"))
+        stable = df["stable"].sum()
+        beats = df["arm_beats_carry"].sum()
+        print()
+        print(
+            f"selection stable 2012 vs 2017: {stable}/{len(df)} families; "
+            f"arm beats the carried-back 2017 published mix on the 2012 key: "
+            f"{beats}/{len(df)}."
+        )
+        return
+
     published = _published_mcif()
     if "--all" in sys.argv:
         families = sorted({str(c)[:4] for c in published.index if str(c)[:1].isdigit()})
