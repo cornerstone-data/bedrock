@@ -182,9 +182,11 @@ no ordering makes the constraint hold in both directions at once.
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Iterable
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
@@ -1139,6 +1141,49 @@ def mode_allocations(
     }
 
 
+@functools.cache
+def joint_mode_shares() -> pd.DataFrame:
+    """The mode x commodity fit the module docstring calls for (#772).
+
+    Fitted once at 2017: row margins are the five modes' own totals, column
+    margins the published Transportation column (rescaled by their 0.24%
+    aggregate gap), seeded with each mode's independent allocation so its own
+    evidence shapes the answer.  Returned as **within-mode shares** (rows sum
+    to 1).
+
+    This closes both measured defects of sequential weighting at the anchor:
+    the 97-commodity, 45bn over-allocation collision, and the 21.6% of the
+    freight bill sitting on the wrong rows with a tonnage-shaped bias — the
+    published column pulls each mode's inferred detail onto BEA's own
+    distribution wherever the modes' evidence is weaker than the benchmark's.
+    """
+    allocations = mode_allocations(ANCHOR_YEAR)
+    seed = pd.DataFrame(allocations).T.fillna(0.0)  # modes x commodities
+    row_margin = seed.sum(axis=1)
+    published = published_transport_by_commodity().reindex(seed.columns).fillna(0.0)
+    column_margin = published * (float(row_margin.sum()) / float(published.sum()))
+
+    fitted = seed.copy()
+    for _ in range(500):
+        fitted = fitted.mul(
+            row_margin / fitted.sum(axis=1).replace(0.0, np.nan), axis=0
+        ).fillna(0.0)
+        fitted = fitted.mul(
+            (column_margin / fitted.sum(axis=0).replace(0.0, np.nan)).fillna(1.0),
+            axis=1,
+        )
+    # end on the column step: the published distribution is the benchmark; the
+    # row normalisation below makes the ending irrelevant to the shares anyway.
+    unreached = column_margin[(column_margin > 1.0) & (fitted.sum(axis=0) <= 1.0)]
+    if float(unreached.sum()) > 0.01 * float(column_margin.sum()):
+        raise ValueError(
+            f'the joint fit cannot reach {unreached.sum():,.0f} USD of the '
+            f'published column on the modes\' combined support - the mode '
+            f'crosswalks exclude commodities BEA says receive transport margin.'
+        )
+    return fitted.div(fitted.sum(axis=1), axis=0)
+
+
 def transport_margin_column(
     year: int = ANCHOR_YEAR, margins: pd.DataFrame | None = None
 ) -> pd.Series:
@@ -1164,7 +1209,25 @@ def transport_margin_column(
     pattern, or the identity.
     """
     allocations = mode_allocations(year, margins)
-    receiving = pd.DataFrame(allocations).fillna(0.0).sum(axis=1).rename('TRANS')
+    # ⚠️ The receiving side rides the JOINT 2017 fit (#772), not the raw
+    # per-mode allocations: fitted 2017 shares per mode, times each mode's own
+    # within-mode movement as a relative index (its year allocation over its
+    # 2017 allocation, cell by cell), renormalised to the mode's annual total.
+    # 2017 reproduces the published distribution by construction; later years
+    # keep every mode's own annual evidence - rail's per-commodity revenue most
+    # of all - as movement on the fitted base.
+    shares = joint_mode_shares()
+    base_allocations = mode_allocations(ANCHOR_YEAR, margins)
+    pieces = {}
+    for mode, allocation in allocations.items():
+        base = base_allocations[mode].reindex(shares.columns).fillna(0.0)
+        now = allocation.reindex(shares.columns).fillna(0.0)
+        movement = (now / base.replace(0.0, np.nan)).fillna(0.0)
+        weighted = shares.loc[mode] * movement
+        total = float(allocation.sum())
+        pieces[mode] = weighted * (total / float(weighted.sum()))
+    receiving = pd.DataFrame(pieces).fillna(0.0).sum(axis=1).rename('TRANS')
+    receiving = receiving[receiving > 0]
 
     given_up = pd.Series(
         {

@@ -31,15 +31,27 @@ source_names:
   BEA_IEA:
     geoscale: national
     data_format: FBA
-    activity_to_sector_mapping: BEA_IEA_exports
+    # ⚠️ The service rows arrive PRE-BRIDGED to BEA commodities (#771): the
+    # clean function below replaces the IEA category rows with one row per
+    # commodity, amount = published 2017 exports x a growth blend of the
+    # categories the fitted bridge (iea_export_bridge.csv) says feed that row.
+    # Attributing categories onto commodity sets directly - by any weight -
+    # fabricated exports wherever ITA's service definitions disagree with
+    # BEA's bridge, which they do by ~254bn gross at 2017.
+    #
+    # After bridging the activities ARE BEA 2017 detail codes, so the schema is
+    # declared sector-like here, overriding the catalog's null (which describes
+    # the raw category names the imports side still uses).
+    activity_schema:
+      bea:
+        year: 2017
+        hierarchy: flat
+    clean_fba_before_activity_sets: !clean_function:trade.utilities bridge_iea_service_exports
     activity_sets:
       service_exports:
         selection_fields:
           FlowName: Exports
-        exclusion_fields:
-          ActivityProducedBy: [AllTypesOfService]
-        attribution_method: proportional
-        # attribution_source: set in Trade_Exports_<year>.yaml
+        attribution_method: direct
         clean_parameter: F04000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
 

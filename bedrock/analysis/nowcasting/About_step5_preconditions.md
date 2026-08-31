@@ -206,6 +206,17 @@ Signature is a concordance fault: repair services fabricated (`811200` 815×, `8
 `811300` 246×), the `541x` family short to match (`541300` 0.4×, `541800` 0.7×, `541512` 0.7×), whole rows
 dropped (`550000` 0 against 4,296; `531ORE` 0 against 3,274).
 
+**RESOLVED in `services_export_mix_771`** (2026-08-31). The category-to-commodity attribution was the
+fault twice over: splitting each IEA service category across a commodity set *by domestic output*
+fabricated exports wherever a domestically-big industry exports little, and the sets themselves pointed
+at rows BEA's bridge does not use (fitted jointly, ITA's category totals and the published rows disagree
+by ~254bn gross). The fix anchors every commodity on its **published 2017 export value** and moves it by
+a growth blend of the categories a fitted bridge (`iea_export_bridge.csv`) says feed it. 2017 gross
+error: **209,998 → 779 $M** (25% → 0.1% of the services column). The Travel remainder BEA books through
+the rest-of-world adjustment row stays deliberately out of scope, as do used/scrap exports (no IEA
+source). En route: every year's Census export input predated #773's re-export exclusion and was
+refetched.
+
 ### → [#772](https://github.com/cornerstone-data/bedrock/issues/772) · the transport margin mix
 
 `TRANS` is built per mode from each mode's own observed freight revenue and never touches the published
@@ -223,6 +234,17 @@ they sit in the highest-`N` sectors — rank it on total EF, not direct.
 ❌ **Not [#672](https://github.com/cornerstone-data/bedrock/issues/672)**, which replaces the
 `Margins_Transport` within-group weight because it depends on the published Supply table. This is about
 which commodities the freight bill lands on, and survives that change.
+
+**RESOLVED in the same branch.** The module's own docstring had already named the cure: a joint
+mode-by-commodity fit — the five modes' observed totals as one margin, the published 2017 Transportation
+column as the other, seeded with each mode's independent allocation. Implemented as `joint_mode_shares`
+(fitted once at 2017, frozen; each mode's own annual movement rides the fitted base as a relative index,
+so rail's per-commodity revenue observations survive). The 21.6% misplacement and the 45bn five-mode
+collision both collapse to the **0.24%** irreducible aggregate gap at 2017. All 65 transport tests pass.
+
+⚠️ Neither fix moves the 2023 supply-equals-use aggregate (20.4%, unchanged; 2018 improves 9.1 → 8.6) —
+their combined exposure was ~4% of the gross gap. That is the concentration finding confirming itself:
+the aggregate belongs to the interior-row fit, not to row-error surgery.
 
 ## Deferred, with the reason
 

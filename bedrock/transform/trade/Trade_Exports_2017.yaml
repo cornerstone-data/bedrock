@@ -18,9 +18,4 @@ source_names: !include:Trade_Exports_common.yaml:source_names
       goods_exports:
         !include:Trade_Exports_common.yaml:source_names:Census_USATrade:activity_sets:goods_exports
         attribution_source: Detail_Supply_Mix_2017
-  BEA_IEA:
-    !include:Trade_Exports_common.yaml:source_names:BEA_IEA
-    activity_sets:
-      service_exports:
-        !include:Trade_Exports_common.yaml:source_names:BEA_IEA:activity_sets:service_exports
-        attribution_source: Detail_Supply_Mix_2017
+  BEA_IEA: !include:Trade_Exports_common.yaml:source_names:BEA_IEA

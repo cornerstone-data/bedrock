@@ -178,3 +178,106 @@ if __name__ == '__main__':
     written = refresh_hs2716_electricity_unit_value_csv()
     print(f'Wrote {written}')
     print(pd.read_csv(written).to_string(index=False))
+
+#: The fitted 2017 bridge (#771): which IEA categories move each export row,
+#: written by ``bedrock.utils.mapping.write_iea_export_bridge``.
+IEA_EXPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv'
+
+#: The IEA extract for the anchor year, used for the growth denominators.
+IEA_EXPORTS_2017_CSV = (
+    'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Exports.csv'
+)
+
+
+def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """Anchor-and-move the service exports onto BEA commodities (#771).
+
+    ``clean_fba_before_activity_sets`` on ``BEA_IEA``: replaces the
+    service-category export rows with one row per BEA commodity whose amount is
+    the commodity's **published 2017 exports times a growth index** — the index
+    a share-weighted blend of the IEA categories the fitted bridge says feed
+    that row, each category's growth taken against its own 2017 total.
+
+    Why not attribute categories onto commodities directly: ITA's service
+    definitions are not BEA's commodity bridge.  Fitted jointly at 2017, the
+    category totals and the published rows disagree by ~254bn gross —
+    splitting each category across a commodity set fabricated exports wherever
+    the set was wrong (electronics repair carried 815x its published exports).
+    Anchoring each row on its published 2017 value makes 2017 exact by
+    construction and confines the category-definition mismatch to the growth
+    weights.
+
+    ⚠️ The rest-of-world adjustment row (``S00900``, where BEA books most
+    traveler spending) and the used/scrap rows are deliberately absent — the
+    first is re-derived after the balance, the second two have no IEA source.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    if fba.empty:
+        return fba
+    year = (
+        int(fba['Year'].iloc[0]) if 'Year' in fba.columns else int(fba.config['year'])
+    )
+
+    bridge = pd.read_csv(IEA_EXPORT_BRIDGE_CSV, dtype={'commodity': str})
+    base_raw = pd.read_csv(IEA_EXPORTS_2017_CSV)
+    base = (
+        base_raw[
+            (base_raw['TradeDirection'] == 'Exports')
+            & (base_raw['Affiliation'] == 'AllAffiliations')
+            & (base_raw['AreaOrCountry'] == 'AllCountries')
+        ]
+        .set_index('TypeOfService')['DataValue']
+        .astype(float)
+    )
+
+    frame = pd.DataFrame(fba)
+    exports = frame[frame['FlowName'].astype(str) == 'Exports']
+    now = (
+        exports.groupby(exports['ActivityProducedBy'].astype(str))['FlowAmount']
+        .sum()
+        .astype(float)
+    )
+    # FBA amounts are USD; the 2017 extract csv is $M — growth is a ratio, so
+    # only consistency within each side matters.
+    growth = (now / 1e6) / base.reindex(now.index)
+    growth = growth.replace([np.inf, -np.inf], np.nan)
+
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    use.columns = use.columns.str.strip()
+    published = pd.to_numeric(use['F04000'], errors='coerce').fillna(0.0)
+
+    bridge['g'] = bridge['category'].map(growth)
+    # a category unpublished in year t contributes its 2017 weight at growth 1
+    # (absence is not a collapse) — same rule the SAS panel applies.
+    bridge['g'] = bridge['g'].fillna(1.0)
+    index = bridge.groupby('commodity').apply(
+        lambda t: float((t['share'] * t['g']).sum() / t['share'].sum())
+    )
+    amounts = published.reindex(index.index).fillna(0.0) * index * 1e6  # USD
+
+    template = fba.iloc[[0]].copy()
+    rows = []
+    for commodity, amount in amounts.items():
+        if amount <= 0:
+            continue
+        row = template.copy()
+        row['FlowName'] = 'Exports'
+        row['FlowAmount'] = float(amount)
+        row['Unit'] = 'USD'
+        row['Class'] = 'Money'
+        row['Location'] = US_FIPS
+        row['ActivityProducedBy'] = commodity
+        row['ActivityConsumedBy'] = None
+        row['Description'] = (
+            'published 2017 F04000 x IEA category growth blend (#771 bridge)'
+        )
+        rows.append(row)
+    out = pd.concat(rows, ignore_index=True)
+    return FlowByActivity(
+        out, full_name=fba.full_name, config=fba.config, convert_df_to_flowby=True
+    )

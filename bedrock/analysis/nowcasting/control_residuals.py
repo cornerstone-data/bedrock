@@ -171,7 +171,7 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: target went 15.9% -> 1.4% and 8-12 infeasible commodities -> 0.
 BASELINE: dict[int, dict[str, float]] = {
     2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 4.9},
-    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 9.1},
+    2018: {'t17_pct': 1.3, 'insolvent': 1, 't11_pct': 8.6},
     2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 11.6},
     2020: {'t17_pct': 5.5, 'insolvent': 1, 't11_pct': 19.3},
     2021: {'t17_pct': 5.7, 'insolvent': 0, 't11_pct': 18.1},
