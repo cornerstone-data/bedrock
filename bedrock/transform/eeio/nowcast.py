@@ -77,6 +77,7 @@ from bedrock.transform.iot.nowcast_supply_go_control import (
 )
 from bedrock.transform.iot.nowcast_trade_margins import (
     TRADE_MARGIN_YEARS,
+    check_giveup_solvency,
     trade_margin_column,
 )
 from bedrock.transform.iot.nowcast_transport_margins import transport_margin_column
@@ -610,7 +611,15 @@ def derive_initial_supply_bridge(
             transport_margin_column(year).reindex(bridge.index).fillna(0.0)
         )
     if year in TRADE_MARGIN_YEARS:
-        bridge['TRADE'] = trade_margin_column(year).reindex(bridge.index).fillna(0.0)
+        # #769: pass T007 so the within-group give-up is water-filled under
+        # each giver's own output; the check then proves no negative total
+        # supply reaches Step 5 (the sign locks would refuse it there).
+        bridge['TRADE'] = (
+            trade_margin_column(year, commodity_output=bridge['T007'])
+            .reindex(bridge.index)
+            .fillna(0.0)
+        )
+        check_giveup_solvency(bridge['T007'], bridge['TRADE'], year)
     if year in TOP_YEARS:
         bridge['TOP'] = top_column(year).reindex(bridge.index).fillna(0.0)
     if year in SUB_YEARS:

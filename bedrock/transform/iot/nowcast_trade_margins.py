@@ -38,26 +38,34 @@ and :func:`gross_margin_control_total` for the Margins table's own columns - and
 mixing them up double-counts or deletes that tax. See the plan's "The residual
 decomposes ``TOP`` into producer-level and trade-level tax".
 
-The annual level: anchor on BEA, move with Census
--------------------------------------------------
+The annual level: the published summary cells (#769)
+-----------------------------------------------------
 
-⚠️ **The Census margin is an index, not a level.** AWTS covers merchant
-wholesalers only, while BEA's wholesale margin also carries manufacturers' sales
-branches and offices and agents and brokers, so the 2017 Census figure is barely
-half the BEA one. Substituting it would delete 42% of the wholesale margin.
+✅ **The give-up level is read from the published summary Supply ``Trade``
+column, per giver group and year** (:func:`published_group_giveup`), 2017-2024.
+``T007`` comes from the same block, so the two sides of
+``T016 = T007 + TRADE`` share one source and the knife-edge that produced
+negative total supply is closed by construction.  Census still supplies what it
+is evidence for: the **within-group** commodity split and the tax index.
 
-======================  ==============  ==============  ==========
-2017, $M                Census          BEA give-up     ratio
-======================  ==============  ==============  ==========
-wholesale, NAICS 42     1,100,925       1,718,990       **1.561**
-retail, ``Total``       1,458,243       1,545,941       **1.061**
-======================  ==============  ==============  ==========
+❌ **The prior control was ``frozen 2017 coverage ratio x Census margin``**
+(kept as :func:`census_index_control_total`), and it is what #769 retired.
+AWTS covers merchant wholesalers only - the 2017 ratio was 1.561 wholesale,
+1.061 retail - and the published tables' own implied annual quotient ran
+1.561 -> 1.435-1.489 by 2021-2023 for wholesale (a shrinking non-merchant
+universe the frozen ratio cannot see) and 0.966 for retail in 2023 (the AIES
+splice's 31.3% -> 34.2% rate step, which BEA did not take).  The overstatement
+peaked at **-341bn of give-up in 2023** and 8-12 of the 19 givers insolvent;
+:mod:`bedrock.analysis.nowcasting.trade_data.giveup_solvency` is the referee
+analysis.
 
-:func:`trade_coverage_ratio` freezes that ratio at 2017 and
-:func:`trade_control_total` multiplies it by the observed Census margin, so 2017
-is an identity and a nowcast year moves with the source. This is the same
-construction the transport side uses, for the same reason, and it is the whole
-modelling content of the annual control.
+⚠️ **Within a group, the split is capped at each giver's own output**
+(water-filling in :func:`giver_allocation`): the published group ``T016`` is
+non-negative so the group always has capacity, but the census shape can put
+more on one member than its ``T007`` carries - ``454000`` nonstore most of
+all, the #724 e-commerce classification question.  Excess lands on the group's
+solvent members; :func:`check_giveup_solvency` proves the result before it
+reaches Step 5.
 
 ⚠️ **Read the published total row, never the sum of sub-industries.**
 Suppression varies by year, so the four-digit sum runs 1.000 of the NAICS 42 row
@@ -118,7 +126,10 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
-from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
+from bedrock.extract.iot.io_2017 import (
+    _load_2017_detail_supply_use_usa,
+    _load_usa_summary_sut,
+)
 from bedrock.transform.iot import nowcast_margins as nm
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.logging.flowsa_log import log
@@ -712,24 +723,113 @@ def trade_coverage_ratio(kind: str) -> float:
     return _kind_give_up_2017(kind) / census_gross_margin(kind, ANCHOR_YEAR)
 
 
+#: Summary commodity group -> the detail givers inside it.  ``42`` is the whole
+#: wholesale kind; retail splits across four published groups, three of them
+#: singletons.  These are the cells :func:`published_group_giveup` reads and the
+#: units :func:`giver_allocation` rescales to.
+GIVER_GROUPS: dict[str, tuple[str, ...]] = {
+    '42': (
+        '423100',
+        '423400',
+        '423600',
+        '423800',
+        '423A00',
+        '424200',
+        '424400',
+        '424700',
+        '424A00',
+        '425000',
+    ),
+    '441': ('441000',),
+    '445': ('445000',),
+    '452': ('452000',),
+    '4A0': ('444000', '446000', '447000', '448000', '454000', '4B0000'),
+}
+
+#: Which kind each summary giver group belongs to.
+_GROUP_KIND = {
+    '42': 'wholesale',
+    '441': 'retail',
+    '445': 'retail',
+    '452': 'retail',
+    '4A0': 'retail',
+}
+
+
+@functools.cache
+def published_group_giveup(year: int) -> pd.Series:
+    """The published summary ``Trade`` give-up per giver group, USD, positive.
+
+    Read from the same summary Supply workbook the ``Detail_Supply`` control
+    comes from, so the two sides of ``T016 = T007 + TRADE`` share one source by
+    construction -- which is the entire fix for #769.  At 2017 these cells sum
+    to the published detail give-up exactly (3,264,931 $M), so the anchor is
+    unchanged.
+
+    ⚠️ The column label really is ``Trade`` at summary -- title case, no
+    trailing space; the detail workbook's ``'TRADE '`` trap is a different
+    file.
+    """
+    supply = _load_usa_summary_sut('Supply_summary', year)  # type: ignore[arg-type]
+    supply.index = supply.index.astype(str).str.strip()
+    supply.columns = supply.columns.astype(str).str.strip()
+    values = {}
+    for group in GIVER_GROUPS:
+        cell = float(pd.to_numeric(supply.loc[group, 'Trade'], errors='raise'))
+        if cell >= 0:
+            raise ValueError(
+                f'published summary Trade cell for {group} in {year} is '
+                f'{cell:,.0f} $M; a giver group must be negative. The workbook '
+                f'layout or the group list has changed.'
+            )
+        values[group] = -cell * MILLION_CURRENCY_TO_CURRENCY
+    return pd.Series(values, name='published_giveup')
+
+
+def census_index_control_total(
+    kind: str, year: int, allow_extrapolation: bool = False
+) -> float:
+    """The pre-#769 control: ``frozen 2017 coverage ratio x Census margin``.
+
+    ❌ **No longer the build's control** -- kept because the diagnostic that
+    retired it (:mod:`bedrock.analysis.nowcasting.trade_data.giveup_solvency`)
+    scores it, and because it is the only construction available for a year the
+    summary tables have not reached.  What retired it: the implied annual
+    coverage ratio in BEA's own published tables runs 1.561 -> 1.435-1.489 for
+    wholesale by 2021-2023 (a shrinking non-merchant universe the frozen ratio
+    cannot see) and 0.966 for retail in 2023 (the AIES splice's rate step,
+    which BEA did not take).  The overstatement it produced was the #769
+    insolvency.
+    """
+    return trade_coverage_ratio(kind) * census_gross_margin(
+        kind, year, allow_extrapolation
+    )
+
+
 def trade_control_total(
     kind: str, year: int, allow_extrapolation: bool = False
 ) -> float:
     """
     The margin *kind* gives up in *year*, USD - the level to allocate.
 
-    ``coverage ratio (frozen at 2017) x observed Census margin in year``, so
-    *year* = 2017 reproduces the published give-up exactly and a nowcast year
-    moves with the source. Same construction as
-    :func:`~bedrock.transform.iot.nowcast_transport_margins.mode_control_total`.
+    ✅ **The published summary ``Trade`` cells, summed over the kind's giver
+    groups** (#769).  ``T007`` and the give-up now come from the same published
+    block, so the knife-edge difference that produced negative total supply --
+    two independently-moved series 90.8-100% of each other by construction --
+    is closed at group level by sourcing.  2017 is the same anchor as before,
+    to the dollar; the Census series still moves the *within-group* split in
+    :func:`giver_allocation` and the within-kind tax index.
+
+    ``allow_extrapolation`` is accepted for signature stability; the published
+    workbook currently reaches 2024, one year past the Census margin series.
 
     This is the **Supply ``TRADE``** control, net of the trade-level tax. For the
     Margins table's own Wholesale and Retail columns use
     :func:`gross_margin_control_total` instead.
     """
-    return trade_coverage_ratio(kind) * census_gross_margin(
-        kind, year, allow_extrapolation
-    )
+    del allow_extrapolation
+    groups = [g for g, k in _GROUP_KIND.items() if k == _check_kind(kind)]
+    return float(published_group_giveup(int(year))[groups].sum())
 
 
 def gross_margin_control_total(kind: str, year: int) -> float:
@@ -754,8 +854,66 @@ def gross_margin_control_total(kind: str, year: int) -> float:
 # --- the commodity allocation ----------------------------------------------
 
 
+def _cap_to_output(
+    split: pd.Series, output: 'pd.Series[float]', group: str, year: int
+) -> pd.Series:
+    """Water-fill *split* (positive give-ups) under each member's own output.
+
+    Members whose proportional share exceeds their output are fixed AT their
+    output and the remainder is re-shared over the others on the original
+    shape, repeating until no one is over -- at most one member fixes per
+    sweep, so it terminates.  Feasible whenever the group total is within the
+    group's output, which the published summary ``T016 >= 0`` guarantees; if
+    the data ever breaks that, this raises rather than looping.
+    """
+    total = float(split.sum())
+    ceiling = output.clip(lower=0.0).astype(float)
+    # Scale-free dust bound: the published tables round to whole millions, so a
+    # group can overshoot its capacity by a few $M on a ~$400bn total. 1e-5 of
+    # the total covers that and stays meaningful at any unit.
+    dust = 1e-5 * abs(total)
+    if total > float(ceiling.sum()) + dust:
+        raise ValueError(
+            f'group {group} {year} give-up of {total:,.0f} USD exceeds the '
+            f"group's own output of {ceiling.sum():,.0f} - the published "
+            f'summary T016 for this group should make that impossible, so '
+            f'either the output vector or the group list is wrong.'
+        )
+    shape = split.astype(float)
+    fixed: dict[str, float] = {}
+    free = list(shape.index)
+    remaining = total
+    for _ in range(len(shape)):
+        if not free:
+            # every member is at its ceiling and only published-rounding dust
+            # remains (the feasibility check above bounds it); park the dust on
+            # the largest member rather than losing mass - the guard's own
+            # tolerance is two orders looser than this.
+            largest = str(ceiling.idxmax())
+            fixed[largest] = fixed[largest] + remaining
+            return pd.Series(fixed, dtype=float).reindex(shape.index).fillna(0.0)
+        weights = shape[free] / float(shape[free].sum())
+        trial = remaining * weights
+        over = trial.index[trial > ceiling[free] + dust]
+        if len(over) == 0:
+            result = pd.Series(fixed, dtype=float).reindex(shape.index).fillna(0.0)
+            result[free] = trial
+            return result
+        for member in over:
+            fixed[member] = float(ceiling[member])
+            remaining -= float(ceiling[member])
+            free.remove(member)
+    raise AssertionError(
+        f'group {group} {year}: water-filling failed to settle in '
+        f'{len(shape)} sweeps, which its one-member-per-sweep bound forbids.'
+    )
+
+
 def giver_allocation(
-    kind: str, year: int, control_total: float | None = None
+    kind: str,
+    year: int,
+    control_total: float | None = None,
+    commodity_output: pd.Series | None = None,
 ) -> pd.Series:
     """
     *control_total* split across *kind*'s giving commodities, USD, negative.
@@ -797,7 +955,50 @@ def giver_allocation(
         growth = growth.fillna(float((census_now.sum() / census_2017.sum())))
         shape = published * growth
 
-    allocation = -control_total * shape / shape.sum()
+    # ⚠️ Rescale each summary giver GROUP to its own published Trade cell
+    # (#769), not just the kind to its total. Retail is four published groups
+    # and the census within-kind shape misallocated across them - 441 motor
+    # vehicles ran +29% over BEA's own cell by 2023. Wholesale is one group, so
+    # for it this is the kind rescale it always was. The census shape still
+    # decides the split *inside* 4A0 and 42, which is all it is evidence for.
+    #
+    # ⚠️ And inside a group the split is CAPPED at each member's own output
+    # (water-filling): the published summary T016 is non-negative, so the
+    # group's output always covers its give-up, but the census shape can put
+    # more on one member than that member's T007 - 454000 nonstore most of all,
+    # which is the #724 e-commerce classification question. Excess redistributes
+    # to the group's solvent members on the same shape; when the EC-2022 work
+    # above this in the stack raises 454000's output, the cap relaxes by
+    # itself. Without `commodity_output` (legacy callers, unit tests) the cap
+    # is skipped and check_giveup_solvency still stands guard downstream.
+    group_levels = published_group_giveup(int(year))
+    allocation = shape.astype(float).copy()
+    for group, members in GIVER_GROUPS.items():
+        if _GROUP_KIND[group] != kind:
+            continue
+        inside = [m for m in members if m in allocation.index]
+        mass = float(shape[inside].sum())
+        if mass <= 0:
+            raise ValueError(
+                f'the {kind} {year} census shape carries no mass on group '
+                f'{group} ({inside}); its published give-up of '
+                f'{group_levels[group]:,.0f} USD has nothing to land on.'
+            )
+        split = group_levels[group] * shape[inside] / mass
+        if commodity_output is not None:
+            split = _cap_to_output(
+                split, commodity_output.reindex(inside).fillna(0.0), group, year
+            )
+        allocation[inside] = -split
+
+    expected_total = -control_total
+    if abs(float(allocation.sum()) - expected_total) > _TILT_ROUNDING_TOLERANCE:
+        raise ValueError(
+            f'{kind} {year} group give-ups sum to {allocation.sum():,.0f} USD '
+            f'against a kind control of {expected_total:,.0f}. Both come from '
+            f'the same published cells, so a gap means the group list and the '
+            f'kind partition disagree.'
+        )
 
     expected = set(GIVER_COMMODITIES[kind])
     if set(allocation.index) != expected:
@@ -865,7 +1066,9 @@ def receiving_allocation(
 
 
 def trade_margin_components(
-    year: int = ANCHOR_YEAR, allow_extrapolation: bool = False
+    year: int = ANCHOR_YEAR,
+    allow_extrapolation: bool = False,
+    commodity_output: pd.Series | None = None,
 ) -> pd.DataFrame:
     """
     Trade margin for *year* decomposed into wholesale, retail and tax. USD.
@@ -907,7 +1110,9 @@ def trade_margin_components(
     for kind in TRADE_KINDS:
         control = trade_control_total(kind, year, allow_extrapolation)
         received = receiving_allocation(year, control, kind=kind)
-        given_up = giver_allocation(kind, year, control)
+        given_up = giver_allocation(
+            kind, year, control, commodity_output=commodity_output
+        )
         frames[kind] = pd.concat([received, given_up]).groupby(level=0).sum()
 
         # the tax moves with the margin it is levied on, which is its own kind
@@ -933,8 +1138,59 @@ def trade_margin_components(
     return components
 
 
+#: A giver counts as insolvent when its total supply is below minus this share
+#: of its own output.  The published tables round to whole millions and several
+#: givers legitimately give up exactly 100.0%, so a strict zero flags dust.
+#: With the water-filling cap in :func:`giver_allocation` this should never
+#: fire at all -- the guard exists for the paths that skip the cap (a caller
+#: that passes no ``commodity_output``) and for regressions.
+SOLVENCY_TOLERANCE = 0.005
+
+
+def check_giveup_solvency(
+    commodity_output: pd.Series, trade: pd.Series, year: int
+) -> pd.DataFrame:
+    """Raise if any giver outside the known set has negative total supply.
+
+    ``commodity_output`` is ``T007`` and ``trade`` the ``TRADE`` column, both
+    in USD on the commodity axis.  Vectors are taken rather than fetched so
+    this can sit here, upstream of the bridge, without importing it.
+
+    Returns the giver table (output, give-up, partial ``T016``) so the caller
+    can log it; raises ``ValueError`` on a **new** insolvency, because a
+    negative supply row is infeasible for the balance -- the sign locks refuse
+    the negative Use row ``T11`` would demand -- and silently emitting one was
+    the whole #769 defect.
+    """
+    givers = sorted({c for kind in GIVER_COMMODITIES for c in GIVER_COMMODITIES[kind]})
+    table = pd.DataFrame(
+        {
+            'T007': commodity_output.reindex(givers).fillna(0.0),
+            'TRADE': trade.reindex(givers).fillna(0.0),
+        }
+    )
+    table['T016_partial'] = table['T007'] + table['TRADE']
+    floor = -SOLVENCY_TOLERANCE * table['T007'].abs()
+    insolvent = list(table.index[table['T016_partial'] < floor])
+    if insolvent:
+        detail = ', '.join(
+            f'{g}: {table.loc[g, "T016_partial"]:,.0f} USD' for g in insolvent
+        )
+        raise ValueError(
+            f"trade give-up exceeds the giver's own output in {year} for "
+            f'{detail} - negative total supply is infeasible for the balance, '
+            f'and the water-filling cap should have made it impossible. Either '
+            f'the caller built TRADE without commodity_output, or the group '
+            f'give-up itself exceeds the group output, which the published '
+            f'summary T016 forbids.'
+        )
+    return table
+
+
 def trade_margin_column(
-    year: int = ANCHOR_YEAR, allow_extrapolation: bool = False
+    year: int = ANCHOR_YEAR,
+    allow_extrapolation: bool = False,
+    commodity_output: pd.Series | None = None,
 ) -> pd.Series:
     """
     The Supply table's ``TRADE`` column for *year*. USD, by BEA 2017 commodity.
@@ -950,7 +1206,9 @@ def trade_margin_column(
     :func:`trade_margin_components` to get them separately, together with the
     trade-level tax.
     """
-    components = trade_margin_components(year, allow_extrapolation)
+    components = trade_margin_components(
+        year, allow_extrapolation, commodity_output=commodity_output
+    )
     column = components[list(TRADE_KINDS)].sum(axis=1).rename('TRADE')
 
     residual = float(column.sum())
