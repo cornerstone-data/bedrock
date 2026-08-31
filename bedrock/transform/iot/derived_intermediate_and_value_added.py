@@ -132,13 +132,29 @@ def detail_intermediate_inputs_panel() -> pd.DataFrame:
 
 
 @functools.cache
-def detail_gross_output_panel() -> pd.DataFrame:
+def detail_gross_output_panel(ec_adjusted: bool = True) -> pd.DataFrame:
     """``UGO305-A`` summed to the 402 BEA detail industries, million USD.
 
     The 414 rows of ``UGO305-A`` carry 402 distinct codes -- electric power
     generation and "all other retail" are each split further than the model's
     schema -- so the rows are summed to code before use.
+
+    ⚠️ **Manufacturing 2022+ is conditioned on the 2022 Economic Census by
+    default** (#724, :mod:`~bedrock.transform.iot.ec_go_adjustment`): within
+    each summary group the detail mix carries the census 2017→2022 growth on
+    BEA 2017 levels, group totals kept on BEA, and 2023-24 chain BEA's own
+    annual movement on top.  Every consumer of this panel -- the value-added
+    allocation, ``T005``, ``T17``, the Supply GO control -- moves together,
+    which is the point of adjusting here rather than any one of them.
+    ``ec_adjusted=False`` is the raw published series; the adjustment module
+    itself reads that arm, which is what makes the default arm well-founded.
     """
+    if ec_adjusted:
+        from bedrock.transform.iot.ec_go_adjustment import (  # noqa: PLC0415
+            apply_ec_adjustment,
+        )
+
+        return apply_ec_adjustment(detail_gross_output_panel(ec_adjusted=False))
     detail = map_detail_table(load_go_detail())
     if detail[SECTOR_CODE_COL].isna().any():
         unmapped = detail.loc[detail[SECTOR_CODE_COL].isna(), SECTOR_NAME_COL].tolist()

@@ -101,6 +101,14 @@ gap, and the measured worst rows are the row-side owners already filed — `531O
 exposure 252,540), the #769 insolvencies (`424200` −118,277, `424700` −45,764 with negative `T016`),
 `533000`, `522A00`. `T17` was the identity this change owned; `T11` belongs to the row-side issues.
 
+**Level 4 of the stack (`ec_mfg_go_adjustment_724`)**: manufacturing 2022–24 detail output is now
+conditioned on EC 2022 inside `detail_gross_output_panel` (`ec_go_adjustment.py`) — ~145–153bn/yr of
+within-group reallocation, group totals BEA, `334118` held in `PENDING_REVIEW` for Wes. The slot is a
+registry (`SECTOR_CONDITIONERS`); next candidates construction (VIP, 130.6bn), agriculture (ERS, 32.1bn),
+utilities (EIA, 23.5bn). Oil and gas is structurally out: `211` is a single-industry group. ⚠️ Step 5's
+assembly must inject `adjusted_gross_output_usd` into T1 for 2022+ — `published_gross_output` reads the
+unadjusted FBA parquet.
+
 ### → [#769](https://github.com/cornerstone-data/bedrock/issues/769) · the trade margin give-up
 
 Not an accuracy question — a **feasibility** one. Trade output essentially *is* margin, so the 19 givers

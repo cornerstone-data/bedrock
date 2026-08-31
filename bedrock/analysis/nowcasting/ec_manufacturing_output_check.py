@@ -103,10 +103,14 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.flowbyactivity import getFlowByActivity
+
+# ⚠️ Every read below is the RAW arm: this module measures the census AGAINST
+# BEA's unadjusted extrapolation, and it is also what ec_go_adjustment builds
+# its factors from -- reading the default arm here would be circular.
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     detail_gross_output_panel,
 )
-from bedrock.utils.config.settings import FBA_DIR
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
     load_bea_v2017_industry_to_bea_v2017_summary,
 )
@@ -124,24 +128,24 @@ MANUFACTURING_PREFIXES = ('31', '32', '33')
 THOUSAND_TO_MILLION = 1e-3
 
 
-def _rcptot(year: int) -> pd.Series:
-    """Published ``RCPTOT`` by NAICS code at every level, thousand USD."""
-    matches = sorted(FBA_DIR.glob(f'Census_EC_Expenses_{year}_*.parquet'))
-    if not matches:
-        raise FileNotFoundError(
-            f'no Census_EC_Expenses_{year} FBA in {FBA_DIR}; '
-            f'generate or download it first'
-        )
-    frame = pd.read_parquet(matches[-1])
+def _rcptot(year: int, prefixes: tuple[str, ...] = MANUFACTURING_PREFIXES) -> pd.Series:
+    """Published ``RCPTOT`` by NAICS code at every level, thousand USD.
+
+    Read through :func:`getFlowByActivity` rather than a parquet glob so the
+    GCS fallback works where the local cache is cold -- CI most of all.
+    """
+    frame = pd.DataFrame(
+        getFlowByActivity('Census_EC_Expenses', int(year), download_FBA_if_missing=True)
+    )
     receipts = frame[frame['FlowName'] == 'RCPTOT']
     series = receipts.groupby(receipts['ActivityConsumedBy'].astype(str))[
         'FlowAmount'
     ].sum()
-    return series[series.index.str.startswith(MANUFACTURING_PREFIXES)]
+    return series[series.index.str.startswith(prefixes)]
 
 
 @functools.cache
-def _allocation() -> pd.DataFrame:
+def _allocation(prefixes: tuple[str, ...] = MANUFACTURING_PREFIXES) -> pd.DataFrame:
     """(naics, bea, share): six-digit NAICS onto BEA detail, 2017-GO-share split.
 
     The share is **within one NAICS code across the BEA industries it feeds**,
@@ -152,11 +156,11 @@ def _allocation() -> pd.DataFrame:
     six = crosswalk[crosswalk['NAICS_2017_Code'].str.len() == 6][
         ['NAICS_2017_Code', 'BEA_2017_Detail_Code']
     ].dropna()
-    six = six[six['NAICS_2017_Code'].str.startswith(MANUFACTURING_PREFIXES)]
+    six = six[six['NAICS_2017_Code'].str.startswith(prefixes)]
     six = six.drop_duplicates().rename(
         columns={'NAICS_2017_Code': 'naics', 'BEA_2017_Detail_Code': 'bea'}
     )
-    go = detail_gross_output_panel()[BASE_YEAR]
+    go = detail_gross_output_panel(ec_adjusted=False)[BASE_YEAR]
     six['weight'] = six['bea'].map(go).fillna(0.0)
     totals = six.groupby('naics')['weight'].transform('sum')
     # a NAICS whose BEA industries all have zero GO keeps an equal split
@@ -167,7 +171,7 @@ def _allocation() -> pd.DataFrame:
     return six[['naics', 'bea', 'share']]
 
 
-def units() -> pd.DataFrame:
+def units(prefixes: tuple[str, ...] = MANUFACTURING_PREFIXES) -> pd.DataFrame:
     """Comparable units across the vintage change: (unit, r17, r22, members17).
 
     A six-digit code published in both vintages is its own unit — unless its
@@ -182,7 +186,7 @@ def units() -> pd.DataFrame:
     marks.  Families still unhealed at five digits escalate to four, then
     three.
     """
-    r17, r22 = _rcptot(BASE_YEAR), _rcptot(CENSUS_YEAR)
+    r17, r22 = _rcptot(BASE_YEAR, prefixes), _rcptot(CENSUS_YEAR, prefixes)
     six17 = {c for c in r17.index if len(c) == 6}
     six22 = {c for c in r22.index if len(c) == 6}
     matched = sorted(six17 & six22)
@@ -242,7 +246,9 @@ def units() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def implied_bea_growth() -> pd.DataFrame:
+def implied_bea_growth(
+    prefixes: tuple[str, ...] = MANUFACTURING_PREFIXES,
+) -> pd.DataFrame:
     """Per BEA detail manufacturing industry: EC growth vs BEA GO growth.
 
     A unit lands on the **union of the BEA industries its 2017 members map
@@ -255,11 +261,11 @@ def implied_bea_growth() -> pd.DataFrame:
     *split* stays BEA's own, which is the only part BEA is authoritative on
     here.  Inside a unit every BEA industry then receives the same EC growth.
     """
-    allocation = _allocation()
-    table = units()
+    allocation = _allocation(prefixes)
+    table = units(prefixes)
 
     pieces: list[pd.DataFrame] = []
-    go17 = detail_gross_output_panel()[BASE_YEAR]
+    go17 = detail_gross_output_panel(ec_adjusted=False)[BASE_YEAR]
     for row in table.itertuples():
         members = [str(member) for member in ta.cast('tuple[str, ...]', row.members17)]
         reachable = allocation[allocation['naics'].isin(members)]
@@ -285,7 +291,7 @@ def implied_bea_growth() -> pd.DataFrame:
         )
     by_bea = pd.concat(pieces).groupby('bea')[['r17', 'r22', 'bridged_r17']].sum()
 
-    go = detail_gross_output_panel()
+    go = detail_gross_output_panel(ec_adjusted=False)
     frame = by_bea.copy()
     frame['go17'] = go[BASE_YEAR].reindex(frame.index).astype(float)
     frame['go22'] = go[CENSUS_YEAR].reindex(frame.index).astype(float)
