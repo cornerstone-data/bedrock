@@ -177,11 +177,28 @@ EXCLUDED_COMMODITIES = ('S00900', '4200ID')
 #: Margin and tax columns are deliberately **not** exempt: their zeros mean a
 #: commodity bears no margin or no tax, which is a property of the commodity,
 #: and both columns have to net to zero for T15/T16. See #749 for the wider
-#: review of which Tier 0 zeros are justified.
+#: review of which Tier 0 zeros are justified. (``SUB`` looked like the same
+#: case until the 2020-2023 seeds put pandemic transit subsidies on a 2017
+#: zero - it is exempted separately via :data:`SUBSIDY_FLOW_SUPPLY_COLUMNS`.)
 TRADE_FLOW_SUPPLY_COLUMNS = ('MCIF', 'MADJ', 'MDTY')
 
-#: Tier 0 exemption, Use side. Exports, for the same reason.
-TRADE_FLOW_USE_COLUMNS = ('F04000',)
+#: Tier 0 exemption, Use side. Exports for the same reason, and inventory
+#: change because a zero there is one year's inventory cycle - 311221 (wet
+#: corn milling) publishes an exact zero in 2017 and swings $8-95M in every
+#: later seed year.
+TRADE_FLOW_USE_COLUMNS = ('F04000', 'F03000')
+
+#: Sign locks never apply to inventory change: the sign of ``F03000`` is the
+#: year's draw-or-build, not a property of the commodity, and the 2020 seed
+#: legitimately flips the scrap row's 2017 sign there (-$1.1bn).
+INVENTORY_CHANGE_COLUMN = 'F03000'
+
+#: Tier 0 exemption, Supply side, beyond the trade-flow columns: subsidy
+#: incidence by commodity moves. Urban transit (485000) has a zero published
+#: 2017 ``SUB`` cell and carries -$8bn to -$22bn of pandemic-era subsidies in
+#: the 2020-2023 seeds. Freed zeros stay directionally safe because the whole
+#: column is rule-locked non-positive (:data:`NON_POSITIVE_SUPPLY_COLUMNS`).
+SUBSIDY_FLOW_SUPPLY_COLUMNS = ('SUB',)
 
 #: Tier 0 exemption, Use **rows**: the fiscal wedge rows. A 2017 zero on a
 #: per-industry tax or subsidy cell is one year's observation of tax incidence,
@@ -276,6 +293,10 @@ SIGN_LOCKED_SUPPLY_COLUMNS = ('MADJ', 'TRADE ', 'TRANS', 'TOP', 'SUB')
 #: economically-signed FD cells (households buy used vehicles +222,777,
 #: businesses shed used equipment −97,599). Locking each nonzero cell to its
 #: published sign imposes the accounting without freezing the magnitudes.
+#: The one column exempt from these row locks is
+#: :data:`INVENTORY_CHANGE_COLUMN`: an inventory cell's sign is the year's
+#: draw-or-build, and the 2020 seed legitimately flips the scrap row's 2017
+#: inventory sign (-$1.1bn on a published positive).
 #: (The other two specials need no new rule here: ``S00900`` and ``4200ID``
 #: are Tier-4 excluded from the commodity axis outright, and ``S00402``'s
 #: empty production row — zero producing industries, no ``T007`` — is already
@@ -291,6 +312,11 @@ SIGN_LOCKED_USE_ROWS = ('T00SUB', 'S00401', 'S00402')
 #: pattern. ``T00TOP`` is deliberately absent: its freed zeros stay unlocked
 #: until the sign of net per-industry product taxes is pinned down.
 NON_POSITIVE_USE_ROWS = ('T00SUB', 'T00OSUB')
+
+#: Tier 3, Supply side, by rule: the published ``SUB`` column is non-positive
+#: on every cell, so the rule extends the per-cell lock to the zeros
+#: :data:`SUBSIDY_FLOW_SUPPLY_COLUMNS` frees from Tier 0.
+NON_POSITIVE_SUPPLY_COLUMNS = ('SUB',)
 
 
 def balance_commodities() -> tuple[str, ...]:
@@ -437,6 +463,10 @@ def structural_zero_mask(
             va = [row for row in VA_ROWS if row in zeros.index]
             freed.loc[va, :] = False
         zeros[present] = zeros[present] & ~freed
+    if block == 'supply':
+        subsidy_columns = [c for c in SUBSIDY_FLOW_SUPPLY_COLUMNS if c in zeros.columns]
+        if subsidy_columns:
+            zeros[subsidy_columns] = False
     if block == 'use':
         subsidy_rows = [row for row in FISCAL_FLOW_USE_ROWS if row in zeros.index]
         if subsidy_rows:
@@ -499,10 +529,16 @@ def sign_lock_mask(block: Block, panel: pd.DataFrame | None = None) -> pd.DataFr
         for column in SIGN_LOCKED_SUPPLY_COLUMNS:
             if column in values.columns:
                 locks[column] = np.sign(values[column]).astype(int)
+        for column in NON_POSITIVE_SUPPLY_COLUMNS:
+            if column in locks.columns:
+                locks[column] = -1
     else:
         for row in SIGN_LOCKED_USE_ROWS:
             if row in values.index:
                 locks.loc[row] = np.sign(values.loc[row]).astype(int)
+                if INVENTORY_CHANGE_COLUMN in locks.columns:
+                    # inventory sign is the year's draw-or-build, never locked
+                    locks.loc[row, INVENTORY_CHANGE_COLUMN] = 0
         industry_columns = [c for c in balance_industries() if c in locks.columns]
         for row in NON_POSITIVE_USE_ROWS:
             if row in locks.index:

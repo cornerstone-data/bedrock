@@ -389,7 +389,27 @@ def test_margin_and_tax_zeros_stay_structural() -> None:
 
 def test_the_exempt_columns_are_flows_not_margins() -> None:
     assert set(TRADE_FLOW_SUPPLY_COLUMNS) == {'MCIF', 'MADJ', 'MDTY'}
-    assert set(TRADE_FLOW_USE_COLUMNS) == {'F04000'}
+    assert set(TRADE_FLOW_USE_COLUMNS) == {'F04000', 'F03000'}
+
+
+def test_supply_subsidy_zeros_are_freed_and_rule_locked() -> None:
+    """Subsidy incidence by commodity moves: 485000 (urban transit) has a zero
+    published 2017 SUB cell and -\\$8bn to -\\$22bn of pandemic subsidies in
+    the 2020-2023 seeds. The freed zeros stay directionally safe because the
+    whole column is rule-locked non-positive."""
+    zeros = structural_zero_mask('supply', _supply_panel())
+    assert not zeros['SUB'].any()
+    locks = sign_lock_mask('supply', _supply_panel())
+    assert (locks['SUB'] == -1).all()  # including the zero cells, by rule
+
+
+def test_inventory_change_is_never_sign_locked() -> None:
+    """F03000's sign is the year's draw-or-build, not a property of 2017 -
+    the 2020 seed flips the scrap row's published inventory sign."""
+    locks = sign_lock_mask('use')
+    assert locks.loc['S00401', 'F03000'] == 0
+    assert locks.loc['S00402', 'F03000'] == 0
+    assert locks.loc['T00SUB', 'F03000'] == 0
 
 
 def test_never_imported_commodities_keep_their_mcif_structural_zero() -> None:
