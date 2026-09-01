@@ -130,19 +130,18 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
 Block = Literal['use', 'supply']
 
-#: Value-added rows of the Use panel. ``T00TOP`` and ``T00SUB`` are not part of
-#: the industry-output identity - they are the wedge from basic to producer
-#: prices - but the industry column margin is ``T005 + VAPRO``, so all five rows
+#: Value-added rows of the Use panel, matching ``nowcast.USE_VALUE_ADDED_ROWS``
+#: in membership and order. ``T00TOP`` and ``T00SUB`` are not part of the
+#: industry-output identity - they are the wedge from basic to producer
+#: prices - but the industry column margin is ``T005 + VAPRO``, so all six rows
 #: participate.
 #:
-#: ⚠️ **One row behind the block on purpose** (#784):
-#: ``nowcast.USE_VALUE_ADDED_ROWS`` also carries ``T00OSUB`` — subsidies on
-#: production, all-zero at 2017 and ~580bn $M in 2020. Wiring it here needs a
-#: Tier-0 zero exemption on the row axis (its 2017 zeros are one year's
-#: observation of a pandemic-era row, not structure) plus a sign lock, and the
-#: mask machinery is about to be reworked as an early Step-5 item — the row
-#: joins then, once, rather than twice.
-VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
+#: ``T00OSUB`` — subsidies on production (#784) — is stored **negative**, like
+#: ``T00SUB``. It is absent from the published 2017 detail workbook (the row is
+#: zero that year) and ~580bn $M in 2020, so it takes a Tier-0 zero exemption
+#: (:data:`SUBSIDY_FLOW_USE_ROWS`) and a rule-based non-positive sign lock
+#: (:data:`NON_POSITIVE_USE_ROWS`) rather than pattern-derived layers.
+VA_ROWS = ('V00100', 'T00OTOP', 'T00OSUB', 'V00300', 'T00TOP', 'T00SUB')
 
 #: Supply columns between basic (``T013``) and purchaser (``T016``) value. The
 #: subtotals ``T007``/``T013``/``T014``/``T015``/``T016`` are derived and are
@@ -183,6 +182,13 @@ TRADE_FLOW_SUPPLY_COLUMNS = ('MCIF', 'MADJ', 'MDTY')
 
 #: Tier 0 exemption, Use side. Exports, for the same reason.
 TRADE_FLOW_USE_COLUMNS = ('F04000',)
+
+#: Tier 0 exemption, Use **rows**. ``T00OSUB`` is all-zero in the 2017 pattern
+#: and ~580bn $M in 2020 - pandemic-era production subsidies. Its 2017 zeros
+#: are one year's observation of a fiscal flow, not structure. The exemption
+#: covers the industry columns only: the value-added by final-demand corner is
+#: structurally empty and stays Tier 0.
+SUBSIDY_FLOW_USE_ROWS = ('T00OSUB',)
 
 #: Commodities whose ``MCIF`` zero is **structure, not observation** - the
 #: wholesale and retail margin commodities, and customs duties.
@@ -274,6 +280,13 @@ SIGN_LOCKED_SUPPLY_COLUMNS = ('MADJ', 'TRADE ', 'TRANS', 'TOP', 'SUB')
 #: Tier-0 structural on the Supply block.)
 SIGN_LOCKED_USE_ROWS = ('T00SUB', 'S00401', 'S00402')
 
+#: Tier 3, Use side, **by rule rather than published sign**. ``T00OSUB`` is
+#: all-zero in the 2017 pattern, so a pattern-derived lock would leave it
+#: unsigned; the accounting says subsidies on production are non-positive in
+#: the balance's sign convention (stored negative, like ``T00SUB``). Locked
+#: ``-1`` across the industry columns regardless of the pattern.
+NON_POSITIVE_USE_ROWS = ('T00OSUB',)
+
 
 def balance_commodities() -> tuple[str, ...]:
     """The 400 commodities the balance carries.
@@ -359,8 +372,11 @@ def _build_published_2017_panel(block: Block) -> pd.DataFrame:
         panel.loc[commodities, final_demand] = _numeric(
             use.loc[commodities, final_demand]
         )
-        panel.loc[list(VA_ROWS), industries] = _numeric(
-            use.loc[list(VA_ROWS), industries]
+        # T00OSUB is not in the published 2017 detail workbook (the row is
+        # zero that year); it stays at the panel's zero initialisation.
+        va_published = [row for row in VA_ROWS if row in use.index]
+        panel.loc[va_published, industries] = _numeric(
+            use.loc[va_published, industries]
         )
         # BEA publishes this row positive; the balance stores subsidies
         # negative, matching the Supply table.
@@ -410,7 +426,17 @@ def structural_zero_mask(
         if block == 'supply' and 'MCIF' in present:
             structural = [c for c in NEVER_IMPORTED_COMMODITIES if c in zeros.index]
             freed.loc[structural, 'MCIF'] = False
+        if block == 'use':
+            # Value-added rows cannot be exported; the exemption is about
+            # commodities whose trade moves year to year, not the VA corner.
+            va = [row for row in VA_ROWS if row in zeros.index]
+            freed.loc[va, :] = False
         zeros[present] = zeros[present] & ~freed
+    if block == 'use':
+        subsidy_rows = [row for row in SUBSIDY_FLOW_USE_ROWS if row in zeros.index]
+        if subsidy_rows:
+            industry_columns = [c for c in balance_industries() if c in zeros.columns]
+            zeros.loc[subsidy_rows, industry_columns] = False
     return zeros
 
 
@@ -472,6 +498,10 @@ def sign_lock_mask(block: Block, panel: pd.DataFrame | None = None) -> pd.DataFr
         for row in SIGN_LOCKED_USE_ROWS:
             if row in values.index:
                 locks.loc[row] = np.sign(values.loc[row]).astype(int)
+        industry_columns = [c for c in balance_industries() if c in locks.columns]
+        for row in NON_POSITIVE_USE_ROWS:
+            if row in locks.index:
+                locks.loc[row, industry_columns] = -1
     return locks
 
 

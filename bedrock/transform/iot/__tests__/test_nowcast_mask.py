@@ -12,6 +12,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from bedrock.transform.iot.nowcast import USE_VALUE_ADDED_ROWS
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
     EXCLUDED_COMMODITIES,
@@ -41,7 +42,7 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 def _use_panel() -> pd.DataFrame:
     """Two commodities and the VA rows, by two industries and three FD codes."""
     rows = ['111120', '111130', *VA_ROWS]
-    columns = ['1111A0', '1111B0', 'F01000', 'F06C00', 'F06N00']
+    columns = ['1111A0', '1111B0', 'F01000', 'F04000', 'F06C00', 'F06N00']
     panel = pd.DataFrame(0.0, index=rows, columns=columns)
     panel.loc['111120', ['1111A0', '1111B0', 'F01000']] = [10.0, 5.0, 20.0]
     panel.loc['111130', ['1111A0', 'F06C00']] = [4.0, 7.0]
@@ -164,6 +165,32 @@ def test_structural_zeros_are_the_zero_cells() -> None:
     assert zeros.loc['V00100', 'F01000']
 
 
+def test_the_export_exemption_frees_commodities_but_not_the_va_corner() -> None:
+    """``F04000`` zeros are freed for commodity rows only.
+
+    A commodity the US did not export in 2017 can be exported later; a
+    value-added row can never be. Freeing the whole column would open the
+    VA x FD corner, which is structurally empty.
+    """
+    zeros = structural_zero_mask('use', _use_panel())
+    assert not zeros.loc['111120', 'F04000']  # commodity zero, freed
+    assert zeros.loc['T00SUB', 'F04000']  # VA corner stays Tier 0
+    assert zeros.loc['T00OSUB', 'F04000']
+
+
+def test_t00osub_zeros_are_exempt_on_the_industry_columns_only() -> None:
+    """The 2017 zeros of a pandemic-era row are observation, not structure.
+
+    ``T00OSUB`` is all-zero in the 2017 pattern and ~580bn $M in 2020, so its
+    industry cells must stay free; its final-demand cells are the structurally
+    empty corner and stay Tier 0.
+    """
+    zeros = structural_zero_mask('use', _use_panel())
+    assert not zeros.loc['T00OSUB', '1111A0']
+    assert not zeros.loc['T00OSUB', '1111B0']
+    assert zeros.loc['T00OSUB', 'F01000']
+
+
 # --------------------------------------------------------------------------
 # Tier 1 - fixed values
 # --------------------------------------------------------------------------
@@ -229,6 +256,30 @@ def test_gross_operating_surplus_is_not_locked() -> None:
     """``V00300`` is the residual the system lands on, and goes negative."""
     locks = sign_lock_mask('use', _use_panel())
     assert locks.loc['V00300', '1111A0'] == 0
+
+
+def test_t00osub_is_locked_non_positive_by_rule_not_pattern() -> None:
+    """An all-zero 2017 row gives a pattern-derived lock nothing to copy.
+
+    The accounting fixes the sign instead: subsidies on production are stored
+    negative (like ``T00SUB``), so every industry cell is locked ``-1`` even
+    though the fixture value there is zero. The final-demand cells carry no
+    lock - they are the structurally empty corner, held by Tier 0.
+    """
+    locks = sign_lock_mask('use', _use_panel())
+    assert locks.loc['T00OSUB', '1111A0'] == -1
+    assert locks.loc['T00OSUB', '1111B0'] == -1
+    assert locks.loc['T00OSUB', 'F01000'] == 0
+
+
+def test_va_rows_mirror_the_seed_definition() -> None:
+    """The seed and the mask must agree on the VA rows, membership and order.
+
+    ``nowcast.USE_VALUE_ADDED_ROWS`` is where Step 2 builds the six-row block;
+    ``VA_ROWS`` is what the mask panel and the T18 target carry. A drift here
+    is a silently wrong T18.
+    """
+    assert VA_ROWS == USE_VALUE_ADDED_ROWS
 
 
 # --------------------------------------------------------------------------
@@ -314,9 +365,12 @@ def test_trade_flow_columns_are_exempt_from_structural_zeros() -> None:
 
     use = _use_panel()
     use_zeros = structural_zero_mask('use', use)
+    commodity_rows = ['111120', '111130']
     for column in TRADE_FLOW_USE_COLUMNS:
         if column in use_zeros.columns:
-            assert not use_zeros[column].any(), column
+            # Commodity rows are freed; the VA rows stay Tier 0 - see
+            # test_the_export_exemption_frees_commodities_but_not_the_va_corner.
+            assert not use_zeros.loc[commodity_rows, column].any(), column
 
 
 def test_margin_and_tax_zeros_stay_structural() -> None:
