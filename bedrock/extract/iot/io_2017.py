@@ -384,8 +384,10 @@ def load_2017_margins_usa() -> pd.DataFrame:
     )
 
 
-def _load_margins_excel(pth: str) -> pd.DataFrame:
-    """Read the Margins Excel file, suppressing the openpyxl header/footer warning."""
+def _load_margins_excel(pth: str, year: int = 2017) -> pd.DataFrame:
+    """Read one year sheet of a Margins Excel file, suppressing the openpyxl
+    header/footer warning. The before-redefinitions workbook carries one sheet
+    per benchmark year (2007/2012/2017), all on the 2017 code basis."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -394,7 +396,7 @@ def _load_margins_excel(pth: str) -> pd.DataFrame:
         )
         return pd.read_excel(
             pth,
-            sheet_name="2017",
+            sheet_name=str(year),
             skiprows=5,
             header=None,
             names=_MARGINS_COLUMNS,
@@ -402,13 +404,13 @@ def _load_margins_excel(pth: str) -> pd.DataFrame:
         )
 
 
-def _load_2017_margins_from_file(filename: str) -> pd.DataFrame:
+def _load_2017_margins_from_file(filename: str, year: int = 2017) -> pd.DataFrame:
     """Shared loader for margins tables; applies index filtering and unit scaling."""
     df = load_from_gcs(
         name=filename,
         sub_bucket=GCS_USA_MAKE_USE_DIR,
         local_dir=LOCAL_USA_MAKE_USE_DIR,
-        loader=_load_margins_excel,
+        loader=functools.partial(_load_margins_excel, year=year),
     ).set_index(["Industry Code", "Commodity Code"])
     valid_industry = set(USA_2017_INDUSTRY_CODES) | set(USA_2017_FINAL_DEMAND_CODES)
     valid_commodity = set(USA_2017_COMMODITY_CODES) | set(USA_2017_VALUE_ADDED_CODES)
@@ -431,15 +433,38 @@ def load_2017_margins_after_redef_usa() -> pd.DataFrame:
     return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"])
 
 
-@functools.cache
 def load_2017_margins_before_redef_usa() -> pd.DataFrame:
     """
     Margins table, (industry, commodity) x margin type, before redefinition, in producer price.
     Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
     unit is USD, original unit is million USD.
     """
+    return load_benchmark_margins_before_redef_usa(2017)
+
+
+@functools.cache
+def load_benchmark_margins_before_redef_usa(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
+    """
+    Margins table for a *benchmark* year, (industry, commodity) x margin type,
+    before redefinitions, in producer price.
+    Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
+    unit is USD, original unit is million USD.
+
+    ``Margins_Before_Redefinitions_2017_DET.xlsx`` carries one sheet per
+    benchmark year - 2007, 2012 and 2017, all on the 2017 code basis - so the
+    margin rates and their placement can be graded on a second published year.
+
+    ⚠️ The "Industry Code" level also carries the 20 final-demand buyer codes,
+    and the "Commodity Code" level carries the three value-added rows; the
+    ``PRO + Transportation + Wholesale + Retail = PUR`` identity holds on goods
+    rows but deliberately NOT on the margin commodities' own rows, whose
+    Producers' Value carries the margin routed onto them (their purchaser cell
+    is the direct purchase only).
+    """
     return _load_2017_margins_from_file(
-        USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING["Margins"]
+        USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING["Margins"], year
     )
 
 
