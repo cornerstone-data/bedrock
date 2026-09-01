@@ -33,12 +33,12 @@ import numpy as np
 import pandas as pd
 import pandera.typing as pt
 
-from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
-    load_2017_value_added_usa,
-    load_2017_Ytot_usa,
+from bedrock.extract.iot.detail_io import (
+    load_detail_Uimp_usa,
+    load_detail_Utot_usa,
+    load_detail_V_usa,
+    load_detail_value_added_usa,
+    load_detail_Ytot_usa,
 )
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
@@ -153,7 +153,7 @@ def _cornerstone_aq_matrix_set(
 
 
 def _derive_cornerstone_V_baseline() -> pd.DataFrame:
-    V_2017 = load_2017_V_usa()
+    V_2017 = load_detail_V_usa()
     V = industry_corresp() @ V_2017 @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
@@ -161,8 +161,8 @@ def _derive_cornerstone_V_baseline() -> pd.DataFrame:
 
 
 def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
 
     com_c = commodity_corresp()
@@ -179,13 +179,13 @@ def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def _derive_cornerstone_VA_baseline() -> pd.DataFrame:
-    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
     return VA
 
 
 def _derive_cornerstone_Ytot_baseline() -> pd.DataFrame:
-    Ytot_orig = load_2017_Ytot_usa()
+    Ytot_orig = load_detail_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
     return Ytot
@@ -309,7 +309,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
-    scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
+    scrap_2017 = load_detail_V_usa().loc[:, 'S00401']
     scrap_fraction = industry_corresp() @ scrap_2017
     if get_usa_config().implement_electricity_disaggregation:
         parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
@@ -529,9 +529,23 @@ def _reanchor_electricity_aq_if_disaggregation_enabled(
 
 @functools.cache
 def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
-    """Year-scaled and inflated A matrices and q."""
+    """Return model-ready A matrices and ``q``.
+
+    On the published-BEA path, scales detail A and ``q`` from
+    ``usa_detail_original_year`` to ``usa_io_data_year``, then inflates to
+    ``model_base_year``. When electricity disaggregation is enabled, re-anchors
+    electricity rows/columns after inflation.
+
+    No-op shortcuts (return ``derive_cornerstone_Aq()`` unchanged):
+
+    - ``usa_detail_io_source == 'nowcast'`` — detail IO is already at the IO
+      calendar year; summary-ratio scaling and PI inflation do not apply.
+    - ``scale_a_matrix_with_useeio_method`` — USEEIO-parity A path.
+    """
     base = derive_cornerstone_Aq()
     cfg = get_usa_config()
+    if cfg.usa_detail_io_source == 'nowcast':
+        return base
     io_year = cfg.usa_io_data_year
     detail_year = cfg.usa_detail_original_year
     model_year = cfg.model_base_year

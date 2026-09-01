@@ -21,6 +21,12 @@ RETIRED_USA_CONFIG_STEMS: frozenset[str] = frozenset(
     }
 )
 
+BEA_PUBLISHED_IO_YEARS: frozenset[int] = frozenset({2012, 2017})
+NOWCAST_IO_YEARS: frozenset[int] = frozenset(
+    {2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024}
+)
+NowcastDetailIoYear = ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
+
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         'diagnostics_baseline_source',
@@ -47,9 +53,17 @@ class USAConfig(BaseModel):
     #####
     # Data selection
     #####
-    usa_base_io_data_year: ta.Literal[2012, 2017] = (
-        2017  # BEA's benchmark year for Detail Input-Output data
+    usa_detail_io_source: ta.Literal['bea_published', 'nowcast'] = 'bea_published'
+    nowcast_mut_vintage: ta.Optional[str] = Field(
+        default=None,
+        description=(
+            'Artifact build label for nowcast BEA-detail MUT tables stored on GCS. '
+            'Required when usa_detail_io_source is nowcast.'
+        ),
     )
+    usa_base_io_data_year: ta.Literal[
+        2012, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024
+    ] = 2017  # BEA benchmark year (bea_published) or IO calendar year (nowcast)
     usa_io_data_year: ta.Literal[2017, 2022, 2023, 2024] = (
         2022  # CEDA's legacy USA IO data year
     )
@@ -189,6 +203,41 @@ class USAConfig(BaseModel):
             )
         return self
 
+    @model_validator(mode='after')
+    def _validate_detail_io_source(self) -> USAConfig:
+        if self.usa_detail_io_source == 'bea_published':
+            if self.usa_base_io_data_year not in BEA_PUBLISHED_IO_YEARS:
+                raise ValueError(
+                    'usa_base_io_data_year must be 2012 or 2017 when '
+                    "usa_detail_io_source is 'bea_published'; "
+                    f'got {self.usa_base_io_data_year}'
+                )
+        elif self.usa_detail_io_source == 'nowcast':
+            if not self.nowcast_mut_vintage or not self.nowcast_mut_vintage.strip():
+                raise ValueError(
+                    'nowcast_mut_vintage is required when '
+                    "usa_detail_io_source is 'nowcast'"
+                )
+            if self.usa_base_io_data_year not in NOWCAST_IO_YEARS:
+                raise ValueError(
+                    'usa_base_io_data_year must be 2017–2024 when '
+                    "usa_detail_io_source is 'nowcast'; "
+                    f'got {self.usa_base_io_data_year}'
+                )
+            if self.usa_base_io_data_year != self.model_base_year:
+                raise ValueError(
+                    'usa_base_io_data_year must equal model_base_year when '
+                    "usa_detail_io_source is 'nowcast'; "
+                    f'got usa_base_io_data_year={self.usa_base_io_data_year}, '
+                    f'model_base_year={self.model_base_year}'
+                )
+            if self.apply_io_year_adjustments:
+                raise ValueError(
+                    'apply_io_year_adjustments is incompatible with '
+                    "usa_detail_io_source 'nowcast'"
+                )
+        return self
+
     #####
     # Baseline snapshot
     #####
@@ -208,7 +257,9 @@ class USAConfig(BaseModel):
     ] = 'v0'
 
     @property
-    def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
+    def usa_detail_original_year(self) -> NowcastDetailIoYear:
+        if self.usa_detail_io_source == 'nowcast':
+            return ta.cast(NowcastDetailIoYear, self.usa_base_io_data_year)
         return 2017
 
     @property
