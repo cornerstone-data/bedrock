@@ -35,11 +35,13 @@ def build_pair(
         IMPLEMENTATIONS[pair.top],
         derive=derive,
         load_snapshot_footing=vs_footing,
+        table_steps=pair.table_steps,
     )
     bottom = load_impl_bundle(
         IMPLEMENTATIONS[pair.bottom],
         derive=derive,
         load_snapshot_footing=vs_footing,
+        table_steps=pair.table_steps,
     )
     png_dir = dest / 'png'
     return write_pptx(pair, top, bottom, dest / pair.filename, png_dir=png_dir)
@@ -53,11 +55,11 @@ def build_pair(
     default=None,
     help='Build one pair. Default with --all is every pair.',
 )
-@click.option('--all', 'build_all', is_flag=True, help='Build all four PPTX files.')
+@click.option('--all', 'build_all', is_flag=True, help='Build all five PPTX files.')
 @click.option(
     '--derive',
     is_flag=True,
-    help='Live-derive missing current and production steps (slow).',
+    help='Live-derive missing mecs_mixed_units, reaggregation, and production steps (slow).',
 )
 def main(pair_key: str | None, build_all: bool, derive: bool) -> None:
     if build_all:

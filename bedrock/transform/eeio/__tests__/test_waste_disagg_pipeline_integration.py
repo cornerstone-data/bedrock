@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
-from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio import (
     cornerstone_expansion,
 )
@@ -25,6 +25,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
@@ -60,6 +61,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     cornerstone_sector_disagg_active,
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
     get_waste_disagg_weights,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -498,7 +500,7 @@ class TestPipelineB:
                 else derive_cornerstone_x()
             )
             expected = (
-                derive_E_usa().divide(x, axis=1).fillna(0.0)
+                load_E_from_flowsa().divide(x, axis=1).fillna(0.0)
                 @ derive_cornerstone_Vnorm_scrap_corrected()
             )
         finally:

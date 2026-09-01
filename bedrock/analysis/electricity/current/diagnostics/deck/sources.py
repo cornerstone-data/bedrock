@@ -1,6 +1,6 @@
 """Resolve D/N/q/class-MWh from the deck cache or a live derive.
 
-``current`` uses the electricity-disagg YAML chain. ``production`` uses
+``mecs_mixed_units`` uses the electricity-disagg YAML chain. ``production`` uses
 ``2025_usa_cornerstone_v0_3`` once and repeats it at every table column.
 Original and pre-MECS EIA G/T/D table/histogram values come from
 ``historical/original_vs_eia_anchored_deck``, not from freeze parquets.
@@ -143,12 +143,15 @@ def _write_class_mwh(folder: Path) -> None:
 def derive_step(impl: Implementation, step_id: StepId) -> StepSnapshot:
     """Live-derive one config and write the deck cache."""
     from bedrock.publish.cache_reset import clear_all_publish_caches  # noqa: PLC0415
+    from bedrock.publish.model_objects import get_x  # noqa: PLC0415
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_conversion_factors,
         electricity_mixed_units_enabled,
+        electricity_reaggregation_enabled,
     )
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_Aq_reaggregated,
         derive_cornerstone_Aq_scaled,
     )
     from bedrock.utils.config.usa_config import (  # noqa: PLC0415
@@ -167,21 +170,27 @@ def derive_step(impl: Implementation, step_id: StepId) -> StepSnapshot:
         aq_mon = derive_cornerstone_Aq_scaled()
         c_col, _c_row = electricity_conversion_factors(aq_mon)
         aq = derive_cornerstone_Aq_mixed_units()
+    elif electricity_reaggregation_enabled():
+        aq = derive_cornerstone_Aq_reaggregated()
+        c_col = None
     else:
         aq = derive_cornerstone_Aq_scaled()
         c_col = None
     efs = pull_efs_for_diagnostics()
+    x = get_x()
 
     folder = impl_cache_dir(impl.id, config)
     folder.mkdir(parents=True, exist_ok=True)
     efs.D_new.to_parquet(folder / 'D.parquet')
     efs.N_new.to_parquet(folder / 'N.parquet')
     aq.scaled_q.astype(float).rename('q').to_frame().to_parquet(folder / 'q.parquet')
+    x.astype(float).rename('x').to_frame().to_parquet(folder / 'x.parquet')
     metadata = {
         'config': config,
         'impl': impl.id,
         'c_col': c_col,
         'mixed_units': bool(electricity_mixed_units_enabled()),
+        'reaggregation': bool(electricity_reaggregation_enabled()),
     }
     (folder / 'run_metadata.json').write_text(
         json.dumps(metadata, indent=2), encoding='utf-8'
@@ -200,7 +209,9 @@ def load_impl_bundle(
     *,
     derive: bool = False,
     load_snapshot_footing: bool = False,
+    table_steps: tuple[StepId, ...] | None = None,
 ) -> ImplBundle:
+    steps_for_pair = table_steps if table_steps is not None else STEPS
     if impl.id in PUBLISHED_IMPLS:
         return ImplBundle(impl_id=impl.id, steps={})
     if impl.single_config is not None:
@@ -209,11 +220,11 @@ def load_impl_bundle(
             snap = derive_step(impl, 'footing')
         copied: dict[StepId, StepSnapshot] = {}
         if snap is not None:
-            for step_id in STEPS:
+            for step_id in steps_for_pair:
                 copied[step_id] = replace(snap)
         return ImplBundle(impl_id=impl.id, steps=copied)
     steps: dict[StepId, StepSnapshot] = {}
-    for step_id in STEPS:
+    for step_id in steps_for_pair:
         snap = load_step(impl, step_id)
         if (
             snap is None
