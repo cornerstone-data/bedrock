@@ -29,6 +29,8 @@ __pycache__/
 *_metadata.json
 *_diffs.yaml
 !bedrock/utils/**/*.csv
+# Published original vs EIA-anchored histogram panels (required for deck CI)
+!bedrock/analysis/electricity/historical/original_vs_eia_anchored_deck/figures/*.png
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
 !bedrock/extract/external_data/*.csv
@@ -52,8 +54,3 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
-# Original electricity-disagg implementation freeze (must be committed)
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.parquet
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.json

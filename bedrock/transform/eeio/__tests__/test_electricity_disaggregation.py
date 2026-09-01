@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -44,6 +46,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     disaggregate_use_industry_columns,
     get_2017_eia_purchaser_allocation,
 )
+from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     clear_cornerstone_inflation_caches,
@@ -67,6 +70,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_detail_GO_growth_ratios,
     applied_utilities_summary_q_growth_ratio,
     get_2017_eia_purchaser_allocation,
+    mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -95,6 +99,22 @@ def _clear_all_caches() -> None:
 
     clear_summary_year_scaled_aq()
     clear_reanchored_electricity_q()
+
+
+@contextmanager
+def dollar_industrial_weights() -> Iterator[None]:
+    """Force dollar Industrial weights so unmarked tests do not load Table 7.7."""
+    import bedrock.transform.eeio.electricity_gtd_allocation as gtd  # noqa: PLC0415
+
+    orig = gtd.allocate_purchaser_gtd
+
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
+        kwargs = dict(kwargs)
+        kwargs['industrial_weights'] = 'dollars'
+        return orig(*args, **kwargs)
+
+    with patch.object(gtd, 'allocate_purchaser_gtd', _wrapped):
+        yield
 
 
 def _setup_config(config_name: str) -> None:
@@ -283,8 +303,9 @@ class Test2017EIAPurchaserAllocation:
                 ) as y_mock:
                     get_2017_eia_purchaser_allocation.cache_clear()
                     _derive_post_reallocation_checkpoint_for_disagg.cache_clear()
-                    alloc = get_2017_eia_purchaser_allocation()
-                    assert ELECTRICITY_AGGREGATE in alloc.bill.index
+                    with dollar_industrial_weights():
+                        alloc = get_2017_eia_purchaser_allocation()
+                    assert ELECTRICITY_AGGREGATE in alloc.electricity_purchases.index
                     bundle_mock.assert_not_called()
                     y_mock.assert_not_called()
         finally:
@@ -399,7 +420,7 @@ class TestReanchoredAqIdentities:
                 col_s = str(col)
                 if col_s in ELECTRICITY_DISAGG_SECTORS:
                     continue
-                if col_s not in alloc.bill.index:
+                if col_s not in alloc.electricity_purchases.index:
                     continue
                 assert _frame_cell_float(udom, g, col_s) == pytest.approx(
                     float(alloc.gen_dollars[col_s]), rel=1e-6, abs=1.0
@@ -411,7 +432,9 @@ class TestReanchoredAqIdentities:
                     float(alloc.d_dollars[col_s]), rel=1e-6, abs=1.0
                 )
             gen_self = float(alloc.gen_dollars[ELECTRICITY_AGGREGATE])
-            leftover = float(alloc.bill[ELECTRICITY_AGGREGATE]) - gen_self
+            leftover = (
+                float(alloc.electricity_purchases[ELECTRICITY_AGGREGATE]) - gen_self
+            )
             assert _frame_cell_float(udom, g, g) == pytest.approx(
                 gen_self, rel=1e-6, abs=1.0
             )
@@ -428,7 +451,7 @@ class TestReanchoredAqIdentities:
                     assert _frame_cell_float(udom, i, j) == pytest.approx(0.0, abs=1e-6)
             fd_keys = [
                 k
-                for k in alloc.bill.index
+                for k in alloc.electricity_purchases.index
                 if k in set(FINAL_DEMANDS) and k != IMPORT_FD_CODE
             ]
             assert float(y.loc[g]) == pytest.approx(
@@ -488,7 +511,6 @@ class Test2017PurchaserEiaIdentities:
             export = eia_table_2_14_export_mwh(2017)
             t22 = eia_table_2_2_end_use_mwh(2017)
             assert float(alloc.egrid_mwh) == pytest.approx(egrid, rel=1e-9)
-            assert not bool(alloc.clipped.any())
             assert float(alloc.mwh.sum()) == pytest.approx(egrid, rel=1e-4, abs=1.0)
             assert float(alloc.mwh[EXPORT_FD_CODE]) == pytest.approx(
                 export, rel=1e-4, abs=1.0
@@ -549,7 +571,7 @@ def test_import_fd_column_uses_child_sum_when_aggregate_missing(
 
     empty = pd.Series(dtype=float)
     alloc = EIAPurchaserAllocation(
-        bill=empty,
+        electricity_purchases=empty,
         end_use_class=empty,
         mwh=empty,
         gen_dollars=empty,

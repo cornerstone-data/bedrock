@@ -18,6 +18,7 @@ diagnostics/
   year_alignment/       # BLy vs E under A/q year handling
   hh_vs_interindustry/  # F01000 BLy attribution vs interindustry (not D0 class MWh)
   probes/               # one-off sector probes
+  deck/                 # five-slide PPTX (current vs pre-MECS vs original vs production)
   output/               # reports/figures (gitignored)
   __tests__/
 ```
@@ -30,6 +31,7 @@ Run everything from the **repo root** with the project venv
 ## Shared prerequisites
 
 1. **Configs** (in repo):
+   - `2025_usa_cornerstone_v0_3` — production (non-disagg, margins on)
    - `2025_usa_cornerstone_v0_3_electricity_footing` — footing
    - `2025_usa_cornerstone_v0_3_electricity_reallocation`
    - `2025_usa_cornerstone_v0_3_electricity_disaggregation`
@@ -154,9 +156,11 @@ python -m bedrock.analysis.electricity.current.diagnostics.ef_comparison.analyze
 | `electricity_reallocation/` | Suite PNGs for that step vs v0.3.1 electricity footing |
 | `electricity_disaggregation/` | Suite PNGs for 3-way vs v0.3.1 electricity footing |
 | `electricity_mixed_units/` | Suite PNGs for mixed units vs v0.3.1 electricity footing |
-| `panel/ef_panels_vs_v0_3_N.png` | 3-panel N % hist |
-| `panel/ef_panels_vs_v0_3_D.png` | 3-panel D % hist |
+| `panel/ef_panels_vs_v0_3_{N,D}.png` | Live `plot_ef` write path (absent until a new sheet run) |
 | `panel/n_variance_*.csv`, `n_variance_explained.md` | From `analyze_n_variance` |
+
+Published original / pre-MECS EIA histogram panels and D/N tables live in
+`historical/original_vs_eia_anchored_deck/`, not under `output/ef/panel/`.
 
 Dropped sectors (e.g. mixed-units `221110` kg/MWh vs kg/USD) are footnoted on figures.
 
@@ -235,6 +239,35 @@ Prints to stdout (no dedicated output file).
 
 ---
 
+## 7. Comparison PPTX — `deck/`
+
+Five-slide decks matching the original-vs-EIA-anchored template: class MWh,
+electricity-sector D/N by step, and 3-panel histograms. Writes ``.pptx`` under
+``output/deck/``. Existing BLy / footing-plot / full-trace scripts stay as they are.
+
+| Pair | Histograms |
+|---|---|
+| `current_vs_eia_gtd` | Both rows vs v0.3.1 footing (current generated; pre-MECS published PNG). MECS vs dollar-weight D/N is in the tables (**same** when they match). |
+| `current_vs_original` | Original row = published `v0.2_original_electricity_disagg_*`; bottom = current vs v0.3.1 |
+| `eia_gtd_vs_original` | Published original PNGs over published `v0.3_eia_gtd_pre_mecs_*` |
+| `current_vs_production` | Both rows vs Cornerstone v0.3 production (non-disagg, margins on). Top = current electricity-disagg steps; bottom = production vs itself (0% check). Production has no G/T/D or class MWh. |
+
+Identical D/N (or class MWh) cells are labeled **same**. Sectors not in the model
+at a step stay **N/A**. Missing live cache shows **—**. Original and pre-MECS
+EIA G/T/D tables come from
+`historical/original_vs_eia_anchored_deck/tables.yaml`.
+
+```bash
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair current_vs_eia_gtd
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair current_vs_production
+python -m bedrock.analysis.electricity.current.diagnostics.deck --all
+python -m bedrock.analysis.electricity.current.diagnostics.deck --all --derive
+```
+
+``--derive`` live-runs missing **current** (post-MECS) electricity-disagg steps and the **production** (`2025_usa_cornerstone_v0_3`) cache.
+
+---
+
 ## Suggested order
 
 1. Sheet cache + BLy waterfalls (`bly_dispersion`) and EF plots (`ef_comparison.plot_ef`)
@@ -248,5 +281,6 @@ Prints to stdout (no dedicated output file).
 
 ```bash
 python -m pytest bedrock/analysis/electricity/current/diagnostics/__tests__ \
+    bedrock/analysis/electricity/current/diagnostics/deck/__tests__ \
     bedrock/analysis/electricity/current/eia_gtd/__tests__ -q
 ```

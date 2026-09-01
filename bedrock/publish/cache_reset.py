@@ -128,7 +128,14 @@ def _clear_electricity_caches_if_loaded() -> None:
         _clear_cached_attrs(ed, _ELECTRICITY_DISAGG_CACHED_ATTRS)
     gtd = sys.modules.get('bedrock.transform.eeio.electricity_gtd_allocation')
     if gtd is not None:
-        _clear_cached_attrs(gtd, ('get_2017_eia_purchaser_allocation',))
+        _clear_cached_attrs(
+            gtd,
+            (
+                'get_2017_eia_purchaser_allocation',
+                'mecs_purchased_kwh',
+                '_mecs_purchased_kwh_cached',
+            ),
+        )
         clear_reanchored = getattr(gtd, 'clear_reanchored_electricity_q', None)
         if callable(clear_reanchored):
             clear_reanchored()

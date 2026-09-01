@@ -1,4 +1,4 @@
-"""``python -m bedrock.analysis.electricity.current.eia_gtd`` → D0 tables."""
+"""``python -m bedrock.analysis.electricity.current.eia_gtd`` → class-MWh tables."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ REPORT_MD = OUT_DIR / 'eia_gtd_purchaser_tables.md'
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description='Write D0 class-MWh / leftover T&D tables from the reanchored allocation.'
+        description='Write class-MWh / leftover T&D tables from the reanchored allocation.'
     )
     parser.add_argument(
         '--config',
