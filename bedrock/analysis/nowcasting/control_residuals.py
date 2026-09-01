@@ -204,14 +204,20 @@ VA_ROWS = ('V00100', 'T00OTOP', 'V00300', 'T00TOP', 'T00SUB')
 #: 2017 3.8 -> 3.3 (the anchor is conditioned too, deliberately: its
 #: between-group gap was Census-vs-BEA classification, not information) —
 #: and left ``t17_pct`` alone, as imports never enter the column identity.
+#: ⚠️ The scoped import anchoring (#763) took ``t11_pct`` down again in five
+#: of seven years (2017 3.3 -> 2.7, 2023 20.0 -> 19.4): inside the eight
+#: classification-broken families each commodity rides its published 2017
+#: cell moved by its own Census line.  The pharma quartet sheds ~60bn of
+#: sibling misrouting; ``325414``'s residual grows because the mass now sits
+#: on the BEA-correct sibling awaiting its use row at the interior fit.
 BASELINE: dict[int, dict[str, float]] = {
-    2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 3.3},
-    2018: {'t17_pct': 1.2, 'insolvent': 1, 't11_pct': 7.8},
-    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 10.3},
+    2017: {'t17_pct': 1.4, 'insolvent': 2, 't11_pct': 2.7},
+    2018: {'t17_pct': 1.2, 'insolvent': 1, 't11_pct': 7.5},
+    2019: {'t17_pct': 1.9, 'insolvent': 1, 't11_pct': 9.9},
     2020: {'t17_pct': 2.8, 'insolvent': 1, 't11_pct': 16.6},
     2021: {'t17_pct': 3.4, 'insolvent': 0, 't11_pct': 15.5},
-    2022: {'t17_pct': 6.4, 'insolvent': 1, 't11_pct': 17.8},
-    2023: {'t17_pct': 1.3, 'insolvent': 0, 't11_pct': 20.0},
+    2022: {'t17_pct': 6.4, 'insolvent': 1, 't11_pct': 17.4},
+    2023: {'t17_pct': 1.3, 'insolvent': 0, 't11_pct': 19.4},
 }
 
 #: Slack on the recorded percentages, in percentage points.  Rebuilding an FBA
