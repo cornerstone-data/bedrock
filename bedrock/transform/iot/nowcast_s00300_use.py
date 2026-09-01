@@ -248,7 +248,7 @@ def s00300_intermediate_budget_from_sources(
     year: int, download_sources_ok: bool = False
 ) -> float:
     """Annual intermediate budget for ``S00300`` from ``MCIF`` and final demand."""
-    from bedrock.transform.eeio.nowcast import derive_initial_Y_pur  # noqa: PLC0415
+    from bedrock.transform.iot.nowcast import derive_initial_Y_pur  # noqa: PLC0415
     from bedrock.transform.iot.nowcast_import_conditioning import (  # noqa: PLC0415
         conditioned_mcif,
     )
