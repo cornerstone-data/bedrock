@@ -259,8 +259,20 @@ NEVER_IMPORTED_COMMODITIES = (
 #: Tier 3, Supply side. Locked to their published sign per cell.
 SIGN_LOCKED_SUPPLY_COLUMNS = ('MADJ', 'TRADE ', 'TRANS', 'TOP', 'SUB')
 
-#: Tier 3, Use side. ``T00SUB`` only - after normalisation it is non-positive.
-SIGN_LOCKED_USE_ROWS = ('T00SUB',)
+#: Tier 3, Use side. ``T00SUB`` after normalisation is non-positive; the two
+#: secondhand rows carry BEA-2009 semantics in their signs, verified against
+#: the published 2017 table (Wes, 2026-08-31): **scrap** ``S00401``
+#: originating in final uses is *sold out* of them, so its PCE and equipment
+#: cells are negative (−12,990 and −9,109 $M) while its intermediate
+#: deliveries and exports are positive; **used goods** ``S00402`` carries
+#: economically-signed FD cells (households buy used vehicles +222,777,
+#: businesses shed used equipment −97,599). Locking each nonzero cell to its
+#: published sign imposes the accounting without freezing the magnitudes.
+#: (The other two specials need no new rule here: ``S00900`` and ``4200ID``
+#: are Tier-4 excluded from the commodity axis outright, and ``S00402``'s
+#: empty production row — zero producing industries, no ``T007`` — is already
+#: Tier-0 structural on the Supply block.)
+SIGN_LOCKED_USE_ROWS = ('T00SUB', 'S00401', 'S00402')
 
 
 def balance_commodities() -> tuple[str, ...]:
