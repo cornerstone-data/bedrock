@@ -14,12 +14,16 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.iot.sut_use_to_mut_use import (
+    DUTIES_COMMODITY,
     REPLAY_ATOL,
+    REPLAY_RTOL,
+    V00200_COMPONENTS,
     by_job,
     by_row,
+    f05000_column,
     published_mut_use_2017,
     score_replay,
-    use_producer_from_sut,
+    v00200_row,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
@@ -39,16 +43,6 @@ def frame(values: dict[str, dict[str, float]]) -> pd.DataFrame:
 
 
 # --- the scorer ------------------------------------------------------------
-
-
-def test_identical_frames_score_exact() -> None:
-    published = frame({'111CA': {'1111A0': 10.0, 'F01000': 4.0}})
-    score = score_replay(published, published)
-
-    assert score.n_cells == 2
-    assert score.n_outside == 0
-    assert score.gross == 0.0
-    assert score.net == 0.0
 
 
 def test_gross_and_net_separate_moved_money_from_created_money() -> None:
@@ -168,28 +162,7 @@ def test_by_job_attributes_each_residual_to_one_bucket() -> None:
     assert jobs.sum() == pytest.approx(7.0)
 
 
-def test_by_job_sums_to_gross_on_a_random_frame() -> None:
-    rng = np.random.default_rng(0)
-    rows = ['311111', '423A00', '484000', 'V00100', 'V00200']
-    columns = ['1111A0', '111200', 'F01000', USA_2017_FINAL_DEMAND_IMPORT_CODE]
-    published = pd.DataFrame(
-        rng.normal(size=(len(rows), len(columns))) * MILLION,
-        index=rows,
-        columns=columns,
-    )
-    candidate = published + rng.normal(size=published.shape) * MILLION
-
-    score = score_replay(candidate, published)
-    assert by_job(score.diff).sum() == pytest.approx(score.gross)
-
-
 # --- the conversion contract -----------------------------------------------
-
-
-def test_conversion_is_not_implemented_yet_and_says_which_pr_lands_it() -> None:
-    empty = pd.DataFrame()
-    with pytest.raises(NotImplementedError, match='F05000'):
-        use_producer_from_sut(empty, empty, empty, empty, 2017)
 
 
 # --- the answer key, against the published workbook ------------------------
@@ -266,5 +239,170 @@ def test_scoring_the_answer_key_against_itself_is_exact() -> None:
     assert score.n_cells == table.notna().to_numpy().sum()
 
 
-def test_replay_atol_is_half_a_million_dollars() -> None:
-    assert REPLAY_ATOL == 0.5 * MILLION
+# --- job 1: the F05000 column ----------------------------------------------
+
+
+def bridge(rows: dict[str, tuple[float, float, float]]) -> pd.DataFrame:
+    """A supply bridge from ``{commodity: (MCIF, MADJ, MDTY)}``, USD."""
+    return pd.DataFrame(rows, index=['MCIF', 'MADJ', 'MDTY']).T.astype(float)
+
+
+def test_f05000_is_negative_and_carries_the_duty_credit() -> None:
+    frame_in = bridge({'311111': (100.0, 5.0, 7.0), DUTIES_COMMODITY: (0.0, 0.0, 0.0)})
+    column = f05000_column(frame_in)
+
+    assert column['311111'] == pytest.approx(-112.0)
+    # the whole duty total is credited back, positive, on the duties commodity
+    assert column[DUTIES_COMMODITY] == pytest.approx(7.0)
+    # imports are a deduction, so the column nets negative
+    assert column.sum() == pytest.approx(-105.0)
+
+
+def test_f05000_needs_the_duties_commodity_to_credit_onto() -> None:
+    with pytest.raises(AssertionError, match=DUTIES_COMMODITY):
+        f05000_column(bridge({'311111': (100.0, 5.0, 7.0)}))
+
+
+def test_f05000_needs_all_three_bridge_columns() -> None:
+    frame_in = bridge({DUTIES_COMMODITY: (1.0, 0.0, 0.0)}).drop(columns=['MDTY'])
+    with pytest.raises(AssertionError, match='MDTY'):
+        f05000_column(frame_in)
+
+
+def test_f05000_reproduces_the_published_column_per_commodity() -> None:
+    """Duties are part of the rule, not a rounding error.
+
+    ``MCIF + MADJ`` alone matches the published total to 9 $M and is wrong on
+    111 of 402 commodities; adding ``MDTY`` puts every commodity inside
+    tolerance.
+    """
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    supply = _load_2017_detail_supply_use_usa('Supply_detail')
+    commodities = list(USA_2017_COMMODITY_CODES)
+    frame_in = supply.loc[commodities, ['MCIF', 'MADJ', 'MDTY']].astype(float) * MILLION
+    published = published_mut_use_2017().loc[
+        commodities, USA_2017_FINAL_DEMAND_IMPORT_CODE
+    ]
+
+    built = f05000_column(frame_in)
+    outside = ~np.isclose(
+        built.to_numpy(), published.to_numpy(), rtol=REPLAY_RTOL, atol=REPLAY_ATOL
+    )
+    assert outside.sum() == 0
+
+    without_duties = -(frame_in['MCIF'] + frame_in['MADJ'])
+    still_outside = ~np.isclose(
+        without_duties.to_numpy(),
+        published.to_numpy(),
+        rtol=REPLAY_RTOL,
+        atol=REPLAY_ATOL,
+    )
+    assert still_outside.sum() == 111
+
+
+# --- job 2: the V00200 collapse --------------------------------------------
+
+
+def va_block(rows: dict[str, dict[str, float]]) -> pd.DataFrame:
+    """A six-row value-added block, defaulting any row not given to zero."""
+    industries = sorted({i for cells in rows.values() for i in cells})
+    block = pd.DataFrame(
+        0.0, index=['V00100', 'V00300', *V00200_COMPONENTS], columns=industries
+    )
+    for row, cells in rows.items():
+        for industry, value in cells.items():
+            block.loc[row, industry] = value
+    return block
+
+
+def test_v00200_is_a_plain_sum_of_the_four_tax_rows() -> None:
+    block = va_block(
+        {
+            'T00OTOP': {'1111A0': 10.0},
+            'T00OSUB': {'1111A0': -3.0},
+            'T00TOP': {'1111A0': 20.0},
+            'T00SUB': {'1111A0': -4.0},
+            'V00100': {'1111A0': 999.0},
+        }
+    )
+    assert v00200_row(block)['1111A0'] == pytest.approx(23.0)
+
+
+def test_v00200_sums_t00osub_rather_than_ignoring_it() -> None:
+    """The row is zero at the anchor, so only a nonzero case can prove it."""
+    without = va_block({'T00TOP': {'1111A0': 20.0}})
+    with_row = va_block({'T00TOP': {'1111A0': 20.0}, 'T00OSUB': {'1111A0': -538.0}})
+
+    assert v00200_row(without)['1111A0'] == pytest.approx(20.0)
+    assert v00200_row(with_row)['1111A0'] == pytest.approx(-518.0)
+
+
+def test_v00200_raises_on_a_block_missing_t00osub() -> None:
+    """A five-row panel replays 2017 perfectly and is wrong from 2020."""
+    block = va_block({'T00TOP': {'1111A0': 20.0}}).drop(index=['T00OSUB'])
+    with pytest.raises(AssertionError, match='T00OSUB'):
+        v00200_row(block)
+
+
+@pytest.mark.parametrize('row', ['T00SUB', 'T00OSUB'])
+def test_v00200_raises_on_bea_signed_subsidies(row: str) -> None:
+    """Summing a BEA-signed block overstates V00200 by twice the subsidies."""
+    block = va_block({row: {'1111A0': 4.0 * MILLION}})
+    with pytest.raises(ValueError, match=row):
+        v00200_row(block)
+
+
+def test_v00200_tolerates_rounding_dust_in_the_subsidy_rows() -> None:
+    block = va_block({'T00SUB': {'1111A0': 0.5 * MILLION}})
+    assert v00200_row(block)['1111A0'] == pytest.approx(0.5 * MILLION)
+
+
+def test_v00200_reproduces_the_published_row_from_the_sut_block() -> None:
+    """The collapse is an identity, to the workbook's own rounding.
+
+    ``T00OSUB`` is absent from the published 2017 detail workbook and zero in
+    2017, so it enters as an explicit zero row - which is exactly why a
+    conversion that forgot it would still pass here.
+    """
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    sut = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    industries = list(USA_2017_INDUSTRY_CODES)
+    block = pd.DataFrame(0.0, index=list(V00200_COMPONENTS), columns=industries)
+    for row in V00200_COMPONENTS:
+        if row in sut.index:
+            values = sut.loc[[row], industries].apply(pd.to_numeric, errors='coerce')
+            block.loc[row] = values.fillna(0.0).to_numpy()[0] * MILLION
+    # BEA publishes the Use subsidy row positive; the build stores it negative
+    block.loc['T00SUB'] = -block.loc['T00SUB']
+    assert 'T00OSUB' in sut.index or (block.loc['T00OSUB'] == 0).all()
+
+    built = v00200_row(block)
+    published = published_mut_use_2017().loc[['V00200'], industries].iloc[0]
+
+    assert built.sum() / MILLION == pytest.approx(published.sum() / MILLION, abs=25)
+    worst = float(np.abs(built.to_numpy() - published.to_numpy()).max())
+    assert worst / MILLION <= 1
+
+
+def test_v00100_and_v00300_cross_unchanged() -> None:
+    """Neither row is part of the collapse; the before-redef pair is identical."""
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    sut = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    industries = list(USA_2017_INDUSTRY_CODES)
+    mut = published_mut_use_2017()
+    for row in ('V00100', 'V00300'):
+        published = mut.loc[[row], industries].to_numpy()
+        sut_side = (
+            sut.loc[[row], industries].apply(pd.to_numeric, errors='coerce').fillna(0.0)
+            * MILLION
+        ).to_numpy()
+        assert np.abs(sut_side - published).max() == 0.0

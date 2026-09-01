@@ -4,7 +4,7 @@ The SUT Use table is at purchaser value, with margins and taxes booked on the
 goods row. The MUT Use table is at producer value, with the trade and transport
 margins stripped out of the goods rows and booked on the rows of the commodities
 that supplied them. Converting between the two is three jobs: create the MUT-only
-``F05000`` imports column from Supply ``MCIF``/``MADJ``, collapse the SUT's six
+``F05000`` imports column from the Supply bridge, collapse the SUT's six
 value-added rows into ``V00200``, and redistribute the margins per
 ``(buyer, commodity)`` cell.
 
@@ -46,6 +46,10 @@ from bedrock.utils.taxonomy.bea.v2017_value_added import USA_2017_VALUE_ADDED_CO
 REPLAY_RTOL = 0.01
 REPLAY_ATOL = 0.5 * MILLION_CURRENCY_TO_CURRENCY
 
+#: Slack for the subsidy sign check, so workbook rounding does not read as a
+#: flipped convention.
+_SIGN_TOLERANCE = 1.0 * MILLION_CURRENCY_TO_CURRENCY
+
 # --- the conversion --------------------------------------------------------
 
 
@@ -79,6 +83,99 @@ def use_producer_from_sut(
         'the three jobs land separately: F05000 and the V00200 collapse, then '
         'the per-cell strip to producers value, then the margin redistribution.'
     )
+
+
+#: BEA books customs duties on this synthetic commodity, and only in the MUT.
+#: The Supply table carries no imports and no duty against it at all.
+DUTIES_COMMODITY = '4200ID'
+
+#: The SUT value-added rows that collapse into the MUT's single net ``V00200``.
+#: ``V00100`` and ``V00300`` are not here: they cross unchanged, cell for cell,
+#: on the before-redefinitions pair.
+V00200_COMPONENTS: tuple[str, ...] = ('T00OTOP', 'T00OSUB', 'T00TOP', 'T00SUB')
+
+#: The two components stored **negative** by the build and published
+#: **positive** by BEA. See :func:`v00200_row`.
+_SUBSIDY_ROWS: tuple[str, ...] = ('T00OSUB', 'T00SUB')
+
+
+def f05000_column(supply_bridge: pd.DataFrame) -> pd.Series:
+    """The MUT-only ``F05000`` imports column, commodity-indexed, USD.
+
+    ``F05000 = -(MCIF + MADJ + MDTY)``, with the whole duty total credited back
+    on :data:`DUTIES_COMMODITY`. Published negative: imports are a deduction
+    from final demand.
+
+    ⚠️ **Duties are part of the rule, and leaving them out is not a rounding
+    error.** The acceptance criterion is usually stated as ``MCIF + MADJ``,
+    which matches the published total to 9 $M and so looks right - but it is
+    outside tolerance on **111 of 402 commodities**, because BEA loads the duty
+    onto the imported commodity and then credits the total back on ``4200ID`` as
+    a positive entry in an otherwise negative column. With ``MDTY`` in, every
+    commodity lands inside tolerance.
+
+    Read *supply_bridge* from ``nowcast.derive_initial_supply_bridge``: its
+    ``MCIF``, ``MADJ`` and ``MDTY`` share one set of conditioning factors, and a
+    raw FBS read disagrees with the build.
+    """
+    missing = [c for c in ('MCIF', 'MADJ', 'MDTY') if c not in supply_bridge.columns]
+    assert not missing, f'the supply bridge is missing {missing}'
+
+    duties = supply_bridge['MDTY'].astype(float)
+    column = -(
+        supply_bridge['MCIF'].astype(float)
+        + supply_bridge['MADJ'].astype(float)
+        + duties
+    )
+    assert DUTIES_COMMODITY in column.index, (
+        f'{DUTIES_COMMODITY} is not in the supply bridge, so the duty credit has '
+        f'nowhere to land'
+    )
+    column[DUTIES_COMMODITY] = duties.sum()
+    return column.rename(USA_2017_FINAL_DEMAND_IMPORT_CODE)
+
+
+def v00200_row(va_block: pd.DataFrame) -> pd.Series:
+    """The MUT's ``V00200``, industry-indexed, from the SUT's six-row block. USD.
+
+    ``V00200 = T00OTOP + T00OSUB + T00TOP + T00SUB`` - a plain sum, because the
+    build stores both subsidy rows negative.
+
+    ⚠️ **The sign convention is the build's, not BEA's.** BEA publishes the Use
+    SUT's subsidy rows positive and *subtracts* them. Summing a BEA-signed block
+    would overstate ``V00200`` by twice the subsidy total while still looking
+    plausible, so this raises rather than guessing.
+
+    ⚠️ **``T00OSUB`` is asserted present, never nonzero.** Subsidies on
+    production are zero in every industry in 2017-2019, and the row is not in
+    the published 2017 detail workbook at all, so a 2017 replay passes whether
+    or not it was summed - and 2020-21 are then wrong by ~540bn $M.
+
+    Take *va_block* from ``nowcast.derive_initial_value_added``, which sources
+    the row from the published summary Use SUT. The Step-5 mask panel carries
+    five rows by design and is **not** a valid argument here.
+    """
+    missing = [row for row in V00200_COMPONENTS if row not in va_block.index]
+    assert not missing, (
+        f'the value-added block is missing {missing}. T00OSUB in particular is '
+        f'all-zero at the 2017 anchor, so a replay cannot catch its absence - '
+        f'source the block from derive_initial_value_added, not the mask panel.'
+    )
+
+    for row in _SUBSIDY_ROWS:
+        values = va_block.loc[row].astype(float)
+        if (values > _SIGN_TOLERANCE).any():
+            flagged = (values > _SIGN_TOLERANCE).to_numpy()
+            positive = sorted(values.index[flagged])
+            raise ValueError(
+                f'{row} is positive on {len(positive)} industries '
+                f'({positive[:5]}). This block is on BEA\'s published sign '
+                f'convention, where the subsidy rows are subtracted; the build '
+                f'stores them negative and adds them. Summing a BEA-signed '
+                f'block overstates V00200 by twice the subsidy total.'
+            )
+
+    return va_block.loc[list(V00200_COMPONENTS)].astype(float).sum().rename('V00200')
 
 
 # --- the answer key --------------------------------------------------------
