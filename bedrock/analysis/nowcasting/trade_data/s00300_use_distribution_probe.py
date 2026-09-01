@@ -29,8 +29,8 @@ from bedrock.extract.iot.io_2017 import (
     _load_2017_detail_supply_use_usa,
     _load_benchmark_detail_supply_use_usa,
 )
-from bedrock.transform.eeio.nowcast import _resolve_both_sector_columns
 from bedrock.transform.flowbysector import FlowBySector
+from bedrock.transform.iot.nowcast import _resolve_both_sector_columns
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 

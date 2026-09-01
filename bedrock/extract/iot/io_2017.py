@@ -198,10 +198,18 @@ def load_2017_Utot_usa() -> pd.DataFrame:
 
 
 @functools.cache
-def load_2017_Utot_before_redef_usa() -> pd.DataFrame:
+def _load_benchmark_detail_use_before_redef_usa(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
     """
-    Use table, commodity x industry, before redefinition, in producer price.
-    unit is USD, original unit is million USD.
+    Raw USA Detail Use table (MUT, producer price), before redefinitions, as
+    published, for a *benchmark* year.
+
+    ``IOUse_Before_Redefinitions_PRO_2017_Detail.xlsx`` carries one sheet per
+    benchmark year -- 2007, 2012 and 2017, all three already on the 2017 code
+    basis -- so the same read serves every year the answer key exists for.
+    The interior, final-demand and value-added blocks all slice from this one
+    read, so a sheet is parsed once per process rather than once per block.
     """
     df = (
         load_from_gcs(
@@ -211,19 +219,76 @@ def load_2017_Utot_before_redef_usa() -> pd.DataFrame:
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name=str(year), skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
+    return df
+
+
+def _load_2017_detail_use_before_redef_usa() -> pd.DataFrame:
+    """
+    Raw 2017 USA Detail Use table, before redefinitions, as published.
+    See :func:`_load_benchmark_detail_use_before_redef_usa`, which this reads.
+    """
+    return _load_benchmark_detail_use_before_redef_usa(2017)
+
+
+@functools.cache
+def load_2017_Utot_before_redef_usa() -> pd.DataFrame:
+    """
+    Use table, commodity x industry, before redefinition, in producer price.
+    unit is USD, original unit is million USD.
+    """
     df = (
-        df.loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES].astype(float)
+        _load_2017_detail_use_before_redef_usa()
+        .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
+        .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     df.index = USA_2017_COMMODITY_INDEX
     df.columns = USA_2017_INDUSTRY_INDEX
+    return df
+
+
+@functools.cache
+def load_2017_Ytot_before_redef_usa() -> pd.DataFrame:
+    """
+    Final Demand (total), commodity x final demand category, before redefinition,
+    in producer price. Carries ``F05000``, which is MUT-only, published negative,
+    and has no counterpart column in the SUT.
+    unit is USD, original unit is million USD.
+    """
+    df = (
+        _load_2017_detail_use_before_redef_usa()
+        .loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_FINAL_DEMAND_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_2017_value_added_before_redef_usa() -> pd.DataFrame:
+    """
+    Value added (total), VA category x industry, before redefinition, in producer
+    price. Three rows here against the SUT's six; ``V00200`` is already net of
+    subsidies, so it cannot show a sign-convention flip on its own.
+    unit is USD, original unit is million USD.
+    """
+    df = (
+        _load_2017_detail_use_before_redef_usa()
+        .loc[USA_2017_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_VALUE_ADDED_INDEX.copy()
+    df.columns = USA_2017_INDUSTRY_INDEX.copy()
     return df
 
 

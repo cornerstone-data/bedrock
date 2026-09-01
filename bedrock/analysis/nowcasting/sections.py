@@ -153,22 +153,27 @@ ROUNDING_ATOL = 0.5 * MILLION_CURRENCY_TO_CURRENCY
 #: they are not built the same way -- the first three are estimated from NIPA,
 #: the last two are *converted* from the Supply table's ``TOP``/``MDTY``/``SUB``
 #: columns (:mod:`bedrock.transform.iot.nowcast_va_taxes`).
+#: ⚠️ Six rows, matching ``nowcast.USE_VALUE_ADDED_ROWS``.  ``T00OSUB`` is
+#: all-zero at 2017, so anything slicing this block drops it silently rather
+#: than failing.
 SUT_VALUE_ADDED_CODES = (
     'V00100',
     'T00OTOP',
+    'T00OSUB',
     'V00300',
     'T00TOP',
     'T00SUB',
 )
 
-#: What those five rows are.  ``USA_2017_VALUE_ADDED_DESC`` describes the MUT's
-#: codes, so it does not carry ``T00OTOP``.
+#: What those six rows are.  ``USA_2017_VALUE_ADDED_DESC`` describes the MUT's
+#: codes, so it does not carry ``T00OTOP`` or ``T00OSUB``.
 SUT_VALUE_ADDED_DESC = {
     'V00100': 'Compensation of employees',
     'T00OTOP': 'Other taxes on production, less subsidies',
+    'T00OSUB': 'Subsidies on production (negative, balance convention)',
     'V00300': 'Gross operating surplus',
     'T00TOP': 'Taxes on products and imports',
-    'T00SUB': 'Subsidies (negative, balance convention)',
+    'T00SUB': 'Subsidies on products (negative, balance convention)',
 }
 
 #: The Supply table's right-hand block: everything to the right of the
@@ -560,7 +565,7 @@ USE_VA_DETAIL_SUT = Section(
     candidate=initial_value_added_candidate,
     note=(
         'Candidate is a live run of derive_initial_value_added, 2017-2024. The '
-        'five rows are not five claims of one kind. V00100 is an ESTIMATE '
+        'six rows are not six claims of one kind. V00100 is an ESTIMATE '
         '(QCEW movement in 69 NIPA groups); T00OTOP is a LEVEL plus two '
         'lookups (43.3% of the row observed); V00300 is a SEED only, and the '
         'residual T18 hands the balance. T00TOP and T00SUB are neither - they '
@@ -569,7 +574,10 @@ USE_VA_DETAIL_SUT = Section(
         'is estimated. T00SUB reproduces the published 2017 row exactly; '
         'T00TOP is a seed at r = 0.947, 27.9% off, and stays one. A 2017 run '
         'of the first three tests the plumbing, not the movement series - '
-        'near-exact is the floor there, not an achievement.'
+        'near-exact is the floor there, not an achievement. T00OSUB has NO '
+        'published counterpart at 2017 detail - the row is sourced from the '
+        'summary Use SUT and is all-zero 2017-2019 - so it scores as '
+        'unreferenced here rather than as a match or a miss.'
     ),
 )
 

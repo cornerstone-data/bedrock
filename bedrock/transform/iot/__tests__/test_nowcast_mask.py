@@ -222,7 +222,7 @@ def test_only_the_named_columns_and_rows_are_locked() -> None:
 
     use_locks = sign_lock_mask('use', _use_panel())
     assert use_locks.loc['T00SUB', '1111A0'] == -1
-    assert list(SIGN_LOCKED_USE_ROWS) == ['T00SUB']
+    assert list(SIGN_LOCKED_USE_ROWS) == ['T00SUB', 'S00401', 'S00402']
 
 
 def test_gross_operating_surplus_is_not_locked() -> None:
@@ -372,3 +372,36 @@ def test_the_never_imported_set_is_trade_margins_plus_held_transport() -> None:
     assert len(NEVER_IMPORTED_TRADE_COMMODITIES) == 20
     assert len(NEVER_IMPORTED_COMMODITIES) == 27
     assert len(set(NEVER_IMPORTED_COMMODITIES)) == 27
+
+
+# --- the special commodities, BEA-2009 semantics (Wes, 2026-08-31) ----------
+
+
+def test_scrap_and_used_goods_fd_cells_are_sign_locked() -> None:
+    """Scrap sold out of final uses stays negative there; used-goods FD keeps
+    its economic signs. Verified against published 2017 before locking."""
+    locks = sign_lock_mask('use')
+
+    assert locks.loc['S00401', 'F01000'] == -1
+    assert locks.loc['S00401', 'F02E00'] == -1
+    assert locks.loc['S00402', 'F01000'] == 1  # households buy used vehicles
+    assert locks.loc['S00402', 'F02E00'] == -1  # businesses shed used equipment
+    # intermediates ride the same per-cell rule, positive where published
+    scrap = locks.loc[['S00401']].to_numpy()
+    assert (abs(scrap[scrap != 0]) == 1).all()
+
+
+def test_used_goods_has_no_producing_industry() -> None:
+    """S00402's production row is empty in the published 2017 Supply block, so
+    Tier 0 holds it structural - no industry produces used goods."""
+    zeros = structural_zero_mask('supply')
+    industry_columns = [c for c in zeros.columns if c in set(balance_industries())]
+
+    assert bool(zeros.loc[['S00402'], industry_columns].to_numpy().all())
+
+
+def test_the_identity_specials_stay_excluded_from_the_commodity_axis() -> None:
+    """S00900 rides an identity and 4200ID's rows are empty in both blocks -
+    the strongest restriction is exclusion, and it must not erode."""
+    assert 'S00900' in EXCLUDED_COMMODITIES
+    assert '4200ID' in EXCLUDED_COMMODITIES
