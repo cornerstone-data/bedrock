@@ -387,7 +387,8 @@ def test_scrap_and_used_goods_fd_cells_are_sign_locked() -> None:
     assert locks.loc['S00402', 'F01000'] == 1  # households buy used vehicles
     assert locks.loc['S00402', 'F02E00'] == -1  # businesses shed used equipment
     # intermediates ride the same per-cell rule, positive where published
-    assert (locks.loc['S00401'][locks.loc['S00401'] != 0].abs() == 1).all()
+    scrap = locks.loc[['S00401']].to_numpy()
+    assert (abs(scrap[scrap != 0]) == 1).all()
 
 
 def test_used_goods_has_no_producing_industry() -> None:
@@ -396,7 +397,7 @@ def test_used_goods_has_no_producing_industry() -> None:
     zeros = structural_zero_mask('supply')
     industry_columns = [c for c in zeros.columns if c in set(balance_industries())]
 
-    assert bool(zeros.loc['S00402', industry_columns].all())
+    assert bool(zeros.loc[['S00402'], industry_columns].to_numpy().all())
 
 
 def test_the_identity_specials_stay_excluded_from_the_commodity_axis() -> None:
