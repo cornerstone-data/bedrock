@@ -121,6 +121,8 @@ def _check_lines(balance: YearBalance) -> list[tuple[str, bool, str]]:
     # 4. T1 wiring: the interior fit's column targets are USD; T1 minus the
     # seed's VA column sums is the same quantity in $M. A drift here means
     # the fit and the target set are on different gross-output arms (#724).
+    # The fit's targets predate the dust sweep, so swept VA-row cells are
+    # added back before comparing - the sweep is disclosed, not a drift.
     t1 = next(t for t in balance.targets if t.name == 'T1')
     industries = t1.values.index
     fit_cols_m = (
@@ -128,7 +130,15 @@ def _check_lines(balance: YearBalance) -> list[tuple[str, bool, str]]:
         / MILLION_CURRENCY_TO_CURRENCY
     )
     va_m = balance.seeds['use'].loc[list(VA_ROWS), industries].sum(axis=0)
-    drift = ((t1.values - va_m) - fit_cols_m).abs()
+    swept_va = balance.sweep[
+        balance.sweep['swept']
+        & (balance.sweep['block'] == 'use')
+        & balance.sweep['row'].isin(VA_ROWS)
+    ]
+    swept_va_m = (
+        swept_va.groupby('column')['value_usd_m'].sum().reindex(industries).fillna(0.0)
+    )
+    drift = ((t1.values - va_m - swept_va_m) - fit_cols_m).abs()
     checks.append(
         (
             'T1 sits on the fit\'s gross-output arm',

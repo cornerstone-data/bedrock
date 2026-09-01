@@ -225,11 +225,16 @@ class YearBalance:
 
 
 def assemble(year: int, *, fitted: bool = True) -> YearBalance:
-    """Seeds, masks, targets and the dust sweep for *year* - no balance run."""
+    """Seeds, masks, targets and the dust sweep for *year* - no balance run.
+
+    The sweep runs **before** the target injection: T18 is injected from the
+    seed's own value-added column sums, so sweeping afterwards would shift the
+    seed under the injection by exactly the swept dust.
+    """
     seeds = assemble_seeds(int(year), fitted=fitted)
     masks = assemble_masks(int(year))
-    targets = assemble_targets(int(year), seeds['use'])
     sweep = conform_seeds(seeds, masks)
+    targets = assemble_targets(int(year), seeds['use'])
     return YearBalance(
         year=int(year),
         seeds=seeds,

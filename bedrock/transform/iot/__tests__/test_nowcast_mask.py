@@ -189,6 +189,12 @@ def test_t00osub_zeros_are_exempt_on_the_industry_columns_only() -> None:
     assert not zeros.loc['T00OSUB', '1111A0']
     assert not zeros.loc['T00OSUB', '1111B0']
     assert zeros.loc['T00OSUB', 'F01000']
+    # the whole fiscal wedge rides the same exemption: 2018 puts real T00TOP
+    # mass on industries whose 2017 cell is zero (farms, insurance)
+    assert not zeros.loc['T00TOP', '1111B0']
+    assert not zeros.loc['T00SUB', '1111B0']
+    # but a value-added row that is not a fiscal flow stays structural
+    assert zeros.loc['V00100', 'F01000']
 
 
 # --------------------------------------------------------------------------
@@ -303,19 +309,19 @@ def test_a_panel_contradicting_the_mask_raises() -> None:
         mask.validate_against(moved)
 
 
-def test_an_injected_panel_locks_to_whatever_sign_it_carries() -> None:
-    """Injecting a panel bypasses normalisation, so the lock follows the cell.
+def test_an_injected_unnormalised_panel_is_refused_by_the_rule_lock() -> None:
+    """The subsidy rows are locked non-positive **by rule**, not by pattern.
 
-    ``build_sut_mask`` only reaches ``assert_subsidies_negative`` through
-    ``published_2017_panel``; given a panel directly it takes it as given. A
-    ``+1`` lock on ``T00SUB`` is therefore the signal that the panel was never
-    normalised - not a rejection. The rejection is
-    :func:`test_a_subsidy_stored_positive_is_rejected`.
+    Before ``NON_POSITIVE_USE_ROWS`` covered ``T00SUB``, an injected panel
+    that skipped normalisation silently earned a ``+1`` lock and sailed
+    through; now the rule holds ``-1`` on every industry cell regardless of
+    the panel, so ``build_sut_mask``'s own validation refuses the
+    unnormalised seed instead of accommodating it.
     """
     panel = _use_panel()
     panel.loc['T00SUB', '1111A0'] = 8.0
-    mask = build_sut_mask('use', 2017, panel)
-    assert mask.sign_lock.loc['T00SUB', '1111A0'] == 1
+    with pytest.raises(ValueError, match='sign lock'):
+        build_sut_mask('use', 2017, panel)
 
 
 def test_a_subsidy_stored_positive_is_rejected() -> None:

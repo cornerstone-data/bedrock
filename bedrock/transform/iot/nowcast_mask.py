@@ -139,7 +139,7 @@ Block = Literal['use', 'supply']
 #: ``T00OSUB`` — subsidies on production (#784) — is stored **negative**, like
 #: ``T00SUB``. It is absent from the published 2017 detail workbook (the row is
 #: zero that year) and ~580bn $M in 2020, so it takes a Tier-0 zero exemption
-#: (:data:`SUBSIDY_FLOW_USE_ROWS`) and a rule-based non-positive sign lock
+#: (:data:`FISCAL_FLOW_USE_ROWS`) and a rule-based non-positive sign lock
 #: (:data:`NON_POSITIVE_USE_ROWS`) rather than pattern-derived layers.
 VA_ROWS = ('V00100', 'T00OTOP', 'T00OSUB', 'V00300', 'T00TOP', 'T00SUB')
 
@@ -183,12 +183,14 @@ TRADE_FLOW_SUPPLY_COLUMNS = ('MCIF', 'MADJ', 'MDTY')
 #: Tier 0 exemption, Use side. Exports, for the same reason.
 TRADE_FLOW_USE_COLUMNS = ('F04000',)
 
-#: Tier 0 exemption, Use **rows**. ``T00OSUB`` is all-zero in the 2017 pattern
-#: and ~580bn $M in 2020 - pandemic-era production subsidies. Its 2017 zeros
-#: are one year's observation of a fiscal flow, not structure. The exemption
-#: covers the industry columns only: the value-added by final-demand corner is
-#: structurally empty and stays Tier 0.
-SUBSIDY_FLOW_USE_ROWS = ('T00OSUB',)
+#: Tier 0 exemption, Use **rows**: the fiscal wedge rows. A 2017 zero on a
+#: per-industry tax or subsidy cell is one year's observation of tax incidence,
+#: not structure - ``T00OSUB`` is all-zero in the 2017 pattern and ~580bn $M in
+#: 2020 (pandemic-era production subsidies), and the 2018 seed puts real
+#: ``T00TOP`` mass (up to $24M, farms and insurance) on industries whose 2017
+#: cell is zero. The exemption covers the industry columns only: the
+#: value-added by final-demand corner is structurally empty and stays Tier 0.
+FISCAL_FLOW_USE_ROWS = ('T00TOP', 'T00SUB', 'T00OSUB')
 
 #: Commodities whose ``MCIF`` zero is **structure, not observation** - the
 #: wholesale and retail margin commodities, and customs duties.
@@ -280,12 +282,15 @@ SIGN_LOCKED_SUPPLY_COLUMNS = ('MADJ', 'TRADE ', 'TRANS', 'TOP', 'SUB')
 #: Tier-0 structural on the Supply block.)
 SIGN_LOCKED_USE_ROWS = ('T00SUB', 'S00401', 'S00402')
 
-#: Tier 3, Use side, **by rule rather than published sign**. ``T00OSUB`` is
-#: all-zero in the 2017 pattern, so a pattern-derived lock would leave it
-#: unsigned; the accounting says subsidies on production are non-positive in
-#: the balance's sign convention (stored negative, like ``T00SUB``). Locked
-#: ``-1`` across the industry columns regardless of the pattern.
-NON_POSITIVE_USE_ROWS = ('T00OSUB',)
+#: Tier 3, Use side, **by rule rather than published sign**. Both subsidy rows
+#: are non-positive in the balance's sign convention on every industry cell -
+#: for ``T00OSUB`` the 2017 pattern is all-zero so a pattern-derived lock would
+#: leave it unsigned, and for ``T00SUB`` the rule extends the per-cell lock to
+#: the cells :data:`FISCAL_FLOW_USE_ROWS` frees from Tier 0, whose published
+#: value is zero. Locked ``-1`` across the industry columns regardless of the
+#: pattern. ``T00TOP`` is deliberately absent: its freed zeros stay unlocked
+#: until the sign of net per-industry product taxes is pinned down.
+NON_POSITIVE_USE_ROWS = ('T00SUB', 'T00OSUB')
 
 
 def balance_commodities() -> tuple[str, ...]:
@@ -433,7 +438,7 @@ def structural_zero_mask(
             freed.loc[va, :] = False
         zeros[present] = zeros[present] & ~freed
     if block == 'use':
-        subsidy_rows = [row for row in SUBSIDY_FLOW_USE_ROWS if row in zeros.index]
+        subsidy_rows = [row for row in FISCAL_FLOW_USE_ROWS if row in zeros.index]
         if subsidy_rows:
             industry_columns = [c for c in balance_industries() if c in zeros.columns]
             zeros.loc[subsidy_rows, industry_columns] = False
