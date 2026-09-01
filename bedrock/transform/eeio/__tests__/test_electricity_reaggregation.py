@@ -131,6 +131,13 @@ def _clear_caches() -> None:
 
     clear_summary_year_scaled_aq()
     clear_reanchored_electricity_q()
+    from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: PLC0415
+        derive_phi_cornerstone_usa_panel,
+        derive_phi_cornerstone_usa_panel_published,
+    )
+
+    derive_phi_cornerstone_usa_panel.cache_clear()
+    derive_phi_cornerstone_usa_panel_published.cache_clear()
 
 
 @contextmanager

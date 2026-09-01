@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
-from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio import (
     cornerstone_expansion,
 )
@@ -500,7 +500,7 @@ class TestPipelineB:
                 else derive_cornerstone_x()
             )
             expected = (
-                derive_E_usa().divide(x, axis=1).fillna(0.0)
+                load_E_from_flowsa().divide(x, axis=1).fillna(0.0)
                 @ derive_cornerstone_Vnorm_scrap_corrected()
             )
         finally:

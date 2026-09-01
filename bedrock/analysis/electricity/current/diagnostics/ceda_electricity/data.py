@@ -120,7 +120,9 @@ def ef_focus_row(
         'country': country,
         'sector': sector,
         'sector_name': name,
-        'N_new': None if nr is None else float(_to_float(pd.Series([nr[N_NEW]])).iloc[0]),
+        'N_new': (
+            None if nr is None else float(_to_float(pd.Series([nr[N_NEW]])).iloc[0])
+        ),
         'N_old_infl': (
             None
             if nr is None
@@ -141,7 +143,9 @@ def ef_focus_row(
             if nr is None
             else float(_to_float(pd.Series([nr[N_A_EFFECT]])).iloc[0]) * 100.0
         ),
-        'D_new': None if dr is None else float(_to_float(pd.Series([dr[D_NEW]])).iloc[0]),
+        'D_new': (
+            None if dr is None else float(_to_float(pd.Series([dr[D_NEW]])).iloc[0])
+        ),
         'D_old_infl': (
             None
             if dr is None

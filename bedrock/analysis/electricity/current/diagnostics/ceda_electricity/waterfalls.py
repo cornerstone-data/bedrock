@@ -6,6 +6,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.axes import Axes
 
 from bedrock.analysis.electricity.current.diagnostics.ceda_electricity.data import (
@@ -25,7 +26,7 @@ RED = '#c62828'
 
 
 def write_da_effect_scatter(
-    n_df,
+    n_df: pd.DataFrame,
     path: Path,
     *,
     scope: Scope,
@@ -125,7 +126,7 @@ def _draw_net_waterfall(
 
 def write_bly_ladder_waterfall(
     steps: tuple[LadderStep, ...],
-    bly_frames: dict,
+    bly_frames: dict[str, pd.DataFrame],
     path: Path,
     *,
     scope: Scope,

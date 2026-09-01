@@ -189,7 +189,7 @@ def _add_focus_table(slide: Any, rows: list[dict[str, float | str | None]]) -> N
             p.alignment = PP_ALIGN.CENTER
             run = p.add_run()
             val = row.get(key)
-            run.text = str(val) if kind == 'str' else _fmt(val, kind=kind)  # type: ignore[arg-type]
+            run.text = str(val) if kind == 'str' else _fmt(val, kind=kind)
             _set_run_font(run, size_pt=11, color=BODY_FG)
 
 
@@ -249,7 +249,9 @@ def write_deck_a(*, refresh: bool = False, out_dir: Path | None = None) -> Path:
     s2 = prs.slides.add_slide(blank)
     _add_title(s2, 'Global N and D % diff vs CEDA v8.1 (no manual adj)')
     _add_picture(s2, global_nd)
-    _add_notes(s2, 'All country×sector rows. Same histogram style as bedrock EF panels.')
+    _add_notes(
+        s2, 'All country×sector rows. Same histogram style as bedrock EF panels.'
+    )
 
     s3 = prs.slides.add_slide(blank)
     _add_title(s3, 'USA N and D % diff vs CEDA v8.1 (no manual adj)')
@@ -269,7 +271,7 @@ def write_deck_a(*, refresh: bool = False, out_dir: Path | None = None) -> Path:
     )
 
     out = dest_dir / DECK_A_FILENAME
-    prs.save(out)
+    prs.save(str(out))
     return out
 
 
@@ -401,5 +403,5 @@ def write_deck_b(*, refresh: bool = False, out_dir: Path | None = None) -> Path:
     )
 
     out = dest_dir / DECK_B_FILENAME
-    prs.save(out)
+    prs.save(str(out))
     return out

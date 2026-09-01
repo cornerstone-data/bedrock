@@ -320,6 +320,44 @@ def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
     return pd.DataFrame(series_by_year)
 
 
+@functools.cache
+def derive_phi_cornerstone_usa_panel_published(
+    years: tuple[int, ...],
+) -> pd.DataFrame:
+    """Published Phi panel for snapshots and ``get_Phi``.
+
+    Builds the margin panel, applies electricity producer-price overrides
+    (G/T/D → 1.0 under disaggregation; ``221100`` → 1.0 under reaggregation),
+    and under reaggregation drops G/T/D and reindexes to
+    ``CORNERSTONE_COMMODITIES``.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_reaggregation_enabled,
+    )
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        CORNERSTONE_COMMODITIES,
+        ELECTRICITY_DISAGG_SECTORS,
+    )
+
+    panel = derive_phi_cornerstone_usa_panel(years).astype(float)
+    cfg = get_usa_config()
+    if electricity_reaggregation_enabled():
+        panel = panel.drop(
+            index=[c for c in ELECTRICITY_DISAGG_SECTORS if c in panel.index],
+            errors='ignore',
+        )
+        panel.loc['221100'] = 1.0
+        out = panel.reindex(CORNERSTONE_COMMODITIES)
+    else:
+        out = panel.copy()
+        if cfg.implement_electricity_disaggregation:
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                if code in out.index:
+                    out.loc[code] = 1.0
+    out.index.name = 'sector'
+    return out
+
+
 def margins_phi_active(cfg: USAConfig | None = None) -> bool:
     """Return whether margins-based Phi should be applied for *cfg*."""
     c = cfg or get_usa_config()

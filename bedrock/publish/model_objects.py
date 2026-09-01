@@ -340,17 +340,18 @@ def get_Phi() -> pd.DataFrame | None:
     """Producer-to-purchaser ratio panel per sector (Excel ``Phi`` sheet)."""
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
         default_phi_panel_years,
-        derive_phi_cornerstone_usa_panel,
+        derive_phi_cornerstone_usa_panel_published,
         margins_phi_active,
     )
 
     if not margins_phi_active():
         return None
     sectors = get_N().columns
-    panel = derive_phi_cornerstone_usa_panel(default_phi_panel_years())
-    out = panel.reindex(sectors).astype(float)
-    if _reaggregation_efs_active() and '221100' in out.index:
-        out.loc['221100'] = 1.0
+    out = (
+        derive_phi_cornerstone_usa_panel_published(default_phi_panel_years())
+        .reindex(sectors)
+        .astype(float)
+    )
     out.index.name = 'sector'
     return out
 
