@@ -441,13 +441,17 @@ def test_v00100_and_v00300_cross_unchanged(
 # --- the conversion --------------------------------------------------------
 
 
-def sut_panel() -> pd.DataFrame:
-    """The published 2017 Use SUT on the build's sign convention."""
+def sut_panel(year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017) -> pd.DataFrame:
+    """The published Use SUT for a benchmark year, build sign convention.
+
+    ``T00OSUB`` is absent from the published detail workbooks and enters as an
+    explicit zero row, exactly as the collapse tests above document.
+    """
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
-        _load_2017_detail_supply_use_usa,
+        _load_benchmark_detail_supply_use_usa,
     )
 
-    raw = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    raw = _load_benchmark_detail_supply_use_usa('Use_SUT_detail', year)
     rows = [*USA_2017_COMMODITY_CODES, 'V00100', 'V00300', *V00200_COMPONENTS]
     columns = [*USA_2017_INDUSTRY_CODES, *SUT_FINAL_DEMAND_CODES]
     panel = pd.DataFrame(0.0, index=rows, columns=columns)
@@ -465,19 +469,23 @@ def sut_panel() -> pd.DataFrame:
     return panel
 
 
-def supply_bridge_2017() -> pd.DataFrame:
+def supply_bridge_2017(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017,
+) -> pd.DataFrame:
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
-        _load_2017_detail_supply_use_usa,
+        _load_benchmark_detail_supply_use_usa,
     )
 
-    supply = _load_2017_detail_supply_use_usa('Supply_detail').rename(
+    supply = _load_benchmark_detail_supply_use_usa('Supply_detail', year).rename(
         columns=lambda column: column.strip()
     )
     return (
         supply.loc[
             list(USA_2017_COMMODITY_CODES),
             ['MCIF', 'MADJ', 'MDTY', 'TRADE', 'TRANS'],
-        ].astype(float)
+        ]
+        .apply(pd.to_numeric, errors='coerce')
+        .fillna(0.0)
         * MILLION
     )
 
@@ -518,6 +526,31 @@ def test_conversion_reproduces_the_published_interior_exactly() -> None:
     # what is left is the two known rounding sources, both from PR 2
     assert score.gross / MILLION == pytest.approx(141, abs=2)
     assert score.n_outside <= 10
+
+
+def test_conversion_reproduces_the_published_2012_interior_too() -> None:
+    """The reshape is a basis identity, not an anchor artifact.
+
+    The margins workbook carries the 2007/2012/2017 benchmark sheets, so the
+    same call replays out-of-anchor: the margin-join bucket is exactly zero at
+    2012 as well, and the residual stays at cross-workbook rounding scale -
+    150 $M gross over 170,850 cells, worst single cell 3 $M (the ``F05000``
+    stack of three independently-rounded bridge columns). A conversion bug
+    would concentrate, not stay under BEA's own $1M publication grain.
+    """
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions,
+    )
+
+    converted = use_producer_from_sut(
+        sut_panel(2012), supply_bridge_2017(2012), load_margins_transactions(2012), 2012
+    )
+    score = score_replay(converted, published_mut_use(2012))
+
+    assert by_job(score.diff)['margin join'] == pytest.approx(0.0)
+    assert score.gross / MILLION == pytest.approx(150, abs=5)
+    assert score.n_outside <= 10
+    assert float(score.diff.abs().max().max()) / MILLION <= 4.0
 
 
 def test_conversion_produces_the_answer_key_axes() -> None:
