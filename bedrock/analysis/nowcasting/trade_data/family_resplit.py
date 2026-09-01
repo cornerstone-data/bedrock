@@ -298,7 +298,7 @@ def benchmark_mcif(year: int) -> pd.Series:
         _load_benchmark_detail_supply_use_usa,
     )
 
-    supply = _load_benchmark_detail_supply_use_usa("Supply_detail", year)  # type: ignore[arg-type]
+    supply = _load_benchmark_detail_supply_use_usa("Supply_detail", year)
     supply.columns = supply.columns.str.strip()
     return (
         pd.to_numeric(supply["MCIF"], errors="coerce").fillna(0.0).clip(lower=0.0)
@@ -316,7 +316,7 @@ def consumer_share(year: int) -> pd.Series:
         _load_benchmark_detail_supply_use_usa,
     )
 
-    use = _load_benchmark_detail_supply_use_usa("Use_SUT_detail", year)  # type: ignore[arg-type]
+    use = _load_benchmark_detail_supply_use_usa("Use_SUT_detail", year)
     use.columns = use.columns.str.strip()
     pce = pd.to_numeric(use["F01000"], errors="coerce").fillna(0.0)
     total = pd.to_numeric(use["T019"], errors="coerce").fillna(0.0)
