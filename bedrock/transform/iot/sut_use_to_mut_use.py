@@ -35,6 +35,7 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    SUT_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
 )
@@ -59,37 +60,85 @@ def use_producer_from_sut(
     use_sut: pd.DataFrame,
     supply_bridge: pd.DataFrame,
     margins: pd.DataFrame,
-    intermediate: pd.DataFrame,
     year: int,
 ) -> pd.DataFrame:
     """The MUT Use table in producer prices, from the SUT Use table. USD.
 
-    ⚠️ Not implemented yet - the signature is the contract the three jobs are
-    built against, argument-fed so 2017 and a nowcast year are the same call.
+    405 rows (402 commodities + 3 value-added) x 422 columns (402 industries +
+    20 final-demand codes) - the axes :func:`published_mut_use` returns.
+
+    ⚠️ **The interior is a reshape, not a redistribution.** The margins table's
+    ``Producers' Value`` *is* the producer-price cell for its
+    ``(buyer, commodity)`` pair, with the margin already booked onto the
+    supplying trade and transport rows. At 2017 it reproduces the published
+    interior and final-demand blocks to **0 $M**, so no seller matrix, mode
+    matrix or placement rule enters here - whoever builds the margins table for
+    a nowcast year owns that placement.
 
     :param use_sut: purchaser-valued Use SUT: commodity rows plus the six
         ``nowcast.USE_VALUE_ADDED_ROWS``, over industries plus
-        ``SUT_FINAL_DEMAND_CODES``.
-    :param supply_bridge: commodity x ``SUPPLY_BRIDGE_CODES``, carrying the
-        ``MCIF``/``MADJ`` that become ``F05000``. Read it from
-        ``nowcast.derive_initial_supply_bridge`` - a raw FBS read disagrees with
-        the build, which conditions both columns on the published summary tables.
-    :param margins: the transaction-level Margins table, indexed
-        ``(buyer, commodity)``. The per-cell join is why it is built at that
-        grain - a commodity-average rate misallocates across buyers.
-    :param intermediate: the intermediate block, which allocates each
-        commodity's margin across the buyers of it.
-    :param year: the year all four frames describe.
+        ``SUT_FINAL_DEMAND_CODES``. Supplies the cells no margins row covers,
+        and the value-added block.
+    :param supply_bridge: commodity x ``SUPPLY_BRIDGE_CODES``; ``MCIF``,
+        ``MADJ`` and ``MDTY`` become ``F05000``.
+    :param margins: transaction-level margins indexed ``(buyer, commodity)``.
+    :param year: the year all three frames describe. Kept for call-site
+        clarity; every input is already year-specific.
     """
-    raise NotImplementedError(
-        'the three jobs land separately: F05000 and the V00200 collapse, then '
-        'the per-cell strip to producers value, then the margin redistribution.'
+    del year
+    commodities = list(USA_2017_COMMODITY_CODES)
+    industries = list(USA_2017_INDUSTRY_CODES)
+    buyers = industries + [c for c in SUT_FINAL_DEMAND_CODES if c in use_sut.columns]
+
+    table = pd.DataFrame(
+        np.nan,
+        index=[*commodities, *USA_2017_VALUE_ADDED_CODES],
+        columns=[*industries, *USA_2017_FINAL_DEMAND_CODES],
+        dtype=float,
     )
+    table.loc[commodities, buyers] = producer_value_block(
+        use_sut.loc[commodities, buyers].astype(float), margins
+    ).to_numpy()
+    table.loc[commodities, USA_2017_FINAL_DEMAND_IMPORT_CODE] = (
+        f05000_column(supply_bridge).reindex(commodities).to_numpy()
+    )
+    for row in ('V00100', 'V00300'):
+        table.loc[row, industries] = (
+            use_sut.loc[[row], industries].astype(float).to_numpy()[0]
+        )
+    table.loc['V00200', industries] = (
+        v00200_row(use_sut.loc[list(V00200_COMPONENTS), industries])
+        .reindex(industries)
+        .to_numpy()
+    )
+    table.index.name = 'row'
+    table.columns.name = 'column'
+    return table
+
+
+def producer_value_block(
+    purchaser: pd.DataFrame, margins: pd.DataFrame
+) -> pd.DataFrame:
+    """Commodity x buyer at producer value, from the margins table. USD.
+
+    Each cell is the margins table's ``Producers' Value`` for that
+    ``(buyer, commodity)`` pair. Cells with no margins row keep their purchaser
+    value: nothing was booked against them, so the two valuations coincide.
+    """
+    producer = (
+        margins["Producers' Value"]
+        .unstack(MARGINS_BUYER_LEVEL)
+        .reindex(index=purchaser.index, columns=purchaser.columns)
+    )
+    return producer.where(producer.notna(), purchaser)
 
 
 #: BEA books customs duties on this synthetic commodity, and only in the MUT.
 #: The Supply table carries no imports and no duty against it at all.
 DUTIES_COMMODITY = '4200ID'
+
+#: The margins table's buyer index level.
+MARGINS_BUYER_LEVEL = 'Industry Code'
 
 #: The SUT value-added rows that collapse into the MUT's single net ``V00200``.
 #: ``V00100`` and ``V00300`` are not here: they cross unchanged, cell for cell,
@@ -188,6 +237,81 @@ def v00200_row(va_block: pd.DataFrame) -> pd.Series:
             )
 
     return va_block.loc[list(V00200_COMPONENTS)].astype(float).sum().rename('V00200')
+
+
+#: The commodity rows that supply trade margin, and the five that supply
+#: transport margin. Both sets give up margin, so their published Supply column
+#: is negative on them.
+TRADE_GIVERS: tuple[str, ...] = (
+    '423100',
+    '423400',
+    '423600',
+    '423800',
+    '423A00',
+    '424200',
+    '424400',
+    '424700',
+    '424A00',
+    '425000',
+    '441000',
+    '444000',
+    '445000',
+    '446000',
+    '447000',
+    '448000',
+    '452000',
+    '454000',
+    '4B0000',
+)
+TRANSPORT_GIVERS: tuple[str, ...] = (
+    '481000',
+    '482000',
+    '483000',
+    '484000',
+    '486000',
+)
+
+
+def margin_recovery(
+    converted: pd.DataFrame, purchaser: pd.DataFrame, supply_bridge: pd.DataFrame
+) -> pd.DataFrame:
+    """Per commodity, the margin the conversion booked against the give-up. USD.
+
+    A margin is value moved, so the amount the conversion adds to each supplying
+    commodity's row - over industries *and* final demand - should be that
+    commodity's give-up in the Supply column.
+
+    ⚠️ **Free for ``TRANS``, not for ``TRADE``.** Transport recovers its column
+    to 20 $M on 415,570. Trade over-recovers by the **trade-level sales tax**,
+    which rides inside the margin columns but is not in the Supply ``TRADE``
+    column: 391,783 $M measured here against
+    ``nowcast_trade_margins.trade_level_tax_2017``'s 391,162 $M, the two
+    independent measures of the same tax that
+    ``margins_estimation_plan.md`` records as agreeing to 0.3%. So the trade
+    residual is a quantity to report, not a gap to close.
+
+    Returns one row per supplying commodity: what was booked, the give-up, and
+    the difference.
+    """
+    added = converted.reindex(columns=purchaser.columns) - purchaser
+    rows = [*TRADE_GIVERS, *TRANSPORT_GIVERS]
+    booked = added.reindex(rows).sum(axis=1)
+    giveup = pd.concat(
+        [
+            -supply_bridge['TRADE'].astype(float).reindex(list(TRADE_GIVERS)),
+            -supply_bridge['TRANS'].astype(float).reindex(list(TRANSPORT_GIVERS)),
+        ]
+    )
+    column = giveup.reindex(rows)
+
+    return pd.DataFrame(
+        {
+            'kind': ['trade' if c in TRADE_GIVERS else 'transport' for c in rows],
+            'booked': booked.reindex(rows),
+            'giveup': column.reindex(rows),
+            'residual': booked.reindex(rows) - column.reindex(rows),
+        }
+    )
 
 
 # --- the answer key --------------------------------------------------------
@@ -360,16 +484,56 @@ def _baseline_score() -> ReplayReport:
     return score_replay(purchaser, published)
 
 
-def report() -> None:
-    """Print the size of the conversion and the named first cells."""
-    million = MILLION_CURRENCY_TO_CURRENCY
-    score = _baseline_score()
-    print('SUT -> MUT Use conversion, 2017: purchaser against producer')
-    print(f'  comparable cells      {score.n_cells:>12,}')
-    print(
-        f'  outside tolerance     {score.n_outside:>12,} '
-        f'({score.n_outside / score.n_cells:.1%})'
+def _converted_2017() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Run the conversion at the anchor. Returns (converted, purchaser, bridge)."""
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
     )
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions_2017,
+    )
+
+    raw = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    rows = [*USA_2017_COMMODITY_CODES, 'V00100', 'V00300', *V00200_COMPONENTS]
+    columns = [*USA_2017_INDUSTRY_CODES, *SUT_FINAL_DEMAND_CODES]
+    panel = pd.DataFrame(0.0, index=rows, columns=columns)
+    for row in rows:
+        if row in raw.index:
+            panel.loc[row] = (
+                raw.loc[[row], columns]
+                .apply(pd.to_numeric, errors='coerce')
+                .fillna(0.0)
+                .to_numpy()[0]
+                * MILLION_CURRENCY_TO_CURRENCY
+            )
+    panel.loc['T00SUB'] = -panel.loc['T00SUB']
+
+    supply = _load_2017_detail_supply_use_usa('Supply_detail').rename(
+        columns=lambda column: column.strip()
+    )
+    bridge = (
+        supply.loc[
+            list(USA_2017_COMMODITY_CODES),
+            ['MCIF', 'MADJ', 'MDTY', 'TRADE', 'TRANS'],
+        ].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    converted = use_producer_from_sut(
+        panel, bridge, load_margins_transactions_2017(), 2017
+    )
+    purchaser = panel.loc[list(USA_2017_COMMODITY_CODES), columns]
+    return converted, purchaser, bridge
+
+
+def report() -> None:
+    """Score the conversion, then the distance it travelled from the SUT."""
+    million = MILLION_CURRENCY_TO_CURRENCY
+    converted, purchaser, bridge = _converted_2017()
+    score = score_replay(converted, published_mut_use_2017())
+
+    print('SUT -> MUT Use conversion, 2017')
+    print(f'  comparable cells      {score.n_cells:>12,}')
+    print(f'  outside tolerance     {score.n_outside:>12,}')
     print(f'  gross absolute diff   {score.gross / million:>12,.0f} $M')
     print(f'  net difference        {score.net / million:>12,.0f} $M')
 
@@ -377,18 +541,25 @@ def report() -> None:
     for job, amount in by_job(score.diff).items():
         print(f'    {job:<14} {amount / million:>12,.0f} $M')
 
-    print('\n  largest rows to move:')
-    for code, amount in by_row(score.diff).head(8).items():
-        print(f'    {code:<8} {amount / million:>12,.0f} $M')
+    baseline = _baseline_score()
+    print(
+        f'\n  distance travelled: the unconverted SUT was '
+        f'{baseline.gross / million:,.0f} $M out across '
+        f'{baseline.n_outside:,} cells'
+    )
 
-    print('\n  named first cells (purchaser -> producer):')
-    published = load_2017_Utot_before_redef_usa()
-    # diff is candidate - published, and the candidate is the purchaser SUT
-    sut_side = published + score.diff
-    for code in ('4B0000', '423A00', '484000', '425000'):
-        before = float(sut_side.loc[code].sum()) / million
-        after = float(published.loc[code].sum()) / million
-        print(f'    {code:<8} {before:>12,.0f} -> {after:>12,.0f} $M')
+    recovery = margin_recovery(converted, purchaser, bridge)
+    print('\n  margin recovery against the Supply give-up:')
+    for kind, group in recovery.groupby('kind'):
+        print(
+            f'    {kind:<10} booked {group["booked"].sum() / million:>10,.0f}  '
+            f'give-up {group["giveup"].sum() / million:>10,.0f}  '
+            f'residual {group["residual"].sum() / million:>+9,.0f} $M'
+        )
+    print(
+        '    (trade over-recovers by the trade-level sales tax, which rides '
+        'inside\n     the margin columns and is not in the Supply TRADE column)'
+    )
 
 
 def check() -> int:

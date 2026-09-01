@@ -57,7 +57,10 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import load_2017_margins_before_redef_usa
+from bedrock.extract.iot.io_2017 import load_benchmark_margins_before_redef_usa
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_BENCHMARK_DETAIL_SUT_YEARS,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 
 #: The three margin types, in the order they cascade.
@@ -83,17 +86,24 @@ RATE_BASIS = 'rate'
 LEVEL_BASIS = 'level'
 
 
-@functools.cache
 def load_margins_transactions_2017() -> pd.DataFrame:
+    """The 2017 margins transactions. See :func:`load_margins_transactions`."""
+    return load_margins_transactions(2017)
+
+
+@functools.cache
+def load_margins_transactions(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
     """
-    Published 2017 detail Margins table, before redefinitions, restricted to
-    real commodities. USD.
+    Published detail Margins table for a benchmark year (2007/2012/2017),
+    before redefinitions, restricted to real commodities. USD.
 
     The workbook carries the value-added rows (``V00100``, ``V00200``,
     ``V00300``) in the commodity column as well, which the transaction object
     has no use for - they hold producers' value only and never any margin.
     """
-    df = load_2017_margins_before_redef_usa()
+    df = load_benchmark_margins_before_redef_usa(year)
     commodities = df.index.get_level_values(COMMODITY_LEVEL)
     return df.loc[commodities.isin(USA_2017_COMMODITY_CODES)]
 
