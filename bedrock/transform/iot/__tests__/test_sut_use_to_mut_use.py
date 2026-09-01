@@ -17,13 +17,18 @@ from bedrock.transform.iot.sut_use_to_mut_use import (
     DUTIES_COMMODITY,
     REPLAY_ATOL,
     REPLAY_RTOL,
+    TRADE_GIVERS,
+    TRANSPORT_GIVERS,
     V00200_COMPONENTS,
     by_job,
     by_row,
     f05000_column,
+    margin_recovery,
+    producer_value_block,
     published_mut_use,
     published_mut_use_2017,
     score_replay,
+    use_producer_from_sut,
     v00200_row,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
@@ -32,6 +37,7 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
+    SUT_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_CODES,
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
 )
@@ -430,3 +436,170 @@ def test_v00100_and_v00300_cross_unchanged(
             * MILLION
         ).to_numpy()
         assert np.abs(sut_side - published).max() == 0.0
+
+
+# --- the conversion --------------------------------------------------------
+
+
+def sut_panel() -> pd.DataFrame:
+    """The published 2017 Use SUT on the build's sign convention."""
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    raw = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    rows = [*USA_2017_COMMODITY_CODES, 'V00100', 'V00300', *V00200_COMPONENTS]
+    columns = [*USA_2017_INDUSTRY_CODES, *SUT_FINAL_DEMAND_CODES]
+    panel = pd.DataFrame(0.0, index=rows, columns=columns)
+    for row in rows:
+        if row in raw.index:
+            panel.loc[row] = (
+                raw.loc[[row], columns]
+                .apply(pd.to_numeric, errors='coerce')
+                .fillna(0.0)
+                .to_numpy()[0]
+                * MILLION
+            )
+    # BEA publishes the Use subsidy row positive; the build stores it negative
+    panel.loc['T00SUB'] = -panel.loc['T00SUB']
+    return panel
+
+
+def supply_bridge_2017() -> pd.DataFrame:
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    supply = _load_2017_detail_supply_use_usa('Supply_detail').rename(
+        columns=lambda column: column.strip()
+    )
+    return (
+        supply.loc[
+            list(USA_2017_COMMODITY_CODES),
+            ['MCIF', 'MADJ', 'MDTY', 'TRADE', 'TRANS'],
+        ].astype(float)
+        * MILLION
+    )
+
+
+def test_producer_value_block_prefers_the_margins_table() -> None:
+    purchaser = pd.DataFrame(
+        {'1111A0': [10.0, 20.0]}, index=['311111', '423A00']
+    ).astype(float)
+    margins = pd.DataFrame(
+        {"Producers' Value": [7.0]},
+        index=pd.MultiIndex.from_tuples(
+            [('1111A0', '311111')], names=['Industry Code', 'Commodity Code']
+        ),
+    )
+    block = producer_value_block(purchaser, margins)
+
+    assert block.loc['311111', '1111A0'] == pytest.approx(7.0)
+    # no margins row: nothing was booked against it, so the valuations coincide
+    assert block.loc['423A00', '1111A0'] == pytest.approx(20.0)
+
+
+def test_conversion_reproduces_the_published_interior_exactly() -> None:
+    """The margins table's Producers' Value *is* the producer-price cell.
+
+    The redistribution is already inside that column, so the conversion is a
+    reshape and the margin-join bucket scores zero.
+    """
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions_2017,
+    )
+
+    converted = use_producer_from_sut(
+        sut_panel(), supply_bridge_2017(), load_margins_transactions_2017(), 2017
+    )
+    score = score_replay(converted, published_mut_use_2017())
+
+    assert by_job(score.diff)['margin join'] == pytest.approx(0.0)
+    # what is left is the two known rounding sources, both from PR 2
+    assert score.gross / MILLION == pytest.approx(141, abs=2)
+    assert score.n_outside <= 10
+
+
+def test_conversion_produces_the_answer_key_axes() -> None:
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions_2017,
+    )
+
+    converted = use_producer_from_sut(
+        sut_panel(), supply_bridge_2017(), load_margins_transactions_2017(), 2017
+    )
+    assert list(converted.index) == list(published_mut_use_2017().index)
+    assert list(converted.columns) == list(published_mut_use_2017().columns)
+
+
+def test_4b0000_goes_from_zero_to_large() -> None:
+    """The named first cell: exactly zero before, 230,440 $M after."""
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions_2017,
+    )
+
+    panel = sut_panel()
+    converted = use_producer_from_sut(
+        panel, supply_bridge_2017(), load_margins_transactions_2017(), 2017
+    )
+    assert float(panel.loc['4B0000'].sum()) == 0.0
+    assert float(converted.loc['4B0000'].sum()) / MILLION == pytest.approx(
+        230_440, abs=1
+    )
+
+
+def test_transport_recovers_its_supply_column_per_commodity() -> None:
+    """Free and exact: a margin is value moved, never created."""
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions_2017,
+    )
+
+    panel = sut_panel()
+    bridge = supply_bridge_2017()
+    converted = use_producer_from_sut(
+        panel, bridge, load_margins_transactions_2017(), 2017
+    )
+    recovery = margin_recovery(
+        converted, panel.loc[list(USA_2017_COMMODITY_CODES), panel.columns], bridge
+    )
+    transport = recovery[recovery['kind'] == 'transport']
+
+    assert len(transport) == len(TRANSPORT_GIVERS)
+    assert abs(transport['residual'].sum()) / MILLION < 50
+    assert float(transport['residual'].abs().max()) / MILLION < 50
+
+
+def test_trade_over_recovers_by_the_trade_level_tax() -> None:
+    """⚠️ Not a free identity: the sales tax rides inside the margin columns.
+
+    Asserting trade against give-up alone would fail on correct data by
+    ~391,800 $M.
+    """
+    from bedrock.transform.iot.nowcast_margins import (  # noqa: PLC0415
+        load_margins_transactions_2017,
+    )
+    from bedrock.transform.iot.nowcast_trade_margins import (  # noqa: PLC0415
+        trade_level_tax_2017,
+    )
+
+    panel = sut_panel()
+    bridge = supply_bridge_2017()
+    converted = use_producer_from_sut(
+        panel, bridge, load_margins_transactions_2017(), 2017
+    )
+    recovery = margin_recovery(
+        converted, panel.loc[list(USA_2017_COMMODITY_CODES), panel.columns], bridge
+    )
+    trade = recovery[recovery['kind'] == 'trade']
+
+    assert len(trade) == len(TRADE_GIVERS)
+    residual = float(trade['residual'].sum())
+    tax = float(trade_level_tax_2017().sum())
+    # the two independent measures of the same tax agree to 0.3%
+    assert abs(residual - tax) / tax < 0.003
+
+
+def test_the_supply_margin_columns_net_to_nothing() -> None:
+    bridge = supply_bridge_2017()
+    assert abs(float(bridge['TRADE'].sum())) / MILLION < 50
+    assert abs(float(bridge['TRANS'].sum())) / MILLION < 50
