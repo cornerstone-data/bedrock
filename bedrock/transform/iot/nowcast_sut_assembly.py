@@ -205,10 +205,12 @@ def conform_seeds(
                 )
                 if swept:
                     seed.iloc[r, c] = 0.0
+    # Explicit dtypes so a violation-free (empty) sweep still boolean-masks:
+    # an object-dtype empty 'swept' used as an indexer drops every column.
     return pd.DataFrame(
         records,
         columns=['block', 'row', 'column', 'value_usd_m', 'layer', 'swept'],
-    )
+    ).astype({'value_usd_m': float, 'swept': bool})
 
 
 @dataclass(frozen=True)
