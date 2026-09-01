@@ -21,7 +21,7 @@ RETIRED_USA_CONFIG_STEMS: frozenset[str] = frozenset(
     }
 )
 
-BEA_PUBLISHED_IO_YEARS: frozenset[int] = frozenset({2012, 2017})
+BEA_PUBLISHED_DETAIL_IO_YEARS: frozenset[int] = frozenset({2012, 2017})
 NOWCAST_IO_YEARS: frozenset[int] = frozenset(
     {2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024}
 )
@@ -206,7 +206,7 @@ class USAConfig(BaseModel):
     @model_validator(mode='after')
     def _validate_detail_io_source(self) -> USAConfig:
         if self.usa_detail_io_source == 'bea_published':
-            if self.usa_base_io_data_year not in BEA_PUBLISHED_IO_YEARS:
+            if self.usa_base_io_data_year not in BEA_PUBLISHED_DETAIL_IO_YEARS:
                 raise ValueError(
                     'usa_base_io_data_year must be 2012 or 2017 when '
                     "usa_detail_io_source is 'bea_published'; "
