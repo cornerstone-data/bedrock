@@ -8,6 +8,8 @@ matrix carries at least the pair coverage the issue measured.
 
 from __future__ import annotations
 
+import pytest
+
 from bedrock.extract.census.Census_EC import SYNTHETIC_PXI_LINES
 from bedrock.transform.inventories.seller_matrix import (
     TRANSPORT_MODE_COMMODITIES,
@@ -16,6 +18,27 @@ from bedrock.transform.inventories.seller_matrix import (
     bea_trade_matrix,
     seller_commodity_matrix,
     transport_mode_matrix,
+)
+from bedrock.utils.config.common import load_env_file_key
+
+
+def _census_key_available() -> bool:
+    """Same accessor-based check as ``test_nowcast_intermediate``: the key
+    lives in ``.env`` and only reaches ``os.environ`` once ``get_api_key``
+    loads it, so an ``os.getenv`` check reports "no key" on a machine that
+    has one."""
+    try:
+        return bool(load_env_file_key('api_key', 'Census'))
+    except Exception:  # noqa: BLE001 - any failure to resolve means "cannot run"
+        return False
+
+
+#: The matrix builders reach the Census PxI accessors, which fetch live where
+#: no local cache exists. Without a key the API returns its "Missing Key" HTML
+#: page and the fetch dies in ``json.loads`` - skip rather than fail there.
+needs_census = pytest.mark.skipif(
+    not _census_key_available(),
+    reason='no Census API key: set CENSUS_API_KEY (repo secret in CI, .env locally)',
 )
 
 
@@ -38,6 +61,7 @@ def test_product_split_conserves_mass() -> None:
     assert (per_product.round(9) == 1.0).all()
 
 
+@needs_census
 def test_matrix_shape_and_the_synthetic_exclusion() -> None:
     matrix = seller_commodity_matrix(2017)
 
@@ -51,6 +75,7 @@ def test_matrix_shape_and_the_synthetic_exclusion() -> None:
         assert label not in matrix.index
 
 
+@needs_census
 def test_rolled_matrix_reaches_every_bea_trade_code() -> None:
     rolled = bea_trade_matrix(2017)
 
@@ -58,6 +83,7 @@ def test_rolled_matrix_reaches_every_bea_trade_code() -> None:
     assert (rolled.sum(axis=1) > 0).all()
 
 
+@needs_census
 def test_transport_mode_matrix_carries_all_five_modes() -> None:
     """The transport analog: five mode-commodity rows, each mode's own
     revenue-controlled allocation, nonnegative in the receiving direction."""
