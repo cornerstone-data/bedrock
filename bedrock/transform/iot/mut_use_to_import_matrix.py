@@ -105,22 +105,30 @@ def allocation_weights(use_producer: pd.DataFrame) -> pd.DataFrame:
 def import_control(supply_bridge: pd.DataFrame) -> pd.Series:
     """Each commodity's total imports for the matrix, positive, USD.
 
-    ``MCIF + MADJ + MDTY``, duty left on the commodity that bore it.
+    ``MCIF + MDTY`` - the import matrix is valued at the **domestic port**:
+    c.i.f. (which already carries each commodity's own freight and insurance
+    charges) plus customs duties, duty left on the commodity that bore it.
+    This reproduces the published matrix's own import column **exactly**:
+    47 $M gross at 2017 and 52 $M at 2012 over 402 commodities, zero
+    commodities off by more than $10M - whole-million rounding.
+
+    ⚠️ **MADJ does not belong here.** The bridge's c.i.f./f.o.b. adjustment
+    exists so *total supply* nets out the freight double-count; it sits on six
+    service commodities (water, truck, couriers, air, insurance, rail) whose
+    rows the import matrix keeps at their **gross** import values. Including
+    it - the previous rule - missed by exactly ``-MADJ`` on exactly those six
+    (23,163 $M at 2017). Their difference from the Use table's ``F05000`` is
+    useeior's ``InternationalTradeAdjustment``: ``MADJ`` on the six plus the
+    ``4200ID`` duty credit.
 
     ⚠️ **Not** ``sut_use_to_mut_use.f05000_column``, which credits the duty
-    total back onto ``4200ID``: the import matrix has no such row. The two
-    disagree on seven commodities, 61,631 $M. This rule lands 23,163 $M from
-    the published column against 38,508 $M for ``MCIF`` alone.
+    total back onto ``4200ID``: the import matrix has no such row.
     """
-    missing = [c for c in ('MCIF', 'MADJ', 'MDTY') if c not in supply_bridge.columns]
+    missing = [c for c in ('MCIF', 'MDTY') if c not in supply_bridge.columns]
     assert not missing, f'the supply bridge is missing {missing}'
 
     return (
-        (
-            supply_bridge['MCIF'].astype(float)
-            + supply_bridge['MADJ'].astype(float)
-            + supply_bridge['MDTY'].astype(float)
-        )
+        (supply_bridge['MCIF'].astype(float) + supply_bridge['MDTY'].astype(float))
         .reindex(list(USA_2017_COMMODITY_CODES))
         .fillna(0.0)
         .rename('imports')
@@ -344,7 +352,7 @@ def report() -> None:
     residual = _control_residual(2017)
     outside = int((residual.abs() > REPLAY_ATOL).sum())
     print(
-        f'\n  MCIF + MADJ + MDTY against the published F05000: '
+        f'\n  MCIF + MDTY against the published F05000: '
         f'{residual.abs().sum() / million:,.0f} $M gross, {outside} commodities '
         f'outside tolerance'
     )
@@ -458,7 +466,7 @@ def _allocated_score(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> ReplayReport:
 
 
 def _control_residual(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.Series:
-    """``MCIF + MADJ + MDTY`` less the published matrix's import total, USD."""
+    """``MCIF + MDTY`` less the published matrix's import total, USD."""
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
         _load_benchmark_detail_supply_use_usa,
     )
@@ -467,9 +475,7 @@ def _control_residual(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.Series:
         columns=lambda column: str(column).strip()
     )
     bridge = (
-        supply.loc[list(USA_2017_COMMODITY_CODES), ['MCIF', 'MADJ', 'MDTY']].astype(
-            float
-        )
+        supply.loc[list(USA_2017_COMMODITY_CODES), ['MCIF', 'MDTY']].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     return import_control(bridge) - published_import_control(year)

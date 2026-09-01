@@ -213,8 +213,8 @@ def test_beas_rest_of_world_adjustment_passes_but_a_flipped_sign_does_not() -> N
 # --- the control -----------------------------------------------------------
 
 
-def test_import_control_needs_all_three_bridge_columns() -> None:
-    bridge = pd.DataFrame({'MCIF': [1.0], 'MADJ': [2.0]}, index=[FIRST], dtype=float)
+def test_import_control_needs_both_bridge_columns() -> None:
+    bridge = pd.DataFrame({'MCIF': [1.0]}, index=[FIRST], dtype=float)
 
     with pytest.raises(AssertionError, match=r"missing \['MDTY'\]"):
         import_control(bridge)
@@ -296,8 +296,13 @@ def test_the_published_row_sums_to_its_own_import_column(
     )
 
 
-def test_the_control_beats_both_of_its_alternatives() -> None:
-    """``MDTY`` belongs in, and leaving it out is not a rounding error."""
+def test_the_control_is_exact_and_every_alternative_is_not() -> None:
+    """``MCIF + MDTY`` is the domestic-port valuation, to workbook rounding.
+
+    Every rule that touches ``MADJ`` misses on exactly the six service
+    commodities the adjustment sits on - the import matrix keeps their rows
+    at gross values, so the adjustment belongs to the Use ``F05000`` only.
+    """
     supply = _load_benchmark_detail_supply_use_usa('Supply_detail', 2017).rename(
         columns=lambda column: str(column).strip()
     )
@@ -312,13 +317,21 @@ def test_the_control_beats_both_of_its_alternatives() -> None:
     def gross(candidate: pd.Series) -> float:
         return float((candidate - published).abs().sum()) / MILLION
 
-    assert gross(import_control(bridge)) == pytest.approx(23_163, abs=500)
+    assert gross(import_control(bridge)) == pytest.approx(47, abs=20)
     assert gross(bridge['MCIF']) == pytest.approx(38_508, abs=500)
     assert gross(bridge['MCIF'] + bridge['MADJ']) == pytest.approx(61_624, abs=500)
+    assert gross(bridge.sum(axis=1)) == pytest.approx(23_163, abs=500)
 
 
 def test_the_control_and_the_use_f05000_disagree_on_seven_commodities() -> None:
-    """Recorded so a later change to either one has to face the list."""
+    """The difference IS useeior's InternationalTradeAdjustment, pinned.
+
+    Per commodity, Use ``F05000`` minus the import matrix's ``F05000`` is
+    ``MADJ`` on its six service commodities plus the ``4200ID`` duty credit -
+    the freight/insurance double-count and the duties, exactly the vector
+    ``useeior::generateInternationalTradeAdjustmentVector`` computes between
+    the same two tables.
+    """
     matrix_column = published_import_matrix()[USA_2017_FINAL_DEMAND_IMPORT_CODE]
     use_column = published_mut_use_2017()[USA_2017_FINAL_DEMAND_IMPORT_CODE]
     difference = matrix_column - use_column.reindex(matrix_column.index)
@@ -337,6 +350,24 @@ def test_the_control_and_the_use_f05000_disagree_on_seven_commodities() -> None:
     assert difference['4200ID'] / MILLION == pytest.approx(-38_513, abs=1)
     pd.testing.assert_series_equal(
         published_import_control(2017), -matrix_column, check_names=False
+    )
+
+    supply = _load_benchmark_detail_supply_use_usa('Supply_detail', 2017).rename(
+        columns=lambda column: str(column).strip()
+    )
+    madj = (
+        pd.to_numeric(supply['MADJ'], errors='coerce')
+        .reindex(list(USA_2017_COMMODITY_CODES))
+        .fillna(0.0)
+        * MILLION
+    )
+    services = [c for c in disagreeing if c != '4200ID']
+    pd.testing.assert_series_equal(
+        difference[services],
+        madj[services],
+        check_names=False,
+        atol=2 * MILLION,
+        rtol=0,
     )
 
 
@@ -378,12 +409,15 @@ def test_the_dead_rows_are_the_ones_with_no_positive_use() -> None:
     assert dead == sorted(DEAD_ROW_COMMODITIES)
 
 
-def test_the_control_residual_sits_where_the_module_says_it_does() -> None:
-    residual = _control_residual(2017)
-    outside = residual.index[residual.abs() > REPLAY_ATOL]
+@pytest.mark.parametrize(('year', 'gross'), [(2012, 52), (2017, 47)])
+def test_the_control_is_exact_at_both_benchmarks(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS, gross: int
+) -> None:
+    """Zero commodities off by more than $10M - whole-million rounding only."""
+    residual = _control_residual(year)
 
-    assert len(outside) == pytest.approx(53, abs=5)
-    assert float(residual.abs().sum()) / MILLION == pytest.approx(23_163, abs=500)
+    assert int((residual.abs() > 10 * MILLION).sum()) == 0
+    assert float(residual.abs().sum()) / MILLION == pytest.approx(gross, abs=20)
 
 
 def test_strain_ranks_insurance_carriers_first() -> None:
