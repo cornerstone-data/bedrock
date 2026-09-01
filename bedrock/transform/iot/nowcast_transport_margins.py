@@ -185,6 +185,7 @@ from __future__ import annotations
 import functools
 from collections.abc import Iterable
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -1184,6 +1185,40 @@ def joint_mode_shares() -> pd.DataFrame:
     return fitted.div(fitted.sum(axis=1), axis=0)
 
 
+def mode_receiving_allocations(
+    year: int = ANCHOR_YEAR, margins: pd.DataFrame | None = None
+) -> dict[str, pd.Series]:
+    """Each mode's receiving-side allocation for *year*, USD, on the joint fit.
+
+    ⚠️ The receiving side rides the JOINT 2017 fit (#772), not the raw
+    per-mode allocations: fitted 2017 shares per mode, times each mode's own
+    within-mode movement as a relative index (its year allocation over its
+    2017 allocation, cell by cell), renormalised to the mode's annual total.
+    2017 reproduces the published distribution by construction; later years
+    keep every mode's own annual evidence - rail's per-commodity revenue most
+    of all - as movement on the fitted base.
+
+    This is the single construction behind both the Supply ``TRANS`` column
+    (:func:`transport_margin_column` sums it across modes) and 6b's per-mode
+    transport matrix (``seller_matrix.transport_mode_matrix`` keeps the modes
+    apart) - found by MoLi7 on #798, where the matrix rode the raw
+    allocations instead and disagreed with the column by 21.6% at 2017,
+    $12.4bn of it truck margin on the wrong rows.
+    """
+    allocations = mode_allocations(year, margins)
+    shares = joint_mode_shares()
+    base_allocations = mode_allocations(ANCHOR_YEAR, margins)
+    pieces = {}
+    for mode, allocation in allocations.items():
+        base = base_allocations[mode].reindex(shares.columns).fillna(0.0)
+        now = allocation.reindex(shares.columns).fillna(0.0)
+        movement = (now / base.replace(0.0, np.nan)).fillna(0.0)
+        weighted = cast('pd.Series[float]', shares.loc[mode]) * movement
+        total = float(allocation.sum())
+        pieces[mode] = weighted * (total / float(weighted.sum()))
+    return pieces
+
+
 def transport_margin_column(
     year: int = ANCHOR_YEAR, margins: pd.DataFrame | None = None
 ) -> pd.Series:
@@ -1209,23 +1244,7 @@ def transport_margin_column(
     pattern, or the identity.
     """
     allocations = mode_allocations(year, margins)
-    # ⚠️ The receiving side rides the JOINT 2017 fit (#772), not the raw
-    # per-mode allocations: fitted 2017 shares per mode, times each mode's own
-    # within-mode movement as a relative index (its year allocation over its
-    # 2017 allocation, cell by cell), renormalised to the mode's annual total.
-    # 2017 reproduces the published distribution by construction; later years
-    # keep every mode's own annual evidence - rail's per-commodity revenue most
-    # of all - as movement on the fitted base.
-    shares = joint_mode_shares()
-    base_allocations = mode_allocations(ANCHOR_YEAR, margins)
-    pieces = {}
-    for mode, allocation in allocations.items():
-        base = base_allocations[mode].reindex(shares.columns).fillna(0.0)
-        now = allocation.reindex(shares.columns).fillna(0.0)
-        movement = (now / base.replace(0.0, np.nan)).fillna(0.0)
-        weighted = shares.loc[mode] * movement
-        total = float(allocation.sum())
-        pieces[mode] = weighted * (total / float(weighted.sum()))
+    pieces = mode_receiving_allocations(year, margins)
     receiving = pd.DataFrame(pieces).fillna(0.0).sum(axis=1).rename('TRANS')
     receiving = receiving[receiving > 0]
 

@@ -8,6 +8,7 @@ matrix carries at least the pair coverage the issue measured.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from bedrock.extract.census.Census_EC import SYNTHETIC_PXI_LINES
@@ -19,6 +20,7 @@ from bedrock.transform.inventories.seller_matrix import (
     seller_commodity_matrix,
     transport_mode_matrix,
 )
+from bedrock.transform.iot.nowcast_transport_margins import transport_margin_column
 from bedrock.utils.config.common import load_env_file_key
 
 
@@ -91,3 +93,19 @@ def test_transport_mode_matrix_carries_all_five_modes() -> None:
 
     assert sorted(matrix.index) == sorted(TRANSPORT_MODE_COMMODITIES.values())
     assert (matrix.sum(axis=1) > 0).all()
+
+
+def test_transport_matrix_agrees_with_the_trans_column() -> None:
+    """One construction, two consumers (MoLi7, #798).
+
+    The matrix summed across its five mode rows must reproduce the Supply
+    ``TRANS`` column's receiving side exactly - both now read
+    ``mode_receiving_allocations``, after the matrix was caught riding the
+    raw per-mode allocations (the joint fit's input, 21.6% off the column).
+    """
+    matrix = transport_mode_matrix(2017)
+    column = transport_margin_column(2017)
+    receiving = column[column > 0].sort_index()
+    summed = matrix.sum(axis=0)
+    summed = summed[summed > 0].sort_index()
+    pd.testing.assert_series_equal(summed, receiving, check_names=False, rtol=1e-9)

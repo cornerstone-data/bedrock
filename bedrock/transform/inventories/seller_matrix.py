@@ -206,18 +206,21 @@ def transport_mode_matrix(target_year: int) -> pd.DataFrame:
     redistribution of the transportation margin: which of the five mode
     commodities (air ``481000``, rail ``482000``, water ``483000``, truck
     ``484000``, pipeline ``486000``) carries each margined commodity's
-    freight bill. Read straight off the Step 4c joint-fit allocations
-    (#772) — each mode's own annual revenue-controlled series on the fitted
-    2017 base — so this matrix and the ``TRANS`` column can never disagree.
+    freight bill. Read off ``mode_receiving_allocations`` — the joint-fit
+    construction (#772) that also builds the Supply ``TRANS`` column — so
+    this matrix and the column share one code path and cannot disagree.
+    (MoLi7 caught the earlier version riding the raw ``mode_allocations``
+    instead: the fit's *input*, 21.6% off the column at 2017, with $12.4bn
+    of truck margin on the wrong rows.)
 
     Use each margined commodity's **column** as shares across the five mode
     rows, exactly as the trade matrix is used against the give-up levels.
     """
     from bedrock.transform.iot.nowcast_transport_margins import (  # noqa: PLC0415
-        mode_allocations,
+        mode_receiving_allocations,
     )
 
-    allocations = mode_allocations(int(target_year))
+    allocations = mode_receiving_allocations(int(target_year))
     matrix = pd.DataFrame(
         {
             TRANSPORT_MODE_COMMODITIES[mode]: series
