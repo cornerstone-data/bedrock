@@ -57,8 +57,12 @@ own unit suites.
 from __future__ import annotations
 
 import argparse
+import json
+import posixpath
 import sys
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import cast
 
 import pandas as pd
@@ -87,6 +91,13 @@ from bedrock.transform.iot.nowcast_targets import (
     FD_TARGET_COLUMNS,
     build_target_set,
     industry_group_aggregator,
+)
+from bedrock.utils.config.settings import (
+    FBS_DIR,
+    GIT_BRANCH,
+    GIT_HASH,
+    GIT_HASH_LONG,
+    PKG_VERSION_NUMBER,
 )
 from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.offset import (
@@ -362,6 +373,97 @@ def hard_residual_report(balance: YearBalance) -> pd.DataFrame:
     return frame.sort_values('max_abs_residual', ascending=False)
 
 
+#: Artifact names for the balanced blocks, keyed by the mask's block names.
+BALANCED_ARTIFACT_NAMES = {
+    'supply': 'Balanced_Detail_Supply',
+    'use': 'Balanced_Detail_Use_SUT',
+}
+
+#: Where the balanced products live on GCS, under ``GCS_CORNERSTONE``.
+GCS_BALANCED_SUT_DIR = 'flowsa/BalancedSUT'
+
+
+def save_balance(
+    balance: YearBalance,
+    out_dir: Path | None = None,
+    *,
+    protocol: str,
+    upload: bool = False,
+) -> list[Path]:
+    """Persist the balanced blocks as versioned parquet + metadata sidecars.
+
+    Writes ``<Name>_<year>_v<version>_<githash>.parquet`` and the
+    ``*_metadata.json`` sidecar the repo's artifact tooling expects -
+    the same convention as every other ``transform/output_data`` product -
+    into *out_dir* (default ``transform/output_data``). With *upload*, both
+    files also go to :data:`GCS_BALANCED_SUT_DIR` on GCS, which needs
+    credentials (``scripts/google-login``).
+
+    ⚠️ The balanced tables are in **BEA million dollars** - this module's
+    seam converts to $M before the engine - unlike the USD FBS parquets they
+    sit beside. The sidecar's ``units`` field says so.
+
+    *protocol* is recorded verbatim in the sidecar; pass what the run
+    actually did (e.g. ``'soft (impose_soft=True), max_outer=20'``), since
+    ``YearBalance`` itself does not carry the engine flags.
+    """
+    if balance.balanced is None or balance.result is None:
+        raise ValueError('balance_year first; only a balanced result is saved')
+    directory = Path(out_dir) if out_dir is not None else FBS_DIR
+    directory.mkdir(parents=True, exist_ok=True)
+
+    result = balance.result
+    engine_line = (
+        f'outer iterations {result.outer_iterations}, '
+        f'T11 max |residual| {result.t11_max_abs_residual:,.1f} $M, '
+        f'skipped {result.skipped or "none"}, '
+        f'soft deferred {result.soft_deferred or "none"}'
+    )
+    written: list[Path] = []
+    for block, frame in balance.balanced.items():
+        name = BALANCED_ARTIFACT_NAMES.get(block, f'Balanced_{block}')
+        stem = f'{name}_{balance.year}_v{PKG_VERSION_NUMBER}'
+        if GIT_HASH is not None:
+            stem = f'{stem}_{GIT_HASH}'
+        parquet_path = directory / f'{stem}.parquet'
+        frame.to_parquet(parquet_path)
+        meta = {
+            'tool': 'bedrock',
+            'category': 'BalancedSUT',
+            'name_data': f'{name}_{balance.year}',
+            'tool_version': PKG_VERSION_NUMBER,
+            'git_hash': GIT_HASH,
+            'ext': 'parquet',
+            'date_created': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'tool_meta': {
+                'step': 'Step 5 - GRAS balance of the nowcast SUT',
+                'protocol': protocol,
+                'units': 'BEA million USD',
+                'branch': GIT_BRANCH,
+                'commit': GIT_HASH_LONG,
+                'engine_result': engine_line,
+                'builder': 'bedrock.transform.iot.nowcast_sut_assembly',
+            },
+        }
+        meta_path = directory / f'{stem}_metadata.json'
+        meta_path.write_text(json.dumps(meta, indent=4))
+        written.extend([parquet_path, meta_path])
+
+    if upload:
+        # Deferred import: the CLI must not need GCS credentials to balance.
+        from bedrock.utils.io.gcp import (  # noqa: PLC0415
+            GCS_CORNERSTONE,
+            upload_file_to_gcs,
+        )
+
+        for path in written:
+            upload_file_to_gcs(
+                str(path),
+                posixpath.join(GCS_CORNERSTONE, GCS_BALANCED_SUT_DIR, path.name),
+            )
+    return written
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -378,6 +480,16 @@ def main(argv: list[str] | None = None) -> int:
         '--hard-only',
         action='store_true',
         help='skip the soft targets (the exact-identity protocol)',
+    )
+    parser.add_argument(
+        '--no-save',
+        action='store_true',
+        help='do not persist the balanced blocks to transform/output_data',
+    )
+    parser.add_argument(
+        '--gcs',
+        action='store_true',
+        help='also upload the saved products to GCS (needs credentials)',
     )
     args = parser.parse_args(argv)
     first, _, last = args.years.partition('-')
@@ -401,6 +513,14 @@ def main(argv: list[str] | None = None) -> int:
             f'soft deferred {balance.result.soft_deferred or "none"}'
         )
         print(hard_residual_report(balance).to_string())
+        if not args.no_save:
+            protocol = (
+                'hard-only (impose_soft=False)'
+                if args.hard_only
+                else 'soft (impose_soft=True)'
+            ) + ', max_outer=20'
+            written = save_balance(balance, protocol=protocol, upload=args.gcs)
+            print(f'saved {len(written)} files to {written[0].parent}')
     return 1 if failures else 0
 
 
