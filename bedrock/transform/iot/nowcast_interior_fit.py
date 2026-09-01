@@ -168,11 +168,11 @@ def interior_column_targets(year: int) -> pd.Series:
     its stored signs (the subsidy rows are negative, so a plain sum is the
     identity).
     """
-    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
-        derive_initial_value_added,
-    )
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415
         detail_gross_output_panel,
+    )
+    from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
+        derive_initial_value_added,
     )
     from bedrock.utils.economic.units import (  # noqa: PLC0415
         MILLION_CURRENCY_TO_CURRENCY,
