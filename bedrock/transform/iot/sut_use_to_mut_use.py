@@ -26,11 +26,13 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import (
+    _load_benchmark_detail_use_before_redef_usa,
     load_2017_Utot_before_redef_usa,
-    load_2017_value_added_before_redef_usa,
-    load_2017_Ytot_before_redef_usa,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_BENCHMARK_DETAIL_SUT_YEARS,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_CODES,
@@ -109,10 +111,11 @@ def f05000_column(supply_bridge: pd.DataFrame) -> pd.Series:
     ⚠️ **Duties are part of the rule, and leaving them out is not a rounding
     error.** The acceptance criterion is usually stated as ``MCIF + MADJ``,
     which matches the published total to 9 $M and so looks right - but it is
-    outside tolerance on **111 of 402 commodities**, because BEA loads the duty
-    onto the imported commodity and then credits the total back on ``4200ID`` as
-    a positive entry in an otherwise negative column. With ``MDTY`` in, every
-    commodity lands inside tolerance.
+    outside tolerance on **111 of 402 commodities** (108 at 2012), because BEA
+    loads the duty onto the imported commodity and then credits the total back
+    on ``4200ID`` as a positive entry in an otherwise negative column. With
+    ``MDTY`` in, every commodity lands inside tolerance, on both published
+    benchmark years.
 
     Read *supply_bridge* from ``nowcast.derive_initial_supply_bridge``: its
     ``MCIF``, ``MADJ`` and ``MDTY`` share one set of conditioning factors, and a
@@ -130,6 +133,15 @@ def f05000_column(supply_bridge: pd.DataFrame) -> pd.Series:
     assert DUTIES_COMMODITY in column.index, (
         f'{DUTIES_COMMODITY} is not in the supply bridge, so the duty credit has '
         f'nowhere to land'
+    )
+    displaced = float(column[DUTIES_COMMODITY])
+    assert abs(displaced) <= REPLAY_ATOL, (
+        f'the supply bridge books '
+        f'{displaced / MILLION_CURRENCY_TO_CURRENCY:.1f} $M of MCIF/MADJ/MDTY '
+        f'against {DUTIES_COMMODITY}; overwriting that with the duty credit '
+        f'would silently drop it from the column. The published Supply table '
+        f'carries nothing on {DUTIES_COMMODITY} - zero at 2012 and 2017 - so a '
+        f'nonzero here is an upstream allocation change, not rounding.'
     )
     column[DUTIES_COMMODITY] = duties.sum()
     return column.rename(USA_2017_FINAL_DEMAND_IMPORT_CODE)
@@ -181,33 +193,48 @@ def v00200_row(va_block: pd.DataFrame) -> pd.Series:
 # --- the answer key --------------------------------------------------------
 
 
-def published_mut_use_2017() -> pd.DataFrame:
-    """The published 2017 before-redefinitions MUT Use table, whole. USD.
+def published_mut_use(year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017) -> pd.DataFrame:
+    """The published before-redefinitions MUT Use table for a benchmark year. USD.
 
     Interior, final demand and value added in one frame, on the axes the
     conversion has to produce: 405 rows (402 commodities + 3 value-added) x 422
     columns (402 industries + 20 final-demand codes). Value added is blank in
     the final-demand columns, as BEA leaves it.
-    """
-    interior = load_2017_Utot_before_redef_usa()
-    final_demand = load_2017_Ytot_before_redef_usa()
-    value_added = load_2017_value_added_before_redef_usa()
 
-    rows = [*USA_2017_COMMODITY_CODES, *USA_2017_VALUE_ADDED_CODES]
-    columns = [*USA_2017_INDUSTRY_CODES, *USA_2017_FINAL_DEMAND_CODES]
+    The workbook publishes 2007, 2012 and 2017 in one file, all three sheets
+    already on the 2017 code basis, so the ``F05000`` and ``V00200`` identities
+    replay on more than one benchmark year without a crosswalk. 2012 and 2017
+    are both replayed in the tests; 2007 loads but is unverified.
+    """
+    raw = _load_benchmark_detail_use_before_redef_usa(year)
+    commodities = list(USA_2017_COMMODITY_CODES)
+    industries = list(USA_2017_INDUSTRY_CODES)
+    value_added = list(USA_2017_VALUE_ADDED_CODES)
+    final_demand = list(USA_2017_FINAL_DEMAND_CODES)
+
+    rows = [*commodities, *value_added]
+    columns = [*industries, *final_demand]
     table = pd.DataFrame(np.nan, index=rows, columns=columns, dtype=float)
-    table.loc[list(USA_2017_COMMODITY_CODES), list(USA_2017_INDUSTRY_CODES)] = (
-        interior.to_numpy()
-    )
-    table.loc[list(USA_2017_COMMODITY_CODES), list(USA_2017_FINAL_DEMAND_CODES)] = (
-        final_demand.to_numpy()
-    )
-    table.loc[list(USA_2017_VALUE_ADDED_CODES), list(USA_2017_INDUSTRY_CODES)] = (
-        value_added.to_numpy()
-    )
+    for block_rows, block_columns in (
+        (commodities, industries),
+        (commodities, final_demand),
+        (value_added, industries),
+    ):
+        table.loc[block_rows, block_columns] = (
+            raw.loc[block_rows, block_columns].astype(float).to_numpy()
+            * MILLION_CURRENCY_TO_CURRENCY
+        )
     table.index.name = 'row'
     table.columns.name = 'column'
     return table
+
+
+def published_mut_use_2017() -> pd.DataFrame:
+    """The published 2017 before-redefinitions MUT Use table, whole. USD.
+
+    See :func:`published_mut_use`, which this reads at its 2017 anchor.
+    """
+    return published_mut_use(2017)
 
 
 # --- scoring ---------------------------------------------------------------

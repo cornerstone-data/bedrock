@@ -21,11 +21,15 @@ from bedrock.transform.iot.sut_use_to_mut_use import (
     by_job,
     by_row,
     f05000_column,
+    published_mut_use,
     published_mut_use_2017,
     score_replay,
     v00200_row,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_BENCHMARK_DETAIL_SUT_YEARS,
+)
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_CODES,
@@ -269,21 +273,35 @@ def test_f05000_needs_all_three_bridge_columns() -> None:
         f05000_column(frame_in)
 
 
-def test_f05000_reproduces_the_published_column_per_commodity() -> None:
-    """Duties are part of the rule, not a rounding error.
+def test_f05000_refuses_a_bridge_with_mass_on_the_duties_commodity() -> None:
+    """Money the bridge books against 4200ID must not vanish under the credit."""
+    frame_in = bridge(
+        {'311111': (100.0, 5.0, 7.0), DUTIES_COMMODITY: (2.0 * MILLION, 0.0, 0.0)}
+    )
+    with pytest.raises(AssertionError, match='silently drop'):
+        f05000_column(frame_in)
 
-    ``MCIF + MADJ`` alone matches the published total to 9 $M and is wrong on
-    111 of 402 commodities; adding ``MDTY`` puts every commodity inside
-    tolerance.
+
+@pytest.mark.parametrize(('year', 'n_wrong_without_duties'), [(2012, 108), (2017, 111)])
+def test_f05000_reproduces_the_published_column_per_commodity(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS, n_wrong_without_duties: int
+) -> None:
+    """Duties are part of the rule, not a rounding error - on both benchmarks.
+
+    ``MCIF + MADJ`` alone matches the published totals to single-digit $M and
+    is wrong on ~110 commodities in each benchmark year; adding ``MDTY`` puts
+    every commodity inside tolerance in both. Two independent published years
+    make the rule an identity rather than a 2017 fit.
     """
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
-        _load_2017_detail_supply_use_usa,
+        _load_benchmark_detail_supply_use_usa,
     )
 
-    supply = _load_2017_detail_supply_use_usa('Supply_detail')
+    supply = _load_benchmark_detail_supply_use_usa('Supply_detail', year)
+    supply = supply.rename(columns=str.strip)
     commodities = list(USA_2017_COMMODITY_CODES)
     frame_in = supply.loc[commodities, ['MCIF', 'MADJ', 'MDTY']].astype(float) * MILLION
-    published = published_mut_use_2017().loc[
+    published = published_mut_use(year).loc[
         commodities, USA_2017_FINAL_DEMAND_IMPORT_CODE
     ]
 
@@ -300,7 +318,7 @@ def test_f05000_reproduces_the_published_column_per_commodity() -> None:
         rtol=REPLAY_RTOL,
         atol=REPLAY_ATOL,
     )
-    assert still_outside.sum() == 111
+    assert still_outside.sum() == n_wrong_without_duties
 
 
 # --- job 2: the V00200 collapse --------------------------------------------
@@ -360,18 +378,21 @@ def test_v00200_tolerates_rounding_dust_in_the_subsidy_rows() -> None:
     assert v00200_row(block)['1111A0'] == pytest.approx(0.5 * MILLION)
 
 
-def test_v00200_reproduces_the_published_row_from_the_sut_block() -> None:
+@pytest.mark.parametrize('year', [2012, 2017])
+def test_v00200_reproduces_the_published_row_from_the_sut_block(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> None:
     """The collapse is an identity, to the workbook's own rounding.
 
-    ``T00OSUB`` is absent from the published 2017 detail workbook and zero in
-    2017, so it enters as an explicit zero row - which is exactly why a
-    conversion that forgot it would still pass here.
+    ``T00OSUB`` is absent from the published detail workbooks and zero in both
+    benchmark years, so it enters as an explicit zero row - which is exactly
+    why a conversion that forgot it would still pass here.
     """
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
-        _load_2017_detail_supply_use_usa,
+        _load_benchmark_detail_supply_use_usa,
     )
 
-    sut = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    sut = _load_benchmark_detail_supply_use_usa('Use_SUT_detail', year)
     industries = list(USA_2017_INDUSTRY_CODES)
     block = pd.DataFrame(0.0, index=list(V00200_COMPONENTS), columns=industries)
     for row in V00200_COMPONENTS:
@@ -383,22 +404,25 @@ def test_v00200_reproduces_the_published_row_from_the_sut_block() -> None:
     assert 'T00OSUB' in sut.index or (block.loc['T00OSUB'] == 0).all()
 
     built = v00200_row(block)
-    published = published_mut_use_2017().loc[['V00200'], industries].iloc[0]
+    published = published_mut_use(year).loc[['V00200'], industries].iloc[0]
 
     assert built.sum() / MILLION == pytest.approx(published.sum() / MILLION, abs=25)
     worst = float(np.abs(built.to_numpy() - published.to_numpy()).max())
     assert worst / MILLION <= 1
 
 
-def test_v00100_and_v00300_cross_unchanged() -> None:
+@pytest.mark.parametrize('year', [2012, 2017])
+def test_v00100_and_v00300_cross_unchanged(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> None:
     """Neither row is part of the collapse; the before-redef pair is identical."""
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
-        _load_2017_detail_supply_use_usa,
+        _load_benchmark_detail_supply_use_usa,
     )
 
-    sut = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    sut = _load_benchmark_detail_supply_use_usa('Use_SUT_detail', year)
     industries = list(USA_2017_INDUSTRY_CODES)
-    mut = published_mut_use_2017()
+    mut = published_mut_use(year)
     for row in ('V00100', 'V00300'):
         published = mut.loc[[row], industries].to_numpy()
         sut_side = (
