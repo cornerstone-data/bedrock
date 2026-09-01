@@ -61,6 +61,21 @@ CONDITIONED_YEARS: tuple[int, ...] = tuple(range(2017, 2025))
 #: against it is numerically meaningless and a zero can never be scaled up.
 EMPTY_GROUP_USD = 1e6
 
+#: The NAICS families whose imports are cell-level anchored (#763). ⚠️ **A
+#: deliberate, recorded holdout-gate override (Wes, 2026-08-31)**: the
+#: uniform construction was validated on the 2012 holdout, but Wes limited
+#: the wiring to families where the classification-pair evidence is clean —
+#: the built FBS misroutes mass between siblings (within-family L1 0.10-0.58
+#: at the anchor) and the per-row review showed the residual moving onto the
+#: BEA-correct sibling. Everywhere else the Census identity split keeps its
+#: full annual primary signal. Selecting ON the anchor-year evidence is
+#: key-informed by construction; that is the override being recorded, not an
+#: oversight. Excluded on the same review: 3119 (net negative — the 311930
+#: concentrates story), 3314, 3251, 3363 (mixed).
+ANCHORED_FAMILIES: frozenset[str] = frozenset(
+    {'3254', '3344', '3341', '3399', '3259', '3332', '3371', '3221'}
+)
+
 
 @functools.cache
 def _commodity_to_summary() -> pd.Series:
@@ -91,20 +106,92 @@ def raw_import_vector(year: int, download_sources_ok: bool = True) -> pd.Series:
 
 
 @functools.cache
-def mcif_condition_factors(year: int) -> pd.Series:
-    """Per-commodity scale factor for *year*'s imports, guards applied.
+def anchored_mcif(year: int) -> pd.Series:
+    """Cell-level anchor-and-move imports for *year*, USD (#763).
 
-    Constant within each summary group: (published summary ``MCIF`` for the
-    group) / (our group total). Groups where we carry less than
-    :data:`EMPTY_GROUP_USD` hold at 1.0 and the published mass there is
-    logged as unreachable — a zero cannot be scaled into existence.
+    Each commodity's imports are its **published 2017 detail ``MCIF`` cell**
+    moved by **its own mapped Census line's growth** — the goods twin of the
+    #771 services construction. The 2012 holdout validated the anchor (the
+    published within-family mixes transport at median L1 0.04 across a full
+    benchmark gap, against 0.1–0.6 for the Census classification in the bad
+    families) and the movement stays 100% primary — every commodity moves by
+    its own Census-observed series, so no annual signal is lost anywhere
+    (Wes's requirement).
+
+    ⚠️ **Applied only inside :data:`ANCHORED_FAMILIES`** — Wes's recorded
+    scope decision. Every commodity outside those families passes through at
+    its raw FBS value: full Census primary signal, levels included.
+
+    Per-commodity rules inside an anchored family, in order:
+
+    - **anchored**: published 2017 and Census 2017 both carry the commodity —
+      ``pub_2017 × (census_t / census_2017)``;
+    - **census-only**: published 2017 is ~zero but Census sees mass — keep
+      the Census value (a 2017 trade zero is one year's observation of a flow
+      that moves, the same rule the mask's trade-flow exemption encodes; this
+      also covers entrants);
+    - **anchor-only**: published 2017 carries the commodity but Census 2017 is
+      ~zero — hold the published level flat (no mover exists) and log it.
     """
     if int(year) not in CONDITIONED_YEARS:
         raise ValueError(
             f'the summary Supply workbook covers {CONDITIONED_YEARS[0]}-'
             f'{CONDITIONED_YEARS[-1]}; got {year}'
         )
-    ours_detail = raw_import_vector(int(year))
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    supply = _load_2017_detail_supply_use_usa('Supply_detail')
+    supply.columns = supply.columns.str.strip()
+    pub = (
+        pd.to_numeric(supply['MCIF'], errors='coerce')
+        .reindex(USA_2017_COMMODITY_CODES)
+        .fillna(0.0)
+        .clip(lower=0.0)
+        * 1e6
+    )
+    raw_now = raw_import_vector(int(year))
+    raw_base = raw_import_vector(2017)
+
+    has_anchor = pub >= EMPTY_GROUP_USD
+    has_base = raw_base >= EMPTY_GROUP_USD
+    with np.errstate(divide='ignore', invalid='ignore'):
+        growth = (raw_now / raw_base).replace([np.inf, -np.inf], np.nan)
+
+    in_family = pd.Series(
+        [str(c)[:4] in ANCHORED_FAMILIES for c in pub.index], index=pub.index
+    )
+    anchored = raw_now.copy().rename('MCIF')
+    both = in_family & has_anchor & has_base
+    anchored[both] = pub[both] * growth[both].fillna(0.0)
+    anchor_only = in_family & has_anchor & ~has_base
+    anchored[anchor_only] = pub[anchor_only]
+    held = float(pub[anchor_only].sum())
+    if held:
+        logger.info(
+            'MCIF anchoring %s: %.0fM of published 2017 imports held flat '
+            '(no Census mover): %s',
+            year,
+            held / 1e6,
+            sorted(pub.index[anchor_only]),
+        )
+    return anchored
+
+
+@functools.cache
+def _group_conditioned(year: int) -> pd.Series:
+    """The anchored vector with every summary group scaled to the published
+    annual summary Supply ``MCIF`` (#785). Groups where the anchored vector
+    carries less than :data:`EMPTY_GROUP_USD` hold at 1.0 and the published
+    mass there is logged as unreachable — a zero cannot be scaled up.
+    """
+    if int(year) not in CONDITIONED_YEARS:
+        raise ValueError(
+            f'the summary Supply workbook covers {CONDITIONED_YEARS[0]}-'
+            f'{CONDITIONED_YEARS[-1]}; got {year}'
+        )
+    ours_detail = anchored_mcif(int(year))
     groups = _commodity_to_summary().reindex(ours_detail.index)
     ours = ours_detail.groupby(groups).sum()
 
@@ -134,14 +221,38 @@ def mcif_condition_factors(year: int) -> pd.Series:
         )
     per_commodity = groups.map(factor).astype(float).fillna(1.0)
     per_commodity.index = ours_detail.index
-    return per_commodity.rename('mcif_factor')
+    return (ours_detail * per_commodity).rename('MCIF')
+
+
+@functools.cache
+def mcif_condition_factors(year: int) -> pd.Series:
+    """Per-commodity TOTAL adjustment factor: the final imports vector over
+    the raw FBS read.
+
+    This is what the duty column multiplies its own Census goods read by, so
+    duties, the bridge and the tax base can never disagree about where import
+    mass sits. Where the raw read is below :data:`EMPTY_GROUP_USD` the factor
+    holds at 1.0 — those cells carry no duty either way, and a ratio against
+    dust is meaningless.
+    """
+    final = conditioned_mcif(int(year))
+    raw = raw_import_vector(int(year))
+    factor = (final / raw.replace(0.0, np.nan)).where(raw >= EMPTY_GROUP_USD, 1.0)
+    return factor.fillna(1.0).rename('mcif_factor')
 
 
 def conditioned_mcif(year: int, download_sources_ok: bool = True) -> pd.Series:
-    """The imports column for *year*, conditioned, USD, BEA 2017 Detail.
+    """The imports column for *year*, USD, BEA 2017 Detail — two layers:
 
-    Zero cells stay zero (the factor multiplies), so the never-imported
-    structure survives untouched.
+    1. cell-level **anchor-and-move** (#763, :func:`anchored_mcif`): published
+       2017 detail levels, each moved by its own Census line;
+    2. summary-group **conditioning** (#785, :func:`_group_conditioned`): the
+       published annual summary Supply column sets every group total.
     """
-    raw = raw_import_vector(int(year), download_sources_ok)
-    return (raw * mcif_condition_factors(int(year))).rename('MCIF')
+    if int(year) not in CONDITIONED_YEARS:
+        raise ValueError(
+            f'the summary Supply workbook covers {CONDITIONED_YEARS[0]}-'
+            f'{CONDITIONED_YEARS[-1]}; got {year}'
+        )
+    _ = raw_import_vector(int(year), download_sources_ok)  # warm the FBS read
+    return _group_conditioned(int(year))
