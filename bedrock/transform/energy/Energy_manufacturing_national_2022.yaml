@@ -18,36 +18,6 @@ _attribution_sources:
       ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
                            'MCIF']
     attribution_method: equal
-  transport_industries: &transport_industries
-    - '481000'
-    - '482000'
-    - '483000'
-    - '484000'
-    - '485000'
-    - '486000'
-    - '48A000'
-    - '492000'
-    - 'S00500'
-    - 'S00600'
-    - '491000'
-    - 'GSLGO'
-    - 'S00203'
-    - 'F01000'
-  petrol_exclude: &petrol_exclude
-    - '481000'
-    - '482000'
-    - '483000'
-    - '484000'
-    - '485000'
-    - '486000'
-    - '48A000'
-    - '492000'
-    - 'S00500'
-    - 'S00600'
-    - '491000'
-    - 'GSLGO'
-    - 'S00203'
-    - 'F01000'
 
 source_names:
   EIA_MECS_Energy:
@@ -119,7 +89,9 @@ source_names:
         selection_fields:
           ActivityProducedBy: {'324110': ''}
         exclusion_fields:
-          ActivityConsumedBy: *petrol_exclude
+          ActivityConsumedBy: ['481000', '482000', '483000', '484000',
+            '485000', '486000', '48A000', '492000', 'S00500', 'S00600',
+            '491000', 'GSLGO', 'S00203', 'F01000']
         assign_fields:
           FlowName: Petroleum
           Class: Money
@@ -148,7 +120,9 @@ source_names:
       neu_transport:
         selection_fields:
           ActivityProducedBy: {'324110': ''}
-          ActivityConsumedBy: *transport_industries
+          ActivityConsumedBy: ['481000', '482000', '483000',
+            '484000', '485000', '486000', '48A000', '492000',
+            'S00500', 'S00600', '491000', 'GSLGO', 'S00203', 'F01000']
         assign_fields:
           FlowName: Transport
           Class: Money
