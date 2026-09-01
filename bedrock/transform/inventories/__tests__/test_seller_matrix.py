@@ -10,10 +10,12 @@ from __future__ import annotations
 
 from bedrock.extract.census.Census_EC import SYNTHETIC_PXI_LINES
 from bedrock.transform.inventories.seller_matrix import (
+    TRANSPORT_MODE_COMMODITIES,
     _product_to_commodity,
     bea_trade_code_for_seller,
     bea_trade_matrix,
     seller_commodity_matrix,
+    transport_mode_matrix,
 )
 
 
@@ -54,3 +56,12 @@ def test_rolled_matrix_reaches_every_bea_trade_code() -> None:
 
     assert rolled.shape[0] == 19
     assert (rolled.sum(axis=1) > 0).all()
+
+
+def test_transport_mode_matrix_carries_all_five_modes() -> None:
+    """The transport analog: five mode-commodity rows, each mode's own
+    revenue-controlled allocation, nonnegative in the receiving direction."""
+    matrix = transport_mode_matrix(2017)
+
+    assert sorted(matrix.index) == sorted(TRANSPORT_MODE_COMMODITIES.values())
+    assert (matrix.sum(axis=1) > 0).all()

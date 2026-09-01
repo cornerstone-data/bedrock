@@ -187,6 +187,48 @@ def bea_trade_matrix(target_year: int) -> pd.DataFrame:
     return out
 
 
+#: The five transport-margin commodities and the mode series behind each —
+#: the transport analog of the trade roll-up: for transport the "sellers"
+#: are the mode commodities themselves.
+TRANSPORT_MODE_COMMODITIES: dict[str, str] = {
+    'air': '481000',
+    'rail': '482000',
+    'water': '483000',
+    'truck': '484000',
+    'pipeline': '486000',
+}
+
+
+def transport_mode_matrix(target_year: int) -> pd.DataFrame:
+    """Transport-mode commodity × margined commodity, USD, for *target_year*.
+
+    The transport analog of :func:`bea_trade_matrix`, for Step 6b's
+    redistribution of the transportation margin: which of the five mode
+    commodities (air ``481000``, rail ``482000``, water ``483000``, truck
+    ``484000``, pipeline ``486000``) carries each margined commodity's
+    freight bill. Read straight off the Step 4c joint-fit allocations
+    (#772) — each mode's own annual revenue-controlled series on the fitted
+    2017 base — so this matrix and the ``TRANS`` column can never disagree.
+
+    Use each margined commodity's **column** as shares across the five mode
+    rows, exactly as the trade matrix is used against the give-up levels.
+    """
+    from bedrock.transform.iot.nowcast_transport_margins import (  # noqa: PLC0415
+        mode_allocations,
+    )
+
+    allocations = mode_allocations(int(target_year))
+    matrix = pd.DataFrame(
+        {
+            TRANSPORT_MODE_COMMODITIES[mode]: series
+            for mode, series in allocations.items()
+        }
+    ).T.fillna(0.0)
+    matrix.index.name = 'mode_commodity'
+    matrix.columns.name = 'commodity'
+    return matrix
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--year', type=int, default=2017)
