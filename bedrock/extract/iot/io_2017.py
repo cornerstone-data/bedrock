@@ -198,11 +198,18 @@ def load_2017_Utot_usa() -> pd.DataFrame:
 
 
 @functools.cache
-def _load_2017_detail_use_before_redef_usa() -> pd.DataFrame:
+def _load_benchmark_detail_use_before_redef_usa(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
     """
-    Raw 2017 USA Detail Use table, before redefinitions, as published.
+    Raw USA Detail Use table (MUT, producer price), before redefinitions, as
+    published, for a *benchmark* year.
+
+    ``IOUse_Before_Redefinitions_PRO_2017_Detail.xlsx`` carries one sheet per
+    benchmark year -- 2007, 2012 and 2017, all three already on the 2017 code
+    basis -- so the same read serves every year the answer key exists for.
     The interior, final-demand and value-added blocks all slice from this one
-    read, so the sheet is parsed once per process rather than once per block.
+    read, so a sheet is parsed once per process rather than once per block.
     """
     df = (
         load_from_gcs(
@@ -212,7 +219,7 @@ def _load_2017_detail_use_before_redef_usa() -> pd.DataFrame:
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name=str(year), skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")
@@ -220,6 +227,14 @@ def _load_2017_detail_use_before_redef_usa() -> pd.DataFrame:
     )
     df.columns = df.columns.astype(str)
     return df
+
+
+def _load_2017_detail_use_before_redef_usa() -> pd.DataFrame:
+    """
+    Raw 2017 USA Detail Use table, before redefinitions, as published.
+    See :func:`_load_benchmark_detail_use_before_redef_usa`, which this reads.
+    """
+    return _load_benchmark_detail_use_before_redef_usa(2017)
 
 
 @functools.cache
