@@ -182,7 +182,6 @@ def figure(out_path: Path, dpi: int = 110, bar_year: int = 2023) -> Path:
     left.text(len(YEARS) - 0.45, 5.4, '±5%', color=_MUTED, fontsize=8, ha='right')
     left.set_xticks(range(len(YEARS)), [str(y) for y in YEARS])
     left.set_ylabel('difference vs published BEA GO, % of industry', color=_INK_2)
-    left.set_title('Every industry, every year', loc='left', color=_INK, fontsize=11)
 
     movers = worst_industries(bar_year, count=14).iloc[::-1]
     bar_colors = [_POS if v >= 0 else _NEG for v in movers['diff_$B']]
@@ -202,12 +201,6 @@ def figure(out_path: Path, dpi: int = 110, bar_year: int = 2023) -> Path:
             fontsize=8,
         )
     right.set_xlabel(f'difference vs published BEA GO, $B ({bar_year})', color=_INK_2)
-    right.set_title(
-        f'The {bar_year} movers are the census corrections',
-        loc='left',
-        color=_INK,
-        fontsize=11,
-    )
 
     for axis in (left, right):
         axis.set_facecolor(_SURFACE)
@@ -218,15 +211,7 @@ def figure(out_path: Path, dpi: int = 110, bar_year: int = 2023) -> Path:
         axis.tick_params(colors=_MUTED, labelsize=9)
         axis.grid(axis='y' if axis is left else 'x', color=_GRID, linewidth=0.6)
         axis.set_axisbelow(True)
-    fig.suptitle(
-        'Nowcast industry output vs the published BEA gross-output series — '
-        'blue above, red below; 2022+ moves are the Economic Census conditioning',
-        x=0.01,
-        ha='left',
-        fontsize=10,
-        color=_INK_2,
-    )
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=dpi, facecolor=_SURFACE)
     plt.close(fig)
