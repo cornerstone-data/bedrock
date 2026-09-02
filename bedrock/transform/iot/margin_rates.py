@@ -32,8 +32,9 @@ Frozen-2017 structure replayed on the published 2012 SUT (the out-of-anchor
 answer key; ``--check`` reproduces these): goods rows land within 2.1% gross of
 the 2012 producer interior (worst cell: crude petroleum into refineries,
 price-driven); placement shares drift only 0.009 mean absolute, but
-mass-weighted placement misses total ~15.6% of margin-row mass. Both numbers
-are the measured cost of freezing, not targets.
+mass-weighted placement misses total ~25.0% of margin-row mass (the shares
+barely move; the miss is the stripped-mass estimate carrying the rate drift).
+Both numbers are the measured cost of freezing, not targets.
 """
 
 from __future__ import annotations
