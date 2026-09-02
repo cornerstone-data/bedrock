@@ -780,6 +780,7 @@ source_names:
       PrimaryActivity: Magnesium Production
     attribution_method: proportional
     attribution_source:
+      # Flag: published BEA GO; could update to newer Cornerstone GO data when available
       BEA_Detail_GrossOutput_IO:
         year: *ghgi_year
         geoscale: national
