@@ -323,10 +323,15 @@ def load_2017_Uimp_usa() -> pd.DataFrame:
 
 
 @functools.cache
-def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
+def _load_benchmark_detail_import_before_redef_usa(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS,
+) -> pd.DataFrame:
     """
-    Import table, commodity x industry, before redefinition, in producer price.
-    unit is USD, original unit is million USD.
+    Raw USA Detail import matrix, before redefinitions, as published.
+
+    One sheet per benchmark year -- 2007, 2012, 2017 -- all already on the 2017
+    code basis.  The **whole** table: ``load_2017_Uimp_before_redef_usa`` slices
+    the industry columns out of this and drops the final-demand block with them.
     """
     df = (
         load_from_gcs(
@@ -336,15 +341,26 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name=str(year), skiprows=5, dtype={"Code": str}
             ),
         )
         .set_index("Code")
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
+    return df
+
+
+@functools.cache
+def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
+    """
+    Import table, commodity x industry, before redefinition, in producer price.
+    unit is USD, original unit is million USD.
+    """
     df = (
-        df.loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES].astype(float)
+        _load_benchmark_detail_import_before_redef_usa(2017)
+        .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
+        .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
     )
     df.index = USA_2017_COMMODITY_INDEX
