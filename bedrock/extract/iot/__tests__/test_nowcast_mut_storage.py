@@ -76,7 +76,9 @@ def test_uri_is_flat_under_the_nowcast_mut_dir() -> None:
     )
 
 
-def test_latest_vintage_parses_most_recent_make_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_latest_vintage_parses_most_recent_make_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     latest_nowcast_mut_vintage.cache_clear()
 
     def fake_most_recent(name: str, sub_bucket: str) -> list[str]:
@@ -94,7 +96,9 @@ def test_latest_vintage_parses_most_recent_make_probe(monkeypatch: pytest.Monkey
     assert latest_nowcast_mut_vintage(year=2022, stage='after') == 'v0.3.0_16f96b1'
 
 
-def test_latest_vintage_errors_when_bucket_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_latest_vintage_errors_when_bucket_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     latest_nowcast_mut_vintage.cache_clear()
     monkeypatch.setattr(
         'bedrock.utils.io.gcp.get_most_recent_from_bucket',
