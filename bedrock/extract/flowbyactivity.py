@@ -466,8 +466,7 @@ class FlowByActivity(_FlowBy):
             crosswalk.
         """
         from bedrock.transform.flowbyclean import (  # noqa: PLC0415
-            define_parentincompletechild_descendants,
-            drop_parentincompletechild_descendants,
+            map_parentincompletechild_sectors,
         )
 
         # determine activity schema and use for mapping
@@ -559,11 +558,6 @@ class FlowByActivity(_FlowBy):
                     **{f"Sector{direction}": np.nan}
                 ).assign(**{f"{direction}SectorType": np.nan})
             else:
-                if self.config.get('sector_hierarchy') == 'parent-incompleteChild':
-                    # add descendants column
-                    fba_w_naics = define_parentincompletechild_descendants(
-                        fba_w_naics, activity_col=f'Activity{direction}'
-                    )
                 if "NAICS" in activity_schema:
                     primary_sector_key = naics_key
                     secondary_sector_key = None
@@ -571,59 +565,64 @@ class FlowByActivity(_FlowBy):
                     primary_sector_key = activity_to_source_naics_crosswalk
                     secondary_sector_key = naics_key
 
-                activity_to_target_naics_crosswalk = subset_sector_key(
-                    fba_w_naics,
-                    f'Activity{direction}',
-                    str(source_year),
-                    primary_sector_key=primary_sector_key,
-                    secondary_sector_key=secondary_sector_key,
-                )
+                if self.config.get('sector_hierarchy') == 'parent-incompleteChild':
+                    fba_w_naics = map_parentincompletechild_sectors(
+                        fba_w_naics,
+                        activity_col=f'Activity{direction}',
+                        sector_col=f'Sector{direction}',
+                        sector_type_col=f'{direction}SectorType',
+                        source_year=source_year,
+                        primary_sector_key=primary_sector_key,
+                        secondary_sector_key=secondary_sector_key,
+                        naics_key=naics_key,
+                    )
+                else:
+                    activity_to_target_naics_crosswalk = subset_sector_key(
+                        fba_w_naics,
+                        f'Activity{direction}',
+                        str(source_year),
+                        primary_sector_key=primary_sector_key,
+                        secondary_sector_key=secondary_sector_key,
+                    )
 
-                fba_w_naics = (
-                    fba_w_naics.merge(
-                        activity_to_target_naics_crosswalk,
-                        how='left',
-                        on=[
-                            'Class',
-                            'Flowable',
-                            'Context',
-                            'ActivityProducedBy',
-                            'ActivityConsumedBy',
-                        ],
+                    fba_w_naics = (
+                        fba_w_naics.merge(
+                            activity_to_target_naics_crosswalk,
+                            how='left',
+                            on=[
+                                'Class',
+                                'Flowable',
+                                'Context',
+                                'ActivityProducedBy',
+                                'ActivityConsumedBy',
+                            ],
+                        )
+                        .rename(
+                            columns={
+                                'target_naics': f'Sector{direction}',  # when activities are sector-like
+                                'Sector': f'Sector{direction}',  # when activities are text based
+                                'SectorType': f'{direction}SectorType',
+                            }
+                        )
+                        .drop(
+                            columns=[
+                                'ActivitySourceName',
+                                'SectorSourceName',
+                                'source_naics',  # when activities are sector-like
+                                'Activity',  # when activities are text based
+                            ],
+                            errors='ignore',
+                        )
                     )
-                    .rename(
-                        columns={
-                            'target_naics': f'Sector{direction}',  # when activities are sector-like
-                            'Sector': f'Sector{direction}',  # when activities are text based
-                            'SectorType': f'{direction}SectorType',
-                        }
-                    )
-                    .drop(
-                        columns=[
-                            'ActivitySourceName',
-                            'SectorSourceName',
-                            'source_naics',  # when activities are sector-like
-                            'Activity',  # when activities are text based
-                        ],
-                        errors='ignore',
-                    )
-                )
-                # drop original DQ scores in favor of modified scores after mapping
-                dq_cols = ['DataReliability', 'DataCollection']
-                for c in dq_cols:
-                    fba_w_naics.loc[fba_w_naics[f'{c}_y'].notnull(), f'{c}_x'] = (
-                        fba_w_naics[f'{c}_y']
-                    )
-                    fba_w_naics = fba_w_naics.drop(columns=[f'{c}_y']).rename(
-                        columns={f'{c}_x': c}
-                    )
-                if (
-                    fba_w_naics.config.get('sector_hierarchy')
-                    == 'parent-incompleteChild'
-                ):
-                    fba_w_naics = drop_parentincompletechild_descendants(
-                        fba_w_naics, sector_col=f'Sector{direction}'
-                    )
+                    # drop original DQ scores in favor of modified scores after mapping
+                    dq_cols = ['DataReliability', 'DataCollection']
+                    for c in dq_cols:
+                        fba_w_naics.loc[fba_w_naics[f'{c}_y'].notnull(), f'{c}_x'] = (
+                            fba_w_naics[f'{c}_y']
+                        )
+                        fba_w_naics = fba_w_naics.drop(columns=[f'{c}_y']).rename(
+                            columns={f'{c}_x': c}
+                        )
         # assign data quality scores based on highest value, if there are data for both SCB and SPB
         for dq in ['DataReliability', 'DataCollection', 'TechnologicalCorrelation']:
             if f'{dq}_x' in fba_w_naics.columns:
