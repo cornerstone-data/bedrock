@@ -204,13 +204,14 @@ def test_t1_binds_the_use_panel_only() -> None:
     assert not t1.is_placeholder
 
 
-def test_t18_restricts_the_use_column_to_the_five_value_added_rows() -> None:
+def test_t18_restricts_the_use_column_to_the_six_value_added_rows() -> None:
     """T18 is a *sub-column* sum, which is why it needs ``restrict_to``.
 
     A plain column margin would be T1 again and a row margin would be an
     economy-wide total; the constraint that pins ``VAPRO`` per industry is
-    neither. All five rows participate - ``T00TOP`` and ``T00SUB`` are the
-    basic-to-producer wedge, and ``VAPRO`` is a producer-price quantity.
+    neither. All six rows participate - ``T00TOP`` and ``T00SUB`` are the
+    basic-to-producer wedge, ``T00OSUB`` sits inside ``VABAS`` (#784), and
+    ``VAPRO`` is a producer-price quantity.
     """
     synthetic = pd.Series([100.0, 200.0], index=['1111A0', '1111B0'])
     t18 = industry_value_added_target(2017, value_added=synthetic)
@@ -234,7 +235,7 @@ def test_t18_admits_negative_value_added() -> None:
 
 
 def test_t18_evaluates_to_vapro_on_the_published_panel() -> None:
-    """The five rows summed on the *normalised* panel are ``VAPRO`` directly.
+    """The six rows summed on the *normalised* panel are ``VAPRO`` directly.
 
     BEA states ``VAPRO = VABAS + T00TOP - T00SUB``, but ``published_2017_panel``
     stores the Use ``T00SUB`` row negative, so here it is a plain sum. Writing

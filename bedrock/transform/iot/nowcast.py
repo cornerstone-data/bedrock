@@ -147,13 +147,9 @@ _SUPPLY_BRIDGE_SUBTOTALS: dict[str, tuple[str, ...]] = {
     'T016': ('T013', 'T014', 'T015'),
 }
 
-#: Value-added rows of the Use panel.
-#:
-#: ⚠️ ``T00OSUB`` — subsidies on production (#784) — is one MORE row than
-#: ``nowcast_mask.VA_ROWS`` carries, deliberately: the mask machinery is
-#: about to be reworked as an early Step-5 item, and wiring the row there
-#: now would only mean giving it a Tier-0 zero exemption (it is all-zero at
-#: 2017) twice. Until then the mask panel simply does not include the row.
+#: Value-added rows of the Use panel. ``nowcast_mask.VA_ROWS`` mirrors this
+#: tuple (membership and order) and the two must stay identical - the seed
+#: and the mask agree on the panel's labels through them.
 USE_VALUE_ADDED_ROWS = (
     'V00100',
     'T00OTOP',

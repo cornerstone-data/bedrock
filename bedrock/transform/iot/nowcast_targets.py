@@ -283,7 +283,8 @@ def published_value_added(year: int) -> pd.Series:
 def industry_value_added_target(
     year: int, value_added: pd.Series | None = None
 ) -> Target:
-    """T18. ``V00100 + T00OTOP + V00300 + T00TOP + T00SUB = VAPRO``, per industry.
+    """T18. ``V00100 + T00OTOP + T00OSUB + V00300 + T00TOP + T00SUB = VAPRO``,
+    per industry.
 
     The **income half of the Use column**, and the sibling of T1: T1 pins the
     whole column and this pins the value-added part of it, so the two together
@@ -294,10 +295,11 @@ def industry_value_added_target(
     :data:`~bedrock.transform.iot.nowcast_mask.VA_ROWS` - neither a row margin
     nor a plain column one, which is exactly what ``restrict_to`` exists for.
 
-    ⚠️ **All five rows, and subsidies enter negative.** ``VAPRO`` is
+    ⚠️ **All six rows, and both subsidy rows enter negative.** ``VAPRO`` is
     ``VABAS + T00TOP - T00SUB`` on BEA's published tables, but
     :func:`~bedrock.transform.iot.nowcast_mask.published_2017_panel` normalises
-    the Use ``T00SUB`` row negative, so here it is a plain sum of five rows.
+    the Use ``T00SUB`` row negative (and the seed stores ``T00OSUB`` negative,
+    #784), so here it is a plain sum of six rows.
     Measured on the published 2017 panel that sum reproduces the derived
     ``VAPRO`` series to **2 per industry**. Written as ``VABAS + T00TOP -
     T00SUB`` against the normalised panel it would be wrong by ``2 x T00SUB`` -
