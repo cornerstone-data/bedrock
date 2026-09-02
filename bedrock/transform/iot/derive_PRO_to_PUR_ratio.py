@@ -18,7 +18,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import load_2017_margins_usa
+from bedrock.extract.iot.detail_io import load_detail_margins_usa
 from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
@@ -185,7 +185,7 @@ def _margins_by_commodity(
     abs_negative_margin_columns: bool = False,
 ) -> pd.DataFrame:
     """Load raw margins, apply ``filters``, and sum to per-commodity totals."""
-    df = _apply_margins_filter(load_2017_margins_usa(), filters)
+    df = _apply_margins_filter(load_detail_margins_usa(), filters)
     df = _margin_negatives_treatment(
         df,
         abs_negative_producers_value=abs_negative_producers_value,
