@@ -2112,6 +2112,9 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
 - **Benchmark-year replay is the backbone.** Phases 6 and 7 both have a published 2017 answer. Run the
   conversion and the redefinition on 2017 and diff against the published tables before trusting any
   nowcast year. This is the single highest-value test in the project.
+- **Step 7 first out-of-sample gate:** summary-level frozen-ratio span test 2018–2024
+  ([`summary-span-test-report.md`](after_redef_MUTs/redefinitions_ratio_implementation/summary-span-test-report.md)).
+  Detail year-`t` still waits on Step 6 before-redef MUTs.
 - **Per-commodity, never aggregate**, for anything touching margins or redefinitions — both net out to
   ~nothing economy-wide, so aggregate checks pass on broken data.
 - **Identity checks as unit tests**: the four Supply identities, `VABAS`/`VAPRO`/`T018`, and
