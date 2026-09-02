@@ -46,6 +46,7 @@ on the real objects every build, and a violation refuses the save.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import posixpath
 import sys
@@ -239,7 +240,9 @@ def margins_table(
 
     wide: dict[str, pd.DataFrame] = {_PRO: pro * purchaser, _PUR: purchaser}
     for family, codes in MARGIN_FAMILIES.items():
-        wide[_FAMILY_COLUMN[family]] = sum(placed[code] for code in codes)
+        wide[_FAMILY_COLUMN[family]] = functools.reduce(
+            lambda a, b: a + b, (placed[code] for code in codes)
+        )
     for code in MARGIN_COMMODITIES:
         wide[code] = placed[code]
 
@@ -326,7 +329,7 @@ def mut_from_balanced(
         f'{year} Use buyer-total preservation (worst column)', float(column_gap.max())
     )
     v00200_gap = (
-        converted.loc['V00200', industries]
+        converted.loc[['V00200'], industries].iloc[0]
         - use_sut.loc[list(V00200_COMPONENTS), industries].sum(axis=0)
     ).abs()
     _gate(f'{year} V00200 collapse identity (worst industry)', float(v00200_gap.max()))
