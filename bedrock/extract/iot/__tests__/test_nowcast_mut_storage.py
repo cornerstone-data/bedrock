@@ -23,6 +23,7 @@ from bedrock.extract.iot.nowcast_mut_storage import (
     _as_value_added_view,
     _as_ytot_view,
     _load_stored_table,
+    latest_nowcast_mut_vintage,
     nowcast_mut_artifact_name,
     resolve_nowcast_mut_uri,
 )
@@ -73,6 +74,38 @@ def test_uri_is_flat_under_the_nowcast_mut_dir() -> None:
         'flowsa/NowcastMUT/'
         'Nowcast_Detail_Margins_after_redef_2022_v0.3.0_abc1234.parquet'
     )
+
+
+def test_latest_vintage_parses_most_recent_make_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    latest_nowcast_mut_vintage.cache_clear()
+
+    def fake_most_recent(name: str, sub_bucket: str) -> list[str]:
+        assert name == 'Nowcast_Detail_Make_after_redef_2022.parquet'
+        assert sub_bucket == 'flowsa/NowcastMUT'
+        return [
+            'Nowcast_Detail_Make_after_redef_2022_v0.3.0_16f96b1.parquet',
+            'Nowcast_Detail_Make_after_redef_2022_v0.3.0_16f96b1_metadata.json',
+        ]
+
+    monkeypatch.setattr(
+        'bedrock.utils.io.gcp.get_most_recent_from_bucket',
+        fake_most_recent,
+    )
+    assert latest_nowcast_mut_vintage(year=2022, stage='after') == 'v0.3.0_16f96b1'
+
+
+def test_latest_vintage_errors_when_bucket_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    latest_nowcast_mut_vintage.cache_clear()
+    monkeypatch.setattr(
+        'bedrock.utils.io.gcp.get_most_recent_from_bucket',
+        lambda name, sub_bucket: [],
+    )
+    with pytest.raises(ValueError, match='no NowcastMUT Make parquet'):
+        latest_nowcast_mut_vintage(year=2017, stage='after')
 
 
 def _synthetic_use() -> pd.DataFrame:
