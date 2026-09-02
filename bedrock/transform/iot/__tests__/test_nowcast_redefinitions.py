@@ -155,18 +155,66 @@ def test_margins_after_redef_scales_rows_and_recomputes_routing() -> None:
         index=index,
         columns=columns,
     )
-    use_before = pd.DataFrame({buyer: [100.0 * M, 5.0 * M]}, index=[goods, wholesale])
-    use_after = pd.DataFrame({buyer: [150.0 * M, 5.0 * M]}, index=[goods, wholesale])
+    # The producer-price Use books a margin commodity as direct + routed
+    # (5 + 20 before; the goods transaction grows 1.5x so routing becomes 30
+    # while the direct purchase stays 5). Scaling the margin row by its own
+    # Use-cell ratio would distort the direct part - the found defect - so
+    # both of its values must be rebuilt from the after cell instead.
+    use_before = pd.DataFrame(
+        {buyer: [100.0 * M, (5.0 + 20.0) * M]}, index=[goods, wholesale]
+    )
+    use_after = pd.DataFrame(
+        {buyer: [150.0 * M, (5.0 + 30.0) * M]}, index=[goods, wholesale]
+    )
 
     after = margins_after_redef(before, use_before, use_after)
 
     # the goods transaction scales 1.5x, identity intact
     assert after.at[(buyer, goods), "Purchasers' Value"] == pytest.approx(150.0 * M)
     assert after.at[(buyer, goods), 'Wholesale'] == pytest.approx(30.0 * M)
-    # the margin row's direct purchase is unchanged, its routing recomputed
+    # the margin row's direct purchase survives unchanged, its routing is
+    # recomputed, and Producers' Value equals the after-Use cell exactly
     assert after.at[(buyer, wholesale), "Purchasers' Value"] == pytest.approx(5.0 * M)
     assert after.at[(buyer, wholesale), "Producers' Value"] == pytest.approx(
-        5.0 * M + 30.0 * M
+        use_after.at[wholesale, buyer]
+    )
+
+
+def test_close_rows_never_reopens_anchor_zeroed_cells() -> None:
+    before = pd.DataFrame(
+        [[5.0 * M, 100.0 * M, 0.0]], index=['1111A0'], columns=INDUSTRIES
+    )
+    carried = pd.DataFrame(
+        [[0.0, 195.0 * M, 0.0]], index=['1111A0'], columns=INDUSTRIES
+    )
+    frozen = pd.DataFrame([[True, False, False]], index=['1111A0'], columns=INDUSTRIES)
+    closed = _close_rows(carried, before, frozen=frozen)
+    # the deliberately zeroed cell stays zero instead of going to -4.5
+    assert closed.at['1111A0', '1111A0'] == 0.0
+    assert closed.at['1111A0', '1111B0'] == pytest.approx(105.0 * M)
+    assert closed.sum(axis=1)['1111A0'] == pytest.approx(105.0 * M)
+
+
+def test_va_closure_never_flips_a_negative_column() -> None:
+    use_before = _full_use()
+    # an industry with negative total value added, like transit at 2017
+    use_before.loc['V00100', '1111A0'] = 5.0 * M
+    use_before.loc['V00200', '1111A0'] = -2.0 * M
+    use_before.loc['V00300', '1111A0'] = -43.0 * M  # column VA sums to -40
+    anchor = RedefinitionAnchor(
+        fractions=pd.DataFrame(0.0, index=INDUSTRIES, columns=COMMODITIES),
+        use_ratios=pd.DataFrame(1.0, index=COMMODITIES, columns=INDUSTRIES),
+        va_ratios=pd.DataFrame(1.0, index=VA_ROWS, columns=INDUSTRIES),
+    )
+    interior_total = use_before.loc[COMMODITIES, '1111A0'].sum()
+    # positive target over the negative VA column: a bare scale would flip
+    x_after = pd.Series(
+        [interior_total + 10.0 * M, 190.0 * M, 240.0 * M], index=INDUSTRIES
+    )
+    table = use_after_redef(use_before, anchor, x_after)
+    assert table.at['V00100', '1111A0'] == pytest.approx(5.0 * M)  # not flipped
+    assert table.loc[COMMODITIES + VA_ROWS, '1111A0'].sum() == pytest.approx(
+        x_after['1111A0']
     )
 
 

@@ -187,16 +187,41 @@ def make_after_redef(V_before: pd.DataFrame, fractions: pd.DataFrame) -> pd.Data
 # --- the Use move -----------------------------------------------------------
 
 
-def _close_rows(carried: pd.DataFrame, before: pd.DataFrame) -> pd.DataFrame:
+def _close_rows(
+    carried: pd.DataFrame,
+    before: pd.DataFrame,
+    frozen: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """Zero each commodity row's net change, weighted by the carry's own deltas.
 
     Redefinitions reallocate use across industry columns inside a row;
     commodity totals never change. Closing the carry's drift this way both
     restores that identity and scores better than leaving it (measured on
     the summary span). Rows the carry did not touch pass through untouched.
+
+    *frozen* marks cells the anchor zeroes deliberately (carry ratio 0):
+    they take no closure weight, so a cell the redefinition empties by rule
+    is never pushed negative by the row's residual. Measured on the span,
+    the exclusion is slightly better in every year and removes every
+    negative it used to create. A row whose only changed cells are frozen
+    falls back to unexcluded weights - its residual has nowhere else to go.
+
+    ⚠️ A row whose carried deltas all share one sign returns exactly to its
+    before values: conserving the row total means giving the whole net
+    change back, and proportional-to-|delta| weights give it back cell for
+    cell. Within-row reallocation survives only through mixed-sign rows.
+    That conservatism is a property, not an accident - the closure was
+    adopted on its measured span score.
     """
     delta = carried - before
     weight = delta.abs()
+    if frozen is not None:
+        excluded = weight.where(~frozen, 0.0)
+        # Fallback: rows with residual but no unfrozen weight to place it on.
+        needs_fallback = (excluded.sum(axis=1) == 0.0) & (
+            delta.sum(axis=1).abs() > ATOL
+        )
+        weight = excluded.where(~needs_fallback, weight)
     weight = weight.div(weight.sum(axis=1).replace(0.0, np.nan), axis=0).fillna(0.0)
     return carried - weight.mul(delta.sum(axis=1), axis=0)
 
@@ -219,15 +244,34 @@ def use_after_redef(
     industries = [c for c in table.columns if c in set(USA_2017_INDUSTRY_CODES)]
 
     before = table.loc[commodities, industries]
-    carried = before * anchor.use_ratios.reindex_like(before).fillna(1.0)
-    interior = _close_rows(carried, before)
+    ratios = anchor.use_ratios.reindex_like(before).fillna(1.0)
+    carried = before * ratios
+    interior = _close_rows(carried, before, frozen=ratios == 0.0)
     table.loc[commodities, industries] = interior.to_numpy()
 
     va_before = table.loc[va_rows, industries]
     va_carried = va_before * anchor.va_ratios.reindex_like(va_before).fillna(1.0)
     va_target = x_after.reindex(industries).astype(float) - interior.sum(axis=0)
-    va_scale = (va_target / va_carried.sum(axis=0)).replace([np.inf, -np.inf], np.nan)
-    table.loc[va_rows, industries] = (va_carried * va_scale.fillna(1.0)).to_numpy()
+    va_colsum = va_carried.sum(axis=0)
+    va_scale = (va_target / va_colsum).replace([np.inf, -np.inf], np.nan)
+    # Sign guard: an industry whose total value added is negative (transit
+    # runs operating losses) must not have its VA rows sign-flipped by a
+    # positive target over a negative column sum. Such columns keep their
+    # carried rows and absorb the whole residual additively on operating
+    # surplus - the accounts' own residual row.
+    flips = (va_colsum * va_target) < 0
+    closed = va_carried * va_scale.where(~flips, 1.0).fillna(1.0)
+    if flips.any() and 'V00300' in closed.index:
+        residual = (va_target - va_colsum).where(flips, 0.0)
+        closed.loc['V00300'] = closed.loc['V00300'] + residual
+    table.loc[va_rows, industries] = closed.to_numpy()
+    if 'V00100' in closed.index:
+        worst_compensation = float(closed.loc['V00100'].min())
+        assert worst_compensation >= -ATOL, (
+            f'VA closure drove compensation negative '
+            f'(${worst_compensation / MILLION_CURRENCY_TO_CURRENCY:,.1f}M); '
+            'a sign convention has broken upstream'
+        )
 
     row_gap = (
         (table.loc[commodities, industries].sum(axis=1) - before.sum(axis=1))
@@ -286,10 +330,17 @@ def margins_after_redef(
     ``Producers' Value`` equal to the after-redefinitions Use cell.
 
     Margin-commodity rows follow the published convention (routed margin in
-    ``Producers' Value`` against a direct-purchase ``Purchasers' Value``), so
-    their routed part is *recomputed* from the scaled goods rows' seller
-    columns rather than scaled - the stored hyper-detailed layout carries one
-    column per margin commodity precisely so this needs no rate machinery.
+    ``Producers' Value`` against a direct-purchase ``Purchasers' Value``),
+    and both of their values are **rebuilt from the after table, never
+    scaled**: the Use cell for a margin commodity is direct plus routed, so
+    scaling the row by that cell's ratio would distort the direct purchase
+    by the routing's movement. Instead ``Producers' Value`` is set to the
+    after-Use cell itself (coherence exact by construction) and
+    ``Purchasers' Value`` to that cell minus the routing recomputed from the
+    scaled goods rows' seller columns - the stored hyper-detailed layout
+    carries one column per margin commodity precisely so this needs no rate
+    machinery. Without seller columns (the published five-column layout)
+    the rebuild is impossible and margin rows stay plainly scaled.
     """
     # Deferred import: the margin-commodity list lives with the rate panel.
     from bedrock.transform.iot.margin_rates import MARGIN_COMMODITIES  # noqa: PLC0415
@@ -321,9 +372,20 @@ def margins_after_redef(
         )
         margin_rows = out.index[is_margin_row]
         routed = booked.reindex(margin_rows).fillna(0.0)
-        out.loc[margin_rows, "Producers' Value"] = out.loc[
-            margin_rows, "Purchasers' Value"
-        ].to_numpy(dtype=float) + routed.to_numpy(dtype=float)
+        after_cells = use_after.astype(float).stack()
+        row_keys = pd.MultiIndex.from_arrays(
+            [
+                margin_rows.get_level_values('Commodity Code'),
+                margin_rows.get_level_values('Industry Code'),
+            ]
+        )
+        cell = pd.Series(
+            after_cells.reindex(row_keys).fillna(0.0).to_numpy(), index=margin_rows
+        )
+        out.loc[margin_rows, "Producers' Value"] = cell.to_numpy(dtype=float)
+        out.loc[margin_rows, "Purchasers' Value"] = cell.to_numpy(
+            dtype=float
+        ) - routed.to_numpy(dtype=float)
 
     # Scaling multiplies whatever closure residue the input rows carried, so
     # the gate divides it back out: an exact store (Step 6's) must stay exact,
@@ -395,30 +457,44 @@ def published_anchor() -> RedefinitionAnchor:
 # --- applying to a stored Step 6 year --------------------------------------
 
 
-def _stored_before(table: MutTable, year: int, directory: Path) -> pd.DataFrame:
-    matches = sorted(
-        directory.glob(f'Nowcast_Detail_{table}_before_redef_{year}_*.parquet'),
-        key=lambda p: p.stat().st_mtime,
+def _stored_before(
+    table: MutTable, year: int, directory: Path, vintage: str | None = None
+) -> tuple[pd.DataFrame, str]:
+    """One stored before-redefinitions table and the filename it came from.
+
+    With *vintage* the file is pinned exactly; without it the newest file on
+    disk wins, and the sidecar records which one that was.
+    """
+    pattern = (
+        f'Nowcast_Detail_{table}_before_redef_{year}_{vintage}.parquet'
+        if vintage
+        else f'Nowcast_Detail_{table}_before_redef_{year}_*.parquet'
     )
+    matches = sorted(directory.glob(pattern), key=lambda p: p.stat().st_mtime)
     if not matches:
         raise FileNotFoundError(
-            f'no Nowcast_Detail_{table}_before_redef_{year}_*.parquet in '
-            f'{directory}; run bedrock.transform.iot.nowcast_mut first'
+            f'no {pattern} in {directory}; '
+            'run bedrock.transform.iot.nowcast_mut first'
         )
-    return pd.read_parquet(matches[-1])
+    return pd.read_parquet(matches[-1]), matches[-1].name
 
 
 def after_redef_tables(
     year: int,
     anchor: RedefinitionAnchor,
     directory: Path | None = None,
-) -> dict[MutTable, pd.DataFrame]:
-    """Make, Use and Import after redefinitions for one stored Step 6 year."""
+    vintage: str | None = None,
+) -> tuple[dict[MutTable, pd.DataFrame], list[str]]:
+    """The after-redefinitions quartet for one stored Step 6 year.
+
+    Returns the four tables and the exact before-artifact filenames they were
+    built from, for the sidecar.
+    """
     where = Path(directory) if directory is not None else Path(FBS_DIR)
-    make_before = _stored_before('Make', year, where)
-    use_before = _stored_before('Use', year, where)
-    import_before = _stored_before('Import', year, where)
-    margins_before = _stored_before('Margins', year, where)
+    make_before, make_src = _stored_before('Make', year, where, vintage)
+    use_before, use_src = _stored_before('Use', year, where, vintage)
+    import_before, import_src = _stored_before('Import', year, where, vintage)
+    margins_before, margins_src = _stored_before('Margins', year, where, vintage)
 
     make = make_after_redef(make_before, anchor.fractions)
     use = use_after_redef(use_before, anchor, make.sum(axis=1))
@@ -428,7 +504,13 @@ def after_redef_tables(
     margins = margins_after_redef(
         margins_before, use_before.loc[commodities], use.loc[commodities]
     )
-    return {'Make': make, 'Use': use, 'Import': imports, 'Margins': margins}
+    tables: dict[MutTable, pd.DataFrame] = {
+        'Make': make,
+        'Use': use,
+        'Import': imports,
+        'Margins': margins,
+    }
+    return tables, [make_src, use_src, import_src, margins_src]
 
 
 def save_after_redef(
@@ -437,6 +519,7 @@ def save_after_redef(
     out_dir: Path | None = None,
     *,
     upload: bool = False,
+    before_inputs: list[str] | None = None,
 ) -> list[Path]:
     """Persist the after-redefinitions tables, house parquet + sidecar style."""
     directory = Path(out_dir) if out_dir is not None else Path(FBS_DIR)
@@ -463,6 +546,7 @@ def save_after_redef(
                 'units': 'USD',
                 'branch': GIT_BRANCH,
                 'commit': GIT_HASH_LONG,
+                'before_inputs': before_inputs or [],
                 'method': (
                     'Make: 2017 detail movement pattern on the year\'s own '
                     'cells; Use: 2017 cell-ratio carry with commodity-row '
@@ -634,6 +718,24 @@ def check() -> int:
                 f'${gap / MILLION_CURRENCY_TO_CURRENCY:,.1f}M exceeds '
                 f'${ceiling_m}M'
             )
+    # Regression tripwires on the two report-only legs. Neither number is a
+    # claim the module makes - the import leg grades an allocation rule
+    # against a published matrix built differently, and the margins leg
+    # grades the proportional-scaling assumption against BEA's re-booking -
+    # but a silent regression past these generous ceilings should fail
+    # loudly. Measured values when set: import max cell $40.4bn, margins
+    # goods-row PUR L1 2.8% of mass.
+    if imp_gap_m > 60_000.0:
+        failures.append(
+            f'import replay max cell ${imp_gap_m:,.0f}M exceeds the '
+            '$60,000M regression tripwire'
+        )
+    margins_l1_share = float(m_pur.sum() / ma.loc[goods_idx, pur].abs().sum())
+    if margins_l1_share > 0.04:
+        failures.append(
+            f'margins goods-row PUR L1 {margins_l1_share:.1%} exceeds the '
+            '4% regression tripwire'
+        )
     if failures:
         print('\nFAILED:')
         for failure in failures:
@@ -662,13 +764,16 @@ def main(argv: list[str] | None = None) -> int:
 
     anchor = published_anchor()
     for year in args.year if args.year else range(2018, 2024):
-        tables = after_redef_tables(year, anchor)
+        tables, before_inputs = after_redef_tables(year, anchor)
         print(
             f'{year}: Make {tables["Make"].shape}, Use {tables["Use"].shape}, '
-            f'Import {tables["Import"].shape}'
+            f'Import {tables["Import"].shape}, '
+            f'Margins {len(tables["Margins"]):,} rows'
         )
         if not args.no_save:
-            written = save_after_redef(year, tables, upload=args.gcs)
+            written = save_after_redef(
+                year, tables, upload=args.gcs, before_inputs=before_inputs
+            )
             print(f'  saved {len(written)} files to {written[0].parent}')
     return 0
 
