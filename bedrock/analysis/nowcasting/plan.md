@@ -2087,17 +2087,25 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   2017 before-redef MUT tables. If the conversion can't reproduce the benchmark year it will not be
   right for 2018–2025.
 
-### Step 7 — Redefinitions: before → after *(new)*
-- Derive per-cell redefinition ratios from the 2017 benchmark's before/after MUT pairs — the same idea
-  as `compute_coproduction_ratios`/`adjust_gross_output` in `derived_gross_industry_output.py`, applied
-  to Make, Use, Import matrix, and Margins.
-- Apply in **BEA detail space, before the Cornerstone schema collapse** — the ratios are defined on
-  BEA detail codes and don't survive aggregation cleanly. (This reorders the previous plan, which had
-  schema conversion first.)
-- ⚠️ **Totals cannot validate this step.** Redefinition preserves every total by construction. Validate
-  cell-by-cell against the 2017 before/after pair: ~5,740 of 161,604 intermediate cells should move,
-  ~553,635 million gross, largest single cell ~42,893, net ~−7.
+### Step 7 — Redefinitions: before → after ✅ **SHIPPED** (`nowcast_redefinitions.py`)
+- **The method was picked by measurement, not carried from this plan** — see
+  [`About_method_probes.md`](after_redef_MUTs/method_probes/About_method_probes.md). Make moves by the
+  2017 **whole-cell pattern** applied to the year's own cells (1,850 of 1,880 moving cells transfer at
+  ~100%; a frozen ratio carry loses to it 3–4× on the 2018–2024 summary span). The Use interior moves
+  by the 2017 **cell-ratio carry with commodity-row closure**; value added absorbs each column's
+  closure onto the pattern-predicted output; final demand crosses unchanged (measured exactly
+  invariant); imports re-allocate along the after-redefinitions rows; each Margins transaction row
+  scales with its own Use cell, margin-commodity routing recomputed from the stored seller columns.
+- Applied in **BEA detail space, before the Cornerstone schema collapse**, on Step 6's stored
+  before-redefinitions quartet; after-redefinitions Make/Use/Import/Margins store per year under the
+  same `NowcastMUT` layout with `after_redef` in the filename.
+- ⚠️ **Totals cannot validate this step** — redefinition preserves every total by construction. The
+  gates are the 2017 cell-level replay (`--check`, holds at publication-rounding scale) and the
+  summary-level span test 2018–2024.
 - This subsumes the board's separate "transform VA FBS into after redefinitions" item.
+- ⚠️ The **Cornerstone government-enterprise reallocation** (`S00102`/`S00203` into the private
+  sectors they produce) is **deferred to Phase 2**. It is Cornerstone's own move layered after BEA's
+  redefinitions, not part of this step; see the Phase 2 work items.
 
 ### Step 8 — Cornerstone schema conversion
 - `industry_corresp()` / `commodity_corresp()` from `cornerstone_expansion.py`, honoring
@@ -2488,6 +2496,13 @@ Also worth scoping ahead of time:
    frozen predecessors. Same per-commodity identity checks throughout.
 6. **Produce the revision diff** for 2018-2024, old vintage vs. new.
 7. **Publish**: 2018-2025 Make/Use/Import/Margins to GCS, refresh diagnostics, extend the model build.
+8. **Government-enterprise reallocation** (`S00102`/`S00203` into the private industries and
+   commodities they produce) — Cornerstone's own move, layered as a second reallocation pass **after**
+   BEA's redefinitions, using the receiving industry's structure per the BEA manual ch. 9. Proposal:
+   `government_enterprise_reallocation_plan.md` (branch `gov_enterprise_reallocation_plan`). Two facts
+   gate implementation: the Supply-vs-Make disagreement on `S00203` output (292,843 vs 273,910 $M at
+   2017) must be run down first, and electric/transit (`S00101`/`S00202`/`S00201`) are already handled
+   in the industry correspondence. Deferred out of Phase 1 on 2026-09-02.
 
 ## What Phase 1 must not do
 
