@@ -6,9 +6,9 @@
 #     GHG-year x in B                    -> apply_io_year_adjustments
 #   - Purchaser Price Conversion         -> N/A (not part of v0.3)
 #   - MECS adjustment + UMD GHG data     -> use_cornerstone_ghg_model at usa_ghg_data_year=2024
-#                                           selects GHG_national_Cornerstone_2024 (the UMD GHGIA 2024
-#                                           inventory, which already carries the 2022 MECS
-#                                           attribution). Loaded from a pre-built GCS parquet.
+#                                           selects GHG_national_Cornerstone_BEA_2024 (UMD GHGIA 2024
+#                                           inventory + published BEA 2017 Use attribution + 2022 MECS).
+#                                           Loaded from a pre-built GCS parquet.
 #   - 2024 US IO+GHG data                -> usa_ghg_data_year: 2024 (IO x and GHG both at 2024).
 
 #####

@@ -176,6 +176,25 @@ def egrid_fbs_method_for_year(year: int) -> str:
         ) from exc
 
 
+def _select_cornerstone_ghg_fbs_base_name() -> str:
+    """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
+
+    ``usa_ghg_data_year`` selects the inventory-year method stem. For 2024,
+    ``usa_detail_io_source`` distinguishes published BEA Use attribution
+    (``GHG_national_Cornerstone_BEA_2024``) from nowcast Use attribution
+    (``GHG_national_Cornerstone_2024``). Other years use the bare year stem
+    (nowcast Use attribution in the method YAML).
+
+    Electricity-disaggregation configs keep the existing ``*_egrid`` map;
+    those includes still need a follow-up review against the 2024 rename.
+    """
+    usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    if year == 2024 and usa.usa_detail_io_source == 'bea_published':
+        return 'GHG_national_Cornerstone_BEA_2024'
+    return f'GHG_national_Cornerstone_{year}'
+
+
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
     """Load the eGRID-based national GHG FBS for electricity disaggregation.
 
@@ -211,7 +230,7 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
     ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
-    name such as ``GHG_national_Cornerstone_2023_egrid``) are loaded directly
+    name such as ``GHG_national_Cornerstone_BEA_2024``) are loaded directly
     instead (used by use_cornerstone_ghg_model).
 
     Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
@@ -258,10 +277,10 @@ def load_E_from_flowsa() -> pd.DataFrame:
     """Load E_usa (GHG × model-schema sectors) from a flowsa FBS.
 
     FBS selection ("GHG model allocation" bucket + data-year knob):
-    - use_cornerstone_ghg_model → the pre-built GHG_national_Cornerstone_{year}
-      FBS parquet from GCS. Which inventory/attribution vintages that carries
-      (EPA GHGI vs UMD GHGIA, MECS survey year) is defined per year by the
-      method files in ``bedrock/transform/ghg/``.
+    - use_cornerstone_ghg_model → pre-built Cornerstone GHG FBS parquet from
+      GCS via :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid``
+      when electricity disaggregation is on). Inventory/attribution vintages
+      live in ``bedrock/transform/ghg/`` method files.
     - otherwise → GHG_national_CEDA_{year}, the flowsa implementation of the
       legacy CEDA allocation methodology (method files exist for 2023 only).
     """
@@ -274,9 +293,11 @@ def load_E_from_flowsa() -> pd.DataFrame:
             # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
             # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
             # FBS) fail there. Load the pre-built FBS parquet from GCS at
-            # `transform/output_data/` (GHG_national_Cornerstone_<year>) directly
-            # so the year-Y diagnostics get year-Y GHG data.
-            fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
+            # `transform/output_data/` directly so the year-Y diagnostics get
+            # year-Y GHG data.
+            fbs = _load_cornerstone_ghg_fbs_from_gcs(
+                base_name=_select_cornerstone_ghg_fbs_base_name()
+            )
     else:
         if year != 2023:
             raise ValueError(

@@ -1,4 +1,6 @@
 # Cornerstone GHG national methods (v2025), inventory year 2024.
+# BEA published Detail Use AfterRedef (2017) attribution -- used when
+# usa_detail_io_source is bea_published (canonical / non-nowcast builds).
 # Uses UMD GHGIA FBAs. Some nested EPA GHGI tables
 # remain for soils / NEU allocation and fluorochemical MT detail.
 
