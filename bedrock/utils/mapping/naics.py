@@ -710,7 +710,13 @@ def convert_naics_year(
                     lambda x: x.split(".")[0] if isinstance(x, str) else x
                 )
 
-    if "NAICS" in activity_schema and "ActivityProducedBy" in df_load.columns:
+    # parent-incompleteChild: sectors already mapped; converting activities would duplicate values under one group_id.
+    if (
+        "NAICS" in activity_schema
+        and "ActivityProducedBy" in df_load.columns
+        and getattr(df_load, 'config', {}).get('sector_hierarchy')
+        != 'parent-incompleteChild'
+    ):
         column_headers += ['ActivityProducedBy', 'ActivityConsumedBy']
 
     # load the mastercrosswalk and subset by sectorsourcename,
