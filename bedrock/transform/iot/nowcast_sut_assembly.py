@@ -18,6 +18,17 @@ inputs for 2018-2023 on the labels the mask defines:
   is exactly ``T1 - T18``, so RAS starts from a seed that agrees with its own
   constraints instead of fighting them.
 
+⚠️ **T18 hard-targets the seed's own value added, not a published allocated
+series - deliberately.** BEA publishes no detail value added for 2018-2023;
+the closest thing is an allocation of summary VA over the 2017 detail
+structure, which is exactly the kind of carried-forward split the nowcast
+exists to replace. The seed's VA columns are the Step-2 derived series -
+built from observed compensation and tax data - and the interior fit already
+balanced the intermediate block against them, so its column target is
+``T1 - T18`` *for this T18*. Injecting any other series would put the target
+set at war with the fit the seed came from and re-open the gap the fit closed.
+When Step 2's VA improves, the fit and this injection both move with it.
+
 Units: the nowcast seed derivations are **USD**; the balance, the mask panel
 and the targets are **BEA million dollars**. Everything is converted to $M
 here, at the seam, and nowhere else.
@@ -31,6 +42,16 @@ violation with ``|value| <= DUST_USD_M`` are therefore zeroed, and the sweep
 is *returned* so the precheck can print every swept cell. Violations above
 the threshold are **left in place** - they are real contradictions and the
 right failure mode is the machinery's refusal, not a silent larger sweep.
+
+Testing: no direct unit tests, on purpose. This module is wiring over heavy
+cached derivations (the fit, the seeds, the GO panel), so a unit test would
+either mock all of them - pinning the wiring to itself - or re-run them. The
+per-year precheck gates (:mod:`~bedrock.analysis.nowcasting.ras_prechecks`)
+are the
+test: nine consistency checks on the real assembled objects, including the
+exact ``T1 - T18`` / fit-column identity and the T1-arm reconciliation with
+swept VA dust added back. The layers underneath (mask, targets) carry their
+own unit suites.
 """
 
 from __future__ import annotations

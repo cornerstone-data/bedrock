@@ -29,6 +29,33 @@ core is only **3.2% dense** on the balance's labels, so a structural-zero mask
 there asserts *no industry produces a commodity it did not produce in 2017*.
 That is a modelling choice, not housekeeping.
 
+⚠️ **Exemptions free whole columns and rows, never cell lists.**
+:data:`TRADE_FLOW_SUPPLY_COLUMNS`, :data:`TRADE_FLOW_USE_COLUMNS`,
+:data:`SUBSIDY_FLOW_SUPPLY_COLUMNS` and :data:`FISCAL_FLOW_USE_ROWS` each lift
+Tier 0 from an entire column or row, even though the precheck evidence arrived
+cell by cell. That is the intended stance for a year-invariant 2017-pattern
+mask: the 2018-2023 seeds observe only where their sources happen to report,
+so an exemption listing the contradicting cells would encode *which
+contradictions have been seen so far* rather than *which zeros are
+observation* - and would need re-litigating every time a seed source improves.
+Once one cell of a column proves its zeros are observation (a flow that moves
+year to year), every zero in that column is the same kind of zero. Structure
+is then reasserted the other way, per cell, where it genuinely is structure
+(:data:`NEVER_IMPORTED_COMMODITIES`), and rule-based sign locks
+(:data:`NON_POSITIVE_USE_ROWS`, :data:`NON_POSITIVE_SUPPLY_COLUMNS`) keep the
+freed zeros directionally safe where a sign convention is pinned down.
+
+⚠️ ``T00TOP`` is freed but **deliberately not sign-locked.** The published
+2017 row is non-negative on every industry cell, but the row is *net* taxes on
+products, and whether a per-industry cell can go negative in a year where
+product-level subsidies outweigh product taxes for that industry is exactly
+the sign convention still to be pinned down. Until it is, an asserted
+non-negative lock would be a guess wearing a rule's clothing - so the whole
+row stays unlocked, freed zeros and published-positive cells alike (it is
+absent from :data:`SIGN_LOCKED_USE_ROWS` too). See
+:data:`NON_POSITIVE_USE_ROWS`, where the two subsidy rows (whose convention
+*is* pinned: non-positive) get the rule-based lock.
+
 **Tier 1 - fixed values, hard.** Cells where one NIPA line lands on one
 commodity: :data:`ONE_TO_ONE_FD`. **17 cells, 5.1% of the Use panel's mass**,
 costing 5 commodity rows their Use-side freedom and 6 columns all of theirs.
