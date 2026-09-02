@@ -61,6 +61,29 @@ USA_SUMMARY_MUT_MAPPING_1997_2024 = {
     "Import_summary": "IOImportMatrices_After_Redefinitions_SUM_1997-2024.xlsx",
 }
 
+USA_SUMMARY_MUT_BEFORE_REDEF_NAMES = ta.Literal[
+    "Make_summary_before_redef",
+    "Use_summary_before_redef",
+    "Import_summary_before_redef",
+]
+USA_SUMMARY_MUT_BEFORE_REDEF_MAPPING = {
+    "Make_summary_before_redef": "IOMake_Before_Redefinitions_PRO_Summary.xlsx",
+    "Use_summary_before_redef": "IOUse_Before_Redefinitions_PRO_Summary.xlsx",
+    "Import_summary_before_redef": "ImportMatrices_Before_Redefinitions_Summary.xlsx",
+}
+
+# Years accepted by before-redef and 2024-vintage span MUT loaders.
+USA_SUMMARY_SPAN_MUT_YEARS = ta.Literal[
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+]
+
 USA_SUMMARY_SUT_NAMES = ta.Literal[
     "Supply_summary",
     "Use_SUT_summary",

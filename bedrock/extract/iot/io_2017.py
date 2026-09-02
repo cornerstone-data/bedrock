@@ -26,11 +26,14 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_BENCHMARK_DETAIL_SUT_ARCHIVE,
     USA_BENCHMARK_DETAIL_SUT_MEMBER_MAPPING,
     USA_BENCHMARK_DETAIL_SUT_YEARS,
+    USA_SUMMARY_MUT_BEFORE_REDEF_MAPPING,
+    USA_SUMMARY_MUT_BEFORE_REDEF_NAMES,
     USA_SUMMARY_MUT_MAPPING_1997_2022,
     USA_SUMMARY_MUT_MAPPING_1997_2023,
     USA_SUMMARY_MUT_MAPPING_1997_2024,
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
+    USA_SUMMARY_SPAN_MUT_YEARS,
     USA_SUMMARY_SUT_MAPPING_1997_2024,
     USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
@@ -55,6 +58,7 @@ from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (
     USA_2017_SUMMARY_FINAL_DEMAND_CODES,
 )
 from bedrock.utils.taxonomy.bea.v2017_value_added import (
+    SUMMARY_VA_CODES,
     USA_2017_VALUE_ADDED_CODES,
 )
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
@@ -105,7 +109,7 @@ def load_2017_V_after_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     df = (
-        _load_2017_detail_make_use_usa("Make_detail")
+        _load_2017_detail_make_use_usa('Make_detail')
         .loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -118,9 +122,9 @@ def load_2017_V_after_redef_usa() -> pd.DataFrame:
 def load_2017_V_usa() -> pd.DataFrame:
     """2017 USA Make (V); before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == "before":
+    if stage == 'before':
         return load_2017_V_before_redef_usa()
-    if stage == "after":
+    if stage == 'after':
         return load_2017_V_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -140,23 +144,23 @@ def load_2017_V_before_redef_usa() -> pd.DataFrame:
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
-                "Make_detail_before_redef"
+                'Make_detail_before_redef'
             ],
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
             ),
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
     assert (
         len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     df = (
         df.loc[USA_2017_INDUSTRY_CODES, USA_2017_COMMODITY_CODES].astype(float)
@@ -174,7 +178,7 @@ def load_2017_Utot_after_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     df = (
-        _load_2017_detail_make_use_usa("Use_detail")
+        _load_2017_detail_make_use_usa('Use_detail')
         .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -188,9 +192,9 @@ def load_2017_Utot_after_redef_usa() -> pd.DataFrame:
 def load_2017_Utot_usa() -> pd.DataFrame:
     """2017 USA total Use (Utot); before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == "before":
+    if stage == 'before':
         return load_2017_Utot_before_redef_usa()
-    if stage == "after":
+    if stage == 'after':
         return load_2017_Utot_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -214,7 +218,7 @@ def _load_benchmark_detail_use_before_redef_usa(
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
-                "Use_detail_before_redef"
+                'Use_detail_before_redef'
             ],
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
@@ -222,7 +226,7 @@ def _load_benchmark_detail_use_before_redef_usa(
                 pth, sheet_name=str(year), skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
@@ -299,7 +303,7 @@ def load_2017_Uimp_after_redef_usa() -> pd.DataFrame:
     unit is USD, original unit is million USD.
     """
     df = (
-        _load_2017_detail_make_use_usa("Import_detail")
+        _load_2017_detail_make_use_usa('Import_detail')
         .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -313,9 +317,9 @@ def load_2017_Uimp_after_redef_usa() -> pd.DataFrame:
 def load_2017_Uimp_usa() -> pd.DataFrame:
     """2017 USA import Use (Uimp); before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == "before":
+    if stage == 'before':
         return load_2017_Uimp_before_redef_usa()
-    if stage == "after":
+    if stage == 'after':
         return load_2017_Uimp_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -336,7 +340,7 @@ def _load_benchmark_detail_import_before_redef_usa(
     df = (
         load_from_gcs(
             name=USA_2017_DETAIL_IO_BEFORE_REDEF_MATRIX_MAPPING[
-                "Import_detail_before_redef"
+                'Import_detail_before_redef'
             ],
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
@@ -344,7 +348,7 @@ def _load_benchmark_detail_import_before_redef_usa(
                 pth, sheet_name=str(year), skiprows=5, dtype={"Code": str}
             ),
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
@@ -369,21 +373,21 @@ def load_2017_Uimp_before_redef_usa() -> pd.DataFrame:
 
 
 _MARGINS_COLUMNS = [
-    "Industry Code",
-    "Industry Description",
-    "Commodity Code",
-    "Commodity Description",
+    'Industry Code',
+    'Industry Description',
+    'Commodity Code',
+    'Commodity Description',
     "Producers' Value",
-    "Transportation",
-    "Wholesale",
-    "Retail",
+    'Transportation',
+    'Wholesale',
+    'Retail',
     "Purchasers' Value",
 ]
 _MARGINS_VALUE_COLUMNS = [
     "Producers' Value",
-    "Transportation",
-    "Wholesale",
-    "Retail",
+    'Transportation',
+    'Wholesale',
+    'Retail',
     "Purchasers' Value",
 ]
 
@@ -391,9 +395,9 @@ _MARGINS_VALUE_COLUMNS = [
 def load_2017_margins_usa() -> pd.DataFrame:
     """2017 Margins before vs after BEA redefinitions from ``USAConfig``."""
     stage = get_usa_config().iot_before_or_after_redefinition
-    if stage == "before":
+    if stage == 'before':
         return load_2017_margins_before_redef_usa()
-    if stage == "after":
+    if stage == 'after':
         return load_2017_margins_after_redef_usa()
     raise ValueError(
         "Invalid iot_before_or_after_redefinition; expected 'before' or 'after'."
@@ -406,8 +410,8 @@ def _load_margins_excel(pth: str, year: int = 2017) -> pd.DataFrame:
     per benchmark year (2007/2012/2017), all on the 2017 code basis."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            "ignore",
-            message="Cannot parse header or footer so it will be ignored",
+            'ignore',
+            message='Cannot parse header or footer so it will be ignored',
             category=UserWarning,
         )
         return pd.read_excel(
@@ -416,7 +420,7 @@ def _load_margins_excel(pth: str, year: int = 2017) -> pd.DataFrame:
             skiprows=5,
             header=None,
             names=_MARGINS_COLUMNS,
-            dtype={"Industry Code": str, "Commodity Code": str},
+            dtype={'Industry Code': str, 'Commodity Code': str},
         )
 
 
@@ -430,9 +434,9 @@ def _load_2017_margins_from_file(filename: str, year: int = 2017) -> pd.DataFram
     ).set_index(["Industry Code", "Commodity Code"])
     valid_industry = set(USA_2017_INDUSTRY_CODES) | set(USA_2017_FINAL_DEMAND_CODES)
     valid_commodity = set(USA_2017_COMMODITY_CODES) | set(USA_2017_VALUE_ADDED_CODES)
-    mask = df.index.get_level_values("Industry Code").isin(
+    mask = df.index.get_level_values('Industry Code').isin(
         valid_industry
-    ) & df.index.get_level_values("Commodity Code").isin(valid_commodity)
+    ) & df.index.get_level_values('Commodity Code').isin(valid_commodity)
     return (
         df.loc[mask, _MARGINS_VALUE_COLUMNS].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -446,7 +450,7 @@ def load_2017_margins_after_redef_usa() -> pd.DataFrame:
     Columns: Producers' Value, Transportation, Wholesale, Retail, Purchasers' Value.
     unit is USD, original unit is million USD.
     """
-    return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING["Margins"])
+    return _load_2017_margins_from_file(USA_2017_DETAIL_IO_MATRIX_MAPPING['Margins'])
 
 
 def load_2017_margins_before_redef_usa() -> pd.DataFrame:
@@ -485,22 +489,22 @@ def load_benchmark_margins_before_redef_usa(
 
 
 _PCE_BRIDGE_DETAIL_COLUMNS = [
-    "NIPA Line",
-    "PCE Category",
-    "Commodity Code",
-    "Commodity Description",
+    'NIPA Line',
+    'PCE Category',
+    'Commodity Code',
+    'Commodity Description',
     "Producers' Value",
-    "Transportation",
-    "Wholesale",
-    "Retail",
+    'Transportation',
+    'Wholesale',
+    'Retail',
     "Purchasers' Value",
-    "Year",
+    'Year',
 ]
 _PCE_BRIDGE_DETAIL_VALUE_COLUMNS = [
     "Producers' Value",
-    "Transportation",
-    "Wholesale",
-    "Retail",
+    'Transportation',
+    'Wholesale',
+    'Retail',
     "Purchasers' Value",
 ]
 
@@ -509,17 +513,17 @@ def _load_pce_bridge_detail_excel(pth: str) -> pd.DataFrame:
     """Read the PCE Bridge Detail Excel file, suppressing the openpyxl header/footer warning."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            "ignore",
-            message="Cannot parse header or footer so it will be ignored",
+            'ignore',
+            message='Cannot parse header or footer so it will be ignored',
             category=UserWarning,
         )
         return pd.read_excel(
             pth,
-            sheet_name="2017",
+            sheet_name='2017',
             skiprows=5,
             header=None,
             names=_PCE_BRIDGE_DETAIL_COLUMNS,
-            dtype={"Commodity Code": str},
+            dtype={'Commodity Code': str},
         )
 
 
@@ -533,14 +537,14 @@ def _load_pce_bridge_detail_raw_usa() -> pd.DataFrame:
     Purchasers' Value, Year. unit is million USD, matching the source file.
     """
     df = load_from_gcs(
-        name="PCEBridge_Detail.xlsx",
+        name='PCEBridge_Detail.xlsx',
         sub_bucket=GCS_BEA_NIPA_IOT_BRIDGES_DIR,
         local_dir=LOCAL_BEA_NIPA_IOT_BRIDGES_DIR,
         loader=_load_pce_bridge_detail_excel,
     )
-    assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
-        "PCE Bridge Detail has commodity codes outside the 2017 taxonomy: "
-        f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
+    assert set(df['Commodity Code']).issubset(USA_2017_COMMODITY_CODES), (
+        'PCE Bridge Detail has commodity codes outside the 2017 taxonomy: '
+        f'{set(df["Commodity Code"]) - set(USA_2017_COMMODITY_CODES)}'
     )
     return df
 
@@ -570,17 +574,17 @@ def _load_peq_bridge_detail_excel(pth: str) -> pd.DataFrame:
     """Read the PEQ Bridge Detail Excel file, suppressing the openpyxl header/footer warning."""
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            "ignore",
-            message="Cannot parse header or footer so it will be ignored",
+            'ignore',
+            message='Cannot parse header or footer so it will be ignored',
             category=UserWarning,
         )
         return pd.read_excel(
             pth,
-            sheet_name="2017",
+            sheet_name='2017',
             skiprows=5,
             header=None,
             names=_PEQ_BRIDGE_DETAIL_COLUMNS,
-            dtype={"Commodity Code": str},
+            dtype={'Commodity Code': str},
         )
 
 
@@ -595,14 +599,14 @@ def _load_peq_bridge_detail_raw_usa() -> pd.DataFrame:
     unit is million USD, matching the source file.
     """
     df = load_from_gcs(
-        name="PEQBridge_Detail.xlsx",
+        name='PEQBridge_Detail.xlsx',
         sub_bucket=GCS_BEA_NIPA_IOT_BRIDGES_DIR,
         local_dir=LOCAL_BEA_NIPA_IOT_BRIDGES_DIR,
         loader=_load_peq_bridge_detail_excel,
     )
-    assert set(df["Commodity Code"]).issubset(USA_2017_COMMODITY_CODES), (
-        "PEQ Bridge Detail has commodity codes outside the 2017 taxonomy: "
-        f"{set(df['Commodity Code']) - set(USA_2017_COMMODITY_CODES)}"
+    assert set(df['Commodity Code']).issubset(USA_2017_COMMODITY_CODES), (
+        'PEQ Bridge Detail has commodity codes outside the 2017 taxonomy: '
+        f'{set(df["Commodity Code"]) - set(USA_2017_COMMODITY_CODES)}'
     )
     return df
 
@@ -626,7 +630,7 @@ def load_2017_Ytot_usa() -> pd.DataFrame:
     Final Demand (total), commodity x final demand category, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
-    df = _load_2017_detail_make_use_usa("Use_detail")
+    df = _load_2017_detail_make_use_usa('Use_detail')
     df = (
         df.loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -642,7 +646,7 @@ def load_2017_value_added_usa() -> pd.DataFrame:
     Value added (total), VA category x industry, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
-    df = _load_2017_detail_make_use_usa("Use_detail")
+    df = _load_2017_detail_make_use_usa('Use_detail')
     df = (
         df.loc[USA_2017_VALUE_ADDED_CODES, USA_2017_INDUSTRY_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -658,7 +662,7 @@ def load_2017_Yimp_usa() -> pd.DataFrame:
     Final Demand (from Import matrix), commodity x final demand category, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
-    df = _load_2017_detail_make_use_usa("Import_detail")
+    df = _load_2017_detail_make_use_usa('Import_detail')
     df = (
         df.loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES].astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -681,18 +685,18 @@ def _load_2017_detail_make_use_usa(
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
             ),
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
     assert (
         len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     return df
 
@@ -754,18 +758,18 @@ def _load_2017_detail_supply_use_usa(
             sub_bucket=GCS_USA_SUP_DIR,
             local_dir=LOCAL_USA_SUP_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
             ),
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
     assert (
         len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     _assert_bea_subsidy_signs(df, matrix_name)
 
@@ -804,7 +808,7 @@ def _load_benchmark_detail_supply_use_usa(
             bundle.open(member) as sheet,
         ):
             return pd.read_excel(
-                sheet, sheet_name=str(year), skiprows=5, dtype={"Code": str}
+                sheet, sheet_name=str(year), skiprows=5, dtype={'Code': str}
             )
 
     df = (
@@ -814,15 +818,15 @@ def _load_benchmark_detail_supply_use_usa(
             local_dir=LOCAL_USA_SUP_DIR,
             loader=_read_member,
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
     assert (
         len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     _assert_bea_subsidy_signs(df, matrix_name)
 
@@ -841,7 +845,7 @@ def load_benchmark_detail_U_intermediate_usa(
     value-added rows.
     """
     df = (
-        _load_benchmark_detail_supply_use_usa("Use_SUT_detail", year)
+        _load_benchmark_detail_supply_use_usa('Use_SUT_detail', year)
         .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -864,7 +868,7 @@ def load_benchmark_detail_supply_usa(
     here; read them off :func:`_load_benchmark_detail_supply_use_usa`.
     """
     df = (
-        _load_benchmark_detail_supply_use_usa("Supply_detail", year)
+        _load_benchmark_detail_supply_use_usa('Supply_detail', year)
         .loc[USA_2017_COMMODITY_CODES, USA_2017_INDUSTRY_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -887,21 +891,21 @@ def assert_benchmark_panel_matches_2017() -> None:
         panel = _load_benchmark_detail_supply_use_usa(matrix_name, 2017)
         if list(single.index) != list(panel.index):
             raise AssertionError(
-                f"{matrix_name}: benchmark panel 2017 rows differ from the "
-                f"single-year workbook"
+                f'{matrix_name}: benchmark panel 2017 rows differ from the '
+                f'single-year workbook'
             )
         if list(single.columns) != list(panel.columns):
             raise AssertionError(
-                f"{matrix_name}: benchmark panel 2017 columns differ from the "
-                f"single-year workbook"
+                f'{matrix_name}: benchmark panel 2017 columns differ from the '
+                f'single-year workbook'
             )
-        left = single.apply(pd.to_numeric, errors="coerce")
-        right = panel.apply(pd.to_numeric, errors="coerce")
+        left = single.apply(pd.to_numeric, errors='coerce')
+        right = panel.apply(pd.to_numeric, errors='coerce')
         gap = (left - right).abs().max().max()
         if not (pd.isna(gap) or gap == 0):
             raise AssertionError(
-                f"{matrix_name}: benchmark panel 2017 differs from the "
-                f"single-year workbook by up to {gap} million USD"
+                f'{matrix_name}: benchmark panel 2017 differs from the '
+                f'single-year workbook by up to {gap} million USD'
             )
 
 
@@ -912,7 +916,7 @@ def load_summary_V_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut("Make_summary", year)
+        _load_usa_summary_mut('Make_summary', year)
         .loc[
             USA_2017_SUMMARY_INDUSTRY_CODES,
             USA_2017_SUMMARY_COMMODITY_CODES,
@@ -932,7 +936,7 @@ def load_summary_Utot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut("Use_summary", year)
+        _load_usa_summary_mut('Use_summary', year)
         .loc[
             USA_2017_SUMMARY_COMMODITY_CODES,
             USA_2017_SUMMARY_INDUSTRY_CODES,
@@ -953,7 +957,7 @@ def load_summary_Uimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut("Import_summary", year)
+        _load_usa_summary_mut('Import_summary', year)
         .loc[
             USA_2017_SUMMARY_COMMODITY_CODES,
             USA_2017_SUMMARY_INDUSTRY_CODES,
@@ -974,7 +978,7 @@ def load_summary_Ytot_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut("Use_summary", year)
+        _load_usa_summary_mut('Use_summary', year)
         .loc[
             USA_2017_SUMMARY_INDUSTRY_CODES,  # use industry index instead of commodity index as hacky way to exclude Used and Other
             USA_2017_SUMMARY_FINAL_DEMAND_CODES,
@@ -997,7 +1001,7 @@ def load_summary_Yimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
     unit is USD, original unit is million USD
     """
     df = (
-        _load_usa_summary_mut("Import_summary", year)
+        _load_usa_summary_mut('Import_summary', year)
         .loc[
             USA_2017_SUMMARY_INDUSTRY_CODES,  # use industry index instead of commodity index as hacky way to exclude Used and Other
             USA_2017_SUMMARY_FINAL_DEMAND_CODES,
@@ -1009,6 +1013,58 @@ def load_summary_Yimp_usa(year: USA_SUMMARY_MUT_YEARS) -> pd.DataFrame:
         USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
     )  # use industry index instead of commodity index as hacky way to exclude Used and Other
     df.columns = USA_2017_SUMMARY_FINAL_DEMAND_INDEX.copy()
+
+    return df
+
+
+def _require_summary_span_year(year: int | str) -> int:
+    """Coerce and validate years for before-redef / 2024-vintage span loaders."""
+    year_int = int(year)
+    if year_int < 2017 or year_int > 2024:
+        raise ValueError(f'year {year_int} out of span domain 2017–2024')
+    return year_int
+
+
+def _assert_summary_va_rows(df: pd.DataFrame, *, context: str) -> None:
+    missing = [code for code in SUMMARY_VA_CODES if code not in df.index]
+    if missing:
+        raise ValueError(f'{context}: missing VA rows {missing}')
+
+
+def _load_usa_summary_mut_from_mapping(
+    mapping: ta.Mapping[str, str],
+    matrix_name: str,
+    year: int,
+) -> pd.DataFrame:
+    """Load one sheet from a summary MUT workbook dict (million USD, raw)."""
+    filename = mapping[matrix_name]
+    try:
+        df = (
+            load_from_gcs(
+                name=filename,
+                sub_bucket=GCS_USA_MAKE_USE_DIR,
+                local_dir=LOCAL_USA_MAKE_USE_DIR,
+                loader=lambda pth: pd.read_excel(
+                    pth,
+                    sheet_name=str(year),
+                    skiprows=5,
+                    dtype={'Unnamed: 0': str},
+                ),
+            )
+            .set_index('Unnamed: 0')
+            .replace('...', 0)
+            .fillna(0)
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            f'failed loading summary MUT year={year} file={filename}: {exc}'
+        ) from exc
+    df.columns = df.columns.astype(str)
+
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
+    assert (
+        len(df.shape) == 2
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     return df
 
@@ -1035,29 +1091,171 @@ def _load_usa_summary_mut(
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2023
     else:
         mapping = USA_SUMMARY_MUT_MAPPING_1997_2022
-    df = (
-        load_from_gcs(
-            name=mapping[matrix_name],
-            sub_bucket=GCS_USA_MAKE_USE_DIR,
-            local_dir=LOCAL_USA_MAKE_USE_DIR,
-            loader=lambda pth: pd.read_excel(
-                pth,
-                sheet_name=str(year_int),
-                skiprows=5,
-                dtype={"Unnamed: 0": str},
-            ),
-        )
-        .set_index("Unnamed: 0")
-        .replace("...", 0)
-        .fillna(0)
+    return _load_usa_summary_mut_from_mapping(mapping, matrix_name, year_int)
+
+
+def _load_usa_summary_mut_before_redef(
+    matrix_name: USA_SUMMARY_MUT_BEFORE_REDEF_NAMES,
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Load before-redef summary MUT sheet (million USD, raw)."""
+    year_int = _require_summary_span_year(year)
+    return _load_usa_summary_mut_from_mapping(
+        USA_SUMMARY_MUT_BEFORE_REDEF_MAPPING, matrix_name, year_int
     )
-    df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
-    assert (
-        len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
 
+@functools.cache
+def load_summary_V_before_redef_usa(year: USA_SUMMARY_SPAN_MUT_YEARS) -> pd.DataFrame:
+    """Make table before redefinitions, industry x commodity, USD."""
+    df = (
+        _load_usa_summary_mut_before_redef('Make_summary_before_redef', year)
+        .loc[
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+            USA_2017_SUMMARY_COMMODITY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Utot_before_redef_usa(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Use intermediate before redefinitions, commodity x industry, USD."""
+    df = (
+        _load_usa_summary_mut_before_redef('Use_summary_before_redef', year)
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Uimp_before_redef_usa(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Import matrix before redefinitions, commodity x industry, USD."""
+    df = (
+        _load_usa_summary_mut_before_redef('Import_summary_before_redef', year)
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_value_added_before_redef_usa(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Value added before redefinitions, V001/V002/V003 x summary industry, USD."""
+    raw = _load_usa_summary_mut_before_redef('Use_summary_before_redef', year)
+    _assert_summary_va_rows(raw, context='before-redef summary Use')
+    df = (
+        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = pd.Index(list(SUMMARY_VA_CODES), name='value_added')
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_V_usa_2024_vintage(year: USA_SUMMARY_SPAN_MUT_YEARS) -> pd.DataFrame:
+    """Make after redefinitions from the 1997–2024-named workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    df = (
+        _load_usa_summary_mut_from_mapping(
+            USA_SUMMARY_MUT_MAPPING_1997_2024, 'Make_summary', year_int
+        )
+        .loc[
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+            USA_2017_SUMMARY_COMMODITY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Utot_usa_2024_vintage(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Use intermediate after redefinitions from the 1997–2024-named workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    df = (
+        _load_usa_summary_mut_from_mapping(
+            USA_SUMMARY_MUT_MAPPING_1997_2024, 'Use_summary', year_int
+        )
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_Uimp_usa_2024_vintage(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """Import matrix after redefinitions from the 1997–2024-named workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    df = (
+        _load_usa_summary_mut_from_mapping(
+            USA_SUMMARY_MUT_MAPPING_1997_2024, 'Import_summary', year_int
+        )
+        .loc[
+            USA_2017_SUMMARY_COMMODITY_CODES,
+            USA_2017_SUMMARY_INDUSTRY_CODES,
+        ]
+        .astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = USA_2017_SUMMARY_COMMODITY_INDEX.copy()
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
+    return df
+
+
+@functools.cache
+def load_summary_value_added_usa_2024_vintage(
+    year: USA_SUMMARY_SPAN_MUT_YEARS,
+) -> pd.DataFrame:
+    """VA after redefinitions from the 1997–2024 Use workbook, USD."""
+    year_int = _require_summary_span_year(year)
+    raw = _load_usa_summary_mut_from_mapping(
+        USA_SUMMARY_MUT_MAPPING_1997_2024, 'Use_summary', year_int
+    )
+    _assert_summary_va_rows(raw, context='2024-vintage after-redef summary Use')
+    df = (
+        raw.loc[list(SUMMARY_VA_CODES), USA_2017_SUMMARY_INDUSTRY_CODES].astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    df.index = pd.Index(list(SUMMARY_VA_CODES), name='value_added')
+    df.columns = USA_2017_SUMMARY_INDUSTRY_INDEX.copy()
     return df
 
 
@@ -1091,31 +1289,31 @@ def _load_usa_summary_sut(
                 pth,
                 sheet_name=str(year_int),
                 skiprows=5,
-                dtype={"Unnamed: 0": str},
+                dtype={'Unnamed: 0': str},
             ),
         )
-        .set_index("Unnamed: 0")
-        .replace("...", 0)
+        .set_index('Unnamed: 0')
+        .replace('...', 0)
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
     assert (
         len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     return df
 
 
-@deprecated("Use load_detail_Ytot_usa instead, which reads from MUT.")
+@deprecated('Use load_detail_Ytot_usa instead, which reads from MUT.')
 def load_2017_Ytot_sut_usa() -> pd.DataFrame:
     """
     Final Demand (total), commodity x final demand, after redefintion, in producer price
     unit is USD, original unit is million USD
     """
     df = (
-        _load_2017_detail_sut_usa("Use_detail")
+        _load_2017_detail_sut_usa('Use_detail')
         .loc[USA_2017_COMMODITY_CODES, USA_2017_FINAL_DEMAND_CODES]
         .astype(float)
         * MILLION_CURRENCY_TO_CURRENCY
@@ -1139,17 +1337,17 @@ def _load_2017_detail_sut_usa(
             sub_bucket=GCS_USA_MAKE_USE_DIR,
             local_dir=LOCAL_USA_MAKE_USE_DIR,
             loader=lambda pth: pd.read_excel(
-                pth, sheet_name="2017", skiprows=5, dtype={"Code": str}
+                pth, sheet_name='2017', skiprows=5, dtype={'Code': str}
             ),
         )
-        .set_index("Code")
+        .set_index('Code')
         .fillna(0)
     )
     df.columns = df.columns.astype(str)
 
-    assert isinstance(df, pd.DataFrame), f"expected a DataFrame, got a {type(df)}"
+    assert isinstance(df, pd.DataFrame), f'expected a DataFrame, got a {type(df)}'
     assert (
         len(df.shape) == 2
-    ), f"expected a 2D DataFrame, got a {len(df.shape)}D DataFrame"
+    ), f'expected a 2D DataFrame, got a {len(df.shape)}D DataFrame'
 
     return df
