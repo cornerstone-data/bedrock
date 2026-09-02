@@ -36,13 +36,18 @@ steps, and the report's question is what the shipped table looks like. The
 seed candidates stay importable in `sections.py` for seed-level diagnosis.
 The regenerated 2017 scores:
 
-| block | seed cov/acc (08-28) | balanced cov/acc (09-02) | total diff |
-|---|---:|---:|---:|
-| Step 1 final demand | 88.5% / 59.1% | 89.9% / 50.9% | 0.071% |
-| Step 2 value added | 99.9% / 79.4% | 99.9% / 67.7% | 0.000% |
-| Step 3 intermediate | 100.0% / 100.0% | 100.0% / **57.2%** | 0.063% |
-| Step 4a domestic output | 100.0% / 99.6% | 100.0% / **74.5%** | 0.009% |
-| Step 4 supply bridge | 99.2% / 62.3% | 99.4% / 49.5% | 0.018% |
+| block | seed cov/acc (08-28) | seed cov/acc (09-02) | balanced cov/acc (09-02) | total diff |
+|---|---:|---:|---:|---:|
+| Step 1 final demand | 88.5% / 59.1% | 90.0% / **66.0%** | 89.9% / 50.9% | 0.071% |
+| Step 2 value added | 99.9% / 79.4% | 99.9% / 79.4% | 99.9% / 67.7% | 0.000% |
+| Step 3 intermediate | 100.0% / 100.0% | 100.0% / 100.0% | 100.0% / **57.2%** | 0.063% |
+| Step 4a domestic output | 100.0% / 99.6% | 100.0% / 99.6% | 100.0% / **74.5%** | 0.009% |
+| Step 4 supply bridge | 99.2% / 62.3% | 99.5% / **76.1%** | 99.4% / 49.5% | 0.018% |
+
+The middle column is its own small finding: **the seeds improved after the
+08-28 snapshot** — final demand 59.1% → 66.0% and the bridge 62.3% → 76.1%
+accuracy, the precondition campaign's fixes (#769-#788) landing in blocks
+this report had not re-scored since.
 
 ⚠️ **Read the two 100%→57%/75% drops as the RAS doing its job, not breaking.**
 The seed interiors reproduced published 2017 because they were seeded from it;
@@ -53,6 +58,20 @@ what these scores now measure is **where the balance put the reconciliation**,
 which is #755's question, made visible per cell for the first time. The
 per-section narratives below retain the 2026-08-28 seed-run numbers where
 they discuss seed behaviour; the pictures are the balanced product.
+
+**Both views stay renderable, deliberately.** Every base section has a
+`<name>_seed` sibling registered in `sections.py` whose candidate is the
+direct output of the Step 1-4 derivation scripts — how close the initial
+tables are — and the difference between a seed picture and its balanced
+partner is the per-cell RAS effect. Regenerate any pair with, e.g.,
+`uv run python -m bedrock.analysis.nowcasting.plots --section use_fd_detail_sut --section use_fd_detail_sut_seed`.
+The committed seed views:
+
+![Step 1 final demand, seed](images/use_fd_detail_sut_seed_2017.png)
+![Step 2 value added, seed](images/use_va_detail_sut_seed_2017.png)
+![Step 3 intermediate, seed](images/use_intermediate_detail_sut_seed_2017.png)
+![Step 4a domestic output, seed](images/supply_output_detail_sut_seed_2017.png)
+![Step 4 supply bridge, seed](images/supply_bridge_detail_sut_seed_2017.png)
 
 **Three things are new in this run.**
 

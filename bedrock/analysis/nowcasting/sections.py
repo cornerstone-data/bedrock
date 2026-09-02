@@ -99,7 +99,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import pandas as pd
@@ -1162,20 +1162,58 @@ USE_SUMMARY_SUT = Section(
     ),
 )
 
+#: The five SUT sections' seed (pre-RAS) candidates, kept renderable as
+#: sibling sections named ``<name>_seed``. The base section scores the final
+#: balanced product; the sibling scores the direct output of the derivation
+#: scripts - the state after Steps 1-4, before the balance moved anything.
+#: Rendering the pair is the per-cell view of the RAS effect.
+_SEED_CANDIDATES: dict[str, Callable[[int], pd.DataFrame]] = {
+    'use_fd_detail_sut': initial_Y_pur_candidate,
+    'use_va_detail_sut': initial_value_added_candidate,
+    'use_intermediate_detail_sut': initial_U_intermediate_candidate,
+    'supply_output_detail_sut': detail_supply_output_candidate,
+    'supply_bridge_detail_sut': initial_supply_bridge_candidate,
+}
+
+
+def _seed_sibling(section: Section) -> Section:
+    return replace(
+        section,
+        name=f'{section.name}_seed',
+        title=f'{section.title} — seed, pre-RAS',
+        candidate=_SEED_CANDIDATES[section.name],
+        note=(
+            'The pre-balance seed view of the base section: the direct output '
+            'of the Step 1-4 derivation scripts, before Step 5 moved anything. '
+            'Read beside the balanced view - the difference between the two '
+            'pictures is what the RAS did. ' + section.note
+        ),
+    )
+
+
+_BASE_SECTIONS = (
+    USE_FD_DETAIL_SUT,
+    USE_VA_DETAIL_SUT,
+    USE_INTERMEDIATE_DETAIL_SUT,
+    SUPPLY_OUTPUT_DETAIL_SUT,
+    SUPPLY_BRIDGE_DETAIL_SUT,
+    SUPPLY_SUMMARY_SUT,
+    USE_SUMMARY_SUT,
+    MAKE_AFTER_REDEF_DETAIL_MUT,
+    USE_AFTER_REDEF_DETAIL_MUT,
+    VA_AFTER_REDEF_DETAIL_MUT,
+    UIMP_AFTER_REDEF_DETAIL_MUT,
+)
+
 SECTIONS: dict[str, Section] = {
     section.name: section
     for section in (
-        USE_FD_DETAIL_SUT,
-        USE_VA_DETAIL_SUT,
-        USE_INTERMEDIATE_DETAIL_SUT,
-        SUPPLY_OUTPUT_DETAIL_SUT,
-        SUPPLY_BRIDGE_DETAIL_SUT,
-        SUPPLY_SUMMARY_SUT,
-        USE_SUMMARY_SUT,
-        MAKE_AFTER_REDEF_DETAIL_MUT,
-        USE_AFTER_REDEF_DETAIL_MUT,
-        VA_AFTER_REDEF_DETAIL_MUT,
-        UIMP_AFTER_REDEF_DETAIL_MUT,
+        *_BASE_SECTIONS,
+        *(
+            _seed_sibling(section)
+            for section in _BASE_SECTIONS
+            if section.name in _SEED_CANDIDATES
+        ),
     )
 }
 
