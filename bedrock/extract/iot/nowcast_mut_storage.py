@@ -28,7 +28,9 @@ router swaps these with):
 
 Loading is local-first: a table just built by the Step 6 driver is read from
 ``transform/output_data`` without touching GCS; otherwise it is downloaded
-there once and cached.
+there once and cached. When ``nowcast_mut_vintage`` is omitted, loaders resolve
+the most recently uploaded Make parquet for the configured year and stage via
+GCS, then load that vintage for all four stored tables.
 """
 
 from __future__ import annotations
@@ -85,6 +87,20 @@ def default_nowcast_mut_vintage() -> str:
     return f'v{PKG_VERSION_NUMBER}_{GIT_HASH}'
 
 
+def nowcast_mut_artifact_stem(
+    table: MutTable,
+    *,
+    year: int,
+    stage: Stage,
+) -> str:
+    """Filename stem without the vintage suffix (GCS most-recent probe key)."""
+    if table not in STORED_MUT_TABLES:
+        raise ValueError(f'unknown MUT table {table!r}; expected {STORED_MUT_TABLES}')
+    if stage not in ('before', 'after'):
+        raise ValueError(f"stage must be 'before' or 'after', got {stage!r}")
+    return f'Nowcast_Detail_{table}_{stage}_redef_{year}'
+
+
 def nowcast_mut_artifact_name(
     table: MutTable,
     *,
@@ -93,11 +109,37 @@ def nowcast_mut_artifact_name(
     vintage: str,
 ) -> str:
     """The artifact's flat filename, identical locally and on GCS."""
-    if table not in STORED_MUT_TABLES:
-        raise ValueError(f'unknown MUT table {table!r}; expected {STORED_MUT_TABLES}')
-    if stage not in ('before', 'after'):
-        raise ValueError(f"stage must be 'before' or 'after', got {stage!r}")
-    return f'Nowcast_Detail_{table}_{stage}_redef_{year}_{vintage}.parquet'
+    stem = nowcast_mut_artifact_stem(table, year=year, stage=stage)
+    return f'{stem}_{vintage}.parquet'
+
+
+@functools.cache
+def latest_nowcast_mut_vintage(*, year: int, stage: Stage) -> str:
+    """Most recently uploaded Make parquet vintage for ``year`` / ``stage`` on GCS.
+
+    Uses :func:`bedrock.utils.io.gcp.get_most_recent_from_bucket` against the
+    unversioned Make stem so package version + git hash sort by upload time.
+    """
+    from bedrock.utils.io.gcp import (  # noqa: PLC0415
+        get_most_recent_from_bucket,
+        parse_methodname,
+    )
+
+    probe = f'{nowcast_mut_artifact_stem("Make", year=year, stage=stage)}.parquet'
+    candidates = get_most_recent_from_bucket(probe, GCS_NOWCAST_MUT_DIR)
+    parquets = [c for c in candidates if c.endswith('.parquet')]
+    if not parquets:
+        raise ValueError(
+            'no NowcastMUT Make parquet on GCS for '
+            f'year={year}, stage={stage!r} under {GCS_NOWCAST_MUT_DIR!r}; '
+            'set nowcast_mut_vintage explicitly or upload artifacts first'
+        )
+    _base, _ext, version, git_hash = parse_methodname(parquets[0])
+    if version is None or git_hash is None:
+        raise ValueError(
+            f'could not parse version/hash from NowcastMUT filename {parquets[0]!r}'
+        )
+    return f'{version}_{git_hash}'
 
 
 def resolve_nowcast_mut_uri(
@@ -128,31 +170,47 @@ def _load_stored_table(
     stage: Stage,
     local_dir: str | None = None,
 ) -> pd.DataFrame:
-    """One stored table, local-first, downloaded from GCS when absent."""
-    from bedrock.utils.io.gcp import load_from_gcs  # noqa: PLC0415
+    """One stored table, local-first, downloaded from GCS when absent.
 
-    name = nowcast_mut_artifact_name(table, year=year, stage=stage, vintage=vintage)
-    return load_from_gcs(
-        name=name,
-        sub_bucket=GCS_NOWCAST_MUT_DIR,
-        local_dir=local_dir if local_dir is not None else str(FBS_DIR),
-        loader=pd.read_parquet,
+    Same pattern as FlowBy: ``get_most_recent_from_bucket`` returns the parquet
+    plus sidecars (metadata, logs), and each candidate is written under its own
+    filename in ``local_dir``.
+    """
+    import os  # noqa: PLC0415
+
+    from bedrock.utils.io.gcp import (  # noqa: PLC0415
+        download_gcs_file,
+        get_most_recent_from_bucket,
     )
+
+    directory = local_dir if local_dir is not None else str(FBS_DIR)
+    name = nowcast_mut_artifact_name(table, year=year, stage=stage, vintage=vintage)
+    parquet_path = os.path.join(directory, name)
+
+    if not os.path.exists(parquet_path):
+        candidates = get_most_recent_from_bucket(name, GCS_NOWCAST_MUT_DIR)
+        if not candidates:
+            raise FileNotFoundError(
+                f'NowcastMUT artifact not found locally or on GCS: {name} '
+                f'under {GCS_NOWCAST_MUT_DIR}'
+            )
+        os.makedirs(directory, exist_ok=True)
+        for n in candidates:
+            dest = os.path.join(directory, os.path.basename(n))
+            if os.path.exists(dest):
+                continue
+            download_gcs_file(n, GCS_NOWCAST_MUT_DIR, dest)
+
+    return pd.read_parquet(parquet_path)
 
 
 def _configured() -> tuple[str, int, Stage]:
     cfg = get_usa_config()
-    if not cfg.nowcast_mut_vintage or not cfg.nowcast_mut_vintage.strip():
-        raise ValueError(
-            'nowcast_mut_vintage is not set; the nowcast detail loaders need '
-            'it to pick an artifact build (e.g. '
-            f'{default_nowcast_mut_vintage()!r})'
-        )
-    return (
-        cfg.nowcast_mut_vintage,
-        cfg.usa_base_io_data_year,
-        cfg.iot_before_or_after_redefinition,
-    )
+    year = cfg.usa_base_io_data_year
+    stage = cfg.iot_before_or_after_redefinition
+    configured = (cfg.nowcast_mut_vintage or '').strip()
+    vintage = configured or latest_nowcast_mut_vintage(year=year, stage=stage)
+    return vintage, year, stage
 
 
 def _stored(table: MutTable) -> pd.DataFrame:

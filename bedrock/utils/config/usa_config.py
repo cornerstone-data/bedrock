@@ -44,7 +44,7 @@ class USAConfig(BaseModel):
     #####
     # Model base settings
     #####
-    model_base_year: ta.Literal[2017, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
+    model_base_year: ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
     bea_io_level: ta.Literal['detail', 'summary'] = 'detail'
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
     price_type: ta.Literal['producer', 'purchaser'] = 'producer'
@@ -57,8 +57,10 @@ class USAConfig(BaseModel):
     nowcast_mut_vintage: ta.Optional[str] = Field(
         default=None,
         description=(
-            'Artifact build label for nowcast BEA-detail MUT tables stored on GCS. '
-            'Required when usa_detail_io_source is nowcast.'
+            'Artifact build label for nowcast BEA-detail MUT tables on GCS '
+            '(e.g. v0.3.0_16f96b1). When omitted and usa_detail_io_source is '
+            'nowcast, loaders pick the most recently uploaded Make parquet for '
+            'the configured year and redefinition stage.'
         ),
     )
     usa_base_io_data_year: ta.Literal[
@@ -67,7 +69,7 @@ class USAConfig(BaseModel):
     usa_io_data_year: ta.Literal[2017, 2022, 2023, 2024] = (
         2022  # CEDA's legacy USA IO data year
     )
-    usa_ghg_data_year: ta.Literal[2019, 2020, 2021, 2022, 2023, 2024] = 2023
+    usa_ghg_data_year: ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
 
     ipcc_ar_version: ta.Literal['AR5', 'AR6'] = 'AR6'
 
@@ -213,11 +215,6 @@ class USAConfig(BaseModel):
                     f'got {self.usa_base_io_data_year}'
                 )
         elif self.usa_detail_io_source == 'nowcast':
-            if not self.nowcast_mut_vintage or not self.nowcast_mut_vintage.strip():
-                raise ValueError(
-                    'nowcast_mut_vintage is required when '
-                    "usa_detail_io_source is 'nowcast'"
-                )
             if self.usa_base_io_data_year not in NOWCAST_IO_YEARS:
                 raise ValueError(
                     'usa_base_io_data_year must be 2017–2024 when '
