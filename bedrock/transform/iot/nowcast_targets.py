@@ -283,7 +283,8 @@ def published_value_added(year: int) -> pd.Series:
 def industry_value_added_target(
     year: int, value_added: pd.Series | None = None
 ) -> Target:
-    """T18. ``V00100 + T00OTOP + V00300 + T00TOP + T00SUB = VAPRO``, per industry.
+    """T18. ``V00100 + T00OTOP + T00OSUB + V00300 + T00TOP + T00SUB = VAPRO``,
+    per industry.
 
     The **income half of the Use column**, and the sibling of T1: T1 pins the
     whole column and this pins the value-added part of it, so the two together
@@ -294,10 +295,11 @@ def industry_value_added_target(
     :data:`~bedrock.transform.iot.nowcast_mask.VA_ROWS` - neither a row margin
     nor a plain column one, which is exactly what ``restrict_to`` exists for.
 
-    ⚠️ **All five rows, and subsidies enter negative.** ``VAPRO`` is
+    ⚠️ **All six rows, and both subsidy rows enter negative.** ``VAPRO`` is
     ``VABAS + T00TOP - T00SUB`` on BEA's published tables, but
     :func:`~bedrock.transform.iot.nowcast_mask.published_2017_panel` normalises
-    the Use ``T00SUB`` row negative, so here it is a plain sum of five rows.
+    the Use ``T00SUB`` row negative (and the seed stores ``T00OSUB`` negative,
+    #784), so here it is a plain sum of six rows.
     Measured on the published 2017 panel that sum reproduces the derived
     ``VAPRO`` series to **2 per industry**. Written as ``VABAS + T00TOP -
     T00SUB`` against the normalised panel it would be wrong by ``2 x T00SUB`` -
@@ -525,24 +527,32 @@ def identity_targets() -> list[Target]:
 # --------------------------------------------------------------------------
 
 
-def fd_column_targets(year: int) -> Target:
+def fd_column_targets(year: int, totals: pd.Series | None = None) -> Target:
     """T2. The thirteen final-demand column totals, one per code.
 
-    ⚠️ Values are placeholders taken from the published 2017 columns, so the
-    magnitudes are realistic and the shape is exact. The real source is one
-    NIPA line per code, and ``F02E00``'s basis is still open.
+    ⚠️ Without ``totals``, values are placeholders taken from the published
+    2017 columns, so the magnitudes are realistic and the shape is exact.
+    Passing ``totals`` injects the real series - the Step-1 final-demand
+    build's column sums are each a NIPA line total, which is the source this
+    placeholder was always waiting on (``F02E00``'s basis is still open).
+    The injection is the same affordance T1 and T18 carry.
 
     ``allow_negative`` is set because ``F03000`` is negative outright in 2020.
     """
-    del year  # placeholder values are 2017's until the NIPA reads are wired
-    panel = published_2017_panel('use')
-    values = panel[list(FD_TARGET_COLUMNS)].sum(axis=0)
+    if totals is None:
+        del year  # placeholder values are 2017's until the NIPA reads are wired
+        panel = published_2017_panel('use')
+        values = panel[list(FD_TARGET_COLUMNS)].sum(axis=0)
+        source = _placeholder('NIPA column totals per FD code (§3)')
+    else:
+        values = totals.reindex(list(FD_TARGET_COLUMNS)).astype(float)
+        source = f'Step-1 NIPA final-demand column totals, {year}'
     values.index.name = 'final_demand'
     return Target.on_margin(
         'use',
         'column',
         values,
-        _placeholder('NIPA column totals per FD code (§3)'),
+        source,
         name='T2',
         weight=WEIGHTS['T2'],
         allow_negative=True,
@@ -571,8 +581,23 @@ def industry_group_aggregator() -> Aggregator:
     return Aggregator.from_mapping(groups, columns)
 
 
-def va_row_targets(year: int) -> list[Target]:
+def va_row_targets(
+    year: int,
+    compensation: pd.Series | None = None,
+    tax_totals: pd.Series | None = None,
+) -> list[Target]:
     """T4 and T6: compensation by industry group, and the product-tax totals.
+
+    Passing ``compensation`` (indexed by summary industry group) and
+    ``tax_totals`` (indexed ``T00TOP``/``T00SUB``) injects real values in
+    place of the 2017 placeholders - the Step-2 value-added block is
+    group-level observed, so its aggregates are the series these
+    placeholders were waiting on. Same affordance as T1/T18.
+
+    ⚠️ **Partial injection is unsupported.** The two arguments default
+    independently, so passing only one would hand back a mixed target set -
+    one real series next to a 2017 placeholder - which no real run should
+    carry. The assembly passes both; pass both or neither.
 
     T4 is the target that needs an aggregator - the truthful constraint is
     *"these N detail industries sum to the published group"*, and expressing it
@@ -590,24 +615,35 @@ def va_row_targets(year: int) -> list[Target]:
     out into ``T005`` and undo T18. **Do not impose T5 without re-deciding
     T18.**
     """
-    del year
-    panel = published_2017_panel('use')
     aggregator = industry_group_aggregator()
-    industries = list(balance_industries())
-
-    # Over the whole row, not just the industries: the aggregator's detail is
-    # every Use column, and the value-added by final-demand corner is zero.
-    compensation = aggregator.apply(_row(panel, 'V00100'))
+    if compensation is None or tax_totals is None:
+        panel = published_2017_panel('use')
+        industries = list(balance_industries())
+    if compensation is None:
+        # Over the whole row, not just the industries: the aggregator's detail
+        # is every Use column, and the value-added by final-demand corner is
+        # zero.
+        compensation = aggregator.apply(_row(panel, 'V00100'))
+        t4_source = _placeholder('NIPA T60200D compensation by industry group')
+    else:
+        compensation = compensation.astype(float)
+        t4_source = f'Step-2 UGdpByInd compensation by summary group, {year}'
     compensation.index.name = 'industry_group'
 
-    taxes = pd.Series(
-        [
-            float(_row(panel, 'T00TOP')[industries].sum()),
-            float(_row(panel, 'T00SUB')[industries].sum()),
-        ],
-        index=pd.Index(['T00TOP', 'T00SUB'], name='va_row'),
-        dtype=float,
-    )
+    if tax_totals is None:
+        taxes = pd.Series(
+            [
+                float(_row(panel, 'T00TOP')[industries].sum()),
+                float(_row(panel, 'T00SUB')[industries].sum()),
+            ],
+            index=pd.Index(['T00TOP', 'T00SUB'], name='va_row'),
+            dtype=float,
+        )
+        t6_source = _placeholder('NIPA T30500 / T31300 economy-wide totals')
+    else:
+        taxes = tax_totals.reindex(['T00TOP', 'T00SUB']).astype(float)
+        taxes.index.name = 'va_row'
+        t6_source = f'Step-2 NIPA-levelled product-tax row totals, {year}'
 
     return [
         Target(
@@ -615,7 +651,7 @@ def va_row_targets(year: int) -> list[Target]:
                 TargetTerm('use', 'column', 1.0, aggregator, restrict_to=('V00100',)),
             ),
             values=compensation,
-            source=_placeholder('NIPA T60200D compensation by industry group'),
+            source=t4_source,
             name='T4',
             weight=WEIGHTS['T4'],
         ),
@@ -631,7 +667,7 @@ def va_row_targets(year: int) -> list[Target]:
                 ),
             ),
             values=taxes,
-            source=_placeholder('NIPA T30500 / T31300 economy-wide totals'),
+            source=t6_source,
             name='T6',
             weight=WEIGHTS['T6'],
             allow_negative=True,  # T00SUB is stored negative
@@ -639,16 +675,22 @@ def va_row_targets(year: int) -> list[Target]:
     ]
 
 
-def supply_column_targets(year: int) -> list[Target]:
+def supply_column_targets(year: int, totals: pd.Series | None = None) -> list[Target]:
     """T7-T9: imports, customs duties, and product taxes on the Supply side.
+
+    Passing ``totals`` (indexed by ``MCIF``/``MDTY``/``TOP``/``SUB``) injects
+    real column totals in place of the 2017 placeholders - the Step-4 bridge
+    build levels each of these to its observed control (conditioned imports,
+    NIPA duties, NIPA product taxes and subsidies), so its totals are the
+    series the placeholders were waiting on. Same affordance as T1/T18.
 
     ⚠️ ``MADJ``, ``TRADE`` and ``TRANS`` are absent by design (T10). They are
     our own Step 4b/4c output, and a target we produced is a preference with
     extra steps. ``TRADE``/``TRANS`` are constrained by T15/T16 instead;
     ``MADJ`` is deliberately free (decided 2026-08-17).
     """
-    del year
-    panel = published_2017_panel('supply')
+    if totals is None:
+        panel = published_2017_panel('supply')
     specs = [
         ('T7', ['MCIF'], 'BEA ITA goods + services imports total'),
         ('T8', ['MDTY'], 'NIPA T30500 customs duties'),
@@ -656,14 +698,19 @@ def supply_column_targets(year: int) -> list[Target]:
     ]
     targets = []
     for name, columns, source in specs:
-        values = panel[columns].sum(axis=0)
+        if totals is None:
+            values = panel[columns].sum(axis=0)
+            full_source = _placeholder(source)
+        else:
+            values = totals.reindex(columns).astype(float)
+            full_source = f'Step-4 bridge column totals ({source}), {year}'
         values.index.name = 'supply_column'
         targets.append(
             Target.on_margin(
                 'supply',
                 'column',
                 values,
-                _placeholder(source),
+                full_source,
                 name=name,
                 weight=WEIGHTS[name],
                 allow_negative=True,  # SUB and MADJ are stored negative
@@ -681,6 +728,10 @@ def build_target_set(
     year: int,
     gross_output: pd.Series | None = None,
     value_added: pd.Series | None = None,
+    fd_totals: pd.Series | None = None,
+    compensation: pd.Series | None = None,
+    tax_totals: pd.Series | None = None,
+    supply_totals: pd.Series | None = None,
 ) -> TargetSet:
     """The full nowcast SUT target set for ``year``.
 
@@ -690,16 +741,19 @@ def build_target_set(
     :func:`~bedrock.utils.economic.balance.offset.split_fixed_blocks`.
     ``gross_output`` and ``value_added`` inject T1 and T18 the same way
     :func:`industry_output_target` and :func:`industry_value_added_target` do,
-    so ``--check-engine`` can run without the extract parquet.
+    so ``--check-engine`` can run without the extract parquet. The soft-value
+    injections (``fd_totals``, ``compensation``, ``tax_totals``,
+    ``supply_totals``) replace the T2/T4/T6-T9 placeholders with real series;
+    the Step-5 assembly passes the year's own observed aggregates.
     """
     return TargetSet(
         (
             industry_output_target(year, gross_output=gross_output),
             industry_value_added_target(year, value_added=value_added),
             *identity_targets(),
-            fd_column_targets(year),
-            *va_row_targets(year),
-            *supply_column_targets(year),
+            fd_column_targets(year, totals=fd_totals),
+            *va_row_targets(year, compensation=compensation, tax_totals=tax_totals),
+            *supply_column_targets(year, totals=supply_totals),
         )
     )
 
