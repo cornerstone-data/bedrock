@@ -19,6 +19,15 @@ snapshots taken a week apart. That is the first time this report has been
 internally consistent, and two of the four previously reported rows moved
 enough that the old mixed-vintage table would have been misleading.
 
+**Updated 2026-09-02: the build passed the seeds.** Between the snapshot above
+and this update, Step 5 balanced all seven years, Step 6 converted every
+balanced year to the before-redefinitions MUT quartet, and Step 7 converted
+those to after-redefinitions — all stored, identity-gated, and on GCS. The
+five seed sections below still carry the 2026-08-28 snapshot (the seeds have
+not changed); §Step 5 and the new §Steps 6 and 7 carry the 2026-09-02 state,
+including the first product-level check — industry output from the stored
+tables against the BEA gross-output series.
+
 **Three things are new in this run.**
 
 1. **Step 4a is in the report for the first time.** `supply_output_detail_sut`
@@ -53,8 +62,10 @@ very reference, Step 4a shares its detail mix with it, and three of Step 2's
 five rows take their within-group distribution from it. A 2017 run of those
 tests the plumbing, not the estimate.
 
-⚠️ **Step 5 is not scored here at all, and has never been run on a nowcast
-seed.** See §Step 5 before quoting anything about the tables being balanced.
+✅ **Step 5 has now run on the nowcast seeds — the span is balanced.** The
+warning that stood here through 2026-08-28 ("never been run on a nowcast
+seed") is retired: see §Step 5 for the balance and §Steps 6 and 7 for the
+stored tables it produced.
 
 ---
 
@@ -1364,13 +1375,19 @@ The hard targets hold on the published tables too:
 | `T1` | industry gross output | 402 | 13 |
 | `T18` | value added | 402 | 2 |
 
-### ❌ What is NOT established — and must not be claimed
+### ✅ Established 2026-09-01/02, superseding what stood here
 
-⚠️ **The engine has never run to convergence on a nowcast seed, for any year.**
-`split_fixed_blocks` raises before the balance starts. Convergence on 2017-2023
-is **entirely unmeasured**. The accurate line is: *"engine and target set
-verified against the published benchmark; wiring the nowcast's own output into
-it is in progress."*
+**The engine has now run to convergence on the nowcast seeds for every year
+2017-2023**, under both the hard and soft protocols, with the T11
+supply-equals-use identity closing exactly in each year. The balanced Supply
+and Use SUT products are persisted as versioned parquet
+(`Balanced_Detail_Supply` / `Balanced_Detail_Use_SUT` per year) with metadata
+sidecars, locally and on GCS. The "never run on a nowcast seed" warning below
+this point described the 2026-08-28 state and is kept only in the history of
+this file. The pre-balance gap table that follows is likewise historical: the
+interior fit (#794) took the seed's T11 from 20.0% to a named 2.3% before the
+RAS closed it exactly. The full precondition ledger is
+[`About_step5_preconditions.md`](About_step5_preconditions.md).
 
 ### The measured pre-balance gap
 
@@ -1408,11 +1425,73 @@ largest single obstacle to the balance.**
    membership test, mirroring `TRADE_OVERLAY_YEARS`. See §`F03000` as a series.
 
 
+## Steps 6 and 7 — the stored MUTs, and the first product check
+
+Added 2026-09-02. Downstream of the balance, two conversion layers now run per
+year and store their products under `flowsa/NowcastMUT` (flat versioned
+parquet + sidecar, four tables per year per stage):
+
+- **Step 6** (`transform/iot/nowcast_mut.py`, #824): the balanced SUT to the
+  **before-redefinitions** quartet — Make, producer-price Use, import matrix,
+  and the hyper-detailed Margins table (one column per margin commodity — the
+  per-buyer seller placement — beside the five published columns). Five
+  identity gates at $1M refuse the save on any breach; $5.56tn of margin mass
+  places with a $0.000M conservation gap.
+- **Step 7** (`transform/iot/nowcast_redefinitions.py`, #830): the
+  before-redefinitions quartet to **after-redefinitions**. Every design
+  choice was measured before it was made — the Make movement is a whole-cell
+  pattern (1,850 of 1,880 moving 2017 cells transfer at ~100%), the Use
+  interior is a cell-ratio carry with commodity-row closure, and the measured
+  verdicts (including the ones that rejected recipe-based reconstruction and
+  two closure alternatives) are in
+  [`About_method_probes.md`](after_redef_MUTs/method_probes/About_method_probes.md).
+
+### Industry output from the stored tables vs the BEA gross-output series
+
+The first check taken *on the product* rather than on a seed: industry output
+computed from the stored before-redefinitions Make tables (row sums, producer
+prices, latest build on disk), against the published BEA detail gross-output
+series the repository currently consumes
+(`derive_gross_output_before_redefinition`), and against the EC-adjusted
+panel the balance was actually asked to hit. Weighted difference is the sum
+of absolute per-industry gaps over total output. Reproduced by
+[`go_vs_nowcast_mut.py`](go_vs_nowcast_mut.py).
+
+| year | nowcast $B | BEA GO $B | total diff | weighted diff | industries >5% off | vs imposed panel |
+|---:|---:|---:|---:|---:|---:|---:|
+| 2017 | 34,468 | 34,468 | 0.00% | 0.00% | 0 | 0.00% |
+| 2018 | 36,509 | 36,505 | +0.01% | 0.06% | 0 | 0.06% |
+| 2019 | 37,664 | 37,658 | +0.01% | 0.06% | 0 | 0.06% |
+| 2020 | 36,744 | 36,715 | +0.08% | 0.10% | 0 | 0.10% |
+| 2021 | 41,902 | 41,833 | +0.17% | 0.19% | 2 | 0.19% |
+| 2022 | 46,706 | 46,611 | +0.20% | **2.20%** | **118** | 0.23% |
+| 2023 | 48,558 | 48,540 | +0.04% | **2.11%** | **112** | 0.06% |
+
+**The story splits at 2022, and both halves are the intended behaviour.**
+Through 2021 the nowcast tracks the published series to 0.06-0.19% weighted —
+the balance reproducing its own controls plus tax-wedge rounding. In
+2022-2023 the weighted difference jumps to ~2.2% with over a hundred
+industries more than 5% apart — **that is the 2022 Economic Census
+conditioning (#724), not drift**: within each summary group the detail mix
+follows the census rather than BEA's carried-forward 2017 split, which the
+EC-2022 audit measured as 5.1% off value-weighted. The last column proves the
+distinction — against the census-conditioned panel the balance was actually
+asked to hit, every year stays at or under 0.23%.
+
+⚠️ **Read the 2022-2023 rows as a deliberate disagreement with BEA, on
+census evidence.** The largest 2023 divergences from the published series are
+the census corrections by name: scientific R&D services `541700` +13.7%
+(+$65B), advertising `541800` -18.3%, architectural and engineering services
+`541300` -7.6%, pharmaceutical preparations `325412` -13.4%. Totals agree to
+0.2% in every year; what moves is the detail mix, which is exactly what the
+census observes and the carried-forward split does not.
+
 ## Caveats
 
-**Step 5 has not been run on a nowcast seed.** The engine is verified against
-the published 2017 panel and nothing more. Any statement that the nowcast SUTs
-balance, for any year, is unsupported today — see §Step 5.
+✅ **Retired 2026-09-02: "Step 5 has not been run on a nowcast seed."** The
+span is balanced under both protocols with products stored — see §Step 5 and
+§Steps 6 and 7. The five seed sections above still describe the seeds as of
+2026-08-28, which remains their latest joint snapshot.
 
 **`F04000` / `MCIF` do not clear the #557 bars.** National F040 is +6.16%.
 ✅ Import Pearson on non-specials **now clears it** — 0.972 against a bar of
