@@ -26,10 +26,13 @@ from bedrock.transform.iot.nowcast_targets import (
     FD_TARGET_COLUMNS,
     REST_OF_WORLD_ADJUSTMENT,
     WEIGHTS,
+    fd_column_targets,
     identity_targets,
     industry_output_target,
     industry_value_added_target,
     rest_of_world_adjustment_supply_make,
+    supply_column_targets,
+    va_row_targets,
 )
 from bedrock.utils.economic.balance.targets import PLACEHOLDER_PREFIX
 
@@ -272,3 +275,34 @@ def test_t1_and_t18_together_pin_the_intermediate_column() -> None:
     pd.testing.assert_series_equal(
         implied, pd.Series([60.0, 70.0], index=['1111A0', '1111B0'])
     )
+
+
+def test_injected_soft_values_replace_the_placeholders() -> None:
+    """The Step-5 assembly injects the year's observed aggregates; the
+    placeholder flag must drop with them, or the feasibility precheck keeps
+    refusing a set whose values are real."""
+    fd = pd.Series(2.0, index=list(FD_TARGET_COLUMNS))
+    t2 = fd_column_targets(2018, totals=fd)
+    assert not t2.is_placeholder
+    assert float(t2.values.sum()) == pytest.approx(2.0 * len(FD_TARGET_COLUMNS))
+
+    compensation = pd.Series({'111CA': 10.0, '113FF': 4.0})
+    taxes = pd.Series({'T00TOP': 5.0, 'T00SUB': -3.0})
+    t4, t6 = va_row_targets(2018, compensation=compensation, tax_totals=taxes)
+    assert not t4.is_placeholder
+    assert not t6.is_placeholder
+    assert float(t6.values['T00SUB']) == -3.0  # stored-negative convention kept
+
+    supply = pd.Series({'MCIF': 7.0, 'MDTY': 1.0, 'TOP': 2.0, 'SUB': -1.0})
+    t7, t8, t9 = supply_column_targets(2018, totals=supply)
+    for target in (t7, t8, t9):
+        assert not target.is_placeholder
+    assert float(t9.values['SUB']) == -1.0
+
+
+def test_uninjected_soft_targets_stay_placeholders() -> None:
+    """Without injections nothing changes: the 2017 shapes remain, flagged."""
+    assert fd_column_targets(2018).is_placeholder
+    t4, t6 = va_row_targets(2018)
+    assert t4.is_placeholder and t6.is_placeholder
+    assert all(t.is_placeholder for t in supply_column_targets(2018))

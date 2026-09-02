@@ -57,8 +57,13 @@ own unit suites.
 from __future__ import annotations
 
 import argparse
+import json
+import posixpath
 import sys
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -82,7 +87,18 @@ from bedrock.transform.iot.nowcast_mask import (
 )
 from bedrock.transform.iot.nowcast_supply_go_control import go_controlled_supply_block
 from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult, engine
-from bedrock.transform.iot.nowcast_targets import build_target_set
+from bedrock.transform.iot.nowcast_targets import (
+    FD_TARGET_COLUMNS,
+    build_target_set,
+    industry_group_aggregator,
+)
+from bedrock.utils.config.settings import (
+    FBS_DIR,
+    GIT_BRANCH,
+    GIT_HASH,
+    GIT_HASH_LONG,
+    PKG_VERSION_NUMBER,
+)
 from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.offset import (
     offset_targets,
@@ -167,14 +183,27 @@ def assemble_masks(year: int) -> dict[str, SutMask]:
     return {block: build_sut_mask(block, int(year)) for block in BLOCKS}
 
 
-def assemble_targets(year: int, use_seed: pd.DataFrame) -> TargetSet:
-    """The target set with T1 and T18 injected consistently with the seed.
+def assemble_targets(
+    year: int, use_seed: pd.DataFrame, supply_seed: pd.DataFrame
+) -> TargetSet:
+    """The target set with hard and soft values injected from the seeds.
 
     T1 is the census-adjusted gross output panel - the same series the
     interior fit's column targets are built from, which is the injection #724
     owed the target set. T18 is the seed's own value-added column sums, which
     are the Step-2 derived series in $M; injecting them keeps ``T1 - T18``
     exactly equal to the fit's intermediate column target.
+
+    The soft targets get real values from the same seeds, because each of
+    these aggregates *is* the observed control its build was levelled to:
+    the FD column totals are NIPA lines (Step 1), compensation is group-level
+    observed (Step 2), the product-tax row totals are NIPA-levelled (#787),
+    and the bridge column totals are the conditioned-import / NIPA-duty /
+    NIPA-tax controls (Step 4). Injecting them keeps the soft layer pulling
+    the balance back toward what was observed at entry rather than toward a
+    2017 placeholder. T6/T8/T9 still whole-name defer to the hard identities
+    T12-T14 inside the engine; their values are injected anyway so the set
+    never carries a placeholder into a real run.
     """
     industries = list(balance_industries())
     go = (
@@ -187,7 +216,31 @@ def assemble_targets(year: int, use_seed: pd.DataFrame) -> TargetSet:
     go.index.name = 'industry'
     vapro = use_seed.loc[list(VA_ROWS), industries].sum(axis=0).astype(float)
     vapro.index.name = 'industry'
-    return build_target_set(int(year), gross_output=go, value_added=vapro)
+
+    fd_totals = use_seed[list(FD_TARGET_COLUMNS)].sum(axis=0).astype(float)
+    va_rows = use_seed.loc[list(VA_ROWS)]
+    compensation = industry_group_aggregator().apply(
+        cast('pd.Series[float]', va_rows.loc['V00100'])
+    )
+    tax_totals = pd.Series(
+        {
+            'T00TOP': float(va_rows.loc['T00TOP'][industries].sum()),
+            'T00SUB': float(va_rows.loc['T00SUB'][industries].sum()),
+        },
+        dtype=float,
+    )
+    supply_totals = (
+        supply_seed[['MCIF', 'MDTY', 'TOP', 'SUB']].sum(axis=0).astype(float)
+    )
+    return build_target_set(
+        int(year),
+        gross_output=go,
+        value_added=vapro,
+        fd_totals=fd_totals,
+        compensation=compensation,
+        tax_totals=tax_totals,
+        supply_totals=supply_totals,
+    )
 
 
 def conform_seeds(
@@ -257,7 +310,7 @@ def assemble(year: int, *, fitted: bool = True) -> YearBalance:
     seeds = assemble_seeds(int(year), fitted=fitted)
     masks = assemble_masks(int(year))
     sweep = conform_seeds(seeds, masks)
-    targets = assemble_targets(int(year), seeds['use'])
+    targets = assemble_targets(int(year), seeds['use'], seeds['supply'])
     return YearBalance(
         year=int(year),
         seeds=seeds,
@@ -273,7 +326,7 @@ def balance_year(
     year: int,
     *,
     fitted: bool = True,
-    impose_soft: bool = False,
+    impose_soft: bool = True,
     max_outer: int = 20,
 ) -> YearBalance:
     """Assemble and balance one year: split, offset, engine, restore."""
@@ -320,6 +373,97 @@ def hard_residual_report(balance: YearBalance) -> pd.DataFrame:
     return frame.sort_values('max_abs_residual', ascending=False)
 
 
+#: Artifact names for the balanced blocks, keyed by the mask's block names.
+BALANCED_ARTIFACT_NAMES = {
+    'supply': 'Balanced_Detail_Supply',
+    'use': 'Balanced_Detail_Use_SUT',
+}
+
+#: Where the balanced products live on GCS, under ``GCS_CORNERSTONE``.
+GCS_BALANCED_SUT_DIR = 'flowsa/BalancedSUT'
+
+
+def save_balance(
+    balance: YearBalance,
+    out_dir: Path | None = None,
+    *,
+    protocol: str,
+    upload: bool = False,
+) -> list[Path]:
+    """Persist the balanced blocks as versioned parquet + metadata sidecars.
+
+    Writes ``<Name>_<year>_v<version>_<githash>.parquet`` and the
+    ``*_metadata.json`` sidecar the repo's artifact tooling expects -
+    the same convention as every other ``transform/output_data`` product -
+    into *out_dir* (default ``transform/output_data``). With *upload*, both
+    files also go to :data:`GCS_BALANCED_SUT_DIR` on GCS, which needs
+    credentials (``scripts/google-login``).
+
+    ⚠️ The balanced tables are in **BEA million dollars** - this module's
+    seam converts to $M before the engine - unlike the USD FBS parquets they
+    sit beside. The sidecar's ``units`` field says so.
+
+    *protocol* is recorded verbatim in the sidecar; pass what the run
+    actually did (e.g. ``'soft (impose_soft=True), max_outer=20'``), since
+    ``YearBalance`` itself does not carry the engine flags.
+    """
+    if balance.balanced is None or balance.result is None:
+        raise ValueError('balance_year first; only a balanced result is saved')
+    directory = Path(out_dir) if out_dir is not None else FBS_DIR
+    directory.mkdir(parents=True, exist_ok=True)
+
+    result = balance.result
+    engine_line = (
+        f'outer iterations {result.outer_iterations}, '
+        f'T11 max |residual| {result.t11_max_abs_residual:,.1f} $M, '
+        f'skipped {result.skipped or "none"}, '
+        f'soft deferred {result.soft_deferred or "none"}'
+    )
+    written: list[Path] = []
+    for block, frame in balance.balanced.items():
+        name = BALANCED_ARTIFACT_NAMES.get(block, f'Balanced_{block}')
+        stem = f'{name}_{balance.year}_v{PKG_VERSION_NUMBER}'
+        if GIT_HASH is not None:
+            stem = f'{stem}_{GIT_HASH}'
+        parquet_path = directory / f'{stem}.parquet'
+        frame.to_parquet(parquet_path)
+        meta = {
+            'tool': 'bedrock',
+            'category': 'BalancedSUT',
+            'name_data': f'{name}_{balance.year}',
+            'tool_version': PKG_VERSION_NUMBER,
+            'git_hash': GIT_HASH,
+            'ext': 'parquet',
+            'date_created': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'tool_meta': {
+                'step': 'Step 5 - GRAS balance of the nowcast SUT',
+                'protocol': protocol,
+                'units': 'BEA million USD',
+                'branch': GIT_BRANCH,
+                'commit': GIT_HASH_LONG,
+                'engine_result': engine_line,
+                'builder': 'bedrock.transform.iot.nowcast_sut_assembly',
+            },
+        }
+        meta_path = directory / f'{stem}_metadata.json'
+        meta_path.write_text(json.dumps(meta, indent=4))
+        written.extend([parquet_path, meta_path])
+
+    if upload:
+        # Deferred import: the CLI must not need GCS credentials to balance.
+        from bedrock.utils.io.gcp import (  # noqa: PLC0415
+            GCS_CORNERSTONE,
+            upload_file_to_gcs,
+        )
+
+        for path in written:
+            upload_file_to_gcs(
+                str(path),
+                posixpath.join(GCS_CORNERSTONE, GCS_BALANCED_SUT_DIR, path.name),
+            )
+    return written
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -333,7 +477,19 @@ def main(argv: list[str] | None = None) -> int:
         help='seed the raw Step-3 interior instead of the two-margin fit',
     )
     parser.add_argument(
-        '--soft', action='store_true', help='impose the soft targets too'
+        '--hard-only',
+        action='store_true',
+        help='skip the soft targets (the exact-identity protocol)',
+    )
+    parser.add_argument(
+        '--no-save',
+        action='store_true',
+        help='do not persist the balanced blocks to transform/output_data',
+    )
+    parser.add_argument(
+        '--gcs',
+        action='store_true',
+        help='also upload the saved products to GCS (needs credentials)',
     )
     args = parser.parse_args(argv)
     first, _, last = args.years.partition('-')
@@ -343,7 +499,7 @@ def main(argv: list[str] | None = None) -> int:
     for year in years:
         try:
             balance = balance_year(
-                year, fitted=not args.raw_interior, impose_soft=args.soft
+                year, fitted=not args.raw_interior, impose_soft=not args.hard_only
             )
         except Exception as error:  # noqa: BLE001 - report and continue the span
             print(f'{year}: FAILED - {type(error).__name__}: {error}')
@@ -357,6 +513,14 @@ def main(argv: list[str] | None = None) -> int:
             f'soft deferred {balance.result.soft_deferred or "none"}'
         )
         print(hard_residual_report(balance).to_string())
+        if not args.no_save:
+            protocol = (
+                'hard-only (impose_soft=False)'
+                if args.hard_only
+                else 'soft (impose_soft=True)'
+            ) + ', max_outer=20'
+            written = save_balance(balance, protocol=protocol, upload=args.gcs)
+            print(f'saved {len(written)} files to {written[0].parent}')
     return 1 if failures else 0
 
 
