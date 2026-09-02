@@ -805,12 +805,26 @@ def convert_naics_year(
     # aggregate data
     if hasattr(df, 'aggregate_flowby'):
         if "NAICS" in activity_schema:
-            df2 = (
-                df.drop(columns=['group_id', 'group_total']).aggregate_flowby(
-                    columns_to_group_by=df.groupby_cols  # type: ignore[operator]
+            preserve_group_id = (
+                getattr(df, 'config', {}).get('sector_hierarchy')
+                == 'parent-incompleteChild'
+                and 'group_id' in df.columns
+            )
+            if preserve_group_id:
+                # MECS parent-incompleteChild: keep original group_id through NAICS
+                # year conversion so proportional BEA attribution conserves mass
+                # across crosswalk fan-out rows. QCEW and other NAICS-like sources
+                # use the default branch below (many:1 merge, new group_id per row).
+                df2 = df.aggregate_flowby(
+                    columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
                 )
-            ).reset_index(drop=True)
-            df2 = df2.assign(group_id=df2.index, group_total=df2['FlowAmount'])
+            else:
+                df2 = (
+                    df.drop(columns=['group_id', 'group_total']).aggregate_flowby(
+                        columns_to_group_by=df.groupby_cols  # type: ignore[operator]
+                    )
+                ).reset_index(drop=True)
+                df2 = df2.assign(group_id=df2.index, group_total=df2['FlowAmount'])
         else:
             df2 = df.aggregate_flowby(
                 columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
