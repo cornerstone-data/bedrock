@@ -28,6 +28,32 @@ not changed); §Step 5 and the new §Steps 6 and 7 carry the 2026-09-02 state,
 including the first product-level check — industry output from the stored
 tables against the BEA gross-output series.
 
+**Regenerated 2026-09-02, second pass: the section pictures now score the
+FINAL balanced product.** The five SUT sections' candidates switched from the
+seed derivations to the newest stored `Balanced_Detail_*` parquet (soft
+protocol, vintage `163db0e`) — the seeds represented the state after earlier
+steps, and the report's question is what the shipped table looks like. The
+seed candidates stay importable in `sections.py` for seed-level diagnosis.
+The regenerated 2017 scores:
+
+| block | seed cov/acc (08-28) | balanced cov/acc (09-02) | total diff |
+|---|---:|---:|---:|
+| Step 1 final demand | 88.5% / 59.1% | 89.9% / 50.9% | 0.071% |
+| Step 2 value added | 99.9% / 79.4% | 99.9% / 67.7% | 0.000% |
+| Step 3 intermediate | 100.0% / 100.0% | 100.0% / **57.2%** | 0.063% |
+| Step 4a domestic output | 100.0% / 99.6% | 100.0% / **74.5%** | 0.009% |
+| Step 4 supply bridge | 99.2% / 62.3% | 99.4% / 49.5% | 0.018% |
+
+⚠️ **Read the two 100%→57%/75% drops as the RAS doing its job, not breaking.**
+The seed interiors reproduced published 2017 because they were seeded from it;
+the balance then moved interior cells to absorb the seed's real gaps (the
+supply-use identity closed from a 2.3% fitted gap to exact, F03000/F04000's
+misses spread into the interior). Totals and identities are exact everywhere —
+what these scores now measure is **where the balance put the reconciliation**,
+which is #755's question, made visible per cell for the first time. The
+per-section narratives below retain the 2026-08-28 seed-run numbers where
+they discuss seed behaviour; the pictures are the balanced product.
+
 **Three things are new in this run.**
 
 1. **Step 4a is in the report for the first time.** `supply_output_detail_sut`
@@ -1510,6 +1536,58 @@ Through 2021 the worst single industry is `S00201` state-and-local transit
 published series and our balance disagree on the recovery path — followed by
 `452000` general merchandise at under 1%. Everything else sits at the
 rounding floor.
+
+## The balanced SUT vs the published summary tables, annually
+
+Added 2026-09-02. The only published tables the nowcast *years* can be
+compared against at all: the balanced detail SUT rolled up to BEA summary on
+the taxonomy crosswalks, against the published summary Supply and Use SUT for
+the same year (sections `supply_summary_sut` / `use_summary_sut`; regenerate
+any year with
+`uv run python -m bedrock.analysis.nowcasting.plots --section supply_summary_sut --section use_summary_sut --year <Y>`).
+
+⚠️ **Close-not-exact is the design, so read the trend, not the level.** The
+balance held its own observed aggregates — detail gross output, the
+final-demand totals, the tax rows — not every published summary cell, and
+from 2022 it deliberately disagrees with BEA on census evidence. The
+published summary tables are themselves BEA's annual estimates, not an
+answer key of the #746 kind.
+
+| year | Supply cov. | Supply acc. | Use cov. | Use acc. | Supply total diff | Use total diff |
+|---:|---:|---:|---:|---:|---:|---:|
+| 2017 | 99.2% | 55.5% | 99.6% | 41.5% | 0.012% | 0.012% |
+| 2018 | 99.0% | 50.0% | 99.5% | 15.6% | 0.011% | 0.009% |
+| 2019 | 98.7% | 42.2% | 99.5% | 12.6% | 0.058% | 0.008% |
+| 2020 | 98.4% | 25.0% | 99.5% | 7.8% | 0.067% | 0.185% |
+| 2021 | 98.1% | 17.5% | 99.1% | 6.9% | 0.340% | 0.586% |
+| 2022 | 98.4% | 12.0% | 98.7% | 6.3% | **1.033%** | **1.038%** |
+| 2023 | 98.4% | 35.9% | 98.6% | 6.3% | 0.017% | 0.016% |
+
+Three things the span says. **Coverage holds at ~99% every year** — the
+nowcast populates what BEA populates. **Cell-level agreement decays with
+distance from the anchor** (Supply 55.5% → 12.0%, Use 41.5% → 6.3% at the
+1%-of-cell bar), which is two real estimates diverging, not one degrading:
+our interior moves on census and survey evidence, BEA's summary moves on
+theirs. **The grand totals stay within 0.07% through 2019, spread to ~1% at
+2022** — the census conditioning year — **and close back to 0.02% at 2023.**
+
+The figures, one per table per year — green where the two agree within 1%,
+amber ramping with severity, the margins strips along the edges:
+
+![Supply summary 2017](images/supply_summary_sut_2017.png)
+![Use summary 2017](images/use_summary_sut_2017.png)
+![Supply summary 2018](images/supply_summary_sut_2018.png)
+![Use summary 2018](images/use_summary_sut_2018.png)
+![Supply summary 2019](images/supply_summary_sut_2019.png)
+![Use summary 2019](images/use_summary_sut_2019.png)
+![Supply summary 2020](images/supply_summary_sut_2020.png)
+![Use summary 2020](images/use_summary_sut_2020.png)
+![Supply summary 2021](images/supply_summary_sut_2021.png)
+![Use summary 2021](images/use_summary_sut_2021.png)
+![Supply summary 2022](images/supply_summary_sut_2022.png)
+![Use summary 2022](images/use_summary_sut_2022.png)
+![Supply summary 2023](images/supply_summary_sut_2023.png)
+![Use summary 2023](images/use_summary_sut_2023.png)
 
 ## Caveats
 

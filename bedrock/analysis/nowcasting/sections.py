@@ -19,29 +19,8 @@ rollup -- three of the five blocks are small enough to read at detail
 read through their margins and a severity summary instead -- see below.
 
 Sections defined here
--------------------------
+---------------------
 
-``use_fd_detail_sut``       Step 1.  ``derive_initial_Y_pur`` against the Use
-                            table's final-demand columns.  Both sides
-                            purchaser price.  Runnable today.
-``use_va_detail_sut``       Step 2.  The Use table's value-added rows.
-                            Declared, not yet runnable -- see below.
-``supply_bridge_detail_sut`` Step 4.  The Supply table's right-hand block --
-                            imports, margins, taxes and the subtotals
-                            bridging basic to purchaser value.  Runnable;
-                            candidate fills MCIF only.
-``use_intermediate_detail_sut`` Step 3.  The Use table's 402 x 402 interior.
-                            Runnable.
-=========================== =================================================
-
-The first three are the whole of what a published 2017 detail reference
-supports *outside* the two 402 x 402 interiors.  ``use_intermediate_detail_sut``
-is one of those interiors, and it is the exception the docstring above used to
-deny: 161,604 cells is too many to read as a picture, but it is not too many to
-*score*, and the section machinery reports totals, row and column margins and a
-status count without anyone having to look at the grid.  The Supply interior --
-the Make table, Step 4a -- is still undeclared.
-=======
 ============================== ==============================================
 ``use_fd_detail_sut``          Step 1.  ``derive_initial_Y_pur`` against the
                                Use table's final-demand columns.  Both sides
@@ -492,6 +471,264 @@ def initial_U_intermediate_candidate(year: int) -> pd.DataFrame:
     return derive_initial_U_intermediate(year)
 
 
+# ------------------------------------------ balanced (post-RAS) candidates
+#
+# The five SUT sections score the FINAL Step 5 product - the newest stored
+# ``Balanced_Detail_*`` parquet for the year - rather than the seed
+# derivations, which represent the state after earlier steps only.  The seed
+# candidates above stay importable for seed-level diagnosis (provenance,
+# drift), but the report's question is "what does the table we ship look
+# like", and that table is the balanced one.
+
+
+@functools.cache
+def _balanced_frame(year: int, kind: str) -> pd.DataFrame:
+    """Newest stored ``Balanced_Detail_<kind>_<year>`` parquet, in USD.
+
+    The balance persists in BEA million dollars; this seam converts, so every
+    candidate below is in the dollars the references use.
+    """
+    from bedrock.utils.config.settings import FBS_DIR  # noqa: PLC0415
+
+    matches = sorted(
+        Path(FBS_DIR).glob(f'Balanced_Detail_{kind}_{year}_*.parquet'),
+        key=lambda p: p.stat().st_mtime,
+    )
+    if not matches:
+        raise FileNotFoundError(
+            f'no Balanced_Detail_{kind}_{year}_*.parquet in {FBS_DIR}; '
+            'run bedrock.transform.iot.nowcast_sut_assembly for the year first'
+        )
+    return pd.read_parquet(matches[-1]) * MILLION_CURRENCY_TO_CURRENCY
+
+
+def balanced_Y_pur_candidate(year: int) -> pd.DataFrame:
+    """The balanced Use SUT's final-demand block, commodity x FD code. USD."""
+    use = _balanced_frame(year, 'Use_SUT')
+    rows = [c for c in use.index if c in set(USA_2017_COMMODITY_CODES)]
+    columns = [c for c in SUT_FINAL_DEMAND_CODES if c in use.columns]
+    return use.loc[rows, columns]
+
+
+def balanced_value_added_candidate(year: int) -> pd.DataFrame:
+    """The balanced Use SUT's value-added rows, VA code x industry. USD."""
+    use = _balanced_frame(year, 'Use_SUT')
+    rows = [c for c in SUT_VALUE_ADDED_CODES if c in use.index]
+    columns = [c for c in use.columns if c in set(USA_2017_INDUSTRY_CODES)]
+    return use.loc[rows, columns]
+
+
+def balanced_U_intermediate_candidate(year: int) -> pd.DataFrame:
+    """The balanced Use SUT's interior, commodity x industry. USD."""
+    use = _balanced_frame(year, 'Use_SUT')
+    rows = [c for c in use.index if c in set(USA_2017_COMMODITY_CODES)]
+    columns = [c for c in use.columns if c in set(USA_2017_INDUSTRY_CODES)]
+    return use.loc[rows, columns]
+
+
+def balanced_supply_output_candidate(year: int) -> pd.DataFrame:
+    """The balanced Supply interior, commodity x industry. USD."""
+    supply = _balanced_frame(year, 'Supply')
+    columns = [c for c in supply.columns if c in set(USA_2017_INDUSTRY_CODES)]
+    return supply[columns]
+
+
+def balanced_supply_bridge_candidate(year: int) -> pd.DataFrame:
+    """The balanced Supply bridge on the section's twelve codes. USD.
+
+    The balance stores the seven component columns (``TRADE`` under BEA's
+    trailing-space label); ``T007`` is the interior's row margin and the four
+    subtotals are their identities, so the derived five carry no information
+    the components do not - exactly as in the published table.
+    """
+    supply = _balanced_frame(year, 'Supply')
+    industry_columns = [c for c in supply.columns if c in set(USA_2017_INDUSTRY_CODES)]
+    frame = pd.DataFrame(index=supply.index, dtype=float)
+    frame['T007'] = supply[industry_columns].sum(axis=1)
+    renames = {'TRADE ': 'TRADE'}
+    for code in ('MCIF', 'MADJ', 'TRADE ', 'TRANS', 'MDTY', 'TOP', 'SUB'):
+        assert code in supply.columns, f'balanced Supply is missing {code!r}'
+        frame[renames.get(code, code)] = supply[code].astype(float)
+    frame['T013'] = frame['T007'] + frame['MCIF'] + frame['MADJ']
+    frame['T014'] = frame['TRADE'] + frame['TRANS']
+    frame['T015'] = frame['MDTY'] + frame['TOP'] + frame['SUB']
+    frame['T016'] = frame['T013'] + frame['T014'] + frame['T015']
+    return frame[list(SUPPLY_BRIDGE_CODES)]
+
+
+# ------------------------------------- summary-level span diagnostics (annual)
+#
+# The balanced detail SUT rolled up to BEA summary, against the published
+# summary SUT for the same year.  These are the only published tables the
+# nowcast years can be compared against at all, and the comparison is honest
+# about what it is: the balance held its own observed aggregates, not every
+# published summary cell, so the expectation is close-not-exact.
+
+#: The published summary Supply bridge, in the workbook's own labels.
+SUMMARY_SUPPLY_BRIDGE_CODES = (
+    'T007',
+    'MCIF',
+    'MADJ',
+    'T013',
+    'Trade',
+    'Trans',
+    'T014',
+    'MDTY',
+    'TOP',
+    'SUB',
+    'T015',
+    'T016',
+)
+
+#: The published summary Use SUT's six value-added rows, balance-signed on
+#: both sides of the comparison (the workbook's two "Less:" subsidy rows are
+#: stored positive there and negated in the reference loader).
+SUMMARY_USE_VA_CODES = ('V001', 'T00OTOP', 'T00OSUB', 'V003', 'T00TOP', 'T00SUB')
+
+#: Detail SUT VA codes -> the summary workbook's codes.
+_DETAIL_TO_SUMMARY_VA = {
+    'V00100': 'V001',
+    'T00OTOP': 'T00OTOP',
+    'T00OSUB': 'T00OSUB',
+    'V00300': 'V003',
+    'T00TOP': 'T00TOP',
+    'T00SUB': 'T00SUB',
+}
+
+#: The balance's bridge labels -> the summary workbook's.
+_DETAIL_TO_SUMMARY_BRIDGE = {
+    'MCIF': 'MCIF',
+    'MADJ': 'MADJ',
+    'TRADE ': 'Trade',
+    'TRANS': 'Trans',
+    'MDTY': 'MDTY',
+    'TOP': 'TOP',
+    'SUB': 'SUB',
+}
+
+
+@functools.cache
+def _published_summary_sut(year: int, which: str) -> pd.DataFrame:
+    """One published summary SUT sheet, cleaned and in USD."""
+    from bedrock.extract.iot.io_2017 import _load_usa_summary_sut  # noqa: PLC0415
+
+    frame = _load_usa_summary_sut(which, year)  # type: ignore[arg-type]
+    frame = frame.drop(columns=['Commodities/Industries'], errors='ignore')
+    frame.index = pd.Index([str(i).strip() for i in frame.index])
+    frame.columns = pd.Index([str(c).strip() for c in frame.columns])
+    # The sheet's second header line survives the skiprows as an 'IOCode' row.
+    frame = frame.drop(index='IOCode', errors='ignore')
+    return (
+        frame.apply(pd.to_numeric, errors='coerce').fillna(0.0)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+
+
+def summary_supply_sut_reference(year: int = 2017) -> pd.DataFrame:
+    """The published summary Supply table for *year*, USD."""
+    return _published_summary_sut(year, 'Supply_summary')
+
+
+def summary_use_sut_reference(year: int = 2017) -> pd.DataFrame:
+    """The published summary Use SUT for *year*, USD, balance-signed.
+
+    The workbook stores its two "Less:" subsidy rows positive; they are
+    negated here so both sides of the comparison carry the balance's
+    convention (subsidies negative).
+    """
+    frame = _published_summary_sut(year, 'Use_SUT_summary').copy()
+    for row in ('T00OSUB', 'T00SUB'):
+        if row in frame.index:
+            frame.loc[row] = -frame.loc[row]
+    return frame
+
+
+@functools.cache
+def _detail_to_summary_maps() -> tuple[dict[str, str], dict[str, str]]:
+    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_commodity_to_bea_v2017_summary,
+    )
+    from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
+        load_bea_v2017_industry_to_bea_v2017_summary,
+    )
+
+    commodity: dict[str, str] = {
+        str(detail): str(targets[0])
+        for detail, targets in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+    }
+    industry: dict[str, str] = {
+        str(detail): str(targets[0])
+        for detail, targets in load_bea_v2017_industry_to_bea_v2017_summary().items()
+    }
+    return commodity, industry
+
+
+def _roll_axis(
+    frame: pd.DataFrame, mapping: Mapping[str, str], axis: int
+) -> pd.DataFrame:
+    """Group one axis by *mapping*, dropping labels the mapping does not name."""
+    if axis == 1:
+        return _roll_axis(frame.T, mapping, 0).T
+    grouped = [mapping.get(str(label)) for label in frame.index]
+    kept = [g is not None for g in grouped]
+    sliced = frame.loc[kept].set_axis([g for g in grouped if g is not None], axis=0)
+    return sliced.groupby(level=0).sum()
+
+
+def summary_supply_candidate(year: int) -> pd.DataFrame:
+    """The balanced detail Supply rolled up to summary, USD.
+
+    Interior rows and columns roll on the taxonomy crosswalks; the bridge
+    columns rename to the workbook's labels; ``T007`` is the rolled
+    interior's row margin and the four subtotals are their identities.
+    """
+    commodity_map, industry_map = _detail_to_summary_maps()
+    supply = _balanced_frame(year, 'Supply')
+    industry_columns = [c for c in supply.columns if c in industry_map]
+    interior = _roll_axis(
+        _roll_axis(supply[industry_columns], commodity_map, 0), industry_map, 1
+    )
+
+    bridge = pd.DataFrame(index=interior.index, dtype=float)
+    bridge['T007'] = interior.sum(axis=1)
+    rolled_rows = _roll_axis(supply, commodity_map, 0)
+    for detail, summary in _DETAIL_TO_SUMMARY_BRIDGE.items():
+        assert detail in supply.columns, f'balanced Supply is missing {detail!r}'
+        bridge[summary] = rolled_rows[detail].reindex(interior.index).fillna(0.0)
+    bridge['T013'] = bridge['T007'] + bridge['MCIF'] + bridge['MADJ']
+    bridge['T014'] = bridge['Trade'] + bridge['Trans']
+    bridge['T015'] = bridge['MDTY'] + bridge['TOP'] + bridge['SUB']
+    bridge['T016'] = bridge['T013'] + bridge['T014'] + bridge['T015']
+    return pd.concat([interior, bridge[list(SUMMARY_SUPPLY_BRIDGE_CODES)]], axis=1)
+
+
+def summary_use_candidate(year: int) -> pd.DataFrame:
+    """The balanced detail Use SUT rolled up to summary, USD, balance-signed."""
+    commodity_map, industry_map = _detail_to_summary_maps()
+    use = _balanced_frame(year, 'Use_SUT')
+
+    commodity_rows = [r for r in use.index if r in commodity_map]
+    industry_columns = [c for c in use.columns if c in industry_map]
+    interior = _roll_axis(
+        _roll_axis(use.loc[commodity_rows, industry_columns], commodity_map, 0),
+        industry_map,
+        1,
+    )
+
+    fd_columns = [c for c in SUT_FINAL_DEMAND_CODES if c in use.columns]
+    fd_map = {code: code[:4] for code in fd_columns}
+    fd = _roll_axis(
+        _roll_axis(use.loc[commodity_rows, fd_columns], commodity_map, 0), fd_map, 1
+    )
+
+    va_rows = [r for r in _DETAIL_TO_SUMMARY_VA if r in use.index]
+    value_added = _roll_axis(use.loc[va_rows, industry_columns], industry_map, 1)
+    value_added.index = pd.Index([_DETAIL_TO_SUMMARY_VA[r] for r in va_rows])
+
+    top = pd.concat([interior, fd], axis=1)
+    return pd.concat([top, value_added], axis=0)
+
+
 @functools.cache
 def _mut_after_redef_2017(
     year: int,
@@ -637,9 +874,11 @@ USE_FD_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.013, atol=ROUNDING_ATOL, ramp=0.25),
     column_names=USA_2017_FINAL_DEMAND_DESC,
     reference=use_sut_final_demand_reference,
-    candidate=initial_Y_pur_candidate,
+    candidate=balanced_Y_pur_candidate,
     note=(
-        'Candidate is a live run of derive_initial_Y_pur (NIPA_final_dom_uses plus '
+        'Candidate is the FINAL balanced product (newest Balanced_Detail_Use_SUT '
+        'on disk), not the Step 1 seed - initial_Y_pur_candidate keeps the '
+        'seed view. Seed provenance: derive_initial_Y_pur (NIPA_final_dom_uses plus '
         'Trade_Exports F040 for 2017). Reference is always the published SUT '
         'workbook.'
     ),
@@ -656,9 +895,11 @@ USE_VA_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     row_names=SUT_VALUE_ADDED_DESC,
     reference=use_sut_value_added_reference,
-    candidate=initial_value_added_candidate,
+    candidate=balanced_value_added_candidate,
     note=(
-        'Candidate is a live run of derive_initial_value_added, 2017-2024. The '
+        'Candidate is the FINAL balanced product (newest Balanced_Detail_Use_SUT '
+        'on disk), not the Step 2 seed - initial_value_added_candidate keeps '
+        'the seed view. Seed provenance: derive_initial_value_added, 2017-2024. The '
         'six rows are not six claims of one kind. V00100 is an ESTIMATE '
         '(QCEW movement in 69 NIPA groups); T00OTOP is a LEVEL plus two '
         'lookups (43.3% of the row observed); V00300 is a SEED only, and the '
@@ -690,8 +931,11 @@ SUPPLY_OUTPUT_DETAIL_SUT = Section(
     # and scoring those as matches would report ~97% for any build at all.
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     reference=supply_sut_output_reference,
-    candidate=detail_supply_output_candidate,
+    candidate=balanced_supply_output_candidate,
     note=(
+        'Candidate is the FINAL balanced product (newest Balanced_Detail_Supply '
+        'on disk), not the Step 4a seed - detail_supply_output_candidate keeps '
+        'the seed view. '
         'The Supply interior, 402 x 402 and 96.9% structurally empty: 5,059 '
         'cells of 161,604 are present, because an industry makes a handful of '
         'commodities, not 402. Quote a match rate only over present cells. '
@@ -724,9 +968,12 @@ SUPPLY_BRIDGE_DETAIL_SUT = Section(
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     column_names=SUPPLY_BRIDGE_DESC,
     reference=supply_sut_bridge_reference,
-    candidate=initial_supply_bridge_candidate,
+    candidate=balanced_supply_bridge_candidate,
     note=(
-        'Candidate is a live run of derive_initial_supply_bridge: MCIF from '
+        'Candidate is the FINAL balanced product (newest Balanced_Detail_Supply '
+        'on disk, subtotals recomputed from their identities), not the Step 4 '
+        'seed - initial_supply_bridge_candidate keeps the seed view. Seed '
+        'provenance: derive_initial_supply_bridge: MCIF from '
         'mapped Trade_Imports_2017 Detail mass; MDTY from Census duty rate × '
         'goods MCIF leveled to NIPA B235RC; MADJ from Census GEN_CHA_YR '
         'reassigned onto 2017 Supply MADJ destination codes and leveled to '
@@ -759,9 +1006,11 @@ USE_INTERMEDIATE_DETAIL_SUT = Section(
     # by 1.05%.
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
     reference=use_sut_intermediate_reference,
-    candidate=initial_U_intermediate_candidate,
+    candidate=balanced_U_intermediate_candidate,
     note=(
-        'Candidate is derive_initial_U_intermediate: the published 2017 detail '
+        'Candidate is the FINAL balanced product (newest Balanced_Detail_Use_SUT '
+        'on disk), not the Step 3 seed - initial_U_intermediate_candidate keeps '
+        'the seed view. Seed provenance: derive_initial_U_intermediate: the published 2017 detail '
         'interior column-normalised, carried on the purchaser deflator (the '
         'detail commodity price ratio times the margin-rate factor) at the '
         'fitted theta, and rescaled to GO_producer - VAPRO. Both sides '
@@ -850,6 +1099,69 @@ def compare_redef_margins_2017(year: int = 2017) -> TableMatch:
 
 
 #: Every section, by name.  The renderer and the tests both select from here.
+def _summary_codes() -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (  # noqa: PLC0415
+        USA_2017_SUMMARY_COMMODITY_CODES,
+    )
+    from bedrock.utils.taxonomy.bea.v2017_industry_summary import (  # noqa: PLC0415
+        USA_2017_SUMMARY_INDUSTRY_CODES,
+    )
+    from bedrock.utils.taxonomy.bea.v2017_summary_final_demand import (  # noqa: PLC0415
+        USA_2017_SUMMARY_FINAL_DEMAND_CODES,
+    )
+
+    return (
+        tuple(USA_2017_SUMMARY_COMMODITY_CODES),
+        tuple(USA_2017_SUMMARY_INDUSTRY_CODES),
+        tuple(USA_2017_SUMMARY_FINAL_DEMAND_CODES),
+    )
+
+
+_SUMMARY_COMMODITIES, _SUMMARY_INDUSTRIES, _SUMMARY_FD = _summary_codes()
+
+SUPPLY_SUMMARY_SUT = Section(
+    name='supply_summary_sut',
+    title='Supply at summary level — balanced nowcast rolled up vs published',
+    step='Step 5 - the balanced SUT against the published summary tables',
+    rows=_SUMMARY_COMMODITIES,
+    columns=_SUMMARY_INDUSTRIES + SUMMARY_SUPPLY_BRIDGE_CODES,
+    row_axis='summary_commodity',
+    column_axis='summary_industry_or_bridge',
+    tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
+    years=tuple(range(2017, 2024)),
+    reference=summary_supply_sut_reference,
+    candidate=summary_supply_candidate,
+    note=(
+        'Annual, 2017-2023: the newest balanced detail Supply on disk, rolled '
+        'up on the taxonomy crosswalks, against the published summary Supply '
+        'for the same year. The balance held its own observed aggregates, not '
+        'every published summary cell, so close-not-exact is the expectation '
+        'and the interesting content is where the two disagree.'
+    ),
+)
+
+USE_SUMMARY_SUT = Section(
+    name='use_summary_sut',
+    title='Use SUT at summary level — balanced nowcast rolled up vs published',
+    step='Step 5 - the balanced SUT against the published summary tables',
+    rows=_SUMMARY_COMMODITIES + SUMMARY_USE_VA_CODES,
+    columns=_SUMMARY_INDUSTRIES + _SUMMARY_FD,
+    row_axis='summary_commodity_or_va',
+    column_axis='summary_industry_or_fd',
+    tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
+    years=tuple(range(2017, 2024)),
+    reference=summary_use_sut_reference,
+    candidate=summary_use_candidate,
+    note=(
+        'Annual, 2017-2023: the newest balanced detail Use SUT on disk, '
+        'rolled up on the taxonomy crosswalks (final demand by its four-'
+        'character summary code, value added onto the workbook codes), '
+        'against the published summary Use SUT. Both sides carry the '
+        'balance sign convention - the workbook\'s two "Less:" subsidy rows '
+        'are negated in the reference.'
+    ),
+)
+
 SECTIONS: dict[str, Section] = {
     section.name: section
     for section in (
@@ -858,6 +1170,8 @@ SECTIONS: dict[str, Section] = {
         USE_INTERMEDIATE_DETAIL_SUT,
         SUPPLY_OUTPUT_DETAIL_SUT,
         SUPPLY_BRIDGE_DETAIL_SUT,
+        SUPPLY_SUMMARY_SUT,
+        USE_SUMMARY_SUT,
         MAKE_AFTER_REDEF_DETAIL_MUT,
         USE_AFTER_REDEF_DETAIL_MUT,
         VA_AFTER_REDEF_DETAIL_MUT,

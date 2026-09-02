@@ -21,12 +21,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+import typing as ta
 from pathlib import Path
 
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_V_before_redef_usa
 from bedrock.transform.iot.derived_gross_industry_output import (
+    USA_GROSS_INDUSTRY_OUTPUT_YEARS,
     derive_gross_output_before_redefinition,
 )
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
@@ -70,7 +72,9 @@ def per_industry_differences(year: int) -> pd.DataFrame:
     signal.
     """
     ours = nowcast_industry_output(year)
-    bea = derive_gross_output_before_redefinition(year)
+    bea = derive_gross_output_before_redefinition(
+        ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year)
+    )
     bea.index = pd.Index([str(i) for i in bea.index])
     bea = bea.reindex(ours.index).fillna(0.0)
     frame = pd.DataFrame({'nowcast': ours, 'bea': bea})
@@ -90,7 +94,9 @@ def comparison_table() -> pd.DataFrame:
         imposed.index = pd.Index([str(i) for i in imposed.index])
         imposed = imposed.reindex(ours.index).fillna(0.0)
 
-        bea = derive_gross_output_before_redefinition(year)
+        bea = derive_gross_output_before_redefinition(
+            ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year)
+        )
         bea.index = pd.Index([str(i) for i in bea.index])
         bea = bea.reindex(ours.index).fillna(0.0)
 
@@ -119,7 +125,9 @@ def comparison_table() -> pd.DataFrame:
 def worst_industries(year: int, count: int = 10) -> pd.DataFrame:
     """The year's largest absolute divergences vs the published series."""
     ours = nowcast_industry_output(year)
-    bea = derive_gross_output_before_redefinition(year)
+    bea = derive_gross_output_before_redefinition(
+        ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year)
+    )
     bea.index = pd.Index([str(i) for i in bea.index])
     bea = bea.reindex(ours.index).fillna(0.0)
     diff = ours - bea
@@ -177,8 +185,8 @@ def figure(out_path: Path, dpi: int = 110, bar_year: int = 2023) -> Path:
     left.set_title('Every industry, every year', loc='left', color=_INK, fontsize=11)
 
     movers = worst_industries(bar_year, count=14).iloc[::-1]
-    colors = [_POS if v >= 0 else _NEG for v in movers['diff_$B']]
-    right.barh(movers.index, movers['diff_$B'], color=colors, height=0.62)
+    bar_colors = [_POS if v >= 0 else _NEG for v in movers['diff_$B']]
+    right.barh(movers.index, movers['diff_$B'], color=bar_colors, height=0.62)
     right.axvline(0, color=_MUTED, linewidth=0.8)
     span = float(movers['diff_$B'].abs().max())
     right.set_xlim(-1.35 * span, 1.35 * span)
