@@ -41,9 +41,13 @@ diff = V_a - V_b
 
 com_out_gap = (diff.sum(axis=0)).abs()
 ind_out_move = diff.sum(axis=1)
-print(f'commodity output invariance: max |column-sum change| ${com_out_gap.max()/M:,.1f}M')
-print(f'industry output moved: gross ${ind_out_move.abs().sum()/2/M:,.0f}M across '
-      f'{int((ind_out_move.abs() > 0.5*M).sum())} industries')
+print(
+    f'commodity output invariance: max |column-sum change| ${com_out_gap.max()/M:,.1f}M'
+)
+print(
+    f'industry output moved: gross ${ind_out_move.abs().sum()/2/M:,.0f}M across '
+    f'{int((ind_out_move.abs() > 0.5*M).sum())} industries'
+)
 
 on_diag = pd.Series(
     {c: diff.at[c, c] for c in commodities if c in diff.index}, dtype=float
@@ -54,10 +58,14 @@ for c in on_diag.index:
 
 losses = off[off < -0.5 * M].stack()  # (industry, commodity) cells that shrank
 gains = off[off > 0.5 * M].stack()
-print(f'off-diagonal cells losing mass: {len(losses):,} '
-      f'(${-losses.sum()/M:,.0f}M); gaining: {len(gains):,} (${gains.sum()/M:,.0f}M)')
-print(f'diagonal cells gaining: {int((on_diag > 0.5*M).sum())} '
-      f'(${on_diag[on_diag > 0].sum()/M:,.0f}M); losing: {int((on_diag < -0.5*M).sum())}')
+print(
+    f'off-diagonal cells losing mass: {len(losses):,} '
+    f'(${-losses.sum()/M:,.0f}M); gaining: {len(gains):,} (${gains.sum()/M:,.0f}M)'
+)
+print(
+    f'diagonal cells gaining: {int((on_diag > 0.5*M).sum())} '
+    f'(${on_diag[on_diag > 0].sum()/M:,.0f}M); losing: {int((on_diag < -0.5*M).sum())}'
+)
 
 before_vals = pd.Series(
     [V_b.at[i, c] for i, c in losses.index], index=losses.index, dtype=float
@@ -91,6 +99,7 @@ print(f'movements: {len(moves):,}; skipped (no primary industry): ${skipped/M:,.
 
 recipe = U_b.div(x_b.replace(0.0, np.nan), axis=1).fillna(0.0)  # per $ of output
 
+
 def reconstruct(structure_of: str) -> pd.DataFrame:
     test = U_b.copy()
     for donor, receiver, amount in moves:
@@ -100,13 +109,19 @@ def reconstruct(structure_of: str) -> pd.DataFrame:
         test[receiver] = test[receiver].to_numpy() + vec
     return test
 
+
 target_mass = U_a.abs().sum().sum()
+
+
 def score(name: str, table: pd.DataFrame) -> None:
     err = (table - U_a).abs()
     col_err = (table.sum(axis=0) - U_a.sum(axis=0)).abs()
-    print(f'{name:>16}: cell L1 ${err.sum().sum()/M:>12,.0f}M '
-          f'({err.sum().sum()/target_mass:6.2%} of after-table mass); '
-          f'column-total L1 ${col_err.sum()/M:>10,.0f}M')
+    print(
+        f'{name:>16}: cell L1 ${err.sum().sum()/M:>12,.0f}M '
+        f'({err.sum().sum()/target_mass:6.2%} of after-table mass); '
+        f'column-total L1 ${col_err.sum()/M:>10,.0f}M'
+    )
+
 
 score('do nothing', U_b)
 score('donor recipe', reconstruct('donor'))

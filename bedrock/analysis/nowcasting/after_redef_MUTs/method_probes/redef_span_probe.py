@@ -47,8 +47,10 @@ for (i, c), d in diff17.stack().items():
         cell = V_b17.at[i, c]
         if cell > 0:
             pattern[(i, c)] = min(-d / cell, 1.0)
-print(f'2017 summary pattern: {len(pattern)} moving cells, '
-      f'${-sum(diff17.at[i, c] for (i, c) in pattern)/M:,.0f}M')
+print(
+    f'2017 summary pattern: {len(pattern)} moving cells, '
+    f'${-sum(diff17.at[i, c] for (i, c) in pattern)/M:,.0f}M'
+)
 
 dx17 = diff17.sum(axis=1)  # net output moved per industry
 dU17 = U_a17 - U_b17
@@ -56,8 +58,9 @@ g = {}  # industry -> Use movement vector per $ of moved output
 for j in U_b17.columns:
     if j in dx17.index and abs(dx17[j]) > 100 * M:
         g[j] = dU17[j] / dx17[j]
-print(f'Use vectors learned for {len(g)} industries '
-      f'(|moved output| > $100M at 2017)')
+print(
+    f'Use vectors learned for {len(g)} industries ' f'(|moved output| > $100M at 2017)'
+)
 
 
 def predict(year):
@@ -82,15 +85,19 @@ def l1(a, b):
     return float((a - b).abs().sum().sum())
 
 
-print(f'\n{"year":>5} {"V nothing":>10} {"V method":>10} {"cut":>6}   '
-      f'{"U nothing":>10} {"U method":>10} {"cut":>6}')
+print(
+    f'\n{"year":>5} {"V nothing":>10} {"V method":>10} {"cut":>6}   '
+    f'{"U nothing":>10} {"U method":>10} {"cut":>6}'
+)
 for year in YEARS:
     vb, va, ub, ua, v_pred, u_pred = predict(year)
     vmass, umass = va.abs().sum().sum(), ua.abs().sum().sum()
     vn, vm = l1(vb, va) / vmass, l1(v_pred, va) / vmass
     un, um = l1(ub, ua) / umass, l1(u_pred, ua) / umass
-    print(f'{year:>5} {vn:>10.3%} {vm:>10.3%} {1-vm/vn:>6.1%}   '
-          f'{un:>10.3%} {um:>10.3%} {1-um/un:>6.1%}')
+    print(
+        f'{year:>5} {vn:>10.3%} {vm:>10.3%} {1-vm/vn:>6.1%}   '
+        f'{un:>10.3%} {um:>10.3%} {1-um/un:>6.1%}'
+    )
 
 # composition view: error concentrated on the movement footprint
 print('\nfootprint view (columns of the industries with learned vectors):')
@@ -107,18 +114,22 @@ rU = (U_a17 / U_b17).replace([np.inf, -np.inf], np.nan).fillna(1.0)
 rV = (V_a17 / V_b17).replace([np.inf, -np.inf], np.nan).fillna(1.0)
 
 print('\nhead-to-head, same instrument (cell L1 as % of after-table mass):')
-print(f'{"year":>5} {"V ratio":>9} {"V flow":>9}   {"U ratio":>9} {"U flow":>9}   '
-      f'{"U ratio ft":>10} {"U flow ft":>10}')
+print(
+    f'{"year":>5} {"V ratio":>9} {"V flow":>9}   {"U ratio":>9} {"U flow":>9}   '
+    f'{"U ratio ft":>10} {"U flow ft":>10}'
+)
 for year in YEARS:
     vb, va, ub, ua, v_pred, u_pred = predict(year)
     v_ratio = vb * rV
     u_ratio = ub * rU
     vmass, umass = va.abs().sum().sum(), ua.abs().sum().sum()
     ftmass = ua[cols].abs().sum().sum()
-    print(f'{year:>5} {l1(v_ratio, va)/vmass:>9.3%} {l1(v_pred, va)/vmass:>9.3%}   '
-          f'{l1(u_ratio, ua)/umass:>9.3%} {l1(u_pred, ua)/umass:>9.3%}   '
-          f'{l1(u_ratio[cols], ua[cols])/ftmass:>10.3%} '
-          f'{l1(u_pred[cols], ua[cols])/ftmass:>10.3%}')
+    print(
+        f'{year:>5} {l1(v_ratio, va)/vmass:>9.3%} {l1(v_pred, va)/vmass:>9.3%}   '
+        f'{l1(u_ratio, ua)/umass:>9.3%} {l1(u_pred, ua)/umass:>9.3%}   '
+        f'{l1(u_ratio[cols], ua[cols])/ftmass:>10.3%} '
+        f'{l1(u_pred[cols], ua[cols])/ftmass:>10.3%}'
+    )
 
 # column-total accuracy: which method predicts the moved column sums better?
 print('\ncolumn-total L1 on footprint columns ($B):')
@@ -128,6 +139,7 @@ for year in (2018, 2021, 2024):
     for name, table in (('ratio', u_ratio), ('flow', u_pred)):
         ce = (table[cols].sum(axis=0) - ua[cols].sum(axis=0)).abs().sum()
         print(f'  {year} {name:>6}: ${ce/1e9:,.1f}B')
+
 
 # hybrid: ratio-carried cells, each footprint column rescaled so its total
 # change matches the flow-predicted (moved-output-anchored) column change.
@@ -143,15 +155,18 @@ def hybrid(year):
             out[j] = ub[j] + delta_cells * (target / got)
     return out, ua
 
+
 print('\nhybrid (ratio cells, flow column control), footprint cell L1:')
 for year in (2018, 2021, 2024):
     vb, va, ub, ua, v_pred, u_pred = predict(year)
     u_ratio = ub * rU
     hyb, _ = hybrid(year)
     ftmass = ua[cols].abs().sum().sum()
-    print(f'  {year}: ratio {l1(u_ratio[cols], ua[cols])/ftmass:.3%}  '
-          f'flow {l1(u_pred[cols], ua[cols])/ftmass:.3%}  '
-          f'hybrid {l1(hyb[cols], ua[cols])/ftmass:.3%}')
+    print(
+        f'  {year}: ratio {l1(u_ratio[cols], ua[cols])/ftmass:.3%}  '
+        f'flow {l1(u_pred[cols], ua[cols])/ftmass:.3%}  '
+        f'hybrid {l1(hyb[cols], ua[cols])/ftmass:.3%}'
+    )
 
 # cells materially wrong (>10% and >$100M off), the composition lens
 print('\ncells off by >10% and >$100M (Use, movement-footprint columns):')
