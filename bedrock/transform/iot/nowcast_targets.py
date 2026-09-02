@@ -594,6 +594,11 @@ def va_row_targets(
     group-level observed, so its aggregates are the series these
     placeholders were waiting on. Same affordance as T1/T18.
 
+    ⚠️ **Partial injection is unsupported.** The two arguments default
+    independently, so passing only one would hand back a mixed target set -
+    one real series next to a 2017 placeholder - which no real run should
+    carry. The assembly passes both; pass both or neither.
+
     T4 is the target that needs an aggregator - the truthful constraint is
     *"these N detail industries sum to the published group"*, and expressing it
     is the capability a row/column-vector API cannot provide.
