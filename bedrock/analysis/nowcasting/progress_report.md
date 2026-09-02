@@ -1457,15 +1457,32 @@ panel the balance was actually asked to hit. Weighted difference is the sum
 of absolute per-industry gaps over total output. Reproduced by
 [`go_vs_nowcast_mut.py`](go_vs_nowcast_mut.py).
 
-| year | nowcast $B | BEA GO $B | total diff | weighted diff | industries >5% off | vs imposed panel |
-|---:|---:|---:|---:|---:|---:|---:|
-| 2017 | 34,468 | 34,468 | 0.00% | 0.00% | 0 | 0.00% |
-| 2018 | 36,509 | 36,505 | +0.01% | 0.06% | 0 | 0.06% |
-| 2019 | 37,664 | 37,658 | +0.01% | 0.06% | 0 | 0.06% |
-| 2020 | 36,744 | 36,715 | +0.08% | 0.10% | 0 | 0.10% |
-| 2021 | 41,902 | 41,833 | +0.17% | 0.19% | 2 | 0.19% |
-| 2022 | 46,706 | 46,611 | +0.20% | **2.20%** | **118** | 0.23% |
-| 2023 | 48,558 | 48,540 | +0.04% | **2.11%** | **112** | 0.06% |
+Distribution statistics are over the industries the published series carries
+at $100M or more, so a percent difference is never quoted over a near-zero
+base.
+
+| year | nowcast $B | BEA GO $B | total diff | weighted diff | median \|diff\| | max \|diff\| (industry) | industries >5% off | vs imposed panel |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2017 | 34,468 | 34,468 | 0.00% | 0.00% | 0.00% | 0.1% (`335912`) | 0 | 0.00% |
+| 2018 | 36,509 | 36,505 | +0.01% | 0.06% | 0.00% | 0.9% (`452000`) | 0 | 0.06% |
+| 2019 | 37,664 | 37,658 | +0.01% | 0.06% | 0.00% | 0.9% (`452000`) | 0 | 0.06% |
+| 2020 | 36,744 | 36,715 | +0.08% | 0.10% | 0.01% | 4.7% (`S00201`) | 0 | 0.10% |
+| 2021 | 41,902 | 41,833 | +0.17% | 0.19% | 0.01% | 10.9% (`S00201`) | 2 | 0.19% |
+| 2022 | 46,706 | 46,611 | +0.20% | **2.20%** | **2.26%** | **38.1%** (`54151A`) | **118** | 0.23% |
+| 2023 | 48,558 | 48,540 | +0.04% | **2.11%** | **2.24%** | **38.0%** (`54151A`) | **112** | 0.06% |
+
+![Nowcast vs BEA GO by industry](images/go_vs_nowcast_mut.png)
+
+**How to read the figure** (regenerate with
+`uv run python -m bedrock.analysis.nowcasting.go_vs_nowcast_mut --figure`).
+Left: every scored industry's percent difference, one jittered column per
+year — blue above the published series, red below, dashed lines at ±5%. The
+2017-2021 columns are a flat line at zero (the median industry is within
+0.01%); the 2022 fan-out is the census break arriving, and 2023 keeps its
+shape. Right: 2023's largest absolute divergences in dollars, the percent in
+the label — professional services, wholesale, and pharma, i.e. the sectors
+where the 2022 Economic Census disagrees most with BEA's carried-forward
+detail mix.
 
 **The story splits at 2022, and both halves are the intended behaviour.**
 Through 2021 the nowcast tracks the published series to 0.06-0.19% weighted —
@@ -1479,12 +1496,20 @@ distinction — against the census-conditioned panel the balance was actually
 asked to hit, every year stays at or under 0.23%.
 
 ⚠️ **Read the 2022-2023 rows as a deliberate disagreement with BEA, on
-census evidence.** The largest 2023 divergences from the published series are
-the census corrections by name: scientific R&D services `541700` +13.7%
-(+$65B), advertising `541800` -18.3%, architectural and engineering services
-`541300` -7.6%, pharmaceutical preparations `325412` -13.4%. Totals agree to
-0.2% in every year; what moves is the detail mix, which is exactly what the
-census observes and the carried-forward split does not.
+census evidence.** The largest 2023 dollar divergences from the published
+series are the census corrections by name: scientific R&D services `541700`
++13.7% (+$65B), advertising `541800` -18.3%, architectural and engineering
+services `541300` -7.6%, pharmaceutical preparations `325412` -13.4%; the
+largest *relative* move is custom computer programming `54151A` at +38%.
+Totals agree to 0.2% in every year; what moves is the detail mix, which is
+exactly what the census observes and the carried-forward split does not.
+
+⚠️ **The pre-census maxima are a different, smaller story worth one line.**
+Through 2021 the worst single industry is `S00201` state-and-local transit
+(4.7% in 2020, 10.9% in 2021) — a pandemic-era government enterprise whose
+published series and our balance disagree on the recovery path — followed by
+`452000` general merchandise at under 1%. Everything else sits at the
+rounding floor.
 
 ## Caveats
 
