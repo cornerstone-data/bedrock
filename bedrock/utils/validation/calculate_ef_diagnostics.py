@@ -326,8 +326,9 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     else:
         logger.info('Skipping mixed_vs_monetary_221110 (mixed-units gate off)')
 
-    # Effective x decomposition (Cornerstone method only)
-    if config.use_ghg_year_x_in_B:
+    # Effective x decomposition (Cornerstone method only; under nowcast the tab
+    # is Make x against BEA gross output)
+    if config.use_ghg_year_x_in_B or config.usa_detail_io_source == 'nowcast':
         from bedrock.utils.validation.diagnostics_helpers import (
             compute_effective_x_comparison,
         )
