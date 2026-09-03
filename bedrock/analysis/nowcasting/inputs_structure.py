@@ -1243,6 +1243,30 @@ EXPENSE_SOURCES = {
     'Census_AIES_Expenses': (2023,),
 }
 
+#: The last year with an observed expense panel on these definitions.
+LAST_OBSERVED_EXPENSE_YEAR = 2023
+
+#: Years the panel **carries** rather than observes: it is copied from
+#: :data:`LAST_OBSERVED_EXPENSE_YEAR` and every cell is marked ``held``.
+#:
+#: ⚠️ **2024 has an AIES expense table; it is deliberately not read.** The 2024
+#: release drops four of the variables 2023 publishes and replaces the two
+#: rental lines with a single combined figure, so it is not on the definitions
+#: :data:`SERVICE_TO_AIES` maps. Reading it would silently change what several
+#: kinds mean mid-series. Holding is also the graded choice for the *mix* it
+#: feeds - see :func:`extrapolation_holdout`, where extending the trend one span
+#: past its last observation costs 27.4% on manufacturing against holding it.
+#: Taking the 2024 detail needs a rule for splitting combined rent across
+#: buildings and machinery, and is the next improvement rather than this one.
+HELD_EXPENSE_YEARS = (2024,)
+
+
+def expense_years() -> tuple[int, ...]:
+    """Every year the expense panel answers for, observed or held."""
+    observed = {year for years in EXPENSE_SOURCES.values() for year in years}
+    return tuple(sorted(observed | set(HELD_EXPENSE_YEARS)))
+
+
 #: ``ASM/EC name -> the AIES cells that make it up``.  ⚠️ **Not one-for-one.**
 #: AIES splits ASM's single repair cell into machinery and building, so the two
 #: are summed back to ASM's concept; and it publishes rental of buildings and of
@@ -1412,6 +1436,21 @@ def expense_panel() -> pd.DataFrame:
     carried = [frame for frame in carried if not frame.empty]
     if carried:
         panel = pd.concat([panel, *carried], ignore_index=True)
+
+    # ⚠️ The held years carry the whole panel, not two kinds of it. See
+    # HELD_EXPENSE_YEARS: 2024 publishes an AIES expense table on changed
+    # definitions, so it is carried from the last observed year and marked held
+    # rather than read as if the names still meant the same thing.
+    last = panel[panel['year'] == LAST_OBSERVED_EXPENSE_YEAR]
+    held = [
+        last.assign(
+            year=year, source=f'held from {LAST_OBSERVED_EXPENSE_YEAR}', held=True
+        )
+        for year in HELD_EXPENSE_YEARS
+    ]
+    held = [frame for frame in held if not frame.empty]
+    if held:
+        panel = pd.concat([panel, *held], ignore_index=True)
     return pd.DataFrame(panel)
 
 
@@ -1484,15 +1523,16 @@ def nonmaterial_seed(year: int) -> pd.DataFrame:
     than being dropped or zeroed -- a missing denominator is an absence of
     information about movement, which is what holding the benchmark means.
 
-    ⚠️ **The observed span ends at 2023** (:func:`unobserved_years`), so this
-    raises for any later year rather than inventing one.  Extending it to 2024
-    is #707; 2025 is out of scope.
+    ⚠️ **The observed span ends at 2023** (:func:`unobserved_years`).  2024 is
+    carried from it and marked ``held`` (:data:`HELD_EXPENSE_YEARS`); anything
+    later raises rather than being invented.  2025 is out of scope.
     """
-    observed = {y for years in EXPENSE_SOURCES.values() for y in years}
-    if year not in observed:
+    available = expense_years()
+    if year not in available:
         raise ValueError(
-            f'{year} is not observed for the expense cells; observed years are '
-            f'{sorted(observed)}. Extrapolating past 2023 is not decided.'
+            f'{year} has no expense panel; the panel answers for {list(available)} '
+            f'(see HELD_EXPENSE_YEARS for which of those are carried rather than '
+            f'observed). Extrapolating past the last held year is not decided.'
         )
 
     use = _use_2017_detail()

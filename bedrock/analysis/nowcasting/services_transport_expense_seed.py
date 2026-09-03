@@ -697,6 +697,24 @@ AIES_OBSERVED_YEARS = (2023,)
 #: list, then AIES.
 OBSERVED_YEARS = (*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS, *AIES_OBSERVED_YEARS)
 
+#: The last observed year, and so the panel a held year carries.
+LAST_OBSERVED_YEAR = max(OBSERVED_YEARS)
+
+#: Years built on a **carried** panel rather than an observed one.
+#:
+#: ⚠️ **2024 has an AIES service expense table; it is deliberately not read.**
+#: The 2024 release drops purchased communication services, expensed software
+#: and both rental lines, replacing the last two with one combined figure, so it
+#: is not on the definitions :data:`AIES_TO_SAS_ITEM` maps. Reading it would
+#: change what several items mean mid-series. Holding is also the graded choice
+#: for the mix this feeds - extending the trend one span past its last
+#: observation costs 27.4% on manufacturing against holding it. Splitting the
+#: combined rent line across buildings and machinery is the next improvement.
+HELD_YEARS = (2024,)
+
+#: Every year the seed can build, observed or held.
+BUILDABLE_YEARS = (*OBSERVED_YEARS, *HELD_YEARS)
+
 
 @functools.cache
 def _aies_service_panel() -> pd.DataFrame:
@@ -1029,7 +1047,14 @@ def _cut_list_panel(year: int) -> pd.DataFrame:
 
 
 def _panel_for(year: int) -> pd.DataFrame:
-    """The observation panel for a year -- SAS, the cut-list bridge, or AIES."""
+    """The observation panel for a year -- SAS, the cut-list bridge, or AIES.
+
+    ⚠️ **A held year reads the last observed year's panel** rather than its own.
+    See :data:`HELD_YEARS`: 2024's AIES table is on changed definitions, so
+    carrying 2023 is the honest reading and the graded one.
+    """
+    if year in HELD_YEARS:
+        year = LAST_OBSERVED_YEAR
     if year in SAS_CUT_LIST_YEARS:
         return _cut_list_panel(year)
     if year in AIES_OBSERVED_YEARS:
@@ -1125,10 +1150,11 @@ def services_transport_seed(
             f'step is a rebenchmark rather than a broken instrument. Pass '
             f'allow_survey_change=True (the default) to build it.'
         )
-    if year not in OBSERVED_YEARS:
+    if year not in BUILDABLE_YEARS:
         raise ValueError(
-            f'{year} is not observed for the surveyed expense cells; observed '
-            f'years are {sorted(OBSERVED_YEARS)}.'
+            f'{year} has no surveyed expense panel; the seed builds '
+            f'{sorted(BUILDABLE_YEARS)} (of which {sorted(HELD_YEARS)} carry the '
+            f'{LAST_OBSERVED_YEAR} panel rather than observing one).'
         )
     use = _use_2017_detail()
     columns = services_transport_industries()

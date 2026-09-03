@@ -95,7 +95,7 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 #: and building its MUT quartet through the same pipeline keeps every model
 #: year - the anchor included - on one provenance (and gives the conversion a
 #: free end-to-end consistency check against the published 2017 MUTs).
-NOWCAST_MUT_YEARS: tuple[int, ...] = tuple(range(2017, 2024))
+NOWCAST_MUT_YEARS: tuple[int, ...] = tuple(range(2017, 2025))
 
 #: Identity-gate tolerance. BEA publishes nothing below $1M, and every gate
 #: here checks a relation that holds by construction, so a breach is a bug,
