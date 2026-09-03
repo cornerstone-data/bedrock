@@ -264,15 +264,18 @@ SAS_ITEM_TO_BEA: dict[str, tuple[str, ...]] = {
         '492000',
         '493000',
     ),
-    # ⚠️ **Business machinery repair, so business repair commodities only.**
-    # This item buys commercial and industrial machinery repair (811300) and
-    # electronic and precision equipment repair (811200). It previously also
-    # carried 811400, which is *personal and household goods* repair - shoe
-    # repair, appliance repair for households - and is not what a firm's
-    # machinery maintenance line buys.
+    # ⚠️ **This mapping is under review and is deliberately unchanged here.**
+    # 811400 is *personal and household goods* repair - shoe repair, household
+    # appliances - which is not what a firm's machinery maintenance line buys,
+    # and 811200 (electronic and precision equipment repair) is missing. But
+    # correcting it moves **every year the seed builds, not just the new one**:
+    # on 2022 it takes 811200 -4.99% and 811400 +7.52%, because a commodity
+    # dropped from the map stops receiving this item's movement and holds its
+    # 2017 structure instead. That is a whole-span rebuild and belongs in its
+    # own change with a before/after diff - see #845.
     'Purchased repairs and maintenance to machinery and equipment': (
-        '811200',
         '811300',
+        '811400',
     ),
     'Purchased repairs and maintenance to transportation equipment': ('811100',),
     # ⚠️ Repair *to buildings* is a construction commodity to BEA, not a repair
