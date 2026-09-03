@@ -1128,11 +1128,11 @@ SUPPLY_SUMMARY_SUT = Section(
     row_axis='summary_commodity',
     column_axis='summary_industry_or_bridge',
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
-    years=tuple(range(2017, 2024)),
+    years=tuple(range(2017, 2025)),
     reference=summary_supply_sut_reference,
     candidate=summary_supply_candidate,
     note=(
-        'Annual, 2017-2023: the newest balanced detail Supply on disk, rolled '
+        'Annual, 2017-2024: the newest balanced detail Supply on disk, rolled '
         'up on the taxonomy crosswalks, against the published summary Supply '
         'for the same year. The balance held its own observed aggregates, not '
         'every published summary cell, so close-not-exact is the expectation '
@@ -1149,11 +1149,11 @@ USE_SUMMARY_SUT = Section(
     row_axis='summary_commodity_or_va',
     column_axis='summary_industry_or_fd',
     tolerance=Tolerance(rtol=0.01, atol=ROUNDING_ATOL, ramp=0.25),
-    years=tuple(range(2017, 2024)),
+    years=tuple(range(2017, 2025)),
     reference=summary_use_sut_reference,
     candidate=summary_use_candidate,
     note=(
-        'Annual, 2017-2023: the newest balanced detail Use SUT on disk, '
+        'Annual, 2017-2024: the newest balanced detail Use SUT on disk, '
         'rolled up on the taxonomy crosswalks (final demand by its four-'
         'character summary code, value added onto the workbook codes), '
         'against the published summary Use SUT. Both sides carry the '

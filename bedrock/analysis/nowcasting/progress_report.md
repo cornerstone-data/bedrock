@@ -1,9 +1,9 @@
 # Nowcasting Phase 1 Report
 
-*Updated 2 September 2026*
+*Updated 3 September 2026*
 
 The nowcast builds annual US input-output tables — Supply and Use tables,
-then Make-Use tables before and after redefinitions — for 2017 through 2023
+then Make-Use tables before and after redefinitions — for 2017 through 2024
 at BEA detail level (402 commodities × 402 industries), from primary annual
 sources rather than by carrying the 2017 benchmark structure forward. This
 report is the standing record of how close those tables are to every
@@ -181,6 +181,7 @@ summary tables, per year. Accuracy is the share of populated cells within
 | 2021 | 98.1% | 17.5% | 99.1% | 6.9% | 0.340% | 0.586% |
 | 2022 | 98.4% | 12.0% | 98.7% | 6.3% | **1.033%** | **1.038%** |
 | 2023 | 98.4% | 35.9% | 98.6% | 6.3% | 0.017% | 0.016% |
+| 2024 | 98.4% | 36.3% | 98.7% | 6.2% | 0.017% | 0.015% |
 
 Three things the span says. **Coverage holds at ~99% every year** — the
 nowcast populates what the published tables populate. **Cell-level
@@ -188,7 +189,10 @@ agreement decays with distance from the anchor**, which is two real
 estimates diverging rather than one degrading: our interior moves on census
 and survey evidence, the published tables move on BEA's own methods.
 **Grand totals stay within 0.07% through 2019, spread to ~1% in 2022** —
-the census-conditioning year — **and close back to 0.02% at 2023.**
+the census-conditioning year — **and close back to 0.02% at 2023 and
+2024.** The newest year is the strongest evidence that the 2022 spread was
+conditioning rather than drift: 2024 is two years further from the anchor
+than 2022 and lands at a sixtieth of its total difference.
 
 ![Supply summary 2017](images/supply_summary_sut_2017.png)
 
@@ -261,6 +265,16 @@ year, and the widest divergence of the span. Coverage 98.4%, accuracy
 *Figure 24. Use at summary vs published, 2023. Coverage 98.6%, accuracy
 6.3%.*
 
+![Supply summary 2024](images/supply_summary_sut_2024.png)
+
+*Figure 25. Supply at summary vs published, 2024 — the first year built on
+the 2024 Annual Integrated Economic Survey. Coverage 98.4%, accuracy 36.3%.*
+
+![Use summary 2024](images/use_summary_sut_2024.png)
+
+*Figure 26. Use at summary vs published, 2024. Coverage 98.7%, accuracy
+6.2%.*
+
 ## 3. Industry Output Against the Published Series
 
 Industry output computed from the nowcast tables (Make-table row sums,
@@ -270,10 +284,10 @@ to hit. The two comparisons separate deliberate census conditioning from
 drift: a year can sit 2% off the published series while sitting 0.2% from
 its own target panel. Distribution statistics are over industries the
 published series carries at $100M or more. Table 3 shows the span; Figure
-25 shows the industry-level structure.
+27 shows the industry-level structure.
 
 *Table 3. Nowcast industry output vs the published BEA detail gross-output
-series, 2017-2023. Weighted difference is the sum of absolute per-industry
+series, 2017-2024. Weighted difference is the sum of absolute per-industry
 gaps over total output.*
 
 | year | nowcast $B | published $B | total diff | weighted diff | median \|diff\| | max \|diff\| (industry) | industries >5% off | vs target panel |
@@ -285,29 +299,35 @@ gaps over total output.*
 | 2021 | 41,902 | 41,833 | +0.17% | 0.19% | 0.01% | 10.9% (`S00201`) | 2 | 0.19% |
 | 2022 | 46,706 | 46,611 | +0.20% | **2.20%** | **2.26%** | **38.1%** (`54151A`) | **118** | 0.23% |
 | 2023 | 48,558 | 48,540 | +0.04% | **2.11%** | **2.24%** | **38.0%** (`54151A`) | **112** | 0.06% |
+| 2024 | 50,754 | 50,737 | +0.03% | **2.10%** | **2.23%** | **38.0%** (`54151A`) | **116** | 0.06% |
 
 **The story splits at 2022, and both halves are the intended behaviour.**
 Through 2021 the nowcast tracks the published series to 0.06-0.19% weighted
 — the median industry is within 0.01% — and the only notable outlier is
-state-and-local transit, a pandemic-recovery disagreement. In 2022-2023 the
+state-and-local transit, a pandemic-recovery disagreement. From 2022 the
 weighted difference jumps to ~2.2% with over a hundred industries more than
 5% apart: the 2022 Economic Census conditioning, under which the detail mix
 follows the census rather than the carried-forward 2017 split. The final
 column proves the distinction — against the census-conditioned panel, every
-year stays at or under 0.23%. The largest 2023 divergences are the census
-corrections by name: scientific R&D services +13.7% (+$65B), advertising
-−18.3%, architectural and engineering −7.6%, pharmaceutical preparations
-−13.4%; the largest relative move is other computer services including
-facilities management at +38%.
+year stays at or under 0.23%.
+
+⚠️ **2024 does not add drift — it repeats 2022's correction.** Its weighted
+difference is 2.10% against 2023's 2.11%, and the named industries are the
+same ones in the same direction: scientific R&D services +13.9% (+$67B),
+advertising −18.1%, architectural and engineering −7.4%, pharmaceutical
+preparations −13.3%, with other computer services including facilities
+management again the largest relative move at +38%. A gap that stays the
+same size and keeps the same members over three years is a standing
+disagreement about the detail mix, not an accumulating error.
 
 ![Industry output vs the published series](images/go_vs_nowcast_mut.png)
 
-*Figure 25. Nowcast industry output vs the published BEA gross-output
+*Figure 27. Nowcast industry output vs the published BEA gross-output
 series. Left: every scored industry's percent difference, one jittered
 column per year — blue above the published series, red below, dashed guides
 at ±5%. The 2017-2021 columns sit flat at zero; the 2022 fan-out is the
-census conditioning arriving, and 2023 keeps its shape. Right: the largest
-2023 divergences in dollars, with the percent difference in each label —
+census conditioning arriving, and 2023 and 2024 keep its shape. Right: the largest
+2024 divergences in dollars, with the percent difference in each label —
 professional services, wholesale, and pharmaceuticals, the industries where
 the census disagrees most with the carried-forward detail mix.*
 
@@ -333,7 +353,7 @@ on every year's build and refuse to save on breach.*
 | Import matrix row control | exact at both published benchmarks |
 | Margins layered identities (basic → producer → purchaser) | close at $0.00 per cell at 2017, 2012, and 2012 on the 2017 anchor |
 | Cost of the frozen 2017 margin rates, measured at 2012 | 2.06% of goods mass; 25.0% of margin-row placement |
-| Production gates, all six years 2018-2023 | buyer totals preserved, margin mass conserved to $0.000M, value-added collapse exact, import allocation exact — all at a $1M bar |
+| Production gates, all seven years 2018-2024 | buyer totals preserved, margin mass conserved to $0.000M, value-added collapse exact, import allocation exact — all at a $1M bar |
 
 All four tables are stored per year, before and after redefinitions, in the
 shared artifact store, and the model build reads them through a configurable
@@ -407,7 +427,7 @@ separately for exactly that reason.
 ## 7. Conclusions and Next Steps
 
 **The pipeline is complete and its products exist.** Annual detail Supply
-and Use tables for 2017-2023 balance exactly under the accounting
+and Use tables for 2017-2024 balance exactly under the accounting
 identities; each year converts to the four Make-Use products before and
 after redefinitions; all artifacts are stored and loadable by the model
 build. Every conversion rule that could be graded on a published benchmark
@@ -423,6 +443,18 @@ deliberate: from 2022, the detail industry mix follows the 2022 Economic
 Census, an observation the published series has not yet incorporated, with
 over a hundred industries corrected by more than 5%.
 
+**2024 closed the span.** The Annual Integrated Economic Survey published
+its 2024 reference year on 3 September 2026, which was the last outstanding
+source: it carries the wholesale and retail gross margin, trucking and
+pipeline freight revenue, and the inventories the trade margin, the
+transport margin and the change-in-inventories column were waiting on.
+Taking it was not a drop-in — Census had retired the API path the extracts
+used, for every year, and moved the gross-margin measure to a different
+dataset — but the year it produced is continuous with its predecessors on
+every diagnostic in this report: coverage and accuracy within a few tenths
+of 2023, grand totals within 0.02%, and an industry-output gap that repeats
+2022's census correction rather than growing.
+
 **Next steps.**
 
 1. **Diagnose what the balance moved.** The seed-versus-balanced figure
@@ -436,7 +468,16 @@ over a hundred industries corrected by more than 5%.
 3. **Refine the two measured conversion limitations**: the import valuation
    basis for nowcast years, and the year-specific split of sales taxes out
    of trade margins.
-4. **Phase 2**: the 2025 tables after BEA's annual update, a retrospective
-   refresh of 2018-2024 on the revised vintage, and the reallocation of the
-   remaining government enterprises into the private industries they
+4. **Phase 2 — review, refinement and documentation.** With the span
+   complete there is no year left to add before BEA's annual update, so the
+   work changes kind: the accuracy of allocations inside columns whose
+   totals are already right, the balance and validation debt (the
+   uncalibrated balancing weights, the margin columns that stop netting to
+   zero under the balance, the 2017 benchmark replay), and a written method
+   statement for the delivered series.
+
+5. **Deferred, evaluated separately**: the 2025 tables after BEA's annual
+   update, which also revises 2018-2024 retrospectively and so means
+   re-running the series rather than appending a year; and the reallocation
+   of the remaining government enterprises into the private industries they
    produce in.

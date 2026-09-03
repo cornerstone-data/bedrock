@@ -37,7 +37,7 @@ from bedrock.transform.iot.derived_intermediate_and_value_added import (
 from bedrock.utils.config.settings import FBS_DIR
 
 _B = 1e9
-YEARS = tuple(range(2017, 2024))
+YEARS = tuple(range(2017, 2025))
 
 #: Divergences below both of these are reported as agreement, not difference.
 RELATIVE_FLOOR = 0.01
