@@ -181,7 +181,7 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
 
     ``usa_ghg_data_year`` selects the inventory-year method stem. For 2024,
     ``usa_detail_io_source`` distinguishes published BEA Use attribution
-    (``GHG_national_Cornerstone_BEA_2024``) from nowcast Use attribution
+    (``GHG_national_Cornerstone_2024``) from nowcast Use attribution
     (``GHG_national_Cornerstone_2024``). Other years use the bare year stem
     (nowcast Use attribution in the method YAML).
 
@@ -190,9 +190,9 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
-    if year == 2024 and usa.usa_detail_io_source == 'bea_published':
-        return 'GHG_national_Cornerstone_BEA_2024'
-    return f'GHG_national_Cornerstone_{year}'
+    if usa.usa_detail_io_source == 'bea_published':
+        return f'GHG_national_Cornerstone_{year}'
+    return f'GHG_national_Cornerstone_nowcast_{year}'
 
 
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
@@ -230,7 +230,7 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
     ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
-    name such as ``GHG_national_Cornerstone_BEA_2024``) are loaded directly
+    name such as ``GHG_national_Cornerstone_2024``) are loaded directly
     instead (used by use_cornerstone_ghg_model).
 
     Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
