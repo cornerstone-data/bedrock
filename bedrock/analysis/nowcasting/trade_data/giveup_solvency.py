@@ -96,7 +96,7 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary impo
 )
 
 #: The span both our seed and the published summary tables cover.
-SPAN = (2017, 2018, 2019, 2020, 2021, 2022, 2023)
+SPAN = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
 
 #: Summary commodity codes whose published ``Trade`` cell is a give-up.
 #: ``42`` is all ten wholesale givers; retail spreads over four groups.

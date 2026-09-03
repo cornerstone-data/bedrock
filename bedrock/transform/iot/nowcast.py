@@ -101,19 +101,25 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 TRADE_OVERLAY_YEARS = range(2017, 2025)
 
 #: Years with an ``Inventories_<year>`` method supplying ``F03000`` (#529,
-#: #746). Stops at 2023 because the Economic Census product mix the trade
-#: branch attributes on is interpolated between the 2017 and 2022 vintages and
-#: held after, and because ``U50705BU1`` is the level for every year: 2024
-#: needs the next AIES release the same way ``TRANSPORT_MARGIN_YEARS`` does.
-INVENTORIES_YEARS = range(2017, 2024)
+#: #746).
+#:
+#: ⚠️ **This used to stop at 2023, and the reason given was wrong.** The note
+#: here said 2024 "needs the next AIES release the same way
+#: ``TRANSPORT_MARGIN_YEARS`` does". It does not, and never did: the level comes
+#: from NIPA ``U50705BU1`` plus ``T50705B``, both extracted through 2024, the
+#: farm commodity split from ``USDA_ERS_FIWS``, which runs to 2025, and the
+#: trade and manufacturing weights from ``Census_EC_PxI`` on the 2022 vintage
+#: held forward - which is deliberate, since no annual survey observes which
+#: goods a wholesaler holds. 2024 was a missing method file, not a missing
+#: source.
+INVENTORIES_YEARS = range(2017, 2025)
 
 #: Years the transport margin can be built for. Truck and pipeline come from
-#: the Service Annual Survey through 2022 and from AIES for 2023, which is the
-#: last published year: ``aies/basic`` and ``aies/miscsector`` both return 204
-#: for 2024. Rail (16.5%) and water/air (3.8%) reach 2024 on STB and FAF, but
-#: truck and pipeline are 79.7% of the column between them, so 2024 has no
-#: transport margin until the next AIES release.
-TRANSPORT_MARGIN_YEARS = range(2017, 2024)
+#: the Service Annual Survey through 2022 and from AIES from 2023; rail comes
+#: from STB and water/air from AIES with FAF volume bridging the survey seam.
+#: ✅ The 2024 AIES released 2026-09-03, so every mode is observed across the
+#: span and no leg of the column is extrapolated.
+TRANSPORT_MARGIN_YEARS = range(2017, 2025)
 
 # Same 12 codes as analysis ``SUPPLY_BRIDGE_CODES``. Kept here so nowcast does
 # not import sections (sections already lazy-imports this module).

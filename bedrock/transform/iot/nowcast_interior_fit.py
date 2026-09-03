@@ -101,8 +101,9 @@ MAX_ITERATIONS = 20_000
 EMPTY_AXIS_USD = 1e6
 
 #: Years the fit runs for — bounded by the margins, all of which now cover
-#: the span.
-FIT_YEARS: tuple[int, ...] = tuple(range(2017, 2024))
+#: the span. ✅ 2024 joined once the AIES release of 2026-09-03 sourced the
+#: trade and transport margins and F03000.
+FIT_YEARS: tuple[int, ...] = tuple(range(2017, 2025))
 
 #: How many support-infeasible axes the fit may relax (hold and report) before
 #: giving up. Each relaxation is one axis whose target is unreachable on its
@@ -218,8 +219,7 @@ def fit_interior(
     if int(year) not in FIT_YEARS:
         raise ValueError(
             f'the interior fit runs for {FIT_YEARS[0]}-{FIT_YEARS[-1]}; got '
-            f'{year}. The bound is the margins, all of which stop at 2023 '
-            f'(transport and inventories wait on the next AIES release).'
+            f'{year}. The bound is the margins.'
         )
     if seed is None:
         from bedrock.transform.iot.nowcast import (  # noqa: PLC0415
