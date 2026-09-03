@@ -657,6 +657,25 @@ def replace_sectors_with_targetsectors(
             continue
         # merge df with the melted sector crosswalk
         df = df.merge(cw_melt, left_on=c, right_on='NAICS', how='left')
+        matched = df['allocation_ratio'].notna()
+        if matched.any():
+            ratio_sums = (
+                df.loc[matched, ['NAICS', targetsectorsourcename, 'allocation_ratio']]
+                .drop_duplicates()
+                .groupby('NAICS')['allocation_ratio']
+                .sum()
+            )
+            not_one = ratio_sums[~np.isclose(ratio_sums.to_numpy(dtype=float), 1.0)]
+            if len(not_one):
+                details = ', '.join(f'{src}={val}' for src, val in not_one.items())
+                raise ValueError(
+                    f'NAICS year conversion allocation_ratio does not sum to 1 '
+                    f'for source sector(s): {details}'
+                )
+        unmatched = df[c].isin(non_naics) & df['allocation_ratio'].isna()
+        if unmatched.any():
+            missing = sorted(df.loc[unmatched, c].astype(str).unique())
+            log.warning(f'No allocation_ratio for NAICS year conversion of: {missing}')
         # if there is a value in the sectorsourcename column,
         # use that value to replace sector in column c if value in
         # column c is in the non_naics list
@@ -894,6 +913,8 @@ def convert_naics_year(
                     columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
                 )
                 if pre_group_totals is not None:
+                    # Convert already scaled FlowAmount by allocation_ratio.
+                    # Restore group_total only; it is the residual checksum.
                     df2['group_total'] = df2['group_id'].map(pre_group_totals)
             else:
                 df2 = (
