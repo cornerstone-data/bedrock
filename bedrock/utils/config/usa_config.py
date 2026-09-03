@@ -233,6 +233,19 @@ class USAConfig(BaseModel):
                     'apply_io_year_adjustments is incompatible with '
                     "usa_detail_io_source 'nowcast'"
                 )
+            if self.usa_ghg_data_year != self.usa_base_io_data_year:
+                raise ValueError(
+                    'usa_ghg_data_year must equal usa_base_io_data_year when '
+                    "usa_detail_io_source is 'nowcast' (x is the nowcast Make row "
+                    'sum and exists for that year only, so E must match it); '
+                    f'got usa_ghg_data_year={self.usa_ghg_data_year}, '
+                    f'usa_base_io_data_year={self.usa_base_io_data_year}'
+                )
+            if self.deflate_x_to_detail_io_year_for_B:
+                raise ValueError(
+                    'deflate_x_to_detail_io_year_for_B is incompatible with '
+                    "usa_detail_io_source 'nowcast' (no intermediate dollar year)"
+                )
         return self
 
     #####
@@ -261,7 +274,11 @@ class USAConfig(BaseModel):
 
     @property
     def use_ghg_year_x_in_B(self) -> bool:
-        """B's denominator x is gross output at ``usa_ghg_data_year``."""
+        """B's denominator x is gross output at ``usa_ghg_data_year``.
+
+        Under ``usa_detail_io_source == 'nowcast'`` the B path reads x from the
+        nowcast Make regardless of this flag.
+        """
         return self.apply_io_year_adjustments or self.use_E_data_year_for_x_in_B
 
     def to_dict(self) -> dict[str, object]:

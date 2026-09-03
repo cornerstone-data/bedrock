@@ -44,7 +44,7 @@ def isolated_fbs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterato
 def test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference(
     isolated_fbs_dir: Path,
 ) -> None:
-    """Regenerated GHG_national_Cornerstone_2024 matches the pinned GCS parquet."""
+    """Regenerated GHG_national_Cornerstone_BEA_2024 matches the pinned GCS parquet."""
     fbs_dir = isolated_fbs_dir
     pin = load_cornerstone_ghg_fbs_pin()
     method = pin['method']

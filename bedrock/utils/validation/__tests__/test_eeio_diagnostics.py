@@ -527,6 +527,21 @@ def test_eeio_year_alignment_precondition_fails_loud() -> None:
         assert_eeio_year_alignment_precondition(cfg)
 
 
+def test_eeio_year_alignment_precondition_accepts_nowcast() -> None:
+    """Nowcast is aligned by construction: x is the Make row sum at the GHG year."""
+    cfg = USAConfig.model_validate(
+        {
+            'usa_detail_io_source': 'nowcast',
+            'usa_base_io_data_year': 2023,
+            'model_base_year': 2023,
+            'usa_ghg_data_year': 2023,
+        },
+        strict=True,
+    )
+    assert not cfg.use_ghg_year_x_in_B
+    assert_eeio_year_alignment_precondition(cfg)
+
+
 def test_toy_lci_passes_when_LCI_equals_E_c() -> None:
     m = _toy_lci_matrices()
     result = compare_E_and_LCI_result(
