@@ -131,10 +131,32 @@ def main(*, inflate_to: int = COMPARE_DOLLAR_YEAR) -> None:
         )
     ax.axhline(1.0, color='black', lw=0.8, ls='--', alpha=0.6)
     ax.set_xlabel('Model year (nowcast IO + GHG)')
-    ax.set_ylabel(f'N index ({base_year} = 1), {inflate_to}$ denominators')
-    ax.set_title(f'Key-sector total EF (N), indexed to {base_year}=1')
-    ax.legend(loc='best', fontsize=8, ncol=2)
+    ax.set_ylabel(f'N index ({base_year} = 1)')
+    ax.set_title(
+        f'Key-sector total EF (N), indexed to {base_year}=1 '
+        f'({inflate_to}$ denominators)'
+    )
+    # Legend below the axes so it never covers a data point.
+    ax.legend(
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.14),
+        ncol=5,
+        fontsize=8,
+        frameon=False,
+    )
     ax.set_xticks(list(NOWCAST_YEARS))
+    # Freeze the index ticks, then mirror them on a right-hand axis as % change
+    # from the base year so both scales share one set of dotted gridlines.
+    y_lo, y_hi = ax.get_ylim()
+    ticks = [t for t in ax.get_yticks() if y_lo <= t <= y_hi]
+    ax.set_yticks(ticks)
+    ax.set_ylim(y_lo, y_hi)
+    ax.grid(axis='y', color='gray', ls=':', lw=0.8, alpha=0.8)
+    ax2 = ax.twinx()
+    ax2.set_ylim(y_lo, y_hi)
+    ax2.set_yticks(ticks)
+    ax2.set_yticklabels([f'{(t - 1.0) * 100:+.0f}%' for t in ticks])
+    ax2.set_ylabel(f'% change vs {base_year}')
     fig.tight_layout()
     idx_png = OUT_DIR / f'key_sector_N_series_indexed_to_{base_year}.png'
     fig.savefig(idx_png, dpi=150, bbox_inches='tight')
