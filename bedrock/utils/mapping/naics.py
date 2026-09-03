@@ -738,6 +738,24 @@ def convert_naics_year(
     ):
         column_headers += ['ActivityProducedBy', 'ActivityConsumedBy']
 
+    # used to ensure that the group_totals for each group_id do not change after naics year conversion
+    pre_group_totals = None
+    pre_flow_sums = None
+    if (
+        "NAICS" in activity_schema
+        and getattr(df_load, 'config', {}).get('sector_hierarchy')
+        == 'parent-incompleteChild'
+        and 'group_id' in df_load.columns
+        and 'group_total' in df_load.columns
+    ):
+        pre_group_totals = df_load.drop_duplicates(subset=['group_id']).set_index(
+            'group_id'
+        )['group_total']
+        # Only when converting years: catch merge inflation (per-group FlowAmount
+        # must match pre-convert; not compared to group_total).
+        if targetsectorsourcename != sectorsourcename:
+            pre_flow_sums = df_load.groupby('group_id')['FlowAmount'].sum()
+
     # load the mastercrosswalk and subset by sectorsourcename,
     # save values to list
     if targetsectorsourcename == sectorsourcename:
@@ -843,6 +861,8 @@ def convert_naics_year(
                 df2 = df.aggregate_flowby(
                     columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
                 )
+                if pre_group_totals is not None:
+                    df2['group_total'] = df2['group_id'].map(pre_group_totals)
             else:
                 df2 = (
                     df.drop(columns=['group_id', 'group_total']).aggregate_flowby(
