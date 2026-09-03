@@ -747,12 +747,15 @@ class _FlowBy(pd.DataFrame):
         # check flowamounts equal after aggregating
         self_flow = self['FlowAmount'].sum()
         agg_flow = aggregated['FlowAmount'].sum()
-        percent_inc = int(((agg_flow - self_flow) * 100) / self_flow)
-        if percent_inc > 0:
+        if not np.isclose(agg_flow, self_flow):
+            percent_diff = (
+                ((agg_flow - self_flow) / self_flow) * 100 if self_flow else np.nan
+            )
             log.warning(
                 'There is an error in aggregating dataframe, as new '
-                'flow totals do not match original dataframe '
-                'flowtotals, there is a {percent_inc}% difference.'
+                f'flow totals do not match original dataframe '
+                f'flowtotals, there is a {percent_diff:.6f}% difference '
+                f'(pre={self_flow}, post={agg_flow}).'
             )
 
         return aggregated  # type: ignore[return-value]
