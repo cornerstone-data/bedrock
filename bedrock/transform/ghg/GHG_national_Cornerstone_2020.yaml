@@ -711,6 +711,7 @@ source_names:
                     selection_fields:
                       Flowable: Petroleum
                       Class: Other
+                      # Allocated to asphalt sectors only
                       SectorConsumedBy:
                         - '324121'
                         - '324122'
@@ -748,6 +749,7 @@ source_names:
                       Flowable: Petroleum
                       Class: Other
                     exclusion_fields:
+                      # Skips petroleum products used for asphalt sectors
                       SectorConsumedBy:
                         - '324121'
                         - '324122'

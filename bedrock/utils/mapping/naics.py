@@ -555,6 +555,25 @@ def generate_naics_crosswalk_conversion_ratios(
     # Combine all ratios into a single DataFrame
     ratios_df = pd.concat(all_ratios, ignore_index=True)
 
+    # Sources that are already valid target-year codes do not need conversion
+    # fan-out. Truncation invents keys like "311" that collide with real
+    # target-year aggregates and inflate FlowAmount on merge.
+    valid_targets = set(ratios_df['target'].dropna().unique())
+    ratios_df = ratios_df[~ratios_df['source'].isin(valid_targets)]
+    # Keep 1:1 identity rows so cw_list still recognizes those codes as
+    # already-valid target-year NAICS (merge stays one row, ratio 1).
+    target_list = list(valid_targets)
+    identity = pd.DataFrame(
+        {
+            'source': target_list,
+            'target': target_list,
+            'naics_count': 1,
+            'allocation_ratio': 1.0,
+            'length': [len(str(s)) for s in target_list],
+        }
+    )
+    ratios_df = pd.concat([ratios_df, identity], ignore_index=True)
+
     # TODO: modify how unofficial sectors are added - ensure correct mapping between years
     # append the unofficial sector codes
     year_match = re.search(r'\d+', sectorsourcename)
@@ -638,6 +657,25 @@ def replace_sectors_with_targetsectors(
             continue
         # merge df with the melted sector crosswalk
         df = df.merge(cw_melt, left_on=c, right_on='NAICS', how='left')
+        matched = df['allocation_ratio'].notna()
+        if matched.any():
+            ratio_sums = (
+                df.loc[matched, ['NAICS', targetsectorsourcename, 'allocation_ratio']]
+                .drop_duplicates()
+                .groupby('NAICS')['allocation_ratio']
+                .sum()
+            )
+            not_one = ratio_sums[~np.isclose(ratio_sums.to_numpy(dtype=float), 1.0)]
+            if len(not_one):
+                details = ', '.join(f'{src}={val}' for src, val in not_one.items())
+                raise ValueError(
+                    f'NAICS year conversion allocation_ratio does not sum to 1 '
+                    f'for source sector(s): {details}'
+                )
+        unmatched = df[c].isin(non_naics) & df['allocation_ratio'].isna()
+        if unmatched.any():
+            missing = sorted(df.loc[unmatched, c].astype(str).unique())
+            log.warning(f'No allocation_ratio for NAICS year conversion of: {missing}')
         # if there is a value in the sectorsourcename column,
         # use that value to replace sector in column c if value in
         # column c is in the non_naics list
@@ -710,8 +748,32 @@ def convert_naics_year(
                     lambda x: x.split(".")[0] if isinstance(x, str) else x
                 )
 
-    if "NAICS" in activity_schema and "ActivityProducedBy" in df_load.columns:
+    # parent-incompleteChild: sectors already mapped; converting activities would duplicate values under one group_id.
+    if (
+        "NAICS" in activity_schema
+        and "ActivityProducedBy" in df_load.columns
+        and getattr(df_load, 'config', {}).get('sector_hierarchy')
+        != 'parent-incompleteChild'
+    ):
         column_headers += ['ActivityProducedBy', 'ActivityConsumedBy']
+
+    # used to ensure that the group_totals for each group_id do not change after naics year conversion
+    pre_group_totals = None
+    pre_flow_sums = None
+    if (
+        "NAICS" in activity_schema
+        and getattr(df_load, 'config', {}).get('sector_hierarchy')
+        == 'parent-incompleteChild'
+        and 'group_id' in df_load.columns
+        and 'group_total' in df_load.columns
+    ):
+        pre_group_totals = df_load.drop_duplicates(subset=['group_id']).set_index(
+            'group_id'
+        )['group_total']
+        # Only when converting years: catch merge inflation (per-group FlowAmount
+        # must match pre-convert; not compared to group_total).
+        if targetsectorsourcename != sectorsourcename:
+            pre_flow_sums = df_load.groupby('group_id')['FlowAmount'].sum()
 
     # load the mastercrosswalk and subset by sectorsourcename,
     # save values to list
@@ -788,6 +850,38 @@ def convert_naics_year(
         )
         nonsectors = check_if_sectors_are_naics(df, cw_list, column_headers)
 
+    # Before dropping unconverted sectors: year convert must conserve FlowAmount
+    # per group_id
+    if pre_flow_sums is not None and 'group_id' in df.columns:
+        post_flow_sums = df.groupby('group_id')['FlowAmount'].sum()
+        shared = pre_flow_sums.index.intersection(post_flow_sums.index)
+        mismatched = shared[
+            ~np.isclose(
+                pre_flow_sums.loc[shared].to_numpy(dtype=float),
+                post_flow_sums.loc[shared].to_numpy(dtype=float),
+            )
+        ]
+        missing = pre_flow_sums.index.difference(post_flow_sums.index)
+        missing_nonzero = missing[
+            ~np.isclose(pre_flow_sums.loc[missing].to_numpy(dtype=float), 0.0)
+        ]
+        if len(mismatched) or len(missing_nonzero):
+            details = []
+            for gid in mismatched:
+                details.append(
+                    f'group_id={gid}: pre_flow={pre_flow_sums.loc[gid]}, '
+                    f'post_flow={post_flow_sums.loc[gid]}'
+                )
+            for gid in missing_nonzero:
+                details.append(
+                    f'group_id={gid}: pre_flow={pre_flow_sums.loc[gid]}, '
+                    f'post=missing'
+                )
+            raise ValueError(
+                f'NAICS year conversion did not conserve FlowAmount for '
+                f'{dfname}: ' + '; '.join(details)
+            )
+
     if len(nonsectors) != 0:
         log.info(f'Dropping non {targetsectorsourcename}s from dataframe: {nonsectors}')
         for c in column_headers:
@@ -805,12 +899,30 @@ def convert_naics_year(
     # aggregate data
     if hasattr(df, 'aggregate_flowby'):
         if "NAICS" in activity_schema:
-            df2 = (
-                df.drop(columns=['group_id', 'group_total']).aggregate_flowby(
-                    columns_to_group_by=df.groupby_cols  # type: ignore[operator]
+            preserve_group_id = (
+                getattr(df, 'config', {}).get('sector_hierarchy')
+                == 'parent-incompleteChild'
+                and 'group_id' in df.columns
+            )
+            if preserve_group_id:
+                # MECS parent-incompleteChild: keep original group_id through NAICS
+                # year conversion so proportional BEA attribution conserves mass
+                # across crosswalk fan-out rows. QCEW and other NAICS-like sources
+                # use the default branch below (many:1 merge, new group_id per row).
+                df2 = df.aggregate_flowby(
+                    columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
                 )
-            ).reset_index(drop=True)
-            df2 = df2.assign(group_id=df2.index, group_total=df2['FlowAmount'])
+                if pre_group_totals is not None:
+                    # Convert already scaled FlowAmount by allocation_ratio.
+                    # Restore group_total only; it is the residual checksum.
+                    df2['group_total'] = df2['group_id'].map(pre_group_totals)
+            else:
+                df2 = (
+                    df.drop(columns=['group_id', 'group_total']).aggregate_flowby(
+                        columns_to_group_by=df.groupby_cols  # type: ignore[operator]
+                    )
+                ).reset_index(drop=True)
+                df2 = df2.assign(group_id=df2.index, group_total=df2['FlowAmount'])
         else:
             df2 = df.aggregate_flowby(
                 columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]

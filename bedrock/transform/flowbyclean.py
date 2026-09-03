@@ -20,6 +20,7 @@ from bedrock.utils.mapping.geo import (
 from bedrock.utils.mapping.location import US_FIPS
 from bedrock.utils.mapping.naics import (
     map_source_sectors_to_more_aggregated_sectors,
+    subset_sector_key,
 )
 from bedrock.utils.validation.validation import (
     compare_summation_at_sector_lengths_between_two_dfs,
@@ -656,13 +657,26 @@ def drop_parentincompletechild_descendants(
     the dataset, a row mapping 3112 to 311221 will not be dropped, since no
     more detailed information on 311221 is given. Further attribution/
     disaggregation should be done using another datatset such as the QCEW.
+
+    Also drops when the target is an ancestor of a published descendant (e.g.
+    parent residual mapped to NAICS-5 32511 while 325110 is published).
     '''
+
+    def _overlaps_published(target: str, descendants: str) -> bool:
+        t = str(target)
+        for d in descendants.split():
+            if not d:
+                continue
+            d = str(d)
+            if t.startswith(d) or d.startswith(t):
+                return True
+        return False
 
     fba2 = (
         fba.assign(
             to_keep=fba.apply(
-                lambda x: not any(
-                    [str(x[sector_col]).startswith(d) for d in x.descendants.split()]
+                lambda x: not _overlaps_published(
+                    str(x[sector_col]), str(x.descendants)
                 ),
                 axis='columns',
             )
@@ -672,6 +686,74 @@ def drop_parentincompletechild_descendants(
     )
 
     return fba2
+
+
+def map_parentincompletechild_sectors(
+    fba: FlowByActivity,
+    *,
+    activity_col: str,
+    sector_col: str,
+    sector_type_col: str,
+    source_year: int,
+    primary_sector_key: pd.DataFrame,
+    secondary_sector_key: pd.DataFrame | None,
+    naics_key: pd.DataFrame,  # noqa: ARG001 — kept for caller API stability
+) -> FlowByActivity:
+    '''
+    Map parent-incompleteChild activities (MECS) at industry_spec resolution,
+    then drop rows whose sector target overlaps a published descendant
+    (bidirectional prefix check fixes ancestor rollup cases such as 32511 vs
+    published 325110).
+    '''
+    merge_on = [
+        'Class',
+        'Flowable',
+        'Context',
+        'ActivityProducedBy',
+        'ActivityConsumedBy',
+    ]
+    fba = define_parentincompletechild_descendants(fba, activity_col=activity_col)
+    crosswalk = subset_sector_key(
+        fba,
+        activity_col,
+        str(source_year),
+        primary_sector_key=primary_sector_key,
+        secondary_sector_key=secondary_sector_key,
+    )
+    mapped = (
+        fba.merge(crosswalk, how='left', on=merge_on)
+        .rename(
+            columns={
+                'target_naics': sector_col,
+                'Sector': sector_col,
+                'SectorType': sector_type_col,
+            }
+        )
+        .drop(
+            columns=[
+                'ActivitySourceName',
+                'SectorSourceName',
+                'source_naics',
+                'Activity',
+            ],
+            errors='ignore',
+        )
+    )
+    for c in ['DataReliability', 'DataCollection']:
+        if f'{c}_y' in mapped.columns:
+            mapped.loc[mapped[f'{c}_y'].notnull(), f'{c}_x'] = mapped[f'{c}_y']
+            mapped = mapped.drop(columns=[f'{c}_y']).rename(columns={f'{c}_x': c})
+    mapped = drop_parentincompletechild_descendants(mapped, sector_col=sector_col)
+    if 'group_id' in mapped.columns and 'group_total' in mapped.columns:
+        mapped['group_total'] = mapped.groupby('group_id')['group_total'].transform(
+            'first'
+        )
+    return FlowByActivity(
+        mapped,
+        full_name=fba.full_name,
+        config=fba.config,
+        w_sector=True,
+    )
 
 
 @deprecated("No known use")

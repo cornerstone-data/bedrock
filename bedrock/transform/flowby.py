@@ -747,12 +747,15 @@ class _FlowBy(pd.DataFrame):
         # check flowamounts equal after aggregating
         self_flow = self['FlowAmount'].sum()
         agg_flow = aggregated['FlowAmount'].sum()
-        percent_inc = int(((agg_flow - self_flow) * 100) / self_flow)
-        if percent_inc > 0:
+        if not np.isclose(agg_flow, self_flow):
+            percent_diff = (
+                ((agg_flow - self_flow) / self_flow) * 100 if self_flow else np.nan
+            )
             log.warning(
                 'There is an error in aggregating dataframe, as new '
-                'flow totals do not match original dataframe '
-                'flowtotals, there is a {percent_inc}% difference.'
+                f'flow totals do not match original dataframe '
+                f'flowtotals, there is a {percent_diff:.6f}% difference '
+                f'(pre={self_flow}, post={agg_flow}).'
             )
 
         return aggregated  # type: ignore[return-value]
@@ -1237,7 +1240,9 @@ class _FlowBy(pd.DataFrame):
                     denominator=(
                         merged.assign(
                             FlowAmount_other=(
-                                merged.FlowAmount_other * denominator_flag
+                                merged.FlowAmount
+                                * merged.FlowAmount_other
+                                * denominator_flag
                             )
                         )
                         .groupby(groupby_cols)['FlowAmount_other']
@@ -1288,10 +1293,14 @@ class _FlowBy(pd.DataFrame):
                             ).to_string()
                         )
                     )
-
+                # must include group_total in this formula as a weight for the specific case of
+                # parent-incompleteChild data combined with requiring a sector year conversion
                 proportionally_attributed = non_zero_denominator.assign(
                     FlowAmount=lambda x: (
-                        x.FlowAmount * x.FlowAmount_other / x.denominator
+                        x.group_total
+                        * x.FlowAmount
+                        * x.FlowAmount_other
+                        / x.denominator
                     )
                 )
 
@@ -1664,6 +1673,17 @@ class _FlowBy(pd.DataFrame):
                 .drop(columns=naics_key.columns.values.tolist())
             )
             groupby_cols.append(f'{rank}Sector')
+
+        # must include group_total in this formula as a weight for the specific case of
+        # parent-incompleteChild data combined with requiring a sector year conversion
+        split_sum = fba.groupby('group_id')['FlowAmount'].transform('sum')
+        fba = fba.assign(
+            FlowAmount=lambda x: np.where(
+                split_sum != 0,
+                x.group_total * x.FlowAmount / split_sum,
+                x.FlowAmount,
+            )
+        )
 
         return fba.drop(
             columns=[
