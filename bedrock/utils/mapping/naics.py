@@ -555,6 +555,25 @@ def generate_naics_crosswalk_conversion_ratios(
     # Combine all ratios into a single DataFrame
     ratios_df = pd.concat(all_ratios, ignore_index=True)
 
+    # Sources that are already valid target-year codes do not need conversion
+    # fan-out. Truncation invents keys like "311" that collide with real
+    # target-year aggregates and inflate FlowAmount on merge.
+    valid_targets = set(ratios_df['target'].dropna().unique())
+    ratios_df = ratios_df[~ratios_df['source'].isin(valid_targets)]
+    # Keep 1:1 identity rows so cw_list still recognizes those codes as
+    # already-valid target-year NAICS (merge stays one row, ratio 1).
+    target_list = list(valid_targets)
+    identity = pd.DataFrame(
+        {
+            'source': target_list,
+            'target': target_list,
+            'naics_count': 1,
+            'allocation_ratio': 1.0,
+            'length': [len(str(s)) for s in target_list],
+        }
+    )
+    ratios_df = pd.concat([ratios_df, identity], ignore_index=True)
+
     # TODO: modify how unofficial sectors are added - ensure correct mapping between years
     # append the unofficial sector codes
     year_match = re.search(r'\d+', sectorsourcename)
