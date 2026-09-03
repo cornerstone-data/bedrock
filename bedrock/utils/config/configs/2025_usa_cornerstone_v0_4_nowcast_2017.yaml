@@ -3,6 +3,8 @@
 # Detail MUT from NowcastMUT after-redefinition artifacts, not published BEA
 # detail. Methodology mirrors v0.3 full-model flags except IO year adjustments
 # (forbidden when usa_detail_io_source is nowcast).
+# x and q are row and column sums of that after-redef Make; B is not
+# year-scaled or inflated.
 #
 # nowcast_mut_vintage omitted: loaders pick the most recent GCS Make upload for
 # this year/stage. Pin explicitly when a release needs a fixed build.
