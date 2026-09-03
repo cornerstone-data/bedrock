@@ -112,6 +112,24 @@ from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 #: below 1 million, so a violation at or under this is rounding, not signal.
 DUST_USD_M = 1.0
 
+#: Sweep bound for **sign-lock** violations, in $M — deliberately looser than
+#: :data:`DUST_USD_M`.
+#:
+#: ⚠️ **The two bounds answer different questions.** The structural-zero bound
+#: is BEA's publication grain: a published cell is never smaller than $1M, so a
+#: contradiction under that is rounding. But the sign-locked rows are not
+#: published at detail at all - ``T00OSUB`` is a summary Use SUT row allocated
+#: across detail industries on compensation shares - so there is no $1M grain to
+#: appeal to and the meaningful floor is an order coarser.
+#:
+#: The case that set it: 2024 ``T00OSUB`` for air transportation comes out at
+#: **+2.0 $M** in a row totalling **-4,884 $M** whose largest cell is -2,408.9,
+#: as the pandemic payroll support is clawed back and the allocation leaves a
+#: sliver on the wrong side of zero. It is the only sign-lock violation anywhere
+#: in 2017-2024. Holding a number that size to a sign is asserting something the
+#: allocation cannot support, so it is swept to zero like any other dust.
+SIGN_DUST_USD_M = 10.0
+
 #: The bridge derivation labels its trade column without BEA's trailing space.
 _BRIDGE_RENAMES = {'TRADE': 'TRADE '}
 
@@ -247,14 +265,23 @@ def conform_seeds(
     seeds: dict[str, pd.DataFrame],
     masks: dict[str, SutMask],
     dust_usd_m: float = DUST_USD_M,
+    sign_dust_usd_m: float | None = None,
 ) -> pd.DataFrame:
-    """Zero mask-contradicting seed cells at or under *dust_usd_m*, in place.
+    """Zero mask-contradicting seed cells at or under the dust bound, in place.
 
     Returns the sweep: one row per swept **or surviving** violation, with the
     block, cell, value and which layer it contradicts. Survivors (above the
     threshold) are not touched - the balance machinery will refuse them, and
     that refusal is the honest failure. The precheck prints this frame.
+
+    ⚠️ **Sign-lock violations take their own, looser bound**
+    (:data:`SIGN_DUST_USD_M`), because the sign-locked rows are allocated to
+    detail rather than published at it and so have no $1M grain to appeal to.
+    Pass *sign_dust_usd_m* to override; it defaults to that constant.
     """
+    if sign_dust_usd_m is None:
+        sign_dust_usd_m = SIGN_DUST_USD_M
+    bounds = {'structural_zero': dust_usd_m, 'sign_lock': sign_dust_usd_m}
     records = []
     for block, seed in seeds.items():
         mask = masks[block]
@@ -266,7 +293,7 @@ def conform_seeds(
         for kind, bad in (('structural_zero', bad_zero), ('sign_lock', bad_sign)):
             for r, c in zip(*bad.nonzero()):
                 value = float(values[r, c])
-                swept = abs(value) <= dust_usd_m
+                swept = abs(value) <= bounds[kind]
                 records.append(
                     {
                         'block': block,

@@ -227,6 +227,26 @@ def load_pipeline_crosswalk() -> pd.DataFrame:
     return pd.read_csv(PIPELINE_CROSSWALK_PATH, dtype=str)
 
 
+def _survey_fba(source: str, year: int) -> pd.DataFrame:
+    """A survey FBA, preferring the published artifact over a live rebuild.
+
+    ⚠️ ``download_FBA_if_missing=True`` is deliberate, for the reason
+    :func:`~bedrock.transform.iot.nowcast_trade_margins._census_fba` records:
+    the default is ``False``, which makes the load order *local, then rebuild
+    from the live endpoint*, so a cache miss goes straight to the network and a
+    bad response surfaces from deep inside ``pandas``. With the flag the order
+    is *local, then the published GCS artifact, then rebuild*.
+
+    ⚠️ **It is also what lets the tests run at all.** ``__tests__/conftest.py``
+    switches generation off in that directory, so the load order there is local
+    then GCS and nothing else - a source that never reaches the GCS step skips
+    instead of running. CI's data cache is keyed on the yaml hashes, so any
+    change to a source's yaml misses the cache and restores an older one, which
+    is exactly when a newly added year would silently stop being tested.
+    """
+    return getFlowByActivity(source, int(year), download_FBA_if_missing=True)
+
+
 def load_pipeline_item_revenue(year: int) -> pd.Series:
     """
     The four pipeline margin items' revenue for *year*, USD, from SAS Table 2.
@@ -240,11 +260,11 @@ def load_pipeline_item_revenue(year: int) -> pd.Series:
         # at TYPOP 00, and still partition to the dollar - the check below is
         # what enforces that, and it is the same check either side of the seam.
         source = 'Census_AIES'
-        fba = getFlowByActivity(source, year)
+        fba = _survey_fba(source, year)
         table2 = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
     else:
         source = 'Census_SAS'
-        fba = getFlowByActivity(source, year)
+        fba = _survey_fba(source, year)
         table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
 
     revenue = (
@@ -430,7 +450,7 @@ def load_rail_crosswalk() -> pd.DataFrame:
 
 def load_rail_revenue_by_stcc(year: int) -> pd.Series:
     """Released rail revenue per STCC5 for *year*, USD, from ``STB_CRSR``."""
-    fba = getFlowByActivity('STB_CRSR', year)
+    fba = _survey_fba('STB_CRSR', year)
     items = fba[
         ~fba['ActivityProducedBy'].str.contains(
             _CRSR_TOTAL_PATTERN, case=False, na=False
@@ -595,7 +615,7 @@ def load_truck_group_revenue(year: int) -> pd.Series:
     # strings, so everything below this dispatch is one implementation across
     # the seam - including the group names, which join the crosswalk unchanged.
     source = 'Census_AIES_MiscSector' if year >= FIRST_AIES_YEAR else 'Census_SAS'
-    fba = getFlowByActivity(source, year)
+    fba = _survey_fba(source, year)
     table8 = fba[
         fba['Description'].astype(str).str.startswith('Table 8')
         & (fba['ActivityProducedBy'].astype(str) == TRUCK_NAICS)
@@ -765,7 +785,7 @@ def load_difficulty_multipliers() -> pd.DataFrame:
 
 def load_faf_ton_miles(mode: str, year: int) -> pd.Series:
     """FAF ton-miles for one mode and year, per SCTG."""
-    fba = getFlowByActivity('BTS_FAF', year)
+    fba = _survey_fba('BTS_FAF', year)
     rows = fba[
         (fba['ActivityProducedBy'].astype(str) == mode)
         & (fba['Unit'] == TON_MILES_UNIT)
@@ -922,7 +942,7 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
     if mode_name == 'pipeline':
         return float(load_pipeline_item_revenue(year).sum())
     if mode_name == 'rail':
-        fba = getFlowByActivity('STB_CRSR', year)
+        fba = _survey_fba('STB_CRSR', year)
         rows = fba[fba['ActivityProducedBy'].astype(str).str.strip() == _CRSR_ALL_DATA]
         if rows.empty:
             raise ValueError(
@@ -932,7 +952,7 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
             )
         return float(rows['FlowAmount'].sum())
     if mode_name == 'air' and int(year) > _AIR_LAST_OBSERVED_REVENUE_YEAR:
-        return air_revenue_from_volume(year)
+        return air_freight_revenue_rebased(year)
     if mode_name in _SAS_FREIGHT_NAICS:
         codes = _SAS_FREIGHT_NAICS[mode_name]
         # Same seam as pipeline: SAS Table 2's detailed-NAICS revenue continues
@@ -940,11 +960,11 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
         # published there, so neither mode falls back to a parent industry.
         if year >= FIRST_AIES_YEAR:
             source = 'Census_AIES'
-            fba = getFlowByActivity(source, year)
+            fba = _survey_fba(source, year)
             table2 = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
         else:
             source = 'Census_SAS'
-            fba = getFlowByActivity(source, year)
+            fba = _survey_fba(source, year)
             table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
         revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
         found = set(revenue['ActivityProducedBy'].astype(str))
@@ -963,7 +983,7 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
 def _published_air_revenue(year: int) -> float:
     """Air freight revenue as published, USD. The 2022 anchor for the volume index."""
     codes = _SAS_FREIGHT_NAICS['air']
-    fba = getFlowByActivity('Census_SAS', int(year))
+    fba = _survey_fba('Census_SAS', year)
     table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
     revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
     found = set(revenue['ActivityProducedBy'].astype(str))
@@ -974,6 +994,70 @@ def _published_air_revenue(year: int) -> float:
             f'index.'
         )
     return float(revenue['FlowAmount'].sum())
+
+
+def _published_air_revenue_aies(year: int) -> float:
+    """Air freight revenue as AIES publishes it, USD."""
+    codes = _SAS_FREIGHT_NAICS['air']
+    fba = _survey_fba('Census_AIES', year)
+    sales = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
+    revenue = sales[sales['ActivityProducedBy'].astype(str).isin(codes)]
+    found = set(revenue['ActivityProducedBy'].astype(str))
+    if found != set(codes):
+        raise ValueError(
+            f'Census_AIES is missing air freight NAICS '
+            f'{sorted(set(codes) - found)} for {year}, which the re-based air '
+            f'series moves on.'
+        )
+    return float(revenue['FlowAmount'].sum())
+
+
+def air_freight_revenue_rebased(year: int) -> float:
+    """Air freight revenue for *year*, USD, after the AIES re-basing.
+
+    ✅ **2024 settled the question :func:`air_revenue_from_volume` left open.**
+    ``481212`` publishes 13,271 $M in AIES 2023 and 13,324 $M in 2024 - flat,
+    +0.4% - against 4,846 / 4,857 / 4,987 / 6,045 $M in SAS Table 2 across
+    2019-2022. A single bad year does not repeat at the same level, so the step
+    is a **re-based series**: AIES measures this industry differently from SAS,
+    and the 2022/2023 jump is a survey seam rather than a doubling of air
+    freight revenue.
+
+    That changes the right treatment, exactly as the docstring below predicted.
+    The two parts are now separated:
+
+    * **the seam itself, 2022 -> 2023, is still bridged on volume.** SAS ends at
+      2022 and AIES starts at 2023, so there is no overlap year and no link
+      ratio can be computed directly. Volume is the only basis both sides share,
+      and it is already air's commodity allocator.
+    * **movement from 2023 onward comes from AIES itself.** Within AIES the
+      basis is constant, so its own revenue movement is a real one and does not
+      need a proxy. Indexing 2024 off 2022 volume would instead let a survey
+      redefinition keep leaking into every later year.
+
+    So the level stays anchored to the pre-break SAS basis, and the series moves
+    on observed revenue once there is more than one year of it.
+
+    ⚠️ **This keeps 2023 unchanged.** Only 2024 and later differ from the
+    volume-indexed treatment.
+    """
+    year = int(year)
+    if year <= _AIR_LAST_OBSERVED_REVENUE_YEAR:
+        raise ValueError(
+            f'air_freight_revenue_rebased is for years after '
+            f'{_AIR_LAST_OBSERVED_REVENUE_YEAR}; {year} has a published SAS '
+            f'revenue and should use it.'
+        )
+    seam = air_revenue_from_volume(FIRST_AIES_YEAR)
+    if year == FIRST_AIES_YEAR:
+        return seam
+    base = _published_air_revenue_aies(FIRST_AIES_YEAR)
+    if base <= 0:
+        raise ValueError(
+            f'Census_AIES {FIRST_AIES_YEAR} air freight revenue is {base}, so '
+            f'the re-based series has no denominator.'
+        )
+    return seam * _published_air_revenue_aies(year) / base
 
 
 #: Last year air's freight revenue is taken as published. AIES 2023 is

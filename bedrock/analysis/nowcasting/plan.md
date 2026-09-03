@@ -1,6 +1,6 @@
 # Nowcast US IOT — plan, Phases 1 and 2
 
-Nowcasted national Supply/Use tables → Make/Use/Import/Margins deliverables, 2018-2025.
+Nowcasted national Supply/Use tables → Make/Use/Import/Margins deliverables, **2018-2024**.
 
 GitHub project: [cornerstone-data/projects/26 — "Nowcast US IOT Phase 1"](https://github.com/orgs/cornerstone-data/projects/26)
 (33 items, milestone `v0.5`). Its description: *"Draw on and further improve code from flowsa, USEEIO
@@ -19,18 +19,33 @@ onto `nowcast` after #569 passes, and the four commits worth salvaging from it l
 on `main`, which would recreate the duplicate-SHA situation `fix_non_naics_sector_levels` is already
 in.
 
-**Year scope is 2018-2025, split across two project phases:**
+**Year scope is 2018-2024.** ⚠️ **Re-cut 2026-09-03**, because the previous split was misleading
+about both its content and its dates: it made Phase 2 mean "2025" on an early-October deadline, while
+the thing actually left undone was 2024.
 
-| | Scope | Timing | Gate |
-|---|---|---|---|
-| **Phase 1** (this plan's main body) | build the pipeline; 2018-2024 | now → Sept 2026 | all source data already published |
-| **Phase 2** ([final section](#phase-2--2025-after-the-bea-annual-update)) | add 2025 **and** refresh 2018-2024 on the revised data | early Oct 2026 | BEA annual update, expected by **Sept 30, 2026** |
+| | Scope |
+|---|---|
+| **Phase 1** (this plan's main body) | build the pipeline; **2018-2024**. ✅ 2024 delivered end to end 2026-09-03 |
+| **Phase 2** ([section](#phase-2--review-refinement-and-documentation)) | **review, refinement and documentation** over the delivered 2018-2024 series |
+| **Deferred** ([section](#deferred--2025-after-the-bea-annual-update)) | **2025**, after the BEA annual update. A future step, evaluated separately — not scheduled |
 
-2025 is deliberately *not* in Phase 1: it sits beyond every published BEA annual table today — no
-summary MUT, no summary SUT, no detailed gross output — so it cannot be sourced or controlled the way
-2018-2024 can. The BEA annual update expected by Sept 30 closes that gap, and **also revises
-2018-2024 retrospectively**, so Phase 2 re-runs the whole series rather than only appending a year.
-Phase 1's outputs are therefore a working series, not a final one.
+**2024 was the last year of Phase 1 and it is built.** The 2024 Annual Integrated Economic Survey
+released 2026-09-03; it was the last outstanding source, and taking it carried 2024 through every step
+to a published dataset (PR [#844](https://github.com/cornerstone-data/bedrock/pull/844)). The balanced
+SUT pair and all four MUT tables, before and after redefinitions, are on GCS for 2024.
+
+⚠️ **Taking it was not a drop-in, and the reason is worth keeping.** Census had retired the
+`timeseries/aies/*` API path the extracts used — it returns 404 for *every* year, 2023 included — and
+moved gross margin onto a different dataset, where the variable it left behind is declared but returns
+null. Both defects were live before the release and invisible, because the two cached sources never
+called the API and only 2023 was cached. **A source that appears to work off a cache is not evidence
+that its endpoint still exists.**
+
+2025 sits beyond every published BEA annual table today — no summary MUT, no summary SUT, no detailed
+gross output — so it cannot be sourced or controlled the way 2018-2024 can. The BEA annual update
+closes that gap and **also revises 2018-2024 retrospectively**, so picking 2025 up means re-running
+the series rather than appending a year. That is why it is a separate evaluation rather than the next
+step.
 
 ## What we are building, and in what order
 
@@ -121,28 +136,23 @@ T018  = T005   + VABAS            # intermediate at purchaser + VA at basic
   tell you that you picked the wrong redefinition state. 5,740 of 161,604 intermediate cells differ;
   553,635 million moves gross; largest single cell shifts 42,893; net −7.
 
-**Summary SUT needs its 2023-2024 vintage loaded (small, do it early).** BEA publishes summary SUT for
-**2017-2024**, same span as summary MUT — but bedrock currently only has the **2017-2022** workbooks
-wired up: `USA_SUMMARY_SUT_MAPPING_2017_2022`
-([matrix_mappings.py:53-60](../../utils/taxonomy/bea/matrix_mappings.py#L53-L60)) is the only SUT
-mapping, and [`_load_usa_summary_sut`](../../extract/iot/io_2017.py#L766-L795) hardcodes it, so
-asking for 2023 or 2024 will fail on a missing sheet rather than fall back.
+✅ **Summary SUT 2023-2024 is loaded — this section is kept only for its justification.** BEA
+publishes summary SUT for 2017-2024, the same span as summary MUT, and bedrock now carries all of it:
+`USA_SUMMARY_SUT_MAPPING_1997_2024` with `USA_SUMMARY_SUT_YEARS` as its own literal
+([matrix_mappings.py:106-147](../../utils/taxonomy/bea/matrix_mappings.py#L106-L147)), and
+`_load_usa_summary_sut` takes the vintage-pinning branch past 2022. Older years stay pinned to the
+oldest file containing them, so BEA's historical revisions do not silently move values under existing
+consumers.
 
-The fix mirrors what summary MUT already does: add a `USA_SUMMARY_SUT_MAPPING_2017_2024` constant for
-the newer workbooks, upload them to `GCS_USA_SUP_DIR`, and give `_load_usa_summary_sut` the same
-vintage-pinning branch `_load_usa_summary_mut` uses at
-[io_2017.py:730-739](../../extract/iot/io_2017.py#L730-L739) — older years stay pinned to the oldest
-file containing them, so BEA's historical revisions don't silently move values under existing
-consumers. Still worth doing in Step 0 — two of the seven years can't be loaded today — but **note the
-changed justification**: this was written when summary SUT totals were assumed to be the RAS control.
-Under §Step 5 Decision 3 they are deliberately **not** the default target, and their most likely role
-is the opposite one, as the independent object the balanced detail SUT is *validated* against. That is
-a reason to load them, not a reason to skip it.
+⚠️ **The text here claimed for months that only 2017-2022 were wired.** It was wrong from whenever
+that work merged until 2026-09-03, and nobody reading the plan would have known. It is recorded rather
+than deleted because it is the clearest example of why the analysis modules, not this file, are the
+live record.
 
-Two loose ends to tidy while in there: `_load_usa_summary_sut`'s `year` parameter is typed
-`USA_SUMMARY_MUT_YEARS` (1997 onward), which admits years no SUT workbook contains — it wants its own
-`USA_SUMMARY_SUT_YEARS` literal. And [`BEA.py:106,117`](../../extract/bea/BEA.py#L106-L117) casts to
-`USA_SUMMARY_MUT_YEARS` to satisfy that signature; the cast can go once the type is right.
+⚠️ **Note the changed justification for loading them at all.** This was written when summary SUT
+totals were assumed to be the RAS control. Under §Step 5 Decision 3 they are deliberately **not** the
+default target, and their most likely role is the opposite one: the independent object the balanced
+detail SUT is *validated* against.
 
 **The published SUT is before redefinitions** (confirmed). This is why the detail SUT files
 (`Supply_2017_DET.xlsx`, `Use_SUT_Framework_2017_DET.xlsx`) carry no before/after qualifier where MUT
@@ -254,16 +264,23 @@ shares the aggregator machinery with Decision 3's aggregate constraints.
 
 ### SUT Supply — every column
 
-**Every column now has a candidate, and the block is complete and evaluable 2017-2023.** As of
-2026-08-26 **eight of the twelve columns run 2017-2024** — `T007`, `MCIF`, `MADJ`, `T013`, `MDTY`,
-`TOP`, `SUB`, `T015` — and only `TRADE`, `TRANS` and therefore `T014`/`T016` stop at 2023. The 2017
-block scores **99.2% coverage and 0.048% on the grand total** (was 99.0% / 0.092% before the
-2026-08-26 re-run), and all four subtotals are evaluable.
+✅ **Every column is built and evaluable for the whole span, 2017-2024** (2026-09-03). The last
+two — `TRADE` and `TRANS`, and therefore the `T014`/`T016` subtotals — closed when the 2024 AIES
+released. The 2017 block scores **99.2% coverage and 0.048% on the grand total**, and all four
+subtotals are evaluable.
 
-⚠️ **2024 is a release date, not an engineering gap.** `timeseries/aies/basic` returns 204 for 2024
-and `aies/miscsector` 400. Truck and pipeline are 79.7% of `TRANS`, so no partial fill is honest —
-rail reaches 2024 on STB and water/air on FAF, but that is 20.3% of the column. There is no second
-source to try; the fix is the next AIES release, not more sourcing work.
+⚠️ **"2024 is a release date, not an engineering gap" was half right, and the wrong half cost the
+most.** The data really was the blocker, and it really did arrive. But taking it needed an
+**endpoint migration** nobody had scoped: Census retired `timeseries/aies/*` — which now 404s for
+*every* year, 2023 included — for per-year `data/<year>/aies<dataset>` datasets, and moved
+`RCPT_GM_DVAL` off `aiesbasic`, where it is still *listed* but returns null on every row, onto
+`aiesmiscsector`. Neither dataset is a superset of the other, so the trade-margin source now issues
+two requests and joins them.
+
+⚠️ **The 2024 margin columns are observed on both sides, but the detail is thinner than 2023's.**
+Nine wholesale gross-margin cells the retired endpoint published are now withheld, and Census restated
+the rest: the published NAICS 42 margin moves +0.20% and 44-45 +0.55%. The aggregate rows the control
+reads are unaffected; the kind-of-business split has fewer observed cells than it did.
 
 | Column | What it is | Candidate source | Status |
 |---|---|---|---|
@@ -271,9 +288,9 @@ source to try; the fix is the next AIES release, not more sourcing work.
 | `MCIF` | Imports, c.i.f. | Census goods **CIF** (`GEN_CIF_YR`) + BEA `IntlServTrade` — §Trade data below | ⏳ **2017-2024 candidate** ([#528](https://github.com/cornerstone-data/bedrock/issues/528), extended by [#730](https://github.com/cornerstone-data/bedrock/issues/730)) — Trade_Imports FBS on `MCIF`; overlay is mapped Detail mass (ITA scale helper unused, #647). 1:m import rows split on **frozen 2017 `MCIF`**, and that is now a measured decision rather than a default — [#729](https://github.com/cornerstone-data/bedrock/issues/729) proposed swapping the weight to Use `T019` total uses; built and graded, it moved imports **spearman 0.941 → 0.893** and **n_match 26 → 19**, so it was reverted and the issue closed 2026-08-28. ⚠️ The zeros in published `MCIF` are BEA's allocation, not a sparse column |
 | `MADJ` | Import adjustment (c.i.f./f.o.b.) | Census `GEN_CHA_YR` mapped to Detail, reassigned onto 2017 Supply `MADJ` destination codes (signed shares), leveled to published Supply `MADJ` (`madj_detail_usd`) | ⏳ **2017-2024 candidate** — charges + destination reassignment in `derive_initial_supply_bridge`. 2017 ties to published; later years carry that year's mapped charge total with the published sign |
 | `MDTY` | Import duties | Effective duty rate from Census `CAL_DUT_YR ÷` customs value (NAICS-6, same endpoint as `MCIF`) × NIPA T30500 customs-duties level — §`MDTY` below | ⏳ **2017-2024 candidate** — `mdty_detail_usd` in `derive_initial_supply_bridge`. ⚠️ Calculated Census duty ≠ collected duty in the tariff era, which is why the national sum is leveled to `B235RC` |
-| `TRADE` | Wholesale + retail margins, by commodity | 2017 published column moved by the Census wholesale/retail gross margin (`nowcast_trade_margins.py`, #612/#613) — **not** an aggregate of the nowcast Margins dataset | ⏳ **2017-2023 candidate** — receiving split is the **frozen 2017 mix** |
-| `TRANS` | Transportation margins, by commodity | Per-mode allocation of observed annual freight revenue (`nowcast_transport_margins.py`, #611). Truck from AIES `miscsector` `RCPT_MOTR_*_DVAL`; pipeline and water/air from `aies/basic`; rail from STB | ⏳ **2017-2023 candidate** — 2023 now sourced from **AIES**, which continues SAS Table 8 under the same eleven group names, so `Crosswalk_SAS_Group_to_BEA_2017.csv` joins unchanged. Within-group weight still frozen at 2017 (#672). **2024 waits on AIES publishing** |
-| `TOP` | Taxes on products | NIPA T30500 less customs duties, annually; ten **named NIPA product lines** placed on their own commodities (29.8% of the column) and the sales-tax residual on a **purchaser-price base** `T013 + T014` (`nowcast_product_taxes.py`, #580) | ⏳ **2017-2024 candidate** — total observed to $1M. ✅ **The residual is no longer frozen**: sourcing `TRADE`/`TRANS` (#611) gave the other 70% of the column an annual base, so `TOP` now **depends on margin coverage** and 2024 holds 2023's shares rather than reverting to 2017 |
+| `TRADE` | Wholesale + retail margins, by commodity | 2017 published column moved by the Census wholesale/retail gross margin (`nowcast_trade_margins.py`, #612/#613) — **not** an aggregate of the nowcast Margins dataset | ✅ **built 2017-2024**, every year observed — receiving split is still the **frozen 2017 mix** (#614/#615) |
+| `TRANS` | Transportation margins, by commodity | Per-mode allocation of observed annual freight revenue (`nowcast_transport_margins.py`, #611). Truck from AIES miscsector `RCPT_MOTR_*_DVAL`; pipeline and water/air from AIES basic; rail from STB | ✅ **built 2017-2024**. AIES continues SAS Table 8 under the same eleven group names, so `Crosswalk_SAS_Group_to_BEA_2017.csv` joins unchanged across both seams. Within-group weight still frozen at 2017 (#672). ⚠️ **Air is re-anchored**: its published revenue is a re-based series, confirmed when 2024 held 2023's level, so the survey break is bridged on FAF volume and movement after it comes from AIES itself |
+| `TOP` | Taxes on products | NIPA T30500 less customs duties, annually; ten **named NIPA product lines** placed on their own commodities (29.8% of the column) and the sales-tax residual on a **purchaser-price base** `T013 + T014` (`nowcast_product_taxes.py`, #580) | ⏳ **2017-2024 candidate** — total observed to $1M. ✅ **The residual is no longer frozen**: sourcing `TRADE`/`TRANS` (#611) gave the other 70% of the column an annual base, so `TOP` **depends on margin coverage** - and with 2024's margins sourced it is **measured for every year of the span**, no longer holding 2023's shares |
 | `SUB` | Subsidies (stored negative) | NIPA T31300 annually; each commodity anchored on its published 2017 value and moved by its own NIPA **type line**, with 2020-21 `other` on BEA's published PPP-by-industry allocation (`nowcast_subsidies.py`, #580) | ⏳ **2017-2024 candidate** — 2022-24 `other` still on the anchor ([#689](https://github.com/cornerstone-data/bedrock/issues/689)) |
 
 **`TRADE`/`TRANS` and the Margins deliverable sit at two different levels of detail — build the finer
@@ -671,6 +688,87 @@ Section-6 table's total = the corresponding Use-table row/group total; `VABAS` �
 via T10105. Allocation to BEA industries "likely needs to use the 2017 table ratios."
 
 ---
+
+---
+
+# Data sources — what feeds the 2017-2024 build
+
+**Summary level, and the raw material for the Methods section of the nowcasting document**
+(Phase 2). Coverage is **within the 2017-2024 span only** — several sources run wider.
+
+⚠️ **A source that stops before 2024 is not necessarily a gap.** The benchmark and census
+sources are *designed* to be periodic, and the four standalone annual surveys were replaced
+by AIES from data year 2023. Read the "what it provides" column before reading a short span
+as a hole.
+
+## The frame — what everything is anchored to
+
+| Source | Coverage 2017-2024 | What it provides, in plain terms |
+|---|---|---|
+| BEA benchmark detail Supply and Use tables | **2017 only** | The once-every-five-years detailed picture of which industries make which products and who buys them — 402 industries and commodities. Every structure in the build that cannot be observed annually is anchored here. |
+| BEA detail Make, Use, Import and Margins tables | **2017 only** | The same benchmark year in Make/Use form, published both before and after redefinitions, plus the margin on every buyer-product transaction. The target shape of the deliverable, and the answer key for the conversion steps. |
+| BEA summary Supply and Use tables | **2017-2024** | The annual but coarse (~70 sector) version of the same picture. Used as a control and an independent check on the detailed tables we build. |
+| BEA summary Make and Use tables | **2017-2024** | The annual coarse tables in Make/Use form. |
+
+## Annual controls — what sets the totals
+
+| Source | Coverage 2017-2024 | What it provides, in plain terms |
+|---|---|---|
+| BEA GDP-by-Industry, underlying detail | **2017-2024** | Annual output and value added for all 402 detailed industries. The primary control on how big each industry is in each year. |
+| BEA NIPA (national accounts) | **2017-2024** | Consumer spending, business investment, government purchases, change in inventories, taxes on products, and subsidies. Supplies most final-demand columns and every tax and subsidy total. |
+| BLS Quarterly Census of Employment and Wages | **2017-2024** (extract runs to 2025) | Employment and wages by industry, from the unemployment-insurance system. Moves the employee-compensation row between years. |
+
+## Prices, margins and structure held from a benchmark
+
+| Source | Coverage 2017-2024 | What it provides, in plain terms |
+|---|---|---|
+| BEA personal-consumption and equipment bridges | **2017 only** | How household and equipment purchases split between the producer's price, the transport cost, the wholesale and retail markup, and tax. The split is held from 2017 and re-levelled each year. |
+| Economic Census | **2017 and 2022** | The complete five-yearly census of business: what each industry sells product by product, what materials it buys, and what it spends. Conducted every five years, so intervening years are interpolated and years after 2022 hold the 2022 mix. |
+
+## Annual movers — the surveys that carry structure between benchmarks
+
+⚠️ **The four standalone surveys below were consolidated into AIES from data year 2023.**
+They stop where AIES begins; that is a survey redesign, not missing data.
+
+| Source | Coverage 2017-2024 | What it provides, in plain terms |
+|---|---|---|
+| Census Annual Survey of Manufactures | **2018-2021** | Annual manufacturing shipments, materials purchased and operating expenses. (2017 and 2022 come from the Economic Census instead.) |
+| Census Service Annual Survey | **2017-2022** | Annual services revenue and detailed operating expenses, plus freight revenue for trucking and pipelines. |
+| Census Annual Retail and Wholesale Trade Surveys | **2017-2022** | Annual sales, gross margin and inventories for retailers and wholesalers. |
+| **Census Annual Integrated Economic Survey (AIES)** | **2023-2024** | The single consolidated survey that replaced all four above. Supplies the wholesale and retail gross margin, trucking freight revenue by commodity carried, pipeline/water/air revenue, inventories, and detailed operating expenses. **2024 released 2026-09-03 — the subject of this plan.** |
+
+## Trade, transport, farm and energy
+
+| Source | Coverage 2017-2024 | What it provides, in plain terms |
+|---|---|---|
+| Census international trade | **2017-2024** | Goods imports and exports by industry, plus the duty assessed and the freight-and-insurance charges on imports. |
+| BEA international services trade | **2017-2024** | Imports and exports of services by type of service. |
+| BEA international transactions | control totals | National goods-and-services totals. ⚠️ Available but **deliberately not applied** to the nowcast today (open question #647). |
+| Surface Transportation Board rail revenue | **2017-2024** | Freight revenue earned by railroads, by commodity carried. |
+| BTS Freight Analysis Framework | **2017-2024** | Tonnage and ton-miles moved by mode and commodity. Used to move air and water freight margins where revenue is not usable. |
+| USDA ERS farm income and wealth | **2017-2024** (extract runs to 2025) | Farm cash receipts and farm inventories by commodity. Splits the farm share of inventories and seeds the agriculture columns. |
+| EIA Form 923 (via PUDL) | **2017-2024** | Every fuel receipt at every reporting power plant, with delivered cost. Moves the fuel input mix of the electric power industry. |
+| EIA Electric Power Annual | **2017-2024** | Electricity sales and generation. Used on the emissions-model side rather than in the Supply-Use build. |
+
+## Coverage at a glance
+
+✅ **Every source the 2024 build needs reaches 2024**, as of the AIES release of 2026-09-03.
+
+- **Already at 2024 before the release:** BEA summary SUT/MUT, BEA detail gross output and
+  value added, BEA NIPA, BEA international services, Census international trade, BLS QCEW,
+  STB rail, BTS FAF, USDA ERS, EIA 923.
+- **Reached 2024 with the release:** the four AIES pulls, and therefore the trade margin, the
+  transport margin, change in inventories, and the taxes-on-products residual that depends on
+  them.
+- **Periodic by design, not gaps:** the 2017 benchmark tables and bridges; the 2017 and 2022
+  Economic Census.
+- **Retired by survey consolidation, not gaps:** ASM, SAS, ARTS and AWTS, all superseded by
+  AIES from 2023.
+
+⚠️ **Two sources look like gaps and are not consumed at all.** BEA's personal-consumption
+price series stops at 2023 but nothing in `transform/` or `analysis/nowcasting/` reads it —
+`F01000` runs off the 2017 PCE bridge moved by NIPA. BEA's international transactions stop at
+2017 but are reachable only through the scale helper #647 leaves unapplied.
 
 # Phase 1 build steps
 
@@ -1561,7 +1659,7 @@ unaffected and was since confirmed — see [#606](https://github.com/cornerstone
       rescale stays within **0.939-1.008** across 2017-2023 rather than drifting off the control.
       ⚠️ **The pandemic years are the check**: 2020 accommodation `721000` falls 7,045 against the
       frozen vector and air transport roughly halves — the sectors #580 worried the frozen vector
-      would get wrong. ⚠️ **2024 holds 2023's shares**, because `TRADE`/`TRANS` stop there; that is a
+      would get wrong. ✅ **2024 is measured too**, now that `TRADE`/`TRANS` reach it; the fallback below is a
       hold, not a measurement, and reverting to 2017 would undo six years of movement in one step.
     - The **producer/trade split** is carried by `top_by_level`, freezing each commodity's 2017
       trade-level share (`Wholesale + Retail − TRADE`, 391,162). ⚠️ Frozen per *commodity*, not per
@@ -2240,7 +2338,7 @@ gone.
 | 1 FD block | #504, #523, #526/#527/#528, #529/#530/#531 (built — see §`F03000`), **#660**/**#664**/**#665** (the three `F03000` follow-ons), #547, #606 (`S00300`), **#575** (1d code list), **#576** (1f reconciliation), #621 (2018-2024 PCE), #635 (the swallowed `ValueError`) | — |
 | 2 Value added | #535, #536, #537, #538 | — |
 | 3 Intermediate | #497, #564, **#577** (agriculture), **#578** (government) | — |
-| **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *done through 2023; 2024 waits on AIES*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
+| **4 Supply table** | **#570** (4a), **#579** (4b — *done*), **#571** (4c, parent) split into **#610** (2017 rates — *done*), **#611** (FAF transport chain — *done, 2017-2024*), **#612** (annual trade levels — *done*), **#613** (apply to nowcast years, derive `TRADE`/`TRANS`), **#614** (validate per commodity), **#615** (deferred NAPCS concordance), **#620** (transport trend validation), **#580** (4d), **#581** (4e) | 4c's five sub-issues were filed after the first pass and are now on the board |
 | 5 RAS | **#588** (balancer, parent — `gras_balance`, `engine`, and the soft mechanism landed; WEIGHTS uncalibrated), **#653** / **#654** / **#591** (mask/target scaffolding — **landed** in [#659](https://github.com/cornerstone-data/bedrock/pull/659)), **#655** (gross output at basic prices) | ~~#589~~ (load_suts_from_r) and ~~#590~~ (check_balances) **closed not planned, 2026-08-09** — neither port is needed |
 | 6 SUT→MUT | USEEIO #4 (6b), **#582** (6a), **#583** (6c), **#584** (6d), **#585** (2017 replay) | 6b is tracked in USEEIO, not bedrock |
 | 7 Redefinitions | **#572** | — |
@@ -2284,7 +2382,7 @@ replaced by #572. **Every item on the board is now a trackable issue.**
     `Crosswalk_SAS_Group_to_BEA_2017.csv` joins unchanged — truck from `aies/miscsector`
     (`RCPT_MOTR_*_DVAL`), pipeline and water/air freight revenue from `aies/basic` at `TYPOP 00`.
     ⚠️ `mode_freight_revenue` is a **third** SAS consumer beyond the two allocators, easy to miss,
-    and the column raises without it. **2024 waits on AIES publishing**, not on engineering.
+    and the column raises without it. ✅ **2024 landed with the AIES release of 2026-09-03.**
   - `TRADE` (#612/#613) is **anchor-and-move**: the published 2017 column rescaled by the Census
     wholesale and retail gross margin. The *level* moves annually and so does the kind-of-business
     split; the **receiving split — which commodities get the margin — is the frozen 2017 product
@@ -2411,13 +2509,95 @@ the issue they close.
 
 ---
 
-# Phase 2 — 2025, after the BEA annual update
+# Phase 2 — review, refinement and documentation
 
-**Trigger:** the BEA annual update, expected by **Sept 30, 2026**, from which we expect **detailed
-gross output by sector** and enough to **derive commodity output**. **Target: complete in early
-October 2026.**
+**Phase 1 delivered a series. Phase 2 is about being able to defend it.** With 2018-2024 built end to
+end there is no year left to add before the BEA annual update, so the work changes kind: from coverage
+to accuracy, from "does the column exist" to "is the allocation inside it right", and from code
+comments to a written method.
 
-Phase 2 is two jobs, not one:
+⚠️ **This is a direction, not a committed scope.** It wants its own pass now that 2024 is in. What
+follows is drawn from what is already open rather than invented.
+
+## Accuracy — columns whose totals are right and whose allocation is not
+
+These all share a shape: the control total is observed and correct, and what is uncertain is how it is
+spread across commodities or industries. None of them blocks anything downstream, which is why they
+survived Phase 1 — and also why they will not get done unless they are scheduled deliberately.
+
+- **`F03000` change in inventories** — #660 (mining and farm splits, the largest single error), #664
+  (manufacturing stage shares), #665 (`S00402`).
+- **`SUB` subsidies** — 2022-24 `other` still sits on its 2017 anchor (#689).
+- **`TRADE`'s receiving split** — 100% of the trade commodity detail rides a frozen 2017 product mix,
+  because nothing annual observes which goods a wholesaler's margin sits on. #614 validates it per
+  commodity; #615 is BEA's own answer, the NAPCS product-line concordance, and is deferred.
+- **`TRANS` within-group weight** — frozen at 2017 (#672).
+- **Goods allocation surface** — large errors remain in directly-mapped goods families, notably
+  `336*`, with no `MISS` holes to blame (#670).
+- **Trade specials and controls** — the `930000` residue on `S00402` (#703), the ITA goods-and-services
+  scale that exists and is not applied (#647), and the price treatment of scrap and used goods (#768).
+- **Step 4a follow-ons** — #722, #723.
+- **The trade branch's selling industry is not retained** (#745), which Step 6's margin distribution
+  wants.
+
+## Balance and validation
+
+- **Step 5 `WEIGHTS` are uncalibrated** (#588). They have been uncalibrated since the soft mechanism
+  landed and the balance has been read many times since.
+- **#809 — the margin columns stop netting to zero under the balance.** Re-verified 2026-09-03 on
+  current code: unchanged by #811, and the residual runs $1.6bn (2017) to $34.5bn (2022) and $7.0bn
+  (2023), with 2024 at $7.0bn. Consistently negative, so it is a directional bias rather than noise.
+  The three options — an explicit closer, tightening how the margin columns enter the commodity
+  identity, or accepting and documenting it — are still open, and now cover one more year.
+- **The 2017 benchmark replay** (#585) — named in this plan as the single highest-value test in the
+  project, and still not built.
+- **The soft-versus-hard interior diff**, cell by cell rather than on aggregate residuals.
+- **The final-demand freeze inspection** — `F01000`/`F02E00` frozen bridge ratios against row stress.
+- **Cross-step diagnostics** (#587), and running T11/T17 across the full 2018-2024 span now that it
+  exists.
+
+## Newly available, deliberately deferred out of Phase 1
+
+- **The 2024 AIES expense detail.** 2024's expense table is on changed definitions - it drops
+  purchased communication services, expensed software and both rental lines, replacing the last two
+  with one combined rent figure - so Phase 1 carries the 2023 panel and marks every cell `held`.
+  Taking the 2024 detail needs a rule for splitting combined rent across the building and machinery
+  commodities. This is the one place 2024 is not at source parity with 2023.
+- **`aiesinv`** is documented and has never been wired.
+- **`Margins_Transport_<year>.yaml` stops at 2022** — there is no 2023 file either. The AIES path
+  exists only in the Python module, so the FBS method trails the code by two years.
+
+## Documentation
+
+- **A written method statement for the delivered 2018-2024 series.** The Data Sources section above is
+  the raw material for its sources table.
+- **This file is 2500+ lines and carried claims that were stale before 2024 landed** — a summary SUT
+  vintage note fixed months earlier, a QCEW gap that had closed, four separate "2024 waits on AIES"
+  statements. That is a standing maintenance problem, not a one-off. Phase 2 should decide what
+  `plan.md` is *for* now that the build is done, given that the analysis modules are the live record
+  and the plan drifts.
+- The `About_*.md` findings docs and the per-step READMEs.
+
+## Explicitly out of Phase 2
+
+2025 (below), and the government-enterprise reallocation deferred on 2026-09-02.
+
+---
+
+# Deferred — 2025, after the BEA annual update
+
+⚠️ **Not scheduled. A future step, to be evaluated separately once Phase 2 is under way.** This
+section was the old "Phase 2" and its content is kept because the mechanics are right; what has
+changed is that it is no longer the next thing.
+
+## What picking 2025 up would involve
+
+**Trigger:** the BEA annual update, from which we expect **detailed gross output by sector** and
+enough to **derive commodity output**. ⚠️ **No target date.** The one that used to sit here - "complete
+in early October 2026" - was set when this section was Phase 2 and 2024 was assumed done; both
+premises changed.
+
+Picking 2025 up is two jobs, not one:
 
 1. **Add 2025**, using the newly-published detailed gross output.
 2. **Refresh 2018-2024** with the revised NIPA and industry-account data. BEA revises history in every
@@ -2479,7 +2659,7 @@ Also worth scoping ahead of time:
 - **Snapshot/version handling** — refreshed years replace or sit alongside the Phase 1 GCS artifacts,
   and any published v0.5 numbers derived from them need a stated position.
 
-## Phase 2 work items
+## What the work would be
 
 1. **Check what actually shipped** (day 1). The 2025 summary SUT/MUT is expected; what still needs
    confirming on the day is the **granularity of the detailed gross output** and the **span of the
@@ -2506,7 +2686,7 @@ Also worth scoping ahead of time:
    2017) must be run down first, and electric/transit (`S00101`/`S00202`/`S00201`) are already handled
    in the industry correspondence. Deferred out of Phase 1 on 2026-09-02.
 
-## What Phase 1 must not do
+## What Phase 1 must not do — the exit checklist
 
 For Phase 2 to be a short exercise rather than a rebuild. Worth checking against these at Phase 1
 close:

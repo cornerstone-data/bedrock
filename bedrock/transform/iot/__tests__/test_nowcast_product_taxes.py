@@ -263,7 +263,7 @@ def test_residual_does_not_drift_against_its_control() -> None:
     """
     base_2017 = pt.purchaser_base(pt.ANCHOR_YEAR).sum()
     control_2017 = pt.top_control_total(pt.ANCHOR_YEAR)
-    for year in range(2018, 2024):
+    for year in range(2018, pt._LAST_MARGIN_YEAR + 1):
         base_growth = pt.purchaser_base(year).sum() / base_2017
         control_growth = pt.top_control_total(year) / control_2017
         assert 0.90 < base_growth / control_growth < 1.10, (
@@ -272,13 +272,28 @@ def test_residual_does_not_drift_against_its_control() -> None:
         )
 
 
-def test_2024_holds_2023_shares_rather_than_reverting_to_2017() -> None:
-    """The margin columns stop at 2023, so 2024 is a hold, not a measurement.
+def test_2024_is_measured_now_that_the_margin_columns_reach_it() -> None:
+    """2024 has a purchaser-price base of its own, so it is no longer a hold.
 
-    Reverting to the frozen 2017 vector would undo six years of movement in one
-    step, which would read as a real 2024 reallocation.
+    ⚠️ **This test asserted the opposite until the 2024 AIES release.** While
+    TRADE and TRANS stopped at 2023, 2024 had no base and carried 2023's shares
+    forward. Sourcing both margin columns for 2024 gives it a base, so the
+    residual is computed there the same way as every other year - which matters
+    for 70.2% of the column.
     """
-    assert pt.residual_share_for_year(2024).equals(pt.residual_share_for_year(2023))
+    assert not pt.residual_share_for_year(2024).equals(pt.residual_share_for_year(2023))
+
+
+def test_a_year_past_the_margin_columns_still_holds_rather_than_reverting() -> None:
+    """The hold is still the right fallback past the last margin year.
+
+    Reverting to the frozen 2017 vector would undo every year of movement in one
+    step, which would read as a real reallocation rather than a missing source.
+    """
+    beyond = pt._LAST_MARGIN_YEAR + 1
+    assert pt.residual_share_for_year(beyond).equals(
+        pt.residual_share_for_year(pt._LAST_MARGIN_YEAR)
+    )
 
 
 def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
@@ -319,11 +334,17 @@ def test_the_two_constructions_diverge_where_the_named_lines_do() -> None:
     now been re-fitted twice by upstream Trade Crosswalk work - 7.7% -> 7.3% for
     #734, then 7.3% -> 6.9% when #702 stopped taking Census's own
     ``336111``/``336112`` split - and each time the re-fit was a *consequence* of
-    a change elsewhere rather than a finding about taxes. 2024 has no margin
-    columns of its own (:func:`test_2024_holds_2023_shares_rather_than_reverting_to_2017`
-    pins it as a hold on 2023) and it sits at the end of every extrapolation in
-    the stack, so it is the year least able to carry a +/-0.003 band. Pinning it
-    was converting ordinary upstream progress into red CI.
+    a change elsewhere rather than a finding about taxes. 2024 sits at the end of
+    every extrapolation in the stack, so it is the year least able to carry a
+    +/-0.003 band. Pinning it was converting ordinary upstream progress into red
+    CI.
+
+    ⚠️ **Half of that reasoning has since expired.** 2024 used to have no margin
+    columns of its own, so its share was a hold on 2023. The 2024 AIES release
+    sourced ``TRADE`` and ``TRANS``, so it is measured like any other year now -
+    see :func:`test_2024_is_measured_now_that_the_margin_columns_reach_it`. The
+    Crosswalk-churn half still stands, which is why 2024 stays unasserted here,
+    but it is now a choice about volatility rather than about missing data.
 
     ✅ **2020 keeps both assertions**, and it is the one that carries the claim:
     it is a measured year, it is the control for changes that reach only the

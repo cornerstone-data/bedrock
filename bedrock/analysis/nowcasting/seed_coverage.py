@@ -270,12 +270,12 @@ RELIABILITY: dict[str, int] = {
 EXPENSE_SOURCE_YEARS: dict[str, tuple[int, ...]] = {
     'census': (2017, 2022),
     'asm': (2018, 2019, 2020, 2021),
-    'aies': (2023,),
+    'aies': (2023, 2024),
 }
 
 #: Years the shipped figure is claimed to stand for.  ⚠️ **2018 and 2019 are
 #: deliberately not in here** -- see :func:`year_stability`.
-STABLE_YEARS: tuple[int, ...] = (2020, 2021, 2022, 2023)
+STABLE_YEARS: tuple[int, ...] = (2020, 2021, 2022, 2023, 2024)
 
 #: Widest spread in seeded dollars across :data:`STABLE_YEARS` that still lets
 #: one figure stand for all of them, in percentage points.

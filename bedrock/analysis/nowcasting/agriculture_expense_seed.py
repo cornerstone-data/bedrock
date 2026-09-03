@@ -242,8 +242,11 @@ FIWS_ITEM_TO_BEA: dict[str, tuple[str, ...]] = {
 #: not a sibling. Mapping both would count federal crop insurance twice.
 FIWS_NESTED = (f'{FIWS_CONCEPT}, miscellaneous , insurance premiums, federal',)
 
-#: The years the seed can build.  Bounded by the FBA, which now runs to 2025.
-SEED_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025)
+#: The years the seed can build.  The FBA runs to 2025, but the nowcast span
+#: ends at 2024 and 2025 is deliberately out of scope - and ERS publishes it as
+#: a **forecast** rather than a realized estimate (:data:`FORECAST_YEARS`), so
+#: it is the wrong kind of number to seed a published year with anyway.
+SEED_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024)
 
 #: ⚠️ **Loaded for the benchmark holdout, not for seeding.**  2012 is a BEA
 #: detail benchmark, so a 2012 -> 2017 index can be scored against an *observed*

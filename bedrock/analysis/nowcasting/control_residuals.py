@@ -121,9 +121,11 @@ from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
-#: The milestone span.  2024 is excluded: ``TRADE`` has no source for it and
-#: ``census_gross_margin`` raises rather than extrapolate by default.
-SPAN = (2017, 2018, 2019, 2020, 2021, 2022, 2023)
+#: The milestone span.  ✅ 2024 joined once the AIES release of 2026-09-03
+#: sourced ``TRADE`` and ``TRANS``; the note here previously excluded it because
+#: ``census_gross_margin`` raised rather than extrapolate, which is no longer
+#: the case for any year of the span.
+SPAN = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
 
 #: The anchor.  Reported alongside the span so the contrast is visible, never
 #: quoted alone -- see the module docstring.

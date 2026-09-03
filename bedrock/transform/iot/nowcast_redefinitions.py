@@ -63,6 +63,7 @@ from bedrock.extract.iot.nowcast_mut_storage import (
     nowcast_mut_artifact_name,
 )
 from bedrock.transform.iot.mut_use_to_import_matrix import import_matrix_from_use
+from bedrock.transform.iot.nowcast_mut import NOWCAST_MUT_YEARS
 from bedrock.utils.config.settings import (
     FBS_DIR,
     GIT_BRANCH,
@@ -752,7 +753,7 @@ def main(argv: list[str] | None = None) -> int:
         '--year',
         type=int,
         action='append',
-        help='stored Step 6 year to convert; repeatable. Default 2017-2023',
+        help='stored Step 6 year to convert; repeatable. Default is NOWCAST_MUT_YEARS',
     )
     parser.add_argument('--no-save', action='store_true')
     parser.add_argument(
@@ -763,7 +764,7 @@ def main(argv: list[str] | None = None) -> int:
         return check()
 
     anchor = published_anchor()
-    for year in args.year if args.year else range(2017, 2024):
+    for year in args.year if args.year else NOWCAST_MUT_YEARS:
         tables, before_inputs = after_redef_tables(year, anchor)
         print(
             f'{year}: Make {tables["Make"].shape}, Use {tables["Use"].shape}, '

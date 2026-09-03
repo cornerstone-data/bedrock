@@ -6,33 +6,55 @@ bib_id: Census_AIES
 api_name: Census
 api_key_required: true
 format: json
+
+# ⚠️ **AIES is published as per-year datasets, not as a timeseries.** The
+# `timeseries/aies/*` path this source used until 2026-09 now returns 404 for
+# EVERY year, 2023 included - there is no `timeseries/aies` entry left in
+# https://api.census.gov/data.json. The live path is `data/<year>/aies<dataset>`.
+#
+# ⚠️ **Gross margin and the transport sales rows are in DIFFERENT datasets, so
+# this source issues TWO requests and joins them.** `RCPT_GM_DVAL` is declared
+# on `aiesbasic` but is an orphan there - group "N/A", no concept - and comes
+# back null for every row in both 2023 and 2024. The populated copy is on
+# `aiesmiscsector` (groups AIES42BASIC/AIES44BASIC). But `aiesmiscsector` has no
+# NAICS 486 detail, and those four pipeline items are exactly what the transport
+# margin reads from this source. Neither dataset is a superset of the other:
+#   aiesbasic       -> sales for every sector, including 486's detailed items
+#   aiesmiscsector  -> the wholesale and retail gross margin
+# census_aies_parse joins them on NAICS/TYPOP/TAXSTAT back into the single wide
+# table this source has always produced, so no consumer changes.
 url:
   base_url: https://api.census.gov/data/
-  api_path: timeseries/aies/basic?
+  api_path: __year__/__dataset__?
   url_params:
-    # RCPT_GM_DVAL is gross margin and RCPT_TOT_VAL sales, both in $1,000.
-    # TYPOP is the type of operation, and it decides which of them is populated
-    # for a given sector - see Census_AIES.py, it is not optional.
-    get: NAICS,NAICS_LABEL,RCPT_GM_DVAL,RCPT_TOT_VAL,TYPOP,TAXSTAT
+    # Per-dataset; census_aies_url_helper substitutes the list from `datasets`.
+    get: __get__
     for: us:*
-    time: __year__
     key: __apiKey__
   key_param: key
 
+# dataset -> the variables taken from it. TYPOP is the type of operation and it
+# decides which measure is populated for a given sector - see Census_AIES.py, it
+# is not optional. Money variables are in $1,000.
+datasets:
+  aiesbasic: NAICS2017,NAICS2017_LABEL,RCPT_TOT_VAL,TYPOP,TAXSTAT
+  aiesmiscsector: NAICS2017,NAICS2017_LABEL,RCPT_GM_DVAL,TYPOP,TAXSTAT
+
+url_replace_fxn: !script_function:Census_AIES census_aies_url_helper
 call_response_fxn: !script_function:Census_AIES census_aies_call
 parse_response_fxn: !script_function:Census_AIES census_aies_parse
 gcs_fxn: !script_function:Census_AIES census_aies_load_gcs
 
-# Read the cached table from extract/input_data/Census_AIES/ (or GCS
-# extract-input if it is not cached yet) rather than calling Census every run.
+# Read the cached tables from extract/input_data/Census_AIES/ (or GCS
+# extract-input if not cached yet) rather than calling Census every run.
 # AIES requires an API key and CI has none, so without this every AIES-backed
 # test fails in CI on the key rather than on the data.
 #
-# Set to True to refresh the cache from Census, then upload the new file.
+# Set to True to refresh the cache from Census, then upload the new files.
 extract_data_from_raw_sources: False
 
 # AIES replaced AWTS and ARTS from data year 2023 and carries no back-years:
-# every earlier year returns 204 No Content. 2024 is not published yet, which
-# leaves the last year of the nowcast window without an observed trade margin.
+# every earlier year is absent.
 years:
 - 2023
+- 2024

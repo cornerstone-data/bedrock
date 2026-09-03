@@ -99,14 +99,19 @@ wholesale is not a coherent reading of one integrated instrument. The retail ste
 enters the index as a real move. See the plan's "Closed - AIES stayed on the
 annual basis".
 
-⚠️ **2024 has no source at all.** AIES returns 204 No Content for every year
-except 2023 and 2024 is not published, while the nowcast window runs to 2024. So
-:data:`TRADE_MARGIN_YEARS` stops at 2023 and :func:`census_gross_margin`
-**raises** for 2024 unless ``allow_extrapolation=True`` is passed - a modelled
-level should not arrive by default in a column every other year of which is
-observed. The trailing-trend fill is available behind that flag, and the real fix
-is step 4a's 2024 commodity output, which observes trade margin directly because
-trade output is margin.
+✅ **2024 is observed** (AIES released it 2026-09-03), so nothing in the span is
+extrapolated. Wholesale gross margin runs 20.39% of sales in 2023 against 20.30%
+in 2024, and retail 34.21% against 33.86% - continuous on both sides. The
+trailing-trend fill in :func:`census_gross_margin` stays for whatever year is
+next past the release, behind ``allow_extrapolation=True``: a modelled level
+should not arrive by default in a column every other year of which is observed.
+
+⚠️ **The per-year AIES datasets publish less wholesale margin detail than the
+retired timeseries path did.** Nine four- to six-digit cells - automobiles,
+computers, appliances and confectionery among them - are now withheld, and
+Census restated the rest, moving the published NAICS 42 margin +0.20% and 44-45
++0.55%. The two aggregate rows this module reads are unaffected, but the
+kind-of-business split has fewer observed cells to work from than it did.
 
 ⚠️ **``425000`` has no annual source of its own.** Wholesale electronic markets,
 agents and brokers never take title, so they book a *commission* rather than a
@@ -205,10 +210,16 @@ GROSS_MARGIN_ITEM = 'Gross margins'
 LAST_STANDALONE_YEAR = 2022
 FIRST_AIES_YEAR = 2023
 
-#: Years with an observed Census margin. 2024 is extrapolated - see
-#: :func:`census_gross_margin`.
+#: Years with an observed Census margin.
+#:
+#: ⚠️ **This is not the same fact as** :data:`FIRST_AIES_YEAR`, and tying the two
+#: together is what made 2024 unreachable. While AIES had published only its
+#: first year the two coincided, so ``LAST_OBSERVED_YEAR = FIRST_AIES_YEAR`` read
+#: as harmless - but one is "when the survey changed" and the other is "how far
+#: the data runs", and only the second moves with each release. The 2024 AIES
+#: released 2026-09-03.
 FIRST_OBSERVED_YEAR = 2012
-LAST_OBSERVED_YEAR = FIRST_AIES_YEAR
+LAST_OBSERVED_YEAR = 2024
 
 #: How many trailing observed years the 2024 extrapolation takes its median
 #: growth over. Five, so that 2021's post-pandemic 22-27% rebound is outvoted
@@ -225,8 +236,9 @@ _TILT_BISECTION_STEPS = 200
 #: published table is in whole millions, so an exact comparison trips on rounding.
 _TILT_ROUNDING_TOLERANCE = 1.0 * MILLION_CURRENCY_TO_CURRENCY
 
-#: The years TRADE is sourced for. Stops at the last observed Census year: 2024
-#: has no source in any survey and is filled only on an explicit opt-in.
+#: The years TRADE is sourced for - through the last observed Census year. A
+#: year past it has no source in any survey and is filled only on an explicit
+#: opt-in, see :func:`census_gross_margin`.
 TRADE_MARGIN_YEARS: tuple[int, ...] = tuple(range(ANCHOR_YEAR, LAST_OBSERVED_YEAR + 1))
 
 _SOURCE_FOR_KIND = {'wholesale': 'Census_AWTS', 'retail': 'Census_ARTS'}

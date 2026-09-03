@@ -46,20 +46,35 @@ bib_id: Census_AIES_Service_Expenses
 # `Census_AIES_Expenses`: nothing attributes this to sectors, it is read
 # directly by analysis/nowcasting/service_expense_seed.py.
 api_name: Census
+
+# ⚠️ **AIES is published as per-year datasets, not as a timeseries.** The
+# `timeseries/aies/exp02` path this source used until 2026-09 now returns 404 for
+# EVERY year, 2023 included. The live path is `data/<year>/<dataset>`, and it
+# names the industry column NAICS2017 rather than NAICS - census_aies_call
+# renames it back so the parse is unchanged.
+#
+# ⚠️ **2024 retires four expense variables** - purchased communication
+# services, expensed software, and the building and machinery rental lines,
+# which 2024 replaces with one combined rent figure. Census rejects an unknown
+# variable outright rather than returning it empty, so a 2024 request naming
+# them fails the whole pull; census_aies_expenses_url_helper drops them per
+# year. Taking the combined rent line needs a building/machinery split rule
+# and is deliberately left for later.
 api_key_required: true
 format: json
 url:
   base_url: https://api.census.gov/data/
-  api_path: timeseries/aies/exp02?
+  api_path: __year__/aiesexp02?
   url_params:
-    get: NAICS,EXPS_TOT_DVAL,EXPS_ELEC_VAL,EXPS_FUEL_VAL,EXPS_FUEL_TRANSP_VAL,EXPS_MAT_DVAL,EXPS_RENT_BUILD_VAL,EXPS_RENT_MACH_VAL,EXPS_PROFTECH_VAL,EXPS_ADVERT_VAL,EXPS_DATAPROC_VAL,EXPS_TEMPSTAF_VAL,EXPS_MACH_REP_VAL,EXPS_BUILD_REP_VAL,EXPS_TRANSP_REP_VAL,EXPS_TRANSP_VAL,EXPS_REFUSE_VAL,EXPS_COMMSVC_VAL,EXPS_EXSOFT_VAL,EXPS_COMPTR_OTHEQ_VAL,EXPS_SUPPLY_MED_VAL,EXPS_INS_PREM_VAL,EXPS_PROFLIAB_VAL,EXPS_PRINT_VAL,EXPS_CONTRACT_VAL,EXPS_RESALE_VAL,EXPS_OTHER_VAL
+    get: NAICS2017,EXPS_TOT_DVAL,EXPS_ELEC_VAL,EXPS_FUEL_VAL,EXPS_FUEL_TRANSP_VAL,EXPS_MAT_DVAL,EXPS_RENT_BUILD_VAL,EXPS_RENT_MACH_VAL,EXPS_PROFTECH_VAL,EXPS_ADVERT_VAL,EXPS_DATAPROC_VAL,EXPS_TEMPSTAF_VAL,EXPS_MACH_REP_VAL,EXPS_BUILD_REP_VAL,EXPS_TRANSP_REP_VAL,EXPS_TRANSP_VAL,EXPS_REFUSE_VAL,EXPS_COMMSVC_VAL,EXPS_EXSOFT_VAL,EXPS_COMPTR_OTHEQ_VAL,EXPS_SUPPLY_MED_VAL,EXPS_INS_PREM_VAL,EXPS_PROFLIAB_VAL,EXPS_PRINT_VAL,EXPS_CONTRACT_VAL,EXPS_RESALE_VAL,EXPS_OTHER_VAL
     for: "us:*"
-    time: __year__
     key: __apiKey__
   key_param: key
 
+url_replace_fxn: !script_function:Census_AIES census_aies_expenses_url_helper
 call_response_fxn: !script_function:Census_AIES census_aies_call
 parse_response_fxn: !script_function:Census_AIES census_aies_expenses_parse
 
 years:
 - 2023
+- 2024
