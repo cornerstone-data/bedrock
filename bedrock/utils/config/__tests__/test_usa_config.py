@@ -234,7 +234,7 @@ def test_nowcast_forbids_deflated_x_in_b() -> None:
         )
 
 
-@pytest.mark.parametrize('year', range(2017, 2024))
+@pytest.mark.parametrize('year', range(2017, 2025))
 def test_v0_4_nowcast_yamls_load(year: int) -> None:
     cfg = _load_usa_config_from_file_name(
         f'2025_usa_cornerstone_v0_4_nowcast_{year}.yaml'
