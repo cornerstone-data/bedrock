@@ -362,9 +362,10 @@ def census_aies_parse(
     df = _join_aies_legs(df_list)
     if df.empty:
         raise ValueError(
-            f'{source} returned no rows for {year}. AIES currently publishes '
-            f'2023 only - the predecessor surveys Census_AWTS and Census_ARTS '
-            f'carry 2012-2022, and later years are not released yet.'
+            f'{source} returned no rows for {year}. AIES starts at 2023 and '
+            f'carries no back-years; the predecessor surveys Census_AWTS and '
+            f'Census_ARTS carry 2012-2022. A year past the latest AIES release '
+            f'is absent for the same reason and arrives as a 404.'
         )
 
     df['NAICS'] = df['NAICS'].astype(str).str.strip()
@@ -507,9 +508,10 @@ def census_aies_miscsector_parse(
     df = pd.concat(df_list, sort=False)
     if df.empty:
         raise ValueError(
-            f'{source} returned no rows for {year}. AIES currently publishes '
-            f'2023 only - Census_SAS Table 8 carries 2015-2022, and later years '
-            f'are not released yet.'
+            f'{source} returned no rows for {year}. AIES starts at 2023 and '
+            f'carries no back-years; Census_SAS Table 8 carries 2015-2022. A '
+            f'year past the latest AIES release is absent for the same reason '
+            f'and arrives as a 404.'
         )
 
     df['NAICS'] = df['NAICS'].astype(str).str.strip()

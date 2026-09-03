@@ -57,3 +57,4 @@ extract_data_from_raw_sources: False
 # every earlier year is absent.
 years:
 - 2023
+- 2024

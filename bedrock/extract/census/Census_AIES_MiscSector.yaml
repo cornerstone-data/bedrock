@@ -42,3 +42,4 @@ extract_data_from_raw_sources: False
 # back-years, so Census_SAS Table 8 remains the truck allocator for 2015-2022.
 years:
 - 2023
+- 2024
