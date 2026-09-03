@@ -227,6 +227,26 @@ def load_pipeline_crosswalk() -> pd.DataFrame:
     return pd.read_csv(PIPELINE_CROSSWALK_PATH, dtype=str)
 
 
+def _survey_fba(source: str, year: int) -> pd.DataFrame:
+    """A survey FBA, preferring the published artifact over a live rebuild.
+
+    ⚠️ ``download_FBA_if_missing=True`` is deliberate, for the reason
+    :func:`~bedrock.transform.iot.nowcast_trade_margins._census_fba` records:
+    the default is ``False``, which makes the load order *local, then rebuild
+    from the live endpoint*, so a cache miss goes straight to the network and a
+    bad response surfaces from deep inside ``pandas``. With the flag the order
+    is *local, then the published GCS artifact, then rebuild*.
+
+    ⚠️ **It is also what lets the tests run at all.** ``__tests__/conftest.py``
+    switches generation off in that directory, so the load order there is local
+    then GCS and nothing else - a source that never reaches the GCS step skips
+    instead of running. CI's data cache is keyed on the yaml hashes, so any
+    change to a source's yaml misses the cache and restores an older one, which
+    is exactly when a newly added year would silently stop being tested.
+    """
+    return getFlowByActivity(source, int(year), download_FBA_if_missing=True)
+
+
 def load_pipeline_item_revenue(year: int) -> pd.Series:
     """
     The four pipeline margin items' revenue for *year*, USD, from SAS Table 2.
@@ -240,11 +260,11 @@ def load_pipeline_item_revenue(year: int) -> pd.Series:
         # at TYPOP 00, and still partition to the dollar - the check below is
         # what enforces that, and it is the same check either side of the seam.
         source = 'Census_AIES'
-        fba = getFlowByActivity(source, year)
+        fba = _survey_fba(source, year)
         table2 = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
     else:
         source = 'Census_SAS'
-        fba = getFlowByActivity(source, year)
+        fba = _survey_fba(source, year)
         table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
 
     revenue = (
@@ -430,7 +450,7 @@ def load_rail_crosswalk() -> pd.DataFrame:
 
 def load_rail_revenue_by_stcc(year: int) -> pd.Series:
     """Released rail revenue per STCC5 for *year*, USD, from ``STB_CRSR``."""
-    fba = getFlowByActivity('STB_CRSR', year)
+    fba = _survey_fba('STB_CRSR', year)
     items = fba[
         ~fba['ActivityProducedBy'].str.contains(
             _CRSR_TOTAL_PATTERN, case=False, na=False
@@ -595,7 +615,7 @@ def load_truck_group_revenue(year: int) -> pd.Series:
     # strings, so everything below this dispatch is one implementation across
     # the seam - including the group names, which join the crosswalk unchanged.
     source = 'Census_AIES_MiscSector' if year >= FIRST_AIES_YEAR else 'Census_SAS'
-    fba = getFlowByActivity(source, year)
+    fba = _survey_fba(source, year)
     table8 = fba[
         fba['Description'].astype(str).str.startswith('Table 8')
         & (fba['ActivityProducedBy'].astype(str) == TRUCK_NAICS)
@@ -765,7 +785,7 @@ def load_difficulty_multipliers() -> pd.DataFrame:
 
 def load_faf_ton_miles(mode: str, year: int) -> pd.Series:
     """FAF ton-miles for one mode and year, per SCTG."""
-    fba = getFlowByActivity('BTS_FAF', year)
+    fba = _survey_fba('BTS_FAF', year)
     rows = fba[
         (fba['ActivityProducedBy'].astype(str) == mode)
         & (fba['Unit'] == TON_MILES_UNIT)
@@ -922,7 +942,7 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
     if mode_name == 'pipeline':
         return float(load_pipeline_item_revenue(year).sum())
     if mode_name == 'rail':
-        fba = getFlowByActivity('STB_CRSR', year)
+        fba = _survey_fba('STB_CRSR', year)
         rows = fba[fba['ActivityProducedBy'].astype(str).str.strip() == _CRSR_ALL_DATA]
         if rows.empty:
             raise ValueError(
@@ -940,11 +960,11 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
         # published there, so neither mode falls back to a parent industry.
         if year >= FIRST_AIES_YEAR:
             source = 'Census_AIES'
-            fba = getFlowByActivity(source, year)
+            fba = _survey_fba(source, year)
             table2 = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
         else:
             source = 'Census_SAS'
-            fba = getFlowByActivity(source, year)
+            fba = _survey_fba(source, year)
             table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
         revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
         found = set(revenue['ActivityProducedBy'].astype(str))
@@ -963,7 +983,7 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
 def _published_air_revenue(year: int) -> float:
     """Air freight revenue as published, USD. The 2022 anchor for the volume index."""
     codes = _SAS_FREIGHT_NAICS['air']
-    fba = getFlowByActivity('Census_SAS', int(year))
+    fba = _survey_fba('Census_SAS', year)
     table2 = fba[fba['Description'].astype(str).str.startswith('Table 2')]
     revenue = table2[table2['ActivityProducedBy'].astype(str).isin(codes)]
     found = set(revenue['ActivityProducedBy'].astype(str))
@@ -979,7 +999,7 @@ def _published_air_revenue(year: int) -> float:
 def _published_air_revenue_aies(year: int) -> float:
     """Air freight revenue as AIES publishes it, USD."""
     codes = _SAS_FREIGHT_NAICS['air']
-    fba = getFlowByActivity('Census_AIES', int(year))
+    fba = _survey_fba('Census_AIES', year)
     sales = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
     revenue = sales[sales['ActivityProducedBy'].astype(str).isin(codes)]
     found = set(revenue['ActivityProducedBy'].astype(str))

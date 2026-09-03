@@ -80,6 +80,7 @@ from typing import Any
 
 import pandas as pd
 
+from bedrock.extract.generateflowbyactivity import _redact_secrets
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.io.gcp import (
     gcs_extract_input_sub_bucket_from_kwargs,
@@ -151,27 +152,24 @@ def _normalise_aies_columns(df: pd.DataFrame) -> pd.DataFrame:
 def _absent_year(resp: Any, what: str) -> bool:
     """Whether the response means "this year is not published".
 
-    ⚠️ **404 has to be treated alongside 204.** The retired ``timeseries``
-    path answered an unpublished year with ``204 No Content``; the per-year
-    datasets simply do not exist until the year is released, so the same
-    condition now arrives as a 404 from a path that is otherwise correct.
-    Letting it raise would turn "not published yet" into an ``APIError``.
+    ⚠️ **Only 204 reaches here.** The retired ``timeseries`` path answered an
+    unpublished year with ``204 No Content``, and that still arrives as a
+    response this can inspect. The per-year datasets instead do not *exist*
+    until the year is released, so the request 404s - and
+    ``esupy.remote.make_url_request`` calls ``raise_for_status()``, so that
+    becomes a ``requests.HTTPError`` before any of this runs.
+
+    ❌ **An earlier version of this function had a 404 branch and it could never
+    fire.** The docstrings, three YAML headers and two parse messages all said a
+    missing year "arrives as a 404" and would be handled here; none of that was
+    true. A year past the latest release raises out of the request layer, which
+    is a loud failure rather than a silent one - acceptable, but it is not this
+    function's doing and must not be described as such.
     """
     if resp.status_code == 204:
-        log.warning(f'No {what} content for {_redacted(resp.url)}')
-        return True
-    if resp.status_code == 404:
-        log.warning(
-            f'No {what} dataset for {_redacted(resp.url)} - the per-year '
-            f'dataset does not exist, i.e. the year is not published.'
-        )
+        log.warning(f'No {what} content for {_redact_secrets(resp.url)}')
         return True
     return False
-
-
-def _redacted(url: str | None) -> str:
-    """A url with its API key removed, so a log line cannot leak the key."""
-    return re.sub(r'(?i)((?:key|api_key|apikey|token)=)[^&\s]+', r'***', url or '')
 
 
 def census_aies_url_helper(*, build_url: str, config: dict, **_: Any) -> list[str]:
@@ -295,54 +293,88 @@ def census_aies_call(*, resp: Any, **kwargs: Any) -> list[pd.DataFrame]:
     return [df]
 
 
+def _read_aies_csv(path: str) -> pd.DataFrame:
+    """Read a cached AIES table with **every column as a string**.
+
+    ⚠️ **Not a stylistic choice - the join breaks without it.** ``TAXSTAT`` and
+    ``TYPOP`` are zero-padded codes. On the ``aiesmiscsector`` leg every
+    ``TAXSTAT`` is ``00``, so pandas infers ``int64``; on ``aiesbasic`` the same
+    column carries ``00``/``E``/``T`` and stays ``object``. Merging the two then
+    raises *"You are trying to merge on object and int64 columns"*. And where
+    both legs happen to parse numeric, ``00`` silently becomes ``0`` and the
+    ``TYPOP``/``TAXSTAT`` string filters in :func:`census_aies_parse` match
+    nothing at all - which is the worse failure, because it is quiet.
+
+    The live JSON path is all-strings already, so only the cached path is
+    exposed to this.
+    """
+    return pd.read_csv(path, dtype=str)
+
+
 def census_aies_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
     """Load one cached leg of the AIES pull from ``input_data``, or GCS.
 
     This is the path CI takes.  ``Census_AWTS`` and ``Census_ARTS`` need no key
-    and so regenerate anywhere, but AIES does, which is why the 2023 leg of the
-    trade margin has to come from the cache rather than from Census.
+    and so regenerate anywhere, but AIES does, which is why the trade margin's
+    AIES years have to come from the cache rather than from Census.
 
     ⚠️ **This runs once per url, so it must return only that url's leg.**
     Returning every leg on each call would hand :func:`census_aies_parse` two
     copies of the table.
 
-    ⚠️ **Falls back to the single-file layout** used before the source moved to
-    the per-year datasets, so a year already cached as ``Census_AIES_<year>.csv``
-    keeps loading instead of forcing a re-pull.  Only the first dataset takes the
-    fallback, for the same no-duplicates reason.
+    ⚠️ **A missing leg raises here rather than downstream.** Returning an empty
+    frame instead lets :func:`_join_aies_legs` pass the surviving leg straight
+    through, and the failure then surfaces as ``KeyError: ['RCPT_GM_DVAL']``
+    inside ``melt`` - far from the cause, and reproduced on every later cached
+    run. The one exception is the legacy single-file layout, which carries both
+    legs' columns in one file and so is read once, on the first dataset.
     """
     sub_bucket = gcs_extract_input_sub_bucket_from_kwargs(kwargs)
     local_dir = load_local_extract_input_dir(kwargs)
     dataset = _aies_dataset_from_url(kwargs['url'])
+    datasets = list(kwargs.get('config', {}).get('datasets', ()))
     try:
         return [
             load_from_gcs(
                 name=_census_aies_filename(kwargs['year'], dataset),
                 sub_bucket=sub_bucket,
                 local_dir=local_dir,
-                loader=pd.read_csv,
+                loader=_read_aies_csv,
             )
         ]
     except FileNotFoundError:
-        datasets = list(kwargs.get('config', {}).get('datasets', ()))
-        if datasets and dataset != datasets[0]:
+        pass
+
+    legacy = _census_aies_filename(kwargs['year'])
+    if datasets and dataset != datasets[0]:
+        # ⚠️ The legacy single file carries *both* legs' columns, so it is read
+        # once, on the first dataset, and this leg must yield nothing. But only
+        # when that file is actually there: otherwise neither leg has data and
+        # returning empty would hand the parse a half-built table that dies in
+        # ``melt`` far from the cause.
+        if os.path.exists(os.path.join(local_dir, legacy)):
             log.warning(
                 f'no cached {dataset} leg for {kwargs["year"]}; the legacy '
                 f'single-file cache is being read on the {datasets[0]} leg'
             )
             return [pd.DataFrame()]
-        log.warning(
-            f'no per-dataset cache for {kwargs["year"]}; falling back to the '
-            f'pre-2026-09 single-file layout'
+        raise FileNotFoundError(
+            f'no cached {dataset} leg for {kwargs["year"]}, and no legacy '
+            f'single-file cache {legacy} either. Stage the per-dataset caches '
+            f'for this year.'
         )
-        return [
-            load_from_gcs(
-                name=_census_aies_filename(kwargs['year']),
-                sub_bucket=sub_bucket,
-                local_dir=local_dir,
-                loader=pd.read_csv,
-            )
-        ]
+    log.warning(
+        f'no per-dataset cache for {kwargs["year"]}; falling back to the '
+        f'pre-2026-09 single-file layout ({legacy})'
+    )
+    return [
+        load_from_gcs(
+            name=legacy,
+            sub_bucket=sub_bucket,
+            local_dir=local_dir,
+            loader=_read_aies_csv,
+        )
+    ]
 
 
 def _join_aies_legs(df_list: list[pd.DataFrame]) -> pd.DataFrame:
@@ -368,8 +400,51 @@ def _join_aies_legs(df_list: list[pd.DataFrame]) -> pd.DataFrame:
                 f'joined: {sorted(joined.columns)} vs {sorted(leg.columns)}.'
             )
         overlap = (set(joined.columns) & set(leg.columns)) - set(keys)
-        joined = joined.merge(leg.drop(columns=list(overlap)), on=keys, how='left')
+        # ⚠️ ``validate`` is not decoration. A left join that silently found no
+        # partner would blank a margin cell, and a NaN margin melts into a
+        # well-formed ``Gross margins`` row that downstream code sums as zero
+        # and then rescales onto siblings - the exact behaviour
+        # ``census_margin_by_giver`` documents as forbidden. A duplicated key on
+        # the right would be just as quiet, in the other direction.
+        joined = joined.merge(
+            leg.drop(columns=list(overlap)),
+            on=keys,
+            how='left',
+            validate='m:1',
+        )
     return joined
+
+
+#: The published rows the trade margin control reads, and the type of operation
+#: each is published under. A margin missing from one of these is not a
+#: suppression - it is the control total, and it must never arrive as NaN.
+_MARGIN_CONTROL_ROWS = (('42', '1X'), ('44-45', '00'))
+
+
+def _check_margin_control_rows(df: pd.DataFrame, source: str, year: int | None) -> None:
+    """Fail loudly if the join lost a margin the control total depends on.
+
+    ⚠️ **A NaN here is indistinguishable from a real suppression downstream.**
+    :func:`census_aies_parse` coerces to numeric and does not drop nulls, so a
+    lost cell melts into a well-formed ``Gross margins`` row carrying NaN, with
+    nothing to mark it. ``_census_detail`` then sums it as zero and
+    ``census_margin_by_giver`` rescales the shortfall onto sibling commodities.
+    Census does withhold detail cells - nine of them in the restated 2023 - so
+    the check is deliberately confined to the two **published aggregate** rows,
+    which are never withheld and are what the control total is built from.
+    """
+    if 'RCPT_GM_DVAL' not in df.columns:
+        return
+    for naics, typop in _MARGIN_CONTROL_ROWS:
+        row = df[(df['NAICS'] == naics) & (df['TYPOP'] == typop)]
+        margin = pd.to_numeric(row.get('RCPT_GM_DVAL'), errors='coerce')
+        if row.empty or margin.isna().all():
+            raise ValueError(
+                f'{source} {year} has no gross margin on NAICS {naics} at type '
+                f'of operation {typop}. That is a published control row, not a '
+                f'suppressible detail cell, so this is a join or a request that '
+                f'went wrong rather than a Census withholding.'
+            )
 
 
 def census_aies_parse(
@@ -400,6 +475,7 @@ def census_aies_parse(
             )
         kept.append(rows)
     df = pd.concat(kept, ignore_index=True)
+    _check_margin_control_rows(df, source, year)
 
     df = (
         df.melt(
@@ -508,7 +584,7 @@ def census_aies_miscsector_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
             name=_census_aies_miscsector_filename(kwargs['year']),
             sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
             local_dir=load_local_extract_input_dir(kwargs),
-            loader=pd.read_csv,
+            loader=_read_aies_csv,
         )
     ]
 
