@@ -1047,7 +1047,7 @@ AIES_MATFUEL_SCOPE = ('EXPS_MAT_DVAL', 'EXPS_FUEL_VAL')
 #: The observed span therefore ends at 2023; extending it is #707.
 ANNUAL_SOURCES = {
     'Census_ASM_Expenses': (2018, 2019, 2020, 2021),
-    'Census_AIES_Expenses': (2023,),
+    'Census_AIES_Expenses': (2023, 2024),
 }
 
 #: ``ASM name -> AIES name`` for the concepts the two share.  ✅ Verified

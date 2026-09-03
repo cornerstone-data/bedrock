@@ -710,23 +710,30 @@ OBSERVED_YEARS = (*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS, *AIES_OBSERVED_YEARS)
 #: is carried from.
 LAST_FULL_AIES_YEAR = 2023
 
-#: ⚠️ **Items a later AIES year stops publishing, carried from
-#: :data:`LAST_FULL_AIES_YEAR` and marked held** - the same treatment
-#: ``inputs_structure.NO_AIES_COUNTERPART`` gives the two kinds AIES never
-#: published at all.
+#: ⚠️ **Items a later AIES year stops publishing. They are left absent, not
+#: carried.**
 #:
-#: The 2024 release drops four expense variables, and only **one of them is
-#: mapped here**: the lease and rental payments for land, buildings and offices.
-#: 2024 replaces it and the machinery rental line - which this seed does not map
-#: at all - with a single combined rent figure, and splitting that back across
-#: the two commodities needs a rule this build does not have. The other three
-#: dropped variables are not in :data:`AIES_TO_SAS_ITEM`.
+#: The 2024 release drops four expense variables and only one of them is mapped
+#: here: the lease and rental payments for land, buildings and offices. 2024
+#: replaces it and the machinery rental line - which this seed does not map at
+#: all - with a single combined rent figure, and splitting that back across the
+#: two commodities needs a rule this build does not have.
 #:
-#: ⚠️ **So 2024 is read, not held.** Fifteen of the sixteen mapped items are
-#: observed; one, worth **1.65% of total operating expenses** in 2023, is
-#: carried. An earlier version of this held the entire 2024 panel over that one
-#: item, which was far more conservative than the gap justified.
-AIES_ITEMS_HELD_AFTER = {'EXPS_RENT_BUILD_VAL': LAST_FULL_AIES_YEAR}
+#: ❌ **Carrying the 2023 *level* forward was tried and is wrong.**
+#: :func:`relative_index` divides each item's ``year / 2017`` growth by the
+#: industry's growth over its whole intermediate bill, so an item whose level is
+#: frozen has a numerator one year short against a denominator that is not. Rent
+#: does not hold: it *falls*. Measured on the 2024 panel it took ``531ORE`` down
+#: **7.4%** in utilities, **21.2%** in professional services and **19.7%** in
+#: education, against a flat 2021-2023 trend - a large spurious decline
+#: manufactured by the carry itself.
+#:
+#: ✅ **Absence is the honest encoding.** :func:`usable_items` keeps only items
+#: published in *both* the base year and the target year, so an item left out
+#: contributes no movement and its commodity holds its benchmark share - which
+#: is exactly the claim "2024 is not observed for this item". Nothing has to be
+#: invented and nothing is silently distorted.
+AIES_ITEMS_UNPUBLISHED_AFTER = {'EXPS_RENT_BUILD_VAL': LAST_FULL_AIES_YEAR}
 
 
 @functools.cache
@@ -736,14 +743,22 @@ def _aies_service_panel() -> pd.DataFrame:
     for year in AIES_OBSERVED_YEARS:
         fba = getFlowByActivity(AIES_SERVICE_SOURCE, year)
         keep = fba[fba['FlowName'].isin(AIES_TO_SAS_ITEM)].copy()
-        # ⚠️ An item this year stopped publishing is carried from the last year
-        # that did - see AIES_ITEMS_HELD_AFTER. Reading its absence as a zero
-        # would seed a collapse in, for instance, every service industry's rent.
-        for variable, last in AIES_ITEMS_HELD_AFTER.items():
-            if int(year) > last and variable not in set(keep['FlowName']):
-                source = getFlowByActivity(AIES_SERVICE_SOURCE, last)
-                carried = source[source['FlowName'] == variable].copy()
-                keep = pd.concat([keep, carried], ignore_index=True)
+        # ⚠️ An item this year stopped publishing is left absent rather than
+        # carried or zeroed - see AIES_ITEMS_UNPUBLISHED_AFTER. usable_items
+        # then drops it, so its commodity holds its benchmark share instead of
+        # taking a movement nobody measured.
+        missing = {
+            variable
+            for variable, last in AIES_ITEMS_UNPUBLISHED_AFTER.items()
+            if int(year) > last
+        }
+        unexpected = missing & set(keep['FlowName'])
+        if unexpected:
+            raise ValueError(
+                f'{AIES_SERVICE_SOURCE} {year} publishes {sorted(unexpected)}, '
+                f'which AIES_ITEMS_UNPUBLISHED_AFTER says it stopped publishing. '
+                f'Take the observation instead of dropping it.'
+            )
         frames.append(
             pd.DataFrame(
                 {
