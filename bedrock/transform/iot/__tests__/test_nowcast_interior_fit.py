@@ -109,5 +109,17 @@ def test_empty_axis_with_a_target_is_held_and_reported() -> None:
 
 
 def test_years_outside_the_margin_span_are_refused() -> None:
+    """The fit is bounded by the margins, and refuses anything past them.
+
+    ⚠️ **This named 2024 until the AIES release of 2026-09-03.** The bound is
+    the margin columns, not a fixed year: sourcing TRADE and TRANS for 2024
+    brought it inside the span, so the assertion tracks the end of FIT_YEARS
+    rather than a year that keeps being published.
+    """
     with pytest.raises(ValueError, match='interior fit runs for'):
-        fi.fit_interior(2024, seed=_seed())
+        fi.fit_interior(max(fi.FIT_YEARS) + 1, seed=_seed())
+
+
+def test_2024_is_inside_the_fit_span() -> None:
+    """The 2024 AIES release closed the last unfitted year of the span."""
+    assert 2024 in fi.FIT_YEARS

@@ -125,8 +125,8 @@ class CornerstoneDisaggIOBundle:
 
 
 def derive_cornerstone_V_after_waste() -> pd.DataFrame:
-    V_2017 = load_detail_V_usa()
-    V = industry_corresp() @ V_2017 @ commodity_corresp().T
+    V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
+    V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -186,7 +186,7 @@ def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
 
 @functools.cache
 def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
-    """Correspondence + waste (+ optional electricity). Uninflated 2017 chain dollars."""
+    """Correspondence + waste (+ optional electricity). Uninflated dollars of the detail IO year."""
     V = derive_cornerstone_V_after_waste()
     Udom, Uimp = derive_cornerstone_U_after_waste()
     VA = derive_cornerstone_VA_after_waste()

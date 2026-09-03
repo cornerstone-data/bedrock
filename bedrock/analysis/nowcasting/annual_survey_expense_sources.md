@@ -410,9 +410,9 @@ Categories that look mappable to BEA commodities:
 | `EXPS_COMMSVC_VAL` | Communication services | 517xxx |
 | `EXPS_EXSOFT_VAL` | Expensed purchases of software | 511200 |
 | `EXPS_PRINT_VAL` | Purchased printing services | 323110 |
-| `EXPS_MACH_REP_VAL` | Repairs/maintenance, machinery and equipment | 811000 |
+| `EXPS_MACH_REP_VAL` | Repairs/maintenance, machinery and equipment | 811300, 811400 — ⚠️ under review, #845 |
 | `EXPS_BUILD_REP_VAL` | Repairs/maintenance, buildings and structures | 230301 |
-| `EXPS_TRANSP_REP_VAL` | Repairs/maintenance, transportation equipment | 811000 |
+| `EXPS_TRANSP_REP_VAL` | Repairs/maintenance, transportation equipment | 811100 |
 | `EXPS_RENT_BUILD_VAL` | Lease/rental, land, buildings, offices | 531000 |
 | `EXPS_RENT_MACH_VAL` | Lease/rental, machinery and equipment | 532400 |
 | `EXPS_INS_PREM_VAL` | Cost of insurance | 524200 |

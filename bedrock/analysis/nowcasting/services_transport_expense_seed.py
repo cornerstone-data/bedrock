@@ -264,6 +264,15 @@ SAS_ITEM_TO_BEA: dict[str, tuple[str, ...]] = {
         '492000',
         '493000',
     ),
+    # ⚠️ **This mapping is under review and is deliberately unchanged here.**
+    # 811400 is *personal and household goods* repair - shoe repair, household
+    # appliances - which is not what a firm's machinery maintenance line buys,
+    # and 811200 (electronic and precision equipment repair) is missing. But
+    # correcting it moves **every year the seed builds, not just the new one**:
+    # on 2022 it takes 811200 -4.99% and 811400 +7.52%, because a commodity
+    # dropped from the map stops receiving this item's movement and holds its
+    # 2017 structure instead. That is a whole-span rebuild and belongs in its
+    # own change with a before/after diff - see #845.
     'Purchased repairs and maintenance to machinery and equipment': (
         '811300',
         '811400',
@@ -690,12 +699,41 @@ AIES_TO_SAS_ITEM = {
 #: service row is a well-formed zero.
 AIES_SERVICE_SOURCE = 'Census_AIES_Service_Expenses'
 
-#: The one year AIES answers for.  2021, 2022 and 2024 return ``204 No Content``.
-AIES_OBSERVED_YEARS = (2023,)
+#: The years AIES answers for.  Earlier years predate the consolidated survey.
+AIES_OBSERVED_YEARS = (2023, 2024)
 
 #: Every year the service panel observes: SAS full-list, the 2018-2019 cut
 #: list, then AIES.
 OBSERVED_YEARS = (*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS, *AIES_OBSERVED_YEARS)
+
+#: The last year every mapped item is published, and so the year a missing item
+#: is carried from.
+LAST_FULL_AIES_YEAR = 2023
+
+#: ⚠️ **Items a later AIES year stops publishing. They are left absent, not
+#: carried.**
+#:
+#: The 2024 release drops four expense variables and only one of them is mapped
+#: here: the lease and rental payments for land, buildings and offices. 2024
+#: replaces it and the machinery rental line - which this seed does not map at
+#: all - with a single combined rent figure, and splitting that back across the
+#: two commodities needs a rule this build does not have.
+#:
+#: ❌ **Carrying the 2023 *level* forward was tried and is wrong.**
+#: :func:`relative_index` divides each item's ``year / 2017`` growth by the
+#: industry's growth over its whole intermediate bill, so an item whose level is
+#: frozen has a numerator one year short against a denominator that is not. Rent
+#: does not hold: it *falls*. Measured on the 2024 panel it took ``531ORE`` down
+#: **7.4%** in utilities, **21.2%** in professional services and **19.7%** in
+#: education, against a flat 2021-2023 trend - a large spurious decline
+#: manufactured by the carry itself.
+#:
+#: ✅ **Absence is the honest encoding.** :func:`usable_items` keeps only items
+#: published in *both* the base year and the target year, so an item left out
+#: contributes no movement and its commodity holds its benchmark share - which
+#: is exactly the claim "2024 is not observed for this item". Nothing has to be
+#: invented and nothing is silently distorted.
+AIES_ITEMS_UNPUBLISHED_AFTER = {'EXPS_RENT_BUILD_VAL': LAST_FULL_AIES_YEAR}
 
 
 @functools.cache
@@ -705,6 +743,22 @@ def _aies_service_panel() -> pd.DataFrame:
     for year in AIES_OBSERVED_YEARS:
         fba = getFlowByActivity(AIES_SERVICE_SOURCE, year)
         keep = fba[fba['FlowName'].isin(AIES_TO_SAS_ITEM)].copy()
+        # ⚠️ An item this year stopped publishing is left absent rather than
+        # carried or zeroed - see AIES_ITEMS_UNPUBLISHED_AFTER. usable_items
+        # then drops it, so its commodity holds its benchmark share instead of
+        # taking a movement nobody measured.
+        missing = {
+            variable
+            for variable, last in AIES_ITEMS_UNPUBLISHED_AFTER.items()
+            if int(year) > last
+        }
+        unexpected = missing & set(keep['FlowName'])
+        if unexpected:
+            raise ValueError(
+                f'{AIES_SERVICE_SOURCE} {year} publishes {sorted(unexpected)}, '
+                f'which AIES_ITEMS_UNPUBLISHED_AFTER says it stopped publishing. '
+                f'Take the observation instead of dropping it.'
+            )
         frames.append(
             pd.DataFrame(
                 {

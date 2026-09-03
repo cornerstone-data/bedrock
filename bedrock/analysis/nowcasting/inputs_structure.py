@@ -1047,7 +1047,7 @@ AIES_MATFUEL_SCOPE = ('EXPS_MAT_DVAL', 'EXPS_FUEL_VAL')
 #: The observed span therefore ends at 2023; extending it is #707.
 ANNUAL_SOURCES = {
     'Census_ASM_Expenses': (2018, 2019, 2020, 2021),
-    'Census_AIES_Expenses': (2023,),
+    'Census_AIES_Expenses': (2023, 2024),
 }
 
 #: ``ASM name -> AIES name`` for the concepts the two share.  ✅ Verified
@@ -1182,7 +1182,7 @@ def unobserved_years() -> tuple[int, ...]:
     """
     observed = {year for years in ANNUAL_SOURCES.values() for year in years}
     observed |= set(VINTAGES)
-    return tuple(year for year in range(2018, 2026) if year not in observed)
+    return tuple(year for year in range(2018, 2025) if year not in observed)
 
 
 def annual_partition() -> pd.DataFrame:
@@ -1240,8 +1240,27 @@ def annual_partition() -> pd.DataFrame:
 EXPENSE_SOURCES = {
     'Census_EC_Expenses': (2017, 2022),
     'Census_ASM_Expenses': (2018, 2019, 2020, 2021),
-    'Census_AIES_Expenses': (2023,),
+    'Census_AIES_Expenses': (2023, 2024),
 }
+
+#: The AIES years, in order. The 2022 census is the last observation of the two
+#: kinds AIES does not publish (:data:`NO_AIES_COUNTERPART`), so each AIES year
+#: carries them forward from it.
+AIES_EXPENSE_YEARS = EXPENSE_SOURCES['Census_AIES_Expenses']
+
+#: ⚠️ **2024 publishes fewer expense variables than 2023, and it does not matter
+#: here.** The 2024 AIES drops purchased communication services, expensed
+#: software and the two rental lines. But :data:`SERVICE_TO_AIES` maps **nine**
+#: cells and all nine are published in 2024, and the first two of those four are
+#: zero in every 2023 AIES row already - which is why they are in
+#: :data:`NO_AIES_COUNTERPART`. So the manufacturing expense panel is fully
+#: observed for 2024 and nothing is held that was not held for 2023.
+
+
+def expense_years() -> tuple[int, ...]:
+    """Every year the expense panel answers for."""
+    return tuple(sorted({year for years in EXPENSE_SOURCES.values() for year in years}))
+
 
 #: ``ASM/EC name -> the AIES cells that make it up``.  ⚠️ **Not one-for-one.**
 #: AIES splits ASM's single repair cell into machinery and building, so the two
@@ -1405,13 +1424,15 @@ def expense_panel() -> pd.DataFrame:
     # on this definition -- and say so, rather than seeding a zero.
     carried = [
         panel[(panel['kind'] == kind) & (panel['year'] == 2022)].assign(
-            year=2023, source='held from 2022', held=True
+            year=year, source='held from 2022', held=True
         )
         for kind in NO_AIES_COUNTERPART
+        for year in AIES_EXPENSE_YEARS
     ]
     carried = [frame for frame in carried if not frame.empty]
     if carried:
         panel = pd.concat([panel, *carried], ignore_index=True)
+
     return pd.DataFrame(panel)
 
 
@@ -1484,15 +1505,14 @@ def nonmaterial_seed(year: int) -> pd.DataFrame:
     than being dropped or zeroed -- a missing denominator is an absence of
     information about movement, which is what holding the benchmark means.
 
-    ⚠️ **The observed span ends at 2023** (:func:`unobserved_years`), so this
-    raises for any later year rather than inventing one.  Extending it to 2024
-    is #707; 2025 is out of scope.
+    ⚠️ **The observed span ends at 2024**; anything later raises rather than
+    being invented.  2025 is out of scope.
     """
-    observed = {y for years in EXPENSE_SOURCES.values() for y in years}
-    if year not in observed:
+    available = expense_years()
+    if year not in available:
         raise ValueError(
-            f'{year} is not observed for the expense cells; observed years are '
-            f'{sorted(observed)}. Extrapolating past 2023 is not decided.'
+            f'{year} has no expense panel; the panel answers for {list(available)}. '
+            f'Extrapolating past the last observed year is not decided.'
         )
 
     use = _use_2017_detail()

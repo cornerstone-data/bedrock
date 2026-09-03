@@ -455,7 +455,8 @@ def residual_share() -> pd.Series:
 #: Last year the margin columns reach, so the last year the purchaser-price base
 #: can be built. Kept local rather than imported from ``iot.nowcast``, which
 #: imports this module.
-_LAST_MARGIN_YEAR = 2023
+#: ✅ 2024 once the AIES release of 2026-09-03 sourced ``TRADE`` and ``TRANS``.
+_LAST_MARGIN_YEAR = 2024
 
 
 @functools.cache
@@ -545,11 +546,17 @@ def residual_share_for_year(year: int) -> pd.Series:
     -7,511 $M, so two independent bases agree on the size of the pandemic effect
     and only this one reaches it without breaking the control total.
 
-    ⚠️ **2024 holds 2023's shares** rather than reverting to the frozen 2017
-    vector. ``TRADE`` and ``TRANS`` stop at 2023, so 2024 has no base; carrying
-    the last observed shares forward keeps the series continuous, where falling
-    back to 2017 would undo six years of movement in one step. It is a hold, not
-    a measurement.
+    ✅ **2024 is measured, not held.** This used to carry 2023's shares forward
+    because ``TRADE`` and ``TRANS`` stopped at 2023 and so 2024 had no
+    purchaser-price base. The 2024 AIES release sourced both margin columns, so
+    the base exists and the shares are computed the same way as every other year.
+    That matters for 70.2% of the column, which is the sales-tax residual placed
+    on this base.
+
+    ⚠️ **The hold remains for whatever year is past the margin columns**, and it
+    is still the right fallback: carrying the last observed shares keeps the
+    series continuous, where reverting to the frozen 2017 vector would undo
+    every year of movement in one step.
     """
     year = int(year)
     if year > _LAST_MARGIN_YEAR:
