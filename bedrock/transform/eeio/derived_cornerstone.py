@@ -248,10 +248,14 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     ``usa_detail_io_source == 'nowcast'``: the detail Make the router loads is
     already the after-redefinition nowcast table for ``usa_base_io_data_year``
     (Step 7), so industry output is its row sum, ``derive_cornerstone_x()``.
-    Waste and electricity splits are already inside that ``V``; nothing is
-    expanded from a BEA gross-output series. *year* must be 0 or
-    ``usa_base_io_data_year`` - a nowcast Make exists for one calendar year
-    only.
+    The stored artifact is BEA detail schema; the waste and electricity
+    splits live inside the Cornerstone ``V`` that
+    ``derive_cornerstone_V()`` builds from it via the correspondences and
+    the disaggregation pipeline - x is the row sum of that post-schema
+    ``V``, so nothing is expanded from a BEA gross-output series and the
+    stored vectors are never treated as Cornerstone-shaped. *year* must be
+    0 or ``usa_base_io_data_year`` - a nowcast Make exists for one calendar
+    year only.
 
     ``bea_published``: uses gross-output time series for *year* (defaults to
     ``usa_ghg_data_year`` when *year* is 0), selecting before/after-redefinition
