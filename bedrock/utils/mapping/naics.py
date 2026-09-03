@@ -831,6 +831,38 @@ def convert_naics_year(
         )
         nonsectors = check_if_sectors_are_naics(df, cw_list, column_headers)
 
+    # Before dropping unconverted sectors: year convert must conserve FlowAmount
+    # per group_id
+    if pre_flow_sums is not None and 'group_id' in df.columns:
+        post_flow_sums = df.groupby('group_id')['FlowAmount'].sum()
+        shared = pre_flow_sums.index.intersection(post_flow_sums.index)
+        mismatched = shared[
+            ~np.isclose(
+                pre_flow_sums.loc[shared].to_numpy(dtype=float),
+                post_flow_sums.loc[shared].to_numpy(dtype=float),
+            )
+        ]
+        missing = pre_flow_sums.index.difference(post_flow_sums.index)
+        missing_nonzero = missing[
+            ~np.isclose(pre_flow_sums.loc[missing].to_numpy(dtype=float), 0.0)
+        ]
+        if len(mismatched) or len(missing_nonzero):
+            details = []
+            for gid in mismatched:
+                details.append(
+                    f'group_id={gid}: pre_flow={pre_flow_sums.loc[gid]}, '
+                    f'post_flow={post_flow_sums.loc[gid]}'
+                )
+            for gid in missing_nonzero:
+                details.append(
+                    f'group_id={gid}: pre_flow={pre_flow_sums.loc[gid]}, '
+                    f'post=missing'
+                )
+            raise ValueError(
+                f'NAICS year conversion did not conserve FlowAmount for '
+                f'{dfname}: ' + '; '.join(details)
+            )
+
     if len(nonsectors) != 0:
         log.info(f'Dropping non {targetsectorsourcename}s from dataframe: {nonsectors}')
         for c in column_headers:
