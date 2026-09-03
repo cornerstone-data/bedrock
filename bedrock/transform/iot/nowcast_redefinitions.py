@@ -752,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
         '--year',
         type=int,
         action='append',
-        help='stored Step 6 year to convert; repeatable. Default 2018-2023',
+        help='stored Step 6 year to convert; repeatable. Default 2017-2023',
     )
     parser.add_argument('--no-save', action='store_true')
     parser.add_argument(
@@ -763,7 +763,7 @@ def main(argv: list[str] | None = None) -> int:
         return check()
 
     anchor = published_anchor()
-    for year in args.year if args.year else range(2018, 2024):
+    for year in args.year if args.year else range(2017, 2024):
         tables, before_inputs = after_redef_tables(year, anchor)
         print(
             f'{year}: Make {tables["Make"].shape}, Use {tables["Use"].shape}, '
