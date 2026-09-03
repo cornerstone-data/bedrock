@@ -1,7 +1,10 @@
-"""N/D % histograms: nowcast-2023 snapshot (inflated to 2024$) vs v0.3.
+"""N/D % histograms: nowcast compare-year model vs the v0.3 release.
 
-Uses the CI snapshot from PR #831 (``NOWCAST_2023_SNAPSHOT``) and
-``releases.v0_3_0``. Writes CSV + PNGs next to this file (gitignored).
+Nowcast side: ``NOWCAST_COMPARE_SNAPSHOT`` when a CI snapshot of the
+``2025_usa_cornerstone_v0_4_nowcast_<year>`` config has been cut, otherwise
+B + A derived live from that YAML. The v0.3 EFs are in 2024$, so the default
+2024 compare year needs no inflation; other years are inflated to the v0.3
+dollar year first. Writes CSV + PNGs next to this file (gitignored).
 
 ::
 
@@ -16,11 +19,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from bedrock.analysis.nowcasting.results._ef_smoke_lib import (
-    NOWCAST_2023_SNAPSHOT,
+    NOWCAST_COMPARE_SNAPSHOT,
+    NOWCAST_COMPARE_YEAR,
     V03_SNAPSHOT,
+    efs_from_live_config,
     efs_from_snapshot,
     perc_diff,
 )
+from bedrock.utils.snapshots.releases import ef_dollar_year_for_snapshot
 from bedrock.utils.validation.analysis.ef_hist_panels import (
     draw_per_sector_pct_hist_panel,
 )
@@ -32,57 +38,62 @@ from bedrock.utils.validation.diagnostics_helpers import (
 OUT_DIR = Path(__file__).resolve().parent
 
 
-def main() -> None:
-    D_nc, N_nc = efs_from_snapshot(NOWCAST_2023_SNAPSHOT)
-    D_v03, N_v03 = efs_from_snapshot(V03_SNAPSHOT)
+def main(
+    *,
+    year: int = NOWCAST_COMPARE_YEAR,
+    snapshot: str | None = NOWCAST_COMPARE_SNAPSHOT,
+) -> None:
+    nc = efs_from_snapshot(snapshot) if snapshot else efs_from_live_config(year)
+    v03 = efs_from_snapshot(V03_SNAPSHOT)
+    v03_dollar_year = ef_dollar_year_for_snapshot(V03_SNAPSHOT)
 
-    N_nc_2024 = inflation_adjust_ef_denom_to_new_base_year(
-        N_nc, new_base_year=2024, old_base_year=2023
+    N_nc, D_nc = nc.N, nc.D
+    label = f'nowcast-{year}'
+    if year != v03_dollar_year:
+        N_nc = inflation_adjust_ef_denom_to_new_base_year(
+            N_nc, new_base_year=v03_dollar_year, old_base_year=year
+        )
+        D_nc = inflation_adjust_ef_denom_to_new_base_year(
+            D_nc, new_base_year=v03_dollar_year, old_base_year=year
+        )
+        label += f' (inflated to {v03_dollar_year}$)'
+    source = (
+        f'snapshot {snapshot[:8]}' if snapshot else f'live config, MUT {nc.mut_vintage}'
     )
-    D_nc_2024 = inflation_adjust_ef_denom_to_new_base_year(
-        D_nc, new_base_year=2024, old_base_year=2023
-    )
+    print(f'{label}: {source}; v0.3 = snapshot {V03_SNAPSHOT[:8]} ({v03_dollar_year}$)')
 
-    idx = N_nc_2024.index.intersection(N_v03.index)
-    n_pct = perc_diff(N_nc_2024.reindex(idx), N_v03.reindex(idx))
-    d_pct = perc_diff(D_nc_2024.reindex(idx), D_v03.reindex(idx))
+    idx = N_nc.index.intersection(v03.N.index)
+    n_pct = perc_diff(N_nc.reindex(idx), v03.N.reindex(idx))
+    d_pct = perc_diff(D_nc.reindex(idx), v03.D.reindex(idx))
 
+    stem = f'nowcast_{year}_vs_v03'
     pd.DataFrame(
         {
             'sector': idx,
-            'N_new_2024': N_nc_2024.reindex(idx).to_numpy(),
-            'N_old_v03': N_v03.reindex(idx).to_numpy(),
+            'N_nowcast': N_nc.reindex(idx).to_numpy(),
+            'N_v03': v03.N.reindex(idx).to_numpy(),
             'N_perc_diff': n_pct.to_numpy(),
-            'D_new_2024': D_nc_2024.reindex(idx).to_numpy(),
-            'D_old_v03': D_v03.reindex(idx).to_numpy(),
+            'D_nowcast': D_nc.reindex(idx).to_numpy(),
+            'D_v03': v03.D.reindex(idx).to_numpy(),
             'D_perc_diff': d_pct.to_numpy(),
+            'dollar_year': v03_dollar_year,
         }
-    ).to_csv(OUT_DIR / 'n_d_nowcast_inflated_to_2024_vs_v03.csv', index=False)
+    ).to_csv(OUT_DIR / f'n_d_{stem}.csv', index=False)
 
     setup_mpl()
-    for kind, pct, color, fname in (
-        (
-            'N',
-            n_pct,
-            '#ff7f0e',
-            'n_perc_diff_hist_nowcast_to_2024_vs_v03.png',
-        ),
-        (
-            'D',
-            d_pct,
-            '#1f77b4',
-            'd_perc_diff_hist_nowcast_to_2024_vs_v03.png',
-        ),
+    for kind, pct, color in (
+        ('N', n_pct, '#ff7f0e'),
+        ('D', d_pct, '#1f77b4'),
     ):
         fig, ax = plt.subplots(figsize=(8.0, 5.2))
         draw_per_sector_pct_hist_panel(
             ax,
             (pct / 100.0).to_numpy(),
-            title=f'{kind} % diff: nowcast-2023 (inflated to 2024$) vs v0.3',
+            title=f'{kind} % diff: {label} vs v0.3',
             color=color,
         )
         fig.tight_layout()
-        out = OUT_DIR / fname
+        out = OUT_DIR / f'{kind.lower()}_perc_diff_hist_{stem}.png'
         fig.savefig(out, dpi=150, bbox_inches='tight')
         plt.close(fig)
         print(

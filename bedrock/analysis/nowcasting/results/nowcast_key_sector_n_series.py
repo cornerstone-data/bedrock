@@ -1,7 +1,8 @@
-"""Key-sector total EF (N) over nowcast model years 2018-2023.
+"""Key-sector total EF (N) over nowcast model years 2017-2024.
 
 Cheap path: derive B + A per year (no full snapshot build), inflate N to 2024$,
-write CSV + line chart next to this file.
+write CSV + line chart next to this file. Each row records the NowcastMUT
+vintage the year resolved to, since the nowcast YAMLs leave it unpinned.
 
 PNG/CSV are gitignored (repo-wide ``*.png`` / ``*.csv`` plus this folder's
 ``.gitignore``).
@@ -38,7 +39,8 @@ def main(*, inflate_to: int = COMPARE_DOLLAR_YEAR) -> None:
     rows: list[dict[str, object]] = []
     for year in NOWCAST_YEARS:
         print(f'deriving {config_stem(year)} ...')
-        _D, N = efs_from_live_config(year)
+        efs = efs_from_live_config(year)
+        N = efs.N
         if inflate_to != year:
             N = inflation_adjust_ef_denom_to_new_base_year(
                 N, new_base_year=inflate_to, old_base_year=year
@@ -54,6 +56,7 @@ def main(*, inflate_to: int = COMPARE_DOLLAR_YEAR) -> None:
                     'sector_label': SECTOR_LABELS.get(code, code),
                     'N': float(N.loc[code]),
                     'dollar_year': inflate_to,
+                    'mut_vintage': efs.mut_vintage,
                 }
             )
 
@@ -85,7 +88,8 @@ def main(*, inflate_to: int = COMPARE_DOLLAR_YEAR) -> None:
     plt.close(fig)
     print('wrote', png)
 
-    # Index each sector to the first year in the series (2018; no 2017 after MUT).
+    # Index each sector to the first year in the series (2017, the BEA benchmark
+    # year rebuilt through the nowcast pipeline).
     base_year = int(min(NOWCAST_YEARS))
     indexed_rows: list[dict[str, object]] = []
     for sector_key, sub in df.groupby('sector'):
@@ -106,6 +110,7 @@ def main(*, inflate_to: int = COMPARE_DOLLAR_YEAR) -> None:
                     'N_index': float(r['N']) / n0,
                     'base_year': base_year,
                     'dollar_year': inflate_to,
+                    'mut_vintage': r['mut_vintage'],
                 }
             )
     idx_df = pd.DataFrame(indexed_rows)
@@ -127,10 +132,7 @@ def main(*, inflate_to: int = COMPARE_DOLLAR_YEAR) -> None:
     ax.axhline(1.0, color='black', lw=0.8, ls='--', alpha=0.6)
     ax.set_xlabel('Model year (nowcast IO + GHG)')
     ax.set_ylabel(f'N index ({base_year} = 1), {inflate_to}$ denominators')
-    ax.set_title(
-        f'Key-sector total EF (N), indexed to {base_year}=1\n'
-        f'(2017 omitted: no after-redef NowcastMUT on GCS)'
-    )
+    ax.set_title(f'Key-sector total EF (N), indexed to {base_year}=1')
     ax.legend(loc='best', fontsize=8, ncol=2)
     ax.set_xticks(list(NOWCAST_YEARS))
     fig.tight_layout()
