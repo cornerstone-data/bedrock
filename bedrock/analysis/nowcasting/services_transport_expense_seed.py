@@ -264,9 +264,15 @@ SAS_ITEM_TO_BEA: dict[str, tuple[str, ...]] = {
         '492000',
         '493000',
     ),
+    # ⚠️ **Business machinery repair, so business repair commodities only.**
+    # This item buys commercial and industrial machinery repair (811300) and
+    # electronic and precision equipment repair (811200). It previously also
+    # carried 811400, which is *personal and household goods* repair - shoe
+    # repair, appliance repair for households - and is not what a firm's
+    # machinery maintenance line buys.
     'Purchased repairs and maintenance to machinery and equipment': (
+        '811200',
         '811300',
-        '811400',
     ),
     'Purchased repairs and maintenance to transportation equipment': ('811100',),
     # ⚠️ Repair *to buildings* is a construction commodity to BEA, not a repair
@@ -690,30 +696,34 @@ AIES_TO_SAS_ITEM = {
 #: service row is a well-formed zero.
 AIES_SERVICE_SOURCE = 'Census_AIES_Service_Expenses'
 
-#: The one year AIES answers for.  2021, 2022 and 2024 return ``204 No Content``.
-AIES_OBSERVED_YEARS = (2023,)
+#: The years AIES answers for.  Earlier years predate the consolidated survey.
+AIES_OBSERVED_YEARS = (2023, 2024)
 
 #: Every year the service panel observes: SAS full-list, the 2018-2019 cut
 #: list, then AIES.
 OBSERVED_YEARS = (*SAS_EXPENSE_YEARS, *SAS_CUT_LIST_YEARS, *AIES_OBSERVED_YEARS)
 
-#: The last observed year, and so the panel a held year carries.
-LAST_OBSERVED_YEAR = max(OBSERVED_YEARS)
+#: The last year every mapped item is published, and so the year a missing item
+#: is carried from.
+LAST_FULL_AIES_YEAR = 2023
 
-#: Years built on a **carried** panel rather than an observed one.
+#: ⚠️ **Items a later AIES year stops publishing, carried from
+#: :data:`LAST_FULL_AIES_YEAR` and marked held** - the same treatment
+#: ``inputs_structure.NO_AIES_COUNTERPART`` gives the two kinds AIES never
+#: published at all.
 #:
-#: ⚠️ **2024 has an AIES service expense table; it is deliberately not read.**
-#: The 2024 release drops purchased communication services, expensed software
-#: and both rental lines, replacing the last two with one combined figure, so it
-#: is not on the definitions :data:`AIES_TO_SAS_ITEM` maps. Reading it would
-#: change what several items mean mid-series. Holding is also the graded choice
-#: for the mix this feeds - extending the trend one span past its last
-#: observation costs 27.4% on manufacturing against holding it. Splitting the
-#: combined rent line across buildings and machinery is the next improvement.
-HELD_YEARS = (2024,)
-
-#: Every year the seed can build, observed or held.
-BUILDABLE_YEARS = (*OBSERVED_YEARS, *HELD_YEARS)
+#: The 2024 release drops four expense variables, and only **one of them is
+#: mapped here**: the lease and rental payments for land, buildings and offices.
+#: 2024 replaces it and the machinery rental line - which this seed does not map
+#: at all - with a single combined rent figure, and splitting that back across
+#: the two commodities needs a rule this build does not have. The other three
+#: dropped variables are not in :data:`AIES_TO_SAS_ITEM`.
+#:
+#: ⚠️ **So 2024 is read, not held.** Fifteen of the sixteen mapped items are
+#: observed; one, worth **1.65% of total operating expenses** in 2023, is
+#: carried. An earlier version of this held the entire 2024 panel over that one
+#: item, which was far more conservative than the gap justified.
+AIES_ITEMS_HELD_AFTER = {'EXPS_RENT_BUILD_VAL': LAST_FULL_AIES_YEAR}
 
 
 @functools.cache
@@ -723,6 +733,14 @@ def _aies_service_panel() -> pd.DataFrame:
     for year in AIES_OBSERVED_YEARS:
         fba = getFlowByActivity(AIES_SERVICE_SOURCE, year)
         keep = fba[fba['FlowName'].isin(AIES_TO_SAS_ITEM)].copy()
+        # ⚠️ An item this year stopped publishing is carried from the last year
+        # that did - see AIES_ITEMS_HELD_AFTER. Reading its absence as a zero
+        # would seed a collapse in, for instance, every service industry's rent.
+        for variable, last in AIES_ITEMS_HELD_AFTER.items():
+            if int(year) > last and variable not in set(keep['FlowName']):
+                source = getFlowByActivity(AIES_SERVICE_SOURCE, last)
+                carried = source[source['FlowName'] == variable].copy()
+                keep = pd.concat([keep, carried], ignore_index=True)
         frames.append(
             pd.DataFrame(
                 {
@@ -1047,14 +1065,7 @@ def _cut_list_panel(year: int) -> pd.DataFrame:
 
 
 def _panel_for(year: int) -> pd.DataFrame:
-    """The observation panel for a year -- SAS, the cut-list bridge, or AIES.
-
-    ⚠️ **A held year reads the last observed year's panel** rather than its own.
-    See :data:`HELD_YEARS`: 2024's AIES table is on changed definitions, so
-    carrying 2023 is the honest reading and the graded one.
-    """
-    if year in HELD_YEARS:
-        year = LAST_OBSERVED_YEAR
+    """The observation panel for a year -- SAS, the cut-list bridge, or AIES."""
     if year in SAS_CUT_LIST_YEARS:
         return _cut_list_panel(year)
     if year in AIES_OBSERVED_YEARS:
@@ -1150,11 +1161,10 @@ def services_transport_seed(
             f'step is a rebenchmark rather than a broken instrument. Pass '
             f'allow_survey_change=True (the default) to build it.'
         )
-    if year not in BUILDABLE_YEARS:
+    if year not in OBSERVED_YEARS:
         raise ValueError(
-            f'{year} has no surveyed expense panel; the seed builds '
-            f'{sorted(BUILDABLE_YEARS)} (of which {sorted(HELD_YEARS)} carry the '
-            f'{LAST_OBSERVED_YEAR} panel rather than observing one).'
+            f'{year} is not observed for the surveyed expense cells; observed '
+            f'years are {sorted(OBSERVED_YEARS)}.'
         )
     use = _use_2017_detail()
     columns = services_transport_industries()

@@ -188,6 +188,16 @@ def census_aies_url_helper(*, build_url: str, config: dict, **_: Any) -> list[st
     ]
 
 
+#: Expense variables a later year *introduces*. ⚠️ **The mirror of
+#: :data:`_EXPENSE_VARIABLES_RETIRED_AFTER`, and just as necessary.** 2024
+#: replaces the two rental lines with one combined ``EXPS_RENT_VAL``, and asking
+#: 2023 for it fails the pull exactly as naming a retired variable does - so it
+#: is added per year rather than listed in the yaml. Without it the 2024 rent
+#: expense is not pulled at all and nothing downstream can use it.
+_EXPENSE_VARIABLES_INTRODUCED_IN = {
+    'EXPS_RENT_VAL': 2024,
+}
+
 #: Expense variables the per-year datasets stopped publishing after 2023.
 #: ⚠️ **Census rejects an unknown variable outright** - the response is
 #: ``error: unknown variable '...'``, not a null column - so a 2024 request that
@@ -206,12 +216,17 @@ _EXPENSE_VARIABLES_RETIRED_AFTER = {
 def census_aies_expenses_url_helper(
     *, build_url: str, year: str | int, **_: Any
 ) -> list[str]:
-    """Drop the expense variables the requested year no longer publishes."""
+    """Fit the variable list to what the requested year actually publishes."""
     year = int(year)
     retired = [
         name for name, last in _EXPENSE_VARIABLES_RETIRED_AFTER.items() if year > last
     ]
-    if not retired:
+    introduced = [
+        name
+        for name, first in _EXPENSE_VARIABLES_INTRODUCED_IN.items()
+        if year >= first
+    ]
+    if not retired and not introduced:
         return [build_url]
     requested = _get_variables(build_url)
     # ⚠️ urlencode percent-encodes the separator, so the list arrives as
@@ -221,10 +236,12 @@ def census_aies_expenses_url_helper(
     kept = [
         variable for variable in re.split('%2C|,', requested) if variable not in retired
     ]
-    log.warning(
-        f'AIES {year} does not publish {sorted(retired)}; requesting the '
-        f'remaining {len(kept)} variables'
-    )
+    kept += [name for name in introduced if name not in kept]
+    if retired:
+        log.warning(f'AIES {year} does not publish {sorted(retired)}')
+    if introduced:
+        log.info(f'AIES {year} adds {sorted(introduced)}')
+    log.info(f'requesting {len(kept)} AIES variables for {year}')
     return [_with_variables(build_url, separator.join(kept))]
 
 
@@ -609,6 +626,11 @@ AIES_EXPENSE_FLOWS = {
     'EXPS_REFUSE_VAL': 'Purchased refuse removal services',
     'EXPS_MACH_REP_VAL': 'Purchased machinery repair and maintenance',
     'EXPS_BUILD_REP_VAL': 'Purchased building repair and maintenance',
+    # ⚠️ 2024 onward publishes one combined figure in place of the two
+    # below. It is kept under its own name rather than folded into either,
+    # because splitting it back across buildings and machinery needs a rule
+    # this extract does not have - see the seed that consumes it.
+    'EXPS_RENT_VAL': 'Rental of buildings and machinery, combined',
     'EXPS_RENT_BUILD_VAL': 'Rental of buildings',
     'EXPS_RENT_MACH_VAL': 'Rental of machinery and equipment',
     'EXPS_EXSOFT_VAL': 'Purchased software expensed',
