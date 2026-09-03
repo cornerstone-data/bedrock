@@ -2114,6 +2114,8 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
 ### Step 9 — Storage and pipeline integration
 - Store Make/Use/Import/Margins per year via bedrock's normal GCS snapshot path.
 - Wire the nowcasted products into the model-build pipeline; regenerate snapshots and diagnostics.
+- 9a: x and q are the after-redef Make's row and column sums; B skips the legacy year
+  scaling and inflation under `usa_detail_io_source: nowcast`. Plan: `nowcast_x_q_from_make_plan.md`.
 
 ## Testing strategy
 
