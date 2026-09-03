@@ -191,7 +191,7 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
     if usa.usa_detail_io_source == 'bea_published':
-        return 'GHG_national_Cornerstone_{year}'
+        return f'GHG_national_Cornerstone_{year}'
     return f'GHG_national_Cornerstone_nowcast_{year}'
 
 
