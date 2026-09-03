@@ -101,11 +101,18 @@ from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 TRADE_OVERLAY_YEARS = range(2017, 2025)
 
 #: Years with an ``Inventories_<year>`` method supplying ``F03000`` (#529,
-#: #746). Stops at 2023 because the Economic Census product mix the trade
-#: branch attributes on is interpolated between the 2017 and 2022 vintages and
-#: held after, and because ``U50705BU1`` is the level for every year: 2024
-#: needs the next AIES release the same way ``TRANSPORT_MARGIN_YEARS`` does.
-INVENTORIES_YEARS = range(2017, 2024)
+#: #746).
+#:
+#: ⚠️ **This used to stop at 2023, and the reason given was wrong.** The note
+#: here said 2024 "needs the next AIES release the same way
+#: ``TRANSPORT_MARGIN_YEARS`` does". It does not, and never did: the level comes
+#: from NIPA ``U50705BU1`` plus ``T50705B``, both extracted through 2024, the
+#: farm commodity split from ``USDA_ERS_FIWS``, which runs to 2025, and the
+#: trade and manufacturing weights from ``Census_EC_PxI`` on the 2022 vintage
+#: held forward - which is deliberate, since no annual survey observes which
+#: goods a wholesaler holds. 2024 was a missing method file, not a missing
+#: source.
+INVENTORIES_YEARS = range(2017, 2025)
 
 #: Years the transport margin can be built for. Truck and pipeline come from
 #: the Service Annual Survey through 2022 and from AIES from 2023; rail comes

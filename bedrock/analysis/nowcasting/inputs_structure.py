@@ -1182,7 +1182,7 @@ def unobserved_years() -> tuple[int, ...]:
     """
     observed = {year for years in ANNUAL_SOURCES.values() for year in years}
     observed |= set(VINTAGES)
-    return tuple(year for year in range(2018, 2026) if year not in observed)
+    return tuple(year for year in range(2018, 2025) if year not in observed)
 
 
 def annual_partition() -> pd.DataFrame:
