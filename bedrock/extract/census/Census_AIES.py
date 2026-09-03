@@ -11,12 +11,31 @@ Survey of Manufactures and the Service Annual Survey among them - into one
 integrated survey. ``Census_AWTS`` and ``Census_ARTS`` therefore stop at 2022 and
 this carries the trade margin control total forward (#612).
 
-**What is taken.** ``timeseries/aies/basic`` publishes ``RCPT_GM_DVAL`` (gross
-margin) and ``RCPT_TOT_VAL`` (sales, value of shipments, or revenue) by NAICS,
-which is the same pair of measures the two predecessor surveys published. Gross
-margin as a percent of sales is not published and is not taken: it is the ratio
-of the two, and deriving it here would invent a third series that has to agree
-with the first two.
+**What is taken.** ``RCPT_GM_DVAL`` (gross margin) and ``RCPT_TOT_VAL`` (sales,
+value of shipments, or revenue) by NAICS, which is the same pair of measures the
+two predecessor surveys published. Gross margin as a percent of sales is not
+published and is not taken: it is the ratio of the two, and deriving it here
+would invent a third series that has to agree with the first two.
+
+⚠️ **The two measures come from two different datasets, so this source issues
+two requests.** AIES is published as per-year datasets - ``data/<year>/aiesbasic``
+and ``data/<year>/aiesmiscsector`` - and the ``timeseries/aies/*`` path used until
+2026-09 now returns **404 for every year, 2023 included**. ``RCPT_GM_DVAL`` is
+*declared* on ``aiesbasic`` but is an orphan there (group ``N/A``, no concept) and
+returns null for every row; the populated copy is on ``aiesmiscsector``. Yet
+``aiesmiscsector`` carries no NAICS 486 detail, and those pipeline items are what
+the transport margin reads from this source. Neither dataset contains the other,
+so :func:`census_aies_url_helper` issues one request each and
+:func:`_join_aies_legs` joins them on NAICS/TYPOP/TAXSTAT back into the single
+wide table this source has always produced.
+
+⚠️ **The per-year datasets publish less gross-margin detail than the retired
+timeseries path did.** Regenerating 2023 through the new endpoints reproduces
+sales **exactly** on the published NAICS 42 and 44-45 rows, but nine wholesale
+detail cells that used to carry a margin - automobiles, computers, appliances and
+confectionery among them - are now withheld, and Census restated the rest: the
+NAICS 42 margin moves +0.20% and 44-45 +0.55%. Those are revisions and
+suppression, not a migration defect.
 
 ⚠️ **Type of operation is not a detail here.** Wholesale gross margin is
 published under ``TYPOP`` code ``1X``, merchant wholesalers excluding
@@ -41,10 +60,11 @@ splice shows a spurious +17.9% jump where the real move is -1.0%. The retail sid
 splices less cleanly on the same test - its rate steps 31.3% to 34.2% - which is
 open; see the plan's "The splice is the seam that matters".
 
-**2023 only, so far.** Every other year returns 204 No Content - AIES does not
-carry the predecessor surveys' back-years, and 2024 is not yet published. The
-nowcast window runs to 2024, so the last year of the trade control total has no
-observed source and must be extrapolated until the next AIES release.
+**Published years.** AIES does not carry the predecessor surveys' back-years, so
+years before 2023 are absent. An unpublished year now arrives as a **404** from a
+path that is otherwise correct, rather than as the ``204 No Content`` the retired
+timeseries path returned; :func:`_absent_year` treats the two the same so that
+"not published yet" does not surface as an ``APIError``.
 
 **NAICS vintage.** AIES 2023 publishes the pre-2022 retail structure - 452
 general merchandise stores and 454 nonstore retailers both appear - so it joins
@@ -55,6 +75,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 import pandas as pd
@@ -91,51 +112,254 @@ _FLOW_NAMES = {
 #: AIES money variables are published in thousands of dollars.
 _THOUSANDS = 1_000.0
 
+#: The dimensions the per-year AIES datasets share, and so the key the two
+#: legs of the pull are joined on.
+_AIES_JOIN_KEYS = ('NAICS', 'TYPOP', 'TAXSTAT')
 
-def _census_aies_filename(year: str | int) -> str:
-    return f'Census_AIES_{year}.csv'
+
+#: ``data/<year>/<dataset>`` -> the dataset name, for naming the cache file and
+#: for reporting which leg of the two-request pull a response belongs to.
+_DATASET_IN_URL = re.compile(r'/data/\d{4}/([a-z0-9_]+)\?')
+
+#: Vintage-endpoint column -> the name this source has always emitted. The
+#: retired ``timeseries/aies`` path called the industry column ``NAICS``; the
+#: per-year datasets call it ``NAICS2017``. Renaming here keeps the parse
+#: functions, the cached CSVs and every downstream consumer unchanged.
+_VINTAGE_COLUMN_RENAMES = {
+    'NAICS2017': 'NAICS',
+    'NAICS2017_LABEL': 'NAICS_LABEL',
+}
+
+
+def _aies_dataset_from_url(url: str) -> str:
+    """The AIES dataset a response came from, e.g. ``aiesbasic``."""
+    found = _DATASET_IN_URL.search(url or '')
+    if found is None:
+        raise ValueError(
+            f'could not read an AIES dataset name out of {url!r}. The url is '
+            f'expected to look like https://api.census.gov/data/<year>/'
+            f'<dataset>?... - see Census_AIES.yaml.'
+        )
+    return found.group(1)
+
+
+def _normalise_aies_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Put a vintage-endpoint response on this source's historical columns."""
+    return df.rename(columns=_VINTAGE_COLUMN_RENAMES)
+
+
+def _absent_year(resp: Any, what: str) -> bool:
+    """Whether the response means "this year is not published".
+
+    ⚠️ **404 has to be treated alongside 204.** The retired ``timeseries``
+    path answered an unpublished year with ``204 No Content``; the per-year
+    datasets simply do not exist until the year is released, so the same
+    condition now arrives as a 404 from a path that is otherwise correct.
+    Letting it raise would turn "not published yet" into an ``APIError``.
+    """
+    if resp.status_code == 204:
+        log.warning(f'No {what} content for {_redacted(resp.url)}')
+        return True
+    if resp.status_code == 404:
+        log.warning(
+            f'No {what} dataset for {_redacted(resp.url)} - the per-year '
+            f'dataset does not exist, i.e. the year is not published.'
+        )
+        return True
+    return False
+
+
+def _redacted(url: str | None) -> str:
+    """A url with its API key removed, so a log line cannot leak the key."""
+    return re.sub(r'(?i)((?:key|api_key|apikey|token)=)[^&\s]+', r'***', url or '')
+
+
+def census_aies_url_helper(*, build_url: str, config: dict, **_: Any) -> list[str]:
+    """One url per AIES dataset this source draws on.
+
+    ⚠️ **Two requests, not one.** Gross margin and the NAICS 486 pipeline items
+    live in different per-year datasets and neither is a superset of the other -
+    see the header of ``Census_AIES.yaml``. :func:`census_aies_parse` joins the
+    responses back into the single wide table this source has always produced.
+    """
+    return [
+        build_url.replace('__dataset__', dataset).replace('__get__', variables)
+        for dataset, variables in config['datasets'].items()
+    ]
+
+
+#: Expense variables the per-year datasets stopped publishing after 2023.
+#: ⚠️ **Census rejects an unknown variable outright** - the response is
+#: ``error: unknown variable '...'``, not a null column - so a 2024 request that
+#: still names these fails the whole pull rather than returning them empty.
+#: 2024 replaces the two rental lines with a single combined ``EXPS_RENT_VAL``;
+#: taking it needs a rule for splitting one number across the building and
+#: machinery commodities, which is deliberately not done here.
+_EXPENSE_VARIABLES_RETIRED_AFTER = {
+    'EXPS_COMMSVC_VAL': 2023,
+    'EXPS_EXSOFT_VAL': 2023,
+    'EXPS_RENT_BUILD_VAL': 2023,
+    'EXPS_RENT_MACH_VAL': 2023,
+}
+
+
+def census_aies_expenses_url_helper(
+    *, build_url: str, year: str | int, **_: Any
+) -> list[str]:
+    """Drop the expense variables the requested year no longer publishes."""
+    year = int(year)
+    retired = [
+        name for name, last in _EXPENSE_VARIABLES_RETIRED_AFTER.items() if year > last
+    ]
+    if not retired:
+        return [build_url]
+    requested = _get_variables(build_url)
+    # ⚠️ urlencode percent-encodes the separator, so the list arrives as
+    # ``A%2CB`` rather than ``A,B``. Splitting on a bare comma silently matches
+    # nothing and every variable survives the filter.
+    separator = '%2C' if '%2C' in requested else ','
+    kept = [
+        variable for variable in re.split('%2C|,', requested) if variable not in retired
+    ]
+    log.warning(
+        f'AIES {year} does not publish {sorted(retired)}; requesting the '
+        f'remaining {len(kept)} variables'
+    )
+    return [_with_variables(build_url, separator.join(kept))]
+
+
+def _get_variables(url: str) -> str:
+    """The comma-separated variable list out of a built Census url."""
+    found = re.search(r'[?&]get=([^&]*)', url)
+    if found is None:
+        raise ValueError(f'no get= parameter in {url!r}')
+    return found.group(1)
+
+
+def _with_variables(url: str, variables: str) -> str:
+    """The same url carrying a different variable list."""
+    return re.sub(r'([?&]get=)[^&]*', lambda m: m.group(1) + variables, url, count=1)
+
+
+def _census_aies_filename(year: str | int, dataset: str | None = None) -> str:
+    """Cache file for one leg of the pull.
+
+    ``dataset`` is None only for the pre-2026-09 single-request layout, which
+    :func:`census_aies_load_gcs` still falls back to so an already-cached year
+    keeps loading without being re-pulled.
+    """
+    if dataset is None:
+        return f'Census_AIES_{year}.csv'
+    return f'Census_AIES_{year}_{dataset}.csv'
 
 
 def census_aies_call(*, resp: Any, **kwargs: Any) -> list[pd.DataFrame]:
-    """Convert the API response to a dataframe; 204 means the year is absent.
+    """Convert one leg of the AIES pull to a dataframe.
 
     The raw table is also written under ``extract/input_data/Census_AIES/`` so it
     can be staged to GCS.  AIES needs an API key, and CI has none - without a
     cached copy every AIES-backed test fails there with ``APIError`` rather than
     on anything about the data.  See :func:`census_aies_load_gcs`.
+
+    ⚠️ **This runs once per dataset**, so the cache file has to carry the
+    dataset name.  Writing both legs to one filename would leave whichever
+    response arrived last, silently dropping the other half of the table.
     """
-    if resp.status_code == 204:
-        log.warning(f'No AIES content for {resp.url}')
+    if _absent_year(resp, 'AIES'):
         return [pd.DataFrame()]
     payload = json.loads(resp.text)
-    df = pd.DataFrame(payload[1:], columns=payload[0])
+    df = _normalise_aies_columns(pd.DataFrame(payload[1:], columns=payload[0]))
+    dataset = _aies_dataset_from_url(kwargs.get('url') or resp.url)
     out_dir = load_local_extract_input_dir(kwargs)
-    df.to_csv(os.path.join(out_dir, _census_aies_filename(kwargs['year'])), index=False)
+    df.to_csv(
+        os.path.join(out_dir, _census_aies_filename(kwargs['year'], dataset)),
+        index=False,
+    )
     return [df]
 
 
 def census_aies_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
-    """Load the cached AIES table from local ``input_data``, or GCS if missing.
+    """Load one cached leg of the AIES pull from ``input_data``, or GCS.
 
     This is the path CI takes.  ``Census_AWTS`` and ``Census_ARTS`` need no key
     and so regenerate anywhere, but AIES does, which is why the 2023 leg of the
     trade margin has to come from the cache rather than from Census.
+
+    ⚠️ **This runs once per url, so it must return only that url's leg.**
+    Returning every leg on each call would hand :func:`census_aies_parse` two
+    copies of the table.
+
+    ⚠️ **Falls back to the single-file layout** used before the source moved to
+    the per-year datasets, so a year already cached as ``Census_AIES_<year>.csv``
+    keeps loading instead of forcing a re-pull.  Only the first dataset takes the
+    fallback, for the same no-duplicates reason.
     """
-    return [
-        load_from_gcs(
-            name=_census_aies_filename(kwargs['year']),
-            sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
-            local_dir=load_local_extract_input_dir(kwargs),
-            loader=pd.read_csv,
+    sub_bucket = gcs_extract_input_sub_bucket_from_kwargs(kwargs)
+    local_dir = load_local_extract_input_dir(kwargs)
+    dataset = _aies_dataset_from_url(kwargs['url'])
+    try:
+        return [
+            load_from_gcs(
+                name=_census_aies_filename(kwargs['year'], dataset),
+                sub_bucket=sub_bucket,
+                local_dir=local_dir,
+                loader=pd.read_csv,
+            )
+        ]
+    except FileNotFoundError:
+        datasets = list(kwargs.get('config', {}).get('datasets', ()))
+        if datasets and dataset != datasets[0]:
+            log.warning(
+                f'no cached {dataset} leg for {kwargs["year"]}; the legacy '
+                f'single-file cache is being read on the {datasets[0]} leg'
+            )
+            return [pd.DataFrame()]
+        log.warning(
+            f'no per-dataset cache for {kwargs["year"]}; falling back to the '
+            f'pre-2026-09 single-file layout'
         )
-    ]
+        return [
+            load_from_gcs(
+                name=_census_aies_filename(kwargs['year']),
+                sub_bucket=sub_bucket,
+                local_dir=local_dir,
+                loader=pd.read_csv,
+            )
+        ]
+
+
+def _join_aies_legs(df_list: list[pd.DataFrame]) -> pd.DataFrame:
+    """Rebuild the single wide AIES table from the per-dataset responses.
+
+    ⚠️ **A join, not a concat.**  The legs carry different *measures* for the
+    same rows - sales from ``aiesbasic``, gross margin from ``aiesmiscsector`` -
+    so stacking them would double every row and leave each copy missing half its
+    columns.  They are joined on the dimensions the two datasets share.
+
+    One leg (the legacy single-file cache, or a year where only one dataset
+    answered) is returned unchanged.
+    """
+    legs = [df for df in df_list if df is not None and not df.empty]
+    if not legs:
+        return pd.DataFrame()
+    joined = legs[0]
+    for leg in legs[1:]:
+        keys = [c for c in _AIES_JOIN_KEYS if c in joined.columns and c in leg.columns]
+        if not keys:
+            raise ValueError(
+                f'AIES legs share none of {_AIES_JOIN_KEYS}, so they cannot be '
+                f'joined: {sorted(joined.columns)} vs {sorted(leg.columns)}.'
+            )
+        overlap = (set(joined.columns) & set(leg.columns)) - set(keys)
+        joined = joined.merge(leg.drop(columns=list(overlap)), on=keys, how='left')
+    return joined
 
 
 def census_aies_parse(
     *, df_list: list[pd.DataFrame], source: str, year: int | None, **_: Any
 ) -> pd.DataFrame:
     """Keep the trade rows at their published type of operation, then melt."""
-    df = pd.concat(df_list, sort=False)
+    df = _join_aies_legs(df_list)
     if df.empty:
         raise ValueError(
             f'{source} returned no rows for {year}. AIES currently publishes '
@@ -247,11 +471,10 @@ def census_aies_miscsector_call(*, resp: Any, **kwargs: Any) -> list[pd.DataFram
     Mirrors :func:`census_aies_call`, including writing the raw table under
     ``extract/input_data/`` so it can be staged to GCS for keyless CI.
     """
-    if resp.status_code == 204:
-        log.warning(f'No AIES miscsector content for {resp.url}')
+    if _absent_year(resp, 'AIES miscsector'):
         return [pd.DataFrame()]
     payload = json.loads(resp.text)
-    df = pd.DataFrame(payload[1:], columns=payload[0])
+    df = _normalise_aies_columns(pd.DataFrame(payload[1:], columns=payload[0]))
     out_dir = load_local_extract_input_dir(kwargs)
     df.to_csv(
         os.path.join(out_dir, _census_aies_miscsector_filename(kwargs['year'])),

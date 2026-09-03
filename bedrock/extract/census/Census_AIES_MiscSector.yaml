@@ -4,20 +4,25 @@ source_url: https://www.census.gov/programs-surveys/aies.html
 source_publication_date: 2025
 bib_id: Census_AIES
 api_name: Census
+
+# ⚠️ **AIES is published as per-year datasets, not as a timeseries.** The
+# `timeseries/aies/miscsector` path this source used until 2026-09 now returns 404
+# for EVERY year, 2023 included. The live path is `data/<year>/aiesmiscsector`,
+# and it names the industry column NAICS2017 rather than NAICS - census_aies_
+# miscsector_call renames it back so the parse and the cached CSVs are unchanged.
 api_key_required: true
 format: json
 url:
   base_url: https://api.census.gov/data/
-  api_path: timeseries/aies/miscsector?
+  api_path: __year__/aiesmiscsector?
   url_params:
     # RCPT_MOTR_VAL is Total Motor Carrier Revenue and the eleven
     # RCPT_MOTR_<group>_DVAL items are the commodity groups that partition it.
     # RCPT_MOTR_HAZRD_DVAL is deliberately NOT requested: hazardous materials is
     # a cross-cut of the same revenue, not a twelfth group, and summing it in
     # would break the partition check in load_truck_group_revenue.
-    get: NAICS,NAICS_LABEL,RCPT_MOTR_VAL,RCPT_MOTR_AGR_DVAL,RCPT_MOTR_ELECT_DVAL,RCPT_MOTR_FUEL_DVAL,RCPT_MOTR_GRAIN_DVAL,RCPT_MOTR_METAL_DVAL,RCPT_MOTR_NEWFRN_DVAL,RCPT_MOTR_OTH_DVAL,RCPT_MOTR_PHARM_DVAL,RCPT_MOTR_STONE_DVAL,RCPT_MOTR_USEDGD_DVAL,RCPT_MOTR_WOOD_DVAL
+    get: NAICS2017,NAICS2017_LABEL,RCPT_MOTR_VAL,RCPT_MOTR_AGR_DVAL,RCPT_MOTR_ELECT_DVAL,RCPT_MOTR_FUEL_DVAL,RCPT_MOTR_GRAIN_DVAL,RCPT_MOTR_METAL_DVAL,RCPT_MOTR_NEWFRN_DVAL,RCPT_MOTR_OTH_DVAL,RCPT_MOTR_PHARM_DVAL,RCPT_MOTR_STONE_DVAL,RCPT_MOTR_USEDGD_DVAL,RCPT_MOTR_WOOD_DVAL
     for: us:*
-    time: __year__
     key: __apiKey__
   key_param: key
 
@@ -34,9 +39,6 @@ gcs_fxn: !script_function:Census_AIES census_aies_miscsector_load_gcs
 extract_data_from_raw_sources: False
 
 # AIES replaced the Service Annual Survey from data year 2023 and carries no
-# back-years: every earlier year returns 204 No Content, so Census_SAS Table 8
-# remains the truck allocator for 2015-2022. 2024 is not published yet, which
-# leaves the last year of the nowcast window without a truck source - and truck
-# is 67.8% of the transport margin, so TRANSPORT_MARGIN_YEARS stops at 2023.
+# back-years, so Census_SAS Table 8 remains the truck allocator for 2015-2022.
 years:
 - 2023
