@@ -932,7 +932,7 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
             )
         return float(rows['FlowAmount'].sum())
     if mode_name == 'air' and int(year) > _AIR_LAST_OBSERVED_REVENUE_YEAR:
-        return air_revenue_from_volume(year)
+        return air_freight_revenue_rebased(year)
     if mode_name in _SAS_FREIGHT_NAICS:
         codes = _SAS_FREIGHT_NAICS[mode_name]
         # Same seam as pipeline: SAS Table 2's detailed-NAICS revenue continues
@@ -974,6 +974,70 @@ def _published_air_revenue(year: int) -> float:
             f'index.'
         )
     return float(revenue['FlowAmount'].sum())
+
+
+def _published_air_revenue_aies(year: int) -> float:
+    """Air freight revenue as AIES publishes it, USD."""
+    codes = _SAS_FREIGHT_NAICS['air']
+    fba = getFlowByActivity('Census_AIES', int(year))
+    sales = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
+    revenue = sales[sales['ActivityProducedBy'].astype(str).isin(codes)]
+    found = set(revenue['ActivityProducedBy'].astype(str))
+    if found != set(codes):
+        raise ValueError(
+            f'Census_AIES is missing air freight NAICS '
+            f'{sorted(set(codes) - found)} for {year}, which the re-based air '
+            f'series moves on.'
+        )
+    return float(revenue['FlowAmount'].sum())
+
+
+def air_freight_revenue_rebased(year: int) -> float:
+    """Air freight revenue for *year*, USD, after the AIES re-basing.
+
+    ✅ **2024 settled the question :func:`air_revenue_from_volume` left open.**
+    ``481212`` publishes 13,271 $M in AIES 2023 and 13,324 $M in 2024 - flat,
+    +0.4% - against 4,846 / 4,857 / 4,987 / 6,045 $M in SAS Table 2 across
+    2019-2022. A single bad year does not repeat at the same level, so the step
+    is a **re-based series**: AIES measures this industry differently from SAS,
+    and the 2022/2023 jump is a survey seam rather than a doubling of air
+    freight revenue.
+
+    That changes the right treatment, exactly as the docstring below predicted.
+    The two parts are now separated:
+
+    * **the seam itself, 2022 -> 2023, is still bridged on volume.** SAS ends at
+      2022 and AIES starts at 2023, so there is no overlap year and no link
+      ratio can be computed directly. Volume is the only basis both sides share,
+      and it is already air's commodity allocator.
+    * **movement from 2023 onward comes from AIES itself.** Within AIES the
+      basis is constant, so its own revenue movement is a real one and does not
+      need a proxy. Indexing 2024 off 2022 volume would instead let a survey
+      redefinition keep leaking into every later year.
+
+    So the level stays anchored to the pre-break SAS basis, and the series moves
+    on observed revenue once there is more than one year of it.
+
+    ⚠️ **This keeps 2023 unchanged.** Only 2024 and later differ from the
+    volume-indexed treatment.
+    """
+    year = int(year)
+    if year <= _AIR_LAST_OBSERVED_REVENUE_YEAR:
+        raise ValueError(
+            f'air_freight_revenue_rebased is for years after '
+            f'{_AIR_LAST_OBSERVED_REVENUE_YEAR}; {year} has a published SAS '
+            f'revenue and should use it.'
+        )
+    seam = air_revenue_from_volume(FIRST_AIES_YEAR)
+    if year == FIRST_AIES_YEAR:
+        return seam
+    base = _published_air_revenue_aies(FIRST_AIES_YEAR)
+    if base <= 0:
+        raise ValueError(
+            f'Census_AIES {FIRST_AIES_YEAR} air freight revenue is {base}, so '
+            f'the re-based series has no denominator.'
+        )
+    return seam * _published_air_revenue_aies(year) / base
 
 
 #: Last year air's freight revenue is taken as published. AIES 2023 is

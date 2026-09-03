@@ -234,14 +234,41 @@ def test_gross_margin_control_exceeds_the_trade_control_by_the_trade_tax() -> No
 # --- the guards ------------------------------------------------------------
 
 
-def test_2024_raises_rather_than_quietly_modelling_a_level() -> None:
+def test_a_year_past_the_release_raises_rather_than_modelling_a_level() -> None:
     """
-    No survey publishes 2024. A modelled level must be asked for explicitly.
-    """
-    with pytest.raises(ValueError, match='not published'):
-        tr.census_gross_margin('wholesale', 2024)
+    A modelled level must be asked for explicitly, whatever year that is.
 
-    assert tr.census_gross_margin('wholesale', 2024, allow_extrapolation=True) > 0
+    ⚠️ **This test used to name 2024, and the year is not the point.** AIES
+    published 2024 on 2026-09-03, so 2024 is now observed and the assertion moved
+    to the first year past the release. What is being pinned is that an
+    unobserved year *raises* rather than quietly returning a trailing-trend
+    number - the guarantee is about provenance, not about a particular year, and
+    it has to survive every future release.
+    """
+    unobserved = tr.LAST_OBSERVED_YEAR + 1
+    with pytest.raises(ValueError, match='not published'):
+        tr.census_gross_margin('wholesale', unobserved)
+
+    assert tr.census_gross_margin('wholesale', unobserved, allow_extrapolation=True) > 0
+
+
+def test_2024_is_observed_rather_than_extrapolated() -> None:
+    """The 2024 AIES release closed the last unobserved year of the span."""
+    assert 2024 in tr.TRADE_MARGIN_YEARS
+    for kind in ('wholesale', 'retail'):
+        # no allow_extrapolation: this must come from the survey
+        assert tr.census_gross_margin(kind, 2024) > 0
+
+
+def test_last_observed_year_is_not_tied_to_the_survey_change() -> None:
+    """
+    ⚠️ **These are two different facts and conflating them cost a year.**
+    ``FIRST_AIES_YEAR`` is when the survey changed; ``LAST_OBSERVED_YEAR`` is how
+    far the data runs. They coincided while AIES had published only 2023, so
+    defining one as the other looked harmless - and then 2024 was unreachable
+    until the definition was untangled.
+    """
+    assert tr.LAST_OBSERVED_YEAR > tr.FIRST_AIES_YEAR
 
 
 def test_an_unknown_kind_raises() -> None:

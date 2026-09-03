@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.flowbyactivity import getFlowByActivity
+from bedrock.transform.iot import nowcast
 from bedrock.transform.iot import nowcast_transport_margins as tm
 from bedrock.transform.iot.nowcast import (
     TRANSPORT_MARGIN_YEARS,
@@ -831,24 +832,42 @@ def test_supply_bridge_trans_is_zero_not_nan_off_the_receiving_set() -> None:
     assert set(trans[trans < 0].index) == set(MODE_COMMODITIES.values())
 
 
-def test_supply_bridge_leaves_unsourced_years_alone() -> None:
+def test_supply_bridge_leaves_unsourced_years_alone(monkeypatch: Any) -> None:
     """
-    2024 has no truck or pipeline source, so TRANS must stay unfilled.
+    A year outside TRANSPORT_MARGIN_YEARS must stay unfilled.
 
-    Filling it from a partial set of modes would break the identity silently.
+    Filling TRANS from a partial set of modes would break the identity silently.
 
-    ⚠️ **This used to be the 2023 assertion.** AIES carries truck
-    (``aies/miscsector``) and pipeline, water and air (``aies/basic``) for 2023,
-    so that year is now sourced and the gap moved to 2024 - where both AIES
-    datasets return 204. Rail reaches 2024 on STB alone, but truck and pipeline
-    are 79.7% of the column, so a 2024 fill would be a partial set.
+    ⚠️ **The gate is exercised by narrowing the range, not by naming a year.**
+    This assertion walked forward with each release - 2023 while SAS ended at
+    2022, then 2024 while AIES had published only 2023 - and the 2024 release
+    left it with no year to stand on: every column of the bridge now reaches the
+    end of the span, and the first year past it cannot be built at all because no
+    method exists for it. Narrowing the constant tests the guard itself, which is
+    what the test was ever about.
     """
-    assert derive_initial_supply_bridge(2024)['TRANS'].isna().all()
+    monkeypatch.setattr(
+        nowcast, 'TRANSPORT_MARGIN_YEARS', range(2017, max(TRANSPORT_MARGIN_YEARS))
+    )
+    # ⚠️ derive_initial_supply_bridge is functools.cache'd, so a bridge another
+    # test already built for this year would be returned ahead of the patch and
+    # the gate would never be exercised. Clear it on the way in and on the way
+    # out, so neither this test nor its neighbours read the other's result.
+    derive_initial_supply_bridge.cache_clear()
+    bridge = derive_initial_supply_bridge(max(TRANSPORT_MARGIN_YEARS))
+    assert bridge['TRANS'].isna().all()
+    # and the subtotals that depend on it stay NaN rather than being half-filled
+    assert bridge['T014'].isna().all()
+    assert bridge['T016'].isna().all()
+    derive_initial_supply_bridge.cache_clear()
 
 
-def test_supply_bridge_trade_and_trans_both_reach_2023() -> None:
+@pytest.mark.parametrize('year', [2023, 2024])
+def test_supply_bridge_trade_and_trans_both_reach_the_end_of_the_span(
+    year: int,
+) -> None:
     """
-    Both margin columns now land in 2023, and both net to zero there.
+    Both margin columns land in every year of the span, and both net to zero.
 
     ⚠️ **This test has been rewritten twice, and the history is the point.** It
     first asserted TRADE would wait on 4a (#570) and 4d (#580); the
@@ -856,14 +875,15 @@ def test_supply_bridge_trade_and_trans_both_reach_2023() -> None:
     instead, so it landed early. It then asserted TRADE ran a year further than
     TRANS, because SAS stops at 2022. AIES closes that gap: truck comes from
     ``aies/miscsector`` and pipeline, water and air from ``aies/basic``, so the
-    two columns now stop in the same year. Neither reaches 2024.
+    two columns stopped in the same year. Its 2024 release then closed the span:
+    both columns are observed for every Phase 1 year.
     """
-    bridge_2023 = derive_initial_supply_bridge(2023)
-    assert bridge_2023['TRADE'].notna().all()
-    assert bridge_2023['TRANS'].notna().all()
+    bridge = derive_initial_supply_bridge(year)
+    assert bridge['TRADE'].notna().all()
+    assert bridge['TRANS'].notna().all()
     # both are redistributions, so both net to zero
-    assert abs(bridge_2023['TRADE'].sum()) < 1
-    assert abs(bridge_2023['TRANS'].sum()) < 1
+    assert abs(bridge['TRADE'].sum()) < 1
+    assert abs(bridge['TRANS'].sum()) < 1
 
 
 def test_aies_continues_the_sas_taxonomy_across_the_2023_seam() -> None:
@@ -939,19 +959,33 @@ def test_air_volume_index_refuses_years_with_a_published_revenue() -> None:
         tm.air_revenue_from_volume(2022)
 
 
-def test_supply_bridge_leaves_2024_trade_unsourced() -> None:
+def test_2024_margins_are_sourced_not_zero_filled() -> None:
     """
-    2024 is inside the bridge's year range but outside the Census series.
+    2024 is observed now, and "sourced" has to mean more than "not NaN".
 
-    ⚠️ NaN is the *only* correct answer here, and it has to stay NaN rather
-    than becoming zeros. In a sourced year the non-receiving commodities are
+    ⚠️ **Zeros and NaN carry different claims here, which is why the earlier form
+    of this test existed.** In a sourced year the non-receiving commodities are
     filled with zeros deliberately - a commodity that bears no trade margin has
-    none, and that is information. A 2024 column of zeros would be
-    indistinguishable from that, so an unsourced year filled the same way would
-    read as "no commodity bears a trade margin in 2024" instead of "we have not
-    measured 2024". Extrapolating 2023 forward would be worse still.
+    none, and that is information. A column of zeros in an *unsourced* year would
+    be indistinguishable from that. So now that AIES has published 2024, the
+    check is that the year carries real per-commodity mass on the same support as
+    2023, rather than merely being non-null.
     """
+    bridge_2023 = derive_initial_supply_bridge(2023)
     bridge_2024 = derive_initial_supply_bridge(2024)
-    assert bridge_2024['T007'].notna().any(), '2024 should reach the bridge at all'
-    assert bridge_2024['TRADE'].isna().all()
-    assert bridge_2024['TRANS'].isna().all()
+    for column in ('TRADE', 'TRANS'):
+        assert bridge_2024[column].notna().all()
+        # the same commodities receive a margin as in the year before
+        assert (bridge_2024[column] != 0).sum() == (bridge_2023[column] != 0).sum()
+        # and it is real mass, not a zero column that happens to net to zero
+        assert bridge_2024[column].abs().sum() > 0
+
+    # ⚠️ the margin columns net to ~0 economy-wide by construction, so the
+    # subtotal identities have to be checked per commodity, never on the total.
+    assert (
+        bridge_2024['T014'] - (bridge_2024['TRADE'] + bridge_2024['TRANS'])
+    ).abs().max() < 1
+    assert (
+        bridge_2024['T016']
+        - (bridge_2024['T013'] + bridge_2024['T014'] + bridge_2024['T015'])
+    ).abs().max() < 1
