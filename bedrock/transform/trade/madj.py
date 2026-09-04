@@ -1,0 +1,113 @@
+"""Supply ``MADJ`` — import c.i.f./f.o.b. adjustment on the basic-supply bridge.
+
+In the BEA Supply table, ``MCIF`` is imports valued c.i.f. and ``MADJ`` is the
+commodity-level adjustment that moves that valuation toward the f.o.b. /
+customs basis used elsewhere in the accounts. It enters the basic-supply
+identity ``T013 = T007 + MCIF + MADJ`` (typically a small negative national
+total).
+
+Published ``MADJ`` is booked mainly on transport and insurance Detail codes,
+not on the goods NAICS where Census reports import charges. This module maps
+Census ``GEN_CHA_YR`` to Detail, then **reassigns** that charge mass onto
+commodities with nonzero 2017 Supply ``MADJ`` in proportion to those published
+``MADJ`` values (signed shares). For 2017 the national sum is leveled to
+published Supply ``MADJ``. For later years the national sum tracks that year's
+mapped ``GEN_CHA_YR`` total with the published Supply ``MADJ`` sign (negative
+adjustment).
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
+from bedrock.transform.trade.duties import map_census_import_flow_to_detail
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
+
+_CHARGE_FLOW = 'GEN_CHA_YR'
+
+
+def _supply_madj_usd() -> pd.Series:
+    """2017 Supply ``MADJ`` by Detail commodity, USD."""
+    supply = _load_2017_detail_supply_use_usa('Supply_detail')
+    supply.columns = supply.columns.str.strip()
+    idx = pd.Index(USA_2017_COMMODITY_CODES, name='commodity')
+    return (
+        pd.to_numeric(supply['MADJ'], errors='coerce').reindex(idx).fillna(0.0)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+
+
+def supply_madj_national_usd() -> float:
+    """Published 2017 Supply ``MADJ`` total over Detail commodities, USD."""
+    return float(_supply_madj_usd().sum())
+
+
+def _madj_destination_shares() -> pd.Series:
+    """Signed shares of 2017 Supply ``MADJ`` over its nonzero Detail codes."""
+    madj = _supply_madj_usd()
+    dest = madj.where(madj != 0.0, 0.0)
+    dest_sum = float(dest.sum())
+    if dest_sum == 0.0:
+        raise ValueError('Published 2017 Supply MADJ is all zero; cannot form shares')
+    return dest / dest_sum
+
+
+def _madj_national_level_usd(year: int, charge_sum: float) -> float:
+    """National ``MADJ`` level for *year*, USD.
+
+    2017 matches published detail Supply ``MADJ``. Later years take the
+    **published summary Supply ``MADJ`` total** — annual and observed (#785).
+    The rule this replaces used the year's mapped ``GEN_CHA_YR`` magnitude
+    with the published sign, and Census import charges are not BEA's
+    c.i.f./f.o.b. adjustment concept: measured against the summary answer
+    key it ran +185% to +279% over the published level in 2018-2023.
+    ``charge_sum`` stays a guard input only — a zero means the Census extract
+    changed, whatever the level rule.
+    """
+    _ = charge_sum
+    if int(year) == 2017:
+        return supply_madj_national_usd()
+    from bedrock.extract.iot.io_2017 import _load_usa_summary_sut  # noqa: PLC0415
+
+    supply = _load_usa_summary_sut('Supply_summary', int(year))  # type: ignore[arg-type]
+    column = pd.to_numeric(pd.Series(supply['MADJ']), errors='coerce').fillna(0.0)
+    total = float(column.get('T017', 0.0)) * MILLION_CURRENCY_TO_CURRENCY
+    if total == 0.0:
+        raise ValueError(
+            f'The {year} published summary Supply MADJ total reads zero; the '
+            f'column is a structurally negative c.i.f./f.o.b. adjustment, so a '
+            f'zero means the workbook row moved rather than the adjustment '
+            f'vanishing.'
+        )
+    return total
+
+
+def madj_detail_usd(year: int, download_sources_ok: bool = True) -> pd.Series:
+    """Detail c.i.f./f.o.b. import adjustment (``MADJ``), USD.
+
+    Maps Census ``GEN_CHA_YR`` to Detail, reassigns the charge total onto
+    nonzero 2017 Supply ``MADJ`` codes by signed published ``MADJ`` shares,
+    then rescales to :func:`_madj_national_level_usd`. Does not fill ``T013``.
+    ``download_sources_ok`` is accepted for call-site symmetry with other trade
+    helpers; the Census FBA load follows extract defaults.
+    """
+    _ = download_sources_ok  # call-site symmetry; Census FBA load has no flag
+    charges = map_census_import_flow_to_detail(year, _CHARGE_FLOW)
+    charge_sum = float(pd.to_numeric(charges, errors='coerce').fillna(0.0).sum())
+    if charge_sum == 0.0:
+        raise ValueError(
+            f'Mapped {_CHARGE_FLOW} mass is zero for {year}; cannot form MADJ'
+        )
+    shares = _madj_destination_shares()
+    provisional = shares * charge_sum
+    prov_sum = float(provisional.sum())
+    if prov_sum == 0.0:
+        raise ValueError(
+            f'Provisional MADJ mass is zero for {year}; cannot form national level'
+        )
+    level = _madj_national_level_usd(year, charge_sum)
+    out = provisional * (level / prov_sum)
+    out.name = 'MADJ'
+    return out

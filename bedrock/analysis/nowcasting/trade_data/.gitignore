@@ -1,0 +1,4 @@
+# Probe outputs and local-only posting artifacts
+output/
+*.html
+plan_527.md

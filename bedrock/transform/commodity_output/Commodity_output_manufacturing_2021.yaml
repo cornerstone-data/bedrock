@@ -1,0 +1,5 @@
+# Manufacturing commodity output for 2021. Body and rationale in
+# Commodity_output_manufacturing.yaml; only the year varies, and the source
+# inherits it from the method.
+!include:Commodity_output_manufacturing.yaml
+year: 2021

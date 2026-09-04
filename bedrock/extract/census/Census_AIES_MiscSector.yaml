@@ -1,0 +1,45 @@
+author: US Census Bureau
+source_name: Annual Integrated Economic Survey (AIES), sector-specific statistics
+source_url: https://www.census.gov/programs-surveys/aies.html
+source_publication_date: 2025
+bib_id: Census_AIES
+api_name: Census
+
+# ⚠️ **AIES is published as per-year datasets, not as a timeseries.** The
+# `timeseries/aies/miscsector` path this source used until 2026-09 now returns 404
+# for EVERY year, 2023 included. The live path is `data/<year>/aiesmiscsector`,
+# and it names the industry column NAICS2017 rather than NAICS - census_aies_
+# miscsector_call renames it back so the parse and the cached CSVs are unchanged.
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: __year__/aiesmiscsector?
+  url_params:
+    # RCPT_MOTR_VAL is Total Motor Carrier Revenue and the eleven
+    # RCPT_MOTR_<group>_DVAL items are the commodity groups that partition it.
+    # RCPT_MOTR_HAZRD_DVAL is deliberately NOT requested: hazardous materials is
+    # a cross-cut of the same revenue, not a twelfth group, and summing it in
+    # would break the partition check in load_truck_group_revenue.
+    get: NAICS2017,NAICS2017_LABEL,RCPT_MOTR_VAL,RCPT_MOTR_AGR_DVAL,RCPT_MOTR_ELECT_DVAL,RCPT_MOTR_FUEL_DVAL,RCPT_MOTR_GRAIN_DVAL,RCPT_MOTR_METAL_DVAL,RCPT_MOTR_NEWFRN_DVAL,RCPT_MOTR_OTH_DVAL,RCPT_MOTR_PHARM_DVAL,RCPT_MOTR_STONE_DVAL,RCPT_MOTR_USEDGD_DVAL,RCPT_MOTR_WOOD_DVAL
+    for: us:*
+    key: __apiKey__
+  key_param: key
+
+call_response_fxn: !script_function:Census_AIES census_aies_miscsector_call
+parse_response_fxn: !script_function:Census_AIES census_aies_miscsector_parse
+gcs_fxn: !script_function:Census_AIES census_aies_miscsector_load_gcs
+
+# Read the cached table from extract/input_data/Census_AIES_MiscSector/ (or GCS
+# extract-input if it is not cached yet) rather than calling Census every run.
+# AIES requires an API key and CI has none, so without this every AIES-backed
+# test fails in CI on the key rather than on the data.
+#
+# Set to True to refresh the cache from Census, then upload the new file.
+extract_data_from_raw_sources: False
+
+# AIES replaced the Service Annual Survey from data year 2023 and carries no
+# back-years, so Census_SAS Table 8 remains the truck allocator for 2015-2022.
+years:
+- 2023
+- 2024

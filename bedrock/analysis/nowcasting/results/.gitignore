@@ -1,0 +1,8 @@
+# Local EF smoke artifacts (regen via the *.py scripts in this folder).
+# Root .gitignore already covers *.png / *.csv; keep this as a belt-and-suspenders
+# so accidental un-ignores do not pick up dumps.
+*
+!.gitignore
+!*.py
+!__init__.py
+!About_*.md

@@ -42,7 +42,8 @@ class FlowsaMethodNotFoundError(FileNotFoundError):
 class APIError(Exception):
     def __init__(self, api_source: str) -> None:
         message = (
-            f"Key file {api_source} not found. See README for help "
+            f"API key for {api_source} not found in project-root .env. "
+            "See README for help "
             "https://github.com/cornerstone-data/bedrock/blob/main/bedrock/extract/README.md"
         )
         self.message = message

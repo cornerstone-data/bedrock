@@ -1,0 +1,50 @@
+author: U.S. Bureau of Economic Analysis
+source_name: Detail Supply, commodity mix moved to the 2022 Economic Census
+source_url: 'https://www.bea.gov/industry/input-output-accounts-data#supplemental-estimate-tables'
+original_data_download_date: '2024-05-23'
+bib_id: BEA_Detail_Supply
+
+# The published 2017 detail Supply domestic-output block with the 2022 Economic
+# Census's own 2017 -> 2022 mix movement applied. Same shape, same grand total,
+# same column totals - it differs from BEA_Detail_Supply only in how 35 industry
+# columns divide across commodities (#570).
+#
+# Built by bedrock/utils/mapping/write_supply_mix_update.py, which is where the
+# construction and its two guards are documented. In short: the census ratio is
+# CHAINED onto the published block rather than substituted for it, because the
+# built mix sees only mapped commodities and its level differs from the
+# published block by a median L1 of 0.064 that is the concordance and not an
+# error; a cell moves only where the census and the published block agree within
+# a factor of three about the commodity's share; and wholesale and retail are
+# excluded outright, because the NAPCS vintage instability is concentrated in
+# their product lines (70.5% of 2022 trade goods value joins back to 2017,
+# against 98.6% for services - see Census_EC_PxI.yaml).
+#
+# ⚠️⚠️ **Editing supply_mix_2022.csv does NOT invalidate this FBA.** The parquet
+# in extract/output_data is cached and getFlowByActivity returns it without
+# re-reading the csv, so a rebuilt mix silently does not reach Detail_Supply_Mix -
+# and the FBS logs look completely normal while serving the old block. This
+# already happened once. After running write_supply_mix_update.py you must
+# regenerate the FBA before the FBS:
+#
+#   generateFlowByActivity(source='BEA_Detail_Supply_PxI', year=2022)
+#
+# To check rather than trust: group the parquet by
+# (ActivityConsumedBy, ActivityProducedBy) and diff it against the csv's
+# million_usd column - they must agree to 1e-6.
+#
+# ⚠️ The parse branch for this source must be tested BEFORE the plain
+# Detail_Supply_Mix branch in bea_parse: the substring check there matches this
+# source name too, and would silently serve the unmoved 2017 block.
+#
+# ⚠️ **The year here is the MIX vintage, not the table year.** There is one
+# block and it is the 2022 one; Detail_Supply_Mix_2022 and later attribute onto it,
+# and Detail_Supply_Mix_2017 to 2021 keep BEA_Detail_Supply. Declaring more years
+# would imply a mix that moves annually, and it does not - annual_mix_test.py
+# measured that no annual survey can improve on holding the mix between
+# censuses.
+format: csv
+url: None
+parse_response_fxn: !script_function:BEA bea_parse
+years:
+  - 2022

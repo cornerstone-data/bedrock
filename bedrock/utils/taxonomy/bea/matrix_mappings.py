@@ -29,6 +29,17 @@ USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING = {
     "Use_SUT_detail": "Use_SUT_Framework_2017_DET.xlsx",
 }
 
+USA_BENCHMARK_DETAIL_SUT_YEARS = ta.Literal[2007, 2012, 2017]
+# The BEA benchmark detail Supply-Use panel ships as one zip holding one workbook
+# per table, each with a sheet per benchmark year, all three years already on the
+# 2017 code basis in one frame. The 2017 sheets are byte-identical to the
+# single-year workbooks in USA_2017_DETAIL_IO_SUT_MATRIX_MAPPING.
+USA_BENCHMARK_DETAIL_SUT_ARCHIVE = "SUPPLY-USE_2026-08-24.zip"
+USA_BENCHMARK_DETAIL_SUT_MEMBER_MAPPING = {
+    "Supply_detail": "Supply_Detail.xlsx",
+    "Use_SUT_detail": "Use_SUT_Detail.xlsx",
+}
+
 USA_SUMMARY_MUT_NAMES = ta.Literal[
     "Make_summary",
     "Use_summary",
@@ -50,6 +61,29 @@ USA_SUMMARY_MUT_MAPPING_1997_2024 = {
     "Import_summary": "IOImportMatrices_After_Redefinitions_SUM_1997-2024.xlsx",
 }
 
+USA_SUMMARY_MUT_BEFORE_REDEF_NAMES = ta.Literal[
+    "Make_summary_before_redef",
+    "Use_summary_before_redef",
+    "Import_summary_before_redef",
+]
+USA_SUMMARY_MUT_BEFORE_REDEF_MAPPING = {
+    "Make_summary_before_redef": "IOMake_Before_Redefinitions_PRO_Summary.xlsx",
+    "Use_summary_before_redef": "IOUse_Before_Redefinitions_PRO_Summary.xlsx",
+    "Import_summary_before_redef": "ImportMatrices_Before_Redefinitions_Summary.xlsx",
+}
+
+# Years accepted by before-redef and 2024-vintage span MUT loaders.
+USA_SUMMARY_SPAN_MUT_YEARS = ta.Literal[
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+]
+
 USA_SUMMARY_SUT_NAMES = ta.Literal[
     "Supply_summary",
     "Use_SUT_summary",
@@ -57,6 +91,21 @@ USA_SUMMARY_SUT_NAMES = ta.Literal[
 USA_SUMMARY_SUT_MAPPING_2017_2022 = {
     "Supply_summary": "Supply_Tables_2017-2022_Summary.xlsx",
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx",
+}
+# BEA extended the summary supply-use tables back to 1997 with the 2023 vintage, so
+# the newer workbooks are named 1997-YYYY rather than 2017-YYYY. The 2024 vintage
+# ships in https://apps.bea.gov/industry/release/zip/SUPPLY-USE.zip as
+# `Supply_Summary.xlsx` / `Use_Summary.xlsx` - BEA dropped the year span from the file
+# names entirely. Renamed on upload to keep the vintage visible.
+#
+# 2023 and 2024 both read from this one workbook rather than each being pinned to the
+# vintage that first published it. Freezing 2023 at the 2023 vintage would be equally
+# stable, but it would put a vintage boundary between 2023 and 2024, so their
+# year-over-year step would carry a 0.3% revision artifact - and these are the RAS
+# control totals for exactly those years.
+USA_SUMMARY_SUT_MAPPING_1997_2024 = {
+    "Supply_summary": "Supply_Tables_1997-2024_Summary.xlsx",
+    "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx",
 }
 
 USA_DETAIL_MUT_YEARS = ta.Literal[2007, 2012, 2017]
@@ -81,6 +130,21 @@ USA_SUMMARY_MUT_YEARS = ta.Literal[
     2024,
 ]
 USA_GROSS_INDUSTRY_OUTPUT_YEARS = USA_SUMMARY_MUT_YEARS
+
+# Years wired up for summary SUT. It stops at 2017 on the left because that is where
+# the pinned 2017-2022 workbook starts, not because of the data: the 1997-YYYY
+# workbooks carry 1997-2016 on the same schema, so earlier years can be added here
+# once they are given a vintage to pin to in `_load_usa_summary_sut`.
+USA_SUMMARY_SUT_YEARS = ta.Literal[
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+]
 
 USA_2017_TAX_LESS_SUBSIDIES_CODE = ta.Literal["TOP", "SUB"]
 USA_2017_TAX_LESS_SUBSIDIES_CODES: ta.List[USA_2017_TAX_LESS_SUBSIDIES_CODE] = list(

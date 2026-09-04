@@ -1,0 +1,21 @@
+# Census goods + BEA IntlServTrade exports for 2021.
+#
+# Method body: Trade_Exports_common.yaml. Merge source_names from common so
+# EIA electricity (and later gas) inherit without per-stub copy. Only Census /
+# IEA get year-specific Detail_Supply_Mix_2021 T007 attribution (#729).
+!include:Trade_Exports_common.yaml
+year: 2021
+sources_to_cache:
+  Detail_Supply_Mix_2021:
+    data_format: FBS
+    primary_action_type: Consumed
+    geoscale: national
+    clean_fbs: !clean_function:trade.attribution collapse_detail_supply_to_t007
+source_names: !include:Trade_Exports_common.yaml:source_names
+  Census_USATrade:
+    !include:Trade_Exports_common.yaml:source_names:Census_USATrade
+    activity_sets:
+      goods_exports:
+        !include:Trade_Exports_common.yaml:source_names:Census_USATrade:activity_sets:goods_exports
+        attribution_source: Detail_Supply_Mix_2021
+  BEA_IEA: !include:Trade_Exports_common.yaml:source_names:BEA_IEA

@@ -1,0 +1,353 @@
+"""
+How wrong is a frozen 2017 commodity mix, and where? (Step 4a, #570)
+
+Carries the published 2017 detail Supply block's commodity mix forward onto
+published detail industry output, aggregates to BEA summary, and scores the
+result against the annual summary Supply table's ``T007`` column (Total
+Commodity Output, published 2017-2024).
+
+⚠️ **The target is a reference, not ground truth.** Outside 2017 nothing here is
+observed: summary ``T007`` is BEA's own *best-change* estimate, the benchmark
+make table extrapolated with annual survey indicators. Only 2017 is a
+*best-level* estimate resting on the Economic Census. So a score here measures
+divergence from BEA's annual estimate, and wherever BEA also carried the mix
+forward we agree by construction rather than by being right. What it buys is
+BEA's annual indicator work: a divergence marks a place where an indicator moved
+something and a frozen mix did not.
+
+⚠️ **This is a diagnostic, not a construction.** The point is to size the
+correction that a frozen mix leaves behind, because that correction is exactly
+the amount of detail that would be flattened if the summary gap were closed by a
+uniform within-group ratio. Big correction means the detail movement has to come
+from detail-level indicators instead.
+
+The benchmark replay #570 specifies cannot answer this: under a ported mix, 2017
+reproduces itself by construction. The annual summary table is the only
+non-circular target, and it covers every nowcast year.
+
+Run: ``uv run python bedrock/analysis/nowcasting/frozen_mix_diagnostic.py``
+"""
+
+from __future__ import annotations
+
+import argparse
+import typing as ta
+
+import numpy as np
+import pandas as pd
+
+from bedrock.extract.iot.io_2017 import (
+    _load_2017_detail_supply_use_usa,
+    _load_usa_summary_sut,
+)
+from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
+from bedrock.utils.taxonomy.bea.matrix_mappings import (
+    USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+    USA_SUMMARY_SUT_YEARS,
+)
+from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
+    load_bea_v2017_commodity_to_bea_v2017_summary,
+)
+
+#: The Supply tables are published in millions; ``derive_gross_output`` returns
+#: dollars. Scoring one against the other without this is a factor-of-1e6 error
+#: that looks like a 100,000,000% miss rather than a unit bug.
+DOLLARS_TO_MILLIONS = 1e6
+
+DEFAULT_YEARS = (2018, 2019, 2020, 2021, 2022, 2023, 2024)
+
+
+#: Trailing aggregate columns of the Supply table, which are not industries.
+#: ⚠️ **Never select the block by code shape.** Selecting industry columns by
+#: *length* swallows ``'TRADE '`` — the label carries a trailing space, so it is
+#: six characters like a BEA detail code — which injects the whole trade margin
+#: column into the block and inflates margin-heavy commodities many-fold (apparel
+#: by 16x). Selecting rows the same way drops ``GSLGE``/``GSLGH``/``GSLGO``,
+#: which are five, losing 1.7tn of state and local government output. Both
+#: mistakes leave an economy-wide total close enough to look plausible. Match
+#: names.
+NON_INDUSTRY_COLUMNS = frozenset(
+    {
+        'Commodity Description',
+        'T007',
+        'MCIF',
+        'MADJ',
+        'T013',
+        'TRADE',
+        'TRANS',
+        'T014',
+        'MDTY',
+        'TOP',
+        'SUB',
+        'T015',
+        'T016',
+    }
+)
+
+#: The summary workbook labels two margin columns in title case where the detail
+#: workbook shouts them, so a set built for one table silently under-filters the
+#: other. Both spellings are carried here rather than in two places.
+NON_INDUSTRY_COLUMNS_SUMMARY = NON_INDUSTRY_COLUMNS | {
+    'Commodities/Industries',
+    'Trade',
+    'Trans',
+}
+
+#: Row labels that are not commodities.
+#: ⚠️ ``T017`` is the **column total row**. Leaving it in doubles every column
+#: sum, and the failure is quiet: shares are unaffected, because halving every
+#: cell in a column cancels in the ratio, so only a level check catches it. It
+#: was caught three times here by a computed ratio landing on exactly 0.5000.
+NON_COMMODITY_ROWS = frozenset(
+    {'T017', 'nan', 'IOCode', 'Note.  Detail may not add to total due to rounding.'}
+)
+
+
+def _block(
+    supply: pd.DataFrame, non_industry: frozenset[str] | set[str]
+) -> pd.DataFrame:
+    """Commodity x industry cells only, with every label and total stripped."""
+    supply.columns = [str(c).strip() for c in supply.columns]
+    supply.index = [str(i).strip() for i in supply.index]
+    industries = [c for c in supply.columns if c not in non_industry]
+    block = supply[industries].apply(pd.to_numeric, errors='coerce').fillna(0.0)
+    keep = [
+        i
+        for i in block.index
+        if i not in NON_COMMODITY_ROWS and not i.startswith('Note')
+    ]
+    return block.loc[keep]
+
+
+def detail_block() -> pd.DataFrame:
+    """The published 2017 **detail** domestic output block, 402 industries."""
+    return _block(
+        _load_2017_detail_supply_use_usa('Supply_detail'), NON_INDUSTRY_COLUMNS
+    )
+
+
+def _go_year(year: int) -> USA_GROSS_INDUSTRY_OUTPUT_YEARS:
+    """Narrow a plain ``int`` year to the gross-output loader's Literal.
+
+    Years reach this script as ints - from argparse and from the year loops -
+    while the loaders are typed on the Literal of the years they actually carry.
+    The cast is a no-op at runtime; an out-of-range year still fails in the
+    loader, where the real check lives.
+    """
+    return ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, year)
+
+
+def summary_block(year: int) -> pd.DataFrame:
+    """
+    The published **summary** domestic output block for ``year``, 2017-2024.
+
+    ⚠️ Use this rather than pulling the ``T007`` column or re-filtering the
+    workbook by hand. Three separate ad-hoc extractions of this table went wrong
+    — twice by matching label *shape* and once by leaving the ``T017`` total row
+    in — and each produced a plausible-looking result that only an identity
+    check exposed.
+    """
+    return _block(
+        _load_usa_summary_sut('Supply_summary', ta.cast(USA_SUMMARY_SUT_YEARS, year)),
+        NON_INDUSTRY_COLUMNS_SUMMARY,
+    )
+
+
+def check_block_identities(block: pd.DataFrame, label: str) -> None:
+    """Assert the block's own margins agree with the totals it was cut from."""
+    published = pd.to_numeric(
+        _load_2017_detail_supply_use_usa('Supply_detail')['T007'], errors='coerce'
+    )
+    published.index = [str(i).strip() for i in published.index]
+    rows = block.sum(axis=1)
+    common = [i for i in rows.index if i in published.index]
+    gap = (rows.reindex(common) - published.reindex(common)).abs().sum()
+    scale = published.reindex(common).sum()
+    print(
+        f'{label}: row sums vs T007 differ by {gap:,.0f} of {scale:,.0f} ({gap / scale:.6%})'
+    )
+
+
+def detail_mix() -> tuple[pd.DataFrame, pd.Series]:
+    """The 2017 detail block's commodity mix per industry, and its column sums."""
+    block = detail_block()
+    column_totals = block.sum(axis=0)
+    return block / column_totals.replace(0, np.nan), column_totals
+
+
+def basic_value_output(year: int, industries: list[str]) -> pd.Series:
+    """
+    Published gross output converted from producer to **basic** value.
+
+    The Supply block is basic value; ``derive_gross_output`` returns producer
+    prices (#655, where ``T005 + VAPRO == GO(producer)`` is verified to $1 per
+    industry on 2017). The wedge is taxes on products less subsidies, so
+    ``GO(basic) = GO(producer) - T00TOP + T00SUB`` — note ``T00SUB`` is stored
+    **positive** in the Use table and negative in the Supply table, which is
+    BEA's convention rather than ours (#655).
+
+    ⚠️ Only 2017 can do this **from the Supply table**. The totals are not
+    trapped there, though: Supply ``TOP`` equals NIPA T30500 taxes on products
+    **less customs duties** (716,926 against 716,925 in 2017 — duties leave with
+    imports), and ``SUB`` equals NIPA T31300 (59,876 against 59,875). Both are
+    published annually.
+
+    ⚠️ What is *not* recoverable that way is the **general sales tax, 56.5% of
+    domestic ``TOP``**, levied on the purchaser price — basic plus margins — so
+    allocating it across commodities needs the margin structure Step 4c/5
+    produces. That share alone is the 4a-to-5 coupling.
+
+    ✅ **But it is narrower than it looks**, because the conversion mostly
+    cancels: group levels are pinned by the published summary table, and a wedge
+    uniform across a group's children leaves within-group shares unchanged. Using
+    producer-price output for the split costs **0.68% overall and exceeds 1% in
+    only 6 of 50 multi-child groups** — ``42`` wholesale (``424700`` petroleum
+    wholesalers carries fuel excise at +143% of basic), ``311FT``, ``4A0``,
+    ``HS``, ``524``, ``111CA`` and ``GFE``, the last two negative because
+    subsidies exceed taxes. So 4a needs 5 for those groups, not for the step as a
+    whole. See ``output_estimation_plan.md``.
+    """
+    use = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    use.index = [str(i).strip() for i in use.index]
+    producer = derive_gross_output(_go_year(year), 'before') / DOLLARS_TO_MILLIONS
+    producer.index = producer.index.astype(str)
+    taxes = pd.to_numeric(pd.Series(use.loc['T00TOP']), errors='coerce').reindex(
+        industries
+    )
+    subsidies = pd.to_numeric(pd.Series(use.loc['T00SUB']), errors='coerce').reindex(
+        industries
+    )
+    return producer.reindex(industries) - taxes.fillna(0.0) + subsidies.fillna(0.0)
+
+
+def detail_to_summary() -> dict[str, str]:
+    return {
+        detail: summary[0]
+        for detail, summary in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+        if summary
+    }
+
+
+def basic_conversion_ratio(
+    industries: list[str], column_totals: pd.Series
+) -> pd.Series:
+    """
+    Per-industry basic ÷ producer ratio, fixed at 2017.
+
+    Applied to a later year's producer-price output this holds the *tax rate*
+    fixed rather than the tax level, which is the right frozen assumption when
+    output is growing.
+
+    ✅ **The rate no longer has to be frozen, and for two years it must not be.**
+    Both totals are published annually in NIPA — Supply ``TOP`` is T30500 taxes
+    on products less customs duties, ``SUB`` is T31300, each closing to $1m on
+    2017 — so the economy-wide net rate is observable every year. Measured as
+    ``(TOP - SUB) / GO``, against 1.91% in 2017:
+
+    ==== ========= ============
+    year net rate  vs 2017
+    ==== ========= ============
+    2018 1.94%     1.02x
+    2019 1.90%     1.00x
+    2020 **0.17%** **0.09x**
+    2021 **0.61%** **0.32x**
+    2022 1.81%     0.95x
+    2024 1.82%     0.95x
+    ==== ========= ============
+
+    ⚠️ **2020 and 2021 break it.** Pandemic subsidies (698bn and 626bn against
+    60bn in 2017) very nearly cancel product taxes, so basic ≈ producer in 2020
+    where the frozen rate would impose a 1.91% wedge — roughly **700bn of wedge
+    invented against an actual 63bn**. Freezing is defensible for 2018-19 and
+    2022-24, within 5%, and indefensible for the two pandemic years.
+
+    ⚠️ What Step 5 is still needed for is narrower than "the tax split": only the
+    **commodity allocation of the general sales tax**, 56.5% of ``TOP``, which is
+    levied on the purchaser price and so needs the margin structure. The other
+    43.5% is named by product in NIPA every year (#655, #580).
+    """
+    return column_totals.reindex(industries) / (
+        derive_gross_output(2017, 'before').rename(index=str).reindex(industries)
+        / DOLLARS_TO_MILLIONS
+    )
+
+
+def score_year(
+    year: int, mix: pd.DataFrame, industries: list[str], ratio: pd.Series
+) -> pd.DataFrame:
+    """Frozen-mix commodity output vs published summary ``T007``, per group."""
+    output = derive_gross_output(_go_year(year), 'before') / DOLLARS_TO_MILLIONS
+    output.index = output.index.astype(str)
+    output = output.reindex(industries) * ratio  # producer -> basic
+    built_detail = (mix[industries] * output.reindex(industries).values).sum(axis=1)
+
+    # row sums of the block, not the T007 column: same quantity, but derived
+    # through the audited loader so a mis-cut block cannot pass unnoticed
+    published = summary_block(year).sum(axis=1)
+
+    built = built_detail.groupby(built_detail.index.map(detail_to_summary())).sum()
+    scored = pd.concat(
+        [built.rename('built'), published.rename('published')], axis=1
+    ).dropna()
+    scored = scored[scored['published'] > 0]
+    scored['pct'] = (scored['built'] / scored['published'] - 1) * 100
+    return scored
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--years', type=int, nargs='*', default=list(DEFAULT_YEARS))
+    parser.add_argument(
+        '--worst', type=int, default=8, help='how many worst groups to show'
+    )
+    parser.add_argument(
+        '--check-2017-margins',
+        action='store_true',
+        help='report how far published detail gross output sits from the 2017 '
+        'block column sums - the two margins must agree before either can '
+        'constrain a build',
+    )
+    args = parser.parse_args()
+
+    mix, column_totals = detail_mix()
+    output_2017 = derive_gross_output(2017, 'before') / DOLLARS_TO_MILLIONS
+    output_2017.index = output_2017.index.astype(str)
+    industries = [i for i in mix.columns if i in output_2017.index]
+    ratio = basic_conversion_ratio(industries, column_totals)
+
+    if args.check_2017_margins:
+        basic = basic_value_output(2017, industries)
+        ratio_check = basic / column_totals.reindex(industries)
+        print('2017 row margin: published gross output vs the block it should sum to')
+        print(
+            f'  block  {column_totals.sum() / 1e6:>8,.3f} tn over {len(column_totals)}'
+        )
+        print(f'  GO     {output_2017.sum() / 1e6:>8,.3f} tn producer prices')
+        print(f'  GO     {basic.sum() / 1e6:>8,.3f} tn basic (- T00TOP + T00SUB)')
+        print(
+            f'  basic/block per industry: median {ratio_check.median():.5f}, '
+            f'off by >0.1%: {(ratio_check.sub(1).abs() > 0.001).sum()}'
+            f' of {len(ratio_check)}\n'
+        )
+
+    for year in args.years:
+        scored = score_year(year, mix, industries, ratio)
+        weight = scored['published'] / scored['published'].sum()
+        print(
+            f'== {year}: {len(scored)} groups | '
+            f'total {scored["built"].sum() / scored["published"].sum():.4f} | '
+            f'wtd mean |err| {(weight * scored["pct"].abs()).sum():.2f}% | '
+            f'max |err| {scored["pct"].abs().max():.1f}%'
+        )
+        worst = scored.sort_values('pct', key=abs, ascending=False).head(args.worst)
+        print(
+            worst[['published', 'pct']]
+            .assign(published=lambda d: (d['published'] / 1e6).round(2))
+            .round(1)
+            .to_string(),
+            end='\n\n',
+        )
+
+
+if __name__ == '__main__':
+    main()

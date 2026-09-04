@@ -1,0 +1,51 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+BEA_NIPA,Aerospace products and parts manufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,All other nonmanufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Books,BEA_2017_Code,511120,,Periodical Publishers
+BEA_NIPA,Books,BEA_2017_Code,511130,,Book publishers
+BEA_NIPA,Business,BEA_2017_Code,nan,,
+BEA_NIPA,"Chemical manufacturing, excluding pharmaceutical and medicine",BEA_2017_Code,nan,,
+BEA_NIPA,Computer systems design and related services,BEA_2017_Code,nan,,
+BEA_NIPA,Custom,BEA_2017_Code,511200,,Software publishers
+BEA_NIPA,Custom,BEA_2017_Code,518200,,"Data processing, hosting, and related services"
+BEA_NIPA,Custom,BEA_2017_Code,541511,,Custom computer programming services
+BEA_NIPA,"Entertainment, literary, and artistic originals",BEA_2017_Code,nan,,
+BEA_NIPA,Financial and real estate services,BEA_2017_Code,nan,,
+BEA_NIPA,Intellectual property products,BEA_2017_Code,nan,,
+BEA_NIPA,Long-lived television programs,BEA_2017_Code,512100,,Motion picture and video industries
+BEA_NIPA,Long-lived television programs,BEA_2017_Code,515100,,Radio and television broadcasting
+BEA_NIPA,Long-lived television programs,BEA_2017_Code,515200,,Cable and other subscription programming
+BEA_NIPA,Manufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,"Motor vehicles, bodies and trailers, and parts manufacturing",BEA_2017_Code,nan,,
+BEA_NIPA,Music,BEA_2017_Code,5111A0,,"Directory, mailing list, and other publishers"
+BEA_NIPA,Music,BEA_2017_Code,512200,,Sound recording industries
+BEA_NIPA,Music,BEA_2017_Code,541920,,Photographic services
+BEA_NIPA,Music,BEA_2017_Code,711100,,Performing arts companies
+BEA_NIPA,Music,BEA_2017_Code,711500,,"Independent artists, writers, and performers"
+BEA_NIPA,Nonmanufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Nonprofit institutions serving households,BEA_2017_Code,nan,,
+BEA_NIPA,Other,BEA_2017_Code,5111A0,,"Directory, mailing list, and other publishers"
+BEA_NIPA,Other,BEA_2017_Code,512200,,Sound recording industries
+BEA_NIPA,Other,BEA_2017_Code,541920,,Photographic services
+BEA_NIPA,Other,BEA_2017_Code,711100,,Performing arts companies
+BEA_NIPA,Other,BEA_2017_Code,711500,,"Independent artists, writers, and performers"
+BEA_NIPA,Other computer and electronic product manufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Other manufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Other nonmanufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Other nonprofit institutions,BEA_2017_Code,nan,,
+BEA_NIPA,Own account,BEA_2017_Code,511200,,Software publishers
+BEA_NIPA,Own account,BEA_2017_Code,518200,,"Data processing, hosting, and related services"
+BEA_NIPA,Own account,BEA_2017_Code,541511,,Custom computer programming services
+BEA_NIPA,Pharmaceutical and medicine manufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Prepackaged,BEA_2017_Code,511200,,Software publishers
+BEA_NIPA,Prepackaged,BEA_2017_Code,518200,,"Data processing, hosting, and related services"
+BEA_NIPA,Prepackaged,BEA_2017_Code,541511,,Custom computer programming services
+BEA_NIPA,Research and development,BEA_2017_Code,541700,,Scientific research and development services
+BEA_NIPA,Scientific research and development services,BEA_2017_Code,nan,,
+BEA_NIPA,Semiconductor and other electronic component manufacturing,BEA_2017_Code,nan,,
+BEA_NIPA,Software,BEA_2017_Code,nan,,
+BEA_NIPA,Software publishers,BEA_2017_Code,nan,,
+BEA_NIPA,Theatrical movies,BEA_2017_Code,512100,,Motion picture and video industries
+BEA_NIPA,Theatrical movies,BEA_2017_Code,515100,,Radio and television broadcasting
+BEA_NIPA,Theatrical movies,BEA_2017_Code,515200,,Cable and other subscription programming
+BEA_NIPA,Universities and colleges,BEA_2017_Code,nan,,

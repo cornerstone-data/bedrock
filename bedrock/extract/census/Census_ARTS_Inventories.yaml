@@ -1,0 +1,73 @@
+# Annual Retail Trade Survey - end-of-year inventories by kind of business.
+#
+# The retail half of the trade branch of the change-in-private-inventories
+# column (`F03000`, Step 1C, #529/#530/#531). Retail holds 47% of `F03000`
+# gross in 2017 on the INDUSTRY axis, against manufacturing's 2%.
+#
+# ⚠️ **Rank this branch on the industry axis, not the commodity axis.** On the
+# COMMODITY axis retail is 0% of the column, because a retailer holds
+# inventories *of manufactured goods* and carries none of its own commodity.
+# See `analysis/nowcasting/inventories_estimation_plan.md` §The magnitudes
+# invert the emphasis, and `Census_AWTS_Inventories.yaml` for the same note on
+# the wholesale side.
+#
+# ⚠️ **STOCK LEVELS, NOT CHANGES, and end-of-year ones. Do not difference these
+# across years to build `F03000`.** Differencing imports the holding gains that
+# CIPI excludes through the inventory valuation adjustment; the plan measures
+# that on FIWS, where differencing gives -887 against a true -5,679. Structure
+# from here, level from NIPA.
+#
+# ⚠️ **Two total rows, and they are different totals.** `Retail inventories,
+# total` is all of retail; `Retail inventories, total (excl. motor vehicle and
+# parts dealers)` excludes NAICS 441, whose inventories are dominated by dealer
+# floor plans. Both are emitted, labelled `Total` and `Total excluding 441`.
+# Summing children plus either total double-counts the column.
+#
+# ⚠️ **The NAICS rows nest and the children are incomplete** - 441 publishes
+# 4411 and 4413 but not 4412, which is the `parent-incompleteChild` hierarchy
+# `source_catalog.yaml` already records for `Census_ARTS`. A published parent
+# does not always have its full set of children beneath it, so a residual taken
+# as "parent minus children" is not a real kind of business.
+#
+# ⚠️ **446 and 4461 carry the same label**, `Health and personal care stores`.
+# They are a parent and its only published child, so they must be told apart by
+# code and never by name.
+#
+# ⚠️ **The sheet is addressed by position.** Its name is `Inventories` followed
+# by sixteen spaces; a lookup by the obvious string fails.
+#
+# ⚠️ **The span stops at 2022** - this is the last standalone ARTS release, the
+# 2022 restated vintage. `Census_AIES` carries 2023 onward.
+
+author: US Census Bureau
+source_name: Annual Retail Trade Survey (ARTS) - Inventories
+source_url: https://www.census.gov/programs-surveys/arts.html
+source_publication_date: "September 25, 2024"
+bib_id: Census_ARTS
+api_name: None
+api_key_required: false
+format: xlsx
+url:
+  # The 2022 restated vintage. Other tables:
+  # https://www.census.gov/programs-surveys/arts/data/tables.html
+  base_url: https://www2.census.gov/programs-surveys/arts/tables/2022restated/invent.xlsx
+
+call_response_fxn: !script_function:Census_ARTS census_arts_inventories_call
+parse_response_fxn: !script_function:Census_ARTS census_arts_inventories_parse
+
+# The workbook publishes every year back to 1992 as columns, so it is read once
+# and each year selected out of the result.
+call_all_years: True
+
+years:
+- 2012
+- 2013
+- 2014
+- 2015
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022

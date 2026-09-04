@@ -18,7 +18,7 @@ from bedrock.utils.mapping.geo import (
     filtered_fips as geo_filtered_fips,
 )
 from bedrock.utils.mapping.location import US_FIPS
-from bedrock.utils.mapping.naics import (
+from bedrock.utils.mapping.sector import (
     map_source_sectors_to_more_aggregated_sectors,
 )
 from bedrock.utils.validation.validation import (
@@ -229,7 +229,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.utils.mapping.naics import (  # noqa: PLC0415
+    from bedrock.utils.mapping.sector import (  # noqa: PLC0415
         map_source_sectors_to_less_aggregated_sectors,
     )
 
@@ -240,7 +240,7 @@ def estimate_suppressed_sectors_equal_attribution(
         'Estimating suppressed data by equally attributing parent to ' 'child sectors.'
     )
     naics_key = map_source_sectors_to_more_aggregated_sectors(
-        year=fba.config['target_naics_year']
+        year=fba.config['target_schema_year']
     )
     # forward fill
     naics_key = naics_key.T.ffill().T
@@ -250,21 +250,21 @@ def estimate_suppressed_sectors_equal_attribution(
     # determine if there are any 1:1 parent:child sectors that are missing,
     # if so, add them (true for usda_coa_cropland_naics df)
     cw_melt = map_source_sectors_to_less_aggregated_sectors(
-        fba.config['target_naics_year']
+        fba.config['target_schema_year']
     )
     cw_melt = cw_melt.assign(
         count=(
-            cw_melt.groupby(['source_naics', 'SectorLength'])['source_naics'].transform(
-                'count'
-            )
+            cw_melt.groupby(['source_sector', 'SectorLength'])[
+                'source_sector'
+            ].transform('count')
         )
     )
     cw = cw_melt.query("count==1").drop(columns=['SectorLength', 'count'])
     # create new df with activity col values reassigned to their child sectors
     fba2 = (
-        fba.merge(cw, left_on=col, right_on='source_naics', how='left')
+        fba.merge(cw, left_on=col, right_on='source_sector', how='left')
         .assign(**{f"{col}": lambda x: x.Sector})
-        .drop(columns=['source_naics', 'Sector'])
+        .drop(columns=['source_sector', 'Sector'])
         .query(f"~{col}.isna()")
         .drop_duplicates()  # duplicates if multiple generations of 1:1
     )
@@ -320,7 +320,7 @@ def estimate_suppressed_sectors_equal_attribution(
     # todo: All hyphenated sectors are currently dropped, modify code so
     #  they are not
     fba_m = (
-        fba3.merge(naics_key, how='left', left_on=col, right_on='source_naics')
+        fba3.merge(naics_key, how='left', left_on=col, right_on='source_sector')
         .assign(location=fba3.Location, category=fba3.FlowName)
         # .replace({'FlowAmount': {0: np.nan}  #,
         # col: {'1125 & 1129': '112X',
@@ -334,8 +334,8 @@ def estimate_suppressed_sectors_equal_attribution(
         # 'n4': {'1125': '112X', '1129': '112X'},
         # 'n5': {'11193': '1119X', '11194': '1119X', '11199': '1119X'}
         # })
-        .dropna(subset='source_naics')
-        .drop(columns='source_naics')
+        .dropna(subset='source_sector')
+        .drop(columns='source_sector')
     )
 
     indexed = fba_m.set_index(
@@ -506,13 +506,13 @@ def assign_sector_consumed_by_from_clean_parameter(
     """
     Assigns ``SectorConsumedBy`` directly from ``clean_parameter`` (issue
     #539). Intended as a ``clean_fbs_after_aggregation`` fxn: e.g. each
-    ``NIPA_FD_<year>.yaml`` activity_set targets exactly one official BEA
+    ``NIPA_final_dom_uses_<year>.yaml`` activity_set targets exactly one official BEA
     final-demand code (e.g. ``F06S00``, passed as that activity_set's
     ``clean_parameter``), which this assigns to every row of the fully
     attributed/aggregated FBS.
 
     This has to happen *after* attribution rather than via a crosswalk entry
-    for ``ActivityConsumedBy`` (as an earlier NIPA_FD attempt did): sources
+    for ``ActivityConsumedBy`` (as an earlier NIPA_final_dom_uses attempt did): sources
     like BEA_NIPA are ``FlowType='TECHNOSPHERE_FLOW'``, and
     ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy`` over
     ``...ProducedBy`` for that flow type, so populating ``SectorConsumedBy``
@@ -530,6 +530,53 @@ def assign_sector_consumed_by_from_clean_parameter(
             'in config to use assign_sector_consumed_by_from_clean_parameter'
         )
     return fbs.assign(SectorConsumedBy=code)
+
+
+def assign_use_row_from_clean_parameter(fbs: FlowBySector, **_: Any) -> FlowBySector:
+    """
+    The transpose of :func:`assign_sector_consumed_by_from_clean_parameter`,
+    for activity sets whose output is a Use table *row* rather than a Use
+    table *column* (issue #538).
+
+    The final-demand methods produce cells of the form (commodity consumed by
+    an ``F`` code), so the attributed sector is already in the right column and
+    only ``SectorConsumedBy`` has to be filled in. The value-added methods
+    produce cells of the form (``V00100`` produced by an industry): the
+    attributed sector is the **consuming industry** and ``clean_parameter``
+    names the row. So this moves the attributed sector from
+    ``SectorProducedBy`` to ``SectorConsumedBy`` and writes the row code into
+    ``SectorProducedBy``.
+
+    Why the sector arrives on the wrong side in the first place: an
+    ``activity_to_sector_mapping`` fills ``SectorProducedBy`` from
+    ``ActivityProducedBy``, and ``BEA_NIPA`` states its industry there. Leaving
+    it there through attribution is deliberate and is the same reasoning as
+    #539 - ``BEA_NIPA`` is a ``FlowType='TECHNOSPHERE_FLOW'`` source, so
+    ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy``, and any
+    value written to ``SectorConsumedBy`` before attribution would capture
+    ``PrimarySector`` and silently corrupt the weights. Both columns therefore
+    get their final values only here, after attribution and aggregation.
+
+    Refuses to run if ``SectorConsumedBy`` already holds anything, because that
+    would mean the activity set produced two-sided cells and the transpose
+    would discard one side rather than reorient it.
+    """
+    code = fbs.config.get('clean_parameter')
+    if code is None:
+        raise ValueError(
+            'clean_parameter (the target SectorProducedBy value, i.e. the Use '
+            'table row) is required in config to use '
+            'assign_use_row_from_clean_parameter'
+        )
+    occupied = fbs['SectorConsumedBy'].replace('', pd.NA).notna()
+    if occupied.any():
+        raise ValueError(
+            f'assign_use_row_from_clean_parameter would overwrite '
+            f'{int(occupied.sum())} populated SectorConsumedBy value(s) in '
+            f'{fbs.full_name}. It expects the attributed industry on '
+            f'SectorProducedBy and nothing on SectorConsumedBy.'
+        )
+    return fbs.assign(SectorConsumedBy=fbs['SectorProducedBy'], SectorProducedBy=code)
 
 
 def define_parentincompletechild_descendants(
@@ -703,3 +750,24 @@ def proxy_sector_data(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     fba3 = fba2.explode(col).reset_index(drop=True).reset_index(names='group_id')
 
     return fba3
+
+
+def negate_flows(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """
+    Flip the sign of every FlowAmount in an activity set.
+
+    For sources that report a quantity as a positive magnitude which the
+    surrounding table subtracts, where the data it is attributed against
+    already carries that quantity as negative.
+
+    Apply before attribution, so the attribution source's ratios distribute a
+    negative total rather than being applied and then flipped. That makes no
+    difference where a line maps to a single sector, but does where it splits.
+
+    To implement, use in an FBS method
+    clean_fba: !clean_function:flowbyclean negate_flows
+
+    :param fba: FlowByActivity whose FlowAmount should be negated
+    :return: the FlowByActivity with FlowAmount negated
+    """
+    return fba.assign(FlowAmount=-fba['FlowAmount'])

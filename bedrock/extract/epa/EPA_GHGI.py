@@ -168,7 +168,11 @@ def ghg_load_gcs(**kwargs: dict[str, Any]) -> List[pd.DataFrame]:
             if year == '2023' and table == '3-25b':
                 # Skip 3-25b for current year (use 3-25 instead)
                 continue
-            df = _load_ghg_table(table)
+            try:
+                df = _load_ghg_table(table)
+            except Exception as exc:
+                log.warning(f'Skipping EPA GHGI table {table} for year {year}: {exc}')
+                continue
             if df is not None and len(df.columns) > 1:
                 years = YEARS.copy()
                 years.remove(year)

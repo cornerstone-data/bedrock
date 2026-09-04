@@ -25,8 +25,8 @@ from bedrock.utils.logging.flowsa_log import log, reset_log_file
 from bedrock.utils.mapping.geo import (
     scale as geo_scale,
 )
-from bedrock.utils.mapping.naics import (
-    industry_spec_key as naics_industry_spec_key,
+from bedrock.utils.mapping.sector import (
+    industry_spec_key,
 )
 from bedrock.utils.metadata.metadata import set_fb_meta, write_metadata
 
@@ -224,7 +224,7 @@ class FlowBySector(_FlowBy):
 
         # append the sector names to the FBS if specified
         if append_sector_names:
-            cw = load_crosswalk(f'Sector_{fbs.config["target_naics_year"]}_Names')
+            cw = load_crosswalk(f'Sector_{fbs.config["target_schema_year"]}_Names')
             for s in ['Produced', 'Consumed']:
                 if not fbs[f'Sector{s}By'].isna().all():
                     fbs = (
@@ -233,17 +233,17 @@ class FlowBySector(_FlowBy):
                             how='left',
                             left_on=f'Sector{s}By',
                             right_on=f'NAICS_'
-                            f'{fbs.config["target_naics_year"]}'
+                            f'{fbs.config["target_schema_year"]}'
                             f'_Code',
                         )
                         .drop(
                             columns=[
-                                f'NAICS_' f'{fbs.config["target_naics_year"]}' f'_Code'
+                                f'NAICS_' f'{fbs.config["target_schema_year"]}' f'_Code'
                             ]
                         )
                         .rename(
                             columns={
-                                f'NAICS_{fbs.config["target_naics_year"]}_Name': f'Sector{s}ByName'
+                                f'NAICS_{fbs.config["target_schema_year"]}_Name': f'Sector{s}ByName'
                             }
                         )
                     )
@@ -279,29 +279,34 @@ class FlowBySector(_FlowBy):
         """
         if industry_spec is None:
             industry_spec = self.config['industry_spec']
-        naics_key = naics_industry_spec_key(
-            industry_spec, self.config['target_naics_year']
-        )
-        # Use Sector_Levels to compare aggregation level
-        levels = (
-            load_crosswalk('Sector_Levels')
-            .groupby('Sector', as_index=False)['SectorLength']
-            .max()
-        )
-        naics_key = (
-            naics_key.merge(
-                levels, how='left', left_on='source_naics', right_on='Sector'
+        sector_key = industry_spec_key(industry_spec, self.config['target_schema_year'])
+        # Use Sector_Levels to compare aggregation level (schema-aware)
+        levels_raw = load_crosswalk('Sector_Levels')
+        levels = levels_raw.groupby(['SectorSourceName', 'Sector'], as_index=False)[
+            'SectorLevel'
+        ].max()
+        sector_key = (
+            sector_key.merge(
+                levels,
+                how='left',
+                left_on=['SectorSourceName', 'source_sector'],
+                right_on=['SectorSourceName', 'Sector'],
             )
             .drop(columns='Sector')
-            .rename(columns={'SectorLength': 'sourceLength'})
-            .merge(levels, how='left', left_on='target_naics', right_on='Sector')
+            .rename(columns={'SectorLevel': 'sourceLength'})
+            .merge(
+                levels,
+                how='left',
+                left_on=['SectorSourceName', 'target_sector'],
+                right_on=['SectorSourceName', 'Sector'],
+            )
             .drop(columns='Sector')
-            .rename(columns={'SectorLength': 'targetLength'})
+            .rename(columns={'SectorLevel': 'targetLength'})
         )
         # Aggregate / 1:1 only; do not expand e.g. 531 -> 531HSO
-        agg_key = naics_key.loc[
-            naics_key['sourceLength'] >= naics_key['targetLength'],
-            ['source_naics', 'target_naics'],
+        agg_key = sector_key.loc[
+            sector_key['sourceLength'] >= sector_key['targetLength'],
+            ['SectorSourceName', 'source_sector', 'target_sector'],
         ]
         # Warn when finer targets are skipped; keep source at its aggregation level
         sectors = pd.concat(
@@ -312,11 +317,11 @@ class FlowBySector(_FlowBy):
             ],
             ignore_index=True,
         )
-        no_agg = naics_key[
-            (naics_key['sourceLength'] < naics_key['targetLength'])
-            & naics_key['source_naics'].isin(sectors)
-        ].drop_duplicates(['source_naics', 'target_naics'])
-        for s, t in no_agg.groupby('source_naics')['target_naics']:
+        no_agg = sector_key[
+            (sector_key['sourceLength'] < sector_key['targetLength'])
+            & sector_key['source_sector'].isin(sectors)
+        ].drop_duplicates(['source_sector', 'target_sector'])
+        for s, t in no_agg.groupby('source_sector')['target_sector']:
             log.info(
                 f'Target sectors {", ".join(t)} are not found in data, keeping data at {s}'
             )
@@ -330,16 +335,20 @@ class FlowBySector(_FlowBy):
             if fbs[f'Sector{direction}'].isna().all():
                 continue
             fbs = (
-                fbs.rename(columns={f'Sector{direction}': 'source_naics'})
-                .merge(agg_key, how='left')
+                fbs.rename(columns={f'Sector{direction}': 'source_sector'})
+                .merge(
+                    agg_key,
+                    how='left',
+                    on=['SectorSourceName', 'source_sector'],
+                )
                 .assign(
                     **{
-                        f'Sector{direction}': lambda x: x['target_naics'].fillna(
-                            x['source_naics']
+                        f'Sector{direction}': lambda x: x['target_sector'].fillna(
+                            x['source_sector']
                         )
                     }
                 )
-                .drop(columns=['source_naics', 'target_naics'])
+                .drop(columns=['source_sector', 'target_sector'])
                 .aggregate_flowby(
                     columns_to_group_by=(
                         fbs.groupby_cols + ['group_id'] if 'group_id' in fbs else None
@@ -358,15 +367,16 @@ class FlowBySector(_FlowBy):
     ) -> FlowBySector:
 
         if 'activity_sets' in self.config:
-            try:
-                return pd.concat(  # type: ignore[return-value]
-                    [
-                        fbs.prepare_fbs()  # type: ignore[operator]
-                        for fbs in (self.select_by_fields().activity_sets())
-                    ]
-                ).reset_index(drop=True)
-            except ValueError:
-                return FlowBySector(pd.DataFrame(), convert_df_to_flowby=True)
+            prepared = []
+            for fbs in self.select_by_fields().activity_sets():
+                try:
+                    prepared.append(fbs.prepare_fbs())  # type: ignore[operator]
+                except ValueError as exc:
+                    log.exception(f'{fbs.full_name} failed while preparing FBS: {exc}')
+                    raise ValueError(
+                        f'{fbs.full_name} failed while preparing FBS: {exc}'
+                    ) from exc
+            return pd.concat(prepared).reset_index(drop=True)
         return (
             self.function_socket('clean_fbs')
             .select_by_fields()
@@ -404,20 +414,20 @@ class FlowBySector(_FlowBy):
                 return fb_at_source_naics
             fb_at_target_naics = (
                 fb_at_source_naics.merge(
-                    naics_industry_spec_key(
-                        industry_spec, fb_at_source_naics.config['target_naics_year']
+                    industry_spec_key(
+                        industry_spec, fb_at_source_naics.config['target_schema_year']
                     ),
                     how='left',
                     left_on='SectorProducedBy',
-                    right_on='source_naics',
+                    right_on='source_sector',
                 )
                 .assign(
                     SectorProducedBy=lambda x: x.SectorProducedBy.mask(
-                        x.SectorProducedBy.str.len() >= x.target_naics.str.len(),
-                        x.target_naics,
+                        x.SectorProducedBy.str.len() >= x.target_sector.str.len(),
+                        x.target_sector,
                     )
                 )
-                .drop(columns=['target_naics', 'source_naics'])
+                .drop(columns=['target_sector', 'source_sector', 'SectorSourceName'])
                 .aggregate_flowby()
             )
             return fb_at_target_naics

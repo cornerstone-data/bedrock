@@ -479,7 +479,10 @@ def assert_eeio_year_alignment_precondition(
 
     Requires matching model/GHG years, GHG-year ``x`` in B
     (``use_ghg_year_x_in_B``), and no deflated-B path that introduces an
-    intermediate dollar year.
+    intermediate dollar year. Under ``usa_detail_io_source == 'nowcast'`` the
+    GHG-year-x requirement holds by construction: x is the nowcast Make row sum
+    at ``usa_base_io_data_year``, which the config validator pins to
+    ``usa_ghg_data_year``.
 
     Parameters
     ----------
@@ -495,7 +498,7 @@ def assert_eeio_year_alignment_precondition(
             f'model_base_year ({cfg.model_base_year}) != '
             f'usa_ghg_data_year ({cfg.usa_ghg_data_year})'
         )
-    if not cfg.use_ghg_year_x_in_B:
+    if cfg.usa_detail_io_source != 'nowcast' and not cfg.use_ghg_year_x_in_B:
         reasons.append(
             'use_ghg_year_x_in_B is False '
             '(need apply_io_year_adjustments or use_E_data_year_for_x_in_B)'

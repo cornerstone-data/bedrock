@@ -1,0 +1,31 @@
+# Cornerstone v0.4 nowcast model — calendar year 2018 (IO + GHG).
+#
+# Detail MUT from NowcastMUT after-redefinition artifacts, not published BEA
+# detail. Methodology mirrors v0.3 full-model flags except IO year adjustments
+# (forbidden when usa_detail_io_source is nowcast).
+# x and q are row and column sums of that after-redef Make; B is not
+# year-scaled or inflated.
+#
+# nowcast_mut_vintage omitted: loaders pick the most recent GCS Make upload for
+# this year/stage. Pin explicitly when a release needs a fixed build.
+
+#####
+# Model base settings
+#####
+model_base_year: 2018
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+usa_base_io_data_year: 2018
+usa_ghg_data_year: 2018
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True
