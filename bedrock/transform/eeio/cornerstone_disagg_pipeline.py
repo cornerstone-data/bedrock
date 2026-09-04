@@ -46,6 +46,12 @@ from bedrock.transform.eeio.waste_disaggregation import (
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_x
+from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_COMMODITIES,
+    CORNERSTONE_INDUSTRIES,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
 from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
@@ -261,6 +267,11 @@ def distribute_waste_parent_x_using_v_row_shares(
 @functools.cache
 def electricity_mixed_units_enabled() -> bool:
     return get_usa_config().implement_electricity_mixed_units
+
+
+@functools.cache
+def electricity_reaggregation_enabled() -> bool:
+    return get_usa_config().implement_electricity_reaggregation
 
 
 # --- Lazy end-use facade (importing this module must not load elec) -------------
@@ -481,3 +492,191 @@ def compute_mixed_unit_ef_vectors(
     d = compute_d(B=b_mixed)
     n = compute_n(M=m)
     return MixedUnitEfResult(D=d, N=n, M=m, c_col=c_col, c_row=c_row)
+
+
+# --- Post–3-way monetary collapse of G/T/D back to 221100 (published 405) ---
+
+_ELEC_CHILDREN: tuple[str, ...] = tuple(ELECTRICITY_DISAGG_SECTORS)
+_ELEC_PARENT: str = ELECTRICITY_AGGREGATE_SECTOR
+
+
+def _require_electricity_children(index: pd.Index, *, label: str) -> None:
+    missing = [code for code in _ELEC_CHILDREN if code not in index]
+    if missing:
+        raise ValueError(
+            f'electricity reaggregation: {label} missing child sectors {missing}'
+        )
+
+
+def collapse_electricity_children_square(
+    df: pd.DataFrame,
+    *,
+    row_codes: list[str],
+    col_codes: list[str],
+) -> pd.DataFrame:
+    """3×3 block identity on both axes: sum children into ``221100``, drop G/T/D."""
+    _require_electricity_children(df.index, label='rows')
+    _require_electricity_children(df.columns, label='columns')
+    out = df.copy()
+    if _ELEC_PARENT in out.index:
+        out = out.drop(index=[_ELEC_PARENT])
+    if _ELEC_PARENT in out.columns:
+        out = out.drop(columns=[_ELEC_PARENT])
+    children = list(_ELEC_CHILDREN)
+    parent_row = out.loc[children].sum(axis=0)
+    out = out.drop(index=children)
+    out.loc[_ELEC_PARENT] = parent_row
+    parent_col = out[children].sum(axis=1)
+    out = out.drop(columns=children)
+    out[_ELEC_PARENT] = parent_col
+    return out.reindex(index=row_codes, columns=col_codes)
+
+
+def collapse_electricity_children_rows(
+    df: pd.DataFrame, *, row_codes: list[str]
+) -> pd.DataFrame:
+    """Sum child commodity rows into ``221100``; leave columns unchanged."""
+    _require_electricity_children(df.index, label='rows')
+    out = df.copy()
+    children = list(_ELEC_CHILDREN)
+    parent_row = out.loc[children].sum(axis=0)
+    out = out.drop(index=children)
+    if _ELEC_PARENT in out.index:
+        out = out.drop(index=[_ELEC_PARENT])
+    out.loc[_ELEC_PARENT] = parent_row
+    return out.reindex(index=row_codes)
+
+
+def collapse_electricity_children_columns(
+    df: pd.DataFrame, *, col_codes: list[str]
+) -> pd.DataFrame:
+    """Sum child industry columns into ``221100``; leave rows unchanged."""
+    _require_electricity_children(df.columns, label='columns')
+    out = df.copy()
+    children = list(_ELEC_CHILDREN)
+    parent_col = out[children].sum(axis=1)
+    out = out.drop(columns=children)
+    if _ELEC_PARENT in out.columns:
+        out = out.drop(columns=[_ELEC_PARENT])
+    out[_ELEC_PARENT] = parent_col
+    return out.reindex(columns=col_codes)
+
+
+def collapse_electricity_children_vector(
+    values: pd.Series[float],
+    *,
+    codes: list[str],
+    require_positive_parent: bool = False,
+) -> pd.Series[float]:
+    """Sum child entries into ``221100`` and reindex to *codes*."""
+    _require_electricity_children(values.index, label='index')
+    out = values.copy()
+    parent_val = float(out.loc[list(_ELEC_CHILDREN)].sum())
+    if require_positive_parent and parent_val == 0.0:
+        raise ValueError('electricity reaggregation: q[221100] == 0')
+    out = out.drop(labels=list(_ELEC_CHILDREN))
+    if _ELEC_PARENT in out.index:
+        out = out.drop(labels=[_ELEC_PARENT])
+    out.loc[_ELEC_PARENT] = parent_val
+    return out.reindex(codes)
+
+
+def reaggregate_electricity_children_aq(
+    aq_scaled: SingleRegionAqMatrixSet,
+) -> SingleRegionAqMatrixSet:
+    """Collapse post-reanchor Adom/Aimp/q to 405. No-op if the flag is off.
+
+    Does **not** wrap the result in ``_cornerstone_aq_matrix_set`` (that still
+    ``validate_cornerstone``s at 407).
+    """
+    if not electricity_reaggregation_enabled():
+        return aq_scaled
+    q_407 = aq_scaled.scaled_q
+    q = collapse_electricity_children_vector(
+        q_407,
+        codes=CORNERSTONE_COMMODITIES,
+        require_positive_parent=True,
+    )
+    udom = collapse_electricity_children_square(
+        aq_scaled.Adom.multiply(q_407, axis=1),
+        row_codes=CORNERSTONE_COMMODITIES,
+        col_codes=CORNERSTONE_COMMODITIES,
+    )
+    uimp = collapse_electricity_children_square(
+        aq_scaled.Aimp.multiply(q_407, axis=1),
+        row_codes=CORNERSTONE_COMMODITIES,
+        col_codes=CORNERSTONE_COMMODITIES,
+    )
+    adom = udom.divide(q, axis=1).fillna(0.0)
+    aimp = uimp.divide(q, axis=1).fillna(0.0)
+    return SingleRegionAqMatrixSet(
+        Adom=cast(pt.DataFrame[AMatrix], adom),
+        Aimp=cast(pt.DataFrame[AMatrix], aimp),
+        scaled_q=q,
+    )
+
+
+def reaggregate_electricity_children_b(
+    b_407: pd.DataFrame,
+    q_scaled: pd.Series[float],
+) -> pd.DataFrame:
+    """q-weight 407 B columns onto ``221100``. No-op if the flag is off."""
+    if not electricity_reaggregation_enabled():
+        return b_407
+    _require_electricity_children(b_407.columns, label='B columns')
+    _require_electricity_children(q_scaled.index, label='q')
+    q_parent = float(q_scaled.loc[list(_ELEC_CHILDREN)].sum())
+    if q_parent == 0.0:
+        raise ValueError('electricity reaggregation: q[221100] == 0')
+    weighted = (
+        sum(
+            b_407[code].astype(float) * float(q_scaled.loc[code])
+            for code in _ELEC_CHILDREN
+        )
+        / q_parent
+    )
+    out = b_407.drop(columns=list(_ELEC_CHILDREN))
+    if _ELEC_PARENT in out.columns:
+        out = out.drop(columns=[_ELEC_PARENT])
+    out[_ELEC_PARENT] = weighted
+    return out.reindex(columns=CORNERSTONE_COMMODITIES)
+
+
+def reaggregate_electricity_children_v(v_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return v_407
+    return collapse_electricity_children_square(
+        v_407,
+        row_codes=CORNERSTONE_INDUSTRIES,
+        col_codes=CORNERSTONE_COMMODITIES,
+    )
+
+
+def reaggregate_electricity_children_u(u_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return u_407
+    return collapse_electricity_children_square(
+        u_407,
+        row_codes=CORNERSTONE_COMMODITIES,
+        col_codes=CORNERSTONE_INDUSTRIES,
+    )
+
+
+def reaggregate_electricity_children_y(y_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return y_407
+    return collapse_electricity_children_rows(y_407, row_codes=CORNERSTONE_COMMODITIES)
+
+
+def reaggregate_electricity_children_va(va_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return va_407
+    return collapse_electricity_children_columns(
+        va_407, col_codes=CORNERSTONE_INDUSTRIES
+    )
+
+
+def reaggregate_electricity_children_x(x_407: pd.Series[float]) -> pd.Series[float]:
+    if not electricity_reaggregation_enabled():
+        return x_407
+    return collapse_electricity_children_vector(x_407, codes=CORNERSTONE_INDUSTRIES)

@@ -154,7 +154,9 @@ def test_b_via_vnorm_divides_e_by_make_x_even_with_legacy_flags(
         index=pd.Index(INDUSTRIES, name='sector'),
         columns=pd.Index(COMMODITIES, name='sector'),
     )
-    monkeypatch.setattr(dc, 'derive_E_usa', lambda: E)
+    # main split E in two (#744): the module now calls load_E_from_flowsa,
+    # the internal pre-reaggregation matrix, so that is what B reads.
+    monkeypatch.setattr(dc, 'load_E_from_flowsa', lambda: E)
     monkeypatch.setattr(
         dc, 'derive_cornerstone_Vnorm_scrap_corrected', lambda *a, **k: identity
     )

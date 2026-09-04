@@ -382,7 +382,7 @@ def _eia_clean_mecs_energy(
             df_data_region.columns = table_dict[year][table]['col_names']
             df_rse_region.columns = table_dict[year][table]['col_names']
         # if table name ends in 2, the units must be stripped from the column names listed in the table dict
-        if table[-1] in ['2', '0', '5', '6']:
+        if table[-1] in ['2', '0', '5', '6', '7']:
             df_data_region.columns = [
                 name.split(' | ', 2)[0] for name in table_dict[year][table]['col_names']
             ]
@@ -462,8 +462,14 @@ def _eia_clean_mecs_energy(
         # if table name ends in 2, units are 'trillion Btu'
         elif table[-1] in ['2', '5', '6']:
             df_data_region['Unit'] = 'Trillion Btu'
-            if table[-3] == '7':  # 7_2
+            if table[-3] == '7':  # Table 7.2
                 df_data_region['Unit'] = 'USD / million btu'
+        elif str(table).rstrip().endswith('7.7'):
+            # YAML col_names are the three electricity columns only (million kWh).
+            # Full EIA 7.7 also has NG (bcf) and steam (billion Btu); those are
+            # not extracted. Other Table 7.x do not hit this branch (7.1 / 7.2 /
+            # 7.10 dispatch on a different last character).
+            df_data_region['Unit'] = 'million kWh'
         elif table[-1] == '0':
             df_data_region['Unit'] = 'million USD'
 

@@ -528,7 +528,7 @@ def render_mixed_units_section(
         "the 3-way split",
         "",
         "Scope: the **right panel** (\"Conversion to physical units\") of "
-        "`ef_panels_vs_v0_3_N.png` vs the **middle panel** (\"3-way monetary split\"). "
+        "`v0.3_eia_gtd_pre_mecs_N.png` vs the **middle panel** (\"3-way monetary split\"). "
         "Both panels are percent differences against the **same v0.3.1 electricity "
         "footing**, so the mixed panel **stacks** the 3-way undilution, the "
         "mixed-units `A`/`L` rewrite (flat `c_row = 1/p`), and P5 D0 re-anchor.",
