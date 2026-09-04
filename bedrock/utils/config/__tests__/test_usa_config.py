@@ -245,6 +245,7 @@ def test_v0_4_nowcast_yamls_load(year: int) -> None:
     assert cfg.usa_detail_original_year == year
     assert not cfg.deflate_x_to_detail_io_year_for_B
 
+
 def test_electricity_reaggregation_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
         'test_usa_config_waste_disagg_electricity_reaggregation.yaml'
