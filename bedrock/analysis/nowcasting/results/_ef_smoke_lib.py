@@ -20,6 +20,7 @@ from bedrock.utils.math.formulas import (
     compute_M_matrix,
     compute_n,
 )
+from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.snapshots import releases
 from bedrock.utils.snapshots.loader import load_snapshot
 from bedrock.utils.validation.analysis.ef_hist_panels import KEY_USA_SECTORS
@@ -105,6 +106,22 @@ def _as_float_series(values: pd.DataFrame | pd.Series[float]) -> pd.Series[float
     return pd.Series(pd.to_numeric(col, errors='coerce'), index=idx, dtype=float)
 
 
+def activate_live_config(year: int) -> str:
+    """Install the nowcast YAML for ``year`` with caches cleared; returns the MUT vintage."""
+    clear_year_caches()
+    reset_usa_config()
+    set_global_usa_config(f'{config_stem(year)}.yaml')
+    return resolved_mut_vintage()
+
+
+def aq_from_live_config(year: int) -> tuple[SingleRegionAqMatrixSet, str]:
+    """(Adom, Aimp, q) for one nowcast year via the live A pipeline, plus MUT vintage."""
+    from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
+
+    vintage = activate_live_config(year)
+    return derive_Aq_usa(), vintage
+
+
 def efs_from_live_config(year: int) -> YearEFs:
     """D and N for one nowcast year via live B + A (not a stored snapshot)."""
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
@@ -112,10 +129,7 @@ def efs_from_live_config(year: int) -> YearEFs:
         derive_B_usa_non_finetuned,
     )
 
-    clear_year_caches()
-    reset_usa_config()
-    set_global_usa_config(f'{config_stem(year)}.yaml')
-    vintage = resolved_mut_vintage()
+    vintage = activate_live_config(year)
 
     t0 = time.time()
     B = derive_B_usa_non_finetuned()
