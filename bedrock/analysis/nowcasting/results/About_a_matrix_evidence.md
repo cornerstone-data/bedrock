@@ -41,7 +41,7 @@ The largest nowcast-2017-vs-published gaps are the motor-vehicle rows (`336111`,
 `33641A`, `336991`, `336412`, `336500`) — the known support-infeasible block the
 interior fit relaxes every year, tracked on #767.
 
-## 2. What that is worth in `N`
+## 2. What that is worth in `N`, and why it is negative
 
 Across the 168 significant sectors on the model axis (`562000` is absent — waste
 disaggregation splits it), with `B` held fixed:
@@ -49,6 +49,51 @@ disaggregation splits it), with `B` held fixed:
 - median |% difference| in `N`: **13.2%**
 - p95: **56.9%**
 - share of sectors moving more than 10%: **60.1%**
+
+⚠️ **Two numbers circulate and they are different cuts.** `nowcast_vs_v03_hists.py`
+reports a signed median of **−10.6%** over all 405 commodities with the *full*
+model. The 13.2% above is the median *size* of the move on the significant
+sectors with only `A` changing. Both are right; quote the population and the
+`B` treatment with either.
+
+### Where the −10.6% comes from
+
+Swapping one side at a time. `N = 1ᵀ B L`, so holding `B` at v0.3 and swapping
+only `L` isolates the input structure, and the reverse isolates emissions.
+
+| what is allowed to move | median % change in `N` | excluding #850 columns |
+|---|---:|---:|
+| both `B` and `A` — the reported figure | **−10.64** | −9.03 |
+| `A` only, `B` held at v0.3 | **−8.30** | −6.50 |
+| `B` only, `A` held at v0.3 | −1.73 | |
+| direct intensity `D` alone | −1.59 | |
+
+**Direct emissions per dollar barely move.** So this is not a story about the
+emissions inventory; it is about the multiplier — how much of the rest of the
+economy a dollar of output drags behind it. Splitting the `A` effect further,
+reading `N_c = (Σᵢ L_ic) × (N_c / Σᵢ L_ic)` as *how much output a dollar pulls*
+times *how emission-intensive that output is*:
+
+| step | v0.3 | nowcast | median change |
+|---|---:|---:|---:|
+| intermediate input per $ of output (`A` column sum) | 0.5033 | 0.4895 | −2.9% |
+| total output pulled per $ (`L` column sum) | 2.006 | 1.934 | **−4.0%** |
+| emission intensity of what is pulled, kg CO₂e/$ | 0.0930 | 0.0877 | **−4.1%** |
+
+The last two compose: `0.960 × 0.959 − 1 = −7.9%`, the −8.3% `A` effect to
+rounding. Add the −1.7% from the emissions side and you have −10.6%.
+
+**In one sentence:** the nowcast says the supply chain behind a dollar of output
+is both shorter and slightly cleaner than the 2017-scaled matrix assumed, and
+because direct emissions are unchanged that shows up almost entirely in `N`.
+
+⚠️ **Roughly 1.6 points of the −10.6% is issue #850, not economics.** Excluding
+the 40 columns whose intermediate share has collapsed, the medians move to −9.0%
+full and −6.5% for `A` alone. The figure will move when #850 is fixed.
+
+Reproduce with `--decompose`. ⚠️ That flag is the one place the module derives the
+nowcast's own `B`; everywhere else `B` is held fixed on purpose, and here the
+point is to measure how much the emissions side contributes.
 
 ## 3. Which `A` cells those `N` values rest on
 
@@ -247,7 +292,8 @@ should be quoted as evidence of anything until #850 is resolved, and
 
 ```
 uv run python -m bedrock.analysis.nowcasting.results.a_influence --check
-uv run python -m bedrock.analysis.nowcasting.results.a_evidence_2024 --ladder --sectors
+uv run python -m bedrock.analysis.nowcasting.results.a_evidence_2024 \
+    --ladder --sectors --decompose
 ```
 
 `--ladder` rebuilds the Step 3 seed and the interior fit (~5 minutes); everything
