@@ -127,11 +127,113 @@ models** is meaningful, not the level.
 
 ---
 
+## 7. Named sectors: which inputs, from which survey, and where v0.3 disagrees
+
+Sections 3 and 4 are aggregates. This section is the same claim at the level of a
+single coefficient, for sectors chosen by two gates rather than by eye:
+
+1. the sector's intermediate share of output must be plausible — this excludes the
+   17 targets held back by issue **#850** (below);
+2. at least **60%** of its input structure, weighted by contribution to `N`, must
+   be observed rather than carried.
+
+47 of 168 targets clear both. They are then ranked by how far `N` moved.
+
+⚠️ **Ranking on `observed × |N move|` alone is wrong and was corrected.** It puts
+`334111` electronic computers first at +180%, but only 24% of its inputs are
+observed and its three largest contributors are *carried* cells whose 2017
+coefficients were near zero — a +5,064% relative move on a rounding error, not a
+measurement. `MIN_OBSERVED_INPUT_SHARE` gates on evidence first.
+
+### The clearest cases
+
+`contribution` is the exact share of `N_c − D_c` the input carries, from the
+tier-1 identity. `fan-out 1` means the survey datum *is* that cell.
+
+**`313100` Fiber, yarn, and thread mills — `N` +30.0%, 94% of inputs observed,
+94% primary.** The most completely observed column in the significant set. Two
+inputs carry 84% of the entire indirect footprint, and both are single-cell
+Economic Census observations:
+
+| input | | contribution | nowcast | v0.3 | source | fan-out |
+|---|---|---:|---:|---:|---|---:|
+| `3252A0` | synthetic fibers and filaments | 43.4% | 0.372 | 0.230 | Economic Census 2022 | 1 |
+| `111900` | other crop farming (cotton) | 41.1% | 0.146 | 0.089 | Economic Census 2022 | 1 |
+| `221100` | electric power | 4.8% | 0.013 | 0.025 | AIES | 1 |
+
+**`332310` Plate work and fabricated structural product manufacturing — `N` +23.6%,
+90% observed, 85% primary.** One cell carries 74% of the indirect footprint:
+iron and steel at 0.342 against v0.3's 0.245, a single Economic Census
+observation of how much steel a structural-metal plant buys per dollar of output.
+
+**`315000` Apparel manufacturing — `N` +28.2%, 75% observed, 74% primary.** Fabric
+mills carry 48% of the indirect footprint, at 0.130 against v0.3's 0.099.
+
+**`335311` Power, distribution, and specialty transformer manufacturing — `N`
++24.7%, 86% observed.** Copper rolling and drawing carries 26% at 0.130 against
+v0.3's 0.093 — the input whose intensity matters most for grid equipment.
+
+### Where v0.3 disagrees, and how
+
+v0.3 is not frozen — section 1 shows it moves cells, just not by more than the
+pipeline's own noise. The sharper question is whether it moves them the *right
+way*. Taking the same seven high-contribution cells and comparing both models to
+the published 2017 benchmark they both start from:
+
+| input → sector | 2017 | v0.3 vs 2017 | Economic Census vs 2017 | agree? |
+|---|---:|---:|---:|:--:|
+| steel → plate work `332310` | 0.275 | **−11.0%** | **+24.3%** | no |
+| steel → hand tools `332200` | 0.123 | **+18.7%** | **−9.4%** | no |
+| steel → boilers `332410` | 0.100 | −7.7% | −33.4% | yes |
+| synthetic fibers → yarn mills `313100` | 0.297 | **−22.7%** | **+25.1%** | no |
+| cotton → yarn mills `313100` | 0.213 | −58.0% | −31.5% | yes |
+| fabric → apparel `315000` | 0.113 | **−12.8%** | **+14.7%** | no |
+| copper → transformers `335311` | 0.106 | **−12.3%** | **+22.3%** | no |
+
+**In five of seven, the two methods move the coefficient in opposite directions.**
+
+The steel rows are the clearest illustration, because `332310`, `332200` and
+`332410` all sit in the same BEA summary block. v0.3 sends the first down and the
+second up; the 2022 Economic Census says the opposite in both cases. That is not a
+claim that v0.3 cannot differentiate within a block — it demonstrably does, its
+factors for these two cells differ by 0.30 — but its differentiation comes from
+prices and aggregate scaling, not from anyone measuring what a structural-steel
+fabricator or a hand-tool plant actually bought. Where the two methods disagree,
+only one of them has an observation behind it.
+
+---
+
+## ⚠️ Correction to sections 2 and 3: the negative tail is contaminated
+
+Filing **#850** came out of this sector work and changes how section 2's
+distribution should be read.
+
+The interior fit sets each industry's intermediate-input total to
+**gross output less value added**. That control drifts toward zero across the span
+for a growing set of industries and passes through it by 2024: six industries have
+a *negative* intermediate-input target, meaning value added exceeds gross output,
+which cannot happen. Economy-wide at 2024, 25 industries sit below a 15%
+intermediate share and they carry **8.2% of all output**. The count of negative
+targets runs 0, 0, 1, 5, 4, 2, 5, 6 across 2017 to 2024 — it starts clean at the
+benchmark anchor and worsens every year.
+
+**Several of the largest apparent wins in section 2 are this defect, not better
+data**: `334413` semiconductors (−54%), `334210` (−72%), `339112` (−61%),
+`511110` (−73%), `334515` (−53%). `334413`'s intermediate share is 0.002 against
+0.242 in the 2017 benchmark — its input column is effectively empty.
+
+The 13.2% median in section 2 is not materially affected, since 17 of 168 targets
+are involved and they sit in the tail. But no individual sector from that list
+should be quoted as evidence of anything until #850 is resolved, and
+`sector_ranking` marks them `suspect` so they cannot be picked up by accident.
+
+---
+
 ## Reproducing
 
 ```
 uv run python -m bedrock.analysis.nowcasting.results.a_influence --check
-uv run python -m bedrock.analysis.nowcasting.results.a_evidence_2024 --ladder
+uv run python -m bedrock.analysis.nowcasting.results.a_evidence_2024 --ladder --sectors
 ```
 
 `--ladder` rebuilds the Step 3 seed and the interior fit (~5 minutes); everything
@@ -147,6 +249,7 @@ else runs in under a minute from local artifacts plus the v0.3 snapshot. The
 - The 2024 Step 3 expense panel is carried from 2023 and marked `held` — 2024's
   AIES dropped four variables and combined the two rent lines. Those cells are
   graded `carried`, not as 2024 observations.
+- Sector narratives exclude the 17 targets held back by #850; see the correction above.
 - One span only. No claim here is a check against an out-of-sample answer key;
   §1 is a decomposition of what each method *can* know, not a scoring of which
   is closer to truth.

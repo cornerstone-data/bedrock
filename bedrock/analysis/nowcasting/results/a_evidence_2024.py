@@ -56,7 +56,11 @@ import pandas as pd
 from matplotlib.figure import Figure
 
 from bedrock.analysis.nowcasting.results import a_influence as influence
-from bedrock.utils.math.formulas import compute_L_matrix, compute_n
+from bedrock.utils.math.formulas import (
+    compute_input_contribution,
+    compute_L_matrix,
+    compute_n,
+)
 from bedrock.utils.snapshots import releases
 from bedrock.utils.snapshots.loader import load_snapshot
 
@@ -826,6 +830,160 @@ def figure_ladder(ladder: pd.DataFrame) -> Path:
     return _save(figure, 'a_stage_ladder_2024.png')
 
 
+# ------------------------------------------------------- sector narratives
+
+
+#: Below this, an industry's intermediate inputs are too small a share of its
+#: output to be believed, and its whole column is suspect rather than newly
+#: measured.  ⚠️ Issue #850: the ``GO - VAPRO`` control drifts toward zero across
+#: the span for a growing set of industries and goes negative for six of them at
+#: 2024, so a large fall in N for one of these is the defect, not better data.
+IMPLAUSIBLE_INTERMEDIATE_SHARE = 0.20
+
+
+#: Observed share of a sector's input structure below which its move in ``N`` is
+#: not an observation story, whatever the size of the move.
+#: ⚠️ Ranking on ``observed x |N move|`` alone puts ``334111`` first at +180%,
+#: and its three largest inputs are all *carried* cells whose 2017 coefficients
+#: were near zero -- a +5,000% relative move on a rounding error.  Gate on
+#: evidence first, then rank by size.
+MIN_OBSERVED_INPUT_SHARE = 0.60
+
+
+def input_provenance_shares(
+    models: Models,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Per ``A`` cell, the share of its value that a survey observed.
+
+    ``A[i, c] = sum_j Unorm[i, j] Vnorm[j, c]``, so the provenance of an input
+    coefficient is the provenance of the Use cells behind it, weighted the way
+    the Make matrix combines them.  Masking ``Unorm`` before the product gives
+    the observed part of each coefficient in one matrix multiply.
+    """
+    from bedrock.analysis.nowcasting import seed_coverage  # noqa: PLC0415
+
+    Unorm, Vnorm = influence.bea_use_pieces()
+    pedigree = seed_coverage.pedigree_cells(models.year)
+    state = np.where(
+        pedigree['source'].eq('carried'),
+        'carried',
+        np.where(pedigree['n'] <= 1.0, 'primary', 'allocated'),
+    )
+    pedigree = pedigree.assign(state=state)
+
+    def mask(states: set[str]) -> pd.DataFrame:
+        flags = pd.DataFrame(0.0, index=Unorm.index, columns=Unorm.columns)
+        subset = pedigree[pedigree['state'].isin(states)]
+        rows = subset['commodity'].to_numpy()
+        columns = subset['industry'].to_numpy()
+        keep = np.isin(rows, flags.index.to_numpy()) & np.isin(
+            columns, flags.columns.to_numpy()
+        )
+        flags.values[
+            flags.index.get_indexer(rows[keep]),
+            flags.columns.get_indexer(columns[keep]),
+        ] = 1.0
+        return flags
+
+    total = Unorm @ Vnorm
+    denominator = total.replace(0.0, np.nan)
+    observed = ((Unorm * mask({'primary', 'allocated'})) @ Vnorm) / denominator
+    primary = ((Unorm * mask({'primary'})) @ Vnorm) / denominator
+    return observed.fillna(0.0), primary.fillna(0.0)
+
+
+def sector_ranking(models: Models) -> pd.DataFrame:
+    """Every target sector: how observed its inputs are, and how far N moved.
+
+    ``intermediate_share`` is the sanity column -- see
+    :data:`IMPLAUSIBLE_INTERMEDIATE_SHARE`.  Sort by ``score`` for the sectors
+    where an observation actually changed the answer, but read ``suspect``
+    first.
+    """
+    observed, primary = input_provenance_shares(models)
+    inputs = compute_input_contribution(A=models.nowcast, N=models.N)
+
+    records = []
+    for sector in models.targets:
+        column = inputs[sector]
+        indirect = float(column.sum())
+        if indirect <= 0.0:
+            continue
+        share = float(models.nowcast[sector].sum())
+        records.append(
+            {
+                'sector': sector,
+                'N_nowcast': float(models.N[sector]),
+                'N_v03': float(models.v03_N[sector]),
+                'N_pct': 100.0
+                * (float(models.N[sector]) - float(models.v03_N[sector]))
+                / float(models.v03_N[sector]),
+                'indirect_share_of_N': indirect / float(models.N[sector]),
+                'inputs_observed': float(
+                    (column * observed[sector].reindex(column.index).fillna(0.0)).sum()
+                    / indirect
+                ),
+                'inputs_primary': float(
+                    (column * primary[sector].reindex(column.index).fillna(0.0)).sum()
+                    / indirect
+                ),
+                'intermediate_share': share,
+                'suspect': share < IMPLAUSIBLE_INTERMEDIATE_SHARE,
+            }
+        )
+    frame = pd.DataFrame(records).set_index('sector')
+    frame['score'] = frame['inputs_observed'] * frame['N_pct'].abs()
+    return frame.sort_values('score', ascending=False)
+
+
+def sector_rows(models: Models, sector: str, top: int = 8) -> pd.DataFrame:
+    """The inputs behind one sector's footprint, with both models and the source.
+
+    ``contribution`` is the exact share of ``N_c - D_c`` the input carries, from
+    :func:`~...a_influence.tier1_contribution`.  ``A_nowcast`` and ``A_v03`` are
+    the two models' coefficients for the same cell, and ``A_2017`` the published
+    benchmark both of them start from -- so the pair of ratios shows whether the
+    two methods even agree on the direction the input moved since 2017.
+    """
+    from bedrock.analysis.nowcasting import seed_coverage  # noqa: PLC0415
+
+    inputs = compute_input_contribution(A=models.nowcast, N=models.N)[sector]
+    indirect = float(inputs.sum())
+
+    # Plain dicts rather than a MultiIndex lookup: the provenance table is a
+    # long frame and `.loc[(row, column)]` on it is both slower per hit and
+    # awkward to type.
+    pedigree = seed_coverage.pedigree_cells(models.year)
+    keys = list(zip(pedigree['commodity'], pedigree['industry'], strict=True))
+    sources = dict(zip(keys, pedigree['source'].astype(str), strict=True))
+    fanouts: dict[tuple[str, str], float] = dict(
+        zip(keys, pedigree['n'].to_numpy(dtype=float), strict=True)
+    )
+
+    now_column = models.nowcast[sector].astype(float)
+    v03_column = models.v03[sector].astype(float)
+
+    records = []
+    ranked = inputs.sort_values(ascending=False).head(top)
+    for raw_code, contribution in ranked.items():
+        code = str(raw_code)
+        now = float(now_column[code])
+        old = float(v03_column[code])
+        records.append(
+            {
+                'input': code,
+                'contribution': float(contribution) / indirect,
+                'A_nowcast': now,
+                'A_v03': old,
+                'A_pct': 100.0 * (now - old) / old if old else np.nan,
+                'N_of_input': float(models.N[code]),
+                'source': sources.get((code, sector), 'unmapped'),
+                'fanout': fanouts.get((code, sector), float('nan')),
+            }
+        )
+    return pd.DataFrame(records)
+
+
 # --------------------------------------------------------------------- run
 
 
@@ -839,6 +997,11 @@ def main() -> int:
         'interior fit; adds several minutes).',
     )
     parser.add_argument('--top', type=int, default=40, help='Cells in the ladder.')
+    parser.add_argument(
+        '--sectors',
+        action='store_true',
+        help='Also rank the target sectors and print the inputs behind the clearest ones.',
+    )
     args = parser.parse_args()
 
     from bedrock.utils.validation.analysis.plotting import setup_mpl  # noqa: PLC0415
@@ -962,6 +1125,31 @@ def main() -> int:
         print(steps.round(2).to_string())
         figure_ladder(ladder)
         _tick(t0, 'ladder done')
+
+    if args.sectors:
+        ranking = sector_ranking(models)
+        ranking.to_csv(OUT_DIR / 'a_sector_ranking_2024.csv')
+        evidenced = ranking[
+            ~ranking['suspect']
+            & (ranking['inputs_observed'] >= MIN_OBSERVED_INPUT_SHARE)
+        ].sort_values('N_pct', key=lambda c: c.abs(), ascending=False)
+        print('\n=== 7. sectors where an observation changed the answer ===')
+        print(
+            f'  {int(ranking["suspect"].sum())} of {len(ranking)} targets held back by '
+            f'the #850 intermediate-control defect; {len(evidenced)} clear that and the '
+            f'{MIN_OBSERVED_INPUT_SHARE:.0%} observed-input floor'
+        )
+        print(
+            evidenced.head(10)[
+                ['N_pct', 'inputs_observed', 'inputs_primary', 'intermediate_share']
+            ]
+            .round(3)
+            .to_string()
+        )
+        for sector in evidenced.head(4).index:
+            print(f'\n  --- {sector} ---')
+            print(sector_rows(models, sector).round(4).to_string(index=False))
+        _tick(t0, 'sector narratives done')
 
     _tick(t0, 'complete')
     return 0
