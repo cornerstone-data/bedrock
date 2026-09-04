@@ -984,6 +984,107 @@ def sector_rows(models: Models, sector: str, top: int = 8) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
+# ------------------------------------------------- decomposing the N change
+
+
+def decompose_n_change(models: Models) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Why the median ``N`` moves: the emissions side, then the multiplier.
+
+    Returns ``(swaps, chain)``.
+
+    ``swaps`` moves one side at a time.  ``N = 1' B L``, so holding ``B`` at v0.3
+    and swapping only ``L`` isolates the input structure, and the reverse
+    isolates emissions.  The two are near-additive here because both are small.
+
+    ``chain`` splits the ``A`` effect further.  ``N_c = sum_i D_i L_ic`` can be
+    read as *how much output a dollar pulls* times *how emission-intensive that
+    output is on average*::
+
+        N_c = (sum_i L_ic) x (N_c / sum_i L_ic)
+              ^ output multiplier   ^ intensity of what is pulled
+
+    ⚠️ **This is the one place the module derives the nowcast's own ``B``.**
+    Everywhere else ``B`` is held fixed on purpose so that no result depends on
+    the emissions side; here the point is to measure how much the emissions side
+    contributes, which cannot be done without it.  It is behind a flag because
+    deriving ``B`` is the slow step.
+    """
+    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+        derive_B_usa_non_finetuned,
+    )
+
+    B_v03, A_v03, L_v03 = models.B, models.v03, models.v03_L
+    B_now, L_now = derive_B_usa_non_finetuned(), models.L
+
+    def median_change(new: "pd.Series[float]", old: "pd.Series[float]") -> float:
+        pct = (100.0 * (new - old) / old).replace([np.inf, -np.inf], np.nan)
+        return float(pct.dropna().median())
+
+    baseline = compute_n(M=B_v03 @ L_v03)
+    swaps = pd.DataFrame(
+        [
+            {
+                'moves': 'B and A (the reported figure)',
+                'median_pct': median_change(compute_n(M=B_now @ L_now), baseline),
+            },
+            {
+                'moves': 'A only, B held at v0.3',
+                'median_pct': median_change(compute_n(M=B_v03 @ L_now), baseline),
+            },
+            {
+                'moves': 'B only, A held at v0.3',
+                'median_pct': median_change(compute_n(M=B_now @ L_v03), baseline),
+            },
+            {
+                'moves': 'direct intensity D alone',
+                'median_pct': median_change(B_now.sum(axis=0), B_v03.sum(axis=0)),
+            },
+        ]
+    ).set_index('moves')
+
+    # The A effect, split into volume and intensity, with B held fixed.
+    n_v03, n_now = baseline, compute_n(M=B_v03 @ L_now)
+    pulled_v03, pulled_now = L_v03.sum(axis=0), L_now.sum(axis=0)
+    chain = pd.DataFrame(
+        [
+            {
+                'step': 'intermediate input per $ of output (A column sum)',
+                'v03': float(A_v03.sum(axis=0).median()),
+                'nowcast': float(models.nowcast.sum(axis=0).median()),
+                'median_pct': median_change(
+                    models.nowcast.sum(axis=0), A_v03.sum(axis=0)
+                ),
+            },
+            {
+                'step': 'total output pulled per $ (L column sum)',
+                'v03': float(pulled_v03.median()),
+                'nowcast': float(pulled_now.median()),
+                'median_pct': median_change(pulled_now, pulled_v03),
+            },
+            {
+                'step': 'emission intensity of what is pulled',
+                'v03': float((n_v03 / pulled_v03).median()),
+                'nowcast': float((n_now / pulled_now).median()),
+                'median_pct': median_change(n_now / pulled_now, n_v03 / pulled_v03),
+            },
+        ]
+    ).set_index('step')
+
+    # How much of the move is the #850 defect rather than economics.
+    keep = [
+        code
+        for code in models.nowcast.columns
+        if float(models.nowcast[code].sum()) >= IMPLAUSIBLE_INTERMEDIATE_SHARE
+    ]
+    swaps['excl_850'] = [
+        median_change(compute_n(M=B_now @ L_now).reindex(keep), baseline.reindex(keep)),
+        median_change(compute_n(M=B_v03 @ L_now).reindex(keep), baseline.reindex(keep)),
+        np.nan,
+        np.nan,
+    ]
+    return swaps, chain
+
+
 # --------------------------------------------------------------------- run
 
 
@@ -997,6 +1098,12 @@ def main() -> int:
         'interior fit; adds several minutes).',
     )
     parser.add_argument('--top', type=int, default=40, help='Cells in the ladder.')
+    parser.add_argument(
+        '--decompose',
+        action='store_true',
+        help='Split the median N change into the emissions side and the '
+        'multiplier. Derives the nowcast B, so it is the slow flag.',
+    )
     parser.add_argument(
         '--sectors',
         action='store_true',
@@ -1125,6 +1232,16 @@ def main() -> int:
         print(steps.round(2).to_string())
         figure_ladder(ladder)
         _tick(t0, 'ladder done')
+
+    if args.decompose:
+        swaps, chain = decompose_n_change(models)
+        swaps.to_csv(OUT_DIR / 'a_n_change_swaps_2024.csv')
+        chain.to_csv(OUT_DIR / 'a_n_change_chain_2024.csv')
+        print('\n=== 8. why the median N moves ===')
+        print(swaps.round(2).to_string())
+        print()
+        print(chain.round(4).to_string())
+        _tick(t0, 'decomposition done')
 
     if args.sectors:
         ranking = sector_ranking(models)
