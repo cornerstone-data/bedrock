@@ -2,6 +2,20 @@
 
 Pure allocator plus the 2017 cached getter and Use/Y/A/q writers.
 Table 2.2 / 2.14 / 3.1 loaders live in ``egrid_generation``.
+
+Table 7.7 purchased kWh is read from the ``EIA_MECS_Energy`` **FBA** parquet.
+This repo does not publish a standalone MECS Energy FBS: Tables 2.2 / 3.2
+also stay FBA and enter GHG only as attribution sources during FBS build.
+7.7 is the same pattern with a different consumer (G/T/D purchaser weights,
+not sector-attributed flows). An FBS pass would apply
+``estimate_suppressed_mecs_energy`` and the generic NAICS crosswalk; this
+path needs 3-digit Q/D residual fill and the Cornerstone MECS 3.1 hand map.
+
+Manufacturing NAICS→BEA IO uses ``CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*``,
+the same maps as GHG industrial coal/gas combustion. Residual Industrial
+purchasers are ``NON_MECS_INDUSTRIES`` (electricity purchases here; BEA
+fuel Use in GHG). Multi-IO mapping keys split 7.7 kWh by electricity
+purchases; GHG splits fuel by BEA Use of that commodity.
 """
 
 from __future__ import annotations
@@ -9,8 +23,9 @@ from __future__ import annotations
 import functools
 import logging
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -52,7 +67,9 @@ def _as_float_series(obj: object) -> pd.Series:
 
 
 def set_reanchored_electricity_q(q: pd.Series) -> None:
-    """Record published G/T/D ``q`` after A/q reanchor, for the GHG-year ``x`` split."""
+    """Record published G/T/D ``q`` after A/q reanchor, for the GHG-year
+    ``x`` split.
+    """
     global _REANCHORED_ELECTRICITY_Q
     _REANCHORED_ELECTRICITY_Q = (
         q.reindex(ELECTRICITY_DISAGG_SECTORS).astype(float).copy()
@@ -100,12 +117,35 @@ _TABLE_2_2_CLASSES: tuple[str, ...] = (
 
 _WATER_FILL_ATOL = 1e-9
 
+IndustrialWeighting = Literal['mecs', 'dollars']
+
+# 2017 NAICS (MECS 2018 Table 7.7 and Cornerstone 3.1 map values) → 2022 NAICS
+# (MECS 2022 Table 7.7). Paper mills 322121/322122 collapsed to 322120; automobile
+# and light-truck 336111/336112 collapsed to 336110. IO keys stay 2017/Cornerstone.
+# ``_resolve_7_7_naics`` keeps the 2017 code when that vintage still publishes it
+# and remaps only when the loaded 7.7 frame has the 2022 aggregate.
+MECS_7_7_NAICS_OVERLAY: dict[str, str] = {
+    '322121': '322120',
+    '322122': '322120',
+    '336111': '336110',
+    '336112': '336110',
+}
+
+TABLE_7_7_DESCRIPTION = 'Table 7.7'
+TABLE_7_7_ELECTRICITY_TOTAL = 'Electricity total'
+MANUFACTURING_TOTAL_NAICS = '31-33'
+_MKWH_TO_KWH = 1.0e6
+_THREE_DIGIT_RESIDUAL_ATOL_KWH = 1.0e6
+_Q_D_CODES = frozenset({'Q', 'D'})
+
 
 @dataclass(frozen=True)
 class EIAPurchaserAllocation:
-    """Per-purchaser generation / T&D split aligned to ``bills.index``."""
+    """Per-purchaser generation / T&D split aligned to
+    ``electricity_purchases.index``.
+    """
 
-    bill: pd.Series
+    electricity_purchases: pd.Series
     end_use_class: pd.Series
     mwh: pd.Series
     gen_dollars: pd.Series
@@ -160,10 +200,10 @@ def _class_mwh_targets(
     return targets
 
 
-def _end_use_classes(bills: pd.Series, self_use_key: str) -> pd.Series:
+def _end_use_classes(electricity_purchases: pd.Series, self_use_key: str) -> pd.Series:
     end_use_map = build_end_use_map()
-    classes = pd.Series(index=bills.index, dtype=object)
-    for key in bills.index:
+    classes = pd.Series(index=electricity_purchases.index, dtype=object)
+    for key in electricity_purchases.index:
         if str(key) == self_use_key:
             classes[key] = 'Industrial'
         else:
@@ -172,18 +212,18 @@ def _end_use_classes(bills: pd.Series, self_use_key: str) -> pd.Series:
 
 
 def _water_fill_gen(
-    bills: pd.Series,
+    electricity_purchases: pd.Series,
     proportional: pd.Series,
     members: list[str],
 ) -> tuple[pd.Series, pd.Series]:
-    """Clip gen to positive bills; put overflow on remaining slack in class."""
+    """Clip gen to non-negative electricity purchases; overflow stays in class."""
     gen = pd.Series(0.0, index=members, dtype=float)
     clipped = pd.Series(False, index=members, dtype=bool)
-    cap = {j: max(float(bills[j]), 0.0) for j in members}
+    cap = {j: max(float(electricity_purchases[j]), 0.0) for j in members}
     overflow = 0.0
     for j in members:
         prop = float(proportional[j])
-        if float(bills[j]) <= 0:
+        if float(electricity_purchases[j]) <= 0:
             gen[j] = 0.0
             overflow += prop
             continue
@@ -211,67 +251,466 @@ def _water_fill_gen(
     return gen, clipped
 
 
+def mecs_year_for_eia_year(eia_year: int) -> Literal[2018, 2022]:
+    """Map an EIA/eGRID year to the MECS survey used for purchased-kWh shares.
+
+    2017 and earlier use the 2018 survey; later years (including
+    ``model_base_year``) use 2022. Production callers are ``eia_year=2017``
+    and ``eia_year=model_year``. No interpolation between survey years.
+    """
+    return 2018 if eia_year <= 2017 else 2022
+
+
+def industrial_manufacturing_pool() -> frozenset[str]:
+    """Cornerstone IO codes in flattened 3.1 mapping keys ∪ subtraction keys.
+
+    Manufacturing purchasers inside the Industrial end-use class are
+    this set intersected with that class's purchaser columns.
+    """
+    from bedrock.transform.allocation.mappings.cornerstone.mecs import (  # noqa: PLC0415
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+    )
+    from bedrock.transform.allocation.utils import flatten_items  # noqa: PLC0415
+
+    codes = set(flatten_items(CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.keys()))
+    codes.update(
+        flatten_items(CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.keys())
+    )
+    return frozenset(str(c) for c in codes)
+
+
+def _dedupe_overlay(naics: tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for code in naics:
+        mapped = MECS_7_7_NAICS_OVERLAY.get(str(code), str(code))
+        if mapped not in seen:
+            seen.add(mapped)
+            out.append(mapped)
+    return tuple(out)
+
+
+def _resolve_7_7_naics(code: str, available: set[str]) -> str:
+    """Prefer the 7.7 overlay code when that vintage publishes it.
+
+    2022 collapses 322121/322122 → 322120 and 336111/336112 → 336110; 2018
+    still lists the older 6-digit rows.
+    """
+    mapped = MECS_7_7_NAICS_OVERLAY.get(str(code), str(code))
+    if mapped in available:
+        return mapped
+    if str(code) in available:
+        return str(code)
+    raise ValueError(
+        f'Table 7.7 US Electricity total missing NAICS {code!r} (overlay {mapped!r})'
+    )
+
+
+def _overlay_naics_tuple(
+    naics: tuple[str, ...],
+    available: set[str],
+) -> tuple[str, ...]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for code in naics:
+        resolved = _resolve_7_7_naics(str(code), available)
+        if resolved not in seen:
+            seen.add(resolved)
+            out.append(resolved)
+    return tuple(out)
+
+
+def _overlaid_3_1_mapping(
+    available: set[str],
+) -> dict[tuple[str, ...], tuple[str, ...]]:
+    from bedrock.transform.allocation.mappings.cornerstone.mecs import (  # noqa: PLC0415
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+    )
+
+    return {
+        k: _overlay_naics_tuple(v, available)
+        for k, v in CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.items()
+    }
+
+
+def _overlaid_3_1_subtraction(
+    available: set[str],
+) -> dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]]:
+    from bedrock.transform.allocation.mappings.cornerstone.mecs import (  # noqa: PLC0415
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+    )
+
+    return {
+        k: (
+            _overlay_naics_tuple(parent, available),
+            _overlay_naics_tuple(children, available),
+        )
+        for k, (parent, children) in (
+            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.items()
+        )
+    }
+
+
+def _required_7_7_naics(available: set[str] | None = None) -> frozenset[str]:
+    from bedrock.transform.allocation.mappings.cornerstone.mecs import (  # noqa: PLC0415
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
+    )
+
+    raw: set[str] = set()
+    for vals in CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.values():
+        raw.update(str(c) for c in vals)
+    for (
+        parent,
+        children,
+    ) in CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.values():
+        raw.update(str(c) for c in parent)
+        raw.update(str(c) for c in children)
+    if available is None:
+        needed = set(raw)
+        needed.update(MECS_7_7_NAICS_OVERLAY.get(c, c) for c in raw)
+        needed.update(MECS_7_7_NAICS_OVERLAY.values())
+        return frozenset(needed)
+    needed = set()
+    for vals in CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.values():
+        needed.update(_overlay_naics_tuple(vals, available))
+    for (
+        parent,
+        children,
+    ) in CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.values():
+        needed.update(_overlay_naics_tuple(parent, available))
+        needed.update(_overlay_naics_tuple(children, available))
+    return frozenset(needed)
+
+
+def _is_three_digit_naics(code: str) -> bool:
+    return len(code) == 3 and code.isdigit()
+
+
+def _fill_three_digit_suppressed(kwh: pd.Series, suppressed: pd.Series) -> pd.Series:
+    """Fill at most one 3-digit Q/D from ``31-33`` minus published 3-digit rows.
+
+    The leftover is identified only when exactly one 3-digit cell is Q/D.
+    Two or more Q/D with a nonzero leftover is unidentified; that raises
+    rather than splitting. Live 2018 has none; 2022 has one (337).
+    """
+    out = kwh.astype(float).copy()
+    if MANUFACTURING_TOTAL_NAICS not in out.index:
+        raise ValueError(
+            'Table 7.7 US Electricity total is missing manufacturing total '
+            f'{MANUFACTURING_TOTAL_NAICS!r}'
+        )
+    total = float(out.loc[MANUFACTURING_TOTAL_NAICS])
+    three = [str(c) for c in out.index if _is_three_digit_naics(str(c))]
+    published: list[str] = []
+    qd: list[str] = []
+    for code in three:
+        letter = ''
+        if code in suppressed.index and pd.notna(suppressed.loc[code]):
+            letter = str(suppressed.loc[code]).strip()
+        val = float(out.loc[code])
+        if letter in _Q_D_CODES:
+            qd.append(code)
+        elif np.isfinite(val):
+            published.append(code)
+    pub_sum = float(out.loc[published].sum()) if published else 0.0
+    leftover = total - pub_sum
+    if abs(leftover) > _THREE_DIGIT_RESIDUAL_ATOL_KWH and len(qd) != 1:
+        raise ValueError(
+            'Table 7.7 US Electricity total 3-digit residual '
+            f'{leftover / _MKWH_TO_KWH:.6g} million kWh is not ~0 and '
+            f'there are {len(qd)} Q/D 3-digit industries {qd!r} (need 0 or 1)'
+        )
+    if abs(leftover) > _THREE_DIGIT_RESIDUAL_ATOL_KWH and len(qd) == 1:
+        out.loc[qd[0]] = leftover
+    return out.fillna(0.0)
+
+
+@functools.cache
+def _mecs_purchased_kwh_cached(mecs_year: int) -> pd.Series:
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+    from bedrock.utils.mapping.location import US_FIPS  # noqa: PLC0415
+
+    df = getFlowByActivity('EIA_MECS_Energy', int(mecs_year))
+    desc = df['Description'].astype(str)
+    loc = df['Location'].astype(str)
+    flow = df['FlowName'].astype(str)
+    sub = df.loc[
+        (desc == TABLE_7_7_DESCRIPTION)
+        & (loc == US_FIPS)
+        & (flow == TABLE_7_7_ELECTRICITY_TOTAL)
+    ].copy()
+    if sub.empty:
+        raise ValueError(
+            f'EIA_MECS_Energy {mecs_year} has no US Table 7.7 '
+            f'{TABLE_7_7_ELECTRICITY_TOTAL!r} rows'
+        )
+    naics = sub['ActivityConsumedBy'].astype(str).str.strip()
+    amount_mkwh = pd.to_numeric(sub['FlowAmount'], errors='coerce')
+    suppressed = sub['Suppressed']
+    is_star = suppressed.astype(str).str.strip() == '*'
+    amount_mkwh = amount_mkwh.mask(is_star, 0.0)
+    kwh = pd.Series(
+        amount_mkwh.to_numpy(dtype=float) * _MKWH_TO_KWH,
+        index=pd.Index(naics.to_numpy(), name='naics'),
+        dtype=float,
+    )
+    supp = pd.Series(
+        suppressed.to_numpy(),
+        index=kwh.index,
+    )
+    if kwh.index.has_duplicates:
+        kwh = kwh.groupby(level=0).sum()
+        supp = supp.groupby(level=0).first()
+    kwh = _fill_three_digit_suppressed(kwh, supp)
+    available = set(kwh.index.astype(str))
+    _required_7_7_naics(available)
+    return kwh.astype(float)
+
+
+def mecs_purchased_kwh(mecs_year: int) -> pd.Series:
+    """US Table 7.7 Electricity-total purchased kWh by MECS NAICS.
+
+    Rows are Table 7.7, US, ``Electricity total``. ``*`` is 0; a single
+    3-digit ``Q``/``D`` is filled from the ``31-33`` residual; other
+    suppressed cells are 0. The index includes ``31-33`` for that residual
+    only. Cached by year; returns a copy.
+    """
+    return _mecs_purchased_kwh_cached(int(mecs_year)).copy()
+
+
+def _split_kwh_across_io(
+    io_codes: tuple[str, ...],
+    kwh: float,
+    electricity_purchases: pd.Series,
+) -> dict[str, float]:
+    if not io_codes:
+        return {}
+    if len(io_codes) == 1:
+        return {io_codes[0]: float(kwh)}
+    weights = (
+        electricity_purchases.reindex(list(io_codes))
+        .astype(float)
+        .clip(lower=0.0)
+        .fillna(0.0)
+    )
+    wsum = float(weights.sum())
+    if wsum <= 0:
+        return {c: 0.0 for c in io_codes}
+    return {c: float(kwh) * float(weights[c]) / wsum for c in io_codes}
+
+
+def io_manufacturing_purchased_kwh(
+    electricity_purchases: pd.Series, mecs_year: int
+) -> pd.Series:
+    """Map Table 7.7 purchased kWh onto manufacturing IO columns.
+
+    Overlay 7.7 NAICS, split shared rows by non-negative purchaser use,
+    clamp negative parent−child leftover to 0. Returns kWh on IO index
+    (not class MWh).
+    """
+    naics_kwh = mecs_purchased_kwh(mecs_year)
+    available = set(naics_kwh.index.astype(str))
+    mapping = _overlaid_3_1_mapping(available)
+    subtraction = _overlaid_3_1_subtraction(available)
+    mapped_io = {str(c) for c in _flatten_io_keys(mapping)}
+    subtracted_io = {str(c) for c in _flatten_io_keys(subtraction)}
+    both = mapped_io & subtracted_io
+    if both:
+        raise ValueError(
+            f'IO codes assigned by both 3.1 mapping and subtraction: {sorted(both)}'
+        )
+    naics_to_io: dict[str, list[str]] = {}
+    for io_key, naics_vals in mapping.items():
+        for n in naics_vals:
+            bucket = naics_to_io.setdefault(n, [])
+            for io in io_key:
+                code = str(io)
+                if code not in bucket:
+                    bucket.append(code)
+    assigned: dict[str, float] = {}
+    for n, io_list in naics_to_io.items():
+        if n not in naics_kwh.index:
+            raise ValueError(f'Table 7.7 {mecs_year} missing NAICS {n!r} after overlay')
+        chunk = _split_kwh_across_io(
+            tuple(io_list), float(naics_kwh.loc[n]), electricity_purchases
+        )
+        for io, val in chunk.items():
+            assigned[io] = assigned.get(io, 0.0) + val
+    for io_key, (parent, children) in subtraction.items():
+        parent_kwh = sum(float(naics_kwh.loc[p]) for p in parent)
+        child_kwh = sum(float(naics_kwh.loc[c]) for c in children)
+        leftover = max(0.0, parent_kwh - child_kwh)
+        chunk = _split_kwh_across_io(
+            tuple(str(c) for c in io_key), leftover, electricity_purchases
+        )
+        for io, val in chunk.items():
+            assigned[io] = assigned.get(io, 0.0) + val
+    return pd.Series(assigned, dtype=float)
+
+
+def _flatten_io_keys(mapping: Mapping[tuple[str, ...], object]) -> list[str]:
+    out: list[str] = []
+    for key in mapping:
+        out.extend(str(c) for c in key)
+    return out
+
+
+def _industrial_mecs_class_mwh(
+    electricity_purchases: pd.Series,
+    members: list[str],
+    target_mwh: float,
+    eia_year: int,
+) -> pd.Series:
+    """Two-pool Industrial MWh: MECS shares inside manufacturing, dollars in residual.
+
+    Direct Use in the Industrial class target rides on Table 7.7 purchase
+    shares (manufacturing) and dollar electricity-purchase shares
+    (residual). After this assignment, class-wide water-fill can move
+    generation dollars from clipped energy-intensive manufacturers onto
+    residual ag/mining/construction.
+    """
+    mfg_pool = industrial_manufacturing_pool()
+    mfg = [m for m in members if m in mfg_pool]
+    res = [m for m in members if m not in mfg_pool]
+    clip_all = (
+        electricity_purchases.reindex(members).astype(float).clip(lower=0.0).fillna(0.0)
+    )
+    den = float(clip_all.sum())
+    if den <= 0:
+        raise ValueError(
+            'Industrial non-negative electricity use sums to 0; cannot split '
+            'manufacturing vs residual pools'
+        )
+    clip_mfg = (
+        electricity_purchases.reindex(mfg).astype(float).clip(lower=0.0).fillna(0.0)
+    )
+    pool_mfg = float(target_mwh) * float(clip_mfg.sum()) / den
+    pool_res = float(target_mwh) - pool_mfg
+    clip_res = (
+        electricity_purchases.reindex(res).astype(float).clip(lower=0.0).fillna(0.0)
+    )
+    res_sum = float(clip_res.sum())
+    if res_sum <= 0 and pool_res > _WATER_FILL_ATOL:
+        logger.info(
+            'Industrial residual non-negative electricity use sums to 0 with '
+            'residual pool %.6g MWh; adding that pool to manufacturing',
+            pool_res,
+        )
+        pool_mfg += pool_res
+        pool_res = 0.0
+    out = pd.Series(0.0, index=members, dtype=float)
+    if mfg:
+        mecs_year = mecs_year_for_eia_year(eia_year)
+        io_kwh = (
+            io_manufacturing_purchased_kwh(electricity_purchases, mecs_year)
+            .reindex(mfg)
+            .fillna(0.0)
+        )
+        ksum = float(io_kwh.sum())
+        if ksum <= 0:
+            wsum = float(clip_mfg.sum())
+            if wsum > 0:
+                out.loc[mfg] = pool_mfg * (clip_mfg / wsum)
+            else:
+                out.loc[mfg] = 0.0
+        else:
+            out.loc[mfg] = pool_mfg * (io_kwh / ksum)
+    if res and pool_res > 0 and res_sum > 0:
+        out.loc[res] = pool_res * (clip_res / res_sum)
+    return out
+
+
 def allocate_purchaser_gtd(
-    bills: pd.Series,
+    electricity_purchases: pd.Series,
     *,
     self_use_key: str,
     eia_year: int,
     p_share_2017: float,
     td_share_2017: float,
+    industrial_weights: IndustrialWeighting = 'mecs',
 ) -> EIAPurchaserAllocation:
-    """Allocate domestic electricity bills to generation, transmission, and distribution.
+    """Allocate domestic electricity purchaser use to G/T/D.
 
-    ``bills`` is domestic Use columns union Y columns. Do not pass Uimp —
-    imported Use is written onto the generation row separately.
-    ``self_use_key`` is always ``'221100'``. Class dollar weights use
-    ``clip(lower=0)`` for shares only; if ``bill <= 0``, ``gen = 0``.
+    ``electricity_purchases`` is domestic Use of electricity (intermediate)
+    plus Y (FD).
+    Do not pass Uimp — imported Use is written onto the generation row
+    separately. ``self_use_key`` is always ``'221100'``. Class dollar
+    weights use non-negative values for shares only; if a purchaser's use
+    is ``<= 0``, ``gen = 0``. ``industrial_weights='mecs'`` (default) uses
+    Table 7.7 purchased kWh inside manufacturing and dollar weights for
+    residual Industrial. ``industrial_weights='dollars'`` keeps non-negative
+    use weights for the whole Industrial class (diagnostics and tests that
+    must not load Table 7.7).
     """
     if self_use_key != ELECTRICITY_AGGREGATE:
         raise ValueError(
             f'self_use_key must be {ELECTRICITY_AGGREGATE!r}, got {self_use_key!r}'
+        )
+    if industrial_weights not in ('mecs', 'dollars'):
+        raise ValueError(
+            f'industrial_weights must be mecs or dollars, got {industrial_weights!r}'
         )
     if not np.isfinite(p_share_2017) or p_share_2017 <= 0:
         raise ValueError(
             'UGO generation share is missing or non-positive; '
             'Table 8.3 is not a p backup'
         )
-    if IMPORT_FD_CODE in bills.index:
-        bills = bills.drop(index=IMPORT_FD_CODE)
-    bills = bills.astype(float)
-    classes = _end_use_classes(bills, self_use_key)
+    if IMPORT_FD_CODE in electricity_purchases.index:
+        electricity_purchases = electricity_purchases.drop(index=IMPORT_FD_CODE)
+    electricity_purchases = electricity_purchases.astype(float)
+    classes = _end_use_classes(electricity_purchases, self_use_key)
     egrid_mwh = egrid_mwh_for_io_year(eia_year)
     class_mwh = _class_mwh_targets(eia_year, egrid_mwh)
-    bill_total = float(bills.sum())
-    p = (p_share_2017 * bill_total) / egrid_mwh if egrid_mwh else float('nan')
+    electricity_purchases_total = float(electricity_purchases.sum())
+    p = (
+        (p_share_2017 * electricity_purchases_total) / egrid_mwh
+        if egrid_mwh
+        else float('nan')
+    )
     if not np.isfinite(p) or p <= 0:
         raise ValueError(f'non-positive generation price p={p!r}')
 
-    mwh = pd.Series(0.0, index=bills.index, dtype=float)
-    gen = pd.Series(0.0, index=bills.index, dtype=float)
-    clipped = pd.Series(False, index=bills.index, dtype=bool)
+    mwh = pd.Series(0.0, index=electricity_purchases.index, dtype=float)
+    gen = pd.Series(0.0, index=electricity_purchases.index, dtype=float)
+    clipped = pd.Series(False, index=electricity_purchases.index, dtype=bool)
 
     for cls, target_mwh in class_mwh.items():
         members = [str(k) for k in classes.index if classes[k] == cls]
         if not members:
             continue
-        weights = bills.loc[members].clip(lower=0.0)
-        wsum = float(weights.sum())
-        if wsum > 0:
-            mwh.loc[members] = target_mwh * (weights / wsum)
-        class_bill_sum = float(bills.loc[members].sum())
+        if cls == 'Industrial' and industrial_weights == 'mecs':
+            mwh.loc[members] = _industrial_mecs_class_mwh(
+                electricity_purchases, members, float(target_mwh), eia_year
+            )
+        else:
+            weights = electricity_purchases.loc[members].clip(lower=0.0)
+            wsum = float(weights.sum())
+            if wsum > 0:
+                mwh.loc[members] = target_mwh * (weights / wsum)
+        class_electricity_purchases_sum = float(
+            electricity_purchases.loc[members].sum()
+        )
         class_needed = p * float(target_mwh)
-        if class_needed > _WATER_FILL_ATOL and class_bill_sum < class_needed:
-            scale = class_bill_sum / class_needed
+        if (
+            class_needed > _WATER_FILL_ATOL
+            and class_electricity_purchases_sum < class_needed
+        ):
+            scale = class_electricity_purchases_sum / class_needed
             mwh.loc[members] = mwh.loc[members] * scale
             logger.info(
-                'nibble class %s: bills %.6g < p × MWh %.6g; scale=%.6g',
+                'nibble class %s: electricity purchases %.6g '
+                '< p × MWh %.6g; scale=%.6g',
                 cls,
-                class_bill_sum,
+                class_electricity_purchases_sum,
                 class_needed,
                 scale,
             )
         proportional = mwh.loc[members] * p
-        gen_cls, clip_cls = _water_fill_gen(bills, proportional, members)
+        gen_cls, clip_cls = _water_fill_gen(
+            electricity_purchases, proportional, members
+        )
         gen.loc[members] = gen_cls
         clipped.loc[members] = clip_cls
 
@@ -282,11 +721,11 @@ def allocate_purchaser_gtd(
         int(len(clipped)),
     )
 
-    leftover = bills - gen
+    leftover = electricity_purchases - gen
     t_dollars = leftover * float(td_share_2017)
     d_dollars = leftover * (1.0 - float(td_share_2017))
     return EIAPurchaserAllocation(
-        bill=bills,
+        electricity_purchases=electricity_purchases,
         end_use_class=classes,
         mwh=mwh.astype(float),
         gen_dollars=gen.astype(float),
@@ -300,9 +739,9 @@ def allocate_purchaser_gtd(
 
 
 def _electricity_column_dollars(frame: pd.DataFrame, col: str) -> float:
-    """Import bill on ``221100`` if still present, else the G/T/D child sum.
+    """Import dollars on ``221100`` if still present, else the G/T/D child sum.
 
-    After correspondence, the aggregate row is often gone and the bill sits
+    After correspondence, the aggregate row is often gone and the import sits
     on the children. Prefer the aggregate when it is non-zero so the two
     are not added together.
     """
@@ -378,7 +817,7 @@ def write_purchaser_gtd_use_and_y(
         orig_imp = 0.0
         if agg in Uimp.index and col in Uimp.columns:
             orig_imp = _cell_float(Uimp, agg, str(col))
-        if col_s in allocation.bill.index:
+        if col_s in allocation.electricity_purchases.index:
             Udom.at[GENERATION_SECTOR, col] = float(allocation.gen_dollars[col_s])
             Udom.at[TRANSMISSION_SECTOR, col] = float(allocation.t_dollars[col_s])
             Udom.at[DISTRIBUTION_SECTOR, col] = float(allocation.d_dollars[col_s])
@@ -403,7 +842,7 @@ def write_purchaser_gtd_use_and_y(
             Y.at[GENERATION_SECTOR, col] = _electricity_column_dollars(Y, str(col))
             Y.at[TRANSMISSION_SECTOR, col] = 0.0
             Y.at[DISTRIBUTION_SECTOR, col] = 0.0
-        elif col_s in allocation.bill.index:
+        elif col_s in allocation.electricity_purchases.index:
             Y.at[GENERATION_SECTOR, col] = float(allocation.gen_dollars[col_s])
             Y.at[TRANSMISSION_SECTOR, col] = float(allocation.t_dollars[col_s])
             Y.at[DISTRIBUTION_SECTOR, col] = float(allocation.d_dollars[col_s])
@@ -429,7 +868,7 @@ def write_gtd_use_intersection(
     Udom = _ensure_column_codes(Udom, children)
     Uimp = _ensure_column_codes(Uimp, children)
 
-    t_dom = float(allocation.bill[agg])
+    t_dom = float(allocation.electricity_purchases[agg])
     gen_self = float(allocation.gen_dollars[agg])
     leftover = t_dom - gen_self
     t_self = leftover * float(allocation.td_share)
@@ -478,7 +917,10 @@ def make_last_weights_from_domestic_use_y(
 
 @functools.cache
 def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
-    """Cached 2017 domestic bills → G/T/D. Does not call the IO bundle or Ytot."""
+    """Cached 2017 domestic electricity purchases → G/T/D.
+
+    Does not call the IO bundle or Ytot.
+    """
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         _derive_post_reallocation_checkpoint_for_disagg,
         _derive_y_before_electricity_disagg_lazy,
@@ -491,12 +933,12 @@ def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
         _as_float_series(udom.loc[agg]) if agg in udom.index else pd.Series(dtype=float)
     )
     y_row = _as_float_series(y.loc[agg]) if agg in y.index else pd.Series(dtype=float)
-    bills = use_row.add(y_row, fill_value=0.0)
-    if IMPORT_FD_CODE in bills.index:
-        bills = bills.drop(index=IMPORT_FD_CODE)
+    electricity_purchases = use_row.add(y_row, fill_value=0.0)
+    if IMPORT_FD_CODE in electricity_purchases.index:
+        electricity_purchases = electricity_purchases.drop(index=IMPORT_FD_CODE)
     p_share, td_share = _go_p_and_td_shares()
     return allocate_purchaser_gtd(
-        bills,
+        electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=2017,
         p_share_2017=p_share,
@@ -521,7 +963,7 @@ def apply_purchaser_allocation_to_y(Y: pd.DataFrame) -> pd.DataFrame:
             Y.at[GENERATION_SECTOR, col] = _electricity_column_dollars(Y, str(col))
             Y.at[TRANSMISSION_SECTOR, col] = 0.0
             Y.at[DISTRIBUTION_SECTOR, col] = 0.0
-        elif col_s in allocation.bill.index:
+        elif col_s in allocation.electricity_purchases.index:
             Y.at[GENERATION_SECTOR, col] = float(allocation.gen_dollars[col_s])
             Y.at[TRANSMISSION_SECTOR, col] = float(allocation.t_dollars[col_s])
             Y.at[DISTRIBUTION_SECTOR, col] = float(allocation.d_dollars[col_s])
@@ -612,7 +1054,7 @@ def _spill_generation_nonfuel(
     return Udom, Uimp
 
 
-def _scaled_export_fd_bill(
+def _scaled_export_fd_electricity_purchases(
     *,
     original_year: int,
     target_year: int,
@@ -686,9 +1128,9 @@ def _inflate_summary_year_scaled_aq(
     return adom, q
 
 
-def _purchaser_bills_from_aq(
-    adom_bills: pd.DataFrame,
-    q_bills: pd.Series,
+def _purchaser_electricity_purchases_from_aq(
+    adom: pd.DataFrame,
+    q: pd.Series,
 ) -> pd.Series:
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         derive_disagg_Ytot_with_trade,
@@ -696,26 +1138,28 @@ def _purchaser_bills_from_aq(
     from bedrock.utils.math.formulas import backcompute_y_from_A_and_q  # noqa: PLC0415
 
     elec = list(ELECTRICITY_DISAGG_SECTORS)
-    a_elec = adom_bills.loc[elec].sum(axis=0).astype(float)
-    industry_bills = a_elec * q_bills.reindex(a_elec.index).astype(float)
-    self_bill = float(industry_bills.reindex(elec).fillna(0.0).sum())
-    industry_bills = industry_bills.drop(labels=elec, errors='ignore')
-    industry_bills[ELECTRICITY_AGGREGATE] = self_bill
+    a_elec = adom.loc[elec].sum(axis=0).astype(float)
+    industry_purchases = a_elec * q.reindex(a_elec.index).astype(float)
+    self_electricity_purchases = float(
+        industry_purchases.reindex(elec).fillna(0.0).sum()
+    )
+    industry_purchases = industry_purchases.drop(labels=elec, errors='ignore')
+    industry_purchases[ELECTRICITY_AGGREGATE] = self_electricity_purchases
 
-    y_snap = backcompute_y_from_A_and_q(A=adom_bills, q=q_bills)
+    y_snap = backcompute_y_from_A_and_q(A=adom, q=q)
     y_elec_total = float(y_snap.reindex(elec).fillna(0.0).sum())
     y2017 = derive_disagg_Ytot_with_trade()
     y2017_elec = y2017.loc[elec].sum(axis=0).astype(float)
     y2017_sum = float(y2017_elec.sum())
-    fd_bills = pd.Series(dtype=float)
+    fd_purchases = pd.Series(dtype=float)
     if y2017_sum > 0:
         for col, val in y2017_elec.items():
             col_s = str(col)
             if col_s in (EXPORT_FD_CODE, IMPORT_FD_CODE):
                 continue
-            fd_bills[col_s] = y_elec_total * (float(val) / y2017_sum)
-    bills = industry_bills.add(fd_bills, fill_value=0.0)
-    return bills.astype(float)
+            fd_purchases[col_s] = y_elec_total * (float(val) / y2017_sum)
+    electricity_purchases = industry_purchases.add(fd_purchases, fill_value=0.0)
+    return electricity_purchases.astype(float)
 
 
 def reanchor_electricity_aq_after_year_scaling(
@@ -737,7 +1181,7 @@ def reanchor_electricity_aq_after_year_scaling(
     q = aq.scaled_q.astype(float).copy()
     elec = list(ELECTRICITY_DISAGG_SECTORS)
 
-    adom_bills, q_bills = _inflate_summary_year_scaled_aq(
+    adom_purchases, q_purchases = _inflate_summary_year_scaled_aq(
         original_year=original_year,
         target_year=target_year,
         model_year=model_year,
@@ -748,8 +1192,10 @@ def reanchor_electricity_aq_after_year_scaling(
     )
 
     pre = get_summary_year_scaled_aq(original_year, target_year)
-    bills = _purchaser_bills_from_aq(adom_bills, q_bills)
-    bills[EXPORT_FD_CODE] = _scaled_export_fd_bill(
+    electricity_purchases = _purchaser_electricity_purchases_from_aq(
+        adom_purchases, q_purchases
+    )
+    electricity_purchases[EXPORT_FD_CODE] = _scaled_export_fd_electricity_purchases(
         original_year=original_year,
         target_year=target_year,
         model_year=model_year,
@@ -758,7 +1204,7 @@ def reanchor_electricity_aq_after_year_scaling(
     )
     p_share, td_share = _go_p_and_td_shares()
     allocation = allocate_purchaser_gtd(
-        bills,
+        electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=model_year,
         p_share_2017=p_share,
@@ -774,7 +1220,7 @@ def reanchor_electricity_aq_after_year_scaling(
         col_s = str(col)
         if col_s in elec:
             continue
-        if col_s in allocation.bill.index:
+        if col_s in allocation.electricity_purchases.index:
             udom.at[GENERATION_SECTOR, col] = float(allocation.gen_dollars[col_s])
             udom.at[TRANSMISSION_SECTOR, col] = float(allocation.t_dollars[col_s])
             udom.at[DISTRIBUTION_SECTOR, col] = float(allocation.d_dollars[col_s])
@@ -783,7 +1229,7 @@ def reanchor_electricity_aq_after_year_scaling(
         uimp.at[TRANSMISSION_SECTOR, col] = 0.0
         uimp.at[DISTRIBUTION_SECTOR, col] = 0.0
 
-    t_dom = float(allocation.bill[ELECTRICITY_AGGREGATE])
+    t_dom = float(allocation.electricity_purchases[ELECTRICITY_AGGREGATE])
     gen_self = float(allocation.gen_dollars[ELECTRICITY_AGGREGATE])
     leftover = t_dom - gen_self
     uimp_gg = float(uimp.loc[elec, elec].sum().sum())
@@ -799,7 +1245,9 @@ def reanchor_electricity_aq_after_year_scaling(
     y = y.astype(float)
     for code in elec:
         y.loc[code] = 0.0
-    fd_keys = [k for k in allocation.bill.index if k in set(FINAL_DEMANDS)]
+    fd_keys = [
+        k for k in allocation.electricity_purchases.index if k in set(FINAL_DEMANDS)
+    ]
     for col in fd_keys:
         if col == IMPORT_FD_CODE:
             continue

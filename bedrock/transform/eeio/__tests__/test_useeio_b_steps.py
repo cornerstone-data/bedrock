@@ -52,7 +52,7 @@ def test_useeio_b_adjust_divide_transform_steps(
         ),
     )
     monkeypatch.setattr(dc, "validate_cornerstone", lambda df, kind: None)
-    monkeypatch.setattr(dc, "derive_E_usa", lambda: e)
+    monkeypatch.setattr(dc, "load_E_from_flowsa", lambda: e)
     monkeypatch.setattr(
         dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal
     )

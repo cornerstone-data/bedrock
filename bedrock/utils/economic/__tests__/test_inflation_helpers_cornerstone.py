@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator
+from unittest.mock import patch
 
 import pytest
 
@@ -9,6 +11,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
@@ -31,6 +34,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_disagg_use_intersection_weights,
     get_2017_eia_purchaser_allocation,
 )
+from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
@@ -59,6 +63,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_waste_disagg_weights,
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
     cornerstone_sector_disagg_active,
     derive_disagg_Ytot_with_trade,
@@ -66,6 +71,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
     get_2017_eia_purchaser_allocation,
+    mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -94,6 +100,21 @@ def _clear_all_caches() -> None:
 
     clear_summary_year_scaled_aq()
     clear_reanchored_electricity_q()
+
+
+@contextmanager
+def _dollar_industrial_weights() -> Iterator[None]:
+    import bedrock.transform.eeio.electricity_gtd_allocation as gtd  # noqa: PLC0415
+
+    orig = gtd.allocate_purchaser_gtd
+
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
+        kwargs = dict(kwargs)
+        kwargs['industrial_weights'] = 'dollars'
+        return orig(*args, **kwargs)
+
+    with patch.object(gtd, 'allocate_purchaser_gtd', _wrapped):
+        yield
 
 
 def _setup_config(config_name: str) -> None:
@@ -193,8 +214,9 @@ def test_industry_price_ratio_apply_io_plus_elec_is_industry_elec_indexed() -> N
 
     _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
     try:
-        industry = get_cornerstone_industry_price_ratio(2017, 2024)
-        commodity = get_vnorm_adjusted_commodity_price_ratio(2017, 2024)
+        with _dollar_industrial_weights():
+            industry = get_cornerstone_industry_price_ratio(2017, 2024)
+            commodity = get_vnorm_adjusted_commodity_price_ratio(2017, 2024)
         assert list(industry.index) == CORNERSTONE_INDUSTRIES_ELEC
         assert list(commodity.index) == CORNERSTONE_COMMODITIES_ELEC
         assert '331314' in industry.index
@@ -220,28 +242,29 @@ def test_industry_pi_under_elec_is_industries_elec_indexed() -> None:
 
     _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
     try:
-        pi = _cornerstone_indexed_industry_pi(2022)
-        assert list(pi.index) == active_cornerstone_industries()
-        assert ELECTRICITY_AGGREGATE_SECTOR not in pi.index
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            assert float(pi.loc[code]) == pytest.approx(parent_pi)
+        with _dollar_industrial_weights():
+            pi = _cornerstone_indexed_industry_pi(2022)
+            assert list(pi.index) == active_cornerstone_industries()
+            assert ELECTRICITY_AGGREGATE_SECTOR not in pi.index
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                assert float(pi.loc[code]) == pytest.approx(parent_pi)
 
-        from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
-            load_bea_v2017_industry_to_bea_v2017_summary,
-        )
+            from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
+                load_bea_v2017_industry_to_bea_v2017_summary,
+            )
 
-        x_y = derive_cornerstone_x()
-        bea_fixed: dict[str, list[str]] = {
-            str(k): [str(s) for s in v]
-            for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()
-        }
-        parent_summaries = list(bea_fixed.get(ELECTRICITY_AGGREGATE_SECTOR, ['22']))
-        bea_fixed.pop(ELECTRICITY_AGGREGATE_SECTOR, None)
-        for child in ELECTRICITY_DISAGG_SECTORS:
-            bea_fixed[child] = list(parent_summaries)
-        expected_22 = _aggregate_industry_pi(pi, x_y, bea_fixed)['22']
-        assert float(
-            _get_summary_industry_price_index(2022).loc['22']
-        ) == pytest.approx(expected_22)
+            x_y = derive_cornerstone_x()
+            bea_fixed: dict[str, list[str]] = {
+                str(k): [str(s) for s in v]
+                for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()
+            }
+            parent_summaries = list(bea_fixed.get(ELECTRICITY_AGGREGATE_SECTOR, ['22']))
+            bea_fixed.pop(ELECTRICITY_AGGREGATE_SECTOR, None)
+            for child in ELECTRICITY_DISAGG_SECTORS:
+                bea_fixed[child] = list(parent_summaries)
+            expected_22 = _aggregate_industry_pi(pi, x_y, bea_fixed)['22']
+            assert float(
+                _get_summary_industry_price_index(2022).loc['22']
+            ) == pytest.approx(expected_22)
     finally:
         _teardown()

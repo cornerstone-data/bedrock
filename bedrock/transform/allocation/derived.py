@@ -13,7 +13,10 @@ from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
-from bedrock.utils.schemas.cornerstone_schemas import CORNERSTONE_INDUSTRIES_ELEC
+from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_INDUSTRIES,
+    CORNERSTONE_INDUSTRIES_ELEC,
+)
 from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
     WASTE_DISAGG_INDUSTRIES,
@@ -96,7 +99,22 @@ def _apply_cornerstone_waste_overrides(mapping: pd.DataFrame) -> pd.DataFrame:
 
 
 def derive_E_usa() -> pd.DataFrame:
-    return load_E_from_flowsa()
+    """Published industry E for snapshots, diagnostics, and comparisons.
+
+    When electricity reaggregation is on, collapses G/T/D columns into
+    ``221100`` and reindexes to ``CORNERSTONE_INDUSTRIES`` (405). Internal B
+    construction must use ``load_E_from_flowsa`` so per-child E/x is available
+    before the q-weighted B collapse.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        collapse_electricity_children_columns,
+        electricity_reaggregation_enabled,
+    )
+
+    E = load_E_from_flowsa()
+    if electricity_reaggregation_enabled():
+        E = collapse_electricity_children_columns(E, col_codes=CORNERSTONE_INDUSTRIES)
+    return E
 
 
 def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
@@ -274,7 +292,12 @@ def _load_cornerstone_ghg_fbs_from_gcs(
 
 
 def load_E_from_flowsa() -> pd.DataFrame:
-    """Load E_usa (GHG × model-schema sectors) from a flowsa FBS.
+    """Load industry E (GHG × model-schema sectors) from a flowsa FBS.
+
+    This is the internal/pre-publish matrix: when electricity disaggregation is
+    on it retains G/T/D columns (407 industries) so B can form per-child E/x
+    before q-weighted reaggregation. Published E (405 under reaggregation) is
+    ``derive_E_usa``.
 
     FBS selection ("GHG model allocation" bucket + data-year knob):
     - use_cornerstone_ghg_model → pre-built Cornerstone GHG FBS parquet from

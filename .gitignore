@@ -49,6 +49,8 @@ __pycache__/
 !bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_VA.parquet
 !bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_Uimp.parquet
 !bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_margins.parquet
+# Published original vs EIA-anchored histogram panels (required for deck CI)
+!bedrock/analysis/electricity/historical/original_vs_eia_anchored_deck/figures/*.png
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
 !bedrock/extract/external_data/*.csv
@@ -80,8 +82,3 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
-# Original electricity-disagg implementation freeze (must be committed)
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.parquet
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.json
