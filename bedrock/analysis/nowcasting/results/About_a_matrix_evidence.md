@@ -147,19 +147,33 @@ measurement. `MIN_OBSERVED_INPUT_SHARE` gates on evidence first.
 
 ### The clearest cases
 
-`contribution` is the exact share of `N_c − D_c` the input carries, from the
-tier-1 identity. `fan-out 1` means the survey datum *is* that cell.
+**What the columns are.** `A` is the direct-requirements coefficient — dollars of
+that input per dollar of the sector's output. It is the number the two methods
+disagree about, and it is **not** a footprint. The partial `N` is `N_i x A_ic`,
+in kg CO2e per dollar, and `share` is that divided by `N_c − D_c`. Those products
+sum across all 402 inputs to the sector's whole indirect footprint exactly — for
+`313100`, 0.6707 kg CO2e per dollar, against `N` 0.7005 and direct `D` 0.0299.
+
+⚠️ The two `A` columns are a like-for-like comparison of the input recipe. `N_i`
+and the product are the **nowcast's**, because `B` is held fixed and only `A` is
+under comparison; v0.3's own `N_i` vector differs and is not mixed in here.
+
+`fan-out 1` means the survey datum *is* that cell.
 
 **`313100` Fiber, yarn, and thread mills — `N` +30.0%, 94% of inputs observed,
 94% primary.** The most completely observed column in the significant set. Two
 inputs carry 84% of the entire indirect footprint, and both are single-cell
 Economic Census observations:
 
-| input | | contribution | nowcast | v0.3 | source | fan-out |
-|---|---|---:|---:|---:|---|---:|
-| `3252A0` | synthetic fibers and filaments | 43.4% | 0.372 | 0.230 | Economic Census 2022 | 1 |
-| `111900` | other crop farming (cotton) | 41.1% | 0.146 | 0.089 | Economic Census 2022 | 1 |
-| `221100` | electric power | 4.8% | 0.013 | 0.025 | AIES | 1 |
+| input | | `A` nowcast | `A` v0.3 | `N` of input | carried into `N` | share | source |
+|---|---|---:|---:|---:|---:|---:|---|
+| `3252A0` | synthetic fibers and filaments | 0.372 | 0.230 | 0.782 | **0.291** | 43.4% | Econ Census 2022, fan-out 1 |
+| `111900` | other crop farming (cotton) | 0.146 | 0.089 | 1.894 | **0.276** | 41.1% | Econ Census 2022, fan-out 1 |
+| `221100` | electric power | 0.013 | 0.025 | 2.565 | **0.032** | 4.8% | AIES, fan-out 1 |
+
+Electric power is why the coefficient alone is not the story: at 0.013 it is a
+thirtieth the size of the fiber coefficient, but a dollar of electricity carries
+2.565 kg CO2e against synthetic fiber's 0.782, so it still contributes 4.8%.
 
 **`332310` Plate work and fabricated structural product manufacturing — `N` +23.6%,
 90% observed, 85% primary.** One cell carries 74% of the indirect footprint:
