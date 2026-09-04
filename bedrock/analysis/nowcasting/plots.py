@@ -328,14 +328,22 @@ def plot_match(
     subtitle: str = '',
     row_names: Mapping[str, str] | None = None,
     column_names: Mapping[str, str] | None = None,
+    chrome: bool = True,
 ) -> Figure:
-    """Interior raster plus the row-total and column-total strips, one figure."""
+    """Interior raster plus the row-total and column-total strips, one figure.
+
+    ``chrome=False`` drops the title, the subtitle block and the legend -
+    the style for a figure whose caption carries that text instead - and
+    reclaims the space they reserve.
+    """
     import matplotlib.pyplot as plt  # noqa: PLC0415
 
     rows, cols = match.status.shape
     (width, height), row_ticks, col_ticks = figure_layout(
         match, row_names, column_names
     )
+    if not chrome:
+        height = height - TITLE_INCHES - LEGEND_INCHES + 0.4
     fig = plt.figure(figsize=(width, height))
     # Reserve fixed *inches* for the title, the legend and the tick labels
     # rather than fixed fractions: these figures range from 5 to 16 inches tall,
@@ -349,8 +357,9 @@ def plot_match(
         hspace=0.03,
         left=_margin_inches(row_ticks, 1.0) / width,
         right=1 - 0.25 / width,
-        top=1 - TITLE_INCHES / height,
-        bottom=(LEGEND_INCHES + _margin_inches(col_ticks, 0.6)) / height,
+        top=1 - (TITLE_INCHES if chrome else 0.2) / height,
+        bottom=((LEGEND_INCHES if chrome else 0.2) + _margin_inches(col_ticks, 0.6))
+        / height,
     )
 
     interior = fig.add_subplot(grid[0, 0])
@@ -393,26 +402,26 @@ def plot_match(
     _draw(corner, np.array([[gt_status]]), np.array([[gt_sev]]))
     corner.set_title('grand\ntotal', fontsize=7, pad=2, y=-0.9)
 
-    fig.suptitle(title or match.label, fontsize=13, y=1 - 0.35 / height)
-    if subtitle:
-        fig.text(
-            0.5,
-            1 - 0.65 / height,
-            subtitle,
-            ha='center',
-            va='top',
+    if chrome:
+        fig.suptitle(title or match.label, fontsize=13, y=1 - 0.35 / height)
+        if subtitle:
+            fig.text(
+                0.5,
+                1 - 0.65 / height,
+                subtitle,
+                ha='center',
+                va='top',
+                fontsize=8,
+                color='#444444',
+            )
+        fig.legend(
+            handles=_legend_handles(),
+            loc='lower center',
+            ncol=3,
             fontsize=8,
-            color='#444444',
+            frameon=False,
+            bbox_to_anchor=(0.5, 0.005),
         )
-
-    fig.legend(
-        handles=_legend_handles(),
-        loc='lower center',
-        ncol=3,
-        fontsize=8,
-        frameon=False,
-        bbox_to_anchor=(0.5, 0.005),
-    )
     return fig
 
 
@@ -469,6 +478,7 @@ def render_section(
     year: int = 2017,
     out_dir: Path = OUTPUT_DIR,
     dpi: int = DEFAULT_DPI,
+    chrome: bool = True,
 ) -> tuple[Path, TableMatch]:
     """Run one section and write its picture.  Returns the path and the match."""
     matplotlib.use('Agg')
@@ -481,6 +491,7 @@ def render_section(
         subtitle=_subtitle(match, section, width),
         row_names=section.row_names,
         column_names=section.column_names,
+        chrome=chrome,
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f'{section.name}_{year}.png'
@@ -517,6 +528,14 @@ def render_section(
     is_flag=True,
     help='Print the colour-vision separation check and exit.',
 )
+@click.option(
+    '--chrome/--plain',
+    'chrome',
+    default=True,
+    show_default=True,
+    help='--plain drops the drawn title, subtitle and legend, for figures '
+    'whose caption carries that text (the standing report style).',
+)
 def main(
     names: tuple[str, ...],
     year: int,
@@ -524,6 +543,7 @@ def main(
     report: bool,
     dpi: int,
     check_palette: bool,
+    chrome: bool,
 ) -> None:
     """Render the Supply/Use match pictures for the sections we can compare."""
     if check_palette:
@@ -545,7 +565,7 @@ def main(
             )
             click.echo('')
             continue
-        path, match = render_section(name, year, out_dir, dpi)
+        path, match = render_section(name, year, out_dir, dpi, chrome=chrome)
         if report:
             click.echo(match.report(n_worst=10, n_margins=8))
             click.echo('')
