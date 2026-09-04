@@ -398,9 +398,7 @@ def _eia_clean_mecs_energy(
                 name.split(' | ', 2)[0] for name in table_dict[year][table]['col_names']
             ]
 
-        skip_cols = [
-            c for c in df_data_region.columns if str(c).startswith('SKIP')
-        ]
+        skip_cols = [c for c in df_data_region.columns if str(c).startswith('SKIP')]
         if skip_cols:
             df_data_region = df_data_region.drop(columns=skip_cols)
             df_rse_region = df_rse_region.drop(columns=skip_cols)
