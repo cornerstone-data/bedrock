@@ -1,0 +1,522 @@
+stcc5,stcc_description,bea_2017_commodity,bea_2017_description,basis
+01129,"Raw Cotton, Nec",1111B0,Grain farming,"PREFIX FALLBACK from STCC 011: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01131,Barley,1111B0,Grain farming,
+01132,Corn,1111B0,Grain farming,
+01133,Oats,1111B0,Grain farming,
+01134,"Rice, Rough",1111B0,Grain farming,
+01135,Rye,1111B0,Grain farming,
+01136,Sorghum Grains,1111B0,Grain farming,
+01137,Wheat,1111B0,Grain farming,
+01139,"Grain, Nec",1111B0,Grain farming,
+01141,Cottonseeds,1111A0,Oilseed farming,
+01142,Flaxseeds,1111A0,Oilseed farming,
+01143,Peanuts,1111A0,Oilseed farming,
+01144,Soybeans (Soya Beans),1111A0,Oilseed farming,
+01149,"Oil Kernels, Nuts or Seeds",1111A0,Oilseed farming,
+01151,Lawn Grass Seeds,111900,Other crop farming,"PREFIX FALLBACK from STCC 0115: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01152,Popcorn,111900,Other crop farming,"PREFIX FALLBACK from STCC 0115: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01159,"Field Seeds, Nec",111900,Other crop farming,
+01191,"Fodder, Ray or Roughage",111900,Other crop farming,
+01195,"Potatoes, Other Than Sweet",111200,Vegetable and melon farming,
+01214,Oranges,111300,Fruit and tree nut farming,"PREFIX FALLBACK from STCC 0121: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01219,"Citrus Fruits, Nec",111300,Fruit and tree nut farming,
+01221,Apples,111300,Fruit and tree nut farming,
+01224,Grapes,111300,Fruit and tree nut farming,"PREFIX FALLBACK from STCC 0122: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01295,"Coffee, Green",111900,Other crop farming,
+01298,"Nuts, Edible, In The Shell, Nec",111900,Other crop farming,"PREFIX FALLBACK from STCC 0129: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01299,"Fresh Fruits or Tree Nuts, Nec",111900,Other crop farming,"PREFIX FALLBACK from STCC 0129: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01331,Broccoii,111900,Other crop farming,"PREFIX FALLBACK from STCC 013: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01334,Celery,111900,Other crop farming,"PREFIX FALLBACK from STCC 013: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01341,"Beans, Dry Ripe",111900,Other crop farming,
+01342,"Peas, Dry",111900,Other crop farming,
+01343,"Cowpeas, Lentils or Lupines",111900,Other crop farming,
+01399,"Fresh Vegetables, Nec",111200,Vegetable and melon farming,
+01421,Dairy Farm Products Exc Pasteurized,111900,Other crop farming,"PREFIX FALLBACK from STCC 01: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01912,Nursery Stock,111900,Other crop farming,
+01915,"Herbs (Seeds, Leaves, Roots, Etc.)",111900,Other crop farming,"PREFIX FALLBACK from STCC 0191: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+01919,"Horticultural Specialties, Nec",111900,Other crop farming,
+01991,"Chopped, Ground or Pulverized Hay or Straw",111900,Other crop farming,"PREFIX FALLBACK from STCC 019: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+08422,"Barks or Gums, Crude",113000,Forestry and logging,"Logs and pulpwood are forestry output, not a sawmill product."
+09121,Finfish,114000,"Fishing, hunting and trapping",
+09122,Shellfish,114000,"Fishing, hunting and trapping",
+10113,Iron Concentrates or Agglomerates,2122A0,"Iron, gold, silver, and other metal ore mining","PREFIX FALLBACK from STCC 10: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+10212,Copper Concentrates or Precipitates,2122A0,"Iron, gold, silver, and other metal ore mining","PREFIX FALLBACK from STCC 10: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+10511,Crude Bauxite Ores,2122A0,"Iron, gold, silver, and other metal ore mining","PREFIX FALLBACK from STCC 1051: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+10513,Calcinpd or Activated Bauxite Ores,2122A0,"Iron, gold, silver, and other metal ore mining",
+10929,"Miscellaneous Metal Ores, Nec",2122A0,"Iron, gold, silver, and other metal ore mining",
+11112,Prepared Anthracite,212100,Coal mining,"PREFIX FALLBACK from STCC 11: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+11212,Prepared Bituminous Coal,212100,Coal mining,
+13111,Crude Petroleum,211000,Oil and gas extraction,Crude oil and natural gas are one BEA detail commodity.
+13211,Natural Gasoline,211000,Oil and gas extraction,"PREFIX FALLBACK from STCC 13: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14211,"Agricultural Limestone, Broken or Crushed",212310,Stone mining and quarrying,"PREFIX FALLBACK from STCC 1421: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14219,"Broken or Crushed Stone or Riprap, Nec",212310,Stone mining and quarrying,
+14411,Sand (Aggregate or Ballast),2123A0,Other nonmetallic mineral mining and quarrying,"PREFIX FALLBACK from STCC 1441: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14412,Gravel (Aggregate or Ballast),2123A0,Other nonmetallic mineral mining and quarrying,
+14413,"Industrial Sand, Crude, Ground or Pulverized",2123A0,Other nonmetallic mineral mining and quarrying,
+14511,"Bentonite, Crude",2123A0,Other nonmetallic mineral mining and quarrying,
+14519,"Ceramic or Clay Minerals, Crude",2123A0,Other nonmetallic mineral mining and quarrying,
+14711,"Barite, Crude",2123A0,Other nonmetallic mineral mining and quarrying,
+14713,"Borate, Potash or Soda, Crude",2123A0,Other nonmetallic mineral mining and quarrying,"PREFIX FALLBACK from STCC 1471: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14715,"Rock Salt, Crude, Crushed, Lump or Screened",2123A0,Other nonmetallic mineral mining and quarrying,
+14716,"Sulphur, Crude, Liquid, Ground or Treated",2123A0,Other nonmetallic mineral mining and quarrying,
+14911,"Anhydrite or Gypsum, Crude",2123A0,Other nonmetallic mineral mining and quarrying,"PREFIX FALLBACK from STCC 1491: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14914,"Pumice or Pumicite, Crude",2123A0,Other nonmetallic mineral mining and quarrying,"PREFIX FALLBACK from STCC 1491: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14916,"Natural Abrasives, Flour or Sized Grains, Industri",2123A0,Other nonmetallic mineral mining and quarrying,"PREFIX FALLBACK from STCC 1491: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+14917,"Peat, Natural",2123A0,Other nonmetallic mineral mining and quarrying,
+14918,"Diatomaceous or Infusorial Earth, Crude",2123A0,Other nonmetallic mineral mining and quarrying,
+14919,"Nonmetallic Minerals, Loam, Soil or Top",2123A0,Other nonmetallic mineral mining and quarrying,
+14922,"Water, Drinking",,,EXCLUDED: Drinking water - not a BEA goods commodity. 0.4 $M.
+19000,Ordnance,33299A,"Ammunition, arms, ordnance, and accessories manufacturing",
+20129,"Meat, Fresh Frozen, Nec",31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20131,Lard,31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20139,"Meat Products, Nec",31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20141,"Hides, Pelts or Skins, Not Tanned",31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20143,Grease or Inedible Tallow,31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20144,"Animal Refuse, Tankage, Meat Meal",31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20149,"Animal By-products, Inedible, Nec",31161A,"Animal (except poultry) slaughtering, rendering, and processing",
+20158,Poultry or Small Game By-products,31161A,"Animal (except poultry) slaughtering, rendering, and processing","PREFIX FALLBACK from STCC 201: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20161,Dressed Poultry or Small Game,31161A,"Animal (except poultry) slaughtering, rendering, and processing","PREFIX FALLBACK from STCC 201: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20211,Creamery Butter,311514,"Dry, condensed, and evaporated dairy product manufacturing","PREFIX FALLBACK from STCC 202: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20231,Dry Milk Products,311514,"Dry, condensed, and evaporated dairy product manufacturing",
+20241,Ice Cream or Related Frozen Desserts,311514,"Dry, condensed, and evaporated dairy product manufacturing","PREFIX FALLBACK from STCC 202: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20251,Cheese Exc. Cottage Cheese,311513,Cheese manufacturing,
+20259,Special Dairy Products,311514,"Dry, condensed, and evaporated dairy product manufacturing",
+20311,Canned Fish or Other Seafood,311700,Seafood product preparation and packaging,
+20321,Canned Baby Foods,311420,"Fruit and vegetable canning, pickling, and drying","PREFIX FALLBACK from STCC 2032: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20322,Canned Soups,311420,"Fruit and vegetable canning, pickling, and drying","PREFIX FALLBACK from STCC 2032: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20329,"Canned Specialties, Nec",311420,"Fruit and vegetable canning, pickling, and drying",
+20331,Canned Fruits,311420,"Fruit and vegetable canning, pickling, and drying",
+20332,Canned Vegetables,311420,"Fruit and vegetable canning, pickling, and drying",
+20334,"Fruit Juices, Canned, Bottled or Bulk",311420,"Fruit and vegetable canning, pickling, and drying",
+20336,Catsup or Other Tomato Sauces,311420,"Fruit and vegetable canning, pickling, and drying",
+20338,"Jams, Jellies or Preserves",311420,"Fruit and vegetable canning, pickling, and drying",
+20339,"Canned Fruits or Vegetables, Nec",311420,"Fruit and vegetable canning, pickling, and drying",
+20341,Dehydrated or Dried Fruits,311420,"Fruit and vegetable canning, pickling, and drying",
+20342,Unknown STCC Value,,,"EXCLUDED: Published as ""Unknown STCC Value""."
+20343,Dehydrated or Dried Potatoes or Products,311420,"Fruit and vegetable canning, pickling, and drying",
+20352,Pickles or Other Pickled Products,311940,Seasoning and dressing manufacturing,"PREFIX FALLBACK from STCC 2035: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20354,"Salad Dressings, Mayonnaise",311940,Seasoning and dressing manufacturing,
+20359,"Sauces or Seasonings, Nec",311940,Seasoning and dressing manufacturing,
+20361,Frozen Processed Fish or Other Seafood,311700,Seafood product preparation and packaging,
+20373,Frozen Vegetables,311410,Frozen food manufacturing,
+20379,Frozen Fruits or Vegetables In Mixed Loads,311410,Frozen food manufacturing,"PREFIX FALLBACK from STCC 2037: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20381,Frozen Prepared Foods or Soups,311410,Frozen food manufacturing,
+20391,"Mixed Loads Of Fruits, Seafood or Vegetables",311410,Frozen food manufacturing,
+20411,Wheat Flour,311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20412,"Wheat Bran, Middlings or Shorts",311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20413,Corn Meal or Flour,311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20416,Oat Meal or Flour,311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20418,Grain Mill By-products,311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20419,"Flour or Other Grain Mill Products, Nec",311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20421,"Prepared Feed, Animal, Fish or Poultry",311119,Other animal food manufacturing,
+20423,"Canned Feed, Animal, Fish or Poultry",311119,Other animal food manufacturing,
+20431,Cooked Cereals,311230,Breakfast cereal manufacturing,
+20441,"Rice, Cleaned",311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20442,"Rice Flour, Bran or Meal",311210,Flour milling and malt manufacturing,"PREFIX FALLBACK from STCC 2044: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20443,Brewers Rice,311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20449,"Milled Rice or By-products, Nec",311210,Flour milling and malt manufacturing,"PREFIX FALLBACK from STCC 2044: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20461,Corn Syrup,311221,Wet corn milling,
+20462,Corn Starch,311221,Wet corn milling,
+20463,Corn Sugar,311221,Wet corn milling,"PREFIX FALLBACK from STCC 2046: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20465,Corn Oil,311221,Wet corn milling,
+20466,Starch,311221,Wet corn milling,"PREFIX FALLBACK from STCC 2046: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20467,Wet Process Corn Mill Products,311221,Wet corn milling,
+20469,Wet Process Corn Milling Products,311221,Wet corn milling,
+20471,"Dog, Cat or Other Pet Food, Nec",311111,Dog and cat food manufacturing,
+20511,Bread or Other Bakery Products,3118A0,"Cookie, cracker, pasta, and tortilla manufacturing","PREFIX FALLBACK from STCC 205: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20521,"Biscuits, Crackers or Pretzels",3118A0,"Cookie, cracker, pasta, and tortilla manufacturing",
+20529,"Dry Bakery Products, Nec",3118A0,"Cookie, cracker, pasta, and tortilla manufacturing",
+20616,Sugar Molasses,311300,Sugar and confectionery product manufacturing,
+20617,Blackstrap Molasses,311300,Sugar and confectionery product manufacturing,
+20619,Sugar Mill Products,311300,Sugar and confectionery product manufacturing,
+20621,"Sugar, Granulated or Powdered",311300,Sugar and confectionery product manufacturing,
+20625,Sugar Refining By-products,311300,Sugar and confectionery product manufacturing,
+20711,"Candy or Candy Bars, Bulk or Packaged",311300,Sugar and confectionery product manufacturing,
+20712,"Nuts, Coated, Cooked, Roasted or Salted",311300,Sugar and confectionery product manufacturing,
+20713,Chocolate or Cocoa Products,311300,Sugar and confectionery product manufacturing,
+20719,Confectionery Products,311300,Sugar and confectionery product manufacturing,
+20821,Beer,312120,Breweries,
+20823,Malt Extracts or Brewers Spent Grains,312120,Breweries,
+20831,Malt,311210,Flour milling and malt manufacturing,"Flour milling and malt manufacturing are one BEA commodity, so malt lands here."
+20841,"Wine, Brandy or Brandy Spirits",312130,Wineries,
+20851,"Distilled, Rectified or Blended Liquors",312140,Distilleries,
+20859,By-products Of Liquor Distilling,312140,Distilleries,
+20861,Soft Drinks or Carbonated Beverages,312110,Soft drink and ice manufacturing,
+20871,"Miscellaneous Flavoring Extracts, Syrups or Compou",311930,Flavoring syrup and concentrate manufacturing,
+20911,"Cottonseed Oil, Crude or Refined",311224,Soybean and other oilseed processing,
+20914,Cottonseed Cake or Meal or By-products,311224,Soybean and other oilseed processing,
+20921,"Soybean Oil, Crude or Refined",311224,Soybean and other oilseed processing,
+20923,"Soybean Cake, Flour, Manufacing Oils",311224,Soybean and other oilseed processing,
+20931,"Linseed Oil, Crude or Refined",311224,Soybean and other oilseed processing,"PREFIX FALLBACK from STCC 2093: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20933,Nut or Vegetable Oils,311224,Soybean and other oilseed processing,
+20939,Nut or Vegetable Oil Seed,311224,Soybean and other oilseed processing,
+20941,Marine Oil Mill Products,311224,Soybean and other oilseed processing,"PREFIX FALLBACK from STCC 209: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20942,Marine Oil Mill By-products,311224,Soybean and other oilseed processing,"PREFIX FALLBACK from STCC 209: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20951,Roasted Coffee or Instant Coffee,311920,Coffee and tea manufacturing,
+20961,Shortening or Cooking or Salad Oils,311224,Soybean and other oilseed processing,"PREFIX FALLBACK from STCC 209: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20981,"Macaroni, Spaghetti, Vermicelli or Noodles",3118A0,"Cookie, cracker, pasta, and tortilla manufacturing",
+20992,"Chips (Potato, Corn, Etc.)",311910,Snack food manufacturing,
+20993,Sweetening Syrups or Molasses,311990,All other food manufacturing,"PREFIX FALLBACK from STCC 2099: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+20995,Mixed Loads Of Food or Kindered Products,311990,All other food manufacturing,
+20997,Spices,311940,Seasoning and dressing manufacturing,
+20998,Tea or Instant Tea,311920,Coffee and tea manufacturing,
+20999,"Food Preparations or By-products, Nec",311990,All other food manufacturing,
+22112,"Cotton Sheetings, Unfinished (Gray Goods)",313200,Fabric mills,"PREFIX FALLBACK from STCC 2211: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+22119,"Cotton Broad-woven Fabrlcs, Nec,",313200,Fabric mills,
+22211,Man Made or Glass Fibre Broad-woven Fabrics,313200,Fabric mills,
+22799,"Carpets, Mats or Rugs, Nec",314110,Carpet and rug mills,
+22819,"Yarn, Nec",313200,Fabric mills,"PREFIX FALLBACK from STCC 22: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+22931,"Paddings, Upholstery Fillings, Batting or Wadding",313200,Fabric mills,"PREFIX FALLBACK from STCC 229: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+22951,Artificial Leather,313200,Fabric mills,"PREFIX FALLBACK from STCC 229: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+22991,Bonded Fibre Fabrics,313200,Fabric mills,"PREFIX FALLBACK from STCC 2299: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+22999,"Textile Goods, Nec",313200,Fabric mills,
+23111,"Mens, Youths or Boys Clothing or Uniforms",315000,Apparel manufacturing,
+23311,"Womens, Misses, Chi]ldrens or Infants Clothing",315000,Apparel manufacturing,
+23891,"Apparel,Nec",315000,Apparel manufacturing,
+23929,"Textile Housefurnishings, Nec",314120,Curtain and linen mills,
+23931,Textile Bags,314900,Other textile product mills,"PREFIX FALLBACK from STCC 239: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+23999,Fabricated Textile Products,314900,Other textile product mills,
+24111,Sawlogs,113000,Forestry and logging,"Logs and pulpwood are forestry output, not a sawmill product."
+24112,Hewn Railroad or Mine Ties,113000,Forestry and logging,"Logs and pulpwood are forestry output, not a sawmill product."
+24114,Pulpwood Logs,113000,Forestry and logging,"PREFIX FALLBACK from STCC 2411: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24115,Pulpwood or Other Wood Chips,113000,Forestry and logging,"Logs and pulpwood are forestry output, not a sawmill product."
+24116,"Wood Posts, Poles or Piling",113000,Forestry and logging,"Logs and pulpwood are forestry output, not a sawmill product."
+24117,"Fuelwood, Hogfuel or Cordwood",113000,Forestry and logging,"PREFIX FALLBACK from STCC 2411: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24211,"Lumber, Rough or Dressed",321100,Sawmills and wood preservation,
+24214,Hardwood Dimension Stock or Furniture Parts,321100,Sawmills and wood preservation,
+24215,Hardwood Flooring,321100,Sawmills and wood preservation,
+24219,"Lumber or Dimension Stock, Nec",321100,Sawmills and wood preservation,
+24291,Shingles,321100,Sawmills and wood preservation,"PREFIX FALLBACK from STCC 242: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24299,"Sawmill or Planing Mill Products, Nec",321100,Sawmills and wood preservation,"PREFIX FALLBACK from STCC 242: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24314,"Doors or Shutters or Door Units, Wood",321910,Millwork,
+24321,Plywood or Veneer or Built-up Wood,321200,"Veneer, plywood, and engineered wood product manufacturing",
+24391,Prefabricated Structural Members or Wood Laminate,321200,"Veneer, plywood, and engineered wood product manufacturing",
+24411,"Boxes, Cases, Crates or Carriers",321100,Sawmills and wood preservation,"PREFIX FALLBACK from STCC 24: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24415,Cooperage,321100,Sawmills and wood preservation,"PREFIX FALLBACK from STCC 24: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24911,"Wood Piling, Posts, Props or Timbers, Etc.",321100,Sawmills and wood preservation,
+24912,"Ties, Mine, Railroad, Etc.",321100,Sawmills and wood preservation,
+24913,"Lumber, Creosoted or Treated",321100,Sawmills and wood preservation,"PREFIX FALLBACK from STCC 2491: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+24991,Wood Products,3219A0,All other wood product manufacturing,
+24992,"Skids, Pallets or Platforms",3219A0,All other wood product manufacturing,
+24996,Wood Particle Board,321200,"Veneer, plywood, and engineered wood product manufacturing",
+24997,"Fencing or Gates, Wood",3219A0,All other wood product manufacturing,
+24998,Wood Reels or Spools,3219A0,All other wood product manufacturing,
+24999,"Wood Products, Nec",3219A0,All other wood product manufacturing,
+25131,"Davenports, Sofas, Couches",337110,Wood kitchen cabinet and countertop manufacturing,"PREFIX FALLBACK from STCC 251: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+25151,"Bed or Box Springs, or Mattresses",337900,Other furniture related product manufacturing,
+25179,"Cabinets, Nec",337110,Wood kitchen cabinet and countertop manufacturing,
+25199,Household or Office Furniture,337122,Nonupholstered wood household furniture manufacturing,
+25411,"Wood Lockers, Partitions or Shelving",337215,"Showcase, partition, shelving, and locker manufacturing",
+25421,"Metal Lockers, Partitions or Shelving",337215,"Showcase, partition, shelving, and locker manufacturing",
+25515,0,,,EXCLUDED: Published with a blank commodity name.
+25999,"Furniture or Fixtures, Nec",337900,Other furniture related product manufacturing,
+26111,Pulp,322110,Pulp mills,
+26112,Pulp Mill By-products,322110,Pulp mills,
+26211,Newsprint,322120,Paper mills,
+26212,"Ground Wood Paper, Uncoated",322120,Paper mills,
+26213,"Printing Paper, Coated or Uncoated",322120,Paper mills,
+26214,"Wrapping Paper, Wrappers, or Coarse Paper",322120,Paper mills,
+26217,Special Industrial Paper,322120,Paper mills,
+26218,Sanitary Tissue Stock,322120,Paper mills,
+26219,"Paper, Nec",322120,Paper mills,
+26311,"Fibreboard, Paperboard or Pulpboard",322130,Paperboard mills,
+26431,Paper Bags,322220,Paper bag and coated and treated paper manufacturing,
+26451,Office Supplies,322299,All other converted paper product manufacturing,"PREFIX FALLBACK from STCC 264: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+26469,"Pressed or Molded Pulp Goods, Nec",322299,All other converted paper product manufacturing,"PREFIX FALLBACK from STCC 264: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+26471,Sanitary Tissues or Health Products,322291,Sanitary paper product manufacturing,
+26491,Stationery or Stationery Envelopes,322299,All other converted paper product manufacturing,"PREFIX FALLBACK from STCC 2649: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+26499,"Converted Paper Products, Nec",322299,All other converted paper product manufacturing,
+26511,"Containers or Boxes, Paperboard, Fibreboard",322210,Paperboard container manufacturing,
+26515,"Pallets, Skids or Platforms",322210,Paperboard container manufacturing,
+26543,"Paper, Fibreboard, Paperboard or Pulpboard Cans",322210,Paperboard container manufacturing,
+26551,"Fmre Cans, Drums or Tubes or Similar Products",322210,Paperboard container manufacturing,
+26614,Insulating Material,322299,All other converted paper product manufacturing,
+27211,Periodicals,323110,Printing,
+27311,Books,323110,Printing,
+27411,"Catalogues, Directories, Business Service Publicat",323110,Printing,"PREFIX FALLBACK from STCC 2741: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+27419,"Printed Matter, Nec",323110,Printing,
+27812,Loose Leaf Binders or Devices,322230,Stationery product manufacturing,
+28121,Inorganic Bleaching Compounds,325180,Other basic inorganic chemical manufacturing,
+28122,Sodium Alkalies,325180,Other basic inorganic chemical manufacturing,
+28123,Sodium Compounds,325180,Other basic inorganic chemical manufacturing,
+28124,Potassium Alkalies,325180,Other basic inorganic chemical manufacturing,
+28125,Potassrum,325180,Other basic inorganic chemical manufacturing,
+28126,"Barium, Calcium, Magnesium or Strontium Compunds",325180,Other basic inorganic chemical manufacturing,
+28128,Chlorine,325180,Other basic inorganic chemical manufacturing,
+28133,Carbon Dioxide,325120,Industrial gas manufacturing,
+28134,Elemental Gases,325120,Industrial gas manufacturing,"PREFIX FALLBACK from STCC 2813: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28139,"Industrial Gases, Nec",325120,Industrial gas manufacturing,
+28141,"Crude Products From Coal Tar, Natural Gas or Petro",325110,Petrochemical manufacturing,
+28151,Cyclic Intermediates or Other Cyclic Chemicals,325190,Other basic organic chemical manufacturing,
+28152,Cyclic Intermediates or Other Cyclic Chemicals,325190,Other basic organic chemical manufacturing,
+28161,Titanium Pigments,325130,Synthetic dye and pigment manufacturing,
+28163,Zinc Pigments,325130,Synthetic dye and pigment manufacturing,"PREFIX FALLBACK from STCC 2816: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28169,"Inorganic Pigments, Nec",325130,Synthetic dye and pigment manufacturing,"PREFIX FALLBACK from STCC 2816: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28180,"Industrial Organic Chemicals, Nec",325190,Other basic organic chemical manufacturing,
+28181,Miscellaneous Acyclic Organic Chemical Products,325190,Other basic organic chemical manufacturing,
+28182,Miscellaneous Acyclic Organic Chemical Products,325190,Other basic organic chemical manufacturing,
+28183,Miscellaneous Cyclic Chemical Products,325190,Other basic organic chemical manufacturing,
+28184,Alcohols,325190,Other basic organic chemical manufacturing,
+28185,Glycols or Glycerines,325190,Other basic organic chemical manufacturing,
+28186,Organic Acids or Salts,325190,Other basic organic chemical manufacturing,
+28187,Unknown STCC Value,325190,Other basic organic chemical manufacturing,"PREFIX FALLBACK from STCC 2818: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28189,"Industrial Organic Chemicals, Nec",325190,Other basic organic chemical manufacturing,
+28191,Ammonia or Ammonium Compounds,325180,Other basic inorganic chemical manufacturing,
+28192,Nitric Acid,325180,Other basic inorganic chemical manufacturing,
+28193,Sulphuric Acid,325180,Other basic inorganic chemical manufacturing,
+28194,Industrial Inorganic Acids,325180,Other basic inorganic chemical manufacturing,
+28195,"Cobalt, Copper, Iron, Nickel or Zinc Compounds",325180,Other basic inorganic chemical manufacturing,
+28196,Aluminum Compounds,325180,Other basic inorganic chemical manufacturing,
+28197,Radio-active or Nuclear Chemicals,325180,Other basic inorganic chemical manufacturing,"PREFIX FALLBACK from STCC 2819: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28198,Anhydrous Ammonia,325180,Other basic inorganic chemical manufacturing,
+28199,"Industrial Inorganic Chemicals, Nec",325180,Other basic inorganic chemical manufacturing,
+28211,Plastic Materials or Synthetic Resins,325211,Plastics material and resin manufacturing,
+28212,Synthetic Rubbers,3252A0,Synthetic rubber and artificial and synthetic fibers and filaments manufacturing,
+28311,Drugs For Human Use,325412,Pharmaceutical preparation manufacturing,
+28419,Soap or Other Detergents,325610,Soap and cleaning compound manufacturing,
+28422,"Specialty Cleaning, Polishing or Sanitation Prepar",325610,Soap and cleaning compound manufacturing,"PREFIX FALLBACK from STCC 284: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28423,Waxes or Polishing Preparations,325610,Soap and cleaning compound manufacturing,"PREFIX FALLBACK from STCC 284: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28431,Surface Active or Finishing Agents,325610,Soap and cleaning compound manufacturing,
+28441,"Cosmetics, Perfumes or Other Toilet Preparations",325620,Toilet preparation manufacturing,
+28511,"Paints, Enamels, Lacquers, Shellacs or Varnishes",325510,Paint and coating manufacturing,
+28512,"Paint Oils, Solvents or Thinners",325510,Paint and coating manufacturing,
+28519,"Paints, Enamels, Lacquers, Shellacs or Varnishes",325510,Paint and coating manufacturing,
+28612,Gum or Wood Chemicals,325190,Other basic organic chemical manufacturing,
+28712,Superphosphate,325310,Fertilizer manufacturing,
+28713,Ammoniating Fertilizer Solution,325310,Fertilizer manufacturing,
+28714,Miscellaneous Fertilizer Compounds,325310,Fertilizer manufacturing,
+28719,"Ferthizers, Nec",325310,Fertilizer manufacturing,"PREFIX FALLBACK from STCC 2871: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28799,"Agricultural Chemicals, Nec",325320,Pesticide and other agricultural chemical manufacturing,
+28911,"Adhesives, Cements, Glues, Sizes, Calking",325520,Adhesive manufacturing,
+28921,Explosives,3259A0,All other chemical product and preparation manufacturing,
+28931,Printing Ink,325910,Printing ink manufacturing,
+28991,"Salt, Common",325180,Other basic inorganic chemical manufacturing,
+28993,Fireworks or Pyrotechnics,3259A0,All other chemical product and preparation manufacturing,"PREFIX FALLBACK from STCC 2899: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+28994,Fatty Acids,325190,Other basic organic chemical manufacturing,
+28995,Water Treating Compounds,325180,Other basic inorganic chemical manufacturing,
+28996,Blacks,325180,Other basic inorganic chemical manufacturing,
+28997,Chemicals Or Chemical Preparations,3259A0,All other chemical product and preparation manufacturing,
+28998,Miscellaneous Chemical Compounds,3259A0,All other chemical product and preparation manufacturing,
+28999,"Chemical Products, Nec",3259A0,All other chemical product and preparation manufacturing,
+29111,Gasoline or Jet or High Volatile Petroleum Fuels,324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29113,Distillate Fuel Oil,324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29114,Petroleum Lubricating or Similar Oils,324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29116,Asphalt Pitches or Tars From Petroleum,324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29117,Petroleum Residual Fuel Oils,324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29119,"Petroleum Refining Products, Nec",324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29121,"Liquefied Gases, Coal or Petroleum",324110,Petroleum refineries,Refinery output. Asphalt pitches and tars from petroleum are a refinery product; only shingles and coatings sit in 324122.
+29523,"Asphalt Sheathings, Shingles or Sidings",324122,Asphalt shingle and coating materials manufacturing,
+29529,"Asphalt Coatings or Felts, Nec",324122,Asphalt shingle and coating materials manufacturing,
+29912,Lubricants or Similar Compounds,324190,Other petroleum and coal products manufacturing,
+29913,Petroleum Coke,324190,Other petroleum and coal products manufacturing,
+29914,Coke Produced From Coal,324190,Other petroleum and coal products manufacturing,
+29919,"Coal or Petroleum Products, Nec",324190,Other petroleum and coal products manufacturing,"PREFIX FALLBACK from STCC 2991: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+30111,Rubber Pneumatic Tires or Parts,326210,Tire manufacturing,
+30119,"Rubber Tires or Related Products, Nec",326210,Tire manufacturing,
+30211,Footwear Rubber Or Rubbersoled Fabric Canvas With,316000,Leather and allied product manufacturing,
+30613,Sponge or Foam Rubber Goods,326290,Other rubber product manufacturing,
+30618,"Fabricated Rubber Products, Nec",326290,Other rubber product manufacturing,
+30619,"Fabricated Rubber Products, Nec",326290,Other rubber product manufacturing,
+30711,Plastic Dinnerware or Housewares,326190,Other plastics product manufacturing,
+30712,"Plastic Pipe, Tubing or Fittings",326190,Other plastics product manufacturing,"PREFIX FALLBACK from STCC 3071: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+30713,Industrial (Molded) Plastic Products,326190,Other plastics product manufacturing,
+30714,Unsupported Vinyl or Polyethylene Film,326110,Plastics packaging materials and unlaminated film and sheet manufacturing,
+30716,Expanded or Foamed Plastics,326150,Urethane and other foam product (except polystyrene) manufacturing,
+30718,Plastic Packaging or Shipping Containers,326110,Plastics packaging materials and unlaminated film and sheet manufacturing,
+30719,"Miscellaneous Fabricated Plastic Products, Nec",326190,Other plastics product manufacturing,
+30729,"Miscellaneous Fabricated Plastic Products, Nec",326190,Other plastics product manufacturing,
+31411,"Footwear, Leather or Other Materials",316000,Leather and allied product manufacturing,
+31611,Luggage or Handbags,316000,Leather and allied product manufacturing,
+32113,Laminated or Safety Glass,327200,Glass and glass product manufacturing,
+32119,"Flat Glass, Nec",327200,Glass and glass product manufacturing,"PREFIX FALLBACK from STCC 3211: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+32211,"Glass Containers, or Glass Caps",327200,Glass and glass product manufacturing,
+32219,"Glass Containers, Nec",327200,Glass and glass product manufacturing,
+32291,"Art, Kitchen, Novelty or Tile",327200,Glass and glass product manufacturing,
+32292,Lighting Glassware,327200,Glass and glass product manufacturing,
+32293,Glass Fibre,327200,Glass and glass product manufacturing,"PREFIX FALLBACK from STCC 3229: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+32295,"Glass Blocks, Brick, Skylights",327200,Glass and glass product manufacturing,"PREFIX FALLBACK from STCC 3229: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+32299,"Glass or Glassware, Blown Or, Pressed, Nec",327200,Glass and glass product manufacturing,
+32411,"Hydraulic Cement, Natural, Portland or Masonry",327310,Cement manufacturing,
+32511,"Brick or Blocks, Clay or Shale",327100,Clay product and refractory manufacturing,
+32531,"Ceramic, Enamel, Faience, Quarry Floor or Wall Til",327100,Clay product and refractory manufacturing,
+32552,Nonclay Refractories,327100,Clay product and refractory manufacturing,"PREFIX FALLBACK from STCC 325: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+32611,Vitreous China Plumbing Fixtures,327100,Clay product and refractory manufacturing,
+32719,"Concrete Products, Nec",327390,Other concrete product manufacturing,
+32741,Lime or Lime Plaster,327400,Lime and gypsum product manufacturing,
+32752,Gypsum Plaster,327400,Lime and gypsum product manufacturing,
+32754,Gypsum Wallboard,327400,Lime and gypsum product manufacturing,
+32952,"Light Weight Aggregates, Clays or Slags",327999,Miscellaneous nonmetallic mineral products,
+32953,Magnesite or Magnesia,327999,Miscellaneous nonmetallic mineral products,"PREFIX FALLBACK from STCC 3295: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+32954,"Pyrophillite, Steatite (Soapstone) or Talc",327999,Miscellaneous nonmetallic mineral products,"PREFIX FALLBACK from STCC 3295: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+32959,"Nonmetallic Minerals or Earths, Ground or Treated",327992,Ground or treated mineral and earth manufacturing,
+32996,Nonmetallic Mineral Insulating Materials,327999,Miscellaneous nonmetallic mineral products,"PREFIX FALLBACK from STCC 329: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33111,Pig Iron,331110,Iron and steel mills and ferroalloy manufacturing,
+33119,"Blast Furnace, or Coke Oven Products, Nec",331110,Iron and steel mills and ferroalloy manufacturing,"PREFIX FALLBACK from STCC 3311: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33121,Steel Ingot or Semi Finished Shapes,331110,Iron and steel mills and ferroalloy manufacturing,
+33122,Iron or Steel Plates,331110,Iron and steel mills and ferroalloy manufacturing,
+33123,Iron or Steel Sheet or Strip,331110,Iron and steel mills and ferroalloy manufacturing,
+33124,"Iron or Steel Bars, Bar Shapes or Rods",331110,Iron and steel mills and ferroalloy manufacturing,
+33125,Structural Shapes or Piling Products,331110,Iron and steel mills and ferroalloy manufacturing,
+33126,"Iron or Steel Pipe, Tubes or Fittings",331200,Steel product manufacturing from purchased steel,
+33127,Tin Mill Products,331200,Steel product manufacturing from purchased steel,
+33128,Railway Track Material,331110,Iron and steel mills and ferroalloy manufacturing,
+33131,Ferromanganese,331110,Iron and steel mills and ferroalloy manufacturing,"PREFIX FALLBACK from STCC 3313: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33134,Additive Alloys,331110,Iron and steel mills and ferroalloy manufacturing,
+33135,Electrometallurgical Products,331110,Iron and steel mills and ferroalloy manufacturing,"PREFIX FALLBACK from STCC 3313: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33139,"Ferroalloys, Nec",331110,Iron and steel mills and ferroalloy manufacturing,"PREFIX FALLBACK from STCC 3313: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33151,Noninsulated Ferrous Wire,331200,Steel product manufacturing from purchased steel,"PREFIX FALLBACK from STCC 3315: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33155,Steel Wire,331200,Steel product manufacturing from purchased steel,
+33211,Iron or Steel Cast Pipe or Fittings,331510,Ferrous metal foundries,
+33311,Primary Copper or Copper Base Alloy Pig,331410,Nonferrous metal (except aluminum) smelting and refining,
+33321,"Lead Pig, Slab, Ingots or Bullion",331410,Nonferrous metal (except aluminum) smelting and refining,
+33331,Zinc Smelter Products,331410,Nonferrous metal (except aluminum) smelting and refining,
+33332,"Zinc Dross, Residues, Ashes",331410,Nonferrous metal (except aluminum) smelting and refining,"PREFIX FALLBACK from STCC 3333: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33341,Primary Aluminum Ingots,331313,Alumina refining and primary aluminum production,
+33521,Aluminum or Aluminum Base Alloy Plate or Sheet,33131B,Aluminum product manufacturing from purchased aluminum,
+33523,Aluminum or Aluminum Base Alloy Rods or Bars,33131B,Aluminum product manufacturing from purchased aluminum,"PREFIX FALLBACK from STCC 3352: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33567,"Solder, Babbitt, Or Type Metal Shapes",33131B,Aluminum product manufacturing from purchased aluminum,"PREFIX FALLBACK from STCC 335: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33911,Iron or Steel Forgings,331110,Iron and steel mills and ferroalloy manufacturing,"PREFIX FALLBACK from STCC 33: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+33999,"Primary Metal Products, Nec",331110,Iron and steel mills and ferroalloy manufacturing,"PREFIX FALLBACK from STCC 33: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34111,Metal Cans,332430,"Metal can, box, and other metal container (light gauge) manufacturing",
+34239,"Hand Tools, Nec",332200,Cutlery and handtool manufacturing,
+34285,"Hooks, Clamps, Clips, Fasteners",332500,Hardware manufacturing,"PREFIX FALLBACK from STCC 342: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34298,"Hardware, Nec",332500,Hardware manufacturing,
+34299,"Hardware, Nec",332500,Hardware manufacturing,
+34311,Cast Iron Sanitary Ware,332913,Plumbing fixture fitting and trim manufacturing,
+34312,Metal Sanitary Ware,332913,Plumbing fixture fitting and trim manufacturing,"PREFIX FALLBACK from STCC 3431: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34331,"Oil Burners, Residential or Industrial",332913,Plumbing fixture fitting and trim manufacturing,"PREFIX FALLBACK from STCC 343: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34339,"Heating Equipment, Nec",332913,Plumbing fixture fitting and trim manufacturing,"PREFIX FALLBACK from STCC 343: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34421,Metal Doors or Door Frames,332320,Ornamental and architectural metal products manufacturing,
+34433,"Steel Power Boilers, Parts or Attachments",332320,Ornamental and architectural metal products manufacturing,"PREFIX FALLBACK from STCC 344: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34435,Metal Tanks,332320,Ornamental and architectural metal products manufacturing,"PREFIX FALLBACK from STCC 344: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34439,"Fabricated Plate Products, Nec",332320,Ornamental and architectural metal products manufacturing,"PREFIX FALLBACK from STCC 344: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34441,"Sheet Metal Roofing, Ceiling Or Siding",332320,Ornamental and architectural metal products manufacturing,"PREFIX FALLBACK from STCC 3444: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34449,"Sheet Metal Products, Nec",332320,Ornamental and architectural metal products manufacturing,
+34464,Stairs Staircases Balconies Fire Escapes Railings,332320,Ornamental and architectural metal products manufacturing,"PREFIX FALLBACK from STCC 344: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34521,"Bolts, Nuts, Screws, or Other Industrial Fastener",332720,"Turned product and screw, nut, and bolt manufacturing","PREFIX FALLBACK from STCC 3452: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34529,"Industrial Fasteners, Nec",332720,"Turned product and screw, nut, and bolt manufacturing",
+34612,Stamped or Spun Household Utensils,332430,"Metal can, box, and other metal container (light gauge) manufacturing","PREFIX FALLBACK from STCC 34: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34614,Metal Closures,332430,"Metal can, box, and other metal container (light gauge) manufacturing","PREFIX FALLBACK from STCC 34: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34616,"Dispensers, Holders or Containers",332430,"Metal can, box, and other metal container (light gauge) manufacturing","PREFIX FALLBACK from STCC 34: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34812,Wire Springs,332600,Spring and wire product manufacturing,"PREFIX FALLBACK from STCC 3481: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34814,Wire Cloth or Other Wire Products,332600,Spring and wire product manufacturing,"PREFIX FALLBACK from STCC 3481: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34816,Barbed Or Twisted Wire,332600,Spring and wire product manufacturing,
+34912,Steel Shipping Containers,332430,"Metal can, box, and other metal container (light gauge) manufacturing","PREFIX FALLBACK from STCC 3491: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34919,"Metal Shipping Containers, Nec",332430,"Metal can, box, and other metal container (light gauge) manufacturing",
+34943,Metal Pipe Coils,332430,"Metal can, box, and other metal container (light gauge) manufacturing","PREFIX FALLBACK from STCC 349: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+34997,"Metal Shipping Containers, Boxes or Racks",332430,"Metal can, box, and other metal container (light gauge) manufacturing",
+34999,"Fabricated Metal Products, Nec",332430,"Metal can, box, and other metal container (light gauge) manufacturing","PREFIX FALLBACK from STCC 3499: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35112,"Steam Engines, Turbines, Turbine Generator Sets",333611,Turbine and turbine generator set units manufacturing,
+35199,"Internal Combustion Engines, Nec",333611,Turbine and turbine generator set units manufacturing,"PREFIX FALLBACK from STCC 351: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35222,"Wheel Tractors, Parts or Attachments",333111,Farm machinery and equipment manufacturing,"PREFIX FALLBACK from STCC 3522: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35225,Harvesting or Hay Machinery or Parts,333111,Farm machinery and equipment manufacturing,
+35229,"Farm Machinery or Equipment, Nec",333111,Farm machinery and equipment manufacturing,
+35241,"Garden Tractors, Lawn or Garden Equipment",333112,Lawn and garden equipment manufacturing,
+35314,"Power Cranes, Draglines, Shovels Loaders or Parts",333920,Material handling equipment manufacturing,"PREFIX FALLBACK from STCC 353: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35319,"Construction Machinery or Equipment, Nec",333920,Material handling equipment manufacturing,"PREFIX FALLBACK from STCC 353: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35331,Gas or Oil Field Drilling or Production Machinery,333920,Material handling equipment manufacturing,"PREFIX FALLBACK from STCC 353: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35341,"Elevators, Moving Stairways",333920,Material handling equipment manufacturing,"PREFIX FALLBACK from STCC 353: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35371,"Industrial Trucks, Tractors, Trailers Stackers",333920,Material handling equipment manufacturing,
+35373,Industrial Pallets Platforms Or Skids Metal,333920,Material handling equipment manufacturing,
+35522,"Textile Machinery, Attachments",33329A,Other industrial machinery manufacturing,
+35531,Woodworking Machinery,33329A,Other industrial machinery manufacturing,
+35552,Printing Trades Machinery or Equipment,33329A,Other industrial machinery manufacturing,
+35595,Petroleum Refinery Machinery or Equipment,33329A,Other industrial machinery manufacturing,"PREFIX FALLBACK from STCC 355: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35599,"Special Industry Machinery, Nec",33329A,Other industrial machinery manufacturing,"PREFIX FALLBACK from STCC 355: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35621,Ball or Roller Bearings,333413,Industrial and commercial fan and blower and air purification equipment manufacturing,"PREFIX FALLBACK from STCC 356: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35641,Industrial Fans or Blowers,333413,Industrial and commercial fan and blower and air purification equipment manufacturing,
+35642,Dust Collection or Air Purification Equipment,333413,Industrial and commercial fan and blower and air purification equipment manufacturing,"PREFIX FALLBACK from STCC 3564: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35731,Electronic Data Processing Machines,333318,Other commercial and service industry machinery manufacturing,"PREFIX FALLBACK from STCC 357: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35741,Accounting or Calculating Machines,333318,Other commercial and service industry machinery manufacturing,
+35821,Commercial Laundry Equipment Or Presses,333415,"Air conditioning, refrigeration, and warm air heating equipment manufacturing","PREFIX FALLBACK from STCC 358: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+35853,Commercial Refaigeration Equipment,333415,"Air conditioning, refrigeration, and warm air heating equipment manufacturing",
+35857,"Air Conditioning, Cooling or Dehumidifying",333415,"Air conditioning, refrigeration, and warm air heating equipment manufacturing",
+35891,Commercial Cooking or Food Warming Equipment,333318,Other commercial and service industry machinery manufacturing,
+35999,"Machinery or Parts, Nec",33399A,Other general purpose machinery manufacturing,
+36113,"Indicating, Measuring or Recording Instruments",334513,Industrial process variable instruments manufacturing,
+36129,"Power, Distribution Transformers",335311,"Power, distribution, and specialty transformer manufacturing",
+36212,Generators,335220,Major household appliance manufacturing,"PREFIX FALLBACK from STCC 36: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+36221,Industrial Controls Or Parts,335220,Major household appliance manufacturing,"PREFIX FALLBACK from STCC 36: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+36311,"Household Ranges, Ovens",335220,Major household appliance manufacturing,
+36321,Household Refrigerators or Freezers,335220,Major household appliance manufacturing,
+36331,Household Washing Machines or Dryers,335220,Major household appliance manufacturing,
+36343,Small Electric Cooking Appliances,335210,Small electrical appliance manufacturing,
+36392,"Water Heaters, All Types",335220,Major household appliance manufacturing,
+36399,"Household Appliances, Nec",335220,Major household appliance manufacturing,
+36421,Electric Fixtures,335120,Lighting fixture manufacturing,
+36449,"Noncurrent Carrying Wiring Devices, Nec",335120,Lighting fixture manufacturing,"PREFIX FALLBACK from STCC 364: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+36512,Household Television Receivers,334300,Audio and video equipment manufacturing,
+36791,Miscellaneous Electronic Components,335220,Major household appliance manufacturing,"PREFIX FALLBACK from STCC 36: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+36911,Storage Batteries or Plates,335911,Storage battery manufacturing,
+36921,Primary Batteries (Dry or Wet),335912,Primary battery manufacturing,
+37111,"Motor Passenger Cars, Assembled",336111,Automobile manufacturing,
+37112,"Motor Trucks or Truck Tractors, Assembled",336112,Light truck and utility vehicle manufacturing,"STCC 37112 is ""motor trucks OR truck tractors"", spanning BEA light trucks and heavy duty trucks, so it is split across both on published transport. Mapping it to 336120 alone allocates 1,745 $M against a 581 $M ceiling - a 3.0x over-allocation the bound check rejects."
+37112,"Motor Trucks or Truck Tractors, Assembled",336120,Heavy duty truck manufacturing,
+37119,"Motor Vehicles, Nec",336111,Automobile manufacturing,
+37142,Motor Vehicle,336111,Automobile manufacturing,
+37143,Motor Vehicle Frames,336370,Motor vehicle metal stamping,
+37144,Motor Car Internal Combustion Engines or Parts,336310,Motor vehicle gasoline engine and engine parts manufacturing,
+37145,Motor Vehicle Brakes or Parts,336370,Motor vehicle metal stamping,"PREFIX FALLBACK from STCC 3714: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37147,Motor Vehicle Body Parts,336211,Motor vehicle body manufacturing,
+37148,Motor Vehicle Wheels or Parts,336370,Motor vehicle metal stamping,"PREFIX FALLBACK from STCC 3714: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37149,"Motor Vehicle Accessories or Parts, Nec",336390,Other motor vehicle parts manufacturing,
+37421,Passenger Train Cars,336500,Railroad rolling stock manufacturing,"PREFIX FALLBACK from STCC 3742: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37422,Freight Train Cars,336500,Railroad rolling stock manufacturing,
+37423,Street Cars or Self Propelled Railroad Cars,336500,Railroad rolling stock manufacturing,"PREFIX FALLBACK from STCC 3742: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37424,Maintenance or Repair Cars,336500,Railroad rolling stock manufacturing,"PREFIX FALLBACK from STCC 3742: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37426,Railroad Car Wheels,336500,Railroad rolling stock manufacturing,
+37428,Parts or Accessories For Railroad or Street Cars,336500,Railroad rolling stock manufacturing,"PREFIX FALLBACK from STCC 3742: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37511,"Motorbikes, Motorcycles, Motorscooters or Bodies",336991,"Motorcycle, bicycle, and parts manufacturing",
+37512,Bicycles,336991,"Motorcycle, bicycle, and parts manufacturing",
+37993,Hand Carts Wagons Wheelbarrows Or Parts,336999,All other transportation equipment manufacturing,"PREFIX FALLBACK from STCC 3799: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+37999,"Transportation Equipment, Parts or Accessories, Ne",336999,All other transportation equipment manufacturing,
+38411,Surgical or Medical Instruments or Apparatus,339112,Surgical and medical instrument manufacturing,
+38421,"Orthopedic, Prosthetic or Surgical Supplies",339113,Surgical appliance and supplies manufacturing,
+39319,"Musical Instruments, Accessories or Parts",339990,All other miscellaneous manufacturing,"PREFIX FALLBACK from STCC 39: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39411,Games or Toys,339930,"Doll, toy, and game manufacturing",
+39439,"Childrens Vehicles or Parts, Nec",339920,Sporting and athletic goods manufacturing,"PREFIX FALLBACK from STCC 394: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39497,Playground or Equipment or Parts,339920,Sporting and athletic goods manufacturing,"PREFIX FALLBACK from STCC 3949: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39499,"Sporting or Athletic Goods or Parts, Nec",339920,Sporting and athletic goods manufacturing,
+39522,Artists Materials,339990,All other miscellaneous manufacturing,"PREFIX FALLBACK from STCC 39: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39531,Marking Devices,339990,All other miscellaneous manufacturing,"PREFIX FALLBACK from STCC 39: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39911,"Brooms or Brushes For Carpet Sweepers, Vacuum Clea",339990,All other miscellaneous manufacturing,"PREFIX FALLBACK from STCC 399: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39921,"Coverings, Facing or Flooring",339990,All other miscellaneous manufacturing,
+39941,Morticians Goods,339990,All other miscellaneous manufacturing,"PREFIX FALLBACK from STCC 399: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39991,Chemical Fire Extinguishing Equipment or Parts,339990,All other miscellaneous manufacturing,"PREFIX FALLBACK from STCC 3999: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+39995,"Tobacco Pipes, Cigarette Accessories",339990,All other miscellaneous manufacturing,
+39998,"Miscellaneous Manufactured Products, Nec",339990,All other miscellaneous manufacturing,
+39999,"Miscellaneous Manufactured Products, Nec",339990,All other miscellaneous manufacturing,
+40112,Ashes,S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40211,"Iron or Steel Scrap, Wastes or Tailings",S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40212,"Brass, Bronze, Copper or Alloy Scrap",S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40214,"Aluminum or Alloy Scrap, Wastes",S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40219,Nonferrous Metal or Alloy Scrap,S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40241,Paper Waste or Scrap,S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40251,Chemical or Petroleum Waste,S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40261,Rubber Or Plastic Scrap Or Waste,S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+40271,Stone Clay Or Glass Wasteor Scrap,S00401,Scrap,"PREFIX FALLBACK from STCC 402: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+40291,"Waste Or Scrap, Nec",S00401,Scrap,"BEA carries rail-hauled scrap as the Scrap commodity, not the metal it came from."
+41111,Outfits Or Kits,,,EXCLUDED: Outfits or kits - unspecified mixed contents.
+41112,Used Plant Or Office Equipment Records Or Supplie,S00402,Used and secondhand goods,"Used and secondhand goods, which receives 23,868 $M of TRANS in 2017."
+41114,Articles Used See 41115 Or 42111-12 Or 4021/4029,S00402,Used and secondhand goods,"Used and secondhand goods, which receives 23,868 $M of TRANS in 2017."
+41115,Articles Used Returned For Repair Or Reconditioni,S00402,Used and secondhand goods,"Used and secondhand goods, which receives 23,868 $M of TRANS in 2017."
+41116,Household Goods Or Emigrant Movables,S00402,Used and secondhand goods,"Used and secondhand goods, which receives 23,868 $M of TRANS in 2017."
+41117,Military Impedimenta,,,"EXCLUDED: Military impedimenta - government materiel, no BEA goods commodity."
+41118,Used Vehicles,S00402,Used and secondhand goods,"Used and secondhand goods, which receives 23,868 $M of TRANS in 2017."
+41211,Special Commodities Not Taken In Reg Freight Serv,,,EXCLUDED: Special commodities not taken in regular freight service.
+42211,Trailers Semi Trailers Orcontainers Return Empty,,,"EXCLUDED: Trailers, semi-trailers or containers returned empty."
+42311,"Revenue Movement Of Containers,Carriers Or Device",,,"EXCLUDED: Revenue movement of containers, carriers or devices - equipment."
+42312,Revenue Moves Of Shipping Devices,,,"EXCLUDED: Revenue moves of shipping devices - equipment, not freight."
+44111,Freight Forwarder Traffic,,,"EXCLUDED: Freight forwarder traffic - the forwarder is shipper of record, so the underlying commodity is not reported."
+46111,All Freight Rate Shipments Nec Or Tofc Shipments,,,EXCLUDED: All freight rate shipments NEC or TOFC. Trailer-on-flatcar and NEC rate shipments carry no commodity identity. 14.0% of rail revenue alone.
+46211,"Mixed Shipments,2 Or Moremajor Groups",,,EXCLUDED: Mixed shipments spanning two or more major STCC groups.
+47111,Small Packaged Freight Shipments,,,"EXCLUDED: Small packaged freight shipments - a service class, not a commodity."
+48074,Waste Flammable Liquids Poisonous,,,"EXCLUDED: PREFIX FALLBACK from STCC 48: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48101,Waste Flammable Liquids Miscellaneous,,,"EXCLUDED: PREFIX FALLBACK from STCC 4810: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48105,"Waste Flammable Liquids, Misc",,,"EXCLUDED: Waste flammable liquids. The only BEA home is 562000 waste management services, which receives zero transportation margin in the published 2017 table - hauling waste to disposal is not a margin-bearing goods purchase - so there is nowhere for it to go. 12.0 $M."
+48131,Waste Combustible Liquids,,,"EXCLUDED: PREFIX FALLBACK from STCC 481: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48300,0,,,"EXCLUDED: PREFIX FALLBACK from STCC 48: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48352,Waste Corrosive Materialsbasic,,,"EXCLUDED: PREFIX FALLBACK from STCC 48: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48601,Waste Other Regulated Materials Group E,,,"EXCLUDED: PREFIX FALLBACK from STCC 48: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48755,Waste Stream Other Regulated Materials Group E,,,"EXCLUDED: PREFIX FALLBACK from STCC 4875: published after 2017, so not mapped by hand. These are tail codes, together 0.2-0.8% of rail revenue depending on year."
+48756,Waste Stream Other Regulated Materials Group E,,,"EXCLUDED: Waste stream, other regulated materials. Same as 48105. 6.7 $M."

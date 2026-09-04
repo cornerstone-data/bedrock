@@ -58,7 +58,7 @@ def eia_aeo_url_helper(
 
         # create url from build url
         url = build_url
-        userAPIKey = load_env_file_key('API_Key', config['api_name'])
+        userAPIKey = load_env_file_key('api_key', config['api_name'])
         url = (
             url.replace("__API_KEY__", userAPIKey)
             .replace("__YEAR__", year)

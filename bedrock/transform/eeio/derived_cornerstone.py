@@ -1,7 +1,8 @@
 """Cornerstone IO data processing pipeline.
 
-Derives 2017 detail IO matrices (V, U, Y, A, B, g, q) using the
-Cornerstone 2026 taxonomy (405 sectors).
+Derives detail IO matrices (V, U, Y, A, B, g, q) using the Cornerstone 2026
+taxonomy (405 sectors), from the published BEA 2017 tables or a nowcast year's
+MUT via ``bedrock.extract.iot.detail_io``.
 
 **Core approach** — A is computed in the original BEA 2017 ~400-sector
 space and then *expanded* to 405 Cornerstone sectors by duplicating
@@ -33,12 +34,12 @@ import numpy as np
 import pandas as pd
 import pandera.typing as pt
 
-from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
-    load_2017_value_added_usa,
-    load_2017_Ytot_usa,
+from bedrock.extract.iot.detail_io import (
+    load_detail_Uimp_usa,
+    load_detail_Utot_usa,
+    load_detail_V_usa,
+    load_detail_value_added_usa,
+    load_detail_Ytot_usa,
 )
 from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
@@ -161,16 +162,16 @@ def _cornerstone_aq_matrix_set(
 
 
 def _derive_cornerstone_V_baseline() -> pd.DataFrame:
-    V_2017 = load_2017_V_usa()
-    V = industry_corresp() @ V_2017 @ commodity_corresp().T
+    V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
+    V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
     return V
 
 
 def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
 
     com_c = commodity_corresp()
@@ -187,13 +188,13 @@ def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def _derive_cornerstone_VA_baseline() -> pd.DataFrame:
-    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
     return VA
 
 
 def _derive_cornerstone_Ytot_baseline() -> pd.DataFrame:
-    Ytot_orig = load_2017_Ytot_usa()
+    Ytot_orig = load_detail_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
     return Ytot
@@ -206,7 +207,7 @@ def _ytot_for_public_routers() -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — V, g, q
+# Base detail IO matrices (published 2017 or nowcast year) — V, g, q
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +253,19 @@ def _distribute_waste_parent_x_using_v_row_shares(
 def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     """Gross industry output in Cornerstone schema, after BEA redefinitions.
 
-    Uses gross-output time series for *year* (defaults to
+    ``usa_detail_io_source == 'nowcast'``: the detail Make the router loads is
+    already the after-redefinition nowcast table for ``usa_base_io_data_year``
+    (Step 7), so industry output is its row sum, ``derive_cornerstone_x()``.
+    The stored artifact is BEA detail schema; the waste and electricity
+    splits live inside the Cornerstone ``V`` that
+    ``derive_cornerstone_V()`` builds from it via the correspondences and
+    the disaggregation pipeline - x is the row sum of that post-schema
+    ``V``, so nothing is expanded from a BEA gross-output series and the
+    stored vectors are never treated as Cornerstone-shaped. *year* must be
+    0 or ``usa_base_io_data_year`` - a nowcast Make exists for one calendar
+    year only.
+
+    ``bea_published``: uses gross-output time series for *year* (defaults to
     ``usa_ghg_data_year`` when *year* is 0), selecting before/after-redefinition
     source from config, then expands it to Cornerstone industries via the
     BEA→Cornerstone industry correspondence.
@@ -271,6 +284,13 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
+    if cfg.usa_detail_io_source == 'nowcast':
+        if year not in (0, cfg.usa_base_io_data_year):
+            raise ValueError(
+                'nowcast detail IO carries one calendar year; x is available at '
+                f'usa_base_io_data_year={cfg.usa_base_io_data_year}, got year={year}'
+            )
+        return derive_cornerstone_x()
     effective_year = (
         cfg.usa_ghg_data_year
         if year == 0
@@ -317,8 +337,8 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
-    scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
-    scrap_fraction = industry_corresp() @ scrap_2017
+    scrap_detail = load_detail_V_usa().loc[:, 'S00401']
+    scrap_fraction = industry_corresp() @ scrap_detail
     if get_usa_config().implement_electricity_disaggregation:
         parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
         scrap_fraction = scrap_fraction.drop(
@@ -340,7 +360,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — U
+# Base detail IO matrices (published 2017 or nowcast year) — U
 # ---------------------------------------------------------------------------
 
 
@@ -375,7 +395,7 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — Y
+# Base detail IO matrices (published 2017 or nowcast year) — Y
 # ---------------------------------------------------------------------------
 
 
@@ -417,7 +437,7 @@ def derive_cornerstone_Y_personal_consumption_expenditure() -> pd.Series[float]:
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — VA
+# Base detail IO matrices (published 2017 or nowcast year) — VA
 # ---------------------------------------------------------------------------
 
 
@@ -537,9 +557,23 @@ def _reanchor_electricity_aq_if_disaggregation_enabled(
 
 @functools.cache
 def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
-    """Year-scaled and inflated A matrices and q."""
+    """Return model-ready A matrices and ``q``.
+
+    On the published-BEA path, scales detail A and ``q`` from
+    ``usa_detail_original_year`` to ``usa_io_data_year``, then inflates to
+    ``model_base_year``. When electricity disaggregation is enabled, re-anchors
+    electricity rows/columns after inflation.
+
+    No-op shortcuts (return ``derive_cornerstone_Aq()`` unchanged):
+
+    - ``usa_detail_io_source == 'nowcast'`` — detail IO is already at the IO
+      calendar year; summary-ratio scaling and PI inflation do not apply.
+    - ``scale_a_matrix_with_useeio_method`` — USEEIO-parity A path.
+    """
     base = derive_cornerstone_Aq()
     cfg = get_usa_config()
+    if cfg.usa_detail_io_source == 'nowcast':
+        return base
     io_year = cfg.usa_io_data_year
     detail_year = cfg.usa_detail_original_year
     model_year = cfg.model_base_year
@@ -687,6 +721,10 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     uses the 407 path so per-child intensities feed the later q-weighted
     ``reaggregate_electricity_children_b`` step.
     Industry ``x`` is:
+    - ``usa_detail_io_source == 'nowcast'``: row sums of the nowcast Make,
+      ``derive_cornerstone_x()``. E and the Make share one calendar year
+      (``usa_ghg_data_year == usa_base_io_data_year``, validator-enforced), so
+      no gross-output series and no deflation enter.
     - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
       ``PI(usa_ghg_data_year)/PI(usa_detail_original_year)`` so ``E/x`` uses
@@ -701,7 +739,9 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """
     cfg = get_usa_config()
     E = load_E_from_flowsa()
-    if cfg.deflate_x_to_detail_io_year_for_B:
+    if cfg.usa_detail_io_source == 'nowcast':
+        x = derive_cornerstone_x()
+    elif cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
         #   1) nominal industry output at usa_ghg_data_year
         #   2) divide by PI(ghg)/PI(detail) so x matches usa_detail_original_year $
@@ -737,9 +777,14 @@ def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     and stays on vnorm only. On the legacy footing, B is scaled 2017 →
     ``usa_io_data_year`` with summary q ratios and then inflated to
     ``model_base_year`` with the industry PI.
+
+    No-op shortcut, mirroring ``derive_cornerstone_Aq_scaled``: when
+    ``usa_detail_io_source == 'nowcast'``, E, x and A already share the IO
+    calendar year, so summary-ratio scaling to ``usa_io_data_year`` and PI
+    inflation to ``model_base_year`` do not apply.
     """
     cfg = get_usa_config()
-    if cfg.use_ghg_year_x_in_B:
+    if cfg.use_ghg_year_x_in_B or cfg.usa_detail_io_source == 'nowcast':
         return derive_cornerstone_B_via_vnorm()
     return inflate_cornerstone_B_matrix_with_industry_pi(
         scale_cornerstone_B(

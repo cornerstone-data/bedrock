@@ -1,0 +1,3 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+EIA_ElectricPowerAnnual,Electricity exports,BEA_2017_Code,221100,C,
+EIA_ElectricPowerAnnual,Electricity imports,BEA_2017_Code,221100,C,

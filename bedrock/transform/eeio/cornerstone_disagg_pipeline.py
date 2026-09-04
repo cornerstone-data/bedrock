@@ -27,12 +27,12 @@ from bedrock.extract.disaggregation.waste_weight_config import (
     EEIOWasteDisaggConfig,
     effective_waste_disagg_config,
 )
-from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
-    load_2017_value_added_usa,
-    load_2017_Ytot_usa,
+from bedrock.extract.iot.detail_io import (
+    load_detail_Uimp_usa,
+    load_detail_Utot_usa,
+    load_detail_V_usa,
+    load_detail_value_added_usa,
+    load_detail_Ytot_usa,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
@@ -131,8 +131,8 @@ class CornerstoneDisaggIOBundle:
 
 
 def derive_cornerstone_V_after_waste() -> pd.DataFrame:
-    V_2017 = load_2017_V_usa()
-    V = industry_corresp() @ V_2017 @ commodity_corresp().T
+    V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
+    V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -144,8 +144,8 @@ def derive_cornerstone_V_after_waste() -> pd.DataFrame:
 
 
 def derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
 
     com_c = commodity_corresp()
@@ -170,7 +170,7 @@ def derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def _derive_y_before_electricity_disagg() -> pd.DataFrame:
     """Correspondence-mapped Y after waste disagg, before electricity row split."""
-    ytot_orig = load_2017_Ytot_usa()
+    ytot_orig = load_detail_Ytot_usa()
     ytot = commodity_corresp() @ ytot_orig
     ytot.index.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -181,7 +181,7 @@ def _derive_y_before_electricity_disagg() -> pd.DataFrame:
 
 
 def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
-    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
     weights = get_waste_disagg_weights()
     if weights is not None:
@@ -192,7 +192,7 @@ def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
 
 @functools.cache
 def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
-    """Correspondence + waste (+ optional electricity). Uninflated 2017 chain dollars."""
+    """Correspondence + waste (+ optional electricity). Uninflated dollars of the detail IO year."""
     V = derive_cornerstone_V_after_waste()
     Udom, Uimp = derive_cornerstone_U_after_waste()
     VA = derive_cornerstone_VA_after_waste()
@@ -214,7 +214,7 @@ def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
 @functools.cache
 def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
     """Correspondence-mapped Y with optional waste and electricity disagg."""
-    Ytot_orig = load_2017_Ytot_usa()
+    Ytot_orig = load_detail_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
     weights = get_waste_disagg_weights()

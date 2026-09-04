@@ -1,0 +1,246 @@
+# Compensation of employees - the SUT Use table's V00100 row.
+#
+# Step 2 of the nowcast (#535/#538), the largest value-added row: 10,434,981 in
+# 2017, 55.2% of VABAS and 30.9% of industry output. It is also the only one of
+# the three that Step 5 constrains hard rather than seeding, so it carries the
+# tightest quality bar of the family.
+#
+# ⚠️ ORIENTATION IS THE TRANSPOSE OF THE FINAL-DEMAND METHODS. See
+# NIPA_VA_othertax_2017.yaml, which documents the transpose and why both sector
+# columns are written only after attribution (#539).
+#
+# ONE CONTROL PER NIPA INDUSTRY GROUP, NOT ONE NATIONAL CONTROL.
+# T60200D (Table 6.2D, Compensation of Employees by Industry) states compensation
+# for 69 industry groups, and every one of them is a control here. That is what
+# makes the method more than a restatement of the benchmark: the 2017 shares only
+# have to hold *within* a NIPA group, and in later years each group moves on its
+# own published number.
+#
+# ✅ The 69 leaves partition the 71 BEA summary industries exactly - no gaps, no
+# overlaps - and 63 of them equal a summary industry's published compensation to
+# the dollar, the rest within BEA's own rounding. So the NIPA axis and the BEA
+# axis are the same axis, verified numerically rather than by name matching. See
+# analysis/nowcasting/compensation_allocation.py.
+#
+# ⚠️ WAGES AND SUPPLEMENTS ARE NOT SPLIT, AND THAT REVERSES A PLAN DECISION.
+# compensation_disaggregation_plan.md's headline decision was to disaggregate
+# wages (6.3D) and supplements (6.10D + 6.11D) separately and sum, because
+# supplements-to-wages ratios vary systematically by industry. The reasoning is
+# sound and the execution is not available: 6.3D is line-for-line identical to
+# 6.2D at 69 groups, but 6.10D and 6.11D publish only **16**. Splitting therefore
+# imposes a 16-group supplement rate on industries whose own rates differ, and
+# measured for 2017 that misplaces **99,025 - 0.95% of the row** - against a
+# 6.2D-only method that reproduces the benchmark exactly.
+#
+# So NIPA publishing both halves does not help here, because it publishes them
+# at coarser industry grain than the total. Worst offenders are computer systems
+# design (own supplement rate 11.8% against its group's 14.0%) and information
+# and data processing (8.8% against 14.0%). The split becomes worth revisiting
+# only if the supplements tables reach 6.2D's grain, which they have not in any
+# published year.
+#
+# THE SHARES MOVE BETWEEN YEARS, ON QCEW.
+# The plan's design is "2017 detail share x QCEW growth, renormalised in-parent,
+# then the NIPA control", and all three are now here. The movement enters as a
+# clean_fba socket on the attribution source below, which rescales the published
+# 2017 V00100 weights by each industry's QCEW payroll growth before they are
+# normalised inside the group. See transform/nipa/compensation_movement.py; it
+# reproduces every figure it states under --check.
+#
+# ⚠️ WHY NOT POINT `proportional` STRAIGHT AT THE QCEW FBA. Because QCEW's
+# *level* is not a usable share and its *change* is. Graded on the observed
+# 2012->2017 span, level shares score +21.9% worse than frozen 2017 shares at
+# their best and +270.9% raw, against -10.0% for this movement form. QCEW misses
+# proprietors, several benefit components and whole statutorily-excluded
+# industries, so its share of an industry's compensation is not that industry's
+# share of compensation.
+#
+# ✅ This is also BEA's own construction. The benchmark source notes say benefits
+# were built from an Economic-Census/SAS/BES benefit-to-payroll relationship
+# "applied to the 2017 QCEW wage and salary data", with everything "adjusted to
+# sum to total compensation by industry in the NIPAs" - which is a fixed benefit
+# rate carried on QCEW wages under a NIPA control, i.e. this method.
+#
+# ⚠️ Three corrections are applied, each of which changes the answer: the five
+# summary groups the NAICS-to-BEA concordance cannot resolve are carved out,
+# QCEW's NAICS vintage change at data year 2022 is bridged through the year
+# concordance, and industries QCEW does not observe keep their group's movement
+# rather than a growth ratio computed on a remnant. compensation_movement.py
+# documents and measures all three.
+#
+# ⚠️ WHAT IS STILL OWED (#731). For the industries QCEW does not cover, BEA uses
+# 2017 Economic Census payroll adjusted for misreporting and I-O definitions.
+# This file gives them their group's movement instead. Deferred deliberately:
+# 14 of the 15 are already carved out for the concordance reason, and the
+# fifteenth is 482000 rail.
+
+!include:BEA_detail_commodity_target.yaml
+year: &va_year 2020
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  # The 2017 benchmark V00100 row by industry, off the published Use SUT.
+  # BEA_Detail_Use_SUT melts the table through VAPRO, so the value-added block
+  # is loadable as an attribution source with no new extractor.
+  #
+  # ⚠️ WEIGHTS, NEVER LEVELS, and the weights only ever compete *within* one
+  # NIPA group. `proportional` normalises inside the attribution group, so each
+  # of the 69 controls holds by construction.
+  #
+  # ⚠️ Expect "sector-like activity values not found in declared schema code
+  # lists - BEA: V00100". V00100 is a value-added row code, not an industry or
+  # commodity, so the schema-membership check has nothing to say about it; it is
+  # reached through the BEA_2017_Code identity row in
+  # Sector_Crosswalk_BEA_2017_Detail.csv, as F01000 and S00300 are.
+  benchmark_V00100: &benchmark
+    # ⚠️ `year` stays 2017: this source IS the benchmark row. The year being
+    # nowcast is `movement_year`, read by the clean_fba socket below, and
+    # conflating the two would silently look for a detail Use SUT that BEA does
+    # not publish for any year but 2017.
+    year: 2017
+    movement_year: *va_year
+    # Rescales each industry's benchmark weight by its QCEW payroll growth
+    # 2017 -> movement_year. Runs after unit conversion and before sector
+    # mapping, which is where ActivityConsumedBy still holds BEA detail codes.
+    clean_fba: !clean_function:nipa.compensation_movement apply_qcew_movement
+    activity_to_sector_mapping: BEA_2017_Detail
+    selection_fields:
+      ActivityProducedBy: V00100
+    exclusion_fields:
+      # The melted table carries the Use table's own totals alongside the 402
+      # industries, and they would double the row.
+      ActivityConsumedBy: ['T001', 'T004', 'T007', 'T019']
+    attribution_method: equal
+
+source_names:
+  BEA_NIPA:
+    geoscale: national
+    year: *va_year
+    data_format: FBA
+    clean_fba_before_activity_sets: !script_function:BEA_NIPA extract_table_info
+    clean_fba_w_sec: !script_function:BEA_NIPA drop_unassigned
+    activity_sets:
+
+      compensation_industries:
+        # The 65 leaf lines whose NIPA names are unique within the selection, so
+        # they map through Sector_Crosswalk_BEA_NIPA_VA.csv as published. Each
+        # line is its own attribution group; the crosswalk says which detail
+        # industries it may reach and the benchmark says in what proportion.
+        #
+        # ⚠️ THE LINE LIST IS EXPLICIT BECAUSE 6.2D IS HIERARCHICAL, and summing
+        # it double-counts several times over: line 13 Manufacturing is lines
+        # 14 + 26, line 14 is 15-25, line 3 Private industries is everything
+        # above 86. The same trap U20405 and U50705BU1 both set (#547).
+        #
+        # ⚠️ WHERE NIPA AND BEA DISAGREE ON GRAIN, THE COARSER SIDE WINS.
+        # Retail takes lines 39-42 rather than their parent 38, because BEA
+        # summary splits retail four ways too. Wholesale takes the parent 35
+        # rather than 36-37, because NIPA's durable/nondurable wholesale split
+        # has no BEA counterpart. Same for transport (44-51 not 43), information
+        # (53-56 not 52), finance (58-61 not 57), professional (66-68 not 65),
+        # health (75-78 not 74), arts (80-81 not 79) and accommodation (83-84
+        # not 82).
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00100
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T60200D # Table 6.2D. Compensation of Employees by Industry
+          Line: [5, 6,                                    # farms, forestry
+                 8, 9, 10,                                # mining
+                 11, 12,                                  # utilities, construction
+                 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,   # durable goods
+                 27, 28, 29, 30, 31, 32, 33, 34,          # nondurable goods
+                 35,                                      # wholesale trade
+                 39, 40, 41, 42,                          # retail trade
+                 44, 45, 46, 47, 48, 49, 50, 51,          # transportation
+                 53, 54, 55, 56,                          # information
+                 58, 59, 60, 61,                          # finance and insurance
+                 63, 64,                                  # real estate, rental
+                 66, 67, 68,                              # professional services
+                 69,                                      # management of companies
+                 71, 72,                                  # administrative, waste
+                 73,                                      # educational services
+                 75, 76, 77, 78,                          # health care
+                 80, 81,                                  # arts and recreation
+                 83, 84,                                  # accommodation, food
+                 85]                                      # other services
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      # The four government lines need aliases: 6.2D titles both general
+      # government lines "Compensation of general government employees" and both
+      # enterprise lines "Government enterprises", so the name alone cannot say
+      # which is federal and which state and local.
+      #
+      # ⚠️ Lines 89/90 (civilian/military) and 94/95 (education/other) look like
+      # finer versions of 88 and 93 and are not - they are different cuts. NIPA's
+      # state and local "Education" is 716,832 against the SUT's GSLGE 731,648,
+      # so they do not correspond and the benchmark weights do the split instead.
+
+      compensation_federal_general_government:
+        # 430,318, which T31005 splits into S00500 246,097 and S00600 184,220 -
+        # and so does the benchmark, to the dollar. No second control needed.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00100
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T60200D
+          Line: 88 # B568RC, compensation of general government employees, federal
+        assign_fields:
+          ActivityProducedBy: V00100 federal general government
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      compensation_federal_enterprises:
+        # 59,219 across 491000 postal, S00101 federal electric utilities and
+        # S00102 other federal enterprises - the benchmark's total to the dollar.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00100
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T60200D
+          Line: 91 # A4081C, federal government enterprises
+        assign_fields:
+          ActivityProducedBy: V00100 federal government enterprises
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      compensation_state_local_general_government:
+        # 1,338,917 across GSLGE, GSLGH and GSLGO. The split is the benchmark's,
+        # because NIPA's own education/other cut at lines 94-95 is not the SUT's.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00100
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T60200D
+          Line: 93 # B251RC, compensation of general government employees, S&L
+        assign_fields:
+          ActivityProducedBy: V00100 state and local general government
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      compensation_state_local_enterprises:
+        # 107,032 across S00201 transit, S00202 electric utilities and S00203
+        # other state and local enterprises - the benchmark's total to the dollar.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00100
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T60200D
+          Line: 96 # B4086C, state and local government enterprises
+        assign_fields:
+          ActivityProducedBy: V00100 state and local government enterprises
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark

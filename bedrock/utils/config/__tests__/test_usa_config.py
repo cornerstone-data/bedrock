@@ -201,6 +201,51 @@ def test_electricity_mixed_units_requires_disaggregation() -> None:
         )
 
 
+def test_nowcast_requires_ghg_year_to_match_io_year() -> None:
+    """x is the nowcast Make row sum at the IO year; E must be that same year."""
+    with pytest.raises(
+        ValueError, match='usa_ghg_data_year must equal usa_base_io_data_year'
+    ):
+        USAConfig.model_validate(
+            {
+                'usa_detail_io_source': 'nowcast',
+                'usa_base_io_data_year': 2023,
+                'model_base_year': 2023,
+                'usa_ghg_data_year': 2022,
+            },
+            strict=True,
+        )
+
+
+def test_nowcast_forbids_deflated_x_in_b() -> None:
+    with pytest.raises(
+        ValueError, match='deflate_x_to_detail_io_year_for_B is incompatible'
+    ):
+        USAConfig.model_validate(
+            {
+                'usa_detail_io_source': 'nowcast',
+                'usa_base_io_data_year': 2023,
+                'model_base_year': 2023,
+                'usa_ghg_data_year': 2023,
+                'use_E_data_year_for_x_in_B': True,
+                'deflate_x_to_detail_io_year_for_B': True,
+            },
+            strict=True,
+        )
+
+
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_v0_4_nowcast_yamls_load(year: int) -> None:
+    cfg = _load_usa_config_from_file_name(
+        f'2025_usa_cornerstone_v0_4_nowcast_{year}.yaml'
+    )
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == year
+    assert cfg.model_base_year == year
+    assert cfg.usa_detail_original_year == year
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+
+
 def test_electricity_reaggregation_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
         'test_usa_config_waste_disagg_electricity_reaggregation.yaml'

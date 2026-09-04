@@ -37,7 +37,7 @@ These are **independent** concepts and frequently point at different commits:
 |---|---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | Full pipeline outputs at a git SHA | `test_usa.py` (`eeio_integration`) |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | One `GHG_national_Cornerstone_2024` parquet | `test_fbs.py` (`eeio_integration`) |
-| `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Nothing — selects the newest upload matching `GHG_national_Cornerstone_<year>` | `load_E_from_flowsa()` for v0.3 (`v0_3_umd_2024_ghgia`) |
+| `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Nothing — selects via `_select_cornerstone_ghg_fbs_base_name` (newest upload for that base_name) | `load_E_from_flowsa()` for Cornerstone GHG |
 
 The FBS pin and the runtime loader are independent: bumping the pin updates the regeneration test golden file; production still follows the latest GCS upload until `load_E_from_flowsa` is wired to the pin.
 
@@ -271,7 +271,7 @@ Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exis
 
 ## Cornerstone GHG FBS pin
 
-[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the `GHG_national_Cornerstone_2024` FlowBySector parquet that v0.3 loads from `gs://cornerstone-default/transform/output_data/`. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources and asserts a byte-identical match to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
+[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the `GHG_national_Cornerstone_2024` FlowBySector parquet that bea_published / v0.3 builds load from `gs://cornerstone-default/transform/output_data/`. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources and asserts a byte-identical match to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
 
 ### When to bump the pin
 

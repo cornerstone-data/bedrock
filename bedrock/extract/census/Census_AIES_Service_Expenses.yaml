@@ -1,0 +1,80 @@
+author: US Census Bureau
+source_name: Annual Integrated Economic Survey, Detailed Operating Expenses
+source_url: https://www.census.gov/programs-surveys/aies.html
+source_publication_date: 2025
+bib_id: Census_AIES_Service_Expenses
+
+# **The service sectors' expense detail, which `Census_AIES_Expenses` cannot
+# see.** That source reads `timeseries/aies/basic`, where the expense variables
+# are populated for manufacturing and come back as a **well-formed zero** for
+# every service row - which an earlier draft read as "21, 22, 23 and 51-81
+# publish nothing at all". ❌ That was a property of the endpoint, not of the
+# survey. `timeseries/aies/exp02` - group `AIES00EXP02`, *Detailed Operating
+# Expenses for Employer Firms* - publishes the full expense block for **13
+# service sectors**: 22, 48, 49, 51, 52, 53, 54, 56, 61, 62, 71, 72 and 81.
+#
+# ✅ **exp02 is a strict superset of `basic` on manufacturing**, verified 2026-08-25
+# for 2023: 648 rows on sectors 31-33, **0 differing cells** on `EXPS_ELEC_VAL`
+# and `EXPS_TOT_DVAL`. So the two tables agree where they overlap and this adds
+# services rather than restating manufacturing differently.
+#
+# ⚠️ **Two variables exist only in `basic`, which is why that source stays.**
+# `EXPS_CSTMTOT_DVAL` (the total-supplies control the materials additivity check
+# uses) and `RCPT_TOT_VAL` (sales) are **not** in `exp02`. Do not repoint
+# `Census_AIES_Expenses` here: it would silently drop the control that verifies
+# the five cost cells sum to the published total.
+#
+# ⚠️ **Wholesale and retail are absent entirely** - no NAICS 42, 44 or 45 rows,
+# not zeroed ones - and `ecnbasic` carries the expense variables for sectors 21,
+# 23 and 31-33 only, in both 2017 and 2022. The trade counterpart is the
+# AWTS/ARTS Business Expenses Supplement, rejected in #705 on suppression.
+#
+# ⚠️ **A zero here is often routing, not absence.** `EXPS_FUEL_VAL` is 0.00 for
+# transportation because transport fuel is `EXPS_FUEL_TRANSP_VAL`, and
+# `EXPS_MACH_REP_VAL` is 0.00 there because the repair cell is
+# `EXPS_TRANSP_REP_VAL`. Read the sector-specific variable before concluding an
+# industry buys none of something.
+#
+# ⚠️ **2023 is the only year.** 2021, 2022 and 2024 all return `204 No Content`;
+# 2023 is AIES's first year and it is phasing sectors in, so trade may appear
+# later. This extends the SAS Table 5 service panel (2013-2017, 2020-2022)
+# rather than replacing it.
+#
+# ⚠️ **Amounts are Thousand USD**, like the other Census API sources here.
+#
+# ⚠️ **No `source_catalog.yaml` entry yet**, on the same reasoning as
+# `Census_AIES_Expenses`: nothing attributes this to sectors, it is read
+# directly by analysis/nowcasting/service_expense_seed.py.
+api_name: Census
+
+# ⚠️ **AIES is published as per-year datasets, not as a timeseries.** The
+# `timeseries/aies/exp02` path this source used until 2026-09 now returns 404 for
+# EVERY year, 2023 included. The live path is `data/<year>/<dataset>`, and it
+# names the industry column NAICS2017 rather than NAICS - census_aies_call
+# renames it back so the parse is unchanged.
+#
+# ⚠️ **2024 retires four expense variables** - purchased communication
+# services, expensed software, and the building and machinery rental lines,
+# which 2024 replaces with one combined rent figure. Census rejects an unknown
+# variable outright rather than returning it empty, so a 2024 request naming
+# them fails the whole pull; census_aies_expenses_url_helper drops them per
+# year. Taking the combined rent line needs a building/machinery split rule
+# and is deliberately left for later.
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: __year__/aiesexp02?
+  url_params:
+    get: NAICS2017,EXPS_TOT_DVAL,EXPS_ELEC_VAL,EXPS_FUEL_VAL,EXPS_FUEL_TRANSP_VAL,EXPS_MAT_DVAL,EXPS_RENT_BUILD_VAL,EXPS_RENT_MACH_VAL,EXPS_PROFTECH_VAL,EXPS_ADVERT_VAL,EXPS_DATAPROC_VAL,EXPS_TEMPSTAF_VAL,EXPS_MACH_REP_VAL,EXPS_BUILD_REP_VAL,EXPS_TRANSP_REP_VAL,EXPS_TRANSP_VAL,EXPS_REFUSE_VAL,EXPS_COMMSVC_VAL,EXPS_EXSOFT_VAL,EXPS_COMPTR_OTHEQ_VAL,EXPS_SUPPLY_MED_VAL,EXPS_INS_PREM_VAL,EXPS_PROFLIAB_VAL,EXPS_PRINT_VAL,EXPS_CONTRACT_VAL,EXPS_RESALE_VAL,EXPS_OTHER_VAL
+    for: "us:*"
+    key: __apiKey__
+  key_param: key
+
+url_replace_fxn: !script_function:Census_AIES census_aies_expenses_url_helper
+call_response_fxn: !script_function:Census_AIES census_aies_call
+parse_response_fxn: !script_function:Census_AIES census_aies_expenses_parse
+
+years:
+- 2023
+- 2024
