@@ -1398,8 +1398,12 @@ def convert_naics_year(
                 # year conversion so proportional BEA attribution conserves mass
                 # across crosswalk fan-out rows. QCEW and other NAICS-like sources
                 # use the default branch below (many:1 merge, new group_id per row).
+                # Retain FlowAmount==0 leaves: they still mark published children for
+                # parent-incompleteChild descendant drops after mapping (e.g. MECS
+                # Table 2.1 Other 325120=0 must keep parent 325 from mapping to 32512).
                 df2 = df.aggregate_flowby(
-                    columns_to_group_by=df.groupby_cols + ['group_id']  # type: ignore[operator]
+                    columns_to_group_by=df.groupby_cols + ['group_id'],  # type: ignore[operator]
+                    retain_zeros=True,
                 )
                 if pre_group_totals is not None:
                     # Convert already scaled FlowAmount by allocation_ratio.

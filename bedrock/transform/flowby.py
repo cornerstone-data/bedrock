@@ -1271,7 +1271,13 @@ class _FlowBy(pd.DataFrame):
                 ).fillna({'FlowAmount_other': 0})
 
                 # Unmatched peers (other==0) must not occupy the uniqueness
-                # slot for a code that a matched schema peer also uses.
+                # slot for a code that a matched schema peer also uses
+                # (SectorSourceName distinguishes mixed BEA/NAICS peers).
+                # Activity* distinguishes NAICS year-convert siblings that share
+                # group_id and land on the same target sector with split
+                # FlowAmounts (e.g. 322120 -> 322121/322122 both -> 32212);
+                # without them, duplicated() keeps one slot and each sibling
+                # receives full group_total.
                 matched = merged['FlowAmount_other'] != 0
                 denominator_flag = pd.Series(False, index=merged.index)
                 if matched.any():
@@ -1281,6 +1287,8 @@ class _FlowBy(pd.DataFrame):
                             *groupby_cols,
                             f'{rank}Sector',
                             f'{rank}SectorSourceName',
+                            'ActivityProducedBy',
+                            'ActivityConsumedBy',
                         ]
                     )
                 with_denominator = merged.assign(
