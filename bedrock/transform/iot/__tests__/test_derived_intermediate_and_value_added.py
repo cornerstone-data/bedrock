@@ -196,4 +196,5 @@ def test_the_value_added_block_is_reconciled_to_published_vapro() -> None:
     others = [r for r in nc.USE_VALUE_ADDED_ROWS if r != 'V00300']
     pd.testing.assert_frame_equal(reconciled.loc[others], block.loc[others])
     # and it may land negative — clipping would reopen the identity
-    assert reconciled.loc['V00300', 'S00201'] < 0.0
+    surplus = reconciled.loc['V00300'].to_numpy(dtype=float)
+    assert surplus[industries.index('S00201')] < 0.0

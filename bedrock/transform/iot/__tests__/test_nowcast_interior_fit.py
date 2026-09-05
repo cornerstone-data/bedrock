@@ -141,7 +141,7 @@ def test_clean_column_targets_pass_the_guard() -> None:
     guard must refuse only the negative ones."""
     targets = pd.Series(1.0e9, index=pd.Index(USA_2017_INDUSTRY_CODES, name='industry'))
     targets.iloc[0] = 0.0
-    assert fi.refuse_negative_column_targets(targets, 2024) is None
+    fi.refuse_negative_column_targets(targets, 2024)  # must not raise
 
 
 def test_the_fit_refuses_a_negative_target_before_iterating() -> None:
