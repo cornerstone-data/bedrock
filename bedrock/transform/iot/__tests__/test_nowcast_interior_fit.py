@@ -123,3 +123,39 @@ def test_years_outside_the_margin_span_are_refused() -> None:
 def test_2024_is_inside_the_fit_span() -> None:
     """The 2024 AIES release closed the last unfitted year of the span."""
     assert 2024 in fi.FIT_YEARS
+
+
+def test_a_negative_column_target_is_refused() -> None:
+    """Value added above gross output cannot happen, and #850 showed what it
+    costs to let it through: the fit drove the whole column to the impossible
+    target and emptied the industry's input recipe, which was then read as a
+    method win against the previous release."""
+    targets = pd.Series(1.0e9, index=pd.Index(USA_2017_INDUSTRY_CODES, name='industry'))
+    targets.iloc[3] = -2.5e9
+    with pytest.raises(ValueError, match='negative intermediate-input target'):
+        fi.refuse_negative_column_targets(targets, 2024)
+
+
+def test_clean_column_targets_pass_the_guard() -> None:
+    """Zero is legitimate — customs duties carry no intermediate input — so the
+    guard must refuse only the negative ones."""
+    targets = pd.Series(1.0e9, index=pd.Index(USA_2017_INDUSTRY_CODES, name='industry'))
+    targets.iloc[0] = 0.0
+    assert fi.refuse_negative_column_targets(targets, 2024) is None
+
+
+def test_the_fit_refuses_a_negative_target_before_iterating() -> None:
+    seed = _seed()
+    col_t = seed.sum(axis=0) * 1.30
+    col_t.iloc[11] = -1.0e9
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            fi,
+            'interior_row_targets',
+            lambda year: (seed.sum(axis=1) * 1.30).rename('row_target'),
+        )
+        patch.setattr(
+            fi, 'interior_column_targets', lambda year: col_t.rename('column_target')
+        )
+        with pytest.raises(ValueError, match='negative intermediate-input target'):
+            fi.fit_interior(2023, seed=seed)
