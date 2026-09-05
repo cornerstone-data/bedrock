@@ -113,6 +113,8 @@ def _mapped_fba(
         'group_id': 0,
     }
     df = pd.DataFrame([{**base, **row} for row in rows])
+    # equally_attribute reweights by group_total (prepare_fbs sets both).
+    df = df.assign(group_total=df['FlowAmount'])
     return FlowByActivity(
         df,
         convert_df_to_flowby=True,

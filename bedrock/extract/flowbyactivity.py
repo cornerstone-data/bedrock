@@ -705,7 +705,34 @@ class FlowByActivity(_FlowBy):
                 )
             return jobs
 
+        # Sector-like activities whose schema vintage differs from
+        # target_schema_year must be converted before subset_sector_key: the
+        # industry_spec_key is built for the target year, so mapping first
+        # drops source-year-only leaves (e.g. MECS 322120 vs 2017 key).
+        # Convert at most once; the post-map block below is for callers that
+        # did not need a pre-map convert.
         fba_w_sectors = self.copy()
+        converted_naics_pre_map = False
+        if sector_like:
+            naics_year = source_years.get('naics')
+            target_schema_year = int(self.config['target_schema_year'])
+            if naics_year is not None and int(naics_year) != target_schema_year:
+                fba_w_sectors = cast(
+                    FlowByActivity,
+                    convert_naics_year(
+                        fba_w_sectors,
+                        sector_source_name('naics', target_schema_year),
+                        sector_source_name('naics', int(naics_year)),
+                        self.full_name,
+                    ),
+                )
+                source_years['naics'] = target_schema_year
+                converted_naics_pre_map = True
+                if default_sec_source_name is not None and 'naics' in activity_schemas:
+                    default_sec_source_name = sector_source_name(
+                        'naics', target_schema_year
+                    )
+
         for direction in ['ProducedBy', 'ConsumedBy']:
             if fba_w_sectors[f'Activity{direction}'].isna().all():
                 fba_w_sectors = fba_w_sectors.assign(
@@ -823,6 +850,15 @@ class FlowByActivity(_FlowBy):
                     fba_w_sectors = drop_parentincompletechild_descendants(
                         fba_w_sectors, sector_col=f'Sector{direction}'
                     )
+                    # Keep one group_total per group_id after fan-out / drop so
+                    # proportional BEA attribution conserves mass (MECS #847).
+                    if (
+                        'group_id' in fba_w_sectors.columns
+                        and 'group_total' in fba_w_sectors.columns
+                    ):
+                        fba_w_sectors['group_total'] = fba_w_sectors.groupby(
+                            'group_id'
+                        )['group_total'].transform('first')
 
         for dq in ['DataReliability', 'DataCollection', 'TechnologicalCorrelation']:
             if f'{dq}_x' in fba_w_sectors.columns:
@@ -834,12 +870,14 @@ class FlowByActivity(_FlowBy):
                     }
                 )
 
-        # NAICS vintage conversion only when sector-like NAICS years differ
+        # NAICS vintage conversion only when sector-like NAICS years differ and
+        # we did not already convert before mapping (see converted_naics_pre_map).
         naics_year = source_years.get('naics')
         if (
             sector_like
+            and not converted_naics_pre_map
             and naics_year is not None
-            and naics_year != self.config['target_schema_year']
+            and int(naics_year) != int(self.config['target_schema_year'])
         ):
             fba_w_sectors = cast(
                 FlowByActivity,

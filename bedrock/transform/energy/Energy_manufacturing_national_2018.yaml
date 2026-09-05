@@ -1,0 +1,164 @@
+# Manufacturing energy FBS used in GHG Cornerstone FBS methods.
+# MECS survey year 2018.
+# Replicates CEDA allocation steps as quantity weights: MECS mapped with
+# parent-incomplete-child + Cornerstone_2025
+
+!include:Cornerstone_2025_target.yaml
+year: &mecs_year 2018
+geoscale: national
+
+_attribution_sources:
+  BEA_use: &bea_use
+    year: 2017
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                           'T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
+    attribution_method: equal
+
+source_names:
+  EIA_MECS_Energy:
+    year: *mecs_year
+    activity_to_sector_mapping: Cornerstone_2025
+    selection_fields:
+      Location: '00000'
+      Description: [Table 2.1, Table 3.1]
+    exclusion_fields:
+      ActivityConsumedBy: '31-33'
+    clean_fba_before_activity_sets:
+      - !script_function:EIA_MECS estimate_suppressed_mecs_energy
+    activity_sets:
+      table_3_1_coal:
+        selection_fields:
+          Description: Table 3.1
+          FlowName: Coal
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'212100': ''}
+      table_3_1_ng:
+        selection_fields:
+          Description: Table 3.1
+          FlowName: Natural Gas
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'221200': ''}
+      table_2_1:
+        selection_fields:
+          Description: Table 2.1
+          FlowName:
+            'Hydrocarbon Gas Liquids, excluding natural gasoline': HGL
+            Other: Petroleum
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'324110': ''}
+      table_2_1_ng:
+        selection_fields:
+          Description: Table 2.1
+          FlowName: Natural Gas
+        clean_fba: !script_function:EIA_MECS keep_chemical_manufacturing
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_AfterRedef:
+            <<: *bea_use
+            selection_fields:
+              ActivityProducedBy: {'221200': ''}
+
+  BEA_Detail_Use_AfterRedef:
+    year: 2017
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
+                           'T001', 'T004', 'T007', 'T019']
+      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
+                           'MCIF']
+    activity_sets:
+      petrol:
+        selection_fields:
+          ActivityProducedBy: {'324110': ''}
+        exclusion_fields:
+          ActivityConsumedBy: ['481000', '482000', '483000', '484000',
+            '485000', '486000', '48A000', '492000', 'S00500', 'S00600',
+            '491000', 'GSLGO', 'S00203', 'F01000']
+        assign_fields:
+          FlowName: Petroleum
+          Class: Money
+        clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
+        clean_source:
+          EIA_MECS_Energy:
+            year: *mecs_year
+            selection_fields:
+              Location: '00000'
+              FlowName: Other
+              Description: [Table 2.1, Table 3.1]
+            exclusion_fields:
+              ActivityConsumedBy: '31-33'
+            estimate_suppressed: !script_function:EIA_MECS estimate_suppressed_mecs_energy
+        clean_fba_after_attribution: !script_function:EIA_MECS multiply_bea_by_mecs_petroleum_energy_fraction
+        attribution_method: direct
+      neu_coal_coke:
+        selection_fields:
+          ActivityConsumedBy: '2122A0'
+        exclusion_fields:
+          ActivityProducedBy: '324110'
+        assign_fields:
+          FlowName: Coal and Coke
+          Class: Other
+        attribution_method: direct
+      neu_transport:
+        selection_fields:
+          ActivityProducedBy: {'324110': ''}
+          ActivityConsumedBy: ['481000', '482000', '483000',
+            '484000', '485000', '486000', '48A000', '492000',
+            'S00500', 'S00600', '491000', 'GSLGO', 'S00203', 'F01000']
+        assign_fields:
+          FlowName: Transport
+          Class: Money
+        clean_source:
+          UMD_GHGIA_T_A5_1_S6:
+            year: *mecs_year
+            selection_fields:
+              Unit: TBtu
+              ActivityConsumedBy: Residential
+              FlowName:
+                - Kerosene
+                - LPG (Propane)
+                - Distillate Fuel Oil
+        clean_parameter:
+          year: *mecs_year
+          pce:
+            extract_input: BEA_PCE
+            file: BEA Personal Consumption Expenditures by Major Type of Product_June27_2024.csv
+            skiprows: 3
+            index_col: 1
+            drop_columns: [Line]
+            line: Gasoline and other energy goods
+          propane_price:
+            extract_input: EIA_EnergyPrice
+            file: U.S._Propane_Residential_Price.csv
+            skiprows: 4
+            month_column: Month
+            value_column: U.S. Propane Residential Price Dollars per Gallon
+          heating_oil_price:
+            extract_input: EIA_EnergyPrice
+            file: U.S._No._2_Heating_Oil_Residential_Price.csv
+            skiprows: 4
+            month_column: Month
+            value_column: U.S. No. 2 Heating Oil Residential Price Dollars per Gallon
+          residential_heat_fuels:
+            propane_priced: [Kerosene, LPG (Propane)]
+            heating_oil_priced: [Distillate Fuel Oil]
+        clean_fba_after_attribution: !script_function:EIA_MECS scale_household_petroleum_to_transport_share
+        attribution_method: direct
