@@ -516,14 +516,16 @@ def derive_initial_value_added(
         :mod:`bedrock.analysis.nowcasting.other_taxes_allocation`.
 
     ``V00300``
-        A **seed**, and only a seed. Level from the eight-line NIPA assembly
-        per year, shares frozen at 2017 - where drift reaches **12.51%** by
-        2022, six times ``T00OTOP``'s. That is acceptable only because T18
-        changed what the row is: with ``VAPRO`` pinned per industry
-        (:func:`~bedrock.transform.iot.nowcast_targets.industry_value_added_target`)
-        gross operating surplus is the **residual the balance solves for**, and
-        the closer overwrites this distribution. Do not "improve" it with
-        ``TVA113`` - that is the grader, held out by Step 5's Decision 3.
+        The **residual**, and deliberately so. The eight-line NIPA assembly
+        supplies the national level; the distribution across industries is then
+        whatever makes each column sum to BEA's published ``VAPRO`` - see
+        :func:`_reconcile_to_published_vapro`. That is what T18 always meant
+        the row to be ("gross operating surplus is the residual the balance
+        solves for"), and before #850 the reconciliation was simply missing:
+        the row carried frozen 2017 shares instead, whose drift reached
+        **12.51%** by 2022 and put six intermediate-input targets below zero by
+        2024. Do not "improve" it with ``TVA113`` - that is the grader, held
+        out by Step 5's Decision 3.
 
     ⚠️ **The summary SUT is a stale grader for 2019-2022.** Its own ``VAPRO``
     total sits 0.09-1.21% below current-vintage ``UVA205-A`` in exactly those
@@ -533,8 +535,18 @@ def derive_initial_value_added(
     twice ``VAPRO``'s rate because it is the row a NIPA revision lands in.
 
     ⚠️ **Rows may be negative and must stay so.** ``S00201`` state and local
-    passenger transit carries a ``V00300`` of -36,919 million in 2017 and stays
-    negative in every year; it is the only industry that does.
+    passenger transit carries a ``V00300`` of -36,919 million in 2017 and is
+    negative in every year. Since the ``VAPRO`` reconciliation it is no longer
+    alone: ten further industries hold a negative ``V00300`` at 2024, the
+    largest ``4B0000`` at -10.4bn USD. Gross operating surplus is legitimately
+    negative for a loss-making industry, and
+    :mod:`~bedrock.transform.iot.nowcast_mask` leaves the row unlocked for
+    exactly that reason.
+
+    ⚠️ **The six rows sum to BEA's published ``VAPRO`` by construction.** T18
+    and the interior fit's column target are both built from this block, so a
+    change that breaks that identity puts an impossible intermediate-input
+    target into the fit rather than a merely inaccurate one (#850).
     """
     if year not in VALUE_ADDED_YEARS:
         raise ValueError(
@@ -568,7 +580,60 @@ def derive_initial_value_added(
     block = block.fillna(0.0).astype(float)
     block.index.name = 'value_added_code'
     block.columns.name = 'industry'
-    return block
+    return _reconcile_to_published_vapro(block, int(year))
+
+
+def _reconcile_to_published_vapro(block: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Put each industry's six-row sum on BEA's published ``VAPRO``, USD.
+
+    ``V00300`` absorbs the residual, which is the same role it already plays in
+    :func:`~bedrock.transform.iot.nowcast_redefinitions.close_column` and in
+    the GRAS price adjustment, and which
+    :mod:`~bedrock.transform.iot.nowcast_mask` licenses by leaving the row
+    unlocked.
+
+    Without this the assembled rows sum to a **national** control on a
+    **2017** distribution, and the two drift apart across the span: measured at
+    2024 the unreconciled block is 1,348bn USD away from
+    :func:`~bedrock.transform.iot.derived_intermediate_and_value_added.derive_detail_value_added`
+    in gross, 78% of it the block's ``UVA205-A`` line totals rather than its
+    within-line split. Because T18 and the interior fit's column target are
+    both built from this block, that drift lands on ``GO - VAPRO`` as an
+    intermediate-input target - negative for six industries at 2024, and 30%
+    of gross output away on ``334413`` semiconductors (#850).
+
+    The reconciliation is **distribution-only**: the block's national total
+    already matches ``UVA205-A`` to 4 USD across the span, so the residual nets
+    to zero and ``V00300``'s NIPA control survives untouched. Only the split
+    across industries moves, and only ``V00300`` moves - ``V00100`` keeps its
+    QCEW payroll detail and the tax rows keep their Supply-column conversion.
+
+    ⚠️ **``V00300`` may go negative and must stay so.** Ten industries join
+    ``S00201`` there at 2024 (largest ``4B0000``, -10.4bn USD). Gross operating
+    surplus is legitimately negative for a loss-making industry; clipping it
+    would put the residual back into ``VAPRO`` and reopen the identity.
+    """
+    from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415
+        derive_detail_value_added,
+    )
+    from bedrock.utils.economic.units import (  # noqa: PLC0415
+        MILLION_CURRENCY_TO_CURRENCY,
+    )
+
+    published = (
+        derive_detail_value_added(int(year)).reindex(block.columns).astype(float)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    if published.isna().any():
+        missing = list(published.index[published.isna()])
+        raise KeyError(
+            f'published VAPRO for {year} is missing industries {missing}; the '
+            f'value-added block cannot be reconciled without a control for '
+            f'every industry.'
+        )
+    reconciled = block.copy()
+    reconciled.loc['V00300'] += published - block.sum(axis=0)
+    return reconciled
 
 
 @functools.cache

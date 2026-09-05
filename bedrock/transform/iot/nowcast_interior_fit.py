@@ -48,8 +48,8 @@ The two target sets cannot both close exactly: economy-wide,
 ``Σ_c (T016 − ΣY)`` and ``Σ_i (GO − VAPRO)`` disagree by the net residual the
 campaign left (small against ~17tn — the gross gaps were two-sided and mostly
 cancel). An IPF needs one total, so **the column side wins**: ``GO`` is the
-observed ``UGO305-A`` series and ``VAPRO`` closed its last identity gap when
-``T00OSUB`` landed (#787). Row targets are scaled uniformly to the column
+observed ``UGO305-A`` series and ``VAPRO`` is BEA's own published value added,
+which the seed block is reconciled onto (#850). Row targets are scaled uniformly to the column
 total and the wedge is reported per year, never hidden.
 
 Guards — hold and report, never silently drop
@@ -168,6 +168,14 @@ def interior_column_targets(year: int) -> pd.Series:
     module docstring); ``VAPRO`` is the six-row value-added block summed with
     its stored signs (the subsidy rows are negative, so a plain sum is the
     identity).
+
+    ⚠️ **This is only a well-posed target because the block is reconciled to
+    BEA's published value added** by
+    :func:`~bedrock.transform.iot.nowcast._reconcile_to_published_vapro`.
+    Without it the block sums to a national control on a 2017 distribution,
+    and the difference from gross output is not intermediate inputs but the
+    accumulated allocation error: six industries below zero at 2024, and
+    semiconductors 30% of its own output away (#850).
     """
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415
         detail_gross_output_panel,
@@ -192,6 +200,34 @@ def interior_column_targets(year: int) -> pd.Series:
         .fillna(0.0)
     )
     return (go - vapro).rename('column_target')
+
+
+def refuse_negative_column_targets(targets: pd.Series, year: int) -> None:
+    """Raise if any industry's intermediate-input target is below zero.
+
+    A negative target is not a borderline case, it is an impossible one: value
+    added would exceed gross output. Before #850 it passed silently into the
+    fit, which drove the whole column to it and emptied the industry's input
+    recipe - ``334413`` semiconductors reached an intermediate share of 0.002
+    in the published A matrix against 0.242 in the 2017 benchmark, and the
+    defect was read as a method win in the model comparison before it was
+    traced. The cause was the value-added block failing to reconcile to
+    published ``VAPRO``; this refuses the symptom so that any future
+    recurrence fails here rather than several steps downstream.
+    """
+    negative = targets[targets < 0.0].sort_values()
+    if negative.empty:
+        return
+    worst = ', '.join(
+        f'{i} ({v / 1e9:,.1f}bn USD)' for i, v in negative.head(5).items()
+    )
+    raise ValueError(
+        f'{year}: {len(negative)} industries have a negative intermediate-input '
+        f'target (value added above gross output), which cannot happen: {worst}. '
+        f'Both sides are controls - gross output from detail_gross_output_panel '
+        f'and value added from derive_initial_value_added - so check that the '
+        f'value-added block still reconciles to published VAPRO (#850).'
+    )
 
 
 def _held_axes(sums: pd.Series, targets: pd.Series) -> tuple[pd.Series, pd.Series]:
@@ -235,6 +271,7 @@ def fit_interior(
 
     row_targets = interior_row_targets(int(year))
     column_targets = interior_column_targets(int(year))
+    refuse_negative_column_targets(column_targets, int(year))
 
     base_row_targets = row_targets.copy()
     row_active, held_rows = _held_axes(matrix.sum(axis=1), row_targets)

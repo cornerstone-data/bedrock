@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.transform.iot import nowcast as nc
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     ANCHOR_YEAR,
     allocate_underlying_to_detail,
@@ -157,3 +158,42 @@ def test_duplicated_line_raises() -> None:
     group_values = pd.concat([_group_values(), _group_values().loc[[10]]])
     with pytest.raises(ValueError, match='duplicated lines'):
         allocate_underlying_to_detail(group_values, _anchor(), _gross_output(), MAPPING)
+
+
+def test_the_value_added_block_is_reconciled_to_published_vapro() -> None:
+    """The six rows must sum to BEA's published value added per industry.
+
+    Both the interior fit's intermediate-input target and the balance's
+    value-added target are built from this block, so a column that sums to
+    anything else puts an *impossible* target into the fit rather than a merely
+    inaccurate one — which is how #850's six negative targets arose.
+    """
+    industries = ['334413', '325412', 'S00201']
+    block = pd.DataFrame(
+        [
+            [10.0, 20.0, 5.0],  # V00100
+            [1.0, 2.0, 0.5],  # T00OTOP
+            [-0.5, -1.0, -0.2],  # T00OSUB
+            [30.0, 40.0, -50.0],  # V00300
+            [2.0, 3.0, 1.0],  # T00TOP
+            [-1.0, -2.0, -0.5],  # T00SUB
+        ],
+        index=list(nc.USE_VALUE_ADDED_ROWS),
+        columns=industries,
+    )
+    published = pd.Series([100.0, 25.0, -60.0], index=industries)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            'bedrock.transform.iot.derived_intermediate_and_value_added.'
+            'derive_detail_value_added',
+            lambda year: published / 1e6,
+        )
+        reconciled = nc._reconcile_to_published_vapro(block, 2024)
+
+    assert reconciled.sum(axis=0).to_dict() == pytest.approx(published.to_dict())
+    # only gross operating surplus absorbs; every other row is untouched
+    others = [r for r in nc.USE_VALUE_ADDED_ROWS if r != 'V00300']
+    pd.testing.assert_frame_equal(reconciled.loc[others], block.loc[others])
+    # and it may land negative — clipping would reopen the identity
+    assert reconciled.loc['V00300', 'S00201'] < 0.0
