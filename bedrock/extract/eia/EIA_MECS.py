@@ -715,6 +715,7 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
     else:
         ((name, src_config),) = clean_source.items()
     year = int(src_config['year'])
+    target_year = fba.config['target_schema_year']
     mecs = FlowByActivity(
         getFlowByActivity(name, year),
         full_name=name,
@@ -723,7 +724,7 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
             **src_config,
             'year': year,
             'activity_to_sector_mapping': fba.config['activity_to_sector_mapping'],
-            'target_naics_year': fba.config['target_naics_year'],
+            'target_schema_year': target_year,
             'industry_spec': fba.config['industry_spec'],
         },
     )
@@ -735,7 +736,6 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
         .reset_index(names='group_id')
         .assign(group_total=lambda x: x.FlowAmount)
     )
-    target_year = fba.config['target_naics_year']
     sector_col = 'SectorConsumedBy'
     t21 = (
         mecs.query("Description == 'Table 2.1'")
