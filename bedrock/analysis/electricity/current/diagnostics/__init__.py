@@ -8,6 +8,7 @@ Analyses live in subpackages that group scripts with the questions they answer:
 - ``year_alignment`` — BLy vs E under A/q year handling
 - ``hh_vs_interindustry`` — F01000 BLy attribution vs interindustry (not D0 class MWh)
 - ``probes`` — one-off sector probes (e.g. 221200)
+- ``deck`` — five-slide PPTX comparisons (current vs pre-MECS vs original)
 
 Shared infrastructure (``paths``, ``manifest``, ``local_data``) stays at package root.
 Outputs remain under ``output/`` (layout unchanged by reorganization).

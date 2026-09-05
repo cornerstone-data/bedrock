@@ -64,23 +64,23 @@ download_fba_on_api_error: bool = False
 
 def load_env_file_key(env_file: str, key: str) -> str:
     """
-    Loads an API Key from "API_Keys.env" file using the
-    'api_name' defined in the FBA source config file. The '.env' file contains
-    the users personal API keys. The user must register with this
-    API and get the key and manually add to "API_Keys.env"
+    Loads an API key from the project-root ``.env`` using the ``api_name``
+    defined in the FBA source config file. Register with the API, then add the
+    key as ``<API_NAME>_API_KEY`` (e.g. ``CENSUS_API_KEY=...``). Bare
+    ``api_name`` keys (e.g. ``Census=...``) are also accepted.
 
     See README for how to generate an API key:
     https://github.com/cornerstone-data/bedrock/blob/main/bedrock/extract/README.md
 
-    :param env_file: str, name of env to load, either 'API_Key'
-    or 'external_path'
+    :param env_file: str, which env source to load: ``'api_key'`` (project-root
+    ``.env``) or ``'external_path'`` (``external_paths.env``)
     :param key: str, name of source/key defined in env file, like 'BEA' or
     'Census'
     :return: str, value of the key stored in the env
     """
-    if env_file == 'API_Key':
-        load_dotenv(f'{extractpath}/API_Keys.env', verbose=True)
-        value = os.getenv(key)
+    if env_file == 'api_key':
+        load_dotenv(MODULEPATH.parent / '.env', verbose=True)
+        value = os.getenv(key) or os.getenv(f'{key.upper()}_API_KEY')
         if value is None:
             raise APIError(api_source=key)
     else:
@@ -93,20 +93,13 @@ def load_env_file_key(env_file: str, key: str) -> str:
 
 def load_crosswalk(crosswalk_name: str) -> pd.DataFrame:
     """
-    Used to load the crosswalks:
+    Load a mapping CSV from ``mapping/naics/{crosswalk_name}.csv``.
 
-    'NAICS_2012_Crosswalk', 'Sector_2012_Names', 'Sector_2017_Names',
-    'FinalDemand_SectorCodes', 'BEA_CustomCodes',
-    'Government_SectorCodes', 'NAICS_to_BEA_Crosswalk_2012',
-    'NAICS_to_BEA_Crosswalk_2017', 'NAICS_Year_Concordance'
-
-    as a dataframe
-
-    :return: df, NAICS crosswalk over the years
+    Includes hierarchy files such as ``NAICS_{year}_Crosswalk``,
+    ``BEA_{year}_Crosswalk``, ``NAICS_to_BEA_Crosswalk_{year}``,
+    ``Sector_Levels``, and sector name tables.
     """
-
     cw = pd.read_csv(mappingpath / 'naics' / f'{crosswalk_name}.csv', dtype='str')
-
     return cw
 
 
@@ -124,21 +117,6 @@ def load_sector_length_cw_melt(year: str = '2012') -> pd.DataFrame:
     return cast(  # type: ignore[redundant-cast]  # needed for pyright
         pd.DataFrame, cw_melt[['Sector', 'SectorLength']]
     )
-
-
-def return_bea_codes_used_as_naics() -> list[Any]:
-    """
-
-    :return: list of BEA codes used as NAICS
-    """
-    cw_list: list[pd.DataFrame] = []
-    for cw_name in ['FinalDemand_SectorCodes', 'Government_SectorCodes']:
-        df = load_crosswalk(cw_name)
-        cw_list.append(df)
-    # concat data into single dataframe
-    cw = pd.concat(cw_list, sort=False)
-    code_list = cw['Code'].drop_duplicates().values.tolist()
-    return code_list
 
 
 def load_yaml_dict(

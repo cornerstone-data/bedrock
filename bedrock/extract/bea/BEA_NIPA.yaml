@@ -29,6 +29,174 @@ tables:
 - U50505      # Table 5.5.5U. Private Fixed Investment in Equipment by Type
 - T50605      # Table 5.6.5. Private Fixed Investment in Intellectual Property Products by Type
 - U50705BU1   # Table 5.7.5BU1. Change in Private Inventories by Industry
+# U50705BU1 is nonfarm-only. 5.7.5B carries the farm line (B018RC, line 2) and
+# the CIPI total (A014RC, line 1) that the F03000 column ties to exactly. Farm is
+# roughly -5,679 in 2017 against a 32,674 total - 17% of the column - so a build
+# without it is silently wrong. See inventories_estimation_plan.md, section Farm.
+- T50705B     # Table 5.7.5B. Change in Private Inventories by Industry (farm/nonfarm)
+# Motor vehicles are the one place BEA publishes the change in private
+# inventories already split by commodity AND in dollars: line 55 AB65RC, with
+# A145RC autos and B709RC trucks beneath it, each further split new/used. 2017
+# is autos 7,791 (new -5,182, used 12,972) and trucks 13,313 (new 6,846, used
+# 6,467).
+#
+# That matters because it is a published CHANGE in dollars, so the inventory
+# valuation adjustment is already applied - unlike EIA physical stocks, FIWS
+# book values or U70205S unit counts, all of which need a price and reintroduce
+# the holding gains the IVA exists to strip.
+#
+# Used autos and used trucks (19,439 combined) are also the natural source for
+# S00402 used and secondhand goods. See inventories_estimation_plan.md.
+- U70205      # Table 7.2.5U. Motor Vehicle Output
+
+# ---------------------------------------------------------------------------
+# Value added - Step 2 (#536).  The three Use SUT rows Step 2 builds are
+# V00100 compensation, T00OTOP other taxes on production, and V00300 gross
+# operating surplus.  T00TOP/T00SUB are NOT here because they are not built
+# from NIPA: they come off the commodity axis in Step 4d and are converted to
+# the industry axis by analysis/nowcasting/tax_axis_conversion.py.
+#
+# ⚠️ That module withdraws the older reading of the 2026-08-17 decision -- that
+# their industry split is "an output of Step 5's balance rather than an input to
+# it".  The balance still sets the final split under economy-wide soft targets,
+# but it is SEEDED, and the seed reaches correlation 0.948 off Step 4c's
+# producer/trade level split plus a few named routings.  Nothing in this file
+# is needed for it either way; the point is not to read the absence below as
+# "product taxes have no industry estimate".
+#
+# Every table below is annual and complete for 2012-2024.  Reconciliation of
+# each row against these tables is in
+# bedrock/analysis/nowcasting/value_added_control_totals.py, which reads the
+# same archive directly; this list is what makes them reachable from an FBS
+# method's selection_fields.
+
+# -- Controls and reconciliation targets ------------------------------------
+# T11000 is the spine.  It carries, by code, five of the numbers the block is
+# built or checked against: A4002C compensation, W056RC taxes on production
+# less taxes on products (= T00OTOP), W272RC net interest and miscellaneous
+# payments, A108RC current surplus of government enterprises, A030RC the
+# statistical discrepancy, and A041RC proprietors' income with IVA and CCAdj.
+- T11000      # Table 1.10. Gross Domestic Income by Type of Income
+# GDP is a producer-value measure, so it reconciles to VAPRO (19,612,109 vs
+# 19,612,102 in 2017), NOT to VABAS, which is 695,567 lower by taxes on
+# products less subsidies.  Checking GDP against VABAS reads as a 3.5% error
+# and is nothing of the kind.
+- T10105      # Table 1.1.5. Gross Domestic Product
+- T10305      # Table 1.3.5. Gross Value Added by Sector
+- T11400      # Table 1.14. Gross Value Added of Domestic Corporate Business
+
+# -- V00100 compensation of employees ---------------------------------------
+# Wages and supplements are disaggregated separately and then summed, rather
+# than allocating total compensation on wage shares: supplements-to-wages
+# ratios vary systematically by industry, so a wage-share split of the total
+# overstates high-wage children.  The identity is exact - 6.3D + 6.10D + 6.11D
+# = 6.2D to the dollar in 2017 (8,474,410 + 604,656 + 1,345,306 = 10,424,372).
+- T60200D     # Table 6.2D. Compensation of Employees by Industry
+- T60300D     # Table 6.3D. Wages and Salaries by Industry
+- T61000D     # Table 6.10D. Employer Contributions for Government Social Insurance by Industry
+- T61100D     # Table 6.11D. Employer Contributions for Employee Pension and Insurance Funds by Industry
+# General government compensation, and it ties to the SUT exactly: B237RC ->
+# S00500 (246,097), W130RC -> S00600 (184,220), B251RC -> GSLGE+GSLGH+GSLGO
+# (1,338,917).  Tables 3.2 and 3.3 are receipts-and-expenditures statements and
+# do not carry compensation; 3.10.5 is the one that does.
+- T31005      # Table 3.10.5. Government Consumption Expenditures and General Government Gross Output
+# Not a source of levels - the reference for how far raw QCEW shares can be
+# trusted as an allocator.  It documents exactly what BEA adds on top of the
+# BLS wage measure (uncovered workers, misreporting, tips, timing).
+- T71800      # Table 7.18. Relation of Wages and Salaries in the NIPA to Wages and Salaries as Published by the BLS
+# 2.2B is coarse - 8 lines - but it is the private/government split of wages
+# on 7.18's own basis (its root is A034RC, wages received), which is what makes
+# the uncovered rates comparable: 11.3% of government wages against 3.5% of
+# private. Without it the 399,801 is just a number.
+- T20200B     # Table 2.2B. Wages and Salaries by Industry
+
+# -- V00300 gross operating surplus -----------------------------------------
+# V00300 has no single NIPA table.  The assembly (see value_added_control_totals)
+# closes to +13 million on 7.9 trillion, and needs the *right line* rather than
+# a table's root three times over: corporate profits must be the domestic
+# industries line A445RC in T61600D (the root is 498,898 larger); net interest
+# must include miscellaneous payments (W272RC in T11000, not T61500D's root);
+# and consumption of fixed capital must be all sectors (A262RC in T70500) since
+# the Section 6 capital consumption tables are business only.
+#
+# The tables below therefore split into control totals and by-industry
+# allocators, and both are needed: the Section 6 "D" tables carry the industry
+# distribution, the Section 1/7 tables carry the level.
+- T61200D     # Table 6.12D. Nonfarm Proprietors' Income by Industry
+- T61300D     # Table 6.13D. Noncorporate Capital Consumption Allowances by Industry
+- T61400D     # Table 6.14D. Inventory Valuation Adjustment by Industry
+- T61500D     # Table 6.15D. Net Interest by Industry
+- T61600D     # Table 6.16D. Corporate Profits by Industry
+- T61700D     # Table 6.17D. Corporate Profits Before Tax by Industry
+- T62200D     # Table 6.22D. Corporate Capital Consumption Allowances by Industry
+- T70500      # Table 7.5. Consumption of Fixed Capital by Legal Form of Organization and Type of Income
+- T70700      # Table 7.7. Business Current Transfer Payments by Type
+- T70900      # Table 7.9. Rental Income of Persons by Legal Form of Organization and by Type of Income
+# The government enterprise surplus (-4,253 in 2017) does have an industry
+# axis, contrary to the note on #537: 3.8 decomposes it by named enterprise -
+# Postal Service, TVA, public transit, gas and electricity - which map onto the
+# six BEA government-enterprise detail codes directly, and federal (3,080) and
+# state and local (-7,333) sum to the total exactly.
+- T30800      # Table 3.8. Current Surplus of Government Enterprises
+# Farm and housing are the two sectors NIPA decomposes into a full value-added
+# statement, and both tie to the SUT: farm compensation 30,857 vs the ten farm
+# detail codes' 30,861, housing compensation 18,921 vs 531HST's 18,920 (531HSO
+# is zero).  Housing matters most - 531HSO and 531HST carry 19.6% of all
+# V00300 - and 7.4.5 gives its net interest (332,634, 46% of the economy-wide
+# line) and rental income of persons (612,969, 95.5% of the line) directly,
+# turning the largest single piece of V00300 into a lookup rather than an
+# allocation.  7.3.5 also supplies B042RC farm proprietors' income, which
+# T71500 folds together with corporate profits.
+- T70305      # Table 7.3.5. Farm Sector Output, Gross Value Added, and Net Value Added
+- T70405      # Table 7.4.5. Housing Sector Output, Gross Value Added, and Net Value Added
+# The owner/tenant split of housing interest: W318RC owner-occupied housing is
+# 272,372 of T70405's 332,634, leaving roughly 60,000 for tenant-occupied.
+- T71100      # Table 7.11. Interest Paid and Received by Sector and Legal Form of Organization
+
+# -- The QCEW-to-NIPA wage gap (#536) ---------------------------------------
+# QCEW is an allocator and never a control, because it covers UI-covered wages
+# only: its national NAICS-6 payroll is 7,955,155 against NIPA wages paid of
+# 8,485,016, or 93.8%.  The tables below are what turn that 6.2% from an
+# unexplained residual into something with a shape.
+#
+# 7.18 closes it exactly and says what kind of money it is:
+#   BLS published        7,968,336
+#   + misreporting         106,273   BA07RC
+#   + not UI-covered       399,801   W873RC  (government 152,442 | other 247,359)
+#   + timing                     0   Y663RC
+#   = NIPA wages         8,474,410   A034RC, received; +10,606 rest of world = paid
+# Government's uncovered rate is 11.3% against private's 3.5% - 3.3x - so the
+# gap is already known to be non-uniform before any industry table is opened.
+
+# 6.4D is the table that makes the gap measurable *per industry* rather than
+# assumed uniform: QCEW publishes employment on the same axis, so QCEW/NIPA is a
+# coverage ratio per industry.  Measured for 2017 on private employment, it is
+# 97-100% almost everywhere and collapses in exactly two places - educational
+# services 77.1% and other services except government 63.0% (religious and
+# grantmaking organisations are largely UI-exempt, and private households
+# 814000 is 288.5 thousand in QCEW against a sector NIPA states outright).
+# So QCEW growth is trustworthy for ~95% of the economy and the exceptions are
+# a named short list, which is a different method from spreading 6.2% pro rata.
+- T60400D     # Table 6.4D. Full-Time and Part-Time Employees by Industry
+- T60500D     # Table 6.5D. Full-Time Equivalent Employees by Industry
+# 6.6D is wages per FTE by industry.  Not a detail source - it stops at the same
+# 74 industries as 6.3D - but it is the plausibility check Phase 5 lacks: an
+# implied wage per worker at BEA detail that falls outside its parent's range is
+# an error signal that a share-sums-to-one assertion cannot see.
+- T60600D     # Table 6.6D. Wages and Salaries Per Full-Time Equivalent Employee by Industry
+# 3.25U splits general government compensation into wages (1,233,594) and
+# supplements (535,640), which 3.10.5 does not; the GSLGE/GSLGH/GSLGO work needs
+# the split, not just the total.
+- U32500      # Table 3.25U. Compensation of General Government Employees
+# 7.8 decomposes supplements by type.  No industry axis, so it does not allocate
+# anything - it is how to read 6.10D and 6.11D, whose own type panel is the one
+# that must be excluded to avoid double counting.
+- T70800      # Table 7.8. Supplements to Wages and Salaries by Type
+# W151RC here is compensation of employees of private households - 18,684, the
+# SUT's 814000 to the dollar.  The plan called this "an explicit domestic-worker
+# compensation line" without locating it; this is the table.  W152RC is the
+# nonprofit institutions counterpart at 871,882.
+- RfHhInstComp  # Households and institutions compensation
 
 
 years:

@@ -21,6 +21,12 @@ RETIRED_USA_CONFIG_STEMS: frozenset[str] = frozenset(
     }
 )
 
+BEA_PUBLISHED_DETAIL_IO_YEARS: frozenset[int] = frozenset({2012, 2017})
+NOWCAST_IO_YEARS: frozenset[int] = frozenset(
+    {2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024}
+)
+NowcastDetailIoYear = ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
+
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         'diagnostics_baseline_source',
@@ -38,7 +44,7 @@ class USAConfig(BaseModel):
     #####
     # Model base settings
     #####
-    model_base_year: ta.Literal[2017, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
+    model_base_year: ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
     bea_io_level: ta.Literal['detail', 'summary'] = 'detail'
     bea_io_scheme: ta.Literal[2017, 2022] = 2017  # documentation purposes
     price_type: ta.Literal['producer', 'purchaser'] = 'producer'
@@ -47,13 +53,23 @@ class USAConfig(BaseModel):
     #####
     # Data selection
     #####
-    usa_base_io_data_year: ta.Literal[2012, 2017] = (
-        2017  # BEA's benchmark year for Detail Input-Output data
+    usa_detail_io_source: ta.Literal['bea_published', 'nowcast'] = 'bea_published'
+    nowcast_mut_vintage: ta.Optional[str] = Field(
+        default=None,
+        description=(
+            'Artifact build label for nowcast BEA-detail MUT tables on GCS '
+            '(e.g. v0.3.0_16f96b1). When omitted and usa_detail_io_source is '
+            'nowcast, loaders pick the most recently uploaded Make parquet for '
+            'the configured year and redefinition stage.'
+        ),
     )
+    usa_base_io_data_year: ta.Literal[
+        2012, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024
+    ] = 2017  # BEA benchmark year (bea_published) or IO calendar year (nowcast)
     usa_io_data_year: ta.Literal[2017, 2022, 2023, 2024] = (
         2022  # CEDA's legacy USA IO data year
     )
-    usa_ghg_data_year: ta.Literal[2019, 2020, 2021, 2022, 2023, 2024] = 2023
+    usa_ghg_data_year: ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024] = 2023
 
     ipcc_ar_version: ta.Literal['AR5', 'AR6'] = 'AR6'
 
@@ -87,6 +103,7 @@ class USAConfig(BaseModel):
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
+    implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
@@ -187,6 +204,64 @@ class USAConfig(BaseModel):
                 'implement_electricity_mixed_units requires '
                 'implement_electricity_disaggregation'
             )
+        if self.implement_electricity_reaggregation and not (
+            self.implement_electricity_disaggregation
+        ):
+            raise ValueError(
+                'implement_electricity_reaggregation requires '
+                'implement_electricity_disaggregation'
+            )
+        if (
+            self.implement_electricity_reaggregation
+            and self.implement_electricity_mixed_units
+        ):
+            raise ValueError(
+                'implement_electricity_reaggregation is mutually exclusive with '
+                'implement_electricity_mixed_units'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_detail_io_source(self) -> USAConfig:
+        if self.usa_detail_io_source == 'bea_published':
+            if self.usa_base_io_data_year not in BEA_PUBLISHED_DETAIL_IO_YEARS:
+                raise ValueError(
+                    'usa_base_io_data_year must be 2012 or 2017 when '
+                    "usa_detail_io_source is 'bea_published'; "
+                    f'got {self.usa_base_io_data_year}'
+                )
+        elif self.usa_detail_io_source == 'nowcast':
+            if self.usa_base_io_data_year not in NOWCAST_IO_YEARS:
+                raise ValueError(
+                    'usa_base_io_data_year must be 2017–2024 when '
+                    "usa_detail_io_source is 'nowcast'; "
+                    f'got {self.usa_base_io_data_year}'
+                )
+            if self.usa_base_io_data_year != self.model_base_year:
+                raise ValueError(
+                    'usa_base_io_data_year must equal model_base_year when '
+                    "usa_detail_io_source is 'nowcast'; "
+                    f'got usa_base_io_data_year={self.usa_base_io_data_year}, '
+                    f'model_base_year={self.model_base_year}'
+                )
+            if self.apply_io_year_adjustments:
+                raise ValueError(
+                    'apply_io_year_adjustments is incompatible with '
+                    "usa_detail_io_source 'nowcast'"
+                )
+            if self.usa_ghg_data_year != self.usa_base_io_data_year:
+                raise ValueError(
+                    'usa_ghg_data_year must equal usa_base_io_data_year when '
+                    "usa_detail_io_source is 'nowcast' (x is the nowcast Make row "
+                    'sum and exists for that year only, so E must match it); '
+                    f'got usa_ghg_data_year={self.usa_ghg_data_year}, '
+                    f'usa_base_io_data_year={self.usa_base_io_data_year}'
+                )
+            if self.deflate_x_to_detail_io_year_for_B:
+                raise ValueError(
+                    'deflate_x_to_detail_io_year_for_B is incompatible with '
+                    "usa_detail_io_source 'nowcast' (no intermediate dollar year)"
+                )
         return self
 
     #####
@@ -208,12 +283,18 @@ class USAConfig(BaseModel):
     ] = 'v0'
 
     @property
-    def usa_detail_original_year(self) -> ta.Literal[2012, 2017]:
+    def usa_detail_original_year(self) -> NowcastDetailIoYear:
+        if self.usa_detail_io_source == 'nowcast':
+            return ta.cast(NowcastDetailIoYear, self.usa_base_io_data_year)
         return 2017
 
     @property
     def use_ghg_year_x_in_B(self) -> bool:
-        """B's denominator x is gross output at ``usa_ghg_data_year``."""
+        """B's denominator x is gross output at ``usa_ghg_data_year``.
+
+        Under ``usa_detail_io_source == 'nowcast'`` the B path reads x from the
+        nowcast Make regardless of this flag.
+        """
         return self.apply_io_year_adjustments or self.use_E_data_year_for_x_in_B
 
     def to_dict(self) -> dict[str, object]:

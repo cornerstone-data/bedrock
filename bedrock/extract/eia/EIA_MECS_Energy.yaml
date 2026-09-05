@@ -26,6 +26,7 @@ tables:
 - Table2_2
 - Table3_1
 - Table3_2
+- table7_7
 # - table3_6
 # - table7_2
 # - table7_10
@@ -529,6 +530,26 @@ table_dict:
         regions: *regions_2018_72
         rse_regions: *rse_regions_2018_72
         data_type: 'money'
+      Table 7.7:
+        col_names: &col_names_table_7_7
+          - NAICS Code
+          - Subsector and Industry
+          - Electricity total
+          - Electricity from Local Utility
+          - Electricity from Sources Other than Local Utility
+        regions: &regions_2018_77
+          Total United States: [18, 100]
+          Northeast Region: [103, 185]
+          Midwest Region: [188, 270]
+          South Region: [273, 355]
+          West Region: [358, 440]
+        rse_regions: &rse_regions_2018_77
+          Total United States: [15, 97]
+          Northeast Region: [100, 182]
+          Midwest Region: [185, 267]
+          South Region: [270, 352]
+          West Region: [355, 437]
+        data_type: 'fuel consumption'
 
     '2022':
       Table 2.1:
@@ -600,4 +621,19 @@ table_dict:
           *regions_2022_31
         rse_regions:
           *rse_regions_2022_31
+        data_type: 'fuel consumption'
+      Table 7.7:
+        col_names: *col_names_table_7_7
+        regions:
+          Total United States: [18, 98]
+          Northeast Region: [101, 181]
+          Midwest Region: [184, 264]
+          South Region: [267, 347]
+          West Region: [350, 430]
+        rse_regions:
+          Total United States: [15, 95]
+          Northeast Region: [98, 178]
+          Midwest Region: [181, 261]
+          South Region: [264, 344]
+          West Region: [347, 427]
         data_type: 'fuel consumption'

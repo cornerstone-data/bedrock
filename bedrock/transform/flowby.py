@@ -40,11 +40,9 @@ from bedrock.utils.mapping.geo import (
     scale as geo_scale,
 )
 from bedrock.utils.mapping.location import fips_number_key
-from bedrock.utils.mapping.naics import (
-    convert_naics_year as naics_convert_naics_year,
-)
-from bedrock.utils.mapping.naics import (
-    map_target_sectors_to_less_aggregated_sectors as naics_map_to_less_aggregated,
+from bedrock.utils.mapping.sector import (
+    convert_naics_year,
+    map_target_sectors_to_less_aggregated_sectors,
 )
 
 if TYPE_CHECKING:
@@ -802,7 +800,7 @@ class _FlowBy(pd.DataFrame):
             elif self.config['data_format'] in ['FBA', 'FBS_outside_flowsa']:
                 fb = (
                     grouped.map_to_sectors(  # type: ignore[operator]
-                        target_year=self.config['target_naics_year'],
+                        target_year=self.config['target_schema_year'],
                         external_config_path=external_config_path,
                     )
                     .function_socket(
@@ -812,15 +810,20 @@ class _FlowBy(pd.DataFrame):
                 )
             elif self.config['data_format'] in ['FBS']:
                 # ensure sector year of loaded FBS matches target sector year
-                if (
-                    f"NAICS_{self.config['target_naics_year']}_Code"
-                    != grouped['SectorSourceName'][0]
-                ):
-                    grouped = naics_convert_naics_year(  # type: ignore[assignment]
-                        grouped,
-                        f"NAICS_{self.config['target_naics_year']}_Code",
-                        grouped['SectorSourceName'][0],
-                        dfname=self.full_name,
+                if 'NAICS' in grouped['SectorSourceName'][0]:
+                    if (
+                        f"NAICS_{self.config['target_schema_year']}_Code"
+                        != grouped['SectorSourceName'][0]
+                    ):
+                        grouped = convert_naics_year(  # type: ignore[assignment]
+                            grouped,
+                            f"NAICS_{self.config['target_schema_year']}_Code",
+                            grouped['SectorSourceName'][0],
+                            dfname=self.full_name,
+                        )
+                else:
+                    log.warning(
+                        'Have not implemented year conversions for data other than NAICS'
                     )
                 # convert to proper industry spec.
                 fb = grouped.sector_aggregation()  # type: ignore[operator]
@@ -1087,6 +1090,16 @@ class _FlowBy(pd.DataFrame):
         else:
             ((name, config),) = attribution_source.items()
 
+        # `attribute_on` may name activity columns, which prepare_fbs drops by
+        # default. Keep them when they are about to be merged on, so an
+        # attribution source can be matched per activity rather than only per
+        # sector -- e.g. splitting a NIPA PCE line by that line's own rows of
+        # the PCE bridge, instead of by the bridge summed over every line.
+        attribute_on = (attribution_config or self.config).get('attribute_on') or []
+        retain_activity_columns = any(
+            col in ('ActivityProducedBy', 'ActivityConsumedBy') for col in attribute_on
+        )
+
         if name in self.config['cache']:
             attribution_fbs = self.config['cache'][name].copy()
             attribution_fbs.config = {
@@ -1104,7 +1117,8 @@ class _FlowBy(pd.DataFrame):
                 'data_format': 'FBS',
             }
             attribution_fbs = attribution_fbs.prepare_fbs(
-                download_sources_ok=download_sources_ok
+                download_sources_ok=download_sources_ok,
+                retain_activity_columns=retain_activity_columns,
             )
         else:
             attribution_fbs = get_flowby_from_config(
@@ -1121,7 +1135,8 @@ class _FlowBy(pd.DataFrame):
                 },
                 download_sources_ok=download_sources_ok,
             ).prepare_fbs(  # type: ignore[operator]
-                download_sources_ok=download_sources_ok
+                download_sources_ok=download_sources_ok,
+                retain_activity_columns=retain_activity_columns,
             )
 
         geoscale = config.get('geoscale') or self.config.get('geoscale')
@@ -1163,9 +1178,26 @@ class _FlowBy(pd.DataFrame):
             )
 
         fb = self.add_primary_secondary_columns('Sector')
+        other = other.add_primary_secondary_columns('Sector')
 
-        subset_cols = ['PrimarySector', 'Location', 'FlowAmount', 'Unit']
-        groupby_cols = ['PrimarySector', 'Location', 'Unit']
+        # Schema filtering needs a real PrimarySector + SectorSourceName tag
+        other = other[
+            other['PrimarySector'].notna() & other['PrimarySectorSourceName'].notna()
+        ]
+
+        subset_cols = [
+            'PrimarySector',
+            'PrimarySectorSourceName',
+            'Location',
+            'FlowAmount',
+            'Unit',
+        ]
+        groupby_cols = [
+            'PrimarySector',
+            'PrimarySectorSourceName',
+            'Location',
+            'Unit',
+        ]
         attribution_cols = self.config.get('attribute_on')
         if attribution_cols is not None:
             subset_cols = subset_cols + attribution_cols
@@ -1178,10 +1210,7 @@ class _FlowBy(pd.DataFrame):
         groupby_cols = list(set(groupby_cols))
 
         other_aggregated = (
-            other.add_primary_secondary_columns('Sector')[subset_cols]
-            .groupby(groupby_cols)
-            .agg('sum')
-            .reset_index()
+            other[subset_cols].groupby(groupby_cols).agg('sum').reset_index()
         )
 
         return fb_geoscale, other_geoscale, fb, other_aggregated  # type: ignore[return-value]
@@ -1218,24 +1247,42 @@ class _FlowBy(pd.DataFrame):
                     columns='group_count'
                 )
 
+                merge_left = [
+                    f'{rank}Sector',
+                    (
+                        'temp_location'
+                        if 'temp_location' in needs_attribution
+                        else 'Location'
+                    ),
+                    f'{rank}SectorSourceName',
+                ]
+                merge_right = [
+                    'PrimarySector',
+                    'Location',
+                    'PrimarySectorSourceName',
+                ]
+
                 merged = needs_attribution.merge(
                     other,
                     how='left',
-                    left_on=[
-                        f'{rank}Sector',
-                        (
-                            'temp_location'
-                            if 'temp_location' in needs_attribution
-                            else 'Location'
-                        ),
-                    ],
-                    right_on=['PrimarySector', 'Location'],
+                    left_on=merge_left,
+                    right_on=merge_right,
                     suffixes=[None, '_other'],
                 ).fillna({'FlowAmount_other': 0})
 
-                denominator_flag = ~merged.duplicated(
-                    subset=[*groupby_cols, f'{rank}Sector']
-                )
+                # Unmatched peers (other==0) must not occupy the uniqueness
+                # slot for a code that a matched schema peer also uses.
+                matched = merged['FlowAmount_other'] != 0
+                denominator_flag = pd.Series(False, index=merged.index)
+                if matched.any():
+                    matched_rows = merged.loc[matched]
+                    denominator_flag.loc[matched_rows.index] = ~matched_rows.duplicated(
+                        subset=[
+                            *groupby_cols,
+                            f'{rank}Sector',
+                            f'{rank}SectorSourceName',
+                        ]
+                    )
                 with_denominator = merged.assign(
                     denominator=(
                         merged.assign(
@@ -1282,6 +1329,7 @@ class _FlowBy(pd.DataFrame):
                                 columns=dq_fields
                                 + [
                                     'LocationSystem',
+                                    'PrimarySectorSourceName',
                                     'SectorSourceName',
                                     'FlowType',
                                     'ProducedBySectorType',
@@ -1411,6 +1459,8 @@ class _FlowBy(pd.DataFrame):
                 columns=[
                     'PrimarySector',
                     'SecondarySector',
+                    'PrimarySectorSourceName',
+                    'SecondarySectorSourceName',
                     'temp_location',
                     'denominator',
                 ],
@@ -1442,8 +1492,13 @@ class _FlowBy(pd.DataFrame):
             left_merge = [
                 'PrimarySector',
                 'temp_location' if 'temp_location' in fb else 'Location',
+                'PrimarySectorSourceName',
             ]
-            right_merge = ['PrimarySector', 'Location']
+            right_merge = [
+                'PrimarySector',
+                'Location',
+                'PrimarySectorSourceName',
+            ]
 
         # multiply using each dfs primary sector col
         merged = fb.merge(
@@ -1524,6 +1579,8 @@ class _FlowBy(pd.DataFrame):
                 columns=[
                     'PrimarySector',
                     'SecondarySector',
+                    'PrimarySectorSourceName',
+                    'SecondarySectorSourceName',
                     'temp_location',
                     'group_total',
                     'Denominator',
@@ -1557,8 +1614,13 @@ class _FlowBy(pd.DataFrame):
             left_on=[
                 'PrimarySector',
                 'temp_location' if 'temp_location' in fb else 'Location',
+                'PrimarySectorSourceName',
             ],
-            right_on=['PrimarySector', 'Location'],
+            right_on=[
+                'PrimarySector',
+                'Location',
+                'PrimarySectorSourceName',
+            ],
             suffixes=[None, '_other'],
         ).fillna({'FlowAmount_other': 0})
 
@@ -1596,82 +1658,122 @@ class _FlowBy(pd.DataFrame):
         fb['Unit'] = fb['Unit'] + '/' + fb['Unit_other']
 
         return fb.drop(
-            columns=['PrimarySector', 'SecondarySector', 'temp_location'],
+            columns=[
+                'PrimarySector',
+                'SecondarySector',
+                'PrimarySectorSourceName',
+                'SecondarySectorSourceName',
+                'temp_location',
+            ],
             errors='ignore',
         ).reset_index(drop=True)
 
     def equally_attribute(self: 'FB') -> 'FB':
         """
-        This function takes a FlowByActivity dataset with SectorProducedBy and
-        SectorConsumedBy columns already added and attributes flows from any
-        activity which is mapped to multiple industries/sectors equally across
-        those industries/sectors, by NAICS level. In other words, if an
-        activity is mapped to multiple industries/sectors, the flow amount is
-        equally divided across the relevant 2-digit NAICS industries. Then,
-        within each 2-digit industry the flow amount for that industry is
-        equally divided across the relevant 3-digit NAICS industries; within
-        each of those, the flow amount is equally divided across relevant
-        4-digit NAICS industries, and so on.
+        Attribute flows mapped to multiple industries equally across those
+        industries, walking each schema's hierarchy from coarsest to finest
+        (see ``SECTOR_HIERARCHY_ORDER``).
 
-        For example:
-        Suppose that activity A has a flow amount of 12 and is mapped to
-        industries 111210, 111220, and 213110, a flow amount of 3 will be
-        attributed to 111210, a flow amount of 3 to 111220, and a flow amount
-        of 6 to 213110.
+        An activity mapped to several industries starts with one FlowAmount.
+        That amount is divided equally across distinct coarsest-level parents,
+        then again across children at the next level, and so on.
 
-        Attribution happens according to the primary sector first (see
-        documentation for
-        flowby.FlowByActivity.add_primary_secondary_sector_columns() for
-        details on how the primary sector is determined; in most cases, the
-        primary sector is the (only) non-null value out of SectorProducedBy or
-        SectorConsumedBy). If necessary, flow amounts are further (equally)
-        subdivided based on the secondary sector.
+        Example (NAICS 2017, target NAICS_6): activity A has FlowAmount 12 and
+        maps to 111110, 111120, and 213111. NAICS_2 parents are ``11`` and
+        ``21``, so each family gets 6. Under ``11``, two 6-digit children split
+        that 6 into 3 each. Result: 111110=3, 111120=3, 213111=6.
+
+        When one group mixes schemas, coarsest peers are the union of
+        per-schema parents, qualified by SectorSourceName so BEA Sector ``11``
+        and NAICS_2 ``11`` stay distinct. Two mapped rows both coded ``11``
+        (one NAICS, one BEA), each carrying 12 before the split, become 6 and
+        6 (sum 12). Collapsing those peers would leave each row at 12 (sum 24).
+
+        Attribution uses the primary sector first (see
+        add_primary_secondary_columns). If needed, amounts are subdivided
+        again on the secondary sector.
         """
-        naics_key = naics_map_to_less_aggregated(
-            self.config['industry_spec'], self.config['target_naics_year']
+        hierarchy_key = map_target_sectors_to_less_aggregated_sectors(
+            self.config['industry_spec'], self.config['target_schema_year']
         )
+        hierarchy_cols = [c for c in hierarchy_key.columns if c.startswith('_hier_')]
+        depth = len(hierarchy_cols)
 
         fba = self.add_primary_secondary_columns('Sector')
 
         # Joint pool per flow group — do not partition by SectorSourceName.
         groupby_cols = ['group_id', 'Location']
         for rank in ['Primary', 'Secondary']:
-            # continue if values are all np.nan
             if fba[f'{rank}Sector'].isna().all():
                 groupby_cols.append(f'{rank}Sector')
                 continue
 
-            fba = (
-                fba.merge(
-                    naics_key,
-                    how='left',
-                    left_on=f'{rank}Sector',
-                    right_on='target_naics',
-                )
-                .assign(
-                    **{
-                        f'_unique_naics_{n}_by_group': lambda x, i=n: (
-                            x.groupby(
-                                (
-                                    groupby_cols
-                                    if i == 2
-                                    else [*groupby_cols, f'_naics_{i-1}']
-                                ),
-                                dropna=False,
-                            )[[f'_naics_{i}']].transform('nunique', dropna=False)
-                        )
-                        for n in range(2, 8)
-                    },
-                    FlowAmount=lambda x: reduce(
-                        lambda x, y: x / y,
-                        [
-                            x.FlowAmount,
-                            *[x[f'_unique_naics_{n}_by_group'] for n in range(2, 8)],
-                        ],
-                    ),
-                )
-                .drop(columns=naics_key.columns.values.tolist())
+            # Rename hierarchy SectorSourceName so the merge does not suffix the
+            # FBA's SectorSourceName into _x/_y (then lose it on drop).
+            hierarchy_for_merge = hierarchy_key.rename(
+                columns={'SectorSourceName': '_hier_sector_source_name'}
             )
+            fba = fba.merge(
+                hierarchy_for_merge,
+                how='left',
+                left_on=[f'{rank}Sector', f'{rank}SectorSourceName'],
+                right_on=['target_sector', '_hier_sector_source_name'],
+            )
+            # Qualify hierarchy nodes by schema so identical code strings in
+            # different schemas are not treated as the same peer. Leave NaN
+            # (levels finer than the target) unqualified so missing levels do
+            # not inflate peer counts across schemas.
+            for n in range(depth):
+                col = f'_hier_{n}'
+                fba[col] = fba[col].astype(object)
+                mask = fba[col].notna()
+                fba.loc[mask, col] = (
+                    fba.loc[mask, f'{rank}SectorSourceName'].astype(str)
+                    + '\0'
+                    + fba.loc[mask, col].astype(str)
+                )
+            fba = fba.assign(
+                **{
+                    f'_unique_hier_{n}_by_group': lambda x, i=n: (
+                        x.groupby(
+                            (
+                                groupby_cols
+                                if i == 0
+                                else [
+                                    *groupby_cols,
+                                    *[f'_hier_{j}' for j in range(i)],
+                                ]
+                            ),
+                            dropna=False,
+                        )[[f'_hier_{i}']].transform('nunique', dropna=False)
+                    )
+                    for n in range(depth)
+                },
+                FlowAmount=lambda x: reduce(
+                    lambda a, b: a / b,
+                    [
+                        x.FlowAmount,
+                        *[
+                            x[f'_unique_hier_{n}_by_group'].fillna(1).replace(0, 1)
+                            for n in range(depth)
+                        ],
+                    ],
+                ),
+            )
+            fba = fba.drop(
+                columns=[
+                    c
+                    for c in [
+                        'target_sector',
+                        '_hier_sector_source_name',
+                        *hierarchy_cols,
+                    ]
+                    if c in fba.columns
+                ],
+                errors='ignore',
+            )
+            if f'{rank}SectorSourceName' not in groupby_cols:
+                groupby_cols.append(f'{rank}SectorSourceName')
             groupby_cols.append(f'{rank}Sector')
 
         # must include group_total in this formula as a weight for the specific case of
@@ -1689,8 +1791,11 @@ class _FlowBy(pd.DataFrame):
             columns=[
                 'PrimarySector',
                 'SecondarySector',
-                *[f'_unique_naics_{n}_by_group' for n in range(2, 8)],
-            ]
+                'PrimarySectorSourceName',
+                'SecondarySectorSourceName',
+                *[f'_unique_hier_{n}_by_group' for n in range(depth)],
+            ],
+            errors='ignore',
         )
 
     def assign_temporal_correlation(
@@ -1848,6 +1953,11 @@ class _FlowBy(pd.DataFrame):
                         ],
                     }
                 )
+                if col_type == 'Sector':
+                    fb = fb.assign(
+                        PrimarySectorSourceName=self['SectorSourceName'],
+                        SecondarySectorSourceName=self['SectorSourceName'],
+                    )
 
             else:
                 fb = self.assign(
@@ -1884,6 +1994,11 @@ class _FlowBy(pd.DataFrame):
                         )
                     }
                 )
+                if col_type == 'Sector':
+                    fb = fb.assign(
+                        PrimarySectorSourceName=self['SectorSourceName'],
+                        SecondarySectorSourceName=self['SectorSourceName'],
+                    )
 
             return fb
 

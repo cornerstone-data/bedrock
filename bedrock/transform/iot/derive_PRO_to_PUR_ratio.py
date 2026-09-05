@@ -18,7 +18,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import load_2017_margins_usa
+from bedrock.extract.iot.detail_io import load_detail_margins_usa
 from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
@@ -185,7 +185,7 @@ def _margins_by_commodity(
     abs_negative_margin_columns: bool = False,
 ) -> pd.DataFrame:
     """Load raw margins, apply ``filters``, and sum to per-commodity totals."""
-    df = _apply_margins_filter(load_2017_margins_usa(), filters)
+    df = _apply_margins_filter(load_detail_margins_usa(), filters)
     df = _margin_negatives_treatment(
         df,
         abs_negative_producers_value=abs_negative_producers_value,
@@ -320,6 +320,44 @@ def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
     return pd.DataFrame(series_by_year)
 
 
+@functools.cache
+def derive_phi_cornerstone_usa_panel_published(
+    years: tuple[int, ...],
+) -> pd.DataFrame:
+    """Published Phi panel for snapshots and ``get_Phi``.
+
+    Builds the margin panel, applies electricity producer-price overrides
+    (G/T/D → 1.0 under disaggregation; ``221100`` → 1.0 under reaggregation),
+    and under reaggregation drops G/T/D and reindexes to
+    ``CORNERSTONE_COMMODITIES``.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_reaggregation_enabled,
+    )
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        CORNERSTONE_COMMODITIES,
+        ELECTRICITY_DISAGG_SECTORS,
+    )
+
+    panel = derive_phi_cornerstone_usa_panel(years).astype(float)
+    cfg = get_usa_config()
+    if electricity_reaggregation_enabled():
+        panel = panel.drop(
+            index=[c for c in ELECTRICITY_DISAGG_SECTORS if c in panel.index],
+            errors='ignore',
+        )
+        panel.loc['221100'] = 1.0
+        out = panel.reindex(CORNERSTONE_COMMODITIES)
+    else:
+        out = panel.copy()
+        if cfg.implement_electricity_disaggregation:
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                if code in out.index:
+                    out.loc[code] = 1.0
+    out.index.name = 'sector'
+    return out
+
+
 def margins_phi_active(cfg: USAConfig | None = None) -> bool:
     """Return whether margins-based Phi should be applied for *cfg*."""
     c = cfg or get_usa_config()
@@ -343,6 +381,9 @@ def phi_for_sectors(
         for code in ('221110', '221121', '221122'):
             if code in phi.index:
                 phi.loc[code] = 1.0
+    if get_usa_config().implement_electricity_reaggregation:
+        if '221100' in phi.index:
+            phi.loc['221100'] = 1.0
     return phi
 
 

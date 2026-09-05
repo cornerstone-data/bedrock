@@ -36,6 +36,7 @@ dependencies = [
     "python-dotenv >= 1.1.0",
     "click>=8.1.7,<9.0.0",
     "matplotlib>=3.10.6",
+    "python-pptx>=1.0.0,<2.0.0",
 ]
 
 [dependency-groups]
@@ -71,6 +72,9 @@ skip-string-normalization = true
 
 [tool.ruff]
 line-length = 88
+extend-exclude = [
+    "bedrock/analysis/nowcasting/after_redef_MUTs",
+]
 lint.extend-select = [
     "I",       # isort - import sorting
     "PLC0415", # Checks for import statements outside of a module's top-level scope
@@ -89,7 +93,7 @@ known-first-party = ["bedrock"]
 "bedrock/utils/validation/diagnostics_helpers.py" = ["PLC0415"]
 # Reference loaders import the IO/FBA stacks lazily so the package itself stays
 # ~0.5s to import; eager imports cost 1s (io_2017) to 3s (flowbyactivity).
-"bedrock/analysis/compare_NIPA_to_IOT/loaders.py" = ["PLC0415"]
+"bedrock/analysis/nowcasting/compare_NIPA_to_IOT/loaders.py" = ["PLC0415"]
 # Repo scripts often tweak sys.path before importing bedrock; lazy imports reduce startup cost
 "scripts/**/*.py" = ["E402", "PLC0415"]
 "**/test_*.py" = ["ARG001", "ARG002"]
@@ -113,8 +117,21 @@ quote-style = "single"
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-s -v -m 'not eeio_integration'"
+norecursedirs = [
+    ".*",
+    "build",
+    "dist",
+    "CVS",
+    "_darcs",
+    "{arch}",
+    "*.egg",
+    "venv",
+    ".venv",
+    "after_redef_MUTs",
+]
 markers = [
     "eeio_integration: integration tests for eeio model",
+    "realdata: needs real sources - FBAs, FBSs, GCS or the network. Applied automatically by bedrock/conftest.py to everything outside its hermetic allowlist.",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
@@ -147,6 +164,7 @@ exclude = [
     'bedrock/extract/usgs/',
     'bedrock/extract/bea/BEA_NIPA.py',
     'scripts/*.py',
+    'bedrock/analysis/nowcasting/after_redef_MUTs/',
 ]
 
 [[tool.mypy.overrides]]

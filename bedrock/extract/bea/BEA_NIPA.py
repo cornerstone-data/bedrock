@@ -21,6 +21,30 @@ from bedrock.transform.flowbyfunctions import assign_fips_location_system
 #: tables, so there is one file to cache rather than one per year.
 FLAT_FILES_ZIP = 'FlatFiles.ZIP'
 
+#: Table 7.2.5U. Motor Vehicle Output - the car/truck split, published annually.
+MOTOR_VEHICLE_TABLE = 'U70205'
+
+#: What a series' ``MetricName`` means for ``Class`` and ``Unit``.  BEA states
+#: this per series in ``SeriesRegister.txt``, so it is read rather than assumed.
+#: ``'p'`` for a person count is the unit ``BLS_QCEW`` already uses and the one
+#: ``unit_conversion.csv`` standardizes to.
+#:
+#: Only ``Current Dollars`` is ``Class: Money``.  Chained dollars are real
+#: rather than nominal, so a method selecting ``Class: Money`` must not sweep
+#: them up and add them to current-dollar flows; ``Other`` keeps them visible
+#: but out of the way.  A ``Ratio`` series' meaning is table-specific (in 6.6D
+#: it is dollars per full-time-equivalent employee), so it gets no more
+#: specific a unit here than BEA gives it.
+#:
+#: Adding a table whose series carry a metric absent from this map raises in
+#: :func:`bea_nipa_parse` rather than defaulting to dollars.
+_METRIC_TO_FLOW: dict[str, dict[str, str]] = {
+    'Current Dollars': {'Class': 'Money', 'Unit': 'USD'},
+    'Chained Dollars': {'Class': 'Other', 'Unit': 'USD_chained'},
+    'Persons': {'Class': 'Employment', 'Unit': 'p'},
+    'Ratio': {'Class': 'Other', 'Unit': 'Ratio'},
+}
+
 
 def flat_files_local_path(source: str = 'BEA_NIPA') -> str:
     """Where the flat-file archive is cached: ``extract/input_data/BEA_NIPA/``."""
@@ -99,7 +123,7 @@ def bea_nipa_parse(
             tables = df
         elif 'Value' in df:
             data = df
-            data['Value'] = data['Value'].str.replace(',', '').astype(float) * 1000000
+            data['Value'] = data['Value'].str.replace(',', '').astype(float)
         elif 'SeriesLabel' in df:
             series = df
 
@@ -111,9 +135,14 @@ def bea_nipa_parse(
         series1['Table_and_Line'] = series1['Table_and_Line'].str.split('|')
         # Explode the lists into separate rows
         df = series1.explode('Table_and_Line')
-        df = df.query('Table_and_Line.str.contains(@table)').reset_index(drop=True)
         df['TableId'] = df['Table_and_Line'].str.split(':', expand=True)[0]
         df['Line'] = df['Table_and_Line'].str.split(':', expand=True)[1].astype('int')
+        # Match the table id exactly. This used to be a second `str.contains`,
+        # which let a table whose id merely *contains* the requested one through
+        # under its own TableId: asking for U70205 also returned U70205S's 44
+        # series - physical quantities and a price index - which then rode the
+        # dollar path. Nothing downstream selected them, so it never showed.
+        df = df[df['TableId'] == table].reset_index(drop=True)
         df = df.drop(columns=['Table_and_Line'])
         df = df.merge(tables, on='TableId', how='left', validate='m:1')
         return df.reset_index(drop=True)
@@ -134,6 +163,30 @@ def bea_nipa_parse(
     df = pd.concat(
         [generate_data_table(c) for c in config['tables']], ignore_index=True
     )
+
+    # Scale and unit come from SeriesRegister rather than being assumed. This
+    # used to be a flat `* 1000000` with Class/Unit hardcoded to Money/USD,
+    # which is right only as long as every declared table is in millions of
+    # dollars. It stopped being true when the value-added block brought in
+    # 6.4D/6.5D (thousands of *persons*) and 6.6D (a dollars-per-worker ratio):
+    # those would have been published as USD, at a million times their value.
+    #
+    # For every dollar table BEA publishes DefaultScale = -6, so this
+    # reproduces the old behaviour exactly for everything declared before.
+    scale = 10.0 ** (-df['DefaultScale'].astype(float))
+    df['Value'] = df['Value'] * scale
+    metric = df['MetricName'].map(_METRIC_TO_FLOW)
+    unrecognized = sorted(set(df.loc[metric.isna(), 'MetricName'].dropna()))
+    if unrecognized:
+        raise ValueError(
+            f'BEA_NIPA MetricName(s) with no Class/Unit mapping: {unrecognized}. '
+            f'Add them to _METRIC_TO_FLOW rather than letting them default to '
+            f'dollars.'
+        )
+    df['Class'] = [m['Class'] for m in metric]
+    df['Unit'] = [m['Unit'] for m in metric]
+    df['FlowName'] = df['Unit']
+
     df = df.drop(
         columns=['SeriesCodeParents', 'DefaultScale', 'CalculationType', 'MetricName']
     )
@@ -169,16 +222,14 @@ def bea_nipa_parse(
         )
     )
 
-    # columns relevant to all BEA data
+    # columns relevant to all BEA data. Class, Unit and FlowName are set above,
+    # from the series' own MetricName.
     df['SourceName'] = source
-    df['FlowName'] = 'USD'
     df['ActivityConsumedBy'] = ''  # set something here?
     df['Compartment'] = ''  # set something here?
-    df['Class'] = 'Money'
     df['FlowType'] = 'TECHNOSPHERE_FLOW'
     df['Location'] = US_FIPS
     df = assign_fips_location_system(df, 2024)
-    df['Unit'] = 'USD'
     df['DataReliability'] = 5  # tmp
     df['DataCollection'] = 5  # tmp
 
@@ -195,6 +246,135 @@ def extract_table_info(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
         # .sort_values(by=['Table', 'Line'])
     )
     return fba
+
+
+#: Table 7.2.5U lines for the car/truck split of motor vehicle output. ``A133RC``
+#: is auto output and ``A716RC`` truck output; they sum to ``A953RC``.
+AUTO_OUTPUT = 'A133RC'
+TRUCK_OUTPUT = 'A716RC'
+
+
+def motor_vehicle_auto_share(year: int | str) -> float:
+    """Autos as a share of auto + truck output, from NIPA table 7.2.5U (#570).
+
+    The one annual, published statement of how motor vehicle output divides
+    between cars and trucks. BEA's own Table C1 names the same kind of external
+    evidence for this industry - Wards unit production and J.D. Power average
+    net cost - so taking the split from outside the product data is the
+    documented method here, not a workaround.
+
+    ⚠️ **The ratio is borrowed, not the level.** ``A953RC`` motor vehicle output
+    is a final-expenditure aggregate at purchaser prices and includes imports,
+    so it is not comparable to a commodity output built from domestic shipments.
+    Only the auto/truck proportion crosses over.
+
+    ⚠️ **``A716RC`` includes heavy trucks and buses**, which are BEA commodity
+    ``336120`` rather than ``336112``. The share is therefore slightly low as a
+    car-vs-*light*-truck ratio. See
+    :func:`bedrock.extract.census.Census_ASM.split_motor_vehicle_output` for why
+    that is tolerable and what was measured.
+
+    The share moves a long way and that movement is the point: 0.178 in 2017 to
+    0.043 in 2024, as US assembly shifted from cars to SUVs and pickups. No
+    frozen 2017 share can track it.
+    """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    fba = getFlowByActivity('BEA_NIPA', int(year))
+    rows = fba[fba['Description'].str.startswith(f'{MOTOR_VEHICLE_TABLE}:')]
+    codes = rows['Description'].str.split(': ').str[1].str.split(' - ').str[0]
+    totals = rows.assign(code=codes).groupby('code')['FlowAmount'].sum()
+    missing = {AUTO_OUTPUT, TRUCK_OUTPUT} - set(totals.index)
+    if missing:
+        raise ValueError(
+            f'BEA_NIPA {year} carries no {sorted(missing)} row, so the motor '
+            f'vehicle split cannot be taken. {MOTOR_VEHICLE_TABLE} is listed in '
+            f'BEA_NIPA.yaml; an FBA cached before it was added there will not '
+            f'have it, and getFlowByActivity returns the newest local file '
+            f'without checking the config it was built from. Regenerate with '
+            f'generateFlowByActivity(source="BEA_NIPA", year="{year}").'
+        )
+    auto, truck = totals[AUTO_OUTPUT], totals[TRUCK_OUTPUT]
+    return float(auto / (auto + truck))
+
+
+#: The two groups ERS splits farm inventories into, and the BEA activity label
+#: each becomes.  ⚠️ ``All commodities`` is their parent and is deliberately not
+#: here -- see :func:`split_farm_by_fiws_inventory`.
+FIWS_INVENTORY_GROUPS = {
+    'All crops': 'Farm, crops',
+    'Animals and products': 'Farm, livestock',
+}
+
+#: The ERS concept carrying the change.  ⚠️ **Not the ``Dec. 31 value of ...``
+#: stock series.** Differencing stocks imports the holding gains CIPI excludes
+#: through the inventory valuation adjustment -- measured at -887 against a true
+#: -5,679, out by roughly six times.
+FIWS_INVENTORY_CONCEPT = 'Inventory change value'
+
+
+def split_farm_by_fiws_inventory(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    """Split NIPA's single ``Farm`` line into crops and livestock on ERS shares.
+
+    ``F03000``'s farm branch is 17% of the column and NIPA publishes it as one
+    number (``T50705B`` ``B018RC``, -5,679 $M in 2017). ERS publishes the same
+    concept split two ways, so the **level stays NIPA's** -- which is what keeps
+    the column's tie to published CIPI exact -- and only the **split** is ERS's.
+
+    ⚠️ **The two ERS groups are rescaled onto NIPA's total**, not used at their
+    own level. ERS reads -6,052 $M against NIPA's -5,679 in 2017; taking ERS's
+    level would break the tie for a piece that is published.
+
+    ⚠️ **Rescaling is by the ratio of totals, which preserves each group's own
+    sign.** Crops and livestock move in opposite directions in most years
+    (2017: -7,108 and +1,056), so a share-of-total normalisation would divide by
+    a small net and produce shares outside [0, 1]. Scaling both legs by
+    ``NIPA_total / ERS_total`` keeps the signs and sums to NIPA exactly.
+
+    ⚠️ **``All commodities`` is skipped** -- it is the parent of the two groups
+    and equals their sum, so including it would double the farm branch.
+    """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    farm = fba['ActivityProducedBy'].astype(str) == 'Farm'
+    if not farm.any():
+        return fba
+
+    year = int(kwargs.get('year') or fba['Year'].iloc[0])
+    ers = getFlowByActivity('USDA_ERS_FIWS', year)
+    ers = ers[
+        (ers['FlowName'] == FIWS_INVENTORY_CONCEPT) & (ers['Location'] == US_FIPS)
+    ]
+    groups = (
+        ers[ers['ActivityProducedBy'].isin(FIWS_INVENTORY_GROUPS)]
+        .groupby('ActivityProducedBy')['FlowAmount']
+        .sum()
+    )
+    missing = set(FIWS_INVENTORY_GROUPS) - set(groups.index)
+    if missing:
+        raise ValueError(
+            f'USDA_ERS_FIWS {year} is missing the inventory groups '
+            f'{sorted(missing)}, so the farm split cannot be built. Check that '
+            f'KEPT_CONCEPTS still carries {FIWS_INVENTORY_CONCEPT!r}.'
+        )
+    ers_total = float(groups.sum())
+    if ers_total == 0:
+        raise ValueError(f'USDA_ERS_FIWS {year} farm inventory change sums to 0')
+
+    nipa_total = float(fba.loc[farm, 'FlowAmount'].sum())
+    scale = nipa_total / ers_total
+
+    # ⚠️ Each leg is built by copying the FBA's own farm rows, never from a bare
+    # DataFrame. ``_FlowBy.__finalize__`` keeps only the config SHARED across a
+    # concat, so mixing in a plain DataFrame silently empties it, and the next
+    # step then fails with ``KeyError: 'year'`` far from here.
+    legs = []
+    for group, label in FIWS_INVENTORY_GROUPS.items():
+        leg = fba.loc[farm].copy()
+        leg['ActivityProducedBy'] = label
+        leg['FlowAmount'] = float(groups.loc[group]) * scale / int(farm.sum())
+        legs.append(leg)
+    return pd.concat([fba.loc[~farm], *legs], ignore_index=True)
 
 
 def drop_unassigned(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:

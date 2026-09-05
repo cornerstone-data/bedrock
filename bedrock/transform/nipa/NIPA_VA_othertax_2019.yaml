@@ -1,0 +1,223 @@
+# Other taxes on production - the SUT Use table's T00OTOP row.
+#
+# Step 2 of the nowcast (#535/#538), one of three FBS methods, one per Use row:
+# NIPA_VA_compensation (V00100), NIPA_VA_surplus (V00300) and this. Three rather
+# than one because the rows carry different quality bars - V00100 is a hard
+# group-level constraint in Step 5's target set, V00300 and T00OTOP are seeds
+# only - and coupling V00300's ~20 activity sets to the row Step 5 actually
+# constrains is the mistake Step 1 paid for before the 1A/1B/1C rescope.
+#
+# ⚠️ ORIENTATION IS THE TRANSPOSE OF THE FINAL-DEMAND METHODS.
+# Value added is a Use table ROW, so the cell is (T00OTOP produced by industry
+# i): the row code goes on SectorProducedBy and the industry on
+# SectorConsumedBy, where NIPA_final_dom_uses puts the commodity on
+# SectorProducedBy and the F code on SectorConsumedBy. Every activity set below
+# therefore ends with assign_use_row_from_clean_parameter rather than
+# assign_sector_consumed_by_from_clean_parameter.
+#
+# Both columns get their final values only AFTER attribution and aggregation,
+# for the reason #539 established: BEA_NIPA is a TECHNOSPHERE_FLOW source, so
+# add_primary_secondary_columns prioritizes ...ConsumedBy, and anything written
+# to SectorConsumedBy before attribution captures PrimarySector and silently
+# corrupts the weights.
+#
+# ⚠️ WHY THE ACTIVITY NAMES ARE ALIASES.
+# All three NIPA lines this method reads are titled some variant of "taxes on
+# production", and T30500, T70405 and T70305 collide outright. Each activity set
+# assigns a distinctive ActivityProducedBy before mapping, the same way
+# NIPA_final_dom_uses aliases its "(part of NNN)" PCE lines. The aliases are the
+# Activity column of Sector_Crosswalk_BEA_NIPA_VA.csv, written by
+# bedrock/utils/mapping/write_value_added_crosswalk.py.
+#
+# THE METHOD, AND WHY IT IS THIS ONE.
+# Measured in analysis/nowcasting/other_taxes_allocation.py. T00OTOP is a
+# property tax - NIPA T30500 puts 88.1% of it in recurrent taxes on immovable
+# property - so it tracks the capital stock and not output. Every plausible
+# economy-wide allocator fails against the published 2017 detail row: industry
+# output gives correlation 0.590 at 92.3% absolute error, VABAS 0.711/88.4%,
+# gross operating surplus 0.927/71.0%, compensation 0.050/120.3%. Output alone
+# misses 531HSO by 150,567 on a published 178,599.
+#
+# What works is that the row is concentrated - three real-estate codes carry
+# 46.3% - and BEA publishes the two biggest blocks outright. So: housing and
+# farm are lookups, government is zero by an accounting rule, and only the
+# remaining 56.7% is allocated, on frozen 2017 detail shares.
+#
+# ✅ The two lookups are carried through a clean_fba socket on the attribution
+# source - transform/nipa/othertax_lookups.py - and they are exact rather than
+# fitted: T70405 B1031C equals the published 531HSO+531HST pair to the dollar,
+# and T70305 B1017C equals the ten farm codes. Against the held-out summary SUT
+# they take the row error from 1.01% to 0.81% in 2018 and from 2.05% to 1.66%
+# in 2023 - about a fifth of the remaining error. Bounded, and worth having,
+# and not a transformation of the method: the larger error is in the control,
+# where 2021's NIPA vintage sits 2.9% above that year's workbook.
+#
+# ✅ The frozen part is graded rather than assumed. On the summary Use SUT,
+# composition drift against 2017 is 1.01-2.10% of the row across 2018-2024 while
+# the level grows 40.5% - assessed property values move with the price level far
+# more than they move relative to each other.
+#
+#
+# WHAT MAKES THIS THE LATER-YEAR FILE: A MOVING LEVEL, TWO MOVING BLOCKS.
+# This is the year-2019 member of NIPA_VA_othertax_<year>, and the only thing
+# that differs from the 2017 file is `year`. Three things move with it and one
+# deliberately does not:
+#
+#   * The LEVEL is this year's own observation. The T30500 control is read for
+#     `year`, so the row grows on published tax collections rather than on an
+#     assumption - 608,533 in 2017 to 855,003 in 2024, +40.5%.
+#   * The HOUSING block is this year's T70405 B1031C - 254,103 in 2017 to
+#     356,011 in 2024. 41.8% of the row, published, exact.
+#   * The FARM block is this year's T70305 B1017C. 1.5% of the row, same.
+#   * The REMAINING 56.7% keeps 2017's within-block shape, because nothing
+#     observed says otherwise and the held-out summary SUT says it barely moves.
+#
+# ✅ The frozen part is graded rather than assumed, and it is the split between
+# what moves and what does not that the grade licenses. On the summary Use SUT,
+# composition drift against 2017 is 1.01-2.10% of the row across 2018-2024 while
+# the level grows 40.5% - assessed property values move with the price level far
+# more than they move relative to each other. So the movement worth having is
+# the one this file takes from NIPA, and the movement not worth inventing is the
+# one it declines. other_taxes_allocation.py --check asserts drift stays under
+# DRIFT_BAR = 5%.
+#
+# ⚠️ WHY THE REST IS NOT MOVED TOO, BY ANALOGY WITH V00100. Because the two
+# rows are not in the same position. Compensation's frozen shares were losing to
+# QCEW by 10.0% on the observed 2012->2017 holdout, so a movement series had
+# something to win; T00OTOP's are already inside 2.10% on every out-of-sample
+# year available, and there is no annual property-tax-base series on the BEA
+# detail axis outside the two blocks above. The four candidate economy-wide
+# allocators are scored in the header above and the best is 71% error - an
+# allocator that bad cannot be rescued by making it annual.
+#
+# ⚠️ The summary SUT is evidence there and never an input here. Step 5's
+# Decision 3 keeps it out of the target set and in the test set, so a method
+# taking its annual T00OTOP row as a control would consume the very table meant
+# to grade it. The controls below are all NIPA - T30500 for the level, T70405
+# and T70305 for the two blocks.
+
+!include:BEA_detail_commodity_target.yaml
+year: &va_year 2019
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  # The 2017 benchmark T00OTOP row by industry, straight off the published Use
+  # SUT. BEA_Detail_Use_SUT melts the table through VAPRO, so the value-added
+  # block is loadable as an attribution source with no new extractor - the
+  # existing methods simply exclude those rows.
+  #
+  # ⚠️ WEIGHTS, NEVER LEVELS. The dollars come from the T30500 control below;
+  # `proportional` normalises within the attribution group, so the control holds
+  # by construction rather than by a follow-up rescale step.
+  benchmark_T00OTOP: &benchmark
+    # ⚠️ `year` stays 2017: this source IS the benchmark row, and 2017 is the
+    # only year BEA publishes a detail Use SUT for. The year being nowcast is
+    # `movement_year`, read by the clean_fba socket below.
+    year: 2017
+    movement_year: *va_year
+    # Rescales the housing block to T70405 B1031C, the farm block to T70305
+    # B1017C, and everything else to what is left of the T30500 control, each
+    # keeping its own 2017 within-block shape. The identity when movement_year
+    # is 2017. Runs after unit conversion and before sector mapping, which is
+    # where ActivityConsumedBy still holds BEA detail codes.
+    clean_fba: !clean_function:nipa.othertax_lookups apply_published_lookups
+    activity_to_sector_mapping: BEA_2017_Detail
+    selection_fields:
+      ActivityProducedBy: T00OTOP
+    exclusion_fields:
+      # The melted table carries the Use table's own totals alongside the 402
+      # industries, and they would double the row.
+      ActivityConsumedBy: ['T001', 'T004', 'T007', 'T019']
+    attribution_method: equal
+    # ⚠️ A harmless warning to expect here, so it is not chased later:
+    #   "BEA_Detail_Use_SUT: sector-like activity values not found in declared
+    #    schema code lists - BEA: T00OTOP"
+    # T00OTOP is a value-added ROW code, so it is not in the BEA industry or
+    # commodity code list the schema check reads - it is reached through the
+    # BEA_2017_Code identity row added to Sector_Crosswalk_BEA_2017_Detail.csv
+    # (Phase 0), the same way F01000, S00300 and S00900 are. The mapping
+    # succeeds; only the schema-membership check has nothing to say about it.
+
+source_names:
+  BEA_NIPA:
+    geoscale: national
+    year: *va_year
+    data_format: FBA
+    clean_fba_before_activity_sets: !script_function:BEA_NIPA extract_table_info
+    clean_fba_w_sec: !script_function:BEA_NIPA drop_unassigned
+    activity_sets:
+
+      othertax:
+        # ONE activity set, because there is one control. T30500 (Table 3.5,
+        # Taxes on Production and Imports) states the row in two lines that are
+        # not taxes on products:
+        #   line 37  LA000365  state and local, other taxes on production
+        #   line 17  LA000237  federal remainder after taxes on product
+        #
+        # ✅ Both are read for `year`. The pair closes against the published row
+        # where that row exists: in 2017 they are 607,329 and 1,204, summing to
+        # 608,533 against a published T00OTOP of 608,542 - nine apart, rounding.
+        #
+        # ⚠️ SELECTING BY LINE NUMBER ONLY WORKS BECAUSE THESE LINES DO NOT MOVE.
+        # A line number is a property of the table, not of the series, so a NIPA
+        # restructuring would silently point these at different series - and no
+        # total would look wrong. Verified across all eight years 2017-2024:
+        # line 37 is LA000365 and line 17 is LA000237 in every one of them, and
+        # the control they sum to rises monotonically 608,533 -> 855,003.
+        # other_taxes_allocation.py selects by CODE rather than line, so its
+        # --check regrades this control independently of the selection below.
+        #
+        # ⚠️ LA000237 is titled "Other taxes on goods and services", which reads
+        # like a product tax. It is not treated as one: it is what is left of the
+        # federal total (W007RC 131,434) after LA000236 taxes on product
+        # (130,230), and including it is what closes the control. The arithmetic
+        # places it, not the name.
+        #
+        # ⚠️ The two lines are NOT nested. LA000365 sits under W072RC (state and
+        # local) and LA000237 under W007RC (federal), so taking both sums two
+        # siblings rather than repeating a parent - the double count U20405 and
+        # U50705BU1 both punish.
+        #
+        # ⚠️ THE HOUSING AND FARM LOOKUPS ARE NOT ACTIVITY SETS, AND CANNOT BE.
+        # T70405 B1031C IS the 531HSO+531HST pair and T70305 B1017C IS the ten
+        # farm codes - together 43.3% of the row, published annually, exact. But
+        # they cannot be their own activity sets: NIPA states no "other taxes on
+        # production excluding housing and farm" line, so a third set's control
+        # would still be the whole 608,533 and the three would sum to 872,044.
+        #
+        # ✅ So they enter as WEIGHTS instead, through the clean_fba socket on
+        # the attribution source above - see transform/nipa/othertax_lookups.py.
+        # One activity set and one control is still right; what changed is that
+        # the weight vector handed to `proportional` is no longer the frozen
+        # 2017 row.
+        #
+        # ⚠️ This reverses what this file used to say, and the reason is worth
+        # keeping. The lookups were left out because folding them into the
+        # weight vector appeared to need an FBS_outside_flowsa attribution
+        # source, which does not work: get_flowby_from_config builds a
+        # FlowBySector for that data_format while attribute_flows_to_sectors
+        # then calls map_to_sectors, which only FlowByActivity has (#731).
+        # That hatch is still broken and is still not used. It simply is not
+        # needed: a weight vector that is a RESCALING of an FBA already in the
+        # method is a clean_fba socket, which is how NIPA_VA_compensation_<year>
+        # carries QCEW. other_taxes_allocation.py said the hatch was "worth
+        # clearing before Step 2's largest row rather than after" - it was
+        # cleared there, and this is the row that was waiting on it.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: T00OTOP
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T30500 # Table 3.5. Taxes on Production and Imports
+          Line: [37, # LA000365 state and local, other taxes on production
+                 17] # LA000237 federal, the remainder after taxes on product
+        assign_fields:
+          # Both lines carry a NIPA label that collides with the housing and farm
+          # tables' own "Taxes on production and imports". Aliased to the one
+          # Activity the crosswalk names.
+          ActivityProducedBy: T00OTOP all industries
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark

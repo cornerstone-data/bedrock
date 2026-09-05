@@ -29,14 +29,44 @@ __pycache__/
 *_metadata.json
 *_diffs.yaml
 !bedrock/utils/**/*.csv
+# Nowcasting scorecard baselines must be tracked in git.
+!bedrock/analysis/nowcasting/trade_data/score_2017_trade_detail_baseline.csv
+# The fitted IEA service bridges (#771): the build reads these at FBS
+# generation time, so an untracked copy means every imports/exports consumer
+# fails on a fresh clone (CI included) with FileNotFoundError.
+!bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv
+!bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv
+# Step 7 redefinition ratio contracts (2017-learned cellwise GO ratios).
+!bedrock/analysis/nowcasting/redefinition_ratios_2017_V.parquet
+!bedrock/analysis/nowcasting/redefinition_ratios_2017_U.parquet
+!bedrock/analysis/nowcasting/redefinition_ratios_2017_VA.parquet
+!bedrock/analysis/nowcasting/redefinition_ratios_2017_Uimp.parquet
+!bedrock/analysis/nowcasting/redefinition_ratios_2017_margins.parquet
+# Archived BEA-style Step 7 artifacts (reference only).
+!bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_classification.csv
+!bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_recipes.csv
+!bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_U.parquet
+!bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_VA.parquet
+!bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_Uimp.parquet
+!bedrock/analysis/nowcasting/after_redef_MUTs/BEA_style_redefinitions_implementation/code/redefinitions_2017_overlay_margins.parquet
+# Published original vs EIA-anchored histogram panels (required for deck CI)
+!bedrock/analysis/electricity/historical/original_vs_eia_anchored_deck/figures/*.png
 # asets stands for activity sets
 !bedrock/extract/**/*_asets.csv
 !bedrock/extract/external_data/*.csv
+# Census HS 2716 electricity unit values for Trade (#668)
+!bedrock/extract/census/data/hs2716_electricity_unit_value.csv
 # Waste disaggregation weight fixtures (small; required for CI tests)
 !bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
 # Electricity disagg diagnostics local Excel exports (download from Sheets; keep dir via .gitkeep)
 bedrock/analysis/electricity/current/diagnostics/local_data/*
 !bedrock/analysis/electricity/current/diagnostics/local_data/.gitkeep
+# Figures embedded in bedrock/analysis/nowcasting/progress_report.md. Committed
+# at REPORT_DPI (~120 KB each) and regenerated per milestone, not per commit;
+# the working copies the CLI writes to output/ stay ignored. This negation is
+# path-specific — if the report ever moves again, move this line with it or its
+# figures silently stop being tracked and the embeds break on GitHub.
+!bedrock/analysis/nowcasting/images/*.png
 
 # Ignore JetBrains IDE project files
 .idea/
@@ -52,8 +82,3 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
-# Original electricity-disagg implementation freeze (must be committed)
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.parquet
-!bedrock/analysis/electricity/historical/original_elec_disagg_implementation/output/**/*.json

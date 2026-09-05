@@ -96,7 +96,7 @@ def Census_pop_URL_helper(*, build_url, year, config, **_):
                 url = url.replace("&in=state:__stateFIPS__", '')
                 if c == "us":
                     url = url.replace("*", "1")
-                userAPIKey = load_env_file_key('API_Key', config['api_name'])
+                userAPIKey = load_env_file_key('api_key', config['api_name'])
                 url = url.replace("__apiKey__", userAPIKey)
                 urls.append(url)
     return urls

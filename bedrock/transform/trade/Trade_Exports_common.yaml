@@ -1,0 +1,72 @@
+# National goods + services exports mapped to BEA 2017 Detail.
+#
+# Everything except the year and Detail_Supply_Mix attribution lives here. Each
+# Trade_Exports_<year> stub caches Detail_Supply_Mix_<year> with
+# collapse_detail_supply_to_t007 and names that cache key as attribution_source
+# (#729).
+!include:BEA_detail_commodity_target.yaml
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+source_names:
+  Census_USATrade:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: Census_USATrade
+    # See Trade_Imports_common.yaml: 336111/336112 relabelled onto 336110 in
+    # every year so one rule splits the pair (#702). The export side carries the
+    # same defect - published 2017 F04000 is 23,537/31,734 against Census's
+    # 46,622/11,354 - and the same 2022->2023 flip.
+    clean_fba_before_activity_sets: !clean_function:trade.utilities consolidate_vehicle_activities_fba
+    activity_sets:
+      goods_exports:
+        selection_fields:
+          FlowName: ALL_VAL_YR_DOM
+        attribution_method: proportional
+        # attribution_source: set in Trade_Exports_<year>.yaml
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+
+  BEA_IEA:
+    geoscale: national
+    data_format: FBA
+    # ⚠️ The service rows arrive PRE-BRIDGED to BEA commodities (#771): the
+    # clean function below replaces the IEA category rows with one row per
+    # commodity, amount = published 2017 exports x a growth blend of the
+    # categories the fitted bridge (iea_export_bridge.csv) says feed that row.
+    # Attributing categories onto commodity sets directly - by any weight -
+    # fabricated exports wherever ITA's service definitions disagree with
+    # BEA's bridge, which they do by ~254bn gross at 2017.
+    #
+    # After bridging the activities ARE BEA 2017 detail codes, so the schema is
+    # declared sector-like here, overriding the catalog's null (which describes
+    # the raw category names the imports side still uses).
+    activity_schema:
+      bea:
+        year: 2017
+        hierarchy: flat
+    clean_fba_before_activity_sets: !clean_function:trade.utilities bridge_iea_service_exports
+    activity_sets:
+      service_exports:
+        selection_fields:
+          FlowName: Exports
+        attribution_method: direct
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
+
+  # Physical electricity trade (#668): EIA Table 2.14 MWh × Census HS 2716
+  # unit value. Export year stubs merge source_names from this file so this
+  # source (and later gas) inherit without per-stub copy.
+  EIA_ElectricPowerAnnual:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: EIA_ElectricPowerAnnual
+    clean_fba_before_activity_sets: !clean_function:trade.utilities dollarize_electricity_trade_fba
+    activity_sets:
+      electricity_exports:
+        selection_fields:
+          FlowName: electricity exports
+        attribution_method: direct
+        clean_parameter: F04000
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter

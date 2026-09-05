@@ -792,11 +792,14 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
         #                   ])
     }
     mecs_year = parameter_dict.get('year')
+    # Optional: MECS year for mfg/non-mfg split ratio only (methodology-isolation builds
+    # hold sector weights at mecs_year but pin the split boundary to production ratios).
+    ratio_mecs_year = parameter_dict.get('ratio_mecs_year', mecs_year)
 
     # Filter MECS for total national energy consumption for manufacturing sectors
     mecs = load_fba_w_standardized_units(
         datasource=cast(str, parameter_dict.get('energy_fba')),
-        year=cast(int, mecs_year),
+        year=cast(int, ratio_mecs_year),
         flowclass='Energy',
         download_FBA_if_missing=True,
     )

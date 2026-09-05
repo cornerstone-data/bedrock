@@ -32,9 +32,15 @@ from bedrock.utils.config.settings import (
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import sectormapping
 from bedrock.utils.mapping.geo import filtered_fips, scale
-from bedrock.utils.mapping.naics import (
+from bedrock.utils.mapping.sector import (
+    _schema_block_year,
     convert_naics_year,
     industry_spec_key,
+    load_schema_conversion_crosswalk,
+    parse_sector_source_name,
+    return_schema_crosswalk,
+    sector_hierarchy_from_config,
+    sector_source_name,
     subset_sector_key,
 )
 from bedrock.utils.metadata.metadata import set_fb_meta
@@ -181,7 +187,7 @@ class FlowByActivity(_FlowBy):
                     settings.mappingpath / 'flowmapping' / f'{mapping_subset}.csv'
                 )
                 if local_csv.is_file():
-                    log.info('Loading flow mapping from %s', local_csv)
+                    log.info(f'Loading flow mapping from {local_csv}')
                     mapping_load = pd.read_csv(local_csv)
 
         if mapping_load is None:
@@ -222,10 +228,12 @@ class FlowByActivity(_FlowBy):
                 f'federal elementary flow list'
             )
         if any(mapped_fba.mapped == 'left_only'):
+            unstandardized_units = list(
+                mapped_fba.query('mapped == "left_only"').Unit.unique()
+            )
             log.warning(
-                'Some units not standardized by mapping to federal '
-                'elementary flows list: %s',
-                list(mapped_fba.query('mapped == "left_only"').Unit.unique()),
+                f'Some units not standardized by mapping to federal '
+                f'elementary flows list: {unstandardized_units}'
             )
 
         return mapped_fba.drop(columns='mapped')
@@ -395,9 +403,8 @@ class FlowByActivity(_FlowBy):
             )
         else:
             log.info(
-                '%s source geoscale is %s',
-                fba_at_source_geoscale.full_name,
-                fba_at_source_geoscale.source_geoscale.unique()[0].name.lower(),
+                f'{fba_at_source_geoscale.full_name} source geoscale is '
+                f'{fba_at_source_geoscale.source_geoscale.unique()[0].name.lower()}'
             )
 
         fba_at_target_scale = (
@@ -450,63 +457,151 @@ class FlowByActivity(_FlowBy):
         with many industries/sectors, and each industry/sector may have many
         activities matched to it.
 
-        The set of industries/sectors that activities are mapped to is
-        determined by the industry_spec parameter. Currently, this is only
-        able to be set in terms of NAICS codes, and specifies the desired
-        default level of NAICS aggregation as well as different levels for
-        specific groups of NAICS codes. See documentation for
-        industries.naics_key_from_industry_spec for details on formatting
-        the industry_spec dict.
+        Mapping builds one Activity to target key covering all ``industry_spec``
+        schemas (the industry sectors the method targets — NAICS and/or BEA),
+        then merges once per direction.
 
-        :param industry_spec: dict, formatted as in documentation for
-            industries.naics_key_from_industry_spec. Gives the desired
-            industry/sector aggregation level.
-        :param target_year: int, which NAICS year to use.
+        - Text activities: CW rows map onto matching ``industry_spec`` targets.
+        - Sector-like: expand onto targets in the activity's schema via that
+          schema's hierarchy; convert to the other schema's targets when that
+          schema is also in ``industry_spec`` and the activity is not already
+          covered by the native keep-set.
+
+        :param target_year: int, target schema year (``target_schema_year``).
         :param external_config_path: str, an external path to search for a
             crosswalk.
         """
         from bedrock.transform.flowbyclean import (  # noqa: PLC0415
-            map_parentincompletechild_sectors,
+            define_parentincompletechild_descendants,
+            drop_parentincompletechild_descendants,
         )
 
-        # determine activity schema and use for mapping
-        activity_schema = (
-            self.config['activity_schema']
-            if isinstance(self.config['activity_schema'], str)
-            else self.config.get('activity_schema', {}).get(self.config['year'])
-        )
-
-        if activity_schema is None:
-            log.error(
-                "activity_schema is not defined, check assignment in flowsa/data/source_catalog.yaml"
+        activity_schema = self.config.get('activity_schema')
+        if isinstance(activity_schema, str) or (
+            isinstance(activity_schema, dict)
+            and activity_schema
+            and all(
+                isinstance(k, (int, str)) and str(k).isdigit() for k in activity_schema
+            )
+            and any(
+                isinstance(v, str) and v.endswith('_Code')
+                for v in activity_schema.values()
+            )
+        ):
+            raise ValueError(
+                'Legacy string/year-keyed activity_schema is no longer supported; '
+                'use a dict keyed by schema (naics:/bea:/...) in source_catalog.yaml.'
+            )
+        if isinstance(activity_schema, dict) and (
+            'ProducedBy' in activity_schema or 'ConsumedBy' in activity_schema
+        ):
+            raise ValueError(
+                'Per-direction activity_schema (ProducedBy/ConsumedBy) is not '
+                'supported yet; use one shared activity_schema block per source.'
             )
 
-        # Determine sector year
-        if "NAICS" in activity_schema:
-            log.info('Activities in %s are NAICS codes.', self.full_name)
-            try:
-                source_year = int(activity_schema[6:10])
-            except ValueError:
-                source_year = 2017
-                log.warning(
-                    'No NAICS year given for NAICS activities in %s. '
-                    '2012 used as default.',
-                    self.full_name,
-                )
-            else:
-                log.info(
-                    'NAICS Activities in %s use NAICS year %s.',
-                    self.full_name,
-                    source_year,
-                )
+        def _source_years_from_dict(
+            schema_dict: dict[str, Any],
+        ) -> dict[str, int]:
+            years: dict[str, int] = {}
+            for schema, sch_dict in schema_dict.items():
+                if not isinstance(sch_dict, dict):
+                    continue
+                if 'by_year' in sch_dict:
+                    by_year = sch_dict['by_year']
+                    data_year = self.config.get('year')
+                    years[schema] = int(
+                        by_year.get(data_year, by_year.get(str(data_year), target_year))
+                    )
+                else:
+                    years[schema] = int(sch_dict.get('year', target_year))
+            return years
 
-        # if FBA is not NAICS-like, pull sector year and crosswalk from activity to sector crosswalk
+        def _missing_codes_for_dict(
+            schema_dict: dict[str, Any],
+            activities: pd.Series,
+        ) -> dict[str, list[str]]:
+            """Activity values not found in declared schema code lists."""
+            present = {str(v) for v in activities.dropna().unique() if str(v) != ''}
+            if not present:
+                return {}
+            years = _source_years_from_dict(schema_dict)
+            missing: dict[str, list[str]] = {}
+            for schema, sch_dict in schema_dict.items():
+                if not isinstance(sch_dict, dict):
+                    continue
+                year = int(years.get(schema, target_year))
+                cw = return_schema_crosswalk(schema, year)
+                valid = {
+                    str(v)
+                    for v in cw.to_numpy().ravel()
+                    if pd.notna(v) and str(v) != ''
+                }
+                not_found = sorted(present - valid)
+                if not_found:
+                    missing[schema] = not_found
+            return missing
+
+        # null / None → text activities; mapping CW supplies SectorSourceName
+        sector_like = isinstance(activity_schema, dict) and len(activity_schema) > 0
+        hierarchy = sector_hierarchy_from_config(self.config)
+        industry_key = industry_spec_key(
+            self.config['industry_spec'],
+            int(self.config['target_schema_year']),
+        )
+        industry_key = sectormapping.assign_technological_correlation(industry_key)
+
+        activity_to_source_sector_crosswalk: pd.DataFrame | None = None
+        source_years: dict[str, int] = {}
+        activity_schemas: set[str] = set()
+        # Sector-like single schema: default SectorSourceName when merge left it null
+        default_sec_source_name: str | None = None
+
+        if sector_like:
+            assert isinstance(activity_schema, dict)
+            activity_schemas = {
+                k for k, v in activity_schema.items() if isinstance(v, dict)
+            }
+            log.info(
+                f'Activities in {self.full_name} are sector-like '
+                f'({", ".join(sorted(activity_schemas))}).'
+            )
+            source_years = _source_years_from_dict(activity_schema)
+            if len(activity_schemas) == 1:
+                only = next(iter(activity_schemas))
+                default_sec_source_name = sector_source_name(
+                    only, int(source_years.get(only, target_year))
+                )
+            if hierarchy is None:
+                for sch_dict in activity_schema.values():
+                    if isinstance(sch_dict, dict) and sch_dict.get('hierarchy'):
+                        hierarchy = sch_dict.get('hierarchy')
+                        break
+            missing_by_schema = _missing_codes_for_dict(
+                activity_schema,
+                pd.concat(
+                    [
+                        self['ActivityProducedBy'],
+                        self['ActivityConsumedBy'],
+                    ],
+                    ignore_index=True,
+                ),
+            )
+            if missing_by_schema:
+                detail = '; '.join(
+                    f'{schema.upper()}: {", ".join(codes)}'
+                    for schema, codes in sorted(missing_by_schema.items())
+                )
+                log.warning(
+                    f'{self.full_name}: sector-like activity values not found '
+                    f'in declared schema code lists - {detail}'
+                )
         else:
             log.info(
-                'Getting crosswalk between activities in %s and NAICS codes.',
-                self.full_name,
+                f'Getting crosswalk between activities in {self.full_name} '
+                f'and sectors.'
             )
-            activity_to_source_naics_crosswalk = (
+            activity_to_source_sector_crosswalk = (
                 sectormapping.get_activitytosector_mapping(
                     self.config.get('activity_to_sector_mapping') or self.source_name,
                     fbsconfigpath=external_config_path,
@@ -515,186 +610,314 @@ class FlowByActivity(_FlowBy):
                 ]
             )
 
-            source_years = set(
-                activity_to_source_naics_crosswalk.SectorSourceName.str.removeprefix(
-                    'NAICS_'
+        def _key_for_schema(schema: str) -> pd.DataFrame:
+            return industry_key[
+                industry_key['SectorSourceName'].map(
+                    lambda s: parse_sector_source_name(s)[0]
                 )
-                .str.removesuffix('_Code')
+                == schema
+            ].copy()
+
+        target_schemas = sorted(
+            {
+                parse_sector_source_name(sec_source_name)[0]
+                for sec_source_name in industry_key['SectorSourceName']
                 .dropna()
-                .astype('int')
-            )
-            source_year = (
-                2017
-                if 2017 in source_years
-                else max(source_years) if source_years else 2017
-            )
-            if not source_years:
-                log.warning(
-                    'No NAICS year/sector source name provided in crosswalk for %s. %s being used as default.',
-                    self.full_name,
-                    source_year,
+                .unique()
+            }
+        )
+
+        def _mapping_jobs_for_dict(
+            schema_dict: dict[str, Any] | None,
+            *,
+            activity_to_source_sector_crosswalk: pd.DataFrame | None,
+        ) -> list[tuple[pd.DataFrame, pd.DataFrame | None, str]]:
+            """Build (primary, secondary, source_year) jobs for one schema dict."""
+            jobs: list[tuple[pd.DataFrame, pd.DataFrame | None, str]] = []
+            if schema_dict is not None:
+                schemas = {k for k, v in schema_dict.items() if isinstance(v, dict)}
+                years = _source_years_from_dict(schema_dict)
+                keep_by_schema: dict[str, set[str]] = {}
+                # Keep: native schema identity parent→child
+                for schema in schemas:
+                    if schema not in target_schemas:
+                        continue
+                    schema_key = _key_for_schema(schema)
+                    if schema_key.empty:
+                        continue
+                    jobs.append((schema_key, None, str(years.get(schema, target_year))))
+                    keep_by_schema[schema] = set(
+                        schema_key['source_sector'].dropna().astype(str).tolist()
+                    )
+
+                # Convert leftovers to default_schema only. Extra industry_spec
+                # schemas are keep-lists (identity), not convert destinations.
+                spec = self.config.get('industry_spec') or {}
+                default_schema = spec.get('default_schema')
+                if default_schema:
+                    other = {default_schema} - schemas
+                else:
+                    other = set(target_schemas) - schemas
+                method_year = int(self.config.get('target_schema_year', target_year))
+                for t_schema in sorted(other):
+                    target_key = _key_for_schema(t_schema)
+                    if target_key.empty:
+                        continue
+                    t_block = spec.get(t_schema)
+                    t_year = (
+                        _schema_block_year(t_block, method_year)
+                        if isinstance(t_block, dict)
+                        else method_year
+                    )
+                    for s_schema in sorted(schemas):
+                        s_year = int(years.get(s_schema, target_year))
+                        conversion_cw = load_schema_conversion_crosswalk(
+                            s_schema,
+                            t_schema,
+                            s_year,
+                            t_year,
+                            fbsconfigpath=external_config_path,
+                        )
+                        if conversion_cw.empty:
+                            continue
+                        keep = keep_by_schema.get(s_schema, set())
+                        if keep:
+                            conversion_cw = conversion_cw[
+                                ~conversion_cw['Activity'].astype(str).isin(keep)
+                            ]
+                        if not conversion_cw.empty:
+                            log.info(
+                                f'Mapping {self.full_name} {s_schema} '
+                                f'activities to {t_schema} (convert).'
+                            )
+                            jobs.append((conversion_cw, target_key, str(s_year)))
+                return jobs
+
+            # Text activities: CW to industry only
+            assert activity_to_source_sector_crosswalk is not None
+            if not activity_to_source_sector_crosswalk.empty and not industry_key.empty:
+                jobs.append(
+                    (
+                        activity_to_source_sector_crosswalk,
+                        industry_key,
+                        str(target_year),
+                    )
+                )
+            return jobs
+
+        fba_w_sectors = self.copy()
+        for direction in ['ProducedBy', 'ConsumedBy']:
+            if fba_w_sectors[f'Activity{direction}'].isna().all():
+                fba_w_sectors = fba_w_sectors.assign(
+                    **{
+                        f'Sector{direction}': np.nan,
+                        f'{direction}SectorType': np.nan,
+                    }
+                )
+            else:
+                if hierarchy == 'parent-incompleteChild':
+                    fba_w_sectors = define_parentincompletechild_descendants(
+                        fba_w_sectors, activity_col=f'Activity{direction}'
+                    )
+
+                if sector_like:
+                    assert isinstance(activity_schema, dict)
+                    mapping_jobs = _mapping_jobs_for_dict(
+                        activity_schema, activity_to_source_sector_crosswalk=None
+                    )
+                else:
+                    mapping_jobs = _mapping_jobs_for_dict(
+                        None,
+                        activity_to_source_sector_crosswalk=(
+                            activity_to_source_sector_crosswalk
+                        ),
+                    )
+
+                if not mapping_jobs:
+                    raise ValueError(
+                        f'No sector-mapping jobs for {self.full_name} '
+                        f'({direction}): activity_schema='
+                        f'{sorted(activity_schema) if sector_like and activity_schema else None}, '
+                        f'industry_spec schemas={target_schemas}. Text activities '
+                        f'need CW rows tagged with a target schema; sector-like '
+                        f'sources need a matching industry_spec block (or '
+                        f'a conversion crosswalk to a target schema).'
+                    )
+
+                mapping_parts: list[pd.DataFrame] = []
+                for primary_key, secondary_key, _source_year in mapping_jobs:
+                    mapping_parts.append(
+                        subset_sector_key(
+                            fba_w_sectors,
+                            f'Activity{direction}',
+                            primary_sector_key=primary_key,
+                            secondary_sector_key=secondary_key,
+                        )
+                    )
+                activity_to_target_sector_crosswalk = (
+                    pd.concat(mapping_parts, ignore_index=True).drop_duplicates()
+                    if mapping_parts
+                    else pd.DataFrame()
                 )
 
-            activity_to_source_naics_crosswalk = (
-                activity_to_source_naics_crosswalk.query(
-                    f'SectorSourceName == "NAICS_{source_year}_Code"'
-                ).reset_index(drop=True)
-            )
-
-        # load the naics key for the source year - will convert to target year after mapping
-        naics_key = industry_spec_key(
-            self.config['industry_spec'],
-            cast(Literal[2002, 2007, 2012, 2017], source_year),
-        )
-        # assign technological correlation scores
-        naics_key = sectormapping.assign_technological_correlation(naics_key)
-
-        # map the FBA activity columns to sectors
-        fba_w_naics = self.copy()
-        for direction in ['ProducedBy', 'ConsumedBy']:
-            # skip if entire column is nan
-            if fba_w_naics[f'Activity{direction}'].isna().all():
-                fba_w_naics = fba_w_naics.assign(
-                    **{f"Sector{direction}": np.nan}
-                ).assign(**{f"{direction}SectorType": np.nan})
-            else:
-                if "NAICS" in activity_schema:
-                    primary_sector_key = naics_key
-                    secondary_sector_key = None
-                else:
-                    primary_sector_key = activity_to_source_naics_crosswalk
-                    secondary_sector_key = naics_key
-
-                if self.config.get('sector_hierarchy') == 'parent-incompleteChild':
-                    fba_w_naics = map_parentincompletechild_sectors(
-                        fba_w_naics,
-                        activity_col=f'Activity{direction}',
-                        sector_col=f'Sector{direction}',
-                        sector_type_col=f'{direction}SectorType',
-                        source_year=source_year,
-                        primary_sector_key=primary_sector_key,
-                        secondary_sector_key=secondary_sector_key,
-                        naics_key=naics_key,
+                fba_w_sectors = (
+                    fba_w_sectors.merge(
+                        activity_to_target_sector_crosswalk,
+                        how='left',
+                        on=[
+                            'Class',
+                            'Flowable',
+                            'Context',
+                            'ActivityProducedBy',
+                            'ActivityConsumedBy',
+                        ],
                     )
-                else:
-                    activity_to_target_naics_crosswalk = subset_sector_key(
-                        fba_w_naics,
-                        f'Activity{direction}',
-                        str(source_year),
-                        primary_sector_key=primary_sector_key,
-                        secondary_sector_key=secondary_sector_key,
+                    .rename(
+                        columns={
+                            'target_sector': f'Sector{direction}',
+                            'Sector': f'Sector{direction}',
+                            'SectorType': f'{direction}SectorType',
+                        }
                     )
-
-                    fba_w_naics = (
-                        fba_w_naics.merge(
-                            activity_to_target_naics_crosswalk,
-                            how='left',
-                            on=[
-                                'Class',
-                                'Flowable',
-                                'Context',
-                                'ActivityProducedBy',
-                                'ActivityConsumedBy',
-                            ],
-                        )
-                        .rename(
-                            columns={
-                                'target_naics': f'Sector{direction}',  # when activities are sector-like
-                                'Sector': f'Sector{direction}',  # when activities are text based
-                                'SectorType': f'{direction}SectorType',
-                            }
-                        )
-                        .drop(
-                            columns=[
-                                'ActivitySourceName',
-                                'SectorSourceName',
-                                'source_naics',  # when activities are sector-like
-                                'Activity',  # when activities are text based
-                            ],
-                            errors='ignore',
-                        )
+                    .drop(
+                        columns=[
+                            'ActivitySourceName',
+                            'source_sector',
+                            'Activity',
+                        ],
+                        errors='ignore',
                     )
-                    # drop original DQ scores in favor of modified scores after mapping
-                    dq_cols = ['DataReliability', 'DataCollection']
-                    for c in dq_cols:
-                        fba_w_naics.loc[fba_w_naics[f'{c}_y'].notnull(), f'{c}_x'] = (
-                            fba_w_naics[f'{c}_y']
+                )
+                # Second direction merge may suffix SectorSourceName; keep one column.
+                if (
+                    'SectorSourceName_x' in fba_w_sectors.columns
+                    or 'SectorSourceName_y' in fba_w_sectors.columns
+                ):
+                    sec_source_name_x = fba_w_sectors.get(
+                        'SectorSourceName_x', fba_w_sectors.get('SectorSourceName')
+                    )
+                    sec_source_name_y = fba_w_sectors.get('SectorSourceName_y')
+                    if sec_source_name_x is not None and sec_source_name_y is not None:
+                        fba_w_sectors['SectorSourceName'] = sec_source_name_x.fillna(
+                            sec_source_name_y
                         )
-                        fba_w_naics = fba_w_naics.drop(columns=[f'{c}_y']).rename(
+                    elif sec_source_name_x is not None:
+                        fba_w_sectors['SectorSourceName'] = sec_source_name_x
+                    elif sec_source_name_y is not None:
+                        fba_w_sectors['SectorSourceName'] = sec_source_name_y
+                    fba_w_sectors = fba_w_sectors.drop(
+                        columns=['SectorSourceName_x', 'SectorSourceName_y'],
+                        errors='ignore',
+                    )
+                # SectorSourceName is authoritative for this FBA
+                dq_cols = ['DataReliability', 'DataCollection']
+                for c in dq_cols:
+                    if f'{c}_y' in fba_w_sectors.columns:
+                        fba_w_sectors.loc[
+                            fba_w_sectors[f'{c}_y'].notnull(), f'{c}_x'
+                        ] = fba_w_sectors[f'{c}_y']
+                        fba_w_sectors = fba_w_sectors.drop(columns=[f'{c}_y']).rename(
                             columns={f'{c}_x': c}
                         )
-        # assign data quality scores based on highest value, if there are data for both SCB and SPB
+                if hierarchy == 'parent-incompleteChild':
+                    fba_w_sectors = drop_parentincompletechild_descendants(
+                        fba_w_sectors, sector_col=f'Sector{direction}'
+                    )
+                    # Keep one group_total per group_id after fan-out / drop so
+                    # proportional BEA attribution conserves mass (MECS #847).
+                    if (
+                        'group_id' in fba_w_sectors.columns
+                        and 'group_total' in fba_w_sectors.columns
+                    ):
+                        fba_w_sectors['group_total'] = fba_w_sectors.groupby(
+                            'group_id'
+                        )['group_total'].transform('first')
+
         for dq in ['DataReliability', 'DataCollection', 'TechnologicalCorrelation']:
-            if f'{dq}_x' in fba_w_naics.columns:
-                fba_w_naics = fba_w_naics.assign(
+            if f'{dq}_x' in fba_w_sectors.columns:
+                fba_w_sectors = fba_w_sectors.assign(
                     **{
-                        f'{dq}': fba_w_naics[[f'{dq}_x', f'{dq}_y']].apply(
+                        f'{dq}': fba_w_sectors[[f'{dq}_x', f'{dq}_y']].apply(
                             np.nanmax, axis=1
                         )
                     }
                 )
 
-        # convert NAICS year of data if necessary. Converting after mapping because we do not need to convert all
-        # rows of data as not all rows of data are preserved. And in general if target sectors are NAICS3,
-        # those data do not require conversion. For text-based activities, we need to convert to
-        # sectors after mapping so we can apply the allocation ratio to the flow amount
-        if source_year != self.config['target_naics_year']:
-            # if FBA data are sector-like, convert the Activity column data to target sector year
-            fba_w_naics = cast(
+        # NAICS vintage conversion only when sector-like NAICS years differ
+        naics_year = source_years.get('naics')
+        if (
+            sector_like
+            and naics_year is not None
+            and naics_year != self.config['target_schema_year']
+        ):
+            fba_w_sectors = cast(
                 FlowByActivity,
                 convert_naics_year(
-                    fba_w_naics,
-                    f"NAICS_{fba_w_naics.config['target_naics_year']}_Code",
-                    f"NAICS_{source_year}_Code",
+                    fba_w_sectors,
+                    sector_source_name('naics', int(self.config['target_schema_year'])),
+                    sector_source_name('naics', int(naics_year)),
                     self.full_name,
                 ),
             )
 
-        # if activities are text-based, print out any data that are dropped
-        if "NAICS" not in activity_schema:
-            not_mapped = fba_w_naics[
-                fba_w_naics[['SectorProducedBy', 'SectorConsumedBy']].isna().all(1)
+        if not sector_like:
+            not_mapped = fba_w_sectors[
+                fba_w_sectors[['SectorProducedBy', 'SectorConsumedBy']].isna().all(1)
             ]
-
-            if (len(not_mapped) > 0) & ("NAICS" not in activity_schema):
+            if len(not_mapped) > 0:
                 not_mapped = not_mapped[
                     ['ActivityProducedBy', 'ActivityConsumedBy']
                 ].drop_duplicates()
+                unmapped_activities = sorted(
+                    set(not_mapped.ActivityProducedBy.dropna()).union(
+                        set(not_mapped.ActivityConsumedBy.dropna())
+                    )
+                )
                 log.warning(
-                    'Activities in %s are not mapped to sectors: %s',
-                    not_mapped.full_name,
-                    sorted(
-                        set(not_mapped.ActivityProducedBy.dropna()).union(
-                            set(not_mapped.ActivityConsumedBy.dropna())
-                        )
-                    ),
+                    f'Activities in {not_mapped.full_name} are not mapped to '
+                    f'sectors: {unmapped_activities}'
                 )
 
-        # drop all NA data and clean up df
-        fba_w_naics = fba_w_naics[
+        fba_w_sectors = fba_w_sectors[
             ~(
-                fba_w_naics['SectorProducedBy'].isna()
-                & fba_w_naics['SectorConsumedBy'].isna()
+                fba_w_sectors['SectorProducedBy'].isna()
+                & fba_w_sectors['SectorConsumedBy'].isna()
             )
         ]
 
-        fba_w_naics2 = (
-            fba_w_naics.assign(SectorSourceName=f'NAICS_{target_year}_Code')
-            .drop(
-                columns=[
-                    'TechnologicalCorrelation_x',
-                    'TechnologicalCorrelation_y',
-                    'DataReliability_x',
-                    'DataReliability_y',
-                    'DataCollection_x',
-                    'DataCollection_y',
-                ],
-                errors='ignore',
-            )
-            .reset_index(drop=True)
-        )
+        # Ensure SectorSourceName exists; sector-like fills from activity_schema when null
+        if 'SectorSourceName' not in fba_w_sectors.columns:
+            fba_w_sectors = fba_w_sectors.assign(SectorSourceName=np.nan)
+        if default_sec_source_name is not None:
+            fba_w_sectors['SectorSourceName'] = fba_w_sectors[
+                'SectorSourceName'
+            ].fillna(default_sec_source_name)
 
-        return fba_w_naics2
+        sector_bearing = (
+            fba_w_sectors['SectorProducedBy'].notna()
+            | fba_w_sectors['SectorConsumedBy'].notna()
+        )
+        missing_sec_source_name = fba_w_sectors['SectorSourceName'].isna()
+        bad_sec_source_name = sector_bearing & missing_sec_source_name
+        if bad_sec_source_name.any():
+            n_bad = int(bad_sec_source_name.sum())
+            log.warning(
+                f'{self.full_name}: dropping {n_bad} sector-bearing rows '
+                f'with null SectorSourceName'
+            )
+            fba_w_sectors = fba_w_sectors.loc[~bad_sec_source_name]
+
+        return fba_w_sectors.drop(
+            columns=[
+                'TechnologicalCorrelation_x',
+                'TechnologicalCorrelation_y',
+                'DataReliability_x',
+                'DataReliability_y',
+                'DataCollection_x',
+                'DataCollection_y',
+            ],
+            errors='ignore',
+        ).reset_index(drop=True)
 
     def prepare_fbs(
         self: FlowByActivity,
@@ -709,7 +932,10 @@ class FlowByActivity(_FlowBy):
 
         # drop the activity columns in the FBS unless method yaml specifies
         # to keep them
-        drop_cols = ['ActivityProducedBy', 'ActivityConsumedBy']
+        drop_cols = [
+            'ActivityProducedBy',
+            'ActivityConsumedBy',
+        ]
         if retain_activity_columns:
             drop_cols = []
 
@@ -779,7 +1005,7 @@ class FlowByActivity(_FlowBy):
         if 'activity_sets' not in self.config:
             return [self]
 
-        log.info('Splitting %s into activity sets', self.full_name)
+        log.info(f'Splitting {self.full_name} into activity sets')
         activities = self.config['activity_sets']
         parent_config = {
             k: v
@@ -792,7 +1018,7 @@ class FlowByActivity(_FlowBy):
         child_fba_list: list[FlowByActivity] = []
         assigned_rows: set[Any] = set()
         for activity_set, activity_config in activities.items():
-            log.info('Creating FlowByActivity for %s', activity_set)
+            log.info(f'Creating FlowByActivity for {activity_set}')
 
             child_fba = parent_fba.add_full_name(
                 f'{parent_fba.full_name}{NAME_SEP_CHAR}{activity_set}'
@@ -806,13 +1032,13 @@ class FlowByActivity(_FlowBy):
             child_fba = child_fba.assign(SourceName=child_fba.full_name)
 
             if set(child_fba.row) & assigned_rows:
+                double_counted = child_fba.query(
+                    f'row in {list(set(child_fba.row) & assigned_rows)}'
+                )
                 log.critical(
-                    'Some rows from %s assigned to multiple activity '
-                    'sets. This will lead to double-counting:\n%s',
-                    parent_fba.full_name,
-                    child_fba.query(
-                        f'row in {list(set(child_fba.row) & assigned_rows)}'
-                    ),
+                    f'Some rows from {parent_fba.full_name} assigned to '
+                    f'multiple activity sets. This will lead to '
+                    f'double-counting:\n{double_counted}'
                 )
                 # raise ValueError('Some rows in multiple activity sets')
 
@@ -822,14 +1048,13 @@ class FlowByActivity(_FlowBy):
             else:
                 log.error(
                     f'Activity set {child_fba.full_name} is empty. '
-                    'Check activity set definition!'
+                    f'Check activity set definition!'
                 )
 
         if set(parent_fba.row) - assigned_rows:
             log.warning(
-                'Some rows from %s not assigned to an activity '
-                'set. Is this intentional?',
-                parent_fba.full_name,
+                f'Some rows from {parent_fba.full_name} not assigned to an '
+                f'activity set. Is this intentional?'
             )
             unassigned = parent_fba.query('row not in @assigned_rows')  # noqa: F841
 

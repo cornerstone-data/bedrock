@@ -1,0 +1,4 @@
+naics_in_census_file,bea_2017_commodity,reason
+312225,311225,"Sector digit is wrong in the Census file. Its one NAPCS product is 'Manufacturing of partially hydrogenated soybean cooking or salad oil' - fats and oils refining, NAICS 311225, not tobacco 3122xx. Carries $0 in 2017, so this is for readability rather than value."
+334119,334118,"2007 NAICS 'Other Computer Peripheral Equipment Manufacturing', absent from every vintage column. Products are digital cameras, their parts, and point-of-sale and funds-transfer terminals - BEA 334118 computer terminals and other computer peripheral equipment. 5.3bn."
+336299,336390,"2007 NAICS 'All Other Motor Vehicle Parts Manufacturing', absent from every vintage column. Its single product is 'Manufacturing of all other motor vehicle parts, new'. 3.9bn."

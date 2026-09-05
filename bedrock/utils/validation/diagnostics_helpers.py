@@ -719,6 +719,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     # Late-binding imports - these depend on global config
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
+        electricity_reaggregation_enabled,
     )
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
@@ -726,7 +727,9 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     )
     from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
         derive_cornerstone_Aq_mixed_units,
+        derive_cornerstone_Aq_reaggregated,
         derive_cornerstone_B_mixed_units,
+        derive_cornerstone_B_reaggregated,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
@@ -745,6 +748,9 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     if electricity_mixed_units_enabled():
         B_new = derive_cornerstone_B_mixed_units()
         Aq_set = derive_cornerstone_Aq_mixed_units()
+    elif electricity_reaggregation_enabled():
+        B_new = derive_cornerstone_B_reaggregated()
+        Aq_set = derive_cornerstone_Aq_reaggregated()
     else:
         B_new = derive_B_usa_non_finetuned()
         Aq_set = derive_Aq_usa()
@@ -896,6 +902,11 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     year-scaled at the ~70 summary level, then inflated.  This function
     reconstructs the legacy effective x so the two can be compared side by side.
 
+    Under ``usa_detail_io_source == 'nowcast'`` the denominator is the nowcast
+    Make row sum, so the comparison is instead Make x against the BEA
+    gross-output series (before and after redefinition) at
+    ``usa_base_io_data_year`` - the per-industry gap between the two.
+
     Returns a DataFrame indexed by BEA detail industry code, sorted by x_ratio.
     """
     from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
@@ -915,6 +926,8 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     )
 
     cfg = get_usa_config()
+    if cfg.usa_detail_io_source == 'nowcast':
+        return _nowcast_make_x_vs_bea_go_comparison(cfg)
 
     x_new = derive_gross_output_after_redefinition(cfg.usa_ghg_data_year)
 
@@ -964,3 +977,48 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     comp.insert(0, 'sector_name', comp.index.map(sector_desc))
 
     return comp
+
+
+def _nowcast_make_x_vs_bea_go_comparison(cfg: USAConfig) -> pd.DataFrame:
+    """Nowcast Make row-sum x against BEA gross output, by BEA detail industry.
+
+    The Step 7 after-redefinition Make scales each destination's gain by the
+    destination industry's output, where the gross-output vector method scales
+    it by the source's; the two agree at 2017 and diverge elsewhere. The ratio
+    column is that divergence, one number per industry.
+    """
+    from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
+        bea_x,
+    )
+    from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
+        derive_gross_output_after_redefinition,
+        derive_gross_output_before_redefinition,
+    )
+    from bedrock.utils.taxonomy.bea.matrix_mappings import (  # noqa: PLC0415
+        USA_GROSS_INDUSTRY_OUTPUT_YEARS,
+    )
+
+    year = ta.cast(USA_GROSS_INDUSTRY_OUTPUT_YEARS, cfg.usa_base_io_data_year)
+    x_make = bea_x().astype(float)
+    x_make.index = x_make.index.astype(str)
+    go_after = derive_gross_output_after_redefinition(year).astype(float)
+    go_before = derive_gross_output_before_redefinition(year).astype(float)
+
+    make_col = f'x_make_after_redef_{year}'
+    go_after_col = f'x_bea_go_after_redef_{year}'
+    common = x_make.index.intersection(go_after.index).sort_values()
+    comp = pd.DataFrame(
+        {
+            make_col: x_make.reindex(common),
+            go_after_col: go_after.reindex(common),
+            f'x_bea_go_before_redef_{year}': go_before.reindex(common),
+        }
+    )
+    comp['x_make_over_go_after_redef'] = (comp[make_col] / comp[go_after_col]).replace(
+        [np.inf, -np.inf], np.nan
+    )
+
+    sector_desc = get_aligned_sector_desc()
+    comp.insert(0, 'sector_name', comp.index.map(sector_desc))
+
+    return comp.sort_values('x_make_over_go_after_redef')

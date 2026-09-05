@@ -5,18 +5,20 @@
 !include:GHG_national_Cornerstone_2023.yaml
   industry_spec:
     !include:Cornerstone_2025_target.yaml:industry_spec
-      NAICS_6:
-        !include:Cornerstone_2025_target.yaml:industry_spec:NAICS_6
-        - '221111'
-        - '221112'
-        - '221113'
-        - '221114'
-        - '221115'
-        - '221116'
-        - '221117'
-        - '221118'
-        - '221121'
-        - '221122'
+      naics:
+        !include:Cornerstone_2025_target.yaml:industry_spec:naics
+          NAICS_6:
+            !include:Cornerstone_2025_target.yaml:industry_spec:naics:NAICS_6
+            - '221111'
+            - '221112'
+            - '221113'
+            - '221114'
+            - '221115'
+            - '221116'
+            - '221117'
+            - '221118'
+            - '221121'
+            - '221122'
   source_names: !include:GHG_national_Cornerstone_2023.yaml:source_names
     UMD_GHGIA_T_2_S1:
       !include:GHG_national_Cornerstone_2023.yaml:source_names:UMD_GHGIA_T_2_S1
@@ -38,7 +40,10 @@
 
     EPA_eGRID_electric:
       data_format: FBS_outside_flowsa
-      activity_schema: NAICS_2017_Code
+      activity_schema:
+        naics:
+          year: 2017
+          hierarchy: flat
       activity_to_sector_mapping: EPA_eGRID
       FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
       inventory_dict:
