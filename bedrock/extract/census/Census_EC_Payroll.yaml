@@ -1,0 +1,78 @@
+author: US Census Bureau
+source_name: Economic Census, Annual Payroll
+source_url: https://www.census.gov/programs-surveys/economic-census.html
+bib_id: Census_EC_Payroll
+
+# **The payroll series BEA names as its own QCEW fallback (#731).**
+#
+# BEA's 2017 benchmark source-and-method notes state: "For industries not
+# covered by the QCEW, payroll data from the 2017 Economic Census were used;
+# data were adjusted for misreporting and I-O industry definitions." This is
+# that series.
+#
+# Three years, and each earns its place. **2017** is the benchmark the Use table
+# is built on. **2022** is the other census, and the two bracket the NAICS 2022
+# revision that broke the QCEW concordance bridge for retail (#857). **2012** is
+# what makes the 2012 -> 2017 holdout in
+# `analysis/nowcasting/compensation_movement_holdout.py` able to grade an
+# EC-based movement at all - the Economic Census runs on the same five-year
+# cycle as that span.
+#
+# ⚠️ **The Economic Census universe excludes precisely what a QCEW fallback
+# would be wanted for.** Measured from this table: there is **no sector 92**, so
+# no government; **no NAICS 482**, so no rail transportation; **no 491**, so no
+# postal service; and agriculture appears only from 2022. Those are the
+# industries `compensation_movement.COVERAGE_FLOOR` sends to their group's
+# movement, so this source does not reach them.
+# `analysis/nowcasting/ec_payroll_fallback.py` measures that against every BEA
+# detail industry and records the verdict.
+#
+# ⚠️ **Construction is on the NAICS trade axis, not by type of structure.** BEA
+# splits construction detail by what is built - single-family, healthcare,
+# manufacturing structures - and NAICS by which trade builds it. 23 of the 31
+# published construction codes sit under more than one BEA detail industry, the
+# specialty trades under eleven each. That is the same ambiguity that carved
+# construction out of the QCEW movement series, and this table does not resolve
+# it. The type-of-construction axis exists in the Economic Census, but in a
+# separate subject series measuring the value of work rather than payroll.
+#
+# ⚠️ **Every NAICS level is published**, 2- through 6-digit, and each parent
+# covers all of its children. Filter to `^\d{6}$` before summing or the table
+# multiplies.
+#
+# ⚠️ **Amounts are Thousand USD**, as everywhere in the Census API.
+#
+# ⚠️ **No `source_catalog.yaml` entry**, on the same reasoning as
+# `Census_EC_Expenses`: nothing attributes this to sectors yet, it is read
+# directly by the analysis module above. Write a real entry when the first FBS
+# consumes it.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: __year__/ecnbasic?
+  url_params:
+    get: __variables__
+    # 2022 returns HTTP 400 without an explicit geography; all three vintages
+    # are pulled at the national level, so set it for every one.
+    for: "us:*"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_EC census_EC_cells_URL_helper
+call_response_fxn: !script_function:Census_EC census_EC_cells_call
+parse_response_fxn: !script_function:Census_EC census_EC_Payroll_parse
+
+years:
+- 2012
+- 2017
+- 2022
+
+# `PAYANN` is the series; the rest make it checkable. A payroll with no head
+# count behind it cannot be sanity-checked, and coverage is only interpretable
+# against the industry's own receipts.
+variables:
+- PAYANN
+- EMP
+- ESTAB
+- RCPTOT

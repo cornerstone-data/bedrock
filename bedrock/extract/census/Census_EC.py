@@ -484,6 +484,26 @@ EC_EXPENSE_CONTROLS = ('CSTMTOT', 'CSTMPRT', 'CSTFU', 'PCHTT', 'RCPTOT', 'VALADD
 EC_NON_COMMODITY = ('PCHTAX',)
 
 
+#: ``ecnbasic`` payroll, the variable BEA names as its own fallback where QCEW
+#: does not reach (#731).  ``EMP`` and ``ESTAB`` come with it because a payroll
+#: figure with no head count behind it cannot be sanity-checked, and ``RCPTOT``
+#: because coverage is only interpretable against the industry's own scale.
+#:
+#: ⚠️ **The Economic Census universe is not the whole economy**, and the gaps
+#: are exactly where a QCEW fallback would be wanted: there is **no sector 92**
+#: (government), **no NAICS 482** (rail transportation) and **no 491** (postal),
+#: and agriculture appears only from 2022.  See
+#: :mod:`bedrock.analysis.nowcasting.ec_payroll_fallback`, which measures this
+#: against every BEA detail industry.
+EC_PAYROLL_FLOWS = {
+    'PAYANN': 'Annual payroll',
+}
+
+#: Beside the payroll: the head count and establishment count that make it
+#: checkable, and receipts as the scale to read coverage against.
+EC_PAYROLL_CONTROLS = ('EMP', 'ESTAB', 'RCPTOT')
+
+
 #: ``ecnbasic`` inventory cells: three stages of fabrication plus the total,
 #: at the beginning and the end of each year.  **The stage split is the point.**
 #: ``U50705BU1`` publishes manufacturing inventories by industry and, separately,
@@ -677,6 +697,49 @@ def census_EC_Expenses_parse(*, df_list, year, **_):
         controls=EC_EXPENSE_CONTROLS,
         non_commodity=EC_NON_COMMODITY,
         source_name='Census_EC_Expenses',
+    )
+
+
+def census_EC_Payroll_parse(*, df_list, year, **_):
+    """Parse Economic Census annual payroll (``ecnbasic``) into FBA form.
+
+    **The source BEA names for the industries QCEW does not cover.**  The 2017
+    benchmark source-and-method notes say that "for industries not covered by
+    the QCEW, payroll data from the 2017 Economic Census were used", so this is
+    that series, at 2012, 2017 and 2022 - the two censuses that bracket the
+    NAICS 2022 revision, plus the one that makes the 2012 -> 2017 holdout
+    gradeable.
+
+    ⚠️ **Its universe excludes exactly what a QCEW fallback would be for.**
+    There is no sector 92, so no government; no NAICS 482, so no rail; no 491,
+    so no postal service; and agriculture only from 2022.  Measured against
+    every BEA detail industry in
+    :mod:`bedrock.analysis.nowcasting.ec_payroll_fallback`, which is where the
+    #731 verdict lives.
+
+    ⚠️ **Construction is published on the NAICS trade axis**, not by type of
+    structure.  BEA splits construction by what is built and NAICS by which
+    trade builds it, so 23 of the 31 published construction codes sit under
+    more than one BEA industry - the specialty trades under eleven each.  This
+    is the same ambiguity that carved construction out of the QCEW movement
+    series, and this table does not resolve it.
+
+    ⚠️ **Every NAICS level is published**, 2- through 6-digit, and each parent
+    covers its children.  Filter to ``^\d{6}$`` before summing.
+
+    ⚠️ **Amounts are Thousand USD**, as everywhere in the Census API.
+
+    :param df_list: list of dataframes to concat and format
+    :param year: year
+    :return: df, parsed and partially formatted to flowbyactivity specifications
+    """
+    return _census_EC_cells_parse(
+        df_list=df_list,
+        year=year,
+        flows=EC_PAYROLL_FLOWS,
+        controls=EC_PAYROLL_CONTROLS,
+        non_commodity=(),
+        source_name='Census_EC_Payroll',
     )
 
 
