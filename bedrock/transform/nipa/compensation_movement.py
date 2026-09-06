@@ -66,6 +66,29 @@ group-level coverage ratio rejected as a selector. It is kept because an
 industry observed at one part in a thousand is not being measured, which is an
 argument about the source rather than about the score.
 
+**3b. The remnant can also appear one year at a time**, so the same floor is
+applied to the bridge each year actually uses (:func:`bridged_coverage`) and not
+only to the 2017 cross-section. Correction 2 pairs codes to hold composition
+fixed; what it leaves behind is a different quantity every year, and the 2022
+revision restructured retail so thoroughly that it leaves almost nothing. The
+bridge goes from 999 pairs to 930 at the switch - 899 distinct 2022 codes,
+since a renumbered code can pair to several 2017 ones - and the industries with
+a usable growth ratio fall from 385 to 369. ``4B0000`` all other retail goes
+from **21 paired codes to one** - ``453930`` -> ``459930``,
+manufactured (mobile) home dealers, **0.86%** of the industry's benchmark
+payroll, which grew 79% in the 2021-22 housing boom. Unguarded, that 79% was
+applied to the whole retail residual and the industry's compensation jumped 42%
+in a year against 6.4% growth in BEA's published value added (#857).
+
+⚠️ **Nearly losing coverage is worse than losing it.** ``446000`` and
+``448000`` keep *zero* paired codes across the switch, so their growth is
+``NaN`` and correction 4's rule already gives them their group's movement.
+``4B0000`` kept one, so it did not fall back - it used a ratio built on dust.
+The worst outcome of a bridge that pairs strictly is the industry that *just
+barely* still has an answer, and a guard evaluated only on the benchmark cannot
+see it: ``4B0000``'s 2017 coverage is a healthy 82%, and its 2022 bridge covers
+**0.71%**.
+
 **4. A published zero is a suppression, not an observation.** QCEW reports
 exactly ``0.0`` for both NAICS under ``334610`` (search and navigation
 instruments) in **2021**, with normal payroll on either side - 486 and 922
@@ -365,8 +388,47 @@ def qcew_coverage() -> pd.Series:
 
 
 def unobserved_industries() -> tuple[str, ...]:
-    """Industries QCEW sees less than :data:`COVERAGE_FLOOR` of."""
+    """Industries QCEW sees less than :data:`COVERAGE_FLOOR` of, on 2017."""
     coverage = qcew_coverage()
+    below = coverage[coverage.notna() & (coverage < COVERAGE_FLOOR)]
+    return tuple(sorted(below.index))
+
+
+@functools.lru_cache(maxsize=8)
+def bridged_coverage(year: int) -> pd.Series:
+    """Benchmark compensation ``year``'s **own bridge** still reaches, per industry.
+
+    :func:`qcew_coverage` asks what QCEW saw in 2017. This asks what is left of
+    that after :func:`code_bridge` has paired ``year`` to it - the same
+    benchmark payroll restricted to the codes that still pair - so it measures
+    the denominator of the ratio actually computed rather than of the
+    cross-section it starts from.
+
+    ⚠️ **The two come apart at a NAICS revision, and only this one moves.**
+    ``4B0000`` all other retail is covered 82% on 2017 and every year through
+    2021; at the 2022 revision its bridge collapses to a single pair and this
+    reads **0.71%**. See correction 3b in the module docstring.
+    """
+    bridge = code_bridge(year)
+    benchmark = qcew_national_payroll(BENCHMARK_YEAR)
+    paired = (
+        bridge.drop_duplicates('benchmark_code')
+        .assign(amount=lambda f: f['benchmark_code'].map(benchmark))
+        .groupby('industry')['amount']
+        .sum()
+    )
+    paired = paired.reindex(list(USA_2017_INDUSTRY_CODES)).fillna(0.0)
+    return paired / benchmark_compensation().replace(0.0, np.nan)
+
+
+def unbridged_industries(year: int) -> tuple[str, ...]:
+    """Industries whose ``year`` bridge reaches under :data:`COVERAGE_FLOOR`.
+
+    The same guard as :func:`unobserved_industries`, the same constant, applied
+    to the year being estimated instead of to the benchmark. It is a superset:
+    the bridge can only ever drop benchmark codes, never add them.
+    """
+    coverage = bridged_coverage(year)
     below = coverage[coverage.notna() & (coverage < COVERAGE_FLOOR)]
     return tuple(sorted(below.index))
 
@@ -375,8 +437,8 @@ def compensation_weights(year: int) -> pd.DataFrame:
     """The ``V00100`` weight vector for ``year``, per BEA detail industry.
 
     Columns: ``benchmark``, ``growth`` as QCEW gave it, ``applied`` growth after
-    the carve-out and the coverage guard, ``weight`` the product, and ``reason``
-    naming why an industry did not take QCEW's number.
+    the carve-out and the two coverage guards, ``weight`` the product, and
+    ``reason`` naming why an industry did not take QCEW's number.
 
     ⚠️ **Weights, never levels.** The dollars come from ``T60200D``; a
     ``proportional`` attribution normalises these inside each NIPA group, so
@@ -393,14 +455,24 @@ def compensation_weights(year: int) -> pd.DataFrame:
     unobserved = pd.Series(
         benchmark.index.isin(unobserved_industries()), benchmark.index
     )
+    # ⚠️ The year's own bridge, not just the 2017 cross-section. An industry
+    # whose codes were renumbered away can keep one surviving pair and ride its
+    # growth into the whole industry; see correction 3b.
+    unbridged = pd.Series(
+        benchmark.index.isin(unbridged_industries(year)), benchmark.index
+    )
     missing = growth.isna()
 
+    # Assigned weakest first: an industry with no pairs at all is also under
+    # the bridge floor, and 'no paired qcew payroll' is the more precise thing
+    # to say about it.
     reason = pd.Series('qcew', index=benchmark.index, dtype=object)
+    reason[unbridged] = f'{year} bridge covers below {COVERAGE_FLOOR:.0%}'
     reason[missing] = 'no paired qcew payroll'
     reason[unobserved] = f'coverage below {COVERAGE_FLOOR:.0%}'
     reason[carved] = 'concordance cannot resolve the group'
 
-    applied = growth.where(~(carved | unobserved | missing)).fillna(1.0)
+    applied = growth.where(~(carved | unobserved | unbridged | missing)).fillna(1.0)
     return pd.DataFrame(
         {
             'group': group,
@@ -487,6 +559,44 @@ def coverage_report(years: tuple[int, ...] = (2018, 2020, 2022, 2024)) -> pd.Dat
     return pd.DataFrame(rows).set_index('year')
 
 
+def bridge_guard_report(
+    years: tuple[int, ...] = (2018, 2019, 2020, 2021, 2022, 2023, 2024),
+) -> pd.DataFrame:
+    """What the year-bridge guard freezes each year, beyond the 2017 floor.
+
+    ``newly_guarded`` counts only industries that would otherwise have taken a
+    QCEW number: they have a growth ratio, they are not carved out, and the
+    benchmark cross-section says their coverage is fine.
+    """
+    benchmark = benchmark_compensation()
+    parents = detail_to_summary()
+    already = set(unobserved_industries())
+    rows = []
+    for year in years:
+        growth = qcew_growth(year)
+        newly = [
+            industry
+            for industry in unbridged_industries(year)
+            if industry not in already
+            and parents.get(industry, '') not in UNRESOLVABLE_GROUPS
+            and pd.notna(growth.get(industry))
+        ]
+        rows.append(
+            {
+                'year': year,
+                'naics_vintage': naics_vintage(year),
+                'paired_codes': int(code_bridge(year)['year_code'].nunique()),
+                'newly_guarded': len(newly),
+                'benchmark_comp_$M': float(benchmark.reindex(newly).sum()),
+                'pct_of_compensation': 100
+                * float(benchmark.reindex(newly).sum())
+                / float(benchmark.sum()),
+                'industries': ', '.join(newly),
+            }
+        )
+    return pd.DataFrame(rows).set_index('year')
+
+
 def check() -> int:
     """Reproduce every figure in the module docstring."""
     failures = []
@@ -557,6 +667,44 @@ def check() -> int:
     )
 
     print()
+    print('THE YEAR-BRIDGE GUARD (#857)')
+    # The bridge can only ever drop benchmark codes, so an industry under the
+    # 2017 floor is under every year's floor too. If that ever stops holding,
+    # the two guards have come apart and one of them is measuring the wrong
+    # denominator.
+    for year in range(2018, 2025):
+        expect(
+            f'{year}: the bridge floor contains the benchmark floor',
+            set(unobserved_industries()) <= set(unbridged_industries(year)),
+            f'{len(unbridged_industries(year))} industries under the bridge floor',
+        )
+    expect(
+        '4B0000 is covered on 2017 and through 2021',
+        all(
+            float(bridged_coverage(year).loc['4B0000']) > COVERAGE_FLOOR
+            for year in range(2018, 2022)
+        )
+        and float(qcew_coverage().loc['4B0000']) > COVERAGE_FLOOR,
+        f'2017 {float(qcew_coverage().loc["4B0000"]):.2%}, '
+        f'2021 {float(bridged_coverage(2021).loc["4B0000"]):.2%}',
+    )
+    retail_pairs = code_bridge(2022)
+    retail_pairs = retail_pairs[retail_pairs['industry'] == '4B0000']
+    expect(
+        '4B0000 loses its bridge at the 2022 revision and is guarded',
+        float(bridged_coverage(2022).loc['4B0000']) < COVERAGE_FLOOR
+        and compensation_weights(2022).loc['4B0000', 'reason'] != 'qcew',
+        f'2022 coverage {float(bridged_coverage(2022).loc["4B0000"]):.2%} on '
+        f'{retail_pairs["year_code"].nunique()} paired code(s)',
+    )
+    expect(
+        'the growth it would otherwise have carried is the discarded one',
+        round(float(qcew_growth(2022).loc['4B0000']), 3) == 1.794,
+        f'{float(qcew_growth(2022).loc["4B0000"]):.3f}x from '
+        f'manufactured home dealers alone',
+    )
+
+    print()
     print('NO YEAR MAY DELETE AN INDUSTRY')
     # The 334610 case: QCEW publishes exactly 0.0 for both of its NAICS in 2021
     # and normal payroll either side, so an unguarded ratio zeroes the weight
@@ -594,6 +742,10 @@ def check() -> int:
         )
 
     print()
+    print('WHAT THE YEAR-BRIDGE GUARD FREEZES, PER YEAR')
+    print(bridge_guard_report().to_string(float_format=lambda v: f'{v:,.2f}'))
+
+    print()
     print('COVERAGE BY YEAR')
     print(coverage_report().to_string(float_format=lambda v: f'{v:,.2f}'))
 
@@ -628,6 +780,8 @@ __all__ = [
     'ambiguous_naics',
     'apply_qcew_movement',
     'benchmark_compensation',
+    'bridge_guard_report',
+    'bridged_coverage',
     'code_bridge',
     'compensation_weights',
     'coverage_report',
@@ -637,6 +791,7 @@ __all__ = [
     'qcew_coverage',
     'qcew_growth',
     'qcew_national_payroll',
+    'unbridged_industries',
     'unobserved_industries',
 ]
 
