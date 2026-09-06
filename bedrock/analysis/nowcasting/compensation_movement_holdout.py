@@ -81,11 +81,23 @@ give a verdict.**  #857's failure is a coverage collapse at the **2022** NAICS
 revision - ``4B0000`` all other retail goes from 21 paired codes to one, 0.86%
 of its payroll, and rides manufactured-home-dealer growth of 79% into the whole
 retail residual.  This holdout ends at 2017.  Both floors catch exactly the same
-industries here (``--floored``): the 14 already carved out, plus ``482000``
-rail.  So the honest reading is that the guard is **free on the only span that
-can be graded** and is justified on the same validity grounds as the floor it
-extends - an industry measured at one part in a thousand is not being measured -
-rather than on a score it was never going to move.
+industries here, and that is measured rather than assumed (``--floored``): all
+23 industries either floor touches have **the same** benchmark coverage as
+bridged coverage, so the two candidates are the same candidate on this span.
+
+⚠️ **Every coverage failure in 2012 -> 2017 is a *total* loss, never a
+remnant.**  21 of the 23 sit at exactly 0.0000 and the other two at 0.0095 and
+0.0013 - government, construction, owner-occupied housing, oil and gas,
+telecommunications, general merchandise.  The 2012 revision wiped these
+industries' coverage outright rather than leaving one code standing, so the
+span contains no instance of the failure mode #857 describes.  That is the
+sharpest available statement of why it cannot grade the fix, and ``--check``
+now fails if a remnant case ever appears here.
+
+So the honest reading is that the guard is **free on the only span that can be
+graded** and is justified on the same validity grounds as the floor it extends -
+an industry measured at one part in a thousand is not being measured - rather
+than on a score it was never going to move.
 
 ⚠️ **The group total is given to every candidate.**  This scores the *shape*, not
 the level, because the level comes from the NIPA control and is not what QCEW is
@@ -616,10 +628,16 @@ def check() -> int:
             'the bridge floor is no longer a superset of the benchmark floor, '
             'which it is by construction - the bridge only drops codes'
         )
-    beyond = list(floored[~floored['carved_out_anyway']].index)
-    if beyond != ['482000']:
+    if not floored['benchmark_floor'].equals(floored['bridge_floor']):
         failures.append(
-            f"the coverage guards reach {beyond} beyond the carve-out, not ['482000']"
+            'the two coverage guards no longer select the same industries on '
+            'this span, so the identical scores above need re-deriving'
+        )
+    remnants = floored[floored['bridged_coverage'] > 0.0]
+    if not remnants.empty and float(remnants['bridged_coverage'].max()) > 0.01:
+        failures.append(
+            'this span now contains a surviving-remnant case, so it can '
+            'arbitrate #857 after all - re-read the verdict above'
         )
 
     floors = coverage_floor_sensitivity()
