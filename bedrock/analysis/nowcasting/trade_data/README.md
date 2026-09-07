@@ -18,6 +18,7 @@ Lives at `bedrock/analysis/nowcasting/trade_data/`. Notes and probes stay here u
 | [`family_resplit.py`](family_resplit.py) | Grades candidate import re-split weights against published |
 | [`export_attribution.py`](export_attribution.py) | Grades export 1:m residual attribution arms |
 | [`naics_vintage.py`](naics_vintage.py) | Which NAICS vintage each Census source year is actually on |
+| [`courier_air_freight.py`](courier_air_freight.py) | **Grades the `492000` courier mover on the published summary `487OS` row, 2018-2024** (#701) |
 
 ### Working decision
 
