@@ -71,21 +71,34 @@ the families are mapped **1:1 or m:1**, so no weight was ever applied and Census
 Giving each family a four-digit parent turns the family into one 1:m row, the device #702 used for
 vehicles and #865 for aerospace exports.
 
-| | gross import commodity error | family-level | mix |
+| | gross import commodity error | family-level | mix | import `MATCH` |
+|---|---:|---:|---:|---:|
+| before | 445,999 $M | 66% | 151,978 $M (34%) | 109 |
+| **after** | **309,342 $M** | 95% | 15,203 $M (5%) | **123** |
+
+❌ **A family is only re-split when Census's total for it is within 25% of BEA's.** The construction is
+"anchored on the published mix, *moved by the Census family level*", and that premise fails when the
+family total is contaminated — the re-split then takes one leaf's level error and smears it over
+siblings that were fine.
+
+`3399` forced the guard: **88% of its excess sat on `339910` jewelry at 2.93×**, and an unguarded
+re-split dragged five leaves that were within 9% of published to 1.50×, taking `339930` dolls and toys
+from 161% to **1049%** of its own intermediate use. Family *gross* barely moved (28,880 → 28,912), so an
+aggregate check cannot see it: one bad row becomes six mediocre ones.
+
+| band on \|level − 1\| | families | gross saved | mass pushed *away* from published |
 |---|---:|---:|---:|
-| before | 445,999 $M | 66% | 151,978 $M (34%) |
-| after | **294,021 $M** | **100%** | **0** |
+| 0.20 | 48 | 107,684 $M | 11,737 $M |
+| **0.25 (shipped)** | **52** | **136,228 $M** | **15,148 $M** |
+| 0.35 | 58 | 149,818 $M | 24,228 $M |
+| no guard | 65 | 150,726 $M | **76,499 $M** |
 
-Every remaining dollar is now a family total, which is #670's, and no re-split can reach any of it.
-Scorecard: import `MATCH` 109 → **115**, `EXTRA` 2 → **0** (`339116` dental laboratories and `33211A`
-forging both carry zero published `MCIF`, so the re-split gives them zero weight), Pearson excluding
-specials 0.976 → **0.989**.
+0.25 keeps 90% of the gain and removes 80% of the damage. It also scores better: unguarded, import
+`MATCH` reaches only 115 against the guard's **123**, because a bad family's good leaves all get pushed
+to one wrong ratio.
 
-⚠️ **Individual rows can look worse, and that is the construction working.** A family whose *level* is
-wrong now spreads that error across its leaves in proportion to published shares instead of hiding part
-of it in an offsetting mix error. `339930` dolls and toys goes from 161% to 1049% exposure inside family
-`3399`, whose level is 1.50 — the row did not get worse, the family's level error stopped being
-disguised.
+The 13 families the guard excludes are **#670's by definition** — their level is wrong, and re-splitting
+inside them would disguise one level error as six mix errors.
 
 ### → #670 · import level gaps
 

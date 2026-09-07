@@ -76,6 +76,26 @@ def test_no_parent_ever_leaves_its_own_family() -> None:
     assert outside.empty, outside.to_string()
 
 
+def test_a_family_whose_level_is_wrong_is_left_alone() -> None:
+    """⚠️ The construction moves mass *by the Census family level*.
+
+    When that level is wrong the premise fails, and re-splitting smears one
+    leaf's level error over siblings that were fine. ``3399`` is the case that
+    forced the guard: 88% of its excess sat on ``339910`` at 2.93x published,
+    and the unguarded re-split dragged five leaves from within 9% of published
+    to 1.50x. ``3259`` is the extreme - ``325910`` at 55x.
+    """
+    parents = set(census_family_parents().values())
+    for family in ('3399', '3259', '3344', '3332', '3353', '3359', '3364'):
+        assert family not in parents, family
+
+
+def test_scrap_and_used_goods_are_not_a_family() -> None:
+    """``S00401`` / ``S00402`` share a prefix, not a product concept (#703, #768)."""
+    parents = census_family_parents()
+    assert not any(f.startswith('S00') for f in parents.values())
+
+
 def test_single_leaf_families_get_no_parent() -> None:
     """`3346` folds three Census codes onto one commodity - #670's level problem.
 
@@ -100,15 +120,17 @@ def test_mass_is_preserved_and_a_parentless_family_is_untouched() -> None:
     assert '334613' in set(out['ActivityProducedBy'])
 
 
-def test_the_export_residual_folds_to_its_family_on_the_import_side() -> None:
-    """⚠️ Not a contradiction with #865 - the two directions use different hooks.
+def test_the_two_directions_fold_aerospace_differently() -> None:
+    """⚠️ Not a contradiction with #865 - different hooks, different evidence.
 
-    ``33641X``'s targets all sit in ``3364``, so the *import* consolidation
-    would fold it like any other activity. It never arises, because Census
-    publishes no ``33641X`` on imports; exports keep their own hook, which
-    folds the aerospace leaves onto ``33641X`` rather than onto ``3364``.
+    Exports fold the aerospace leaves onto ``33641X`` because Census assigns a
+    leaf to only 10.7% of aerospace export mass. Imports do **not** fold
+    ``3364`` at all: Census publishes every leaf directly there, and the family
+    level is 1.37, which fails the guard - so it stays #670's.
     """
-    assert census_family_parents()[AEROSPACE_PARENT] == '3364'
+    parents = census_family_parents()
+    assert AEROSPACE_PARENT not in parents
+    assert '3364' not in set(parents.values())
 
 
 def test_the_hook_keeps_the_config() -> None:
