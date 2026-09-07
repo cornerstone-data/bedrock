@@ -7,6 +7,7 @@ Census HS 2716 unit values. Quantity is EIA; price is Census merchandise
 
 from __future__ import annotations
 
+import functools
 from typing import Any, Literal
 
 import pandas as pd
@@ -121,6 +122,50 @@ VEHICLE_PARENT = '336110'
 AEROSPACE_CHILDREN = ('336411', '336412', '336413', '336414', '336415', '336419')
 AEROSPACE_PARENT = '33641X'
 
+#: The Census goods crosswalk, read at runtime so the family parents the clean
+#: function relabels onto and the parents the crosswalk splits can never
+#: disagree.  Written by ``bedrock.utils.mapping.write_census_family_parents``.
+CENSUS_CROSSWALK_CSV = (
+    'bedrock/utils/mapping/activitytosectormapping/'
+    'Sector_Crosswalk_Census_USATrade.csv'
+)
+
+#: The ``Note`` value that marks a generated family-parent row (#763).
+FAMILY_PARENT_NOTE = 'FAMILY_PARENT'
+
+
+@functools.cache
+def census_family_parents() -> dict[str, str]:
+    """Census activity -> its four-digit family parent, for the import re-split.
+
+    [#763](https://github.com/cornerstone-data/bedrock/issues/763) validated
+    the construction on the 2012 holdout and closed without wiring it: each
+    family's within-split anchored on the published 2017 mix, moved by the
+    Census family level.  The import method already splits **1:m** activities
+    by frozen 2017 Supply ``MCIF``, which is that construction exactly - but
+    almost every family is mapped **1:1 or m:1**, so no weight is ever applied
+    and Census's own within-family split stands.  Relabelling a family's
+    activities onto one parent turns the family into a single 1:m row.
+
+    Only activities whose crosswalk targets all sit in **one** family are
+    relabelled.  An activity straddling two families would move mass between
+    them, which is a level change; this construction may only move mass within
+    a family.
+    """
+    frame = pd.read_csv(CENSUS_CROSSWALK_CSV, dtype=str).fillna('')
+    frame = frame[frame['SectorSourceName'] == 'BEA_2017_Code']
+    parents = set(frame.loc[frame['Note'] == FAMILY_PARENT_NOTE, 'Activity'])
+    leaves = frame[frame['Note'] != FAMILY_PARENT_NOTE]
+    targets = leaves.groupby('Activity')['Sector'].apply(lambda s: sorted(set(s)))
+    out: dict[str, str] = {}
+    for activity, sectors in targets.items():
+        families = {str(sector)[:4] for sector in sectors}
+        if len(families) == 1:
+            family = families.pop()
+            if family in parents:
+                out[str(activity)] = family
+    return out
+
 
 def consolidate_activities(
     frame: pd.DataFrame, children: tuple[str, ...], parent: str
@@ -190,6 +235,37 @@ def consolidate_vehicle_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByA
     aerospace.
     """
     return _as_fba(fba, consolidate_vehicle_activities(pd.DataFrame(fba)))
+
+
+def consolidate_import_activities(frame: pd.DataFrame) -> pd.DataFrame:
+    """Relabel every Census activity onto its family parent (#763).
+
+    Supersedes the vehicle-only relabel on the import side: ``336111`` /
+    ``336112`` are simply one family among 62, and ``336110`` - which is all
+    Census publishes from 2023 - folds to the same parent, so the 2022/2023
+    axis change stops mattering for every family rather than just for vehicles.
+    """
+    parents = census_family_parents()
+    if frame.empty or 'ActivityProducedBy' not in frame.columns:
+        return frame
+    activities = frame['ActivityProducedBy'].astype(str)
+    mapped = activities.map(parents)
+    if not mapped.notna().any():
+        return frame
+    out = frame.copy()
+    out['ActivityProducedBy'] = mapped.fillna(activities)
+    return out
+
+
+def consolidate_import_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """:func:`consolidate_import_activities` as a ``clean_fba`` hook.
+
+    ⚠️ ``duties.map_census_import_flow_to_detail`` must apply the *same*
+    consolidation.  The duty rate is a ratio of two mapped Census flows and it
+    multiplies this FBS's own mass, so if one side folds families and the other
+    does not, the rate is built on one commodity axis and applied to another.
+    """
+    return _as_fba(fba, consolidate_import_activities(pd.DataFrame(fba)))
 
 
 def consolidate_export_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByActivity:

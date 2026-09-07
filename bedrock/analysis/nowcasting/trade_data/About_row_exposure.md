@@ -62,20 +62,30 @@ that went: top 1 29% → **6.3%**, top 10 57% → **35.7%**, top 20 71% → **52
 
 ## Open
 
-### → #763 · the import within-family split
+### ✅ #763 · the import within-family split — WIRED, and the mix is gone
 
-Families where level is right and mix is wrong.
+#763 validated the construction on the 2012 holdout and closed without wiring it: *each family's
+within-split anchored on the published 2017 mix, moved by the Census family level*. The import method
+already split **1:m** activities by frozen 2017 `MCIF`, which is that construction exactly — but 62 of
+the families are mapped **1:1 or m:1**, so no weight was ever applied and Census's own split stood.
+Giving each family a four-digit parent turns the family into one 1:m row, the device #702 used for
+vehicles and #865 for aerospace exports.
 
-| commodity | exposure | family | level | mix |
-|---|---:|---|---:|---:|
-| `334118` computer terminals | 139.2% | 3341 | 0.98 | 0.14 |
-| `336211` motor vehicle bodies | 146.1% | 3362 | 1.04 | 0.18 |
-| `337121` upholstered household furniture | 105.4% | 3371 | 1.03 | 0.21 |
-| `541511` custom programming | 53.8% | 5415 | 0.99 | **0.38** |
+| | gross import commodity error | family-level | mix |
+|---|---:|---:|---:|
+| before | 445,999 $M | 66% | 151,978 $M (34%) |
+| after | **294,021 $M** | **100%** | **0** |
 
-⚠️ **Ceiling: 32%.** Of 466,604 $M gross import commodity error, **68% is family-level** and only
-**151,431 $M (32%)** is mix. `family_resplit` shows 14 of 58 families improve under PxI or the PCE bridge,
-but choosing by 2017 performance fits the answer key — it needs the 2012 holdout (#700's panels).
+Every remaining dollar is now a family total, which is #670's, and no re-split can reach any of it.
+Scorecard: import `MATCH` 109 → **115**, `EXTRA` 2 → **0** (`339116` dental laboratories and `33211A`
+forging both carry zero published `MCIF`, so the re-split gives them zero weight), Pearson excluding
+specials 0.976 → **0.989**.
+
+⚠️ **Individual rows can look worse, and that is the construction working.** A family whose *level* is
+wrong now spreads that error across its leaves in proportion to published shares instead of hiding part
+of it in an offsetting mix error. `339930` dolls and toys goes from 161% to 1049% exposure inside family
+`3399`, whose level is 1.50 — the row did not get worse, the family's level error stopped being
+disguised.
 
 ### → #670 · import level gaps
 
