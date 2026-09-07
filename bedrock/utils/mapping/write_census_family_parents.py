@@ -66,6 +66,19 @@ is the widest band that still excludes ``3359``, the second-worst family by
 error added per dollar of intermediate use. The threshold is a judgement; the
 table above is here so the next person can move it with their eyes open.
 
+✅ **Validated out of sample on 2012.** With the weight and the family selection
+both frozen at 2017, the construction beats no-consolidation by **93,672 million
+USD (20%)** against published 2012 ``MCIF``, and the guard **halves the damage**
+the unguarded version does (56,611 against 107,788). See
+``analysis/nowcasting/trade_data/import_resplit_holdout.py --check``, which also
+shows why recomputing the guard per year looks better and is an artefact.
+
+⚠️ **The one open caveat is commodity-price families.** ``3241`` refineries,
+``3253`` agricultural chemicals, ``2122`` metal ores and ``1111`` grains all
+move their level by more than 20% between the two benchmarks on price alone, and
+all four are inside the band today - ``1111`` by 0.01. Their band membership is
+not a structural property.
+
 ⚠️ **A family the guard excludes is not abandoned — it is
 [#670](https://github.com/cornerstone-data/bedrock/issues/670)'s.** Its level is
 wrong, which is exactly what that issue owns, and re-splitting inside it would

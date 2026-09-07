@@ -100,6 +100,10 @@ to one wrong ratio.
 The 13 families the guard excludes are **#670's by definition** — their level is wrong, and re-splitting
 inside them would disguise one level error as six mix errors.
 
+✅ **Both survive the 2012 benchmark.** With weight and selection frozen at 2017, the construction beats
+no-consolidation by **93,672 $M (20%)** against published 2012 `MCIF`, and the guard halves the damage the
+unguarded version does (56,611 against 107,788). [`import_resplit_holdout.py`](import_resplit_holdout.py) `--check`.
+
 ### → #670 · import level gaps
 
 No within-family re-split reaches these.
