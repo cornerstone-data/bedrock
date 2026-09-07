@@ -369,3 +369,73 @@ They must never be clipped, floored or absoluted, and rates must not be derived
 from `F03000` rows — a negative margin over a change-in-inventories base is a
 timing correction, not a rate. The verbatim quote and the three consequences are
 in the plan, §Negative margins are inventory timing — never clip them.
+
+---
+
+## 2026-09-04 — How BEA actually distributes margins: iteratively, on basic value
+
+**Question put by Wes:** what BEA uses as the distributor when it allocates
+transportation costs and trade margins across transactions.
+
+**Answered:** reply received 2026-09-04, forwarded by Wes. Same BEA
+distributive-services thread.
+
+### What BEA said
+
+> Margin and transportation cost (TC) distribution is iterative, and all margin
+> types are distributed simultaneously. For weighting, we use the basic value
+> for each transaction. However, our transactions and source data for
+> intermediates and final use initial value is at a purchaser valuation. So, for
+> the first iteration we use the purchaser value as the distributor to calculate
+> initial margin and TC values. We treat the initial purchaser valuation as
+> fixed and so we subtract off the distributed margins and transportation to
+> calculate a residual basic value. We then distribute again based on the newly
+> calced basic value, re-calc the basic value residual using the next set of
+> margin and TC values, then distribute again. I think that after 10-20
+> iterations things start to converge well, but we will typically run 500-2000
+> iterations depending on how quickly we converge on a stable solution. Using a
+> basic value transaction from our Use table would be a decent distributor as
+> that is where we finished our process.
+>
+> PUR – (Margin+TC) = BAS
+
+### Checked against what we do
+
+**✅ The accounting identity is ours exactly.** `PUR = PRO + TC + WHL + RET`
+holds on the published 2017 before-redefinitions margins table to **$2 million**
+— one rounding unit on a table published in millions — across all **18,380 rows
+that carry a nonzero margin**, covering 12.81 T USD of purchases and the whole
+4.07 T USD of distributed margin.
+
+⚠️ The identity does *not* hold on another 9,003 rows, and that is not a
+discrepancy: those are the rows whose **commodity is a margin supplier**.
+`F01000` buying `454000` nonstore retailers carries a producers' value of 252 bn
+against a purchasers' value of 5.97 bn, because the producers' value is the
+margin that commodity supplies to that buyer while the purchasers' value is only
+its small direct purchase. `481000`, `484000` and `425000` are the most frequent.
+Anyone testing the identity has to restrict to margin-carrying rows first.
+
+**❌ The distributor is not ours.** BEA distributes all margin types
+**simultaneously**, each weighted on the transaction's **basic value**.
+`nowcast_margins` instead expresses a rate per type on a **cascading base**,
+after the IO manual (2009) chapter 8 — transportation on producers' value,
+wholesale on producers' value plus transportation, retail on all three. This
+reply says the manual's cascade is not what the process does.
+
+⚠️ **At 2017 the two cannot be distinguished, and past 2017 they cannot agree.**
+Our rates are derived *from* the published table, so any denominator reproduces
+2017 exactly; the choice only bites when the rates are applied to a moved base
+in a nowcast year, where a share of basic value and a rate on a stacked base
+move differently. Switching the denominator is therefore a testable change, and
+the 2012 benchmark is the place to test it.
+
+**✅ We do not need the iteration, and BEA's last sentence says so.** The 500–
+2000 iterations exist to *find* the basic value, because BEA's source
+transactions arrive at purchaser valuation and the distributor is unknown until
+the margins are known. We start from BEA's published margins table, which is the
+converged output of exactly that loop — the fixed point is already in hand.
+*"Using a basic value transaction from our Use table would be a decent
+distributor as that is where we finished our process"* is a direct instruction
+that the basic-value Use transaction is the right weight, and we hold that table.
+
+**Answered by:** BEA (same correspondent as the 2026-08-31 courier reply).
