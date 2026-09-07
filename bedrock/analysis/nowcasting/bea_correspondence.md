@@ -479,4 +479,55 @@ converged output of exactly that loop — the fixed point is already in hand.
 distributor as that is where we finished our process"* is a direct instruction
 that the basic-value Use transaction is the right weight, and we hold that table.
 
+### ✅ The sentence that matters is "we treat the initial purchaser valuation as fixed"
+
+That is a different claim from the distributor, and it is **not** what we do.
+`nowcast_margins` anchors on producers' value and derives the purchaser value as
+`PRO + margins`. BEA anchors on the purchaser value and derives basic value as
+the residual. Tested the same way — 2017 rates, 2012 base, scored on published
+2012 margins over the 7,630 rows usable in both years:
+
+=====================================  ============  ==========  ==========  ==========
+arm                                    margin gross  margin net   PRO gross   PUR gross
+=====================================  ============  ==========  ==========  ==========
+A  anchor PRO, derive PUR (current)           476.1      +392.3         0.0       444.0
+B  anchor PUR, derive BAS (**BEA**)           286.8      +196.8       232.3         0.0
+=====================================  ============  ==========  ==========  ==========
+
+**B dominates A on every column that is not zero by construction.** Margin gross
+error falls **40%**, the systematic over-prediction halves, and the *derived*
+side is better too — anchoring on PUR leaves 232 bn of basic-value error where
+anchoring on PRO leaves 444 bn of purchaser-value error.
+
+The reason is that the share of purchaser value is the more stable parameter.
+Value-weighted across these rows, total margin **on PUR** moves 0.2775 → 0.3148
+between 2012 and 2017, a ratio of **1.134**; **on PRO** it moves 0.3840 → 0.4870,
+a ratio of **1.268**. Margins are a wedge *inside* the purchaser price, so
+expressing them as a share of it is roughly twice as stable as expressing them
+as a rate on the residual.
+
+✅ **The obvious risk does not materialise.** A PUR anchor can drive basic value
+negative if the margins overshoot; on this test it does so on **0 of 7,630**
+rows.
+
+⚠️ **And the win is where we can actually take it.** Splitting by buyer:
+
+===================  ======  =================  ==========  ==========  =========
+buyer                  rows   published margin   anchor PRO  anchor PUR      saved
+===================  ======  =================  ==========  ==========  =========
+final demand            371          1,042 bn        342.7       188.8      153.9
+industry              7,259            421 bn        133.5        98.1       35.4
+===================  ======  =================  ==========  ==========  =========
+
+**81% of the gain sits on final-demand buyers**, which is exactly where Step 1
+already holds an independent purchaser value: `derive_initial_Y_pur` builds Y
+at purchaser prices from NIPA, which is the same situation BEA describes —
+*"our transactions and source data for intermediates and final use initial value
+is at a purchaser valuation"*. Final demand also carries 1,042 bn of the 1,463 bn
+of margin on 371 rows, so the reachable part is the large part.
+
+⚠️ This is a published-to-published diagnostic over a five-year backward span.
+It establishes the direction, not the size of the nowcast gain, which depends on
+how good our `Y_pur` is against BEA's purchaser values.
+
 **Answered by:** BEA (same correspondent as the 2026-08-31 courier reply).
