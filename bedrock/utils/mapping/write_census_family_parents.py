@@ -119,6 +119,9 @@ ANCHOR = 2017
 #: alone. See "The level guard" above for what this buys and what it costs.
 LEVEL_BAND = 0.25
 
+#: The years ``--audit`` re-reads the guard's decision on.
+AUDIT_YEARS: tuple[int, ...] = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
+
 
 def family_of(code: str) -> str:
     """The four-digit family a BEA detail commodity belongs to.
@@ -244,7 +247,206 @@ def build() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _census_by_family(year: int, activities: dict[str, list[str]]) -> pd.Series:
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    fba = getFlowByActivity(SOURCE, int(year))
+    flow = fba.loc[fba['FlowName'] == IMPORT_FLOW]
+    amounts = (
+        pd.to_numeric(flow['FlowAmount'], errors='coerce')
+        .groupby(flow['ActivityProducedBy'].astype(str))
+        .sum()
+        / 1e6
+    )
+    return pd.Series(
+        {
+            family: float(sum(float(amounts.get(a, 0.0)) for a in acts))
+            for family, acts in activities.items()
+        }
+    )
+
+
+def _summary_mcif(year: int) -> pd.Series:
+    """Published summary Supply ``MCIF`` for a year, millions of dollars."""
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        GCS_USA_SUP_DIR,
+        LOCAL_USA_SUP_DIR,
+    )
+    from bedrock.utils.io.gcp import load_from_gcs  # noqa: PLC0415
+
+    table = load_from_gcs(
+        name='Supply_Tables_1997-2024_Summary.xlsx',
+        sub_bucket=GCS_USA_SUP_DIR,
+        local_dir=LOCAL_USA_SUP_DIR,
+        loader=lambda pth: pd.read_excel(
+            pth, sheet_name=str(year), skiprows=5, dtype={'Unnamed: 0': str}
+        ),
+    )
+    table = table.set_index(table.columns[0])
+    table.index = table.index.astype(str).str.strip()
+    table.columns = table.columns.astype(str).str.strip()
+    return pd.to_numeric(table['MCIF'], errors='coerce').fillna(0.0)
+
+
+def band_audit() -> pd.DataFrame:
+    """Does every family still sit where the guard put it, across the span?
+
+    ⚠️ **The reference has to move with the year.** The guard reads Census's
+    family total against published **2017**, so a raw per-year reading folds
+    eight years of trade growth *and* composition change into a level test -
+    almost every family would look "over" by 2024 and the audit would be noise.
+    That is the artefact ``import_resplit_holdout`` found in its arm D.
+
+    So each family's published 2017 base is carried forward on **its own
+    published summary row**, which BEA estimates every year:
+
+    ``expected(f, t) = published(f, 2017) x summary(row(f), t) / summary(row(f), 2017)``
+
+    Growth and composition both cancel, because the reference is the family's
+    own aggregate rather than the economy's. At 2017 it reduces to exactly the
+    number the guard read, so the audit and the guard cannot disagree at the
+    anchor. What survives is a family moving against its own summary row -
+    which is what a price swing or a mapping defect looks like.
+
+    Flags two things:
+
+    - ``left`` - a family the guard **admitted** whose level leaves the band in
+      a later year. Its mass is re-split on a premise that no longer holds.
+    - ``entered`` - a family the guard **excluded** that comes inside the band
+      later. Improvement being left on the table.
+    """
+    from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415, E501
+        load_bea_v2017_commodity_to_bea_v2017_summary,
+    )
+
+    summary_of = {
+        k: v[0] for k, v in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+    }
+    frame = leaf_rows()
+    activities: dict[str, list[str]] = {}
+    for activity, family in activity_families(frame).items():
+        activities.setdefault(family, []).append(activity)
+
+    mcif = published_mcif()
+    admitted = set(
+        pd.read_csv(CROSSWALK, dtype=str)
+        .fillna('')
+        .pipe(lambda f: f.loc[f['Note'] == MARKER, 'Activity'])
+    )
+
+    # Each family's 2017 published base, and how that base is spread across the
+    # summary rows whose annual movement will carry it forward.
+    base, spread = {}, {}
+    for family in activities:
+        leaves = {
+            c: float(mcif.get(c, 0.0))
+            for c in mcif.index
+            if family_of(c) == family and float(mcif.get(c, 0.0)) > 0
+        }
+        if not leaves:
+            continue
+        base[family] = sum(leaves.values())
+        rows: dict[str, float] = {}
+        for commodity, value in leaves.items():
+            row = summary_of.get(commodity)
+            if row:
+                rows[row] = rows.get(row, 0.0) + value
+        spread[family] = rows
+
+    summary = {year: _summary_mcif(year) for year in AUDIT_YEARS}
+    levels = {}
+    for year in AUDIT_YEARS:
+        census = _census_by_family(year, activities)
+        expected = {}
+        for family, rows in spread.items():
+            total = sum(rows.values())
+            if not total:
+                continue
+            carry = sum(
+                weight
+                * (
+                    float(summary[year].get(row, 0.0))
+                    / float(summary[ANCHOR].get(row, 0.0))
+                    if float(summary[ANCHOR].get(row, 0.0))
+                    else 1.0
+                )
+                for row, weight in rows.items()
+            )
+            if carry > 0:
+                expected[family] = carry
+        levels[year] = pd.Series(
+            {f: float(census.get(f, 0.0)) / e for f, e in expected.items() if e > 0}
+        )
+    table = pd.DataFrame(levels).dropna()
+
+    outside = (table - 1.0).abs() > LEVEL_BAND
+    rows_out = []
+    for family in table.index:
+        is_admitted = family in admitted
+        breaches = [int(y) for y in AUDIT_YEARS if bool(outside.loc[family, y])]
+        inside = [int(y) for y in AUDIT_YEARS if not bool(outside.loc[family, y])]
+        if is_admitted and breaches:
+            verdict, years = 'left', breaches
+        elif not is_admitted and inside:
+            verdict, years = 'entered', inside
+        else:
+            continue
+        rows_out.append(
+            {
+                'family': family,
+                'verdict': verdict,
+                'level_2017': float(table.loc[family, ANCHOR]),
+                'worst': float(
+                    table.loc[family].iloc[
+                        (table.loc[family] - 1.0).abs().to_numpy().argmax()
+                    ]
+                ),
+                'years': ' '.join(str(y) for y in years),
+            }
+        )
+    return (
+        pd.DataFrame(rows_out).set_index('family').sort_values('verdict')
+        if rows_out
+        else pd.DataFrame()
+    )
+
+
+def audit() -> int:
+    """Print the audit; non-zero if an admitted family left the band."""
+    table = band_audit()
+    print()
+    print('Family level across the span, economy-wide trade growth removed')
+    print(f'(band is |level - 1| <= {LEVEL_BAND})')
+    print()
+    if table.empty:
+        print('OK   every family sits where the guard put it, all years')
+        return 0
+    print(table.round(2).to_string())
+    left = table[table['verdict'] == 'left']
+    print()
+    if left.empty:
+        print(
+            f'OK   no admitted family leaves the band; '
+            f'{len(table)} excluded families come inside it in some year'
+        )
+        return 0
+    print(f'FLAGGED: {len(left)} admitted families leave the band')
+    print('Their mass is re-split on a premise that does not hold in those years.')
+    return 1
+
+
 def main() -> int:
+    import argparse  # noqa: PLC0415
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--audit',
+        action='store_true',
+        help='re-read the guard decision on every year, growth removed',
+    )
+    if parser.parse_args().audit:
+        return audit()
+
     existing = leaf_rows()
     parents = build()
     out = pd.concat([existing, parents], ignore_index=True)
