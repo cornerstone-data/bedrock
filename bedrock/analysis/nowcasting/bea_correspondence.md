@@ -415,19 +415,60 @@ margin that commodity supplies to that buyer while the purchasers' value is only
 its small direct purchase. `481000`, `484000` and `425000` are the most frequent.
 Anyone testing the identity has to restrict to margin-carrying rows first.
 
-**❌ The distributor is not ours.** BEA distributes all margin types
-**simultaneously**, each weighted on the transaction's **basic value**.
-`nowcast_margins` instead expresses a rate per type on a **cascading base**,
+**The distributor looks different and is the same thing.** BEA distributes all
+margin types **simultaneously**, each weighted on the transaction's **basic
+value**. `nowcast_margins` expresses a rate per type on a **cascading base**,
 after the IO manual (2009) chapter 8 — transportation on producers' value,
-wholesale on producers' value plus transportation, retail on all three. This
-reply says the manual's cascade is not what the process does.
+wholesale on producers' value plus transportation, retail on all three.
 
-⚠️ **At 2017 the two cannot be distinguished, and past 2017 they cannot agree.**
-Our rates are derived *from* the published table, so any denominator reproduces
-2017 exactly; the choice only bites when the rates are applied to a moved base
-in a nowcast year, where a share of basic value and a rate on a stacked base
-move differently. Switching the denominator is therefore a testable change, and
-the 2012 benchmark is the place to test it.
+⚠️ **Graded 2017 → 2012, the two are identical to 0.00003 of one dollar.** The
+cascade *telescopes*. For a row whose base is scaled by a single factor
+`s = PRO(t) / PRO(2017)`:
+
+```
+TC   = (TC17/PRO17)              x s.PRO17                     = TC17 . s
+WHL  = (WHL17/(PRO17+TC17))      x (s.PRO17 + TC17.s)          = WHL17 . s
+RET  = (RET17/(PRO17+TC17+WHL17)) x s.(PRO17+TC17+WHL17)       = RET17 . s
+```
+
+Both parameterisations collapse to `margin(2017) x PRO(t)/PRO(2017)`, so the
+choice of denominator is **immaterial as long as each row's base moves by one
+factor**, which is how the rates are applied. Our construction already *is*
+BEA's; the cascade is a re-parameterisation of it, not a rival.
+
+❌ **An earlier version of this note claimed the two "cannot agree past 2017".
+That was wrong** — asserted from the shape of the formulas without doing the
+arithmetic. Measured, they never disagree.
+
+### What the test found instead
+
+Carrying 2017 rates back to 2012 and scoring against published 2012 margins,
+over the 7,630 (buyer, commodity) rows usable in both years and carrying
+1,463 bn USD of margin:
+
+=========================  ==========  ==========
+arm                        gross bn    net bn
+=========================  ==========  ==========
+cascading base (current)        476.1       392.3
+basic value (BEA)               476.1       392.3
+frozen 2017 *level*             633.3       469.3
+=========================  ==========  ==========
+
+✅ Carrying a **rate** beats carrying a **level** by 25%, so the rate
+parameterisation earns its place.
+
+⚠️ **But the rates themselves are not stable, and that is the real exposure.**
+Value-weighted on basic value, between 2012 and 2017:
+
+- transportation **0.0421 → 0.0473**, +12.4%
+- wholesale **0.1805 → 0.2176**, +20.5%
+- retail **0.1614 → 0.2221**, **+37.6%**
+
+That drift is what leaves 476 bn gross and a systematic **+27% over-prediction**
+on a five-year carry. Freezing 2017 rates across 2018–2024 is a far larger
+exposure than the denominator ever was, and retail is the worst of it. Whether
+margin rates should move over the span, and on what, is the open question this
+reply actually surfaced.
 
 **✅ We do not need the iteration, and BEA's last sentence says so.** The 500–
 2000 iterations exist to *find* the basic value, because BEA's source
