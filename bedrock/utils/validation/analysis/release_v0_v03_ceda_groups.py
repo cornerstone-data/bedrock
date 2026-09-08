@@ -11,8 +11,15 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Sheet IDs are the 2026-08-06 diagnostics spreadsheets in the v0.4
-Diagnostics Drive folder (refreshed after the waste Use-intersection fix).
+Sheet IDs point at diagnostics spreadsheets in the v0.4 Diagnostics Drive
+folder; each ``sheet_title`` records the date and release the sheet was
+generated for.
+
+When a snapshot bump moves a config's ``N_new``, mint a fresh sheet and repoint
+the ``sheet_id`` here rather than re-running ``generate_diagnostics`` against
+the existing ID. That call clears and rewrites every tab in place, which
+destroys the prior release's columns and leaves the title describing data the
+sheet no longer holds.
 """
 
 from __future__ import annotations
@@ -55,21 +62,21 @@ G2_METHODS = ProgressionSheet(
 
 G3_DATA = ProgressionSheet(
     step_label="G3: Data update (MECS, UMD, 2024 IO/GHG)",
-    sheet_id="1ZDov-CCqKHqCe4O3HoWk__FKZDM-4KRy_4LL-yk1ZkE",
+    sheet_id="15e86mGe9riHAl5BnWQZqW8fuoJAb_PWTuFST-dK7p8Q",
     config_name="v03_waterfall_g3_data",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, CEDA based, "
-        "v0.3.1 / waterfall G3 data] EFs diagnostics"
+        "[2026-09-07, bedrock repo, 2024, CEDA based, "
+        "v0.3.2 / waterfall G3 data] EFs diagnostics"
     ),
 )
 
 FINAL_V03_CEDA = ProgressionSheet(
     step_label="FINAL v0.3 (waterfall)",
-    sheet_id="1leB-2Mk4lTSkWvnV2R5NrbKH6GywyWkpKXrtDcWmpmE",
+    sheet_id="1mS0Aj48AkXsPLwdkeXlmrcMnaKdnXgTJgsjKj5qjyVo",
     config_name="v03_waterfall_final",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, CEDA based, "
-        "v0.3.1 / waterfall FINAL v0.3] EFs diagnostics"
+        "[2026-09-07, bedrock repo, 2024, CEDA based, "
+        "v0.3.2 / waterfall FINAL v0.3] EFs diagnostics"
     ),
 )
 
