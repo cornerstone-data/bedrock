@@ -432,6 +432,7 @@ EIA_MECS_Energy:
         2010: 2007
         2014: 2012
         2018: 2017
+        2022: 2022
 EIA_MECS_Energy_Allocation_CEDA:
   data_format: FBA
   class: Other
