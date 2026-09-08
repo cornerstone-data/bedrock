@@ -16,7 +16,7 @@ from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_Aq_sca
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     EIAPurchaserAllocation,
     _class_mwh_targets,
-    get_reanchored_eia_purchaser_allocation,
+    get_model_year_eia_purchaser_allocation,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -41,20 +41,20 @@ NIBBLE_ATOL = 1e-6
 
 
 def load_reanchored_allocation(config: str = MIXED_CONFIG) -> EIAPurchaserAllocation:
-    """Flush caches, resolve ``config``, run A/q, and return the reanchored allocation.
+    """Flush caches, resolve ``config``, run A/q, and return the model-year split.
 
-    ``get_reanchored_eia_purchaser_allocation`` stays ``None`` until
-    ``reanchor_electricity_aq_after_year_scaling`` runs. Do not use
-    ``get_2017_eia_purchaser_allocation`` for these tables.
+    These tables must describe the allocation the shipped A/q carries, which on
+    a published-BEA config exists only after the re-anchor. Reading the base-year
+    split directly would report the detail-year structure instead.
     """
     reset_usa_config()
     clear_all_publish_caches()
     set_global_usa_config(config)
     derive_cornerstone_Aq_scaled()
-    alloc = get_reanchored_eia_purchaser_allocation()
+    alloc = get_model_year_eia_purchaser_allocation()
     if alloc is None:
         raise RuntimeError(
-            'get_reanchored_eia_purchaser_allocation() is None after '
+            'get_model_year_eia_purchaser_allocation() is None after '
             f'derive_cornerstone_Aq_scaled under {config!r}. Need a 3-way/mixed '
             'YAML with apply_io_year_adjustments=True and USEEIO A-scale off.'
         )
@@ -236,16 +236,16 @@ def dual_run_industrial_allocations(
         alloc.electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=eia_year,
-        p_share_2017=p_share,
-        td_share_2017=float(alloc.td_share),
+        p_share=p_share,
+        td_share=float(alloc.td_share),
         industrial_weights='mecs',
     )
     dollars = allocate_purchaser_gtd(
         alloc.electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=eia_year,
-        p_share_2017=p_share,
-        td_share_2017=float(alloc.td_share),
+        p_share=p_share,
+        td_share=float(alloc.td_share),
         industrial_weights='dollars',
     )
     return mecs, dollars

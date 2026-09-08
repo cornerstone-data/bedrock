@@ -38,6 +38,7 @@ from bedrock.extract.disaggregation.egrid_generation import (
     eia_table_2_14_year_for_egrid_year,
 )
 from bedrock.transform.eeio.electricity_end_use_mapping import build_end_use_map
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
 from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
@@ -83,6 +84,25 @@ def set_reanchored_eia_purchaser_allocation(allocation: EIAPurchaserAllocation) 
 
 
 def get_reanchored_eia_purchaser_allocation() -> EIAPurchaserAllocation | None:
+    return _REANCHORED_EIA_PURCHASER_ALLOCATION
+
+
+def get_model_year_eia_purchaser_allocation() -> EIAPurchaserAllocation | None:
+    """The purchaser split A/q carries at the model year, whatever produced it.
+
+    Two paths reach a model-year split. The published-BEA path splits on the
+    detail-year structure, scales and inflates to the model year, then re-runs
+    the allocator there, so only the re-anchored split describes the shipped
+    A/q. The nowcast path has no such hop -- its detail tables are already at
+    the model year and :func:`get_base_year_eia_purchaser_allocation` allocates
+    against EIA at that year -- so the base split is the model-year split and no
+    re-anchor runs.
+
+    ``None`` means no allocation was produced at all: electricity
+    disaggregation is off, or the published path has not reached the re-anchor.
+    """
+    if get_usa_config().usa_detail_io_source == 'nowcast':
+        return get_base_year_eia_purchaser_allocation()
     return _REANCHORED_EIA_PURCHASER_ALLOCATION
 
 
@@ -627,8 +647,8 @@ def allocate_purchaser_gtd(
     *,
     self_use_key: str,
     eia_year: int,
-    p_share_2017: float,
-    td_share_2017: float,
+    p_share: float,
+    td_share: float,
     industrial_weights: IndustrialWeighting = 'mecs',
 ) -> EIAPurchaserAllocation:
     """Allocate domestic electricity purchaser use to G/T/D.
@@ -652,7 +672,7 @@ def allocate_purchaser_gtd(
         raise ValueError(
             f'industrial_weights must be mecs or dollars, got {industrial_weights!r}'
         )
-    if not np.isfinite(p_share_2017) or p_share_2017 <= 0:
+    if not np.isfinite(p_share) or p_share <= 0:
         raise ValueError(
             'UGO generation share is missing or non-positive; '
             'Table 8.3 is not a p backup'
@@ -665,7 +685,7 @@ def allocate_purchaser_gtd(
     class_mwh = _class_mwh_targets(eia_year, egrid_mwh)
     electricity_purchases_total = float(electricity_purchases.sum())
     p = (
-        (p_share_2017 * electricity_purchases_total) / egrid_mwh
+        (p_share * electricity_purchases_total) / egrid_mwh
         if egrid_mwh
         else float('nan')
     )
@@ -722,8 +742,8 @@ def allocate_purchaser_gtd(
     )
 
     leftover = electricity_purchases - gen
-    t_dollars = leftover * float(td_share_2017)
-    d_dollars = leftover * (1.0 - float(td_share_2017))
+    t_dollars = leftover * float(td_share)
+    d_dollars = leftover * (1.0 - float(td_share))
     return EIAPurchaserAllocation(
         electricity_purchases=electricity_purchases,
         end_use_class=classes,
@@ -734,7 +754,7 @@ def allocate_purchaser_gtd(
         clipped=clipped,
         p=float(p),
         egrid_mwh=float(egrid_mwh),
-        td_share=float(td_share_2017),
+        td_share=float(td_share),
     )
 
 
@@ -916,8 +936,13 @@ def make_last_weights_from_domestic_use_y(
 
 
 @functools.cache
-def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
-    """Cached 2017 domestic electricity purchases → G/T/D.
+def get_base_year_eia_purchaser_allocation() -> EIAPurchaserAllocation:
+    """Cached base-year domestic electricity purchases → G/T/D.
+
+    The base year is ``usa_base_io_data_year``: 2017 on the published-BEA path,
+    the calendar year on the nowcast path, where the detail tables read here
+    already sit at that year. The EIA anchor must match them, or class MWh
+    targets come from a different year than the dollars they are allocating.
 
     Does not call the IO bundle or Ytot.
     """
@@ -940,19 +965,19 @@ def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
     return allocate_purchaser_gtd(
         electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
-        eia_year=2017,
-        p_share_2017=p_share,
-        td_share_2017=td_share,
+        eia_year=get_usa_config().usa_base_io_data_year,
+        p_share=p_share,
+        td_share=td_share,
     )
 
 
 def apply_purchaser_allocation_to_y(Y: pd.DataFrame) -> pd.DataFrame:
-    """Split the 2017 Y electricity row from the shared 2017 allocation."""
+    """Split the base-year Y electricity row from the shared base-year allocation."""
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         reindex_y_commodities_to_elec_schema,
     )
 
-    allocation = get_2017_eia_purchaser_allocation()
+    allocation = get_base_year_eia_purchaser_allocation()
     children = list(ELECTRICITY_DISAGG_SECTORS)
     Y = _ensure_index_codes(Y, children)
     agg = ELECTRICITY_AGGREGATE
@@ -1054,6 +1079,22 @@ def _spill_generation_nonfuel(
     return Udom, Uimp
 
 
+def _assert_published_bea_carry_forward(caller: str) -> None:
+    """Refuse a base-year carry-forward when the tables are already at year Y.
+
+    These helpers scale a base-year vector forward on a ``q`` ratio and inflate
+    it. Under ``usa_detail_io_source == 'nowcast'`` their inputs are already the
+    target year's, so the carry would double-count growth rather than fail.
+    """
+    source = get_usa_config().usa_detail_io_source
+    if source != 'bea_published':
+        raise ValueError(
+            f'{caller} carries a base-year vector forward to the model year and '
+            f'is only valid on the published-BEA path; usa_detail_io_source='
+            f'{source!r} already supplies year-Y values'
+        )
+
+
 def _scaled_export_fd_electricity_purchases(
     *,
     original_year: int,
@@ -1062,6 +1103,14 @@ def _scaled_export_fd_electricity_purchases(
     use_commodity_pi: bool,
     pre_q: pd.Series,
 ) -> float:
+    """Export-FD electricity dollars at ``model_year``, off the base-year Y.
+
+    Published-BEA path only: ``original_year`` is the detail-table year and the
+    base slice is carried forward on the ``q`` ratio, then inflated. On the
+    nowcast path ``derive_disagg_Ytot_with_trade`` already returns year-Y final
+    demand, so carrying it forward would count the growth twice -- that path
+    reads the export column directly instead of calling this.
+    """
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         derive_disagg_Ytot_with_trade,
     )
@@ -1073,15 +1122,16 @@ def _scaled_export_fd_electricity_purchases(
         inflate_cornerstone_q_or_y_with_industry_pi,
     )
 
-    y2017 = derive_disagg_Ytot_with_trade()
+    _assert_published_bea_carry_forward('_scaled_export_fd_electricity_purchases')
+    y_base = derive_disagg_Ytot_with_trade()
     elec = list(ELECTRICITY_DISAGG_SECTORS)
-    if EXPORT_FD_CODE not in y2017.columns:
-        raise ValueError(f'{EXPORT_FD_CODE} missing from 2017 Y')
-    slice_2017 = y2017.loc[elec, EXPORT_FD_CODE].astype(float)
-    q_2017 = derive_cornerstone_Aq().scaled_q.astype(float).reindex(elec)
+    if EXPORT_FD_CODE not in y_base.columns:
+        raise ValueError(f'{EXPORT_FD_CODE} missing from base-year Y')
+    slice_base = y_base.loc[elec, EXPORT_FD_CODE].astype(float)
+    q_base = derive_cornerstone_Aq().scaled_q.astype(float).reindex(elec)
     pre = pre_q.astype(float).reindex(elec)
-    ratio = (pre / q_2017.replace(0.0, np.nan)).fillna(1.0)
-    scaled = slice_2017 * ratio
+    ratio = (pre / q_base.replace(0.0, np.nan)).fillna(1.0)
+    scaled = slice_base * ratio
     if use_commodity_pi:
         inflated = inflate_cornerstone_q_or_y_with_commodity_pi(
             scaled, original_year=original_year, target_year=model_year
@@ -1146,18 +1196,22 @@ def _purchaser_electricity_purchases_from_aq(
     industry_purchases = industry_purchases.drop(labels=elec, errors='ignore')
     industry_purchases[ELECTRICITY_AGGREGATE] = self_electricity_purchases
 
+    # Final-demand composition is proxied from the base-year Y column shares:
+    # the summary-scaled A/q carry no Y of their own. Published-BEA path only;
+    # a nowcast year has its own Y and reads it directly.
+    _assert_published_bea_carry_forward('_purchaser_electricity_purchases_from_aq')
     y_snap = backcompute_y_from_A_and_q(A=adom, q=q)
     y_elec_total = float(y_snap.reindex(elec).fillna(0.0).sum())
-    y2017 = derive_disagg_Ytot_with_trade()
-    y2017_elec = y2017.loc[elec].sum(axis=0).astype(float)
-    y2017_sum = float(y2017_elec.sum())
+    y_base = derive_disagg_Ytot_with_trade()
+    y_base_elec = y_base.loc[elec].sum(axis=0).astype(float)
+    y_base_sum = float(y_base_elec.sum())
     fd_purchases = pd.Series(dtype=float)
-    if y2017_sum > 0:
-        for col, val in y2017_elec.items():
+    if y_base_sum > 0:
+        for col, val in y_base_elec.items():
             col_s = str(col)
             if col_s in (EXPORT_FD_CODE, IMPORT_FD_CODE):
                 continue
-            fd_purchases[col_s] = y_elec_total * (float(val) / y2017_sum)
+            fd_purchases[col_s] = y_elec_total * (float(val) / y_base_sum)
     electricity_purchases = industry_purchases.add(fd_purchases, fill_value=0.0)
     return electricity_purchases.astype(float)
 
@@ -1207,8 +1261,8 @@ def reanchor_electricity_aq_after_year_scaling(
         electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=model_year,
-        p_share_2017=p_share,
-        td_share_2017=td_share,
+        p_share=p_share,
+        td_share=td_share,
     )
     set_reanchored_eia_purchaser_allocation(allocation)
 

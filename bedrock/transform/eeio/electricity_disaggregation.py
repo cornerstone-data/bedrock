@@ -17,7 +17,7 @@ from bedrock.extract.disaggregation.disagg_weights import DisaggWeights, weights
 from bedrock.extract.iot.gdp import SECTOR_NAME_COL, load_go_detail
 from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
 from bedrock.transform.eeio.electricity_gtd_allocation import (
-    get_2017_eia_purchaser_allocation as get_2017_eia_purchaser_allocation,
+    get_base_year_eia_purchaser_allocation as get_base_year_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
@@ -37,7 +37,16 @@ logger = logging.getLogger(__name__)
 ELECTRICITY_AGGREGATE = '221100'
 BALANCE_TOLERANCE = 1e6
 DISAGG_BALANCE_ATOL = 1.0
-IO_ACCOUNT_YEAR = 2017
+
+
+def io_account_year() -> int:
+    """The IO calendar year the disaggregation inputs must be read at.
+
+    2017 on the published-BEA path; the model's calendar year on the nowcast
+    path, whose detail tables already sit at that year.
+    """
+    return get_usa_config().usa_base_io_data_year
+
 
 TABLE_8_3_DESCRIPTION = (
     'Table 8.3 Revenue and expense statistics for major U.S. '
@@ -371,7 +380,7 @@ def _normalize_gtd_expense_weights(expenses: dict[str, float]) -> pd.Series[floa
 @functools.cache
 def build_electricity_disagg_use_intersection_weights() -> pd.Series[float]:
     """Return Table 8.3 Purchased Power + T/D shares for step 2 intersection."""
-    expenses = _iou_utility_gtd_operating_expenses(IO_ACCOUNT_YEAR)
+    expenses = _iou_utility_gtd_operating_expenses(io_account_year())
     return _normalize_gtd_expense_weights(expenses)
 
 
@@ -861,7 +870,7 @@ def disaggregate_electricity_make_use_va(
         write_purchaser_gtd_use_and_y,
     )
 
-    allocation = get_2017_eia_purchaser_allocation()
+    allocation = get_base_year_eia_purchaser_allocation()
     y = _derive_y_before_electricity_disagg_lazy()
     Udom, Uimp, _y = write_purchaser_gtd_use_and_y(Udom, Uimp, y, allocation)
     _enforce_go_identity_precondition(V, Udom, Uimp, VA)
@@ -1031,9 +1040,12 @@ def distribute_electricity_aggregate_x_using_v_row_shares(
 ) -> pd.Series[float]:
     """Split aggregate 221100 x across G/T/D.
 
-    After A/q is reanchored, use published ``q`` shares. While A/q is still
-    computing (commodity PI reads GHG-year x), fall back to 2017 V so A/q
-    does not recurse.
+    Prefers published ``q`` shares, which exist once A/q has been reanchored.
+    Falls back to ``V`` row shares otherwise, for two different reasons: on the
+    published-BEA path A/q may still be computing (commodity PI reads GHG-year
+    x) and reading ``q`` would recurse; on the nowcast path no reanchor runs at
+    all, and ``V`` is that year's Make, so its row shares are already the
+    model-year split rather than a stand-in for one.
     """
     agg = ELECTRICITY_AGGREGATE
     if agg not in x_cs.index:

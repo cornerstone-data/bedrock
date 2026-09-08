@@ -60,7 +60,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     _derive_post_reallocation_checkpoint_for_disagg,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    get_2017_eia_purchaser_allocation,
+    get_base_year_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
@@ -91,7 +91,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
-    get_2017_eia_purchaser_allocation,
+    get_base_year_eia_purchaser_allocation,
     mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,

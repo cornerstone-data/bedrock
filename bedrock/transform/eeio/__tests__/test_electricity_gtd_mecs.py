@@ -100,8 +100,8 @@ def _allocate(
             electricity_purchases,
             self_use_key=ELECTRICITY_AGGREGATE,
             eia_year=eia_year,
-            p_share_2017=p_share,
-            td_share_2017=td_share,
+            p_share=p_share,
+            td_share=td_share,
             industrial_weights=industrial_weights,  # type: ignore[arg-type]
         )
 

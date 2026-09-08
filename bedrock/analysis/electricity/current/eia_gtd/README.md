@@ -13,8 +13,11 @@ python -m bedrock.analysis.electricity.current.eia_gtd
 
 That sequence is `reset_usa_config` → `clear_all_publish_caches` →
 `set_global_usa_config` → `derive_cornerstone_Aq_scaled` →
-`get_reanchored_eia_purchaser_allocation()` (assert not `None`). Do **not**
-use `get_2017_eia_purchaser_allocation`.
+`get_model_year_eia_purchaser_allocation()` (assert not `None`). That accessor
+returns the re-anchored split on a published-BEA config and the base-year split
+on a nowcast one, where the two coincide. Do **not** read
+`get_base_year_eia_purchaser_allocation` directly: on a published-BEA config it
+describes the detail-year structure, not the shipped A/q.
 
 | Table | Identity |
 |---|---|

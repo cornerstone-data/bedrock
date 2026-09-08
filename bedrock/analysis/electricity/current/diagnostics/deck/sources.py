@@ -117,11 +117,11 @@ def _write_class_mwh(folder: Path) -> None:
         class_mwh_targets,
     )
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
-        get_reanchored_eia_purchaser_allocation,
+        get_model_year_eia_purchaser_allocation,
     )
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    alloc = get_reanchored_eia_purchaser_allocation()
+    alloc = get_model_year_eia_purchaser_allocation()
     if alloc is None:
         return
     eia_year = int(get_usa_config().model_base_year)
