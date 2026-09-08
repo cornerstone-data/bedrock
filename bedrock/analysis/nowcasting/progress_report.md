@@ -439,16 +439,42 @@ this cycle is a *redistribution* — trade mass across commodities, value
 added across industries, gross output across two aerospace codes — so
 the interior moves and the totals do not.
 
-| year | Use SUT interior moved | Supply moved | MUT Use moved |
-|---|---:|---:|---:|
-| 2017 | 762,736 $M (1.3%) | 120,033 $M (0.3%) | 1.4% |
-| 2018 | 1,688,403 $M (2.8%) | 164,282 $M (0.4%) | 2.8% |
-| 2019 | 1,965,366 $M (3.2%) | 181,344 $M (0.4%) | 3.2% |
-| 2020 | 3,637,855 $M (6.0%) | 615,046 $M (1.6%) | 5.9% |
-| 2021 | 4,781,009 $M (7.0%) | 1,296,471 $M (2.9%) | 6.8% |
-| 2022 | 5,423,197 $M (7.1%) | 648,615 $M (1.3%) | 7.0% |
-| 2023 | 5,409,242 $M (6.8%) | 336,857 $M (0.6%) | 6.6% |
-| 2024 | 6,131,087 $M (7.3%) | 423,500 $M (0.8%) | 7.2% |
+**How the movement is measured.** Each figure below is the *gross*
+cell-by-cell movement between the previous build and this one. The two
+tables are aligned on their common cells and the absolute differences are
+summed — the sum of |new − old| over all 406 × 421 = 170,926 cells of the
+balanced Use SUT — and the percentage divides that by the previous build's
+grand total for the same cells. Two properties follow, and both matter for
+reading the table:
+
+- The metric is **gross, not net**. Offsetting moves add rather than
+  cancel. That is the point: the row and column controls hold, so the net
+  movement is near zero by construction and would show nothing.
+- It therefore **counts every relocated dollar twice**, once where it
+  leaves and once where it arrives. The 762,736 million USD at 2017 is
+  roughly 381 billion of value actually changing position.
+
+**The measure covers the whole balanced Use SUT**, not only the
+commodity-by-industry interior: the value-added rows and the final-demand
+columns are in it too. Their shares are not stable across the span, so
+they are broken out here rather than left implied.
+
+| year | Use SUT, gross \|Δ\| | intermediate | value added | final demand | Supply moved | MUT Use moved |
+|---|---:|---:|---:|---:|---:|---:|
+| 2017 | 762,736 $M (1.3%) | 59% | 28% | 13% | 120,033 $M (0.3%) | 1.4% |
+| 2018 | 1,688,403 $M (2.8%) | 52% | 40% | 8% | 164,282 $M (0.4%) | 2.8% |
+| 2019 | 1,965,366 $M (3.2%) | 50% | 42% | 7% | 181,344 $M (0.4%) | 3.2% |
+| 2020 | 3,637,855 $M (6.0%) | 49% | 43% | 8% | 615,046 $M (1.6%) | 5.9% |
+| 2021 | 4,781,009 $M (7.0%) | 48% | 42% | 10% | 1,296,471 $M (2.9%) | 6.8% |
+| 2022 | 5,423,197 $M (7.1%) | 50% | 44% | 7% | 648,615 $M (1.3%) | 7.0% |
+| 2023 | 5,409,242 $M (6.8%) | 50% | 45% | 5% | 336,857 $M (0.6%) | 6.6% |
+| 2024 | 6,131,087 $M (7.3%) | 50% | 45% | 5% | 423,500 $M (0.8%) | 7.2% |
+
+The three middle columns are shares of that year's gross movement and
+round to 100%. The value-added share nearly doubles across the span, from
+28% at 2017 to 45% at 2024 — 2,766,328 million USD of the 2024 total. That
+block is the value-added reconciliation, and its growth is the same effect
+the next paragraph describes, visible directly rather than inferred.
 
 ⚠️ **The movement grows with distance from the benchmark, and that is the
 expected shape.** 2017 is anchored, so only the trade re-splits and the
