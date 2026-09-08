@@ -25,12 +25,21 @@ four confirmations and was one stale input reflected four times.
 ``unverifiable``
     The artifact carries **neither source lineage nor a resolvable method**, so
     nothing about it can be checked.  ⚠️ Reported as a problem rather than
-    passed over: the Step 5 and Step 6 products are written by bespoke savers
-    that record a ``builder`` and an ``engine_result`` but no sources, and
-    before this class existed the checker answered *"No stale cached
-    artifacts"* about balanced SUTs built weeks earlier than the trade inputs
-    underneath them.  A silent pass on the most important outputs in the
-    pipeline is worse than a noisy flag.
+    passed over: a silent pass on something that cannot be checked reads as a
+    clean bill of health, which is worse than a noisy flag.
+
+    ⚠️ **This class does not catch the Step 5-7 products**, though an earlier
+    draft of this docstring said it did.  :func:`method_files` resolves their
+    ``builder`` in its first branch, so ``files`` is non-empty and they land in
+    ``method`` instead -- flagged when their *builder module* moves, which is
+    not the same as when their *inputs* move.  What actually reaches
+    ``unverifiable`` is an artifact with no builder, no
+    ``cornerstone-data/bedrock`` ``method_url`` and no sources: in practice
+    mostly flowsa's own FBAs.
+
+    Closing the Step 5-7 hole needs the savers to record what they read, not a
+    new class here.  ``utils.metadata.source_lineage`` does that for Steps 6
+    and 7; Step 5's ``save_balance`` still cannot name its inputs.
 
 ``method``
     The artifact's own **method** has changed since it was built -- its yaml,
@@ -139,6 +148,14 @@ def _tracked_change_times() -> dict[str, datetime]:
     ⚠️ Deliberately not ``git log -- <path>`` per artifact: there are hundreds
     of artifacts and a handful of method files, and a per-path call would make
     the check slow enough that nobody runs it before a rebuild.
+
+    ⚠️ **This needs full history.**  Under a shallow clone -- ``fetch-depth: 1``
+    is the Actions default -- almost no path gets a commit time, so ``method``
+    staleness under-reports instead of erroring.  A failed subprocess and an
+    expired timeout return ``{}`` the same open way.  All three now say so on
+    stderr rather than passing quietly, because the quiet version of this
+    reads as "nothing is stale".  Anything gating CI on ``--strict`` should
+    fetch full history rather than trust the pass.
     """
     try:
         result = subprocess.run(
@@ -149,7 +166,12 @@ def _tracked_change_times() -> dict[str, datetime]:
             check=True,
             timeout=180,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(
+            f"WARNING: git log failed ({exc}); method staleness cannot be "
+            "checked and is being reported as clean.",
+            file=sys.stderr,
+        )
         return {}
 
     times: dict[str, datetime] = {}
@@ -165,6 +187,12 @@ def _tracked_change_times() -> dict[str, datetime]:
         elif line.strip() and when is not None and line not in times:
             # git log walks newest first, so the first sighting is the newest.
             times[line.strip()] = when
+    if not times:
+        print(
+            "WARNING: git log returned no per-path history -- a shallow clone? "
+            "Method staleness cannot be checked and is being reported as clean.",
+            file=sys.stderr,
+        )
     return times
 
 
@@ -531,12 +559,29 @@ def main() -> None:
         if scope not in SCOPES:
             print(f"--scope must be one of {sorted(SCOPES)}")
             sys.exit(2)
+        # "cannot be checked" is not "known stale", so unverifiable artifacts
+        # are never deleted: the class exists to make a human look, and a Step
+        # 5 or Step 6 product removed on that basis costs hours to rebuild.
+        deletable = [p for p in problems if p["kind"] != "unverifiable"]
+        held = len(problems) - len(deletable)
         print()
-        print(f"Deleting stale artifacts in scope {scope!r}:")
-        removed = delete_stale(problems, scope)
-        print()
-        print(f"Deleted {len(removed)} file(s); the next run rebuilds them.")
-    elif "--strict" in sys.argv:
+        if held:
+            print(f"Holding {held} unverifiable artifact(s): not known stale.")
+        if "--yes" not in sys.argv:
+            print(
+                f"DRY RUN -- would delete {len(deletable)} artifact(s) in scope "
+                f"{scope!r}. Re-run with --yes to actually delete."
+            )
+            for row in deletable:
+                print(f"  would delete {row['artifact']}")
+        else:
+            print(f"Deleting stale artifacts in scope {scope!r}:")
+            removed = delete_stale(deletable, scope)
+            print()
+            print(f"Deleted {len(removed)} file(s); the next run rebuilds them.")
+    # Independent of --delete: joining them with elif meant `--delete --strict`
+    # deleted and exited 0, which is a false pass for anything gating on it.
+    if "--strict" in sys.argv:
         sys.exit(1)
 
 
