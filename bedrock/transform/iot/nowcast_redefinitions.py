@@ -72,6 +72,7 @@ from bedrock.utils.config.settings import (
     PKG_VERSION_NUMBER,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.metadata.metadata import source_lineage
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.bea.v2017_value_added import USA_2017_VALUE_ADDED_CODES
@@ -548,6 +549,7 @@ def save_after_redef(
                 'branch': GIT_BRANCH,
                 'commit': GIT_HASH_LONG,
                 'before_inputs': before_inputs or [],
+                'primary_source_meta': source_lineage(before_inputs or [], directory),
                 'method': (
                     'Make: 2017 detail movement pattern on the year\'s own '
                     'cells; Use: 2017 cell-ratio carry with commodity-row '

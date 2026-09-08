@@ -86,6 +86,7 @@ from bedrock.utils.config.settings import (
     PKG_VERSION_NUMBER,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.metadata.metadata import source_lineage
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -410,6 +411,7 @@ def save_mut(
                 'branch': GIT_BRANCH,
                 'commit': GIT_HASH_LONG,
                 'balanced_inputs': list(tables.sources),
+                'primary_source_meta': source_lineage(tables.sources),
                 'margin_anchor': (
                     '2017 rate panel and placement shares, tax-inclusive '
                     '(BEA definition); the nowcast-year fiscal split is #823'
