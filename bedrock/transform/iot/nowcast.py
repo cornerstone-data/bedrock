@@ -535,13 +535,27 @@ def derive_initial_value_added(
     twice ``VAPRO``'s rate because it is the row a NIPA revision lands in.
 
     ⚠️ **Rows may be negative and must stay so.** ``S00201`` state and local
-    passenger transit carries a ``V00300`` of -36,919 million in 2017 and is
-    negative in every year. Since the ``VAPRO`` reconciliation it is no longer
-    alone: ten further industries hold a negative ``V00300`` at 2024, the
-    largest ``4B0000`` at -10.4bn USD. Gross operating surplus is legitimately
-    negative for a loss-making industry, and
+    passenger transit carries a ``V00300`` of -36,919 million in 2017 - the
+    **only** negative in BEA's published 2017 detail - and is negative in every
+    year. Since the ``VAPRO`` reconciliation it is no longer alone: nine
+    further industries hold a negative ``V00300`` at 2024, the largest
+    ``336414`` guided missiles and space vehicles at -3.7bn USD. Gross
+    operating surplus is legitimately negative for a loss-making industry, and
     :mod:`~bedrock.transform.iot.nowcast_mask` leaves the row unlocked for
     exactly that reason.
+
+    ⚠️ **A negative here is a defect signal until it is corroborated.** It sits
+    above depreciation, so it says revenue failed to cover wages and taxes on
+    production. ``4B0000`` all other retail was the largest at 2024, -10.4bn,
+    and was not economics at all: its compensation carried a QCEW growth ratio
+    built on 0.86% of its payroll after the 2022 NAICS revision collapsed its
+    concordance bridge. Fixed in #857, which removes it from this list and
+    leaves the other ten unchanged. For 2018-2024 BEA publishes ``V003`` only
+    by summary industry and **every** parent of the industries still listed
+    here is positive, so none of them is corroborated at the grain BEA
+    publishes - though a positive parent cannot refute a negative child either,
+    since ``GSLE`` is +52bn at 2024 while ``S00201`` inside it is genuinely
+    negative.
 
     ⚠️ **The six rows sum to BEA's published ``VAPRO`` by construction.** T18
     and the interior fit's column target are both built from this block, so a
@@ -608,10 +622,14 @@ def _reconcile_to_published_vapro(block: pd.DataFrame, year: int) -> pd.DataFram
     across industries moves, and only ``V00300`` moves - ``V00100`` keeps its
     QCEW payroll detail and the tax rows keep their Supply-column conversion.
 
-    ⚠️ **``V00300`` may go negative and must stay so.** Ten industries join
-    ``S00201`` there at 2024 (largest ``4B0000``, -10.4bn USD). Gross operating
+    ⚠️ **``V00300`` may go negative and must stay so.** Nine industries join
+    ``S00201`` there at 2024 (largest ``336414``, -3.7bn USD). Gross operating
     surplus is legitimately negative for a loss-making industry; clipping it
     would put the residual back into ``VAPRO`` and reopen the identity.
+    ``4B0000`` was the largest of them at -10.4bn until #857 fixed the
+    compensation row feeding it, which is the pattern to expect: this row
+    surfaces upstream defects because it absorbs everything the other five do
+    not explain.
     """
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415
         derive_detail_value_added,

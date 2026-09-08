@@ -31,14 +31,16 @@ groups, so a group is worth what it pays.
 The verdict
 -----------
 
-===================  ==============  ==============  ==============
-candidate            misplaced $M    % of scored     vs frozen
-===================  ==============  ==============  ==============
-``frozen``                  487,348           5.843          --
-``qcew``                    517,328           6.202       **+6.2%**
-``qcew_covered``            462,044           5.539          -5.2%
-``qcew_resolvable``     **438,534**       **5.258**      **-10.0%**
-===================  ==============  ==============  ==============
+=======================  ==============  ==============  ==============
+candidate                misplaced $M    % of scored     vs frozen
+=======================  ==============  ==============  ==============
+``frozen``                      487,348           5.843          --
+``qcew``                        517,328           6.202       **+6.2%**
+``qcew_covered``                462,044           5.539          -5.2%
+``qcew_resolvable``         **438,534**       **5.258**      **-10.0%**
+``qcew_floored``                438,538           5.258         -10.015%
+``qcew_bridge_floored``         438,538           5.258         -10.015%
+=======================  ==============  ==============  ==============
 
 ❌ **Applied everywhere, QCEW makes the block worse** -- +6.2% against simply
 holding the 2012 shares.  ✅ **Applied where the concordance can resolve it, it
@@ -65,6 +67,37 @@ more than twice the entire net degradation.  Construction adds -11,446.  Both ar
     Scores -5.2% at a 0.75 floor but is **non-monotonic in the floor**
     (``--floors``), so it is not measuring predictive value.  See
     :func:`_covered_groups`.
+``qcew_floored``
+    ``qcew_resolvable`` plus the shipped 1% coverage guard, measured on the
+    base-year cross-section.  It moves the score by **0.001 points**.
+``qcew_bridge_floored``
+    ✅ **#857's fix**, and the reason it needs its own row: the same 1%, moved
+    onto the denominator the growth ratio is actually computed over
+    (:func:`bridged_coverage`).  It scores **identically** to the guard it
+    generalises.
+
+⚠️ **The re-score is a cost measurement, not a verdict, and this span cannot
+give a verdict.**  #857's failure is a coverage collapse at the **2022** NAICS
+revision - ``4B0000`` all other retail goes from 21 paired codes to one, 0.86%
+of its payroll, and rides manufactured-home-dealer growth of 79% into the whole
+retail residual.  This holdout ends at 2017.  Both floors catch exactly the same
+industries here, and that is measured rather than assumed (``--floored``): all
+23 industries either floor touches have **the same** benchmark coverage as
+bridged coverage, so the two candidates are the same candidate on this span.
+
+⚠️ **Every coverage failure in 2012 -> 2017 is a *total* loss, never a
+remnant.**  21 of the 23 sit at exactly 0.0000 and the other two at 0.0095 and
+0.0013 - government, construction, owner-occupied housing, oil and gas,
+telecommunications, general merchandise.  The 2012 revision wiped these
+industries' coverage outright rather than leaving one code standing, so the
+span contains no instance of the failure mode #857 describes.  That is the
+sharpest available statement of why it cannot grade the fix, and ``--check``
+now fails if a remnant case ever appears here.
+
+So the honest reading is that the guard is **free on the only span that can be
+graded** and is justified on the same validity grounds as the floor it extends -
+an industry measured at one part in a thousand is not being measured - rather
+than on a score it was never going to move.
 
 ⚠️ **The group total is given to every candidate.**  This scores the *shape*, not
 the level, because the level comes from the NIPA control and is not what QCEW is
@@ -337,6 +370,20 @@ def candidates() -> pd.DataFrame:
     frame['qcew_covered'] = np.where(
         frame['group'].isin(covered), frame['qcew'], frame['frozen']
     )
+
+    # The two coverage guards of #857, scored against each other. Both freeze an
+    # industry on top of the carve-out; they differ only in which denominator
+    # they measure - the base-year cross-section, or what the bridge leaves.
+    bench_below = benchmark_coverage(frame).lt(COVERAGE_FLOOR).fillna(False)
+    bridge_below = bridged_coverage(frame).lt(COVERAGE_FLOOR).fillna(False)
+    frame['benchmark_coverage'] = benchmark_coverage(frame)
+    frame['bridged_coverage'] = bridged_coverage(frame)
+    frame['qcew_floored'] = np.where(
+        bench_below, frame['frozen'], frame['qcew_resolvable']
+    )
+    frame['qcew_bridge_floored'] = np.where(
+        bridge_below, frame['frozen'], frame['qcew_resolvable']
+    )
     return frame
 
 
@@ -357,6 +404,40 @@ def unresolvable_groups() -> tuple[str, ...]:
         _crosswalk().loc[_crosswalk()['Sector'].isin(ambiguous_naics()), 'Activity']
     )
     return tuple(sorted({parents[i] for i in reached if i in parents}))
+
+
+#: The production guard's constant, re-scored here rather than re-tuned.  See
+#: ``compensation_movement.COVERAGE_FLOOR``.
+COVERAGE_FLOOR = 0.01
+
+
+def benchmark_coverage(frame: pd.DataFrame) -> pd.Series:
+    """Base-year QCEW payroll over base-year compensation, per detail industry.
+
+    The holdout analogue of ``compensation_movement.qcew_coverage``: every
+    base-year code the crosswalk maps, whether or not it survives to the target
+    year.  This is the cross-section the production floor was originally
+    evaluated on.
+    """
+    mapping = naics_to_detail()
+    payroll = qcew_national_payroll(BASE_YEAR)
+    keys = pd.Series(
+        {c: mapping[c] for c in payroll.index if c in mapping}, dtype=object
+    )
+    rolled = payroll.reindex(keys.index).groupby(keys).sum()
+    rolled = rolled.reindex(frame.index).fillna(0.0)
+    return rolled / frame['base'].replace(0.0, np.nan)
+
+
+def bridged_coverage(frame: pd.DataFrame) -> pd.Series:
+    """The same, restricted to the codes the *bridge* keeps (:func:`shared_naics`).
+
+    The holdout analogue of ``compensation_movement.bridged_coverage``, and the
+    quantity #857 says the floor belongs on: the denominator of the growth
+    ratio that is actually computed, not of the cross-section it starts from.
+    """
+    payroll = qcew_detail_payroll(BASE_YEAR).reindex(frame.index).fillna(0.0)
+    return payroll / frame['base'].replace(0.0, np.nan)
 
 
 def _covered_groups(frame: pd.DataFrame, floor: float = 0.75) -> set[str]:
@@ -382,6 +463,33 @@ def _covered_groups(frame: pd.DataFrame, floor: float = 0.75) -> set[str]:
         'comp'
     ].sum().replace(0.0, np.nan)
     return set(ratio[ratio >= floor].index)
+
+
+def floored_industries() -> pd.DataFrame:
+    """Which industries each of #857's two coverage guards freezes, and why.
+
+    ⚠️ **The bridge floor is a superset by construction** - the bridge can only
+    drop base-year codes, never add them - so what this span can measure is
+    what the *extra* industries cost, and the answer is nothing.  What it
+    cannot measure is what they are worth, because the failure they exist to
+    catch is in the 2022 NAICS revision and this span ends in 2017.
+    """
+    frame = candidates()
+    bench = benchmark_coverage(frame)
+    bridge = bridged_coverage(frame)
+    below = (bench < COVERAGE_FLOOR) | (bridge < COVERAGE_FLOOR)
+    table = pd.DataFrame(
+        {
+            'group': frame.loc[below, 'group'],
+            'base_comp_$M': frame.loc[below, 'base'],
+            'benchmark_coverage': bench[below],
+            'bridged_coverage': bridge[below],
+            'benchmark_floor': bench[below] < COVERAGE_FLOOR,
+            'bridge_floor': bridge[below] < COVERAGE_FLOOR,
+        }
+    )
+    table['carved_out_anyway'] = table['group'].isin(unresolvable_groups())
+    return table.sort_values('base_comp_$M', ascending=False)
 
 
 def coverage_floor_sensitivity() -> pd.DataFrame:
@@ -421,7 +529,14 @@ def holdout() -> pd.DataFrame:
     """Score every candidate on the observed 2012 -> 2017 span."""
     frame = candidates()
     rows = []
-    for column in ('frozen', 'qcew', 'qcew_covered', 'qcew_resolvable'):
+    for column in (
+        'frozen',
+        'qcew',
+        'qcew_covered',
+        'qcew_resolvable',
+        'qcew_floored',
+        'qcew_bridge_floored',
+    ):
         misplaced, dollars = _dissimilarity(frame, column)
         rows.append(
             {
@@ -496,12 +611,34 @@ def check() -> int:
         ('qcew', 6.15),
         ('qcew_covered', -5.19),
         ('qcew_resolvable', -10.02),
+        # #857's guard costs the same as the guard it generalises, which is the
+        # whole of what this span can say about it.
+        ('qcew_floored', -10.02),
+        ('qcew_bridge_floored', -10.02),
     ):
         got = _cell(table, name, 'vs_frozen_pct')
         if abs(got - want) > 0.05:
             failures.append(
                 f'{name} scores {got:+.2f}% vs frozen, expected {want:+.2f}%'
             )
+
+    floored = floored_industries()
+    if not (floored['bridge_floor'] | ~floored['benchmark_floor']).all():
+        failures.append(
+            'the bridge floor is no longer a superset of the benchmark floor, '
+            'which it is by construction - the bridge only drops codes'
+        )
+    if not floored['benchmark_floor'].equals(floored['bridge_floor']):
+        failures.append(
+            'the two coverage guards no longer select the same industries on '
+            'this span, so the identical scores above need re-deriving'
+        )
+    remnants = floored[floored['bridged_coverage'] > 0.0]
+    if not remnants.empty and float(remnants['bridged_coverage'].max()) > 0.01:
+        failures.append(
+            'this span now contains a surviving-remnant case, so it can '
+            'arbitrate #857 after all - re-read the verdict above'
+        )
 
     floors = coverage_floor_sensitivity()
     tight = _cell(floors, 0.75, 'vs_frozen_pct')
@@ -524,6 +661,7 @@ def main() -> None:
     parser.add_argument('--by-group', action='store_true')
     parser.add_argument('--coverage', action='store_true')
     parser.add_argument('--floors', action='store_true')
+    parser.add_argument('--floored', action='store_true')
     parser.add_argument('--vintage', action='store_true')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
@@ -558,6 +696,11 @@ def main() -> None:
         print('\nThe coverage ratio is non-monotonic in its own floor, which is')
         print('why it is not the selector\n')
         print(coverage_floor_sensitivity().round(2).to_string())
+    if args.floored:
+        print()
+        print("What each of #857's two coverage guards freezes on this span")
+        print()
+        print(floored_industries().round(4).to_string())
     if args.vintage:
         print('\nWhat the NAICS-vintage filter drops\n')
         print(vintage_loss().round(1).to_string())
