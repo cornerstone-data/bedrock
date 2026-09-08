@@ -369,3 +369,165 @@ They must never be clipped, floored or absoluted, and rates must not be derived
 from `F03000` rows — a negative margin over a change-in-inventories base is a
 timing correction, not a rate. The verbatim quote and the three consequences are
 in the plan, §Negative margins are inventory timing — never clip them.
+
+---
+
+## 2026-09-04 — How BEA actually distributes margins: iteratively, on basic value
+
+**Question put by Wes:** what BEA uses as the distributor when it allocates
+transportation costs and trade margins across transactions.
+
+**Answered:** reply received 2026-09-04, forwarded by Wes. Same BEA
+distributive-services thread.
+
+### What BEA said
+
+> Margin and transportation cost (TC) distribution is iterative, and all margin
+> types are distributed simultaneously. For weighting, we use the basic value
+> for each transaction. However, our transactions and source data for
+> intermediates and final use initial value is at a purchaser valuation. So, for
+> the first iteration we use the purchaser value as the distributor to calculate
+> initial margin and TC values. We treat the initial purchaser valuation as
+> fixed and so we subtract off the distributed margins and transportation to
+> calculate a residual basic value. We then distribute again based on the newly
+> calced basic value, re-calc the basic value residual using the next set of
+> margin and TC values, then distribute again. I think that after 10-20
+> iterations things start to converge well, but we will typically run 500-2000
+> iterations depending on how quickly we converge on a stable solution. Using a
+> basic value transaction from our Use table would be a decent distributor as
+> that is where we finished our process.
+>
+> PUR – (Margin+TC) = BAS
+
+### Checked against what we do
+
+**✅ The accounting identity is ours exactly.** `PUR = PRO + TC + WHL + RET`
+holds on the published 2017 before-redefinitions margins table to **$2 million**
+— one rounding unit on a table published in millions — across all **18,380 rows
+that carry a nonzero margin**, covering 12.81 T USD of purchases and the whole
+4.07 T USD of distributed margin.
+
+⚠️ The identity does *not* hold on another 9,003 rows, and that is not a
+discrepancy: those are the rows whose **commodity is a margin supplier**.
+`F01000` buying `454000` nonstore retailers carries a producers' value of 252 bn
+against a purchasers' value of 5.97 bn, because the producers' value is the
+margin that commodity supplies to that buyer while the purchasers' value is only
+its small direct purchase. `481000`, `484000` and `425000` are the most frequent.
+Anyone testing the identity has to restrict to margin-carrying rows first.
+
+**The distributor looks different and is the same thing.** BEA distributes all
+margin types **simultaneously**, each weighted on the transaction's **basic
+value**. `nowcast_margins` expresses a rate per type on a **cascading base**,
+after the IO manual (2009) chapter 8 — transportation on producers' value,
+wholesale on producers' value plus transportation, retail on all three.
+
+⚠️ **Graded 2017 → 2012, the two are identical to 0.00003 of one dollar.** The
+cascade *telescopes*. For a row whose base is scaled by a single factor
+`s = PRO(t) / PRO(2017)`:
+
+```
+TC   = (TC17/PRO17)              x s.PRO17                     = TC17 . s
+WHL  = (WHL17/(PRO17+TC17))      x (s.PRO17 + TC17.s)          = WHL17 . s
+RET  = (RET17/(PRO17+TC17+WHL17)) x s.(PRO17+TC17+WHL17)       = RET17 . s
+```
+
+Both parameterisations collapse to `margin(2017) x PRO(t)/PRO(2017)`, so the
+choice of denominator is **immaterial as long as each row's base moves by one
+factor**, which is how the rates are applied. Our construction already *is*
+BEA's; the cascade is a re-parameterisation of it, not a rival.
+
+❌ **An earlier version of this note claimed the two "cannot agree past 2017".
+That was wrong** — asserted from the shape of the formulas without doing the
+arithmetic. Measured, they never disagree.
+
+### What the test found instead
+
+Carrying 2017 rates back to 2012 and scoring against published 2012 margins,
+over the 7,630 (buyer, commodity) rows usable in both years and carrying
+1,463 bn USD of margin:
+
+=========================  ==========  ==========
+arm                        gross bn    net bn
+=========================  ==========  ==========
+cascading base (current)        476.1       392.3
+basic value (BEA)               476.1       392.3
+frozen 2017 *level*             633.3       469.3
+=========================  ==========  ==========
+
+✅ Carrying a **rate** beats carrying a **level** by 25%, so the rate
+parameterisation earns its place.
+
+⚠️ **But the rates themselves are not stable, and that is the real exposure.**
+Value-weighted on basic value, between 2012 and 2017:
+
+- transportation **0.0421 → 0.0473**, +12.4%
+- wholesale **0.1805 → 0.2176**, +20.5%
+- retail **0.1614 → 0.2221**, **+37.6%**
+
+That drift is what leaves 476 bn gross and a systematic **+27% over-prediction**
+on a five-year carry. Freezing 2017 rates across 2018–2024 is a far larger
+exposure than the denominator ever was, and retail is the worst of it. Whether
+margin rates should move over the span, and on what, is the open question this
+reply actually surfaced.
+
+**✅ We do not need the iteration, and BEA's last sentence says so.** The 500–
+2000 iterations exist to *find* the basic value, because BEA's source
+transactions arrive at purchaser valuation and the distributor is unknown until
+the margins are known. We start from BEA's published margins table, which is the
+converged output of exactly that loop — the fixed point is already in hand.
+*"Using a basic value transaction from our Use table would be a decent
+distributor as that is where we finished our process"* is a direct instruction
+that the basic-value Use transaction is the right weight, and we hold that table.
+
+### ✅ The sentence that matters is "we treat the initial purchaser valuation as fixed"
+
+That is a different claim from the distributor, and it is **not** what we do.
+`nowcast_margins` anchors on producers' value and derives the purchaser value as
+`PRO + margins`. BEA anchors on the purchaser value and derives basic value as
+the residual. Tested the same way — 2017 rates, 2012 base, scored on published
+2012 margins over the 7,630 rows usable in both years:
+
+=====================================  ============  ==========  ==========  ==========
+arm                                    margin gross  margin net   PRO gross   PUR gross
+=====================================  ============  ==========  ==========  ==========
+A  anchor PRO, derive PUR (current)           476.1      +392.3         0.0       444.0
+B  anchor PUR, derive BAS (**BEA**)           286.8      +196.8       232.3         0.0
+=====================================  ============  ==========  ==========  ==========
+
+**B dominates A on every column that is not zero by construction.** Margin gross
+error falls **40%**, the systematic over-prediction halves, and the *derived*
+side is better too — anchoring on PUR leaves 232 bn of basic-value error where
+anchoring on PRO leaves 444 bn of purchaser-value error.
+
+The reason is that the share of purchaser value is the more stable parameter.
+Value-weighted across these rows, total margin **on PUR** moves 0.2775 → 0.3148
+between 2012 and 2017, a ratio of **1.134**; **on PRO** it moves 0.3840 → 0.4870,
+a ratio of **1.268**. Margins are a wedge *inside* the purchaser price, so
+expressing them as a share of it is roughly twice as stable as expressing them
+as a rate on the residual.
+
+✅ **The obvious risk does not materialise.** A PUR anchor can drive basic value
+negative if the margins overshoot; on this test it does so on **0 of 7,630**
+rows.
+
+⚠️ **And the win is where we can actually take it.** Splitting by buyer:
+
+===================  ======  =================  ==========  ==========  =========
+buyer                  rows   published margin   anchor PRO  anchor PUR      saved
+===================  ======  =================  ==========  ==========  =========
+final demand            371          1,042 bn        342.7       188.8      153.9
+industry              7,259            421 bn        133.5        98.1       35.4
+===================  ======  =================  ==========  ==========  =========
+
+**81% of the gain sits on final-demand buyers**, which is exactly where Step 1
+already holds an independent purchaser value: `derive_initial_Y_pur` builds Y
+at purchaser prices from NIPA, which is the same situation BEA describes —
+*"our transactions and source data for intermediates and final use initial value
+is at a purchaser valuation"*. Final demand also carries 1,042 bn of the 1,463 bn
+of margin on 371 rows, so the reachable part is the large part.
+
+⚠️ This is a published-to-published diagnostic over a five-year backward span.
+It establishes the direction, not the size of the nowcast gain, which depends on
+how good our `Y_pur` is against BEA's purchaser values.
+
+**Answered by:** BEA (same correspondent as the 2026-08-31 courier reply).
