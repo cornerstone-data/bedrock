@@ -82,7 +82,7 @@ ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
     ),
     AssessmentNLevel(
         key='G3',
-        sheet_id='14Q7w0hNLt4CuTE3iQaoHiXMVaGt9hdNZaNlRRi9znzc',
+        sheet_id='1rlYKR0__BpqSMHWY3P1jv-J1aTDTPSz991Z5Tufn2y4',
         n_column='N_new',
         config_name='v03_waterfall_g3_data',
         note='USEEIO_TRACK[us_data]; bedrock endpoint before MRIO steps',

@@ -745,12 +745,15 @@ class _FlowBy(pd.DataFrame):
         # check flowamounts equal after aggregating
         self_flow = self['FlowAmount'].sum()
         agg_flow = aggregated['FlowAmount'].sum()
-        percent_inc = int(((agg_flow - self_flow) * 100) / self_flow)
-        if percent_inc > 0:
+        if not np.isclose(agg_flow, self_flow):
+            percent_diff = (
+                ((agg_flow - self_flow) / self_flow) * 100 if self_flow else np.nan
+            )
             log.warning(
                 'There is an error in aggregating dataframe, as new '
-                'flow totals do not match original dataframe '
-                'flowtotals, there is a {percent_inc}% difference.'
+                f'flow totals do not match original dataframe '
+                f'flowtotals, there is a {percent_diff:.6f}% difference '
+                f'(pre={self_flow}, post={agg_flow}).'
             )
 
         return aggregated  # type: ignore[return-value]
@@ -1268,7 +1271,13 @@ class _FlowBy(pd.DataFrame):
                 ).fillna({'FlowAmount_other': 0})
 
                 # Unmatched peers (other==0) must not occupy the uniqueness
-                # slot for a code that a matched schema peer also uses.
+                # slot for a code that a matched schema peer also uses
+                # (SectorSourceName distinguishes mixed BEA/NAICS peers).
+                # Activity* distinguishes NAICS year-convert siblings that share
+                # group_id and land on the same target sector with split
+                # FlowAmounts (e.g. 322120 -> 322121/322122 both -> 32212);
+                # without them, duplicated() keeps one slot and each sibling
+                # receives full group_total.
                 matched = merged['FlowAmount_other'] != 0
                 denominator_flag = pd.Series(False, index=merged.index)
                 if matched.any():
@@ -1278,13 +1287,17 @@ class _FlowBy(pd.DataFrame):
                             *groupby_cols,
                             f'{rank}Sector',
                             f'{rank}SectorSourceName',
+                            'ActivityProducedBy',
+                            'ActivityConsumedBy',
                         ]
                     )
                 with_denominator = merged.assign(
                     denominator=(
                         merged.assign(
                             FlowAmount_other=(
-                                merged.FlowAmount_other * denominator_flag
+                                merged.FlowAmount
+                                * merged.FlowAmount_other
+                                * denominator_flag
                             )
                         )
                         .groupby(groupby_cols)['FlowAmount_other']
@@ -1336,10 +1349,14 @@ class _FlowBy(pd.DataFrame):
                             ).to_string()
                         )
                     )
-
+                # must include group_total in this formula as a weight for the specific case of
+                # parent-incompleteChild data combined with requiring a sector year conversion
                 proportionally_attributed = non_zero_denominator.assign(
                     FlowAmount=lambda x: (
-                        x.FlowAmount * x.FlowAmount_other / x.denominator
+                        x.group_total
+                        * x.FlowAmount
+                        * x.FlowAmount_other
+                        / x.denominator
                     )
                 )
 
@@ -1767,6 +1784,17 @@ class _FlowBy(pd.DataFrame):
                 groupby_cols.append(f'{rank}SectorSourceName')
             groupby_cols.append(f'{rank}Sector')
 
+        # must include group_total in this formula as a weight for the specific case of
+        # parent-incompleteChild data combined with requiring a sector year conversion
+        split_sum = fba.groupby('group_id')['FlowAmount'].transform('sum')
+        fba = fba.assign(
+            FlowAmount=lambda x: np.where(
+                split_sum != 0,
+                x.group_total * x.FlowAmount / split_sum,
+                x.FlowAmount,
+            )
+        )
+
         return fba.drop(
             columns=[
                 'PrimarySector',
@@ -1843,14 +1871,17 @@ class _FlowBy(pd.DataFrame):
 
         # if Geo Corr column is missing from the df or if all Geo Corr column is all 0s, add score based on geo
         if 'GeographicalCorrelation' not in fbs:
-            if fbs['LocationSystem'][0] == 'Census_Region':
+            if fbs.empty:
+                return fbs
+            location_system = fbs['LocationSystem'].iloc[0]
+            if location_system == 'Census_Region':
                 fbs = fbs.assign(GeographicalCorrelation=4)
-            elif fbs['LocationSystem'][0] == 'Census_Division':
+            elif location_system == 'Census_Division':
                 fbs = fbs.assign(GeographicalCorrelation=3)
             else:
                 # assign geo corr score by FIPS year
                 try:
-                    loc_match = re.search(r"\d{4}", fbs['LocationSystem'][0])
+                    loc_match = re.search(r"\d{4}", location_system)
                     assert loc_match is not None
                     fips = geo_get_all_fips(int(loc_match.group())).rename(  # type: ignore[arg-type]
                         columns={
