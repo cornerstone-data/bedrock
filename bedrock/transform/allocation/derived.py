@@ -176,35 +176,54 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
 
-_EGRID_FBS_METHOD_BY_YEAR: dict[int, str] = {
-    2023: 'GHG_national_Cornerstone_2023_egrid',
-    2024: 'GHG_national_Cornerstone_2024_egrid',
+#: eGRID-backed Cornerstone GHG FBS methods, keyed by detail IO source then
+#: inventory year. Each entry is a thin overlay on the same-source method for
+#: that year, so it inherits that method's attribution and swaps only the
+#: ``electric_power`` activity sets for the plant-level stewi eGRID inventory.
+#: The ``nowcast`` entries therefore attribute E on the nowcast Use, which the
+#: ``bea_published`` entries do not. Extend with the year's overlay YAML;
+#: stewi has no 2017 eGRID inventory, so 2017 has no entry on either source.
+_EGRID_FBS_METHOD_BY_SOURCE_AND_YEAR: dict[str, dict[int, str]] = {
+    'bea_published': {
+        2023: 'GHG_national_Cornerstone_2023_egrid',
+        2024: 'GHG_national_Cornerstone_2024_egrid',
+    },
+    'nowcast': {
+        2024: 'GHG_national_Cornerstone_nowcast_2024_egrid',
+    },
 }
 
 
 def egrid_fbs_method_for_year(year: int) -> str:
-    """Return the eGRID-backed Cornerstone GHG FBS method name for *year*."""
+    """Return the eGRID-backed Cornerstone GHG FBS method name for *year*.
+
+    Resolves against ``usa_detail_io_source`` so a nowcast config gets the
+    overlay on its own year's nowcast method rather than the published-BEA one.
+    """
+    source = get_usa_config().usa_detail_io_source
+    by_year = _EGRID_FBS_METHOD_BY_SOURCE_AND_YEAR[source]
     try:
-        return _EGRID_FBS_METHOD_BY_YEAR[year]
+        return by_year[year]
     except KeyError as exc:
-        supported = ', '.join(str(y) for y in sorted(_EGRID_FBS_METHOD_BY_YEAR))
+        supported = ', '.join(str(y) for y in sorted(by_year))
         raise ValueError(
             f'usa_ghg_data_year={year} is unsupported for the electricity-'
-            f'disaggregation eGRID FBS; supported years: {supported}'
+            f'disaggregation eGRID FBS on usa_detail_io_source={source!r}; '
+            f'supported years: {supported}'
         ) from exc
 
 
 def _select_cornerstone_ghg_fbs_base_name() -> str:
     """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
 
-    ``usa_ghg_data_year`` selects the inventory-year method stem. For 2024,
-    ``usa_detail_io_source`` distinguishes published BEA Use attribution
-    (``GHG_national_Cornerstone_2024``) from nowcast Use attribution
-    (``GHG_national_Cornerstone_2024``). Other years use the bare year stem
-    (nowcast Use attribution in the method YAML).
+    ``usa_ghg_data_year`` selects the inventory year and ``usa_detail_io_source``
+    selects the attribution basis: ``GHG_national_Cornerstone_<year>`` attributes
+    on the published BEA Use, ``GHG_national_Cornerstone_nowcast_<year>`` on that
+    year's nowcast Use.
 
-    Electricity-disaggregation configs keep the existing ``*_egrid`` map;
-    those includes still need a follow-up review against the 2024 rename.
+    Electricity-disaggregation configs route through
+    :func:`egrid_fbs_method_for_year` instead, which applies the same source
+    split to the ``*_egrid`` overlays.
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
@@ -216,9 +235,9 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
     """Load the eGRID-based national GHG FBS for electricity disaggregation.
 
-    Selects ``GHG_national_Cornerstone_<year>_egrid`` from
-    ``usa_ghg_data_year`` so v0.2 (2023) and v0.3 (2024) electricity configs
-    stay year-matched.
+    Selects the overlay for ``usa_ghg_data_year`` on the active
+    ``usa_detail_io_source``, so published electricity configs stay year-matched
+    and nowcast ones attribute E on the nowcast Use rather than the BEA Use.
     """
     method = egrid_fbs_method_for_year(get_usa_config().usa_ghg_data_year)
     try:

@@ -36,6 +36,52 @@ def test_egrid_fbs_method_for_year_unsupported() -> None:
         egrid_fbs_method_for_year(2022)
 
 
+def _nowcast_cfg(year: int) -> USAConfig:
+    return USAConfig(
+        usa_detail_io_source='nowcast',
+        usa_base_io_data_year=year,  # type: ignore[arg-type]
+        model_base_year=year,  # type: ignore[arg-type]
+        usa_ghg_data_year=year,  # type: ignore[arg-type]
+        apply_io_year_adjustments=False,
+        use_cornerstone_ghg_model=True,
+        implement_waste_disaggregation=True,
+        implement_electricity_reallocation=True,
+        implement_electricity_disaggregation=True,
+    )
+
+
+def test_egrid_fbs_method_follows_detail_io_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A nowcast config must not land on the published-BEA overlay.
+
+    The published overlay attributes E on the BEA Use, so silently selecting it
+    for a nowcast run produces a model whose E and IO come from different
+    tables without erroring.
+    """
+    monkeypatch.setattr(
+        allocation_derived, 'get_usa_config', lambda: _nowcast_cfg(2024)
+    )
+    assert (
+        egrid_fbs_method_for_year(2024) == 'GHG_national_Cornerstone_nowcast_2024_egrid'
+    )
+
+
+def test_egrid_fbs_method_nowcast_year_without_overlay_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Years whose nowcast overlay is not built yet fail loudly.
+
+    2023 has a published overlay but no nowcast one, so this is the case where
+    falling back across sources would be silently wrong.
+    """
+    monkeypatch.setattr(
+        allocation_derived, 'get_usa_config', lambda: _nowcast_cfg(2023)
+    )
+    with pytest.raises(ValueError, match="usa_detail_io_source='nowcast'"):
+        egrid_fbs_method_for_year(2023)
+
+
 @pytest.mark.parametrize(
     ('year', 'expected_method'),
     [
