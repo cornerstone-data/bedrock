@@ -1,0 +1,37 @@
+# v04_waterfall G3 — "US data update" rung: v0.4 less nowcasting.
+# G2 methods + 2024 UMD GHG / IO data on published BEA 2017 detail, at
+# IO@2024 producer footing.
+#
+# The flags resolve identically to v03_waterfall_g3_data and to the
+# 2025_usa_cornerstone_v0_3 release config, on purpose. A config names
+# methodology choices; the pipeline behind each choice moves without a flag.
+# Re-run today this rung is v0.3.2, MECS included: use_cornerstone_ghg_model
+# at usa_ghg_data_year 2024 reads the newest GHG_national_Cornerstone_2024
+# parquet on GCS, which was regenerated after the MECS energy allocation
+# landed. That is why the pinned N for this rung moved in
+# test_waterfall_progression with no config diff. Code fixes shipped since
+# v0.3.0 (industry x expand, waste Use-intersection orientation) reach every
+# rung the same way.
+#
+# The next rung is the release config 2025_usa_cornerstone_v0_4, which differs
+# only by the nowcast fields (usa_detail_io_source, nowcast_mut_vintage,
+# usa_base_io_data_year, apply_io_year_adjustments). FINAL minus G3 is the
+# nowcasting bucket: the 2024 nowcast MUT replacing published 2017 detail, and
+# with it the GHG FBS attributed on nowcast Use
+# (GHG_national_Cornerstone_nowcast_2024) instead of published 2017 Use
+# (GHG_national_Cornerstone_2024).
+#
+# Caveat for the "US data update" bucket (G3 minus G2): the 2023 FBS behind G2
+# predates the MECS change as of 2026-09-08, so this bucket carries the MECS
+# fix as well as the 2023 -> 2024 data move until that FBS is regenerated.
+
+model_base_year: 2024
+price_type: producer
+
+usa_ghg_data_year: 2024
+
+use_cornerstone_ghg_model: true
+apply_io_year_adjustments: true
+implement_waste_disaggregation: true
+
+cornerstone_industry_avg_margins: true

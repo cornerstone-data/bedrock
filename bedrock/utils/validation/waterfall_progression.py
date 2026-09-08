@@ -36,7 +36,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from bedrock.utils.config.usa_config import CANONICAL_USA_CONFIG
+from bedrock.utils.snapshots import releases
 from bedrock.utils.validation.analysis import (
     release_v0_v03_ceda_groups as ceda_groups,
 )
@@ -131,10 +131,15 @@ def _series_from_snapshot_frame(frame: pd.DataFrame | pd.Series) -> pd.Series[fl
 
 
 def load_canonical_v0_3_q() -> pd.Series[float]:
-    """Shipped v0.3 commodity ``q`` (``scaled_q_USA`` at ``.SNAPSHOT_KEY``)."""
-    from bedrock.utils.snapshots.loader import load_current_snapshot  # noqa: PLC0415
+    """Shipped v0.3 commodity ``q``: ``scaled_q_USA`` from the v0.3.2 release snapshot.
 
-    q = _series_from_snapshot_frame(load_current_snapshot('scaled_q_USA'))
+    Pinned to ``releases.v0_3_2`` rather than ``.SNAPSHOT_KEY`` so the v0.3
+    waterfall keeps its own weights when the current snapshot moves to a
+    later release.
+    """
+    from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
+
+    q = _series_from_snapshot_frame(load_snapshot('scaled_q_USA', releases.v0_3_2))
     q.index = q.index.astype(str)
     return q
 
@@ -321,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
         action='store_true',
         help=(
             'N from frozen CEDA v0 snapshots, weighted by canonical v0.3 '
-            f'scaled_q_USA (config {CANONICAL_USA_CONFIG})'
+            'scaled_q_USA (v0.3.2 release snapshot)'
         ),
     )
     group.add_argument(
