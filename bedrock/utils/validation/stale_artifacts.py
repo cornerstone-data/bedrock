@@ -22,6 +22,16 @@ four confirmations and was one stale input reflected four times.
     completely stale.  ✅ **This is the one that bites**, because every number
     downstream stays self-consistent and nothing errors.
 
+``unverifiable``
+    The artifact carries **neither source lineage nor a resolvable method**, so
+    nothing about it can be checked.  ⚠️ Reported as a problem rather than
+    passed over: the Step 5 and Step 6 products are written by bespoke savers
+    that record a ``builder`` and an ``engine_result`` but no sources, and
+    before this class existed the checker answered *"No stale cached
+    artifacts"* about balanced SUTs built weeks earlier than the trade inputs
+    underneath them.  A silent pass on the most important outputs in the
+    pipeline is worse than a noisy flag.
+
 ``method``
     The artifact's own **method** has changed since it was built -- its yaml,
     anything that yaml ``!include``s, or the Python modules beside it.  Nothing
@@ -176,7 +186,18 @@ def method_files(meta: dict[str, Any]) -> list[Path]:
     FBAs are flowsa's, and their ``method_url`` points at ``USEPA/flowsa``;
     this check cannot see those and says so rather than guessing.
     """
-    url = str((meta.get("tool_meta") or {}).get("method_url") or "")
+    tool_meta = meta.get("tool_meta") or {}
+
+    # Step 5 and Step 6 products are written by bespoke savers rather than the
+    # FBS framework: they carry a dotted ``builder`` module instead of a
+    # ``method_url``, and no source lineage at all.  Resolve the builder so at
+    # least a change to it is visible.
+    builder = str(tool_meta.get("builder") or "")
+    if builder:
+        module = builder.rsplit(".", 1)[-1]
+        return sorted(_modules_by_name().get(module, ()))
+
+    url = str(tool_meta.get("method_url") or "")
     if "cornerstone-data/bedrock" not in url:
         return []
     match = _BLOB.search(url)
@@ -354,7 +375,21 @@ def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
         if built is None:
             continue
 
-        changed, culprit = method_changed_at(method_files(blob))
+        files = method_files(blob)
+        if not files and not any(True for _ in _walk_sources(blob)):
+            problems.append(
+                {
+                    "kind": "unverifiable",
+                    "artifact": name,
+                    "artifact_built": built,
+                    "source": "-",
+                    "detail": (
+                        "carries no source lineage and no resolvable method, so "
+                        "staleness cannot be checked - treat as stale"
+                    ),
+                }
+            )
+        changed, culprit = method_changed_at(files)
         if changed is not None and changed > built:
             problems.append(
                 {
@@ -467,10 +502,11 @@ def main() -> None:
     superseded = [p for p in problems if p["kind"] == "superseded"]
     internal = [p for p in problems if p["kind"] == "internal"]
     changed = [p for p in problems if p["kind"] == "method"]
+    blind = [p for p in problems if p["kind"] == "unverifiable"]
     print(
         f"{len(problems)} staleness problem(s){scope}: "
         f"{len(superseded)} superseded, {len(internal)} internal, "
-        f"{len(changed)} method changed."
+        f"{len(changed)} method changed, {len(blind)} unverifiable."
     )
     print()
     for row in problems:
