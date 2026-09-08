@@ -127,15 +127,34 @@ BASE_YEAR, CENSUS_YEAR = 2017, 2022
 #: is the one observable warning sign.  Measured: excludes ``334111`` alone.
 COVERAGE_BOUNDS = (0.55, 1.45)
 
-#: ⚠️ **Held on BEA pending Wes's explicit sign-off** — his flag, not a rule's.
+#: ⚠️ **Held on BEA pending explicit sign-off** — a flag, not a rule.
+#:
 #: ``334118`` (computer terminals and other peripherals) is the adjustment's
 #: largest single move: the census says −49% of shipments 2017→2022 against
 #: BEA's −10%, at a 0.753 coverage that passes the screen.  A collapse that
 #: size may be real (peripherals hollowing out) or a wedge shift
 #: (import-routing, own-brand reclassification); it is the one industry the
-#: review asked to see by hand before imposing.  Remove from this set to let
-#: the census move it.
-PENDING_REVIEW = frozenset({'334118'})
+#: review asked to see by hand before imposing.
+#:
+#: ``336414`` guided missiles and ``33641A`` other aircraft parts are **one
+#: see-saw and are held as a pair** (#862).  The census moves ``336414`` to
+#: 0.744x BEA's growth and ``33641A`` to 1.209x, while QCEW payroll moves them
+#: the *other* way — 1.226x and 0.766x.  Nothing corroborates a reallocation
+#: of this size between the two, and guided missiles is concentrated enough
+#: that one firm's classification between vehicles and propulsion units moves
+#: the published shipments split without an economic change behind it.
+#:
+#: ❌ **They must be held together or not at all.** Holding ``336414`` alone
+#: imposes ``33641A``'s +109% move and changes the family's internal split in
+#: a way neither source supports.  Measured, the pair restores ``336414``'s
+#: gross operating surplus from −2,957 to **+311** million USD at 2022 and
+#: from −3,693 to −22 at 2024 — #862's headline, and the noise band BEA's own
+#: unconditioned series sits in.
+#:
+#: Remove a code from this set to let the census move it.  See
+#: ``analysis/nowcasting/ec_payroll_corroboration.py`` for the screen that
+#: found the pair and for the two industries it flags next.
+PENDING_REVIEW = frozenset({'334118', '336414', '33641A'})
 
 
 @functools.cache
