@@ -1,6 +1,6 @@
 # Nowcasting Phase 1 Report
 
-*Updated 3 September 2026*
+*Updated 7 September 2026*
 
 The nowcast builds annual US input-output tables — Supply and Use tables,
 then Make-Use tables before and after redefinitions — for 2017 through 2024
@@ -20,20 +20,31 @@ tables, and the published industry output series.
 4. [Conversion to Make-Use Tables](#4-conversion-to-make-use-tables)
 5. [Redefinitions: Before to After](#5-redefinitions-before-to-after)
 6. [Seed Data Provenance and Quality](#6-seed-data-provenance-and-quality)
+6a. [The 7 September 2026 rebuild](#6a-the-7-september-2026-rebuild)
 7. [Conclusions and Next Steps](#7-conclusions-and-next-steps)
 
 **How to read the comparison figures.** Every comparison figure in sections
-1 and 2 uses one visual language. Each cell of the table under comparison is
-coloured by its match status against the published reference: **green**
-lands within tolerance (1% of the cell, or 1.3% for final demand, with an
-absolute floor of $0.5M — half BEA's publication grain); **amber** is
-outside tolerance, darkening with severity; **purple** cells are populated
+1 and 2 uses one visual language. Where our table and the published reference
+both have a value, the cell is coloured by how far apart the two are, on one
+continuous ramp: **green** at no difference, through amber, to **red** at a
+difference of 100% or more of the published cell. There is no threshold in
+the picture — a cell 0.9% off and a cell 1.1% off are drawn almost
+identically, because that is what they are. **Purple** cells are populated
 only in the published table; **blue** cells only in ours; white cells are
 empty on both sides. The strip on the right is the row totals, the strip
 along the bottom the column totals, and the corner square the grand total —
 drawn smallest because it is the check that passes on broken data.
-**Coverage** is the share of reference-populated cells we also populate;
-**accuracy** is the share of populated cells landing within tolerance.
+
+**Two numbers accompany each figure, and they answer different questions.**
+*Coverage* is the share of reference-populated cells we also populate — how
+much of this table we have, asked before how good it is. *Median difference*
+is the middle relative difference across the cells both sides populate.
+*Value-weighted* is the total absolute difference over the total published
+value of those same cells. They are quoted together on purpose: the median
+says what a typical cell does and counts a $0.6M cell and a $50bn cell
+alike, while the value-weighted figure says what share of the compared
+dollars sits in the wrong place and can only be moved by cells that are
+large. Where they diverge, the gap is the finding.
 
 ## 1. Comparison to BEA 2017 Benchmark SUTs
 
@@ -47,17 +58,18 @@ and the supply bridge, each built from its own primary sources. The
 balancing step imposed the accounting identities and observed aggregates.
 Table 1 summarises both states.
 
-*Table 1. The five SUT blocks against the published 2017 detail benchmark,
-in the seed state and the balanced state. Coverage / accuracy over populated
-cells; total difference is the grand total against published.*
+*Table 1. The five SUT blocks against the published 2017 detail
+benchmark, in the seed state and the balanced state. Coverage, then the
+median and value-weighted relative difference over the cells both sides
+populate; total difference is the grand total against published.*
 
-| block | seed cov. / acc. | balanced cov. / acc. | balanced total diff |
-|---|---:|---:|---:|
-| Final demand (402 × 19) | 90.0% / 66.0% | 89.9% / 50.9% | 0.071% |
-| Value added (6 × 402) | 99.9% / 79.4% | 99.9% / 67.7% | 0.000% |
-| Intermediate interior (402 × 402) | 100.0% / 100.0% | 100.0% / 57.2% | 0.063% |
-| Domestic output interior (402 × 402) | 100.0% / 99.6% | 100.0% / 74.5% | 0.009% |
-| Supply bridge (402 × 12) | 99.5% / 76.1% | 99.4% / 49.5% | 0.018% |
+| block | seed cov. | seed med. / wtd. | balanced cov. | balanced med. / wtd. | balanced total diff |
+|---|---:|---:|---:|---:|---:|
+| Final demand (402 × 19) | 90.0% | <0.01% / 1.5% | 89.9% | 0.98% / 1.8% | 0.071% |
+| Value added (6 × 402) | 99.9% | <0.01% / 2.1% | 99.9% | 0.93% / 2.2% | 0.000% |
+| Intermediate interior (402 × 402) | 100.0% | <0.01% / <0.01% | 100.0% | 2.1% / 2.9% | 0.063% |
+| Domestic output interior (402 × 402) | 100.0% | <0.01% / <0.01% | 100.0% | 0.96% / 0.81% | 0.009% |
+| Supply bridge (402 × 12) | 99.5% | 0.02% / 0.36% | 99.4% | 1.1% / 1.1% | 0.018% |
 
 ⚠️ **The two columns answer different questions, and the drop between them
 is not degradation.** The seed interiors reproduce published 2017 because at
@@ -79,82 +91,90 @@ certify only that the build is unbroken.
 
 *Figure 1. Seed final-demand columns (commodity × final-demand code,
 purchaser price) against the published 2017 detail Use table. Coverage
-90.0%, accuracy 66.0%. The inventory-change and export columns carry nearly
-all misses; the twelve government columns land cell for cell.*
+90.0%, median difference <0.01%, value-weighted 1.5%. The
+inventory-change and export columns carry nearly all misses; the twelve
+government columns land cell for cell.*
 
 ![Seed value added](images/use_va_detail_sut_seed_2017.png)
 
 *Figure 2. Seed value-added rows (six rows × 402 industries) against the
-published 2017 detail Use table. Coverage 99.9%, accuracy 79.4%. All row
-totals match; the shortfall is one row — taxes on products, whose industry
-split places tax with producers where the published row places it with
-sellers (wholesale and retail).*
+published 2017 detail Use table. Coverage 99.9%, median difference
+<0.01%, value-weighted 2.1%. All row totals match; the shortfall is one
+row — taxes on products, whose industry split places tax with producers
+where the published row places it with sellers (wholesale and retail).*
 
 ![Seed intermediate interior](images/use_intermediate_detail_sut_seed_2017.png)
 
 *Figure 3. Seed intermediate interior (402 commodities × 402 industries)
-against the published 2017 detail Use table. Coverage and accuracy 100.0% —
-a plumbing certification, since the 2017 seed carries the published interior
-by construction. The estimation content of this block is scored in section
-6, where 35.7% of its dollars are observed by an annual source.*
+against the published 2017 detail Use table. Coverage 100.0%, median
+difference <0.01%, value-weighted <0.01% — a plumbing certification,
+since the 2017 seed carries the published interior by construction. The
+estimation content of this block is scored in section 6, where 35.7% of
+its dollars are observed by an annual source.*
 
 ![Seed domestic output](images/supply_output_detail_sut_seed_2017.png)
 
-*Figure 4. Seed domestic output block (402 × 402, basic price) against the
-published 2017 detail Supply table. Coverage 100.0%, accuracy 99.6%. Only
-~5,000 of 161,604 cells are populated on either side — an industry makes a
-handful of commodities — and both-empty cells count as absent, not matches.
+*Figure 4. Seed domestic output block (402 × 402, basic price) against
+the published 2017 detail Supply table. Coverage 100.0%, median
+difference <0.01%, value-weighted <0.01%. Only ~5,000 of 161,604 cells
+are populated on either side — an industry makes a handful of
+commodities — and both-empty cells count as absent, not matches.
 Near-circular at 2017: the same detail mix appears on both sides.*
 
 ![Seed supply bridge](images/supply_bridge_detail_sut_seed_2017.png)
 
-*Figure 5. Seed supply bridge (402 commodities × 12 bridge codes: imports,
-margins, taxes and their subtotals) against the published 2017 detail Supply
-table. Coverage 99.5%, accuracy 76.1%. The two margin columns net to
-exactly zero by construction and cannot be scored by their column totals;
-the import column's remaining error is concentrated in ~50 crosswalk
-decisions on goods commodities.*
+*Figure 5. Seed supply bridge (402 commodities × 12 bridge codes:
+imports, margins, taxes and their subtotals) against the published 2017
+detail Supply table. Coverage 99.5%, median difference 0.02%,
+value-weighted 0.36%. The two margin columns net to exactly zero by
+construction and cannot be scored by their column totals; the import
+column's remaining error is concentrated in ~50 crosswalk decisions on
+goods commodities.*
 
 ### 1.2 Balanced RAS Tables
 
 Figures 6-10 show the same five blocks in the final balanced state — the
 tables the rest of the pipeline consumes. Totals and identities are exact
-everywhere; the amber that appears relative to the seed figures marks where
-the balance placed the reconciliation.
+everywhere; the warmer cells relative to the seed figures mark where the
+balance placed the reconciliation.
 
 ![Balanced final demand](images/use_fd_detail_sut_2017.png)
 
-*Figure 6. Balanced final-demand columns against the published 2017 detail
-Use table. Coverage 89.9%, accuracy 50.9%. Compare Figure 1: the balance
-spread part of the inventory and export reconciliation across otherwise
-matching columns while closing every imposed column total exactly.*
+*Figure 6. Balanced final-demand columns against the published 2017
+detail Use table. Coverage 89.9%, median difference 0.98%,
+value-weighted 1.8%. Compare Figure 1: the balance spread part of the
+inventory and export reconciliation across otherwise matching columns
+while closing every imposed column total exactly.*
 
 ![Balanced value added](images/use_va_detail_sut_2017.png)
 
-*Figure 7. Balanced value-added rows against the published 2017 detail Use
-table. Coverage 99.9%, accuracy 67.7%; the grand total agrees to 0.000%.
-Compare Figure 2.*
+*Figure 7. Balanced value-added rows against the published 2017 detail
+Use table. Coverage 99.9%, median difference 0.93%, value-weighted 2.2%;
+the grand total agrees to 0.000%. Compare Figure 2.*
 
 ![Balanced intermediate interior](images/use_intermediate_detail_sut_2017.png)
 
-*Figure 8. Balanced intermediate interior against the published 2017 detail
-Use table. Coverage 100.0%, accuracy 57.2%. The drop from Figure 3's 100%
-is the balance absorbing the seed's supply-use gap — a fitted 2.3% before
-balancing — into the interior while closing the identity exactly for every
+*Figure 8. Balanced intermediate interior against the published 2017
+detail Use table. Coverage 100.0%, median difference 2.1%,
+value-weighted 2.9%. The drop from Figure 3's 100% is the balance
+absorbing the seed's supply-use gap — a fitted 2.3% before balancing —
+into the interior while closing the identity exactly for every
 commodity.*
 
 ![Balanced domestic output](images/supply_output_detail_sut_2017.png)
 
-*Figure 9. Balanced domestic output block against the published 2017 detail
-Supply table. Coverage 100.0%, accuracy 74.5%; the grand total agrees to
-0.009%. Compare Figure 4.*
+*Figure 9. Balanced domestic output block against the published 2017
+detail Supply table. Coverage 100.0%, median difference 0.96%,
+value-weighted 0.81%; the grand total agrees to 0.009%. Compare Figure
+4.*
 
 ![Balanced supply bridge](images/supply_bridge_detail_sut_2017.png)
 
-*Figure 10. Balanced supply bridge against the published 2017 detail Supply
-table. Coverage 99.4%, accuracy 49.5%; the grand total agrees to 0.018%.
-The trade-margin rows dominate the amber: the balance moved margin mass
-between commodities to close the purchaser-value identities.*
+*Figure 10. Balanced supply bridge against the published 2017 detail
+Supply table. Coverage 99.4%, median difference 1.1%, value-weighted
+1.1%; the grand total agrees to 0.018%. The trade-margin rows dominate
+the divergence: the balance moved margin mass between commodities to
+close the purchaser-value identities.*
 
 ## 2. Annual Comparison to Published Summary Tables
 
@@ -168,20 +188,21 @@ detail mix deliberately follows the 2022 Economic Census where it disagrees
 with the published tables. Table 2 summarises the span; Figures 11-24 show
 each year.
 
-*Table 2. The balanced tables aggregated to summary against the published
-summary tables, per year. Accuracy is the share of populated cells within
-1%; total difference is the grand total against published.*
+*Table 2. The balanced tables aggregated to summary against the
+published summary tables, per year. Median and value-weighted are the
+relative difference over the cells both sides populate; total difference
+is the grand total against published.*
 
-| year | Supply cov. | Supply acc. | Use cov. | Use acc. | Supply total diff | Use total diff |
+| year | Supply cov. | Supply med. / wtd. | Use cov. | Use med. / wtd. | Supply total diff | Use total diff |
 |---:|---:|---:|---:|---:|---:|---:|
-| 2017 | 99.2% | 55.5% | 99.6% | 41.5% | 0.012% | 0.012% |
-| 2018 | 99.0% | 50.0% | 99.5% | 15.6% | 0.011% | 0.009% |
-| 2019 | 98.7% | 42.2% | 99.5% | 12.6% | 0.058% | 0.008% |
-| 2020 | 98.4% | 25.0% | 99.5% | 7.8% | 0.067% | 0.185% |
-| 2021 | 98.1% | 17.5% | 99.1% | 6.9% | 0.340% | 0.586% |
-| 2022 | 98.4% | 12.0% | 98.7% | 6.3% | **1.033%** | **1.038%** |
-| 2023 | 98.4% | 35.9% | 98.6% | 6.3% | 0.017% | 0.016% |
-| 2024 | 98.4% | 36.3% | 98.7% | 6.2% | 0.017% | 0.015% |
+| 2017 | 99.2% | 1.1% / 0.69% | 99.6% | 1.3% / 1.8% | 0.012% | 0.012% |
+| 2018 | 99.0% | 1.5% / 0.87% | 99.4% | 6.4% / 3.2% | 0.011% | 0.013% |
+| 2019 | 98.7% | 2.3% / 1.0% | 99.4% | 9.3% / 3.8% | 0.059% | 0.013% |
+| 2020 | 98.4% | 3.6% / 1.6% | 99.3% | 14.5% / 5.1% | 0.067% | 0.119% |
+| 2021 | 98.1% | 5.4% / 1.9% | 99.0% | 15.5% / 5.9% | 0.357% | 0.408% |
+| 2022 | 98.4% | 14.0% / 4.0% | 98.8% | 20.2% / 8.7% | **1.045%** | **1.039%** |
+| 2023 | 98.3% | 3.4% / 1.5% | 98.6% | 21.6% / 6.8% | 0.017% | 0.021% |
+| 2024 | 98.4% | 3.0% / 1.4% | 98.6% | 22.0% / 6.7% | 0.019% | 0.022% |
 
 Three things the span says. **Coverage holds at ~99% every year** — the
 nowcast populates what the published tables populate. **Cell-level
@@ -197,83 +218,84 @@ than 2022 and lands at a sixtieth of its total difference.
 ![Supply summary 2017](images/supply_summary_sut_2017.png)
 
 *Figure 11. Balanced Supply aggregated to summary vs published, 2017.
-Coverage 99.2%, accuracy 55.5%.*
+Coverage 99.2%, median difference 1.1%, value-weighted 0.69%.*
 
 ![Use summary 2017](images/use_summary_sut_2017.png)
 
 *Figure 12. Balanced Use aggregated to summary vs published, 2017.
-Coverage 99.6%, accuracy 41.5%.*
+Coverage 99.6%, median difference 1.3%, value-weighted 1.8%.*
 
 ![Supply summary 2018](images/supply_summary_sut_2018.png)
 
-*Figure 13. Supply at summary vs published, 2018. Coverage 99.0%, accuracy
-50.0%.*
+*Figure 13. Supply at summary vs published, 2018. Coverage 99.0%, median
+difference 1.5%, value-weighted 0.87%.*
 
 ![Use summary 2018](images/use_summary_sut_2018.png)
 
-*Figure 14. Use at summary vs published, 2018. Coverage 99.5%, accuracy
-15.6%.*
+*Figure 14. Use at summary vs published, 2018. Coverage 99.4%, median
+difference 6.4%, value-weighted 3.2%.*
 
 ![Supply summary 2019](images/supply_summary_sut_2019.png)
 
-*Figure 15. Supply at summary vs published, 2019. Coverage 98.7%, accuracy
-42.2%.*
+*Figure 15. Supply at summary vs published, 2019. Coverage 98.7%, median
+difference 2.3%, value-weighted 1.0%.*
 
 ![Use summary 2019](images/use_summary_sut_2019.png)
 
-*Figure 16. Use at summary vs published, 2019. Coverage 99.5%, accuracy
-12.6%.*
+*Figure 16. Use at summary vs published, 2019. Coverage 99.4%, median
+difference 9.3%, value-weighted 3.8%.*
 
 ![Supply summary 2020](images/supply_summary_sut_2020.png)
 
-*Figure 17. Supply at summary vs published, 2020. Coverage 98.4%, accuracy
-25.0%.*
+*Figure 17. Supply at summary vs published, 2020. Coverage 98.4%, median
+difference 3.6%, value-weighted 1.6%.*
 
 ![Use summary 2020](images/use_summary_sut_2020.png)
 
-*Figure 18. Use at summary vs published, 2020. Coverage 99.5%, accuracy
-7.8%.*
+*Figure 18. Use at summary vs published, 2020. Coverage 99.3%, median
+difference 14.5%, value-weighted 5.1%.*
 
 ![Supply summary 2021](images/supply_summary_sut_2021.png)
 
-*Figure 19. Supply at summary vs published, 2021. Coverage 98.1%, accuracy
-17.5%.*
+*Figure 19. Supply at summary vs published, 2021. Coverage 98.1%, median
+difference 5.4%, value-weighted 1.9%.*
 
 ![Use summary 2021](images/use_summary_sut_2021.png)
 
-*Figure 20. Use at summary vs published, 2021. Coverage 99.1%, accuracy
-6.9%.*
+*Figure 20. Use at summary vs published, 2021. Coverage 99.0%, median
+difference 15.5%, value-weighted 5.9%.*
 
 ![Supply summary 2022](images/supply_summary_sut_2022.png)
 
-*Figure 21. Supply at summary vs published, 2022 — the census-conditioning
-year, and the widest divergence of the span. Coverage 98.4%, accuracy
-12.0%.*
+*Figure 21. Supply at summary vs published, 2022 — the
+census-conditioning year, and the widest divergence of the span.
+Coverage 98.4%, median difference 14.0%, value-weighted 4.0%.*
 
 ![Use summary 2022](images/use_summary_sut_2022.png)
 
-*Figure 22. Use at summary vs published, 2022. Coverage 98.7%, accuracy
-6.3%.*
+*Figure 22. Use at summary vs published, 2022. Coverage 98.8%, median
+difference 20.2%, value-weighted 8.7%.*
 
 ![Supply summary 2023](images/supply_summary_sut_2023.png)
 
-*Figure 23. Supply at summary vs published, 2023. Coverage 98.4%, accuracy
-35.9%.*
+*Figure 23. Supply at summary vs published, 2023. Coverage 98.3%, median
+difference 3.4%, value-weighted 1.5%.*
 
 ![Use summary 2023](images/use_summary_sut_2023.png)
 
-*Figure 24. Use at summary vs published, 2023. Coverage 98.6%, accuracy
-6.3%.*
+*Figure 24. Use at summary vs published, 2023. Coverage 98.6%, median
+difference 21.6%, value-weighted 6.8%.*
 
 ![Supply summary 2024](images/supply_summary_sut_2024.png)
 
-*Figure 25. Supply at summary vs published, 2024 — the first year built on
-the 2024 Annual Integrated Economic Survey. Coverage 98.4%, accuracy 36.3%.*
+*Figure 25. Supply at summary vs published, 2024 — the first year built
+on the 2024 Annual Integrated Economic Survey. Coverage 98.4%, median
+difference 3.0%, value-weighted 1.4%.*
 
 ![Use summary 2024](images/use_summary_sut_2024.png)
 
-*Figure 26. Use at summary vs published, 2024. Coverage 98.7%, accuracy
-6.2%.*
+*Figure 26. Use at summary vs published, 2024. Coverage 98.6%, median
+difference 22.0%, value-weighted 6.7%.*
 
 ## 3. Industry Output Against the Published Series
 
@@ -349,7 +371,7 @@ on every year's build and refuse to save on breach.*
 | check | result |
 |---|---|
 | Producer-price Use replay, 2017 | interior and final demand reproduce published to $0M per cell |
-| Imports column rule (goods, adjustment, duties with the customs credit) | every commodity within tolerance at 2017 and 2012 |
+| Imports column rule (goods, adjustment, duties with the customs credit) | every commodity reproduces the published `F05000` to $0.5M — half BEA's publication grain — at 2017 and 2012 |
 | Import matrix row control | exact at both published benchmarks |
 | Margins layered identities (basic → producer → purchaser) | close at $0.00 per cell at 2017, 2012, and 2012 on the 2017 anchor |
 | Cost of the frozen 2017 margin rates, measured at 2012 | 2.06% of goods mass; 25.0% of margin-row placement |
@@ -424,6 +446,106 @@ than unattempted work. A match score of 100% can coexist with one source
 datum spread over 400 cells; reliability and specificity are scored
 separately for exactly that reason.
 
+## 6a. The 7 September 2026 rebuild
+
+Every table in this report was rebuilt on 7 September from cleared
+artifacts, on methods that changed in seven places since the 3 September
+run. The rebuild is the reason the figures moved, and what moved is
+worth stating plainly.
+
+**Nothing moved by accident.** Grand totals are preserved: the Use SUT
+grand total differs from the previous build by 3 million USD at 2017 on
+56.7 trillion, and by 0.007% at worst across the span. Every change in
+this cycle is a *redistribution* — trade mass across commodities, value
+added across industries, gross output across two aerospace codes — so
+the interior moves and the totals do not.
+
+**How the movement is measured.** Each figure below is the *gross*
+cell-by-cell movement between the previous build and this one. The two
+tables are aligned on their common cells and the absolute differences are
+summed — the sum of |new − old| over all 406 × 421 = 170,926 cells of the
+balanced Use SUT — and the percentage divides that by the previous build's
+grand total for the same cells. Two properties follow, and both matter for
+reading the table:
+
+- The metric is **gross, not net**. Offsetting moves add rather than
+  cancel. That is the point: the row and column controls hold, so the net
+  movement is near zero by construction and would show nothing.
+- It therefore **counts every relocated dollar twice**, once where it
+  leaves and once where it arrives. The 762,736 million USD at 2017 is
+  roughly 381 billion of value actually changing position.
+
+**The measure covers the whole balanced Use SUT**, not only the
+commodity-by-industry interior: the value-added rows and the final-demand
+columns are in it too. Their shares are not stable across the span, so
+they are broken out here rather than left implied.
+
+| year | Use SUT, gross \|Δ\| | intermediate | value added | final demand | Supply moved | MUT Use moved |
+|---|---:|---:|---:|---:|---:|---:|
+| 2017 | 762,736 $M (1.3%) | 59% | 28% | 13% | 120,033 $M (0.3%) | 1.4% |
+| 2018 | 1,688,403 $M (2.8%) | 52% | 40% | 8% | 164,282 $M (0.4%) | 2.8% |
+| 2019 | 1,965,366 $M (3.2%) | 50% | 42% | 7% | 181,344 $M (0.4%) | 3.2% |
+| 2020 | 3,637,855 $M (6.0%) | 49% | 43% | 8% | 615,046 $M (1.6%) | 5.9% |
+| 2021 | 4,781,009 $M (7.0%) | 48% | 42% | 10% | 1,296,471 $M (2.9%) | 6.8% |
+| 2022 | 5,423,197 $M (7.1%) | 50% | 44% | 7% | 648,615 $M (1.3%) | 7.0% |
+| 2023 | 5,409,242 $M (6.8%) | 50% | 45% | 5% | 336,857 $M (0.6%) | 6.6% |
+| 2024 | 6,131,087 $M (7.3%) | 50% | 45% | 5% | 423,500 $M (0.8%) | 7.2% |
+
+The three middle columns are shares of that year's gross movement and
+round to 100%. The value-added share nearly doubles across the span, from
+28% at 2017 to 45% at 2024 — 2,766,328 million USD of the 2024 total. That
+block is the value-added reconciliation, and its growth is the same effect
+the next paragraph describes, visible directly rather than inferred.
+
+⚠️ **The movement grows with distance from the benchmark, and that is the
+expected shape.** 2017 is anchored, so only the trade re-splits and the
+aerospace conditioning can move it. Later years additionally carry the
+value-added reconciliation, whose gap against BEA's published series grows
+across the span. A rebuild that moved 2024 as little as 2017 would mean the
+new methods were not doing anything.
+
+**All eight years balance exactly.** `T11` maximum absolute residual is
+**0.0 $M** in every year, at 20 outer iterations, with nothing skipped.
+
+⚠️ **Seven of the eight years did not balance at first, and the reason was
+latent rather than new.** The value-added reconciliation routes each
+industry's residual to gross operating surplus; private households
+(`814000`) have no surplus row — BEA publishes `V00300` of exactly zero
+for them in 2007, 2012 *and* 2017, with `VAPRO` equal to compensation to
+the dollar, because the sector's output *is* the compensation it pays. The
+balance mask holds that cell as a structural zero and refused the seed. The
+balanced products on disk had been built four days *before* the
+reconciliation landed, so it had never been exercised on 2018-2024. The
+residual now goes to the row each industry actually carries; exactly two
+industries take that exception, `814000` and `4200ID` customs duties.
+
+**The rebuild carried through to Step 7.** Step 6 produces the tables
+*before* redefinitions; leaving the after-redefinitions quartet on the 2
+September tables would have left the pipeline internally inconsistent,
+because the model build consumes the after-redefinitions products. The
+2017 replay gate was run first and held — maximum Make cell gap 19.0
+million USD, Use interior 6.1 million, value added 15.9 million — and the
+redefinitions were then applied across the span: 8 years, Make 402x402,
+Use 405x422, Import 402x422, and roughly 51,700 margin rows a year. Steps
+5, 6 and 7 together wrote 160 files to cloud storage.
+
+**What the artifact check now sees.** `stale_artifacts` reported 10 stale
+artifacts before this cycle and 290 after being taught to see a *method*
+change — the class where nothing upstream moves, the cache key does not
+move, and a rerun silently returns the previous parquet. It also reports
+artifacts that carry no lineage at all rather than passing them, which is
+what the Step 5 and Step 6 products do. After the rebuild it reports 386, and
+**none of them is a product built in this cycle**: 108 are superseded
+earlier versions of the nowcast quartet still sitting on disk, and the
+rest are upstream extract artifacts that were deliberately left alone,
+because regenerating the source panels was not part of this rebuild.
+
+⚠️ **A real gap remains there.** Those products record a builder but no
+sources, so rebuilding an input still cannot flag them. This cycle was
+correct by construction — everything downstream was cleared and rebuilt in
+order — but the next one will not be unless `save_balance` and `save_mut`
+start recording what they consumed.
+
 ## 7. Conclusions and Next Steps
 
 **The pipeline is complete and its products exist.** Annual detail Supply
@@ -451,9 +573,10 @@ transport margin and the change-in-inventories column were waiting on.
 Taking it was not a drop-in — Census had retired the API path the extracts
 used, for every year, and moved the gross-margin measure to a different
 dataset — but the year it produced is continuous with its predecessors on
-every diagnostic in this report: coverage and accuracy within a few tenths
-of 2023, grand totals within 0.02%, and an industry-output gap that repeats
-2022's census correction rather than growing.
+every diagnostic in this report: coverage, median and value-weighted
+difference all within half a point of 2023 on both tables, grand totals
+within 0.03%, and an industry-output gap that repeats 2022's census
+correction rather than growing.
 
 **Next steps.**
 

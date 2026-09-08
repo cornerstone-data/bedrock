@@ -1,13 +1,25 @@
 # Binary assets. Marked so git does not attempt line-ending conversion or
 # textual diffs on them.
 #
-# Not tracked in Git LFS. As of the first committed image (the nowcast progress
-# report figures, ~120 KB at REPORT_DPI) the repo holds no other binaries and
-# packs to ~19 MB, so LFS would add a required tool for every contributor and
-# every CI job to save a fraction of a percent. Revisit if these figures start
-# churning per-commit rather than per-milestone: an LFS migration is easy going
-# forward, it is only the already-committed blobs that stay in history.
-*.png binary
+# PNG figures are stored in Git LFS. The original call was to keep them as
+# ordinary blobs -- at the first committed image the repo packed to ~19 MB and
+# LFS would have added a required tool for every contributor and every CI job
+# to save a fraction of a percent -- and it named the condition for revisiting:
+# "if these figures start churning per-commit rather than per-milestone". That
+# is what happened. The report's 30 comparison figures are re-rendered whenever
+# the colour scheme or the tables underneath them move, 1.16 MB of
+# incompressible blobs each time, and that ran twice in three days.
+#
+# Two consequences, both deliberate. Working on this repo now needs git-lfs
+# installed. And blobs committed before this change stay in history as blobs:
+# only new content becomes a pointer, so the repo does not get smaller, it
+# stops growing at this rate. Converting the history as well would rewrite
+# main and every open branch, which is a separate decision and not this one.
+#
+# The nine committed .parquet fixtures are 3.1 MB and are still ordinary
+# blobs. They are static reference artifacts rather than regenerated output,
+# so they do not churn; move them here if that stops being true.
+*.png filter=lfs diff=lfs merge=lfs -text
 *.jpg binary
 *.jpeg binary
 *.gif binary

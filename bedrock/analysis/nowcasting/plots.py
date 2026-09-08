@@ -4,7 +4,7 @@ One figure per Use-table section: the interior as a raster, with the row totals
 as a strip down the right edge and the column totals as a strip along the
 bottom, on the same colour scale.  The margins are not decoration -- ``T014``
 nets to ~1 economy-wide and redefinition preserves every total, so a green
-interior above a yellow column strip localises an error that the grand total
+interior above a red column strip localises an error that the grand total
 cannot see.
 
 The interior is drawn with a single ``imshow`` of a pre-built RGB array rather
@@ -14,30 +14,35 @@ a 402 x 402 intermediate block without changing approach.
 Colour
 ------
 
-============ ==========================================================
-white        ``ABSENT``  -- neither side has a value
-green        ``MATCH``   -- both present, within tolerance
-yellow-amber ``PARTIAL`` -- both present, shaded by how far off
-purple       ``MISS``    -- the reference has a value, we produced none
-blue         ``EXTRA``   -- we produced a value the reference does not have
-============ ==========================================================
+=========== ==========================================================
+white       ``ABSENT`` -- neither side has a value
+green-red   both sides have a value, coloured by relative difference
+purple      ``MISS``   -- the reference has a value, we produced none
+blue        ``EXTRA``  -- we produced a value the reference does not have
+=========== ==========================================================
 
-The yellow ramp runs from the tolerance boundary (severity 0) to
-``Tolerance.ramp`` (severity 1), so the shading has a stated scale and the
-colour bar can print it.
+Where both sides have a value the cell sits on one continuous ramp: green at a
+relative difference of 0, red at 1.0 and beyond.  There is no threshold in the
+picture.  A cell 0.9% off and a cell 1.1% off are drawn almost identically,
+because that is what they are; the earlier within-tolerance / outside-tolerance
+split drew them as two different colours, which put a step in the picture where
+the data has none.  ``Tolerance`` still exists in :mod:`~..table_match`, where
+the pass/fail gates need a boundary -- it just no longer decides a colour.
 
-These five anchors were checked, not assumed, against simulated protanopia,
-deuteranopia and tritanopia: every category pair separates by at least
-``dE 27`` (CIE76) under all four vision models.  :func:`palette_separation`
-re-runs that check on whatever the palette currently is, so an edit to it can
-be re-verified rather than argued about -- ``--check-palette`` on the CLI.
+Lightness falls monotonically along the ramp, light green through amber to a
+dark red.  That is what keeps it readable without hue discrimination: under
+protanopia and deuteranopia the two ends converge in hue, so position along the
+ramp has to be carried by something else, and lightness is the only channel
+left.  A green-to-red ramp built on hue alone is the one gradient those viewers
+cannot read at all.
 
-The binding constraint is not the one people expect.  Green against yellow is
-the notorious pair, and it is handled by lightness: the match green is dark and
-the whole yellow ramp is light.  The closest pair in the palette is actually
-*white against the palest yellow* under tritanopia, which is why the ramp
-starts at a saturated ``#ffd84d`` rather than the near-white a "shade of
-yellow" would suggest.
+The anchors were checked, not assumed, against simulated protanopia,
+deuteranopia and tritanopia.  :func:`palette_separation` re-runs the check on
+whatever the palette currently is, so an edit to it can be re-verified rather
+than argued about -- ``--check-palette`` on the CLI.  Ramp-against-ramp pairs
+are exempt from the floor, since adjacent points on a continuous scale are
+meant to be close, but the two ends are held to it: if 0% and 100% are not
+separable the ramp is not carrying its own scale.
 
 CLI::
 
@@ -70,23 +75,42 @@ from bedrock.analysis.nowcasting.table_match import (
 
 OUTPUT_DIR = Path(__file__).parent / 'output'
 
-#: Flat category colours.  ``PARTIAL`` is a ramp, see :data:`PARTIAL_RAMP`.
+#: Flat colours for the three presence states.  Cells both sides populate are
+#: not in here; they are drawn from :data:`DIFF_RAMP`.
 PALETTE: dict[CellStatus, str] = {
     CellStatus.ABSENT: '#ffffff',
-    CellStatus.MATCH: '#166534',
     CellStatus.MISS: '#6a3d9a',
     CellStatus.EXTRA: '#67a9cf',
 }
 
-#: ``(severity 0, severity 1)``.  The light end is deliberately a saturated
-#: yellow rather than a near-white one: a cell just outside tolerance has to
-#: stay distinguishable from an empty cell, including under tritanopia, where
-#: white and pale yellow are the closest pair in the whole palette.
-PARTIAL_RAMP: tuple[str, str] = ('#ffd84d', '#b87700')
+#: ``(position, colour)`` from a relative difference of 0 to :data:`DIFF_MAX`.
+#: Lightness falls monotonically along it -- ``L*`` 81, 73, 64, 48, 33 -- which
+#: is the property that carries the scale for viewers who cannot separate the
+#: two hues.  The steps are kept roughly even rather than merely monotonic:
+#: most cells in a Use table sit in the first quarter of this scale, so a ramp
+#: that is flat there has thrown away the channel where it needs it most.
+#:
+#: These anchors were searched, not chosen: the green end is squeezed between
+#: white (``ABSENT``) above it and the blue of ``EXTRA`` below it, and under
+#: tritanopia both of those sit close to a light green.  The best available
+#: worst-pair separation is ``dE 26.0`` against a floor of
+#: :data:`MIN_SEPARATION`, binding on white against the green end -- the same
+#: pair that bound the previous palette.
+DIFF_RAMP: tuple[tuple[float, str], ...] = (
+    (0.00, '#a5d96a'),
+    (0.25, '#a8b84e'),
+    (0.50, '#c9902e'),
+    (0.75, '#b85526'),
+    (1.00, '#94201f'),
+)
 
-#: A severity that could not be computed still has to be drawn as ``PARTIAL``;
+#: Relative difference at which the ramp saturates.  The legend states it, so a
+#: saturated cell reads as "100% off or worse" rather than "exactly 100%".
+DIFF_MAX = 1.0
+
+#: A relative difference that could not be computed still has to be drawn;
 #: mid-ramp is the honest placeholder.
-DEFAULT_SEVERITY = 0.5
+DEFAULT_REL = 0.5
 
 LABEL_AXIS_MAX = 60  # tick labels stop being legible somewhere around here
 TICK_FONTSIZE = 7
@@ -107,26 +131,38 @@ def _hex_to_rgb(value: str) -> np.ndarray:
     return np.array([int(value[i : i + 2], 16) / 255 for i in (0, 2, 4)])
 
 
-def partial_rgb(severity: np.ndarray) -> np.ndarray:
-    """Interpolate the yellow ramp at ``severity`` (0-1), shape ``(..., 3)``."""
-    lo, hi = (_hex_to_rgb(c) for c in PARTIAL_RAMP)
-    t = np.clip(np.nan_to_num(severity, nan=DEFAULT_SEVERITY), 0.0, 1.0)[..., None]
-    return lo * (1 - t) + hi * t
+def diff_rgb(rel: np.ndarray) -> np.ndarray:
+    """Interpolate :data:`DIFF_RAMP` at relative difference ``rel``.
+
+    ``rel`` is a fraction, not a percentage, and is clipped to
+    ``[0, DIFF_MAX]``: everything at or past the top of the scale is the same
+    red, so one cell 40x out does not decide how the rest of the table reads.
+    """
+    positions = np.array([p for p, _ in DIFF_RAMP]) * DIFF_MAX
+    colours = np.stack([_hex_to_rgb(c) for _, c in DIFF_RAMP])
+    t = np.clip(
+        np.nan_to_num(np.asarray(rel, dtype=float), nan=DEFAULT_REL), 0.0, DIFF_MAX
+    )
+    return np.stack([np.interp(t, positions, colours[:, i]) for i in range(3)], axis=-1)
 
 
-def status_rgb(status: np.ndarray, severity: np.ndarray) -> np.ndarray:
-    """Build the RGB raster for a status/severity pair, shape ``(..., 3)``.
+def status_rgb(status: np.ndarray, rel: np.ndarray) -> np.ndarray:
+    """Build the RGB raster for a status/relative-difference pair, ``(..., 3)``.
 
     Kept separate from any figure so it can be asserted on directly, and so the
     margin strips and the interior are coloured by exactly one function.
+
+    ``MATCH`` and ``PARTIAL`` are both "the two sides have a value here" and
+    are coloured identically, by their difference.  The distinction between
+    them survives only in the gates.
     """
     status = np.asarray(status)
     rgb = np.zeros((*status.shape, 3), dtype=float)
     for code, hexval in PALETTE.items():
         rgb[status == int(code)] = _hex_to_rgb(hexval)
-    partial = status == int(CellStatus.PARTIAL)
-    if partial.any():
-        rgb[partial] = partial_rgb(np.asarray(severity, dtype=float)[partial])
+    both = (status == int(CellStatus.MATCH)) | (status == int(CellStatus.PARTIAL))
+    if both.any():
+        rgb[both] = diff_rgb(np.asarray(rel, dtype=float)[both])
     return rgb
 
 
@@ -152,13 +188,13 @@ def tick_labels(axis: pd.Index, names: Mapping[str, str] | None) -> list[str] | 
 def _draw(
     ax: Axes,
     status: np.ndarray,
-    severity: np.ndarray,
+    rel: np.ndarray,
     *,
     row_labels: list[str] | None = None,
     col_labels: list[str] | None = None,
     strip: str = '',
 ) -> None:
-    rgb = status_rgb(status, severity)
+    rgb = status_rgb(status, rel)
     if rgb.ndim == 2:  # a margin strip arrives 1-D
         rgb = rgb[None, :, :] if strip == 'column' else rgb[:, None, :]
     ax.imshow(rgb, aspect='auto', interpolation='nearest', origin='upper')
@@ -233,9 +269,11 @@ def _to_lab(rgb: np.ndarray) -> np.ndarray:
 def palette_separation() -> pd.DataFrame:
     """CIE76 distance between every category pair, under four vision models.
 
-    The ramp is sampled at both ends and its middle, and ramp-vs-ramp pairs are
-    skipped: shading within ``PARTIAL`` is a magnitude cue, not a category
-    boundary, so those are meant to be close.
+    The ramp is sampled at each of its anchors.  Ramp-vs-ramp pairs are skipped
+    -- shading within the ramp is a magnitude cue, not a category boundary, so
+    neighbouring samples are meant to be close -- with one exception: the two
+    *ends* are held to the floor like any other pair, because a ramp whose ends
+    are not separable is not carrying a scale.
 
     :return: ``vision``, ``a``, ``b``, ``delta_e``, ``delta_l``, worst first
         reversed -- sort ascending and read the top row for the binding pair.
@@ -245,8 +283,9 @@ def palette_separation() -> pd.DataFrame:
     anchors: dict[str, np.ndarray] = {
         STATUS_NAMES[code]: _hex_to_rgb(value) for code, value in PALETTE.items()
     }
-    for t in (0.0, 0.5, 1.0):
-        anchors[f'partial@{t:.1f}'] = partial_rgb(np.array(t))
+    for position, _ in DIFF_RAMP:
+        anchors[f'diff@{position:.2f}'] = diff_rgb(np.array(position))
+    ends = {f'diff@{DIFF_RAMP[0][0]:.2f}', f'diff@{DIFF_RAMP[-1][0]:.2f}'}
 
     rows = []
     for vision, matrix in _CVD_MATRICES.items():
@@ -255,7 +294,8 @@ def palette_separation() -> pd.DataFrame:
             for name, rgb in anchors.items()
         }
         for a, b in itertools.combinations(seen, 2):
-            if a.startswith('partial@') and b.startswith('partial@'):
+            ramp_pair = a.startswith('diff@') and b.startswith('diff@')
+            if ramp_pair and {a, b} != ends:
                 continue
             rows.append(
                 {
@@ -276,9 +316,9 @@ def _legend_handles() -> list[matplotlib.patches.Patch]:
         Patch(
             facecolor=PALETTE[CellStatus.ABSENT], edgecolor='#999999', label='absent'
         ),
-        Patch(facecolor=PALETTE[CellStatus.MATCH], label='match'),
-        Patch(facecolor=PARTIAL_RAMP[0], label='partial (at tolerance)'),
-        Patch(facecolor=PARTIAL_RAMP[1], label='partial (at ramp)'),
+        Patch(facecolor=DIFF_RAMP[0][1], label='0% different'),
+        Patch(facecolor=DIFF_RAMP[2][1], label='50% different'),
+        Patch(facecolor=DIFF_RAMP[-1][1], label=f'{DIFF_MAX:.0%} or more'),
         Patch(facecolor=PALETTE[CellStatus.MISS], label='miss (reference only)'),
         Patch(facecolor=PALETTE[CellStatus.EXTRA], label='extra (ours only)'),
     ]
@@ -366,7 +406,7 @@ def plot_match(
     _draw(
         interior,
         match.status.to_numpy(),
-        match.severity.to_numpy(),
+        match.rel_error.to_numpy(),
         row_labels=row_ticks,
     )
     interior.set_ylabel(str(match.status.index.name or ''), fontsize=9)
@@ -378,7 +418,7 @@ def plot_match(
     _draw(
         right,
         match.row_totals.status.to_numpy(),
-        match.row_totals.severity.to_numpy(),
+        match.row_totals.rel_error.to_numpy(),
         strip='row',
     )
     right.set_title('row\ntotals', fontsize=8, pad=4)
@@ -387,7 +427,7 @@ def plot_match(
     _draw(
         bottom,
         match.col_totals.status.to_numpy(),
-        match.col_totals.severity.to_numpy(),
+        match.col_totals.rel_error.to_numpy(),
         col_labels=col_ticks,
         strip='column',
     )
@@ -398,8 +438,8 @@ def plot_match(
     # check that passes on broken data.
     corner = fig.add_subplot(grid[1, 1])
     gt = match.grand_total
-    gt_status, _, gt_sev = _classify_scalar(match, gt)
-    _draw(corner, np.array([[gt_status]]), np.array([[gt_sev]]))
+    gt_status, gt_rel, _ = _classify_scalar(match, gt)
+    _draw(corner, np.array([[gt_status]]), np.array([[gt_rel]]))
     corner.set_title('grand\ntotal', fontsize=7, pad=2, y=-0.9)
 
     if chrome:
@@ -444,12 +484,16 @@ def _subtitle(match: TableMatch, section: Section | None, width: float) -> str:
     import textwrap  # noqa: PLC0415
 
     n = match.counts().loc['cells']
-    counts = '   '.join(
-        f'{name} {int(n[name]):,}' for name in STATUS_NAMES.values() if name != 'absent'
+    # 'match' and 'partial' are the two halves of "both sides have a value";
+    # they are one thing here, because the picture no longer splits them.
+    counts = (
+        f'both {int(n["match"]) + int(n["partial"]):,}   '
+        f'miss {int(n["miss"]):,}   extra {int(n["extra"]):,}'
     )
     lines = [
-        f'tolerance {match.tolerance.describe()}   |   '
-        f'coverage {match.coverage:.1%}   |   accuracy {match.accuracy:.1%}',
+        f'coverage {match.coverage:.1%}   |   median difference '
+        f'{match.median_rel_error:.1%}   |   value-weighted '
+        f'{match.weighted_rel_error:.1%}',
         f'cells: {counts}   |   grand total off by '
         f'{match.grand_total["rel_error"]:.2%}',
     ]
