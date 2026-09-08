@@ -177,16 +177,24 @@ def test_v_inflation_uses_industry_row_axis(
       ratio reduces to a row-wise scrap-correction factor — *constant* across
       commodity columns within each row → row std = 0.
     """
-    # apply_inflation=True is the new BEA-derived industry-PI path; pin the
-    # flag so the price ratio is industry-indexed (matching V's industry
-    # rows). Under apply_io_year_adjustments=False the helper returns
-    # commodity-indexed values for the legacy A-matrix flow.
-    monkeypatch.setattr(get_usa_config(), 'apply_io_year_adjustments', True)
+    # The property only exists when V is the published 2017 table inflated to
+    # a later year; a nowcast default has base year == target year and a unit
+    # price ratio, so pin the v0.3 (bea_published) config rather than rely on
+    # the process default.
+    _setup_config('2025_usa_cornerstone_v0_3.yaml')
+    try:
+        # apply_inflation=True is the new BEA-derived industry-PI path; pin the
+        # flag so the price ratio is industry-indexed (matching V's industry
+        # rows). Under apply_io_year_adjustments=False the helper returns
+        # commodity-indexed values for the legacy A-matrix flow.
+        monkeypatch.setattr(get_usa_config(), 'apply_io_year_adjustments', True)
 
-    Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(
-        apply_inflation=True, target_year=2024
-    )
-    Vnorm_False = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=False)
+        Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(
+            apply_inflation=True, target_year=2024
+        )
+        Vnorm_False = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=False)
+    finally:
+        _teardown()
 
     both_nonzero = (Vnorm_True.abs() > 1e-12) & (Vnorm_False.abs() > 1e-12)
     ratio = (Vnorm_True / Vnorm_False).where(both_nonzero)

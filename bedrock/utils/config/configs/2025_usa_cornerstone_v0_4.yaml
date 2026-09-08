@@ -1,0 +1,42 @@
+# Cornerstone 2025 model — v0.4 release config.
+#
+# The v0.3 methodology on 2024 nowcast detail IO tables:
+#   - Detail MUT from the NowcastMUT after-redefinition build named by
+#     nowcast_mut_vintage, not published BEA 2017 detail
+#                                        -> usa_detail_io_source: nowcast, usa_base_io_data_year: 2024
+#     x and q are the row and column sums of that Make, so B is not year-scaled
+#     or inflated and the v0.3 IO year adjustments stay off (they are rejected
+#     when the detail source is nowcast)  -> apply_io_year_adjustments: False
+#   - MECS adjustment + UMD GHG data     -> use_cornerstone_ghg_model at usa_ghg_data_year=2024.
+#                                           With a nowcast detail source this selects
+#                                           GHG_national_Cornerstone_nowcast_2024 (UMD GHGIA 2024
+#                                           inventory + 2022 MECS, attributed on the 2024 nowcast
+#                                           after-redef Use rather than published BEA 2017 Use).
+#                                           Loaded from the newest GCS parquet for that stem.
+#   - Waste disaggregation and industry-average margins as in v0.3.
+#
+# nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
+# reproducible even after newer nowcast builds are uploaded; move the pin only
+# when a new build is accepted for release.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_4276083'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True

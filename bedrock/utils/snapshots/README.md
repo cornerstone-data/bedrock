@@ -28,7 +28,7 @@ These are **independent** concepts and frequently point at different commits:
 | Named release | [`releases.py`](releases.py) | Release label → snapshot SHA map, each entry commented with the config stem it was built from and the output change that made it necessary. Imported by [`diagnostics_baseline`](../validation/diagnostics_baseline.py) so `--baseline v0.3` (etc.) resolves; update in Phase A alongside `.SNAPSHOT_KEY`. |
 | Diagnostics baseline alias | [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | Short operator names (`ceda-v0`, `v0.3`, …) → `releases.py` constants. Add an entry when a new release is a common comparison target. Raw SHAs skip this map if they are already on the `Literal`. |
 | Allowed snapshot keys | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs diagnostics may load as `N_old` / `D_old`. Every released snapshot SHA must appear here. YAML default is `'v0'`; dispatch `--baseline` overrides for that run only. |
-| Canonical config | [`2025_usa_cornerstone_v0_3.yaml`](../config/configs/2025_usa_cornerstone_v0_3.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
+| Canonical config | [`2025_usa_cornerstone_v0_4.yaml`](../config/configs/2025_usa_cornerstone_v0_4.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
 | Cornerstone GHG FBS pin | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pins one `GHG_national_Cornerstone_2024` parquet in `transform/output_data` (filename + SHA256). Guards FBS regeneration in [`test_fbs.py`](../../transform/__tests__/test_fbs.py). See "Cornerstone GHG FBS pin" below. |
 
 ### Pins vs runtime loaders
@@ -123,7 +123,7 @@ Trigger the `generate_snapshots` workflow manually:
 
 - GitHub → Actions → **generate_snapshots** → Run workflow
 - Branch: `main` (or the specific SHA from step A1 if newer commits have landed)
-- `config_name`: leave as the default `2025_usa_cornerstone_v0_3` (the canonical config)
+- `config_name`: leave as the default `2025_usa_cornerstone_v0_4` (the canonical config)
 - Leave `snapshot_prefix_override` blank so the prefix is the commit SHA
 
 Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>/`.
@@ -177,7 +177,7 @@ git tag -a v0.X.Y -m "Bedrock release v0.X.Y
 
 Snapshot SHA:  $SNAP
 GCS prefix:    gs://cornerstone-default/snapshots/$SNAP/
-Canonical config: 2025_usa_cornerstone_v0_3
+Canonical config: 2025_usa_cornerstone_v0_4
 
 Highlights since previous tag:
 - <bullet>
@@ -200,7 +200,7 @@ Post in `#alerts-bedrock` (and any other relevant channel):
 > :package: **Bedrock release `v0.X.Y`**
 > Tag SHA: `<short_tag_sha>` ([compare](https://github.com/cornerstone-data/bedrock/compare/v0.X.<prev>...v0.X.Y))
 > Snapshot SHA: `<short_snapshot_sha>` (unchanged from previous release / new since `v0.X.<prev>`)
-> Canonical config: `2025_usa_cornerstone_v0_3`
+> Canonical config: `2025_usa_cornerstone_v0_4`
 > Highlights: <one or two lines>
 > Downstream impact: <e.g. use `--baseline v0.X` (or the new SHA) on diagnostics dispatch when comparing to this release>
 
@@ -264,7 +264,7 @@ If a bad snapshot accidentally got uploaded under a SHA you want to keep, you ca
 
 The `generate_snapshots.py` script supports `--adhoc`, which uploads to `gs://cornerstone-default/snapshots/<sha>/adhoc/` instead of the top-level SHA folder. Use this for:
 
-- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_v0_3`)
+- Snapshotting an atomic config (anything other than `2025_usa_cornerstone_v0_4`)
 - Local experimentation where you don't want to pollute the canonical snapshot prefix
 
 Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exist for ad-hoc diagnostic comparisons only.

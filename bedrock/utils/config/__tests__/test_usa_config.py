@@ -246,6 +246,50 @@ def test_v0_4_nowcast_yamls_load(year: int) -> None:
     assert not cfg.deflate_x_to_detail_io_year_for_B
 
 
+def test_v0_4_release_yaml_loads() -> None:
+    cfg = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.nowcast_mut_vintage == 'v0.3.0_4276083'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == 2024
+    assert cfg.model_base_year == 2024
+    assert cfg.iot_before_or_after_redefinition == 'after'
+    assert cfg.use_cornerstone_ghg_model
+    assert cfg.implement_waste_disaggregation
+    assert cfg.cornerstone_industry_avg_margins
+    assert not cfg.apply_io_year_adjustments
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+
+
+def _resolved_field_diff(a: str, b: str) -> dict[str, tuple[object, object]]:
+    da = _load_usa_config_from_file_name(f'{a}.yaml').model_dump()
+    db = _load_usa_config_from_file_name(f'{b}.yaml').model_dump()
+    return {k: (da[k], db[k]) for k in da if da[k] != db[k]}
+
+
+def test_v0_4_waterfall_rungs_bracket_the_release_config() -> None:
+    """G2 -> G3 is the US data update; G3 -> release is nowcasting only."""
+    assert _resolved_field_diff(
+        'v04_waterfall_g2_methods', 'v04_waterfall_g3_data'
+    ) == {
+        'usa_ghg_data_year': (2023, 2024),
+    }
+    nowcast_only = _resolved_field_diff(
+        'v04_waterfall_g3_data', '2025_usa_cornerstone_v0_4'
+    )
+    assert set(nowcast_only) == {
+        'usa_detail_io_source',
+        'nowcast_mut_vintage',
+        'usa_base_io_data_year',
+        'apply_io_year_adjustments',
+    }
+    # The two rungs carry the v0.3 waterfall values over unchanged.
+    assert (
+        _resolved_field_diff('v04_waterfall_g2_methods', 'v03_waterfall_g2_methods')
+        == {}
+    )
+    assert _resolved_field_diff('v04_waterfall_g3_data', 'v03_waterfall_g3_data') == {}
+
+
 def test_electricity_reaggregation_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
         'test_usa_config_waste_disagg_electricity_reaggregation.yaml'

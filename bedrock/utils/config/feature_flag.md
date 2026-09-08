@@ -77,7 +77,7 @@ Config name = filename without `.yaml` (this is the `config_name` passed to
 `generate_diagnostics`).
 
 Do **not** enable the flag on the canonical snapshot config
-(`2025_usa_cornerstone_v0_3`, see `CANONICAL_USA_CONFIG` in `usa_config.py`)
+(`2025_usa_cornerstone_v0_4`, see `CANONICAL_USA_CONFIG` in `usa_config.py`)
 until the methodology is accepted for that release. Do **not** remove old
 entries from the `snapshot_version_or_git_sha` Literal — atomic configs and
 fixtures may still pin them.

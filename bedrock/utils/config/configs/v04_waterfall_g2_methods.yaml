@@ -1,0 +1,31 @@
+# v04_waterfall G2 — "Model reconciliation" rung: v0.4 less nowcasting and less
+# the US data update. Bedrock methods (CEDA A/price, cornerstone margins,
+# inflation, waste disaggregation, Cornerstone GHG) on published BEA 2017
+# detail with 2023 UMD GHG / IO data, at IO@2024 producer footing.
+#
+# The flags resolve identically to v03_waterfall_g2_methods, on purpose. A
+# config names methodology choices; the pipeline behind each choice moves
+# without a flag. Everything that landed between v0.3.0 and v0.4 other than
+# nowcasting — the many-to-one industry x expand, the waste Use-intersection
+# orientation fix, the MECS energy allocation in the Cornerstone GHG method
+# YAMLs — is code or method YAML, so every rung picks it up when re-run. The
+# GHG side is whatever the newest GCS parquet for the selected FBS stem holds:
+# use_cornerstone_ghg_model at usa_ghg_data_year 2023 reads the newest
+# GHG_national_Cornerstone_2023 upload.
+#
+# Caveat for the "US data update" bucket (G3 minus G2): as of 2026-09-08 the
+# newest GHG_national_Cornerstone_2023 parquet on GCS predates the MECS change
+# while the 2024 one includes it, so that bucket also carries the MECS fix
+# until the 2023 FBS is regenerated and uploaded.
+
+model_base_year: 2024
+price_type: producer
+
+usa_ghg_data_year: 2023
+
+use_cornerstone_ghg_model: true
+apply_io_year_adjustments: true
+implement_waste_disaggregation: true
+
+scale_a_matrix_with_useeio_method: false
+cornerstone_industry_avg_margins: true

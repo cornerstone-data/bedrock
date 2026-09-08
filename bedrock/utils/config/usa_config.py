@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
-CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_3'
+CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_4'
 
 # Stems with no yaml under configs/. Historical EF sheets / combine keys may
 # still use these strings (e.g. CEDA_V0_BASELINE); load/run is not supported.
