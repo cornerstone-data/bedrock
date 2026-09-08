@@ -92,20 +92,26 @@ _STATUS_NAME_BY_CODE = {int(code): name for code, name in STATUS_NAMES.items()}
 
 @dataclass(frozen=True)
 class Tolerance:
-    """The green/yellow boundary, and the scale of the yellow ramp.
+    """The pass/fail boundary for the gates, and the scale of :attr:`severity`.
 
     One instance governs a whole comparison -- every cell, every row total,
-    every column total -- so that a shade means the same thing wherever it
+    every column total -- so that a verdict means the same thing wherever it
     appears.  A cell is :attr:`~CellStatus.MATCH` when
     ``|candidate - reference| <= atol + rtol * |reference|``.
+
+    This is a *gate* boundary, and only that.  It no longer decides any colour:
+    the figures colour a cell by its relative difference on a continuous ramp,
+    so that where a cell falls is an observation rather than an artefact of
+    where the boundary was put.  What still needs a boundary is :meth:`check`,
+    which has to answer pass or fail.
 
     :param rtol: relative tolerance as a fraction (``0.013`` for the ~1.3% PCE
         bar, ``0.0022`` for PEQ, ``0.0`` for an identity that must hold exactly)
     :param atol: absolute tolerance in the table's own units, which keeps cells
         with a near-zero reference from failing on rounding alone
-    :param ramp: relative error at which the yellow ramp saturates.  Severity is
-        ``0`` at the tolerance boundary and ``1`` at ``ramp`` and beyond, so the
-        shading has a stated scale that reports can quote.
+    :param ramp: relative error at which :attr:`severity` saturates.  Severity
+        is ``0`` at the boundary and ``1`` at ``ramp`` and beyond.  It is kept
+        because the gate reports quote it; the pictures do not use it.
     :param presence: ``|value| <= presence`` counts as *no data on that side*.
         The default treats an exact zero as absent, which is what a zero means
         in a published BEA cell.
@@ -227,6 +233,10 @@ class Margin:
     def severity(self) -> pd.Series:
         return self.table['severity']
 
+    @property
+    def rel_error(self) -> pd.Series:
+        return self.table['rel_error']
+
     def counts(self) -> pd.Series:
         return _counts(self.table['status'].to_numpy())
 
@@ -346,10 +356,51 @@ class TableMatch:
 
     @property
     def accuracy(self) -> float:
-        """Share of the cells we do populate that land within tolerance."""
+        """Share of the cells we do populate that land within tolerance.
+
+        A threshold statistic, kept for the gates in :meth:`check`, which are
+        pass/fail and therefore need a boundary.  The figures and the standing
+        report quote :attr:`median_rel_error` and :attr:`weighted_rel_error`
+        instead: where a cell falls on a continuous scale is an observation,
+        where it falls relative to 1% is an artefact of picking 1%.
+        """
         n = self.counts().loc['cells']
         have = n['match'] + n['partial']
         return float(n['match'] / have) if have else float('nan')
+
+    def _both_present(self) -> np.ndarray:
+        """Mask of the cells both sides populate -- ``MATCH`` or ``PARTIAL``."""
+        s = self.status.to_numpy()
+        return (s == int(CellStatus.MATCH)) | (s == int(CellStatus.PARTIAL))
+
+    @property
+    def median_rel_error(self) -> float:
+        """Median relative difference across the cells both sides populate.
+
+        The counterpart to :attr:`coverage`: coverage says how much of the
+        reference we have, this says what a typical cell we do have is worth.
+        Every cell counts once, so a $0.6M cell weighs as much as a $50bn one;
+        :attr:`weighted_rel_error` is the other half of the picture.
+        """
+        rel = self.rel_error.to_numpy()[self._both_present()]
+        rel = rel[np.isfinite(rel)]
+        return float(np.median(rel)) if rel.size else float('nan')
+
+    @property
+    def weighted_rel_error(self) -> float:
+        """Total absolute difference over total reference value, where both agree
+        a cell exists.
+
+        The dollar-weighted counterpart to :attr:`median_rel_error`: the share
+        of the compared mass sitting in the wrong cell.  A handful of large
+        cells can move it and four hundred tiny ones cannot, which is the
+        failure mode a count-based statistic has.
+        """
+        both = self._both_present()
+        c = self.candidate.to_numpy()[both]
+        r = self.reference.to_numpy()[both]
+        denom = float(np.nansum(np.abs(r)))
+        return float(np.nansum(np.abs(c - r)) / denom) if denom else float('nan')
 
     def summary(self) -> dict[str, float | str]:
         """A flat, machine-readable digest -- what CI records and compares."""
@@ -360,6 +411,8 @@ class TableMatch:
                 out[f'{scope}.{name}'] = int(n.loc[scope, name])
         out['coverage'] = self.coverage
         out['accuracy'] = self.accuracy
+        out['median_rel_error'] = self.median_rel_error
+        out['weighted_rel_error'] = self.weighted_rel_error
         gt = self.grand_total
         out['grand_total.candidate'] = float(gt['candidate'])
         out['grand_total.reference'] = float(gt['reference'])
