@@ -147,7 +147,26 @@ def _check_lines(balance: YearBalance) -> list[tuple[str, bool, str]]:
         )
     )
 
-    # 5. Never-imported commodities carry no import mass.
+    # 5. No industry may be asked for a negative intermediate-input total:
+    # value added above gross output is impossible, and before #850 it passed
+    # silently into the fit and emptied the column. Gated, not reported - the
+    # fit itself refuses these, so a FAIL here is what tells you why.
+    negative = fit_cols_m[fit_cols_m < 0.0].sort_values()
+    checks.append(
+        (
+            'intermediate-input targets are non-negative',
+            negative.empty,
+            (
+                'clean'
+                if negative.empty
+                else '; '.join(
+                    f'{k} = {v:,.0f} $M' for k, v in negative.head(5).items()
+                )
+            ),
+        )
+    )
+
+    # 6. Never-imported commodities carry no import mass.
     mcif = balance.seeds['supply']['MCIF']
     offending = never_imported_violations(mcif)
     offending = offending[offending.abs() > CONSISTENCY_TOL_USD_M]
