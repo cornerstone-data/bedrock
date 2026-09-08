@@ -206,15 +206,51 @@ def method_files(meta: dict[str, Any]) -> list[Path]:
     return sorted(seen)
 
 
-def method_changed_at(paths: list[Path]) -> tuple[datetime | None, Path | None]:
-    """Newest of (last commit, working-tree mtime) over *paths*, and which file.
+@functools.cache
+def _dirty_paths() -> frozenset[str]:
+    """Repo-relative paths that differ from HEAD right now.
 
-    ⚠️ The mtime half is not redundant.  An **uncommitted** method edit leaves
-    the git hash untouched, so the FBS cache key does not move and the rebuild
-    silently returns the old parquet -- which is exactly the failure this class
-    exists to catch.
+    ⚠️ **Content, not mtime.**  ``git checkout`` rewrites the mtime of every
+    file it touches, so a branch switch alone would mark half the tree changed
+    and the check would cry wolf after every checkout -- which is how a
+    staleness check gets ignored.  Only a file that actually differs from HEAD
+    gets its mtime considered.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=_repo_root(),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    paths = set()
+    for line in result.stdout.splitlines():
+        entry = line[3:].strip().strip('"')
+        if " -> " in entry:  # a rename reports both sides
+            entry = entry.split(" -> ", 1)[1]
+        if entry:
+            paths.add(entry)
+    return frozenset(paths)
+
+
+def method_changed_at(paths: list[Path]) -> tuple[datetime | None, Path | None]:
+    """When a method last changed, and which file, over *paths*.
+
+    The last commit touching the file -- plus its working-tree mtime **only if
+    the file actually differs from HEAD**.
+
+    ⚠️ The uncommitted half is not redundant.  An uncommitted method edit
+    leaves the git hash untouched, so the FBS cache key does not move and the
+    rebuild silently returns the old parquet, which is exactly the failure this
+    class exists to catch.  But it has to be gated on content: see
+    :func:`_dirty_paths`.
     """
     tracked = _tracked_change_times()
+    dirty = _dirty_paths()
     root = _repo_root()
     newest: datetime | None = None
     culprit: Path | None = None
@@ -226,10 +262,11 @@ def method_changed_at(paths: list[Path]) -> tuple[datetime | None, Path | None]:
             relative = ""
         if relative and relative in tracked:
             stamps.append(tracked[relative])
-        try:
-            stamps.append(datetime.fromtimestamp(path.stat().st_mtime))
-        except OSError:
-            pass
+        if relative and relative in dirty:
+            try:
+                stamps.append(datetime.fromtimestamp(path.stat().st_mtime))
+            except OSError:
+                pass
         for stamp in stamps:
             if newest is None or stamp > newest:
                 newest, culprit = stamp, path
