@@ -650,8 +650,70 @@ def _reconcile_to_published_vapro(block: pd.DataFrame, year: int) -> pd.DataFram
             f'every industry.'
         )
     reconciled = block.copy()
-    reconciled.loc['V00300'] += published - block.sum(axis=0)
+    residual = published - block.sum(axis=0)
+    absorber = value_added_residual_row().reindex(block.columns).fillna('V00300')
+    for row, industries in absorber.groupby(absorber).groups.items():
+        columns = [str(c) for c in industries]
+        reconciled.loc[str(row)] = reconciled.loc[str(row)].add(
+            residual.reindex(columns).reindex(reconciled.columns).fillna(0.0)
+        )
     return reconciled
+
+
+@functools.cache
+def value_added_residual_row() -> pd.Series:
+    """Which value-added row absorbs each industry's reconciliation residual.
+
+    ``V00300`` gross operating surplus everywhere it exists, which is the role
+    the balance already gives it. ❌ **Two industries have no surplus row at
+    all**, and forcing the residual there produces a number that cannot exist:
+
+    ==========  =============================  ====================
+    industry    published 2017 value added     absorbs the residual
+    ==========  =============================  ====================
+    ``814000``  ``V00100`` 18,684, all of it   ``V00100``
+    ``4200ID``  ``T00TOP`` 38,513, all of it   ``T00TOP``
+    ==========  =============================  ====================
+
+    ⚠️ **Private households earn no operating surplus, and that is definitional
+    rather than a 2017 accident.** BEA publishes ``V00300`` of exactly zero for
+    ``814000`` in **all three** benchmark years - 2007, 2012 and 2017 - with
+    ``VAPRO`` equal to ``V00100`` to the dollar each time. The sector's output
+    *is* the compensation it pays: there is no enterprise, no capital and no
+    margin. ``4200ID`` is the same shape one row along - a synthetic code
+    carrying customs duties, so its value added is a tax on products.
+
+    ❌ **This was a hard blocker, not a rounding matter.** The reconciliation
+    routed 1,967 million USD (2018) rising to 5,104 (2024) into
+    ``V00300``/``814000``, which the balance mask holds as a Tier 0 structural
+    zero on the published sparsity pattern. Seven of the eight years failed
+    outright with *"1 cells are nonzero in the seed but marked structural
+    zero"*; 2017 passed only because its residual is zero by construction.
+
+    The mask was right and the routing was wrong. Exempting the cell instead
+    would have booked billions of household operating surplus and let it into
+    every downstream coefficient.
+    """
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    published = _load_2017_detail_supply_use_usa('Use_SUT_detail')
+    published.columns = published.columns.str.strip()
+    industries = [c for c in USA_2017_INDUSTRY_CODES if c in published.columns]
+    rows = [r for r in USE_VALUE_ADDED_ROWS if r in published.index]
+    block = published.loc[rows, industries].apply(pd.to_numeric, errors='coerce')
+    block = block.fillna(0.0)
+
+    absorber = pd.Series('V00300', index=pd.Index(industries, name='industry'))
+    for industry in industries:
+        if abs(float(block.loc['V00300', industry])) > 0.5:
+            continue
+        carried = block[industry].abs()
+        if float(carried.sum()) <= 0.5:
+            continue
+        absorber[industry] = str(carried.idxmax())
+    return absorber
 
 
 @functools.cache
