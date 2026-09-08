@@ -472,12 +472,26 @@ reconciliation landed, so it had never been exercised on 2018-2024. The
 residual now goes to the row each industry actually carries; exactly two
 industries take that exception, `814000` and `4200ID` customs duties.
 
+**The rebuild carried through to Step 7.** Step 6 produces the tables
+*before* redefinitions; leaving the after-redefinitions quartet on the 2
+September tables would have left the pipeline internally inconsistent,
+because the model build consumes the after-redefinitions products. The
+2017 replay gate was run first and held — maximum Make cell gap 19.0
+million USD, Use interior 6.1 million, value added 15.9 million — and the
+redefinitions were then applied across the span: 8 years, Make 402x402,
+Use 405x422, Import 402x422, and roughly 51,700 margin rows a year. Steps
+5, 6 and 7 together wrote 160 files to cloud storage.
+
 **What the artifact check now sees.** `stale_artifacts` reported 10 stale
 artifacts before this cycle and 290 after being taught to see a *method*
 change — the class where nothing upstream moves, the cache key does not
 move, and a rerun silently returns the previous parquet. It also reports
 artifacts that carry no lineage at all rather than passing them, which is
-what the Step 5 and Step 6 products do.
+what the Step 5 and Step 6 products do. After the rebuild it reports 386, and
+**none of them is a product built in this cycle**: 108 are superseded
+earlier versions of the nowcast quartet still sitting on disk, and the
+rest are upstream extract artifacts that were deliberately left alone,
+because regenerating the source panels was not part of this rebuild.
 
 ⚠️ **A real gap remains there.** Those products record a builder but no
 sources, so rebuilding an input still cannot flag them. This cycle was
