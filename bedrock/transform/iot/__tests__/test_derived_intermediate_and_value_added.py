@@ -198,3 +198,23 @@ def test_the_value_added_block_is_reconciled_to_published_vapro() -> None:
     # and it may land negative — clipping would reopen the identity
     surplus = reconciled.loc['V00300'].to_numpy(dtype=float)
     assert surplus[industries.index('S00201')] < 0.0
+
+
+def test_only_two_industries_take_the_non_surplus_absorber() -> None:
+    """814000 and 4200ID carry no gross operating surplus; everything else does.
+
+    Routing a residual to ``V00300`` for these two puts value in a cell the
+    balance mask holds as a structural zero, which is not a rounding matter:
+    it failed seven of the eight years outright with *"1 cells are nonzero in
+    the seed but marked structural zero"*.
+
+    The set is derived at runtime from the published 2017 table -- an industry
+    keeps ``V00300`` unless its published surplus rounds to nothing, and
+    otherwise absorbs into the largest row it does carry. Nothing else pins
+    that result, and ``idxmax`` has no "I do not know" branch, so a third
+    industry newly qualifying would be picked up silently. This is what makes
+    it fire instead.
+    """
+    absorber = nc.value_added_residual_row()
+    exceptions = absorber[absorber != 'V00300']
+    assert exceptions.to_dict() == {'814000': 'V00100', '4200ID': 'T00TOP'}

@@ -660,6 +660,14 @@ def _reconcile_to_published_vapro(block: pd.DataFrame, year: int) -> pd.DataFram
     return reconciled
 
 
+#: Below this, a published value-added cell is treated as *not there*. BEA
+#: publishes the detail tables in millions and rounds to the unit, so half a
+#: unit is the grain at which "this industry carries no such row" stops being
+#: a rounding artefact and becomes a statement about the table. Same bar, and
+#: the same reasoning, as ``sut_use_to_mut_use.REPLAY_ATOL``.
+VA_ROW_PRESENCE_ATOL = 0.5
+
+
 @functools.cache
 def value_added_residual_row() -> pd.Series:
     """Which value-added row absorbs each industry's reconciliation residual.
@@ -707,10 +715,10 @@ def value_added_residual_row() -> pd.Series:
 
     absorber = pd.Series('V00300', index=pd.Index(industries, name='industry'))
     for industry in industries:
-        if abs(float(block.loc['V00300', industry])) > 0.5:
+        if abs(float(block.loc['V00300', industry])) > VA_ROW_PRESENCE_ATOL:
             continue
         carried = block[industry].abs()
-        if float(carried.sum()) <= 0.5:
+        if float(carried.sum()) <= VA_ROW_PRESENCE_ATOL:
             continue
         absorber[industry] = str(carried.idxmax())
     return absorber
