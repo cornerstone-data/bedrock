@@ -37,6 +37,26 @@ A family whose level is 21 is not a mapping problem however bad its mix looks.
 | `S00402` used and secondhand goods | 61.0% exposure, −20,613 $M | **1.6%**, +540 $M | [#764](https://github.com/cornerstone-data/bedrock/pull/764) — Census `990000` catch-all removed |
 | aircraft `336411` / `336412` / `336413` | 162% / 184% / 52% exposure | **35% / 88% / 5%** | #720 + #748 applied by rebuild ([#758](https://github.com/cornerstone-data/bedrock/pull/758)) |
 | goods export level (economy-wide) | **+18.1%** vs published goods `F04000` | **−0.5%** | [#762](https://github.com/cornerstone-data/bedrock/issues/762) — Census `DF` domestic exports (`ALL_VAL_YR_DOM`) |
+| `492000` couriers | `MISS` both sides, 8,008 $M exposure | **exact at 2017; 1.68% MAPE 2018-24** | #771 anchor-and-move on `TransportAirFreight` — graded in [`courier_air_freight.py`](courier_air_freight.py) |
+| `52A000` financial service imports | 5.7× published | **exact at 2017** | #771 — `FinFisim` anchored on published `MCIF` |
+
+## ⚠️ `row_control_exposure` reads a pinned export CSV by default
+
+The diagnostic #701 was raised from takes its `F04000` candidate from
+`output/nowcast_initial_Y_pur_vs_use_sut_framework_2017.csv`, last written
+**2026-08-14** — before #762, #764, #766 and #771. Run without `--live` it
+reproduces #701's export column *to the dollar* and reports that nothing has
+changed. Pass `--live` (roughly ten minutes) or the reading is three weeks stale.
+
+| quantity | #701, $M | live now, $M |
+|---|---:|---:|
+| gross error, Σ\|dT001\| | 1,164,084 | 575,013 |
+| **landing in the intermediate block** | **488,408** (3.3%) | **170,835** (1.1%) |
+| from `MCIF` | 454,227 | 122,807 |
+| from `F04000` | 313,910 | 160,699 |
+
+Concentration also flattened, because the single large offenders are the ones
+that went: top 1 29% → **6.3%**, top 10 57% → **35.7%**, top 20 71% → **52.0%**.
 
 ## Open
 

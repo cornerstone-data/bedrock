@@ -329,6 +329,34 @@ named in the forward — same BEA distributive-services thread as above).
    (44 $M in 2017) that the never-imported mask set deliberately does not
    cover.
 
+### What it was worth, measured
+
+The trade booking BEA describes is now the shipped one, and it has been graded
+rather than taken on the letter (#701). `492000` rolls to summary `487OS` with
+only `48A000` beside it, so the published annual summary is a real observation
+of a block that is 93% couriers — detail 9,411 + 685 = summary 10,096 at 2017,
+exactly. Moving the row on ITA air freight reproduces that published row to
+**1.68% mean absolute error over 2018–2024**, worst year 2.77%.
+
+The fit is not vacuous: every other IEA transport category was graded the same
+way, and the next best is sea freight at 17.8%, with air *passenger* — the
+intuitive sibling — at 41.5%. **2020–21 decides it.** Courier exports rose 39%
+from 2019 to 2021 while air passenger fell to a third of its 2017 level; only
+air freight moved the same way, because BEA's conversion makes it the same
+traffic.
+
+⚠️ **The import half of the same sentence does not hold up, and is left
+alone.** Published `487OS` `MCIF` runs 44, 44, 40, 43, 41, 46, 35, 30 while ITA
+air freight imports rise 74% by 2021, so a frozen level beats the mover 13.8%
+to 43.8%. The largest error the mover makes is **35 million dollars**, 0.04% of
+the courier row's own intermediate use, which does not justify carving one
+commodity out of a uniform bridge architecture. BEA's own wording predicts the
+asymmetry: exports are a *conversion out of* air freight made to meet an export
+control, imports "come from the international directorate" as their own series.
+
+Reproduce with `uv run python -m
+bedrock.analysis.nowcasting.trade_data.courier_air_freight --check`.
+
 **Answered by:** William (Billy) Jolliff, BEA.
 
 Negative entries in the margin columns are **inventory timing**, not errors.
