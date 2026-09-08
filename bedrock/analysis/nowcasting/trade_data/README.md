@@ -20,6 +20,7 @@ Lives at `bedrock/analysis/nowcasting/trade_data/`. Notes and probes stay here u
 | [`naics_vintage.py`](naics_vintage.py) | Which NAICS vintage each Census source year is actually on |
 | [`courier_air_freight.py`](courier_air_freight.py) | **Grades the `492000` courier mover on the published summary `487OS` row, 2018-2024** (#701) |
 | [`export_split_weight.py`](export_split_weight.py) | **Grades the 1:m goods export split weight on the 2007/2012/2017 benchmark panel** (#701) |
+| [`import_resplit_holdout.py`](import_resplit_holdout.py) | **Grades the import family re-split and its level guard on the 2012 benchmark** (#763/#868) |
 
 ### Working decision
 

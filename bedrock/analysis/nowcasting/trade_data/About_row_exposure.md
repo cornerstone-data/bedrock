@@ -62,20 +62,47 @@ that went: top 1 29% → **6.3%**, top 10 57% → **35.7%**, top 20 71% → **52
 
 ## Open
 
-### → #763 · the import within-family split
+### ✅ #763 · the import within-family split — WIRED, and the mix is gone
 
-Families where level is right and mix is wrong.
+#763 validated the construction on the 2012 holdout and closed without wiring it: *each family's
+within-split anchored on the published 2017 mix, moved by the Census family level*. The import method
+already split **1:m** activities by frozen 2017 `MCIF`, which is that construction exactly — but 62 of
+the families are mapped **1:1 or m:1**, so no weight was ever applied and Census's own split stood.
+Giving each family a four-digit parent turns the family into one 1:m row, the device #702 used for
+vehicles and #865 for aerospace exports.
 
-| commodity | exposure | family | level | mix |
-|---|---:|---|---:|---:|
-| `334118` computer terminals | 139.2% | 3341 | 0.98 | 0.14 |
-| `336211` motor vehicle bodies | 146.1% | 3362 | 1.04 | 0.18 |
-| `337121` upholstered household furniture | 105.4% | 3371 | 1.03 | 0.21 |
-| `541511` custom programming | 53.8% | 5415 | 0.99 | **0.38** |
+| | gross import commodity error | family-level | mix | import `MATCH` |
+|---|---:|---:|---:|---:|
+| before | 445,999 $M | 66% | 151,978 $M (34%) | 109 |
+| **after** | **309,342 $M** | 95% | 15,203 $M (5%) | **123** |
 
-⚠️ **Ceiling: 32%.** Of 466,604 $M gross import commodity error, **68% is family-level** and only
-**151,431 $M (32%)** is mix. `family_resplit` shows 14 of 58 families improve under PxI or the PCE bridge,
-but choosing by 2017 performance fits the answer key — it needs the 2012 holdout (#700's panels).
+❌ **A family is only re-split when Census's total for it is within 25% of BEA's.** The construction is
+"anchored on the published mix, *moved by the Census family level*", and that premise fails when the
+family total is contaminated — the re-split then takes one leaf's level error and smears it over
+siblings that were fine.
+
+`3399` forced the guard: **88% of its excess sat on `339910` jewelry at 2.93×**, and an unguarded
+re-split dragged five leaves that were within 9% of published to 1.50×, taking `339930` dolls and toys
+from 161% to **1049%** of its own intermediate use. Family *gross* barely moved (28,880 → 28,912), so an
+aggregate check cannot see it: one bad row becomes six mediocre ones.
+
+| band on \|level − 1\| | families | gross saved | mass pushed *away* from published |
+|---|---:|---:|---:|
+| 0.20 | 48 | 107,684 $M | 11,737 $M |
+| **0.25 (shipped)** | **52** | **136,228 $M** | **15,148 $M** |
+| 0.35 | 58 | 149,818 $M | 24,228 $M |
+| no guard | 65 | 150,726 $M | **76,499 $M** |
+
+0.25 keeps 90% of the gain and removes 80% of the damage. It also scores better: unguarded, import
+`MATCH` reaches only 115 against the guard's **123**, because a bad family's good leaves all get pushed
+to one wrong ratio.
+
+The 13 families the guard excludes are **#670's by definition** — their level is wrong, and re-splitting
+inside them would disguise one level error as six mix errors.
+
+✅ **Both survive the 2012 benchmark.** With weight and selection frozen at 2017, the construction beats
+no-consolidation by **93,672 $M (20%)** against published 2012 `MCIF`, and the guard halves the damage the
+unguarded version does (56,611 against 107,788). [`import_resplit_holdout.py`](import_resplit_holdout.py) `--check`.
 
 ### → #670 · import level gaps
 
