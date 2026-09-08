@@ -116,6 +116,30 @@ def dollarize_electricity_trade_fba(fba: FlowByActivity, **_: Any) -> FlowByActi
 VEHICLE_CHILDREN = ('336111', '336112')
 VEHICLE_PARENT = '336110'
 
+#: Census aerospace leaves, and the suppressed-detail residual they are
+#: relabelled onto on the **export** side only (#701).
+AEROSPACE_CHILDREN = ('336411', '336412', '336413', '336414', '336415', '336419')
+AEROSPACE_PARENT = '33641X'
+
+
+def consolidate_activities(
+    frame: pd.DataFrame, children: tuple[str, ...], parent: str
+) -> pd.DataFrame:
+    """Relabel a set of Census activities onto one parent so 1:m splits them.
+
+    Deliberately a *relabel*, not an aggregation: rows keep their own
+    ``FlowName`` and ``Description``, so every flow the caller selects is
+    consolidated the same way and the attribution step does the summing.
+    """
+    if frame.empty or 'ActivityProducedBy' not in frame.columns:
+        return frame
+    activities = frame['ActivityProducedBy'].astype(str)
+    if not activities.isin(children).any():
+        return frame
+    out = frame.copy()
+    out['ActivityProducedBy'] = activities.where(~activities.isin(children), parent)
+    return out
+
 
 def consolidate_vehicle_activities(frame: pd.DataFrame) -> pd.DataFrame:
     """Relabel Census ``336111`` / ``336112`` onto the parent ``336110``.
@@ -140,31 +164,59 @@ def consolidate_vehicle_activities(frame: pd.DataFrame) -> pd.DataFrame:
     (``GEN_CIF_YR``, ``ALL_VAL_YR_DOM``, ``ALL_VAL_YR_FGN``, ``GEN_VAL_YR``, ``CAL_DUT_YR``) is
     consolidated the same way, and the attribution step does the summing.
     """
-    if frame.empty or 'ActivityProducedBy' not in frame.columns:
-        return frame
-    activities = frame['ActivityProducedBy'].astype(str)
-    if not activities.isin(VEHICLE_CHILDREN).any():
-        return frame
-    out = frame.copy()
-    out['ActivityProducedBy'] = activities.where(
-        ~activities.isin(VEHICLE_CHILDREN), VEHICLE_PARENT
+    return consolidate_activities(frame, VEHICLE_CHILDREN, VEHICLE_PARENT)
+
+
+def _as_fba(fba: FlowByActivity, frame: pd.DataFrame) -> FlowByActivity:
+    """Rebuild a cleaned frame as a :class:`FlowByActivity`.
+
+    ⚠️ Rebuilt rather than mutated in place so the frame keeps its ``config`` -
+    a bare DataFrame returned from a clean hook loses it and fails downstream
+    on ``KeyError: 'year'``.
+    """
+    return FlowByActivity(
+        frame,
+        full_name=fba.full_name,
+        config=fba.config,
+        convert_df_to_flowby=True,
     )
-    return out
 
 
 def consolidate_vehicle_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """:func:`consolidate_vehicle_activities` as a ``clean_fba`` hook.
 
-    ⚠️ Rebuilt through :class:`FlowByActivity` rather than mutated in place so
-    the frame keeps its ``config`` - a bare DataFrame returned here loses it
-    and fails downstream on ``KeyError: 'year'``.
+    The **imports** hook. Exports use
+    :func:`consolidate_export_activities_fba`, which also consolidates
+    aerospace.
     """
-    out = consolidate_vehicle_activities(pd.DataFrame(fba))
-    return FlowByActivity(
-        out,
-        full_name=fba.full_name,
-        config=fba.config,
-        convert_df_to_flowby=True,
+    return _as_fba(fba, consolidate_vehicle_activities(pd.DataFrame(fba)))
+
+
+def consolidate_export_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """Vehicles **and** aerospace onto their parents, for the export side (#701).
+
+    Vehicles are consolidated on both sides for the #702 reasons. Aerospace is
+    consolidated on **exports only**, because the two sides of the Census
+    extract do not have the same defect:
+
+    - **Exports.** Census publishes a suppressed-detail residual ``33641X``
+      carrying 107,365 million USD of 2017 aerospace exports and assigns only
+      12,828 - **10.7%** - to a named leaf. The mix of the part it does assign
+      is **39.6%** different from the published export mix: ``336413`` takes
+      41% of the assigned dollars against a 19% published export share, and
+      the two space leaves take 21% against 2.6%. Trusting those rows and
+      splitting only the residual leaves that bias in place, which is what put
+      ``336413`` at 1.18x published. Relabelling the whole family onto the
+      residual lets one rule - the 1:m frozen export mix - decide all of it,
+      exactly as #702 did for vehicles.
+    - **Imports.** There is no ``33641X`` on the import side at all. Census
+      publishes every aerospace leaf directly, so there is no residual to
+      split and no reason to overwrite an observation. What is wrong there is
+      the c.i.f.-versus-``MCIF`` *level*, which is #670's, not a split.
+    """
+    frame = consolidate_vehicle_activities(pd.DataFrame(fba))
+    return _as_fba(
+        fba, consolidate_activities(frame, AEROSPACE_CHILDREN, AEROSPACE_PARENT)
     )
 
 

@@ -1,13 +1,31 @@
 # National goods + services exports mapped to BEA 2017 Detail.
 #
-# Everything except the year and Detail_Supply_Mix attribution lives here. Each
-# Trade_Exports_<year> stub caches Detail_Supply_Mix_<year> with
-# collapse_detail_supply_to_t007 and names that cache key as attribution_source
-# (#729).
+# Everything except the year lives here; each source inherits `year` from the
+# method config. Attribution weights stay on the 2017 published F04000 column,
+# mirroring Trade_Imports_common.yaml's frozen MCIF. Per-year stubs:
+# Trade_Exports_<year>.yaml.
 !include:BEA_detail_commodity_target.yaml
 target_schema_year: 2017
 geoscale: national
 activity_schema: null
+
+# ⚠️ #729 split the 1:m goods families by same-year total supply `T007`, on the
+# reasoning that a weight which moves with the year beats a frozen one. Graded
+# on the benchmark panel that turns out to be false, and by a wide margin: a
+# supply weight answers "who produced it", and the question here is "who
+# exported it", which are different because export propensity differs across a
+# family by a factor of five (2017 aerospace: aircraft engines export 83% of
+# their output, guided missiles 11%). Across the 163,490 million USD of Census
+# export mass that reaches a 1:m family, same-year `T007` puts 13.7% (2007->2012)
+# and 20.9% (2012->2017) of family export dollars on the wrong leaf; the prior
+# benchmark's published export mix puts 3.2% and 4.7%. Frozen wins on 100% of
+# the dollars in both spans. Measured in
+# analysis/nowcasting/trade_data/export_split_weight.py (#701).
+_attribution_sources:
+  published_exports: &published_exports
+    year: 2017
+    selection_fields:
+      ActivityConsumedBy: {'F04000': ''}
 
 source_names:
   Census_USATrade:
@@ -18,13 +36,21 @@ source_names:
     # every year so one rule splits the pair (#702). The export side carries the
     # same defect - published 2017 F04000 is 23,537/31,734 against Census's
     # 46,622/11,354 - and the same 2022->2023 flip.
-    clean_fba_before_activity_sets: !clean_function:trade.utilities consolidate_vehicle_activities_fba
+    #
+    # The export hook also folds the aerospace leaves onto Census's own
+    # suppressed-detail residual 33641X (#701): Census names a leaf for only
+    # 10.7% of 2017 aerospace exports and the mix of that 10.7% is 39.6% away
+    # from the published export mix, so leaving those rows in place and
+    # splitting the residual around them keeps the bias.
+    clean_fba_before_activity_sets: !clean_function:trade.utilities consolidate_export_activities_fba
     activity_sets:
       goods_exports:
         selection_fields:
           FlowName: ALL_VAL_YR_DOM
         attribution_method: proportional
-        # attribution_source: set in Trade_Exports_<year>.yaml
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *published_exports
         clean_parameter: F04000
         clean_fbs_after_aggregation: !clean_function:flowbyclean assign_sector_consumed_by_from_clean_parameter
 

@@ -39,6 +39,8 @@ A family whose level is 21 is not a mapping problem however bad its mix looks.
 | goods export level (economy-wide) | **+18.1%** vs published goods `F04000` | **−0.5%** | [#762](https://github.com/cornerstone-data/bedrock/issues/762) — Census `DF` domestic exports (`ALL_VAL_YR_DOM`) |
 | `492000` couriers | `MISS` both sides, 8,008 $M exposure | **exact at 2017; 1.68% MAPE 2018-24** | #771 anchor-and-move on `TransportAirFreight` — graded in [`courier_air_freight.py`](courier_air_freight.py) |
 | `52A000` financial service imports | 5.7× published | **exact at 2017** | #771 — `FinFisim` anchored on published `MCIF` |
+| aerospace `3364`, all five leaves | gross 35,446 $M, `336412` at 0.60× and `336414` at 4.94× | **6,434 $M, every leaf at 1.06×** | #701 — export 1:m weight moved off same-year `T007` onto published `F04000`, family consolidated onto `33641X` |
+| vehicle exports `336111` / `336112` | 0.31× and 1.52× published | **1.01× both, `MATCH`** | #701 — same weight change |
 
 ## ⚠️ `row_control_exposure` reads a pinned export CSV by default
 
