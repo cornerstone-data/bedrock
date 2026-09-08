@@ -1,6 +1,6 @@
 # Nowcasting Phase 1 Report
 
-*Updated 3 September 2026*
+*Updated 7 September 2026*
 
 The nowcast builds annual US input-output tables — Supply and Use tables,
 then Make-Use tables before and after redefinitions — for 2017 through 2024
@@ -20,6 +20,7 @@ tables, and the published industry output series.
 4. [Conversion to Make-Use Tables](#4-conversion-to-make-use-tables)
 5. [Redefinitions: Before to After](#5-redefinitions-before-to-after)
 6. [Seed Data Provenance and Quality](#6-seed-data-provenance-and-quality)
+6a. [The 7 September 2026 rebuild](#6a-the-7-september-2026-rebuild)
 7. [Conclusions and Next Steps](#7-conclusions-and-next-steps)
 
 **How to read the comparison figures.** Every comparison figure in sections
@@ -423,6 +424,66 @@ mix, each a measured verdict with a recorded reopening condition rather
 than unattempted work. A match score of 100% can coexist with one source
 datum spread over 400 cells; reliability and specificity are scored
 separately for exactly that reason.
+
+## 6a. The 7 September 2026 rebuild
+
+Every table in this report was rebuilt on 7 September from cleared
+artifacts, on methods that changed in seven places since the 3 September
+run. The rebuild is the reason the figures moved, and what moved is
+worth stating plainly.
+
+**Nothing moved by accident.** Grand totals are preserved: the Use SUT
+grand total differs from the previous build by 3 million USD at 2017 on
+56.7 trillion, and by 0.007% at worst across the span. Every change in
+this cycle is a *redistribution* — trade mass across commodities, value
+added across industries, gross output across two aerospace codes — so
+the interior moves and the totals do not.
+
+| year | Use SUT interior moved | Supply moved | MUT Use moved |
+|---|---:|---:|---:|
+| 2017 | 762,736 $M (1.3%) | 120,033 $M (0.3%) | 1.4% |
+| 2018 | 1,688,403 $M (2.8%) | 164,282 $M (0.4%) | 2.8% |
+| 2019 | 1,965,366 $M (3.2%) | 181,344 $M (0.4%) | 3.2% |
+| 2020 | 3,637,855 $M (6.0%) | 615,046 $M (1.6%) | 5.9% |
+| 2021 | 4,781,009 $M (7.0%) | 1,296,471 $M (2.9%) | 6.8% |
+| 2022 | 5,423,197 $M (7.1%) | 648,615 $M (1.3%) | 7.0% |
+| 2023 | 5,409,242 $M (6.8%) | 336,857 $M (0.6%) | 6.6% |
+| 2024 | 6,131,087 $M (7.3%) | 423,500 $M (0.8%) | 7.2% |
+
+⚠️ **The movement grows with distance from the benchmark, and that is the
+expected shape.** 2017 is anchored, so only the trade re-splits and the
+aerospace conditioning can move it. Later years additionally carry the
+value-added reconciliation, whose gap against BEA's published series grows
+across the span. A rebuild that moved 2024 as little as 2017 would mean the
+new methods were not doing anything.
+
+**All eight years balance exactly.** `T11` maximum absolute residual is
+**0.0 $M** in every year, at 20 outer iterations, with nothing skipped.
+
+⚠️ **Seven of the eight years did not balance at first, and the reason was
+latent rather than new.** The value-added reconciliation routes each
+industry's residual to gross operating surplus; private households
+(`814000`) have no surplus row — BEA publishes `V00300` of exactly zero
+for them in 2007, 2012 *and* 2017, with `VAPRO` equal to compensation to
+the dollar, because the sector's output *is* the compensation it pays. The
+balance mask holds that cell as a structural zero and refused the seed. The
+balanced products on disk had been built four days *before* the
+reconciliation landed, so it had never been exercised on 2018-2024. The
+residual now goes to the row each industry actually carries; exactly two
+industries take that exception, `814000` and `4200ID` customs duties.
+
+**What the artifact check now sees.** `stale_artifacts` reported 10 stale
+artifacts before this cycle and 290 after being taught to see a *method*
+change — the class where nothing upstream moves, the cache key does not
+move, and a rerun silently returns the previous parquet. It also reports
+artifacts that carry no lineage at all rather than passing them, which is
+what the Step 5 and Step 6 products do.
+
+⚠️ **A real gap remains there.** Those products record a builder but no
+sources, so rebuilding an input still cannot flag them. This cycle was
+correct by construction — everything downstream was cleared and rebuilt in
+order — but the next one will not be unless `save_balance` and `save_mut`
+start recording what they consumed.
 
 ## 7. Conclusions and Next Steps
 
