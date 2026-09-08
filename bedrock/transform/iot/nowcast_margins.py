@@ -34,6 +34,18 @@ bases is unbounded - ``S00402`` used and secondhand goods runs to 16x its basic
 value because used goods have no production. Bound-check against ``T016``
 instead; see ``margins_2017_baseline.py``.
 
+**Two anchors, and the final-demand one is BEA's.** A rate needs a side of the
+valuation to sit on. Industry buyers keep :data:`PRODUCER_ANCHOR` - the
+intermediate block is built at producer prices, so there is no independent
+purchaser value to anchor on. Final-demand buyers take
+:data:`PURCHASER_ANCHOR`, which is what BEA's own process does: *"we treat the
+initial purchaser valuation as fixed and so we subtract off the distributed
+margins and transportation to calculate a residual basic value"* (2026-09-04,
+``analysis/nowcasting/bea_correspondence.md``). Graded 2017 -> 2012 on the
+transactions it anchors, that cuts gross margin error from 714.5 to **408.7
+billion USD** and halves the systematic over-prediction. See
+:func:`purchaser_anchored_shares`.
+
 **Two treatments, not one.** Most receiving transactions carry a *rate*. Two
 kinds carry a *level* instead (:data:`LEVEL_BASIS`):
 
@@ -84,6 +96,13 @@ INVENTORY_BUYER_CODE = 'F03000'
 
 RATE_BASIS = 'rate'
 LEVEL_BASIS = 'level'
+
+#: Which side of the valuation a row's rate is anchored on.
+PRODUCER_ANCHOR = 'producers'
+PURCHASER_ANCHOR = 'purchasers'
+
+#: The margins table's purchaser column.
+PURCHASER_COLUMN = "Purchasers' Value"
 
 
 def load_margins_transactions_2017() -> pd.DataFrame:
@@ -211,6 +230,145 @@ def margin_rate_table(margins: pd.DataFrame | None = None) -> pd.DataFrame:
         out[share] = (out[column] / totals.replace(0.0, np.nan)).where(is_rate)
 
     return out[['margin', 'base', 'rate', 'basis', 'base_share', 'margin_share']]
+
+
+def final_demand_buyers(margins: pd.DataFrame | None = None) -> pd.Index:
+    """The final-demand buyer codes in the margins table.
+
+    ⚠️ Asserted rather than assumed: no BEA 2017 *industry* code begins with
+    ``F``, so the prefix separates the twenty final-demand buyers cleanly. If
+    that ever stops being true the assert fires rather than silently
+    reclassifying an industry.
+    """
+    buyers = _margins_or_default(margins).index.get_level_values(BUYER_LEVEL)
+    unique = pd.Index(buyers.astype(str).unique())
+    industries = {c for c in USA_2017_COMMODITY_CODES if str(c).startswith('F')}
+    assert not industries, (
+        f'{sorted(industries)} start with F, so the final-demand prefix no '
+        f'longer identifies buyers'
+    )
+    return unique[unique.str.startswith('F')]
+
+
+def purchaser_anchored_shares(
+    margins: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Each final-demand transaction's margin as a share of its purchaser value.
+
+    The parameter BEA's process actually holds: *"we treat the initial
+    purchaser valuation as fixed and so we subtract off the distributed margins
+    and transportation to calculate a residual basic value"* (2026-09-04, see
+    ``analysis/nowcasting/bea_correspondence.md``).
+
+    ✅ **Graded 2017 -> 2012 this beats the producer anchor by 40%.** Applying
+    2017 parameters to the 2012 base and scoring on published 2012 margins over
+    the 7,630 transactions usable in both benchmark years, gross margin error is
+    **286.8 bn USD** anchored on the purchaser value against **476.1 bn**
+    anchored on producers', and the systematic over-prediction halves from
+    +392.3 bn to +196.8 bn. The derived side improves too: the purchaser anchor
+    leaves 232.3 bn of basic-value error where the producer anchor leaves 444.0
+    bn of purchaser-value error.
+
+    The reason is stability, not accounting. Value-weighted across those rows,
+    total margin **as a share of purchaser value** moves 0.2775 -> 0.3148
+    between 2012 and 2017, a ratio of **1.134**; as a **rate on basic value** it
+    moves 0.3840 -> 0.4870, a ratio of **1.268**. A margin is a wedge *inside*
+    the purchaser price, so its share of that price is about twice as stable as
+    its rate on the residual.
+
+    ⚠️ **Final demand only, and that is where the value is.** 81% of the gain
+    (153.9 of 189.3 bn) sits on final-demand buyers, which carry 2,836 bn of the
+    4,071 bn of margin on twenty buyer codes - and which is the one block where
+    we hold an independent purchaser value, from ``derive_initial_Y_pur``. The
+    intermediate block is built at producer prices, so there is no purchaser
+    value to anchor on and those rows keep :data:`PRODUCER_ANCHOR`.
+
+    ❌ **Not the cascading-base question**, which is empty: the cascade
+    telescopes and is algebraically identical to distributing all types
+    simultaneously on basic value. This is the *direction of the anchor*, which
+    is a real difference.
+
+    Rows carried as levels keep that treatment - ``F03000`` change in
+    inventories is a final-demand buyer, but a share of a *change* means
+    nothing, the same reason it is not carried as a rate.
+    """
+    df = _margins_or_default(margins)
+    table = margin_rate_table(df)
+    buyers = table.index.get_level_values(BUYER_LEVEL).astype(str)
+    purchaser = pd.Series(
+        df[PURCHASER_COLUMN]
+        .reindex(table.index.droplevel(MARGIN_TYPE_LEVEL))
+        .to_numpy(),
+        index=table.index,
+        dtype=float,
+    )
+    eligible = (
+        pd.Series(buyers.isin(final_demand_buyers(df)), index=table.index)
+        & table['basis'].eq(RATE_BASIS)
+        & purchaser.gt(0.0)
+    )
+    out = table.copy()
+    out[PURCHASER_COLUMN] = purchaser
+    out['anchor'] = np.where(eligible, PURCHASER_ANCHOR, PRODUCER_ANCHOR)
+    out['purchaser_share'] = (out['margin'] / purchaser.where(purchaser > 0)).where(
+        eligible
+    )
+    return out
+
+
+def purchaser_anchored_final_demand(
+    purchaser: pd.DataFrame,
+    margins: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    """Basic value and margins for a purchaser-valued final-demand block.
+
+    The construction BEA describes, run forwards: hold the purchaser value
+    fixed, distribute the margins as shares of it, and take basic value as the
+    residual - ``PUR - (Margin+TC) = BAS``.
+
+    :param purchaser: commodity x final-demand-code, purchaser-valued, USD.
+        ``derive_initial_Y_pur`` produces exactly this.
+    :returns: ``(basic, margins_by_type)`` - the residual basic-value block on
+        the same axes, and one commodity x buyer frame per margin type.
+
+    ⚠️ **A share is only carried where 2017 had one.** A (buyer, commodity)
+    cell with no published 2017 margin gets none here: the receiving set is
+    BEA's own selection, not missing data, and inventing a margin on a cell BEA
+    left empty is not something this parameterisation can justify. Those cells
+    pass through with basic value equal to purchaser value.
+
+    ⚠️ **Basic value can be driven negative if the shares overshoot**, which is
+    the one risk the producer anchor does not have. On the 2012 holdout it
+    happens on **0 of 7,630** transactions, but the guard is here rather than
+    trusted to stay at zero - see :func:`negative_basic_value`.
+    """
+    shares = purchaser_anchored_shares(margins)
+    shares = shares[shares['anchor'] == PURCHASER_ANCHOR]
+
+    out: dict[str, pd.DataFrame] = {}
+    total = pd.DataFrame(0.0, index=purchaser.index, columns=purchaser.columns)
+    for margin_type in MARGIN_TYPES:
+        share = (
+            shares.xs(margin_type, level=MARGIN_TYPE_LEVEL)['purchaser_share']
+            .unstack(BUYER_LEVEL)
+            .reindex(index=purchaser.index, columns=purchaser.columns)
+            .fillna(0.0)
+        )
+        booked = share * purchaser
+        out[margin_type] = booked
+        total = total + booked
+    return purchaser - total, out
+
+
+def negative_basic_value(basic: pd.DataFrame) -> pd.DataFrame:
+    """The cells a purchaser-anchored split drove below zero.
+
+    Empty is the expected result. A non-empty frame means the 2017 shares
+    overshot that cell's purchaser value in the nowcast year, which is a signal
+    about the share, not a cell to clip.
+    """
+    stacked = pd.Series(basic.stack(), dtype=float)
+    return stacked[stacked.lt(0.0)].to_frame(name='basic_value')
 
 
 def margin_levels(margins: pd.DataFrame | None = None) -> pd.DataFrame:
