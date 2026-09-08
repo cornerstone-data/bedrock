@@ -557,13 +557,16 @@ table_dict:
           - NAICS Code
           - Subsector and Industry
           - Total | trillion Btu
+          - SKIP
           - Residual Fuel Oil | million bbl
           - Distillate Fuel Oil | million bbl
           - Natural Gas | billion cu ft
+          - SKIP
           - Hydrocarbon Gas Liquids, excluding natural gasoline | million bbl
           - Coal | million short tons
           - Coke and Breeze | million short tons
           - Hydrogen | trillion Btu
+          - SKIP
           - Other | trillion Btu
         regions: &regions_2022_21
           Total United States : [15,97]
