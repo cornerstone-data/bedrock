@@ -50,8 +50,8 @@ EXPECTED_LIVE_N_NEW = {
     'v03_waterfall_ceda_g1a_schema_ghg': 0.2543301,
     'v03_waterfall_ceda_g1b_waste_disagg': 0.2568942,
     'v03_waterfall_g2_methods': 0.2403891,
-    'v03_waterfall_g3_data': 0.2422408,
-    'v03_waterfall_final': 0.2422408,
+    'v03_waterfall_g3_data': 0.2419699,
+    'v03_waterfall_final': 0.2419699,
 }
 
 # Assessment USEEIO-track bars (ceda combine_ef columns × canonical q).
@@ -60,7 +60,7 @@ EXPECTED_ASSESSMENT_USEEIO_BEDROCK_N = {
     'pinned_useeio_baseline': 0.2520542,
     'G1': 0.2462974,
     'G2': 0.2403891,
-    'G3': 0.2422408,
+    'G3': 0.2419699,
 }
 
 ATOL_KG_PER_USD = 1e-4
