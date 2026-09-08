@@ -27,6 +27,7 @@ from bedrock.analysis.nowcasting.results._ef_smoke_lib import (
     perc_diff,
 )
 from bedrock.utils.snapshots.releases import ef_dollar_year_for_snapshot
+from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 from bedrock.utils.validation.analysis.ef_hist_panels import (
     draw_per_sector_pct_hist_panel,
 )
@@ -67,18 +68,34 @@ def main(
     d_pct = perc_diff(D_nc.reindex(idx), v03.D.reindex(idx))
 
     stem = f'nowcast_{year}_vs_v03'
-    pd.DataFrame(
+    n_new, n_old = N_nc.reindex(idx), v03.N.reindex(idx)
+    d_new, d_old = D_nc.reindex(idx), v03.D.reindex(idx)
+    # Level change as well as percent: a large percent move on a near-zero
+    # sector is not the same finding as a large absolute one, and sorting on
+    # the percent column alone puts the former on top every time. The abs
+    # columns are what "which sectors moved most" should be sorted by.
+    n_change, d_change = n_new - n_old, d_new - d_old
+    table = pd.DataFrame(
         {
             'sector': idx,
-            'N_nowcast': N_nc.reindex(idx).to_numpy(),
-            'N_v03': v03.N.reindex(idx).to_numpy(),
+            'sector_name': [COMMODITY_DESC.get(str(code), '') for code in idx],
+            'N_nowcast': n_new.to_numpy(),
+            'N_v03': n_old.to_numpy(),
             'N_perc_diff': n_pct.to_numpy(),
-            'D_nowcast': D_nc.reindex(idx).to_numpy(),
-            'D_v03': v03.D.reindex(idx).to_numpy(),
+            'N_change': n_change.to_numpy(),
+            'N_abs_change': n_change.abs().to_numpy(),
+            'D_nowcast': d_new.to_numpy(),
+            'D_v03': d_old.to_numpy(),
             'D_perc_diff': d_pct.to_numpy(),
+            'D_change': d_change.to_numpy(),
+            'D_abs_change': d_change.abs().to_numpy(),
             'dollar_year': v03_dollar_year,
         }
-    ).to_csv(OUT_DIR / f'n_d_{stem}.csv', index=False)
+    )
+    unnamed = int((table['sector_name'] == '').sum())
+    if unnamed:
+        print(f'  note: {unnamed} of {len(table)} sectors have no Cornerstone name')
+    table.to_csv(OUT_DIR / f'n_d_{stem}.csv', index=False)
 
     setup_mpl()
     for kind, pct, color in (
