@@ -41,7 +41,7 @@ These are **independent** concepts and frequently point at different commits:
 
 The FBS pin and the runtime loader are independent: bumping the pin updates the regeneration test golden file; production still follows the latest GCS upload until `load_E_from_flowsa` is wired to the pin.
 
-| Store | Releases (`v0`, `v0.1`, `v0.2`, `v0.3`) | Test-only SHAs |
+| Store | Releases (`v0`, `v0.1`, `v0.2`, `v0.3`, `v0.4`) | Test-only SHAs |
 |---|---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | current release SHA | — |
 | [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2`, `v0_3_0`, … | `TEST_*` (intermediate bumps, not release labels) |

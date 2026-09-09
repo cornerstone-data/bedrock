@@ -30,6 +30,8 @@ NAMED_BASELINES: dict[str, str] = {
     'v0.3.0': releases.v0_3_0,
     'v0.3.1': releases.v0_3_1,
     'v0.3.2': releases.v0_3_2,
+    'v0.4': releases.v0_4_0,
+    'v0.4.0': releases.v0_4_0,
 }
 
 

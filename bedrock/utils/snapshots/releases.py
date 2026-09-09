@@ -53,7 +53,13 @@ v0_3_1 = "00524c3c8ba122a7a5b7f2139ff7ea6de08947bb"  # config: 2025_usa_cornerst
 
 # Output change: MECS Energy methodology in Cornerstone GHG (#688), ported to the
 # nowcast GHG configs (#858). Moves manufacturing B; largest cell CO2 @ 325320.
-v0_3_2 = "7d0cb92af43882ee9496b5932e1893bb9ffcbdd7"  # config: 2025_usa_cornerstone_v0_3; matches .SNAPSHOT_KEY
+v0_3_2 = "7d0cb92af43882ee9496b5932e1893bb9ffcbdd7"  # config: 2025_usa_cornerstone_v0_3
+
+# Output change: detail IO read from the 2024 nowcast MUT (after redefinition,
+# build v0.3.0_4276083) instead of published BEA 2017 detail; x and q are that
+# Make's row and column sums, B is no longer year-scaled or inflated, and the
+# GHG FBS is attributed on nowcast Use (#880).
+v0_4_0 = "2fcbd68b3275cc8e409d4df5d1f28a3a8355c249"  # config: 2025_usa_cornerstone_v0_4; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -71,6 +77,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_3_0: 2024,
     v0_3_1: 2024,
     v0_3_2: 2024,
+    v0_4_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
 }
