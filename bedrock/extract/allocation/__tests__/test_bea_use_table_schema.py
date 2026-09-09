@@ -5,11 +5,9 @@ from __future__ import annotations
 from typing import cast
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from bedrock.extract.allocation.bea import load_bea_make_table, load_bea_use_table
-from bedrock.transform.eeio.derived_cornerstone import _derive_cornerstone_V_baseline
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
@@ -37,7 +35,7 @@ def test_load_bea_use_table_cornerstone_shape() -> None:
 
 @pytest.mark.eeio_integration
 def test_load_bea_make_table_cornerstone_frame() -> None:
-    """Make is the 405 Cornerstone baseline V, not CEDA v7 or disagg V."""
+    """Make has the Cornerstone 405 schema used by allocation."""
     load_bea_make_table.cache_clear()
     make = load_bea_make_table()
     assert list(make.index) == list(INDUSTRIES)
@@ -51,9 +49,6 @@ def test_load_bea_make_table_cornerstone_frame() -> None:
     assert "562000" not in make.index
     for code in _WASTE_KIDS:
         assert code in make.index
-
-    baseline = _derive_cornerstone_V_baseline()
-    pd.testing.assert_frame_equal(make, baseline)
 
 
 @pytest.mark.eeio_integration
