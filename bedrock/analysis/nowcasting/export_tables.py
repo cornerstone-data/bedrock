@@ -6,16 +6,23 @@ they are three different shapes and two different units:
 
 ``Balanced_SUT_<year>_<vintage>.xlsx``
     The Step 5 pair, one sheet each, commodity x industry-and-final-demand.
-    ⚠️ **BEA million dollars**, unlike everything else here.
 
 ``Nowcast_MUT_after_redef_<year>_<vintage>.xlsx``
     Three of the Step 7 quartet - Make, Use at producer prices, and the import
-    matrix. All matrices on the same axes, all USD.
+    matrix. All matrices on the same axes.
 
 ``Nowcast_Margins_after_redef_<year>_<vintage>.xlsx``
     The fourth. Kept separate because it is not a matrix at all: one row per
     (buyer, commodity) transaction, 51,682 of them at 2024, against 29 columns.
     Putting it beside the matrices would invite reading it as one.
+
+⚠️ **Every workbook is in USD.** The balance stores its pair in BEA million
+dollars and Steps 6-7 store theirs in dollars, which is a seam worth having in
+the pipeline and not one worth exporting: a reader comparing a Supply cell
+against a Make cell should not have to know which side of it they are on. The
+million-dollar frames are therefore scaled on the way out, and the provenance
+sheet records the stored unit and the factor applied so the export can still be
+tied back to the parquet.
 
 The filename carries the vintage of the parquets inside it, and every workbook
 opens on a ``Provenance`` sheet naming the source parquet, the branch and
@@ -46,6 +53,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+
 #: Where the build writes its parquets.
 SOURCE_DIR = Path(__file__).resolve().parents[2] / 'transform' / 'output_data'
 
@@ -53,11 +62,15 @@ SOURCE_DIR = Path(__file__).resolve().parents[2] / 'transform' / 'output_data'
 #: under ``output/``.
 OUTPUT_DIR = Path(__file__).parent / 'output'
 
-#: ``(sheet name, filename stem)`` per workbook, and the workbook's unit label.
-#: Stems are the artifact names without the ``_v<version>_<hash>`` suffix.
+#: What the export is in, whatever the parquet was stored in.
+EXPORT_UNITS = 'USD'
+
+#: ``(sheet name, filename stem)`` per workbook, and the unit the parquets it
+#: reads are *stored* in. Stems are the artifact names without the
+#: ``_v<version>_<hash>`` suffix.
 WORKBOOKS: dict[str, tuple[str, tuple[tuple[str, str], ...]]] = {
     'Balanced_SUT': (
-        'BEA million USD',
+        'BEA million USD',  # scaled to USD on export
         (
             ('Supply', 'Balanced_Detail_Supply_{year}'),
             ('Use', 'Balanced_Detail_Use_SUT_{year}'),
@@ -101,11 +114,24 @@ def vintage_of(path: Path, stem: str) -> str:
     return path.stem[len(stem) + 1 :]
 
 
-def provenance(path: Path, units: str) -> dict[str, str]:
+def to_usd(frame: pd.DataFrame, stored_units: str) -> tuple[pd.DataFrame, float]:
+    """Scale a stored frame to USD, and report the factor applied."""
+    if stored_units == EXPORT_UNITS:
+        return frame, 1.0
+    if stored_units == 'BEA million USD':
+        return frame * MILLION_CURRENCY_TO_CURRENCY, MILLION_CURRENCY_TO_CURRENCY
+    raise ValueError(
+        f'no conversion to {EXPORT_UNITS} defined for stored units {stored_units!r}'
+    )
+
+
+def provenance(path: Path, units: str, factor: float) -> dict[str, str]:
     """What the sidecar says about a parquet, flattened for a sheet."""
     record = {
         'source_file': path.name,
-        'units': units,
+        'units': EXPORT_UNITS,
+        'stored_units': units,
+        'scaled_by': f'{factor:,.0f}',
         'modified': datetime.fromtimestamp(path.stat().st_mtime).strftime(
             '%Y-%m-%d %H:%M:%S'
         ),
@@ -139,12 +165,12 @@ def write_workbook(name: str, year: int, out_dir: Path) -> Path:
     for sheet, stem in sheets:
         resolved = stem.format(year=year)
         source = resolve(resolved)
-        frame = pd.read_parquet(source)
+        frame, factor = to_usd(pd.read_parquet(source), units)
         frames.append((sheet, frame))
         vintages.append(vintage_of(source, resolved))
         records.append(
             {'sheet': sheet, 'rows': frame.shape[0], 'columns': frame.shape[1]}
-            | provenance(source, units)
+            | provenance(source, units, factor)
         )
 
     # The workbook wears the vintage its sheets came from, so a file that has
@@ -167,7 +193,8 @@ def check(year: int) -> None:
     """Report what would be selected, and whether the families agree in time."""
     stamps: dict[str, list[float]] = {}
     for name, (units, sheets) in WORKBOOKS.items():
-        print(f'{name}  [{units}]')
+        scaled = '' if units == EXPORT_UNITS else f' -> {EXPORT_UNITS}'
+        print(f'{name}  [stored {units}{scaled}]')
         for sheet, stem in sheets:
             source = resolve(stem.format(year=year))
             mtime = source.stat().st_mtime
