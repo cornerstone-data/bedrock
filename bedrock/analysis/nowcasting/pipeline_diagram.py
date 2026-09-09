@@ -46,8 +46,12 @@ from matplotlib.path import Path as MplPath  # noqa: E402
 #: Where the tracked figures live.
 IMAGE_DIR = Path(__file__).parent / 'images'
 
-#: The one tracked output of this module.
+#: The tracked outputs of this module.
 FIGURE_NAME = 'nowcast_pipeline_steps_1_to_7.png'
+#: The key on its own, so a slide showing half the diagram can still be read.
+#: Wide and short by design - it is meant to sit in the strip under a figure.
+LEGEND_NAME = 'nowcast_pipeline_legend.png'
+LEGEND_FIGSIZE = (13.2, 1.02)
 
 INK = '#22303c'
 MUTED = '#5d6b76'
@@ -939,6 +943,85 @@ def draw(ax: plt.Axes) -> None:
     _draw_key(ax)
 
 
+def draw_legend(ax: plt.Axes) -> None:
+    """The whole colour and shape vocabulary, in two rows.
+
+    Row one is what a box means, row two is which block of the tables each
+    colour stands for - the half a reader needs when the diagram has been split
+    across slides and the panel is not on screen.
+    """
+
+    def row(
+        y: float, items: ta.Sequence[tuple[str, str, str]], swatch_w: float
+    ) -> None:
+        # Lay the row out on derived label widths rather than a fixed pitch, so
+        # a long label does not collide with the next swatch. One x-unit is
+        # ``LEGEND_FIGSIZE[0] / 100`` inches wide and DejaVu Sans averages about
+        # half an em per character.
+        per_char = 8.4 * 0.5 / 72 / (LEGEND_FIGSIZE[0] / 100.0)
+        widths = [swatch_w + 1.0 + len(label) * per_char + 2.4 for _, _, label in items]
+        x = (100.0 - sum(widths)) / 2
+        for (fill, edge, label), width in zip(items, widths):
+            ax.add_patch(
+                FancyBboxPatch(
+                    (x, y - 1.0),
+                    swatch_w,
+                    2.0,
+                    boxstyle='round,pad=0,rounding_size=0.4',
+                    facecolor=fill,
+                    edgecolor=edge,
+                    linewidth=1.2,
+                )
+            )
+            ax.text(
+                x + swatch_w + 1.0,
+                y,
+                label,
+                fontsize=8.4,
+                color=INK,
+                ha='left',
+                va='center',
+            )
+            x += width
+
+    row(
+        3.4,
+        (
+            (SOURCE_FC, SOURCE_EC, 'Input Data Source'),
+            (STEP_FC, STEP_EC, 'Build Step'),
+            (CONSTRAINT_FC, CONSTRAINT_EC, 'Balance Constraint'),
+            ('#f7f9fa', NEUTRAL[1], 'Data Product'),
+        ),
+        4.0,
+    )
+    row(
+        1.05,
+        (
+            (*BLOCK_FINAL_USES, 'Final Uses — Step 1'),
+            (*BLOCK_VALUE_ADDED, 'Value Added — Step 2'),
+            (*BLOCK_INTERMEDIATE, 'Intermediate — Step 3'),
+            (*BLOCK_SUPPLY_OUTPUT, 'Domestic Output — 4A'),
+            (*BLOCK_SUPPLY_BRIDGE, 'Imports, Margins, Taxes — 4B–4D'),
+        ),
+        4.0,
+    )
+
+
+def render_legend(path: Path, dpi: int) -> Path:
+    """Draw the standalone key and write it to ``path``."""
+    fig = plt.figure(figsize=LEGEND_FIGSIZE)
+    ax = fig.add_axes((0.0, 0.0, 1.0, 1.0))
+    ax.set_xlim(0.0, 100.0)
+    ax.set_ylim(0.0, 4.4)
+    ax.set_axis_off()
+    fig.patch.set_facecolor('#ffffff')
+    draw_legend(ax)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=dpi, facecolor='#ffffff')
+    plt.close(fig)
+    return path
+
+
 def render(path: Path, dpi: int) -> Path:
     """Draw the figure and write it to ``path``."""
     fig = plt.figure(figsize=FIGSIZE)
@@ -964,6 +1047,8 @@ def main(argv: ta.Sequence[str] | None = None) -> int:
 
     path = render(args.out, args.dpi)
     print(f'wrote {path}')
+    legend = render_legend(args.out.with_name(LEGEND_NAME), args.dpi)
+    print(f'wrote {legend}')
     return 0
 
 
