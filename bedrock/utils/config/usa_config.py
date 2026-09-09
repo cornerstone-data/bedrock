@@ -268,7 +268,8 @@ class USAConfig(BaseModel):
     # Baseline snapshot
     #####
     # The git SHA below is the baseline snapshots used for diagnostic comparison
-    # generated on main with configuration: 2025_usa_cornerstone_v0_3.
+    # generated on main; the config each was built from is recorded in
+    # bedrock.utils.snapshots.releases.
     # Comments here carry the release label only; what changed in each snapshot is
     # recorded next to the matching constant in bedrock.utils.snapshots.releases.
     snapshot_version_or_git_sha: ta.Literal[
@@ -282,7 +283,8 @@ class USAConfig(BaseModel):
         '9a47eaa1060e6900154c7b819934a8a1669461c3',  # v0.3.0 before #513 (industry-x expand fix)
         'c60bdf4308cb660eee80a246214901cff9122820',  # v0.3.0
         '00524c3c8ba122a7a5b7f2139ff7ea6de08947bb',  # v0.3.1
-        '7d0cb92af43882ee9496b5932e1893bb9ffcbdd7',  # v0.3.2 (current .SNAPSHOT_KEY)
+        '7d0cb92af43882ee9496b5932e1893bb9ffcbdd7',  # v0.3.2
+        '2fcbd68b3275cc8e409d4df5d1f28a3a8355c249',  # v0.4.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
