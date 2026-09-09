@@ -20,10 +20,6 @@
 # with it the GHG FBS attributed on nowcast Use
 # (GHG_national_Cornerstone_nowcast_2024) instead of published 2017 Use
 # (GHG_national_Cornerstone_2024).
-#
-# Caveat for the "US data update" bucket (G3 minus G2): the 2023 FBS behind G2
-# predates the MECS change as of 2026-09-08, so this bucket carries the MECS
-# fix as well as the 2023 -> 2024 data move until that FBS is regenerated.
 
 model_base_year: 2024
 price_type: producer

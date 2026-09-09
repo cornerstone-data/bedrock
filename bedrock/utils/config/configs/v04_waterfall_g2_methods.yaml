@@ -12,11 +12,6 @@
 # GHG side is whatever the newest GCS parquet for the selected FBS stem holds:
 # use_cornerstone_ghg_model at usa_ghg_data_year 2023 reads the newest
 # GHG_national_Cornerstone_2023 upload.
-#
-# Caveat for the "US data update" bucket (G3 minus G2): as of 2026-09-08 the
-# newest GHG_national_Cornerstone_2023 parquet on GCS predates the MECS change
-# while the 2024 one includes it, so that bucket also carries the MECS fix
-# until the 2023 FBS is regenerated and uploaded.
 
 model_base_year: 2024
 price_type: producer
