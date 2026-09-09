@@ -4,14 +4,14 @@ Reads the parquets Step 5 and Step 7 wrote to ``transform/output_data`` and
 writes them to ``analysis/nowcasting/output`` as workbooks. Three files, because
 they are three different shapes and two different units:
 
-``Balanced_SUT_<year>_<vintage>.xlsx``
+``SUT_<year>_<vintage>.xlsx``
     The Step 5 pair, one sheet each, commodity x industry-and-final-demand.
 
-``Nowcast_MUT_after_redef_<year>_<vintage>.xlsx``
+``MUT_after_redef_<year>_<vintage>.xlsx``
     Three of the Step 7 quartet - Make, Use at producer prices, and the import
     matrix. All matrices on the same axes.
 
-``Nowcast_Margins_after_redef_<year>_<vintage>.xlsx``
+``Margins_after_redef_<year>_<vintage>.xlsx``
     The fourth. Kept separate because it is not a matrix at all: one row per
     (buyer, commodity) transaction, 51,682 of them at 2024, against 29 columns.
     Putting it beside the matrices would invite reading it as one.
@@ -69,14 +69,14 @@ EXPORT_UNITS = 'USD'
 #: reads are *stored* in. Stems are the artifact names without the
 #: ``_v<version>_<hash>`` suffix.
 WORKBOOKS: dict[str, tuple[str, tuple[tuple[str, str], ...]]] = {
-    'Balanced_SUT': (
+    'SUT': (
         'BEA million USD',  # scaled to USD on export
         (
             ('Supply', 'Balanced_Detail_Supply_{year}'),
             ('Use', 'Balanced_Detail_Use_SUT_{year}'),
         ),
     ),
-    'Nowcast_MUT_after_redef': (
+    'MUT_after_redef': (
         'USD',
         (
             ('Make', 'Nowcast_Detail_Make_after_redef_{year}'),
@@ -84,7 +84,7 @@ WORKBOOKS: dict[str, tuple[str, tuple[tuple[str, str], ...]]] = {
             ('Import', 'Nowcast_Detail_Import_after_redef_{year}'),
         ),
     ),
-    'Nowcast_Margins_after_redef': (
+    'Margins_after_redef': (
         'USD',
         (('Margins', 'Nowcast_Detail_Margins_after_redef_{year}'),),
     ),
