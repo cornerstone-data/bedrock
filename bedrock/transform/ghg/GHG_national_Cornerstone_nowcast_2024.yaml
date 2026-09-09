@@ -26,6 +26,7 @@ sources_to_cache:
 
 _attribution_sources:
   # Nested EPA_GHGI_T_3_25 below is inventory, not UMD T_3_25 (petroleum-systems CH4).
+  # Energy FBS: petroleum industrial (energy fraction), transport lubricants, and HGL NEU; other manufacturing/NEU sets use nowcast Use.
   Energy_manufacturing_national_nowcast_2024: &mecs_energy_alloc
     data_format: FBS
     geoscale: national
@@ -38,6 +39,7 @@ _attribution_sources:
       ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
                            'F06E00', 'F07E00', 'F10E00', 'F02R00']
     attribution_method: equal
+
 
 source_names:
   UMD_GHGIA_T_2_S1: # U.S. GHG totals
@@ -606,11 +608,10 @@ source_names:
              - Natural Gas Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           Energy_manufacturing_national_nowcast_2024:
-             <<: *mecs_energy_alloc
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
-               Flowable: Natural Gas
-               Class: Energy
+               ActivityProducedBy: {'221200': ''}  # purchases of natural gas
 
        coal_nonmanufacturing: # empty in some years (i.e., all coal consumption for manufacturing)
          selection_fields:
@@ -629,11 +630,10 @@ source_names:
             - Coal Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           Energy_manufacturing_national_nowcast_2024:
-             <<: *mecs_energy_alloc
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
-               Flowable: Coal
-               Class: Energy
+               ActivityProducedBy: {'212100': ''}  # purchases of coal
 
      # Intentionally left out 'Wood Commercial' and 'Wood Industrial'
 
@@ -706,13 +706,12 @@ source_names:
                     'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_nowcast_2024:
-                    <<: *mecs_energy_alloc
+                  Nowcast_Detail_Use_AfterRedef:
+                    <<: *nowcast
                     selection_fields:
-                      Flowable: Petroleum
-                      Class: Other
+                      ActivityProducedBy: {'324110': ''}
                       # Allocated to asphalt sectors only
-                      SectorConsumedBy:
+                      ActivityConsumedBy:
                         - '324121'
                         - '324122'
 
@@ -722,6 +721,7 @@ source_names:
                     Industry HGL: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
+                  # MECS Table 2.1 HGL mix (chemicals-heavy); keep Energy FBS slice
                   Energy_manufacturing_national_nowcast_2024:
                     <<: *mecs_energy_alloc
                     selection_fields:
@@ -743,28 +743,26 @@ source_names:
                     Industry Natural Gasoline: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_nowcast_2024:
-                    <<: *mecs_energy_alloc
+                  Nowcast_Detail_Use_AfterRedef:
+                    <<: *nowcast
                     selection_fields:
-                      Flowable: Petroleum
-                      Class: Other
+                      ActivityProducedBy: {'324110': ''}
                     exclusion_fields:
                       # Skips petroleum products used for asphalt sectors
-                      SectorConsumedBy:
+                      ActivityConsumedBy:
                         - '324121'
                         - '324122'
-
 
               natural_gas_neu:
                 selection_fields:
                   PrimaryActivity: Industry Natural Gas to Chemical Plants
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_nowcast_2024:
-                    <<: *mecs_energy_alloc
+                  Nowcast_Detail_Use_AfterRedef:
+                    <<: *nowcast
                     selection_fields:
-                      Flowable: Natural Gas
-                      Class: Other
+                      ActivityProducedBy: {'221200': ''}
+                    clean_fba: !script_function:EIA_MECS keep_chemical_manufacturing
 
               transportation_lubricants:
                 selection_fields:
