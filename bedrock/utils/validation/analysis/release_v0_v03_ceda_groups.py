@@ -11,7 +11,7 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Sheet IDs point at diagnostics spreadsheets in the v0.4 Diagnostics Drive
+Sheet IDs point at diagnostics spreadsheets in the v0.3 waterfall Drive
 folder; each ``sheet_title`` records the date and release the sheet was
 generated for.
 
@@ -32,31 +32,31 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1A_SCHEMA_GHG = ProgressionSheet(
     step_label="G1a: Cornerstone schema/GHG (no waste)",
-    sheet_id="1Dz_1hNG4Vw6cRYZuEe6S_oNM7VAzSYtjcxNljEcx5aU",
+    sheet_id="15-I_FZnIl9kSX9YoP30TzOjHyKdeOhAw3mnRuILVjW8",
     config_name="v03_waterfall_ceda_g1a_schema_ghg",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, CEDA based, "
-        "v0.3.1 / waterfall CEDA G1a schema/GHG] EFs diagnostics"
+        "[2026-09-10, bedrock repo, 2024, ceda-v0, "
+        "v03_waterfall_ceda_g1a_schema_ghg] EFs diagnostics"
     ),
 )
 
 G1B_WASTE_DISAGG = ProgressionSheet(
     step_label="G1b: Waste disaggregation",
-    sheet_id="1hjlLOO4fEALvaHHtXeVhJ1nzRG8qYhuRqvSFAKFYCCw",
+    sheet_id="1PqvCWIUWKSrcFIbKTkcYs2TtOU19QLyvjlI03bA6AxE",
     config_name="v03_waterfall_ceda_g1b_waste_disagg",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, CEDA based, "
-        "v0.3.1 / waterfall CEDA G1b waste disagg] EFs diagnostics"
+        "[2026-09-10, bedrock repo, 2024, ceda-v0, "
+        "v03_waterfall_ceda_g1b_waste_disagg] EFs diagnostics"
     ),
 )
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="1fnKvS6OPp85jyqahLXatzIUGgZunBuxVUsJlFJQHRts",
+    sheet_id="11HMVKVhIDC5gL7nBAuYwuP14vXC-4CKqwd9Wg-cT19U",
     config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, CEDA based, "
-        "v0.3.1 / waterfall G2 methods] EFs diagnostics"
+        "[2026-09-10, bedrock repo, 2024, ceda-v0, "
+        "v03_waterfall_g2_methods] EFs diagnostics"
     ),
 )
 

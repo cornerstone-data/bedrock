@@ -61,21 +61,21 @@ class AssessmentNLevel:
 ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
     AssessmentNLevel(
         key='pinned_useeio_baseline',
-        sheet_id='17-kEDZVXzlWnszK8qhFfRl46Wvfhyie8UiwkNC-MLms',
+        sheet_id='1QiWLS9N2wig5SGa2eujGIS-B2cB5DTnIfWHo-fPOXgk',
         n_column='N_old_inflated',
         config_name=None,
         note='USEEIO pin from G1 diagnostics (combine_ef pin_source=bedrock_us)',
     ),
     AssessmentNLevel(
         key='G1',
-        sheet_id='17-kEDZVXzlWnszK8qhFfRl46Wvfhyie8UiwkNC-MLms',
+        sheet_id='1QiWLS9N2wig5SGa2eujGIS-B2cB5DTnIfWHo-fPOXgk',
         n_column='N_new_inflated',
         config_name='v03_waterfall_useeio_g1_schema_ghg',
         note='USEEIO_TRACK[ghg]; prefer N_new_inflated (2024$)',
     ),
     AssessmentNLevel(
         key='G2',
-        sheet_id='1mGI0TkGqMhvIKIyLm-sYwM8pCvmT2uNyFiWUuHMymZk',
+        sheet_id='1Z_0HL8NfZl0gLtpp9Gd83uxL_RgmbxW0_PRN1MCnhlU',
         n_column='N_new',
         config_name='v03_waterfall_g2_methods',
         note='USEEIO_TRACK[io]',
