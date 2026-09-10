@@ -15,19 +15,13 @@ Configs covered (union of USEEIO + CEDA group registries):
 
 Not rebuilt: pinned USEEIO baseline / pinned CEDA v0 baseline.
 
-Pins recomputed 2026-08-06 via sheet ``N_new`` × canonical q (public CSV
-export of the refreshed waterfall diagnostics; equivalent to
-``waterfall_progression --sheet-n-new --refresh-sheets``).
-
-2026-09-09: the four ``usa_ghg_data_year: 2023`` configs (USEEIO G1, CEDA G1a,
-CEDA G1b, G2) were re-pinned from the live rebuild after the
-``GHG_national_Cornerstone_2023`` FBS on GCS was regenerated (v0.1 -> v0.3.0,
-MECS fix). The loader takes the newest upload per stem, so the registry sheets
-for those rungs still hold the pre-regen ``N_new`` until fresh sheets are
-minted and re-pointed; ``test_sheet_n_new_pins_match_expected`` lags until then.
+Pins are sheet ``N_new`` x canonical q (``waterfall_progression --sheet-n-new``).
+The four ``usa_ghg_data_year: 2023`` rungs (USEEIO G1, CEDA G1a, G1b, G2) use
+registry sheets reminted 2026-09-10 after the MECS-aligned
+``GHG_national_Cornerstone_2023`` FBS upload; G3/FINAL sheets are unchanged.
 
 Assessment plot bars (``N_old_inflated`` / ``N_new_inflated``) are checked
-separately from sheets only — see ``test_assessment_useeio_*``.
+separately from sheets only -- see ``test_assessment_useeio_*``.
 """
 
 from __future__ import annotations
@@ -48,7 +42,7 @@ from bedrock.utils.validation.waterfall_progression import (
 )
 
 # q-weighted sheet N_new (kgCO2e/USD). Source: --sheet-n-new.
-# Live 1ᵀBL matches these. USEEIO G1 (~0.314) is *not* the assessment G1 bar:
+# Live 1^T B L matches these. USEEIO G1 (~0.314) is *not* the assessment G1 bar:
 # that config builds B with deflate_x_to_detail_io_year_for_B, so N_new is in
 # usa_detail_original_year dollars; the figure uses N_new_inflated (PI rebase
 # to model_base_year 2024$). G2/G3/FINAL assessment bars use N_new and match.
@@ -61,14 +55,12 @@ EXPECTED_LIVE_N_NEW = {
     'v03_waterfall_final': 0.2419699,
 }
 
-# Assessment USEEIO-track bars (ceda combine_ef columns × canonical q).
-# Pin/G1 use inflated columns; G2/G3 use N_new (= live pins above). These are
-# read from the frozen registry sheets, so G2 stays at the pre-regen 2023 FBS
-# value until its sheet is re-minted (see module docstring).
+# Assessment USEEIO-track bars (ceda combine_ef columns x canonical q).
+# Pin/G1 use inflated columns; G2/G3 use N_new (= live pins above).
 EXPECTED_ASSESSMENT_USEEIO_BEDROCK_N = {
-    'pinned_useeio_baseline': 0.2520542,
-    'G1': 0.2462974,
-    'G2': 0.2403891,
+    'pinned_useeio_baseline': 0.2500903,
+    'G1': 0.2448373,
+    'G2': 0.2409960,
     'G3': 0.2419699,
 }
 
