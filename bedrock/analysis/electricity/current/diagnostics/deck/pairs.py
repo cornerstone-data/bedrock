@@ -55,6 +55,25 @@ CONFIG_FOR_STEP: dict[StepId, str] = {
     'reaggregation': REAGG_CONFIG,
 }
 
+# Parallel nowcast-2024 reaggregation ladder (do not retarget mecs_mixed_units /
+# MIXED_CONFIG / HIST_STEPS above). Future deck pairs can use these stems.
+NOWCAST_2024_FOOTING_CONFIG = (
+    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_footing'
+)
+NOWCAST_2024_REALLOC_CONFIG = (
+    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reallocation'
+)
+NOWCAST_2024_DISAGG_CONFIG = (
+    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_disaggregation'
+)
+NOWCAST_2024_REAGG_CONFIG = (
+    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation'
+)
+NOWCAST_2024_PRODUCTION_CONFIG = '2025_usa_cornerstone_v0_4'
+
+# Note: no mixed-units rung on the nowcast-2024 ladder yet (follow-up PR).
+# Use the NOWCAST_2024_* stems above for footing → realloc → disagg → reagg.
+
 CHILD_SECTORS: tuple[str, ...] = ('221110', '221121', '221122')
 AGGREGATE_SECTOR = '221100'
 STAR_SECTOR = '221100*'
