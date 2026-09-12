@@ -57,7 +57,12 @@ NOWCAST_COMPARE_YEAR = 2024
 # (``generate_snapshots.yml`` with ``2025_usa_cornerstone_v0_4_nowcast_2024``).
 # ``None`` derives B + A live from that YAML instead.
 NOWCAST_COMPARE_SNAPSHOT: str | None = None
-V03_SNAPSHOT = releases.v0_3_1
+# v0.3.2, not v0.3.1: the MECS Energy methodology (#688, ported to the nowcast
+# GHG configs in #858) moves manufacturing B, so a v0.3.1 baseline charges the
+# nowcast for an emissions change that is really a v0.3 patch. v0.3.2 is also
+# what ``.SNAPSHOT_KEY`` points at. Both are 2024$, so nothing downstream shifts
+# denominator year.
+V03_SNAPSHOT = releases.v0_3_2
 
 
 class YearEFs(ta.NamedTuple):

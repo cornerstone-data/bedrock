@@ -348,12 +348,12 @@ def _report(name: str, worst: float, tolerance: float) -> bool:
 def check(year: int = 2024) -> int:
     """Assert the identities on the live nowcast model, and print what it found."""
     from bedrock.analysis.nowcasting.results._ef_smoke_lib import (  # noqa: PLC0415
+        V03_SNAPSHOT,
         aq_from_live_config,
     )
-    from bedrock.utils.snapshots import releases  # noqa: PLC0415
     from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
 
-    B = load_snapshot('B_USA_non_finetuned', releases.v0_3_1)
+    B = load_snapshot('B_USA_non_finetuned', V03_SNAPSHOT)
     aq, vintage = aq_from_live_config(year)
     A = aq.Adom + aq.Aimp
     L = compute_L_matrix(A=A)

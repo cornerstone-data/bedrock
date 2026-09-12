@@ -61,7 +61,6 @@ from bedrock.utils.math.formulas import (
     compute_L_matrix,
     compute_n,
 )
-from bedrock.utils.snapshots import releases
 from bedrock.utils.snapshots.loader import load_snapshot
 
 OUT_DIR = Path(__file__).resolve().parent
@@ -126,11 +125,12 @@ class Models:
 
     def __init__(self, year: int = YEAR) -> None:
         from bedrock.analysis.nowcasting.results._ef_smoke_lib import (  # noqa: PLC0415
+            V03_SNAPSHOT,
             aq_from_live_config,
         )
 
         self.year = year
-        self.B = load_snapshot('B_USA_non_finetuned', releases.v0_3_1)
+        self.B = load_snapshot('B_USA_non_finetuned', V03_SNAPSHOT)
         self.D = self.B.sum(axis=0)
 
         aq, self.vintage = aq_from_live_config(year)
@@ -138,8 +138,8 @@ class Models:
         self.nowcast_dom, self.nowcast_imp = aq.Adom, aq.Aimp
         self.q = aq.scaled_q
 
-        self.v03_dom = load_snapshot('Adom_USA', releases.v0_3_1)
-        self.v03_imp = load_snapshot('Aimp_USA', releases.v0_3_1)
+        self.v03_dom = load_snapshot('Adom_USA', V03_SNAPSHOT)
+        self.v03_imp = load_snapshot('Aimp_USA', V03_SNAPSHOT)
         self.v03 = self.v03_dom + self.v03_imp
 
         self.L = compute_L_matrix(A=self.nowcast)
