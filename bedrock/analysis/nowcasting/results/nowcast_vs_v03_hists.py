@@ -38,6 +38,12 @@ from bedrock.utils.validation.diagnostics_helpers import (
 
 OUT_DIR = Path(__file__).resolve().parent
 
+# COMMODITY_DESC is keyed on the COMMODITY Literal, but the sector index comes
+# from the model at runtime as plain strings, so a widened copy is what the
+# lookup can actually use. A miss is then a real miss and lands in the unnamed
+# count below, rather than being a type error at the call site.
+_COMMODITY_DESC: dict[str, str] = {str(k): str(v) for k, v in COMMODITY_DESC.items()}
+
 
 def main(
     *,
@@ -78,7 +84,7 @@ def main(
     table = pd.DataFrame(
         {
             'sector': idx,
-            'sector_name': [COMMODITY_DESC.get(str(code), '') for code in idx],
+            'sector_name': [_COMMODITY_DESC.get(str(code), '') for code in idx],
             'N_nowcast': n_new.to_numpy(),
             'N_v03': n_old.to_numpy(),
             'N_perc_diff': n_pct.to_numpy(),
