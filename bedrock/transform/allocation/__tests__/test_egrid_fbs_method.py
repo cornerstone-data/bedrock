@@ -56,9 +56,9 @@ def test_egrid_fbs_method_for_config(
     if usa_detail_io_source == 'nowcast':
         cfg = USAConfig(
             usa_detail_io_source='nowcast',
-            usa_base_io_data_year=2024,  # type: ignore[arg-type]
-            model_base_year=2024,  # type: ignore[arg-type]
-            usa_ghg_data_year=2024,  # type: ignore[arg-type]
+            usa_base_io_data_year=2024,
+            model_base_year=2024,
+            usa_ghg_data_year=2024,
             apply_io_year_adjustments=False,
             use_cornerstone_ghg_model=True,
             implement_waste_disaggregation=True,
@@ -83,9 +83,9 @@ def test_egrid_fbs_method_for_config_unsupported(
 ) -> None:
     cfg = USAConfig(
         usa_detail_io_source='nowcast',
-        usa_base_io_data_year=2023,  # type: ignore[arg-type]
-        model_base_year=2023,  # type: ignore[arg-type]
-        usa_ghg_data_year=2023,  # type: ignore[arg-type]
+        usa_base_io_data_year=2023,
+        model_base_year=2023,
+        usa_ghg_data_year=2023,
         apply_io_year_adjustments=False,
         use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
@@ -148,9 +148,9 @@ def test_load_egrid_fbs_selects_nowcast_method(
 ) -> None:
     cfg = USAConfig(
         usa_detail_io_source='nowcast',
-        usa_base_io_data_year=2024,  # type: ignore[arg-type]
-        model_base_year=2024,  # type: ignore[arg-type]
-        usa_ghg_data_year=2024,  # type: ignore[arg-type]
+        usa_base_io_data_year=2024,
+        model_base_year=2024,
+        usa_ghg_data_year=2024,
         apply_io_year_adjustments=False,
         use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,

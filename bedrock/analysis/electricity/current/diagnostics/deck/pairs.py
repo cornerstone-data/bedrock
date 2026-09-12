@@ -5,10 +5,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from bedrock.analysis.electricity.current.diagnostics.ladders import get_ladder
+from bedrock.analysis.electricity.current.diagnostics.paths import DEFAULT_LADDER_ID
 from bedrock.utils.snapshots import releases
 
 ImplId = Literal[
-    'mecs_mixed_units', 'eia_gtd', 'original', 'production', 'reaggregation'
+    'mecs_mixed_units',
+    'eia_gtd',
+    'original',
+    'production',
+    'reaggregation',
+    'production_v04',
+    'nowcast_reaggregation',
 ]
 HistMode = Literal['pairwise', 'vs_footing']
 HistBaseline = Literal['own_footing', 'peer']
@@ -40,12 +48,16 @@ HIST_PANEL_TITLE: dict[StepId, str] = {
     'reaggregation': 'Reaggregation to 221100',
 }
 
-FOOTING_CONFIG = '2025_usa_cornerstone_v0_3_electricity_footing'
-PRODUCTION_CONFIG = '2025_usa_cornerstone_v0_3'
-REALLOC_CONFIG = '2025_usa_cornerstone_v0_3_electricity_reallocation'
-DISAGG_CONFIG = '2025_usa_cornerstone_v0_3_electricity_disaggregation'
-MIXED_CONFIG = '2025_usa_cornerstone_v0_3_electricity_mixed_units'
-REAGG_CONFIG = '2025_usa_cornerstone_v0_3_electricity_reaggregation'
+_BEA_MIXED = get_ladder('bea_v03_mixed_units')
+_BEA_REAGG = get_ladder('bea_v03_reaggregation')
+_NOWCAST_2024 = get_ladder('nowcast_2024_reaggregation')
+
+FOOTING_CONFIG = _BEA_MIXED.config_for_step('footing')
+PRODUCTION_CONFIG = _BEA_MIXED.production_baseline or '2025_usa_cornerstone_v0_3'
+REALLOC_CONFIG = _BEA_MIXED.config_for_step('reallocation')
+DISAGG_CONFIG = _BEA_MIXED.config_for_step('three_way')
+MIXED_CONFIG = _BEA_MIXED.config_for_step('mixed_units')
+REAGG_CONFIG = _BEA_REAGG.config_for_step('reaggregation')
 
 CONFIG_FOR_STEP: dict[StepId, str] = {
     'footing': FOOTING_CONFIG,
@@ -57,19 +69,13 @@ CONFIG_FOR_STEP: dict[StepId, str] = {
 
 # Parallel nowcast-2024 reaggregation ladder (do not retarget mecs_mixed_units /
 # MIXED_CONFIG / HIST_STEPS above). Future deck pairs can use these stems.
-NOWCAST_2024_FOOTING_CONFIG = (
-    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_footing'
+NOWCAST_2024_FOOTING_CONFIG = _NOWCAST_2024.config_for_step('footing')
+NOWCAST_2024_REALLOC_CONFIG = _NOWCAST_2024.config_for_step('reallocation')
+NOWCAST_2024_DISAGG_CONFIG = _NOWCAST_2024.config_for_step('three_way')
+NOWCAST_2024_REAGG_CONFIG = _NOWCAST_2024.config_for_step('reaggregation')
+NOWCAST_2024_PRODUCTION_CONFIG = (
+    _NOWCAST_2024.production_baseline or '2025_usa_cornerstone_v0_4'
 )
-NOWCAST_2024_REALLOC_CONFIG = (
-    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reallocation'
-)
-NOWCAST_2024_DISAGG_CONFIG = (
-    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_disaggregation'
-)
-NOWCAST_2024_REAGG_CONFIG = (
-    '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation'
-)
-NOWCAST_2024_PRODUCTION_CONFIG = '2025_usa_cornerstone_v0_4'
 
 # Note: no mixed-units rung on the nowcast-2024 ladder yet (follow-up PR).
 # Use the NOWCAST_2024_* stems above for footing → realloc → disagg → reagg.
@@ -134,6 +140,7 @@ class Implementation:
     industrial_weights: Literal['mecs', 'dollars'] | None
     schema: Schema = 'disagg'
     single_config: str | None = None
+    ladder_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -151,6 +158,7 @@ class Pair:
     hist_baseline: HistBaseline = 'own_footing'
     table_steps: tuple[StepId, ...] = STEPS
     hist_steps: tuple[StepId, ...] = HIST_STEPS
+    ladder_id: str | None = None
 
 
 IMPLEMENTATIONS: dict[ImplId, Implementation] = {
@@ -161,6 +169,7 @@ IMPLEMENTATIONS: dict[ImplId, Implementation] = {
         snapshot_key=releases.v0_3_1,
         class_row_style='eia',
         industrial_weights='mecs',
+        ladder_id='bea_v03_mixed_units',
     ),
     'eia_gtd': Implementation(
         id='eia_gtd',
@@ -169,6 +178,7 @@ IMPLEMENTATIONS: dict[ImplId, Implementation] = {
         snapshot_key=releases.v0_3_1,
         class_row_style='eia',
         industrial_weights='dollars',
+        ladder_id='bea_v03_mixed_units',
     ),
     'original': Implementation(
         id='original',
@@ -196,6 +206,27 @@ IMPLEMENTATIONS: dict[ImplId, Implementation] = {
         class_row_style='eia',
         industrial_weights='mecs',
         schema='disagg',
+        ladder_id='bea_v03_reaggregation',
+    ),
+    'production_v04': Implementation(
+        id='production_v04',
+        title='Cornerstone v0.4 production (non-disagg)',
+        footing_label='v0.4',
+        snapshot_key=releases.v0_4_0,
+        class_row_style='eia',
+        industrial_weights=None,
+        schema='aggregate',
+        single_config=NOWCAST_2024_PRODUCTION_CONFIG,
+    ),
+    'nowcast_reaggregation': Implementation(
+        id='nowcast_reaggregation',
+        title='Nowcast-2024 reaggregated 221100',
+        footing_label='nowcast-2024',
+        snapshot_key=releases.v0_4_0,
+        class_row_style='eia',
+        industrial_weights='mecs',
+        schema='disagg',
+        ladder_id='nowcast_2024_reaggregation',
     ),
 }
 
@@ -353,6 +384,41 @@ PAIRS: dict[str, Pair] = {
         ),
         table_steps=('footing', 'reallocation', 'three_way', 'reaggregation'),
         hist_steps=('reallocation', 'three_way', 'reaggregation'),
+        ladder_id='bea_v03_reaggregation',
+    ),
+    'nowcast_2024_reaggregated_vs_production': Pair(
+        key='nowcast_2024_reaggregated_vs_production',
+        top='production_v04',
+        bottom='nowcast_reaggregation',
+        hist_mode='vs_footing',
+        hist_baseline='peer',
+        filename='nowcast_2024_reaggregated_vs_production.pptx',
+        slide1_note=(
+            'Slide 1 is 221100 commodity q and industry x. Production has no '
+            'EIA class split; bottom values are the collapsed nowcast-2024 '
+            'reaggregation step.'
+        ),
+        slide_ef_note=(
+            'Nowcast-2024 reaggregated vs v0.4 production. Production is '
+            '2025_usa_cornerstone_v0_4 (aggregate 221100, margins on). '
+            'Reaggregation keeps realloc + 3-way then collapses G/T/D to '
+            'monetary 221100 on the nowcast-2024 ladder. Matching values are '
+            'marked same. G/T/D and 221100* are N/A on production.'
+        ),
+        slide4_extra_note='',
+        slide5_caption=(
+            'Top: v0.4 production vs itself (0% check). Bottom: Nowcast-2024 '
+            'reaggregated vs production. Shared baseline is production D/N, not '
+            'the electricity footing.'
+        ),
+        slide3_caption=(
+            'Top: v0.4 production vs itself (0% check). Bottom: Nowcast-2024 '
+            'reaggregated vs production. Shared baseline is production D/N, not '
+            'the electricity footing.'
+        ),
+        table_steps=('footing', 'reallocation', 'three_way', 'reaggregation'),
+        hist_steps=('reallocation', 'three_way', 'reaggregation'),
+        ladder_id='nowcast_2024_reaggregation',
     ),
 }
 
@@ -363,10 +429,16 @@ def class_groups_for(style: ClassRowStyle) -> tuple[tuple[str, tuple[str, ...]],
     return EIA_CLASS_GROUPS
 
 
-def config_for_step(impl: Implementation, step_id: StepId) -> str:
+def config_for_step(
+    impl: Implementation,
+    step_id: StepId,
+    *,
+    ladder_id: str | None = None,
+) -> str:
     if impl.single_config is not None:
         return impl.single_config
-    return CONFIG_FOR_STEP[step_id]
+    resolved = ladder_id or impl.ladder_id or DEFAULT_LADDER_ID
+    return get_ladder(resolved).config_for_step(step_id)
 
 
 def na_sectors_at_step(impl_id: ImplId, step_id: StepId) -> frozenset[str]:

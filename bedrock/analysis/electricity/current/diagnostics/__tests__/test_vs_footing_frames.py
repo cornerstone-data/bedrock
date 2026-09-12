@@ -1,4 +1,4 @@
-"""Unit tests for vs-footing EF frames and drop footnotes."""
+"""Unit tests for vs-footing EF frames and electricity drop collection."""
 
 from __future__ import annotations
 
@@ -9,17 +9,8 @@ from bedrock.analysis.electricity.current.diagnostics.ef_comparison import (
     vs_footing_frames as mod,
 )
 from bedrock.analysis.electricity.current.diagnostics.ef_comparison.vs_footing_frames import (
-    DroppedSector,
     collect_electricity_drops,
-    format_drop_footnote,
-    humanize_exemption_reason,
 )
-
-
-def test_humanize_mixed_units_exemption() -> None:
-    text = humanize_exemption_reason('unit_incommensurate_mixed_units')
-    assert 'mixed units' in text
-    assert 'kg/MWh' in text
 
 
 def test_collect_drops_ordered_exemption_before_presence() -> None:
@@ -43,17 +34,6 @@ def test_collect_drops_ordered_exemption_before_presence() -> None:
     assert 'not present in v0.3.1 electricity footing' in by_sector['221121']
     assert '221100' in by_sector
     assert 'present only in v0.3.1 electricity footing' in by_sector['221100']
-
-
-def test_format_drop_footnote() -> None:
-    text = format_drop_footnote(
-        [
-            DroppedSector('221110', 'mixed units are incompatible for plotting'),
-            DroppedSector('221100', 'present only in v0.3.1 electricity footing'),
-        ]
-    )
-    assert '221110 dropped:' in text
-    assert '221100 dropped:' in text
 
 
 def test_vs_footing_perc_formula_with_mocks(

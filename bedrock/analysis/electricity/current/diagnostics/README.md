@@ -1,26 +1,37 @@
 # Electricity disaggregation diagnostics
 
-Diagnostics for production electricity flags
-(`implement_electricity_disaggregation` / `implement_electricity_mixed_units` /
-`implement_electricity_reaggregation`).
-Conversion copy in live reports uses `electricity_conversion_factors` /
-`egrid_mwh_for_io_year` and flat `c_row = 1/p` (not Table 2.4 class `c_row`).
+**Ladder** = which config chain. **Analysis** = which question. Pick a ladder,
+then run a tool.
 
-Scripts are grouped by analysis so each subpackage owns the question it answers.
-Shared cache / path helpers stay at package root. All reports and figures still
-write under [`output/`](output/).
+| Ladder | Terminal | Default output |
+|---|---|---|
+| `bea_v03_mixed_units` (default) | mixed units | flat `output/`, `local_data/` |
+| `bea_v03_reaggregation` | reaggregation | `output/{id}/`, `local_data/{id}/` |
+| `nowcast_2024_reaggregation` | reaggregation | `output/{id}/`, `local_data/{id}/` |
+
+Registry: [`ladders/`](ladders/). Sheet tools (`manifest.yaml`, `bly_dispersion`,
+`ef_comparison.plot_ef`) stay **BEA v0.3.1-only** this PR.
+
+```bash
+# Nowcast entrypoints
+.venv\Scripts\python -m bedrock.analysis.electricity.current.diagnostics.full_trace --ladder nowcast_2024_reaggregation
+.venv\Scripts\python -m bedrock.analysis.electricity.current.diagnostics.ef_comparison.analyze_n_variance --ladder nowcast_2024_reaggregation
+.venv\Scripts\python -m bedrock.analysis.electricity.current.diagnostics.reaggregated_vs_plain_nowcast_2024 --ladder nowcast_2024_reaggregation
+.venv\Scripts\python -m bedrock.analysis.electricity.current.diagnostics.deck --pair nowcast_2024_reaggregated_vs_production
+```
 
 ```
 diagnostics/
+  ladders/              # LadderSpec registry (which configs)
   paths.py, manifest.py, local_workbooks.py, manifest.yaml, local_data/
-  bly_dispersion/       # BLy waterfalls from diagnostics sheets
-  ef_comparison/        # N/D vs v0.3.1 electricity footing + N-variance writeup
-  full_trace/           # live model IO / E / D / N / BLy walkthrough
+  bly_dispersion/       # BLy waterfalls from diagnostics sheets (BEA)
+  ef_comparison/        # N/D vs footing + N-variance (--ladder)
+  full_trace/           # live model IO / E / D / N / BLy (--ladder)
   year_alignment/       # BLy vs E under A/q year handling
-  hh_vs_interindustry/  # F01000 BLy attribution vs interindustry (not D0 class MWh)
+  hh_vs_interindustry/  # F01000 BLy attribution vs interindustry
   probes/               # one-off sector probes
-  deck/                 # five-slide PPTX (mecs_mixed_units vs pre-MECS vs original vs production vs reaggregated)
-  output/               # reports/figures (gitignored)
+  deck/                 # five-slide PPTX (BEA + nowcast reagg pair)
+  output/               # reports/figures (gitignored; namespaced by ladder)
   __tests__/
 ```
 
@@ -38,16 +49,17 @@ Run everything from the **repo root** with the project venv
    - `2025_usa_cornerstone_v0_3_electricity_disaggregation`
    - `2025_usa_cornerstone_v0_3_electricity_mixed_units` — mixed units
    - `2025_usa_cornerstone_v0_3_electricity_reaggregation` — collapse G/T/D to 221100
+   - Nowcast-2024 parallels under `2025_usa_cornerstone_v0_4_nowcast_2024_electricity_*`
 
 2. **Sheet-based analyses** (`bly_dispersion`, `ef_comparison.plot_ef`) also need
    diagnostics workbooks (local Excel or live Google Sheets) — see below.
    [`manifest.yaml`](manifest.yaml) `sheet_id` values are placeholders until Phase D
-   sheets are created.
+   sheets are created. **BEA v0.3.1 only.**
 
 3. **Live-model analyses** (`full_trace`, `hh_vs_interindustry`,
    `probes`, `ef_comparison.analyze_n_variance`, `year_alignment`) need a working
    Bedrock data / model environment for those configs (same as running
-   Cornerstone transforms).
+   Cornerstone transforms). Pass `--ladder` where supported.
 
 ---
 
@@ -254,6 +266,7 @@ electricity-sector D/N by step, and 3-panel histograms. Writes ``.pptx`` under
 | `eia_gtd_vs_original` | Published original PNGs over published `v0.3_eia_gtd_pre_mecs_*` |
 | `mecs_mixed_units_vs_production` | Both rows vs Cornerstone v0.3 production (non-disagg, margins on). Top = mixed-units electricity-disagg steps; bottom = production vs itself (0% check). Production has no G/T/D or class MWh. |
 | `reaggregated_vs_production` | Both rows vs production. Slide 1 is 221100 q and x. Last column is reaggregation to monetary 221100 (margins on). |
+| `nowcast_2024_reaggregated_vs_production` | Same layout on the nowcast-2024 ladder vs Cornerstone v0.4 production. |
 
 Identical D/N (or class MWh) cells are labeled **same**. Sectors not in the model
 at a step stay **N/A**. Missing live cache shows **—**. Original and pre-MECS
@@ -264,18 +277,20 @@ EIA G/T/D tables come from
 python -m bedrock.analysis.electricity.current.diagnostics.deck --pair mecs_mixed_units_vs_eia_gtd
 python -m bedrock.analysis.electricity.current.diagnostics.deck --pair mecs_mixed_units_vs_production
 python -m bedrock.analysis.electricity.current.diagnostics.deck --pair reaggregated_vs_production
+python -m bedrock.analysis.electricity.current.diagnostics.deck --pair nowcast_2024_reaggregated_vs_production
 python -m bedrock.analysis.electricity.current.diagnostics.deck --all
 python -m bedrock.analysis.electricity.current.diagnostics.deck --all --derive
 ```
 
-``--derive`` live-runs missing **mecs_mixed_units**, **reaggregation**, and **production** (`2025_usa_cornerstone_v0_3`) cache.
+``--derive`` live-runs missing **mecs_mixed_units**, **reaggregation**, **production**,
+**nowcast_reaggregation**, and **production_v04** cache.
 
 ---
 
 ## Nowcast-2024 reaggregation ladder (v0.4)
 
-Parallel to the v0.3.1 mixed-units ladder above. Terminal step is **reaggregation
-to monetary 221100** (no mixed units yet). All stems pin
+Registered as `nowcast_2024_reaggregation` in [`ladders/`](ladders/). Terminal
+step is **reaggregation to monetary 221100** (no mixed units yet). Stems pin
 `nowcast_mut_vintage: v0.3.0_4276083` and use `apply_io_year_adjustments: False`.
 
 | Stem | Role |
@@ -285,17 +300,16 @@ to monetary 221100** (no mixed units yet). All stems pin
 | `…_electricity_disaggregation` | 3-way G/T/D |
 | `…_electricity_reaggregation` | Collapse G/T/D → 221100 (margins on) |
 
-Deck / N-variance defaults stay on the v0.3.1 mixed-units constants. Parallel
-names live in `deck/pairs.py` (`NOWCAST_2024_*`) and
-`ef_comparison/analyze_n_variance.py`.
+Deck / N-variance / full_trace default to BEA mixed-units; pass
+`--ladder nowcast_2024_reaggregation` (or the nowcast deck pair) for this chain.
 
 Soft residual vs plain nowcast 2024:
 
 ```bash
-python -m bedrock.analysis.electricity.current.diagnostics.reaggregated_vs_plain_nowcast_2024
+python -m bedrock.analysis.electricity.current.diagnostics.reaggregated_vs_plain_nowcast_2024 --ladder nowcast_2024_reaggregation
 ```
 
-Writes CSVs under `local_data/reaggregated_vs_plain_nowcast_2024/`.
+Writes CSVs under `local_data/nowcast_2024_reaggregation/reagg_vs_plain/`.
 
 ---
 
@@ -311,7 +325,8 @@ Writes CSVs under `local_data/reaggregated_vs_plain_nowcast_2024/`.
 ## Tests
 
 ```bash
-python -m pytest bedrock/analysis/electricity/current/diagnostics/__tests__ \
+python -m pytest bedrock/analysis/electricity/current/diagnostics/ladders \
+    bedrock/analysis/electricity/current/diagnostics/__tests__ \
     bedrock/analysis/electricity/current/diagnostics/deck/__tests__ \
     bedrock/analysis/electricity/current/eia_gtd/__tests__ -q
 ```
