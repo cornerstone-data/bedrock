@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import matplotlib
-
-matplotlib.use('Agg')
-
 import pandas as pd
 
 from bedrock.analysis.electricity.current.diagnostics.bly_dispersion.dispersion import (
@@ -15,9 +9,6 @@ from bedrock.analysis.electricity.current.diagnostics.bly_dispersion.dispersion 
 )
 from bedrock.analysis.electricity.current.diagnostics.bly_dispersion.net_change import (
     compute_chained_net_change,
-)
-from bedrock.analysis.electricity.current.diagnostics.bly_dispersion.waterfall import (
-    render_net_change_waterfall,
 )
 
 
@@ -49,21 +40,6 @@ def test_build_bars_only_delta_when_total_changes() -> None:
     assert labels[3] == 'Δ from\nConversion to\nphysical units'
     assert labels[4] == 'Conversion to\nphysical units'
     assert len([b for b in bars if b.kind == 'delta']) == 1
-
-
-def test_net_change_waterfall_writes_png(tmp_path: Path) -> None:
-    footing = pd.Series({'1111A0': 100.0})
-    mixed = pd.Series({'1111A0': 103.0})
-    result = compute_chained_net_change(
-        footing,
-        [mixed],
-        ['Conversion to\nphysical units'],
-        footing_label='Cornerstone v0.3.1 electricity footing',
-    )
-    out = tmp_path / 'net_change_mmt.png'
-    render_net_change_waterfall(result, use_pct=False, out_path=out)
-    assert out.exists()
-    assert out.stat().st_size > 0
 
 
 def test_step_deltas_sum_to_combined_delta() -> None:

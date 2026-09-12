@@ -43,9 +43,9 @@ def test_apply_purchaser_allocation_to_y_uses_usa_base_io_data_year(
 
     cfg = USAConfig(
         usa_detail_io_source='nowcast',
-        usa_base_io_data_year=2024,  # type: ignore[arg-type]
-        model_base_year=2024,  # type: ignore[arg-type]
-        usa_ghg_data_year=2024,  # type: ignore[arg-type]
+        usa_base_io_data_year=2024,
+        model_base_year=2024,
+        usa_ghg_data_year=2024,
         apply_io_year_adjustments=False,
         use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
@@ -152,9 +152,17 @@ def test_reanchor_electricity_aq_at_year_skips_published_helpers(
     adom = pd.DataFrame(0.01, index=codes, columns=codes)
     aimp = pd.DataFrame(0.0, index=codes, columns=codes)
     q = pd.Series({c: 10.0 for c in codes}, dtype=float)
-    aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+    aq = SingleRegionAqMatrixSet(
+        Adom=adom,  # type: ignore[arg-type]
+        Aimp=aimp,  # type: ignore[arg-type]
+        scaled_q=q,
+    )
 
-    sentinel = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+    sentinel = SingleRegionAqMatrixSet(
+        Adom=adom,  # type: ignore[arg-type]
+        Aimp=aimp,  # type: ignore[arg-type]
+        scaled_q=q,
+    )
     apply_mock = MagicMock(return_value=sentinel)
     monkeypatch.setattr(gtd, '_apply_eia_purchaser_allocation_to_aq', apply_mock)
 

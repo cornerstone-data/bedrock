@@ -763,9 +763,9 @@ def _compute_w_row(
 
 
 @functools.cache
-def _derive_post_reallocation_checkpoint_for_disagg() -> tuple[
-    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
-]:
+def _derive_post_reallocation_checkpoint_for_disagg() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
     """Post-reallocation V/U/VA before the G/T/D Make/Use split (production path)."""
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         derive_cornerstone_U_after_waste,

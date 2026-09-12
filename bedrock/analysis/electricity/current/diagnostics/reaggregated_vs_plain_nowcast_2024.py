@@ -1,15 +1,13 @@
-"""Compare reaggregated nowcast-2024 electricity vs plain nowcast 2024.
+"""Compare ladder terminal reaggregation vs plain baseline (electricity off).
 
-Baseline: ``2025_usa_cornerstone_v0_4_nowcast_2024`` (margins on, electricity
-off), with ``nowcast_mut_vintage`` pinned to ``v0.3.0_4276083`` when the stock
-YAML omits it.
-
-Treatment: ``2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation``.
+Default ladder: ``nowcast_2024_reaggregation`` — plain nowcast 2024 vs
+nowcast electricity reaggregation, with ``nowcast_mut_vintage`` pinned when set.
 
 Run:
     python -m bedrock.analysis.electricity.current.diagnostics.reaggregated_vs_plain_nowcast_2024
+    python -m ...reaggregated_vs_plain_nowcast_2024 --ladder nowcast_2024_reaggregation
 
-Outputs under ``local_data/reaggregated_vs_plain_nowcast_2024/``:
+Outputs under ``local_data/{ladder_id}/reagg_vs_plain/``:
     - delta_a_q_x_221100.csv
     - delta_d_n_221100.csv
     - attribution_notes.md
@@ -17,24 +15,27 @@ Outputs under ``local_data/reaggregated_vs_plain_nowcast_2024/``:
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import pandas as pd
 
-from bedrock.analysis.electricity.current.diagnostics.paths import LOCAL_DATA_DIR
+from bedrock.analysis.electricity.current.diagnostics.ladders import LadderSpec
+from bedrock.analysis.electricity.current.diagnostics.ladders.registry import (
+    add_ladder_arg,
+    resolve_ladder,
+)
+from bedrock.analysis.electricity.current.diagnostics.paths import local_data_dir
 from bedrock.publish.cache_reset import clear_all_publish_caches
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 
-BASELINE_CONFIG = '2025_usa_cornerstone_v0_4_nowcast_2024'
-REAGG_CONFIG = '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation'
-VINTAGE_PIN = 'v0.3.0_4276083'
 SECTOR = '221100'
-
-OUT_DIR = LOCAL_DATA_DIR / 'reaggregated_vs_plain_nowcast_2024'
+DEFAULT_RESIDUAL_LADDER = 'nowcast_2024_reaggregation'
 
 _ATTRIBUTION_NOTES = """\
-# Reaggregated vs plain nowcast 2024 — attribution notes
+# Reaggregated vs plain — attribution notes
 
+Ladder: `{ladder_id}`
 Baseline: `{baseline}` (electricity off, margins on).
 Treatment: `{reagg}` (realloc + 3-way + reaggregation, margins on).
 Both use nowcast MUT vintage `{vintage}` when pinned.
@@ -62,7 +63,12 @@ Placeholder: expand with numeric attribution once residual CSVs are reviewed.
 """
 
 
-def _load_model_slice(config: str) -> dict[str, pd.Series | pd.DataFrame | float]:
+def _load_model_slice(
+    config: str,
+    *,
+    vintage_pin: str | None,
+) -> dict[str, pd.Series | pd.DataFrame | float]:
+    import bedrock.utils.config.usa_config as uc  # noqa: PLC0415
     from bedrock.publish.model_objects import (  # noqa: PLC0415
         get_A,
         get_D,
@@ -70,15 +76,17 @@ def _load_model_slice(config: str) -> dict[str, pd.Series | pd.DataFrame | float
         get_q,
         get_x,
     )
-    import bedrock.utils.config.usa_config as uc  # noqa: PLC0415
 
     reset_usa_config(should_reset_env_var=True)
     clear_all_publish_caches()
     set_global_usa_config(config)
     cfg = uc.get_usa_config()
-    # Stock nowcast_2024 research YAML may omit the production vintage pin.
-    if cfg.nowcast_mut_vintage is None:
-        pinned = {**cfg.model_dump(mode='python'), 'nowcast_mut_vintage': VINTAGE_PIN}
+    # Stock nowcast research YAML may omit the production vintage pin.
+    if vintage_pin is not None and cfg.nowcast_mut_vintage is None:
+        pinned = {
+            **cfg.model_dump(mode='python'),
+            'nowcast_mut_vintage': vintage_pin,
+        }
         uc._usa_config = uc.USAConfig.model_validate(pinned, strict=True)
 
     a = get_A()
@@ -156,13 +164,17 @@ def _delta_a_q_x(
             rows.append(
                 {
                     'metric': f'{label}:{idx}',
-                    'baseline': float(base_row.get(idx, 0.0))
-                    if label.startswith('a_row')
-                    else float(base_col.get(idx, 0.0)),
-                    'reaggregated': float(reagg_row.get(idx, 0.0))
-                    if label.startswith('a_row')
-                    else float(reagg_col.get(idx, 0.0)),
-                    'delta': float(series.loc[idx]),
+                    'baseline': (
+                        float(base_row.get(idx, 0.0))
+                        if label.startswith('a_row')
+                        else float(base_col.get(idx, 0.0))
+                    ),
+                    'reaggregated': (
+                        float(reagg_row.get(idx, 0.0))
+                        if label.startswith('a_row')
+                        else float(reagg_col.get(idx, 0.0))
+                    ),
+                    'delta': float(series.loc[str(idx)]),
                 }
             )
     return pd.DataFrame(rows)
@@ -205,35 +217,73 @@ def _delta_d_n(
                 'metric': 'N',
                 'baseline': float(base_n.get(sector, 0.0)),
                 'reaggregated': float(reagg_n.get(sector, 0.0)),
-                'delta': float(delta_n.loc[sector]),
+                'delta': float(delta_n.loc[str(sector)]),
             }
         )
     return pd.DataFrame(rows)
 
 
-def run() -> Path:
+def _require_residual_ladder(ladder: LadderSpec) -> None:
+    if ladder.terminal != 'reaggregation':
+        raise SystemExit(
+            f'ladder {ladder.id!r} terminal is {ladder.terminal!r}; '
+            "residual analysis requires terminal=='reaggregation'"
+        )
+    if not ladder.plain_baseline:
+        raise SystemExit(
+            f'ladder {ladder.id!r} has no plain_baseline; '
+            'residual analysis requires a plain (electricity-off) peer'
+        )
+
+
+def run(ladder: LadderSpec | None = None) -> Path:
     """Derive both models, write CSVs + attribution notes, return output dir."""
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    if ladder is None:
+        from bedrock.analysis.electricity.current.diagnostics.ladders import (  # noqa: PLC0415
+            get_ladder,
+        )
 
-    base = _load_model_slice(BASELINE_CONFIG)
-    reagg = _load_model_slice(REAGG_CONFIG)
+        ladder = get_ladder(DEFAULT_RESIDUAL_LADDER)
+    _require_residual_ladder(ladder)
+    assert ladder.plain_baseline is not None
 
-    _delta_a_q_x(base, reagg).to_csv(OUT_DIR / 'delta_a_q_x_221100.csv', index=False)
-    _delta_d_n(base, reagg).to_csv(OUT_DIR / 'delta_d_n_221100.csv', index=False)
-    (OUT_DIR / 'attribution_notes.md').write_text(
+    out = local_data_dir(ladder.id) / 'reagg_vs_plain'
+    out.mkdir(parents=True, exist_ok=True)
+
+    baseline_cfg = ladder.plain_baseline
+    reagg_cfg = ladder.terminal_config
+    vintage = ladder.nowcast_mut_vintage
+
+    base = _load_model_slice(baseline_cfg, vintage_pin=vintage)
+    reagg = _load_model_slice(reagg_cfg, vintage_pin=vintage)
+
+    _delta_a_q_x(base, reagg).to_csv(out / 'delta_a_q_x_221100.csv', index=False)
+    _delta_d_n(base, reagg).to_csv(out / 'delta_d_n_221100.csv', index=False)
+    (out / 'attribution_notes.md').write_text(
         _ATTRIBUTION_NOTES.format(
-            baseline=BASELINE_CONFIG,
-            reagg=REAGG_CONFIG,
-            vintage=VINTAGE_PIN,
+            ladder_id=ladder.id,
+            baseline=baseline_cfg,
+            reagg=reagg_cfg,
+            vintage=vintage or '(none)',
         ),
         encoding='utf-8',
     )
 
     reset_usa_config(should_reset_env_var=True)
     clear_all_publish_caches()
-    return OUT_DIR
+    return out
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description='Compare ladder reaggregation terminal vs plain baseline.'
+    )
+    add_ladder_arg(parser, default=DEFAULT_RESIDUAL_LADDER)
+    args = parser.parse_args(argv)
+    ladder = resolve_ladder(args)
+    out = run(ladder)
+    print(f'Wrote residual comparison under {out}')
 
 
 if __name__ == '__main__':
-    out = run()
-    print(f'Wrote residual comparison under {out}')
+    main()

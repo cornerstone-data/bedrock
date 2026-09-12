@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from typing import Any
 
 from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace import (
@@ -10,6 +11,15 @@ from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace impo
     _sector_q_usd,
     _weighted_ef,
 )
+from bedrock.analysis.electricity.current.diagnostics.ladders import (
+    LadderSpec,
+    get_ladder,
+)
+from bedrock.analysis.electricity.current.diagnostics.ladders.registry import (
+    add_ladder_arg,
+    resolve_ladder,
+)
+from bedrock.analysis.electricity.current.diagnostics.paths import DEFAULT_LADDER_ID
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
@@ -999,55 +1009,81 @@ def _strip_supplemental_sections(content: str) -> str:
     return content[:idx].rstrip() + "\n"
 
 
-def append_walkthrough_to_report(out_path: str) -> None:
+def append_walkthrough_to_report(
+    out_path: str,
+    *,
+    ladder: LadderSpec | None = None,
+) -> None:
+    spec = ladder if ladder is not None else get_ladder(DEFAULT_LADDER_ID)
+    realloc_cfg = spec.config_for_step("reallocation")
+    split_cfg = spec.config_for_step("three_way")
     realloc = _analyze(
-        "2025_usa_cornerstone_v0_3_electricity_reallocation",
+        realloc_cfg,
         "reallocation",
         [ELECTRICITY_AGGREGATE_SECTOR],
     )
     split = _analyze(
-        "2025_usa_cornerstone_v0_3_electricity_disaggregation",
+        split_cfg,
         "3-way split",
         list(ELECTRICITY_DISAGG_SECTORS),
     )
-    mixed = _analyze(
-        "2025_usa_cornerstone_v0_3_electricity_mixed_units",
-        "unit conversion",
-        list(ELECTRICITY_DISAGG_SECTORS),
-    )
-    split_block = _analyze_y_nab_block(
-        "2025_usa_cornerstone_v0_3_electricity_disaggregation",
-        list(ELECTRICITY_DISAGG_SECTORS),
-    )
-    mixed_block = _analyze_y_nab_block(
-        "2025_usa_cornerstone_v0_3_electricity_mixed_units",
-        list(ELECTRICITY_DISAGG_SECTORS),
-        mixed=True,
-    )
-    conversion_detail = _conversion_factor_detail(
-        "2025_usa_cornerstone_v0_3_electricity_mixed_units"
-    )
+    supplemental = render_walkthrough_md(realloc, split)
+    if spec.terminal == "mixed_units":
+        mixed_cfg = spec.config_for_step("mixed_units")
+        mixed = _analyze(
+            mixed_cfg,
+            "unit conversion",
+            list(ELECTRICITY_DISAGG_SECTORS),
+        )
+        split_block = _analyze_y_nab_block(
+            split_cfg,
+            list(ELECTRICITY_DISAGG_SECTORS),
+        )
+        mixed_block = _analyze_y_nab_block(
+            mixed_cfg,
+            list(ELECTRICITY_DISAGG_SECTORS),
+            mixed=True,
+        )
+        conversion_detail = _conversion_factor_detail(mixed_cfg)
+        supplemental += render_unit_conversion_walkthrough_md(
+            split, mixed, conversion_detail=conversion_detail
+        ) + render_y_nab_section_md(realloc, split_block, mixed_block)
     with open(out_path, encoding="utf-8") as f:
         base = _strip_supplemental_sections(f.read())
-    supplemental = (
-        render_walkthrough_md(realloc, split)
-        + render_unit_conversion_walkthrough_md(
-            split, mixed, conversion_detail=conversion_detail
-        )
-        + render_y_nab_section_md(realloc, split_block, mixed_block)
-    )
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(base + supplemental)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Decompose D/N between reallocation and 3-way split."
+    )
+    add_ladder_arg(parser, default=DEFAULT_LADDER_ID)
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append walkthrough sections to the full_trace markdown report.",
+    )
+    args = parser.parse_args(argv)
+    ladder = resolve_ladder(args)
+
+    if args.append:
+        from bedrock.analysis.electricity.current.diagnostics.paths import (  # noqa: PLC0415
+            output_dir,
+        )
+
+        out = output_dir(ladder.id) / "electricity_full_trace.md"
+        append_walkthrough_to_report(str(out), ladder=ladder)
+        print(f"Appended walkthrough to {out}")
+        return
+
     realloc = _analyze(
-        "2025_usa_cornerstone_v0_3_electricity_reallocation",
+        ladder.config_for_step("reallocation"),
         "reallocation",
         [ELECTRICITY_AGGREGATE_SECTOR],
     )
     split = _analyze(
-        "2025_usa_cornerstone_v0_3_electricity_disaggregation",
+        ladder.config_for_step("three_way"),
         "3-way split",
         list(ELECTRICITY_DISAGG_SECTORS),
     )
@@ -1100,12 +1136,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--append":
-        from bedrock.analysis.electricity.current.diagnostics.paths import OUT_DIR
-
-        append_walkthrough_to_report(str(OUT_DIR / "electricity_full_trace.md"))
-        print(f"Appended walkthrough to {OUT_DIR / 'electricity_full_trace.md'}")
-    else:
-        main()
+    main()
