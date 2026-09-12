@@ -395,7 +395,11 @@ def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
     newest = newest_on_disk(metadata)
 
     problems: list[dict[str, Any]] = []
-    for blob in metadata.values():
+    for meta_stem, blob in metadata.items():
+        # The versioned stem, e.g. "Foo_2022_v0.3.0_abc1234".  Carried on
+        # every row because the *name* is ambiguous once a rebuild sits
+        # beside its predecessor, and deletion has to be unambiguous.
+        artifact_stem = meta_stem.removesuffix("_metadata")
         name = blob.get("name_data", "")
         if name_filter and name_filter not in name:
             continue
@@ -409,6 +413,7 @@ def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
                 {
                     "kind": "unverifiable",
                     "artifact": name,
+                    "stem": artifact_stem,
                     "artifact_built": built,
                     "source": "-",
                     "detail": (
@@ -423,6 +428,7 @@ def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
                 {
                     "kind": "method",
                     "artifact": name,
+                    "stem": artifact_stem,
                     "artifact_built": built,
                     "source": culprit.name if culprit else "method",
                     "source_built": changed,
@@ -444,6 +450,7 @@ def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
                     {
                         "kind": "internal",
                         "artifact": name,
+                        "stem": artifact_stem,
                         "artifact_built": built,
                         "source": source_name,
                         "source_built": embedded,
@@ -457,6 +464,7 @@ def find_stale(name_filter: str = "") -> list[dict[str, Any]]:
                     {
                         "kind": "superseded",
                         "artifact": name,
+                        "stem": artifact_stem,
                         "artifact_built": built,
                         "source": source_name,
                         "source_built": embedded,
@@ -485,16 +493,24 @@ SCOPES = {
 def delete_stale(
     problems: list[dict[str, Any]], scope: str = "transform"
 ) -> list[Path]:
-    """Remove the parquet and metadata of every artifact named in *problems*.
+    """Remove the parquet and metadata of the exact artifact versions flagged.
 
     ⚠️ Both files, not just the parquet. The loader finds a cached artifact by
     globbing the output directory, so leaving the metadata behind is harmless
     but leaving the *parquet* behind means the rebuild silently reloads it.
 
+    ⚠️ **Matched on the versioned stem, not the name.** Matching
+    ``f"{name}_v"`` deletes *every* version of an artifact, which is wrong the
+    moment a fresh rebuild sits beside the stale one it replaced: the rebuild
+    is not in ``problems``, but its filename starts with the same name, so it
+    went too. That is the opposite of what this is for -- it would delete the
+    fix and keep nothing. Staleness is a property of a specific build, so the
+    thing deleted has to be that build.
+
     Refuses anything outside :data:`OUTPUT_DIRS`, so a malformed metadata blob
     cannot point this at the source tree.
     """
-    names = {row["artifact"] for row in problems}
+    stems = {row["stem"] for row in problems if row.get("stem")}
     removed: list[Path] = []
     for directory in SCOPES[scope]:
         if not directory.exists():
@@ -502,13 +518,20 @@ def delete_stale(
         for path in sorted(directory.iterdir()):
             if not path.is_file():
                 continue
-            if not any(path.name.startswith(f"{name}_v") for name in names):
+            if (
+                path.stem not in stems
+                and path.stem.removesuffix("_metadata") not in stems
+            ):
                 continue
             if path.suffix not in {".parquet", ".json"}:
                 continue
             if directory.resolve() not in path.resolve().parents:
                 continue
-            print(f"  removing {path.relative_to(_ROOT.parent)}")
+            try:
+                shown: Path | str = path.relative_to(_ROOT.parent)
+            except ValueError:  # a scope outside the repo, e.g. under test
+                shown = path
+            print(f"  removing {shown}")
             path.unlink()
             removed.append(path)
     return removed
@@ -573,7 +596,7 @@ def main() -> None:
                 f"{scope!r}. Re-run with --yes to actually delete."
             )
             for row in deletable:
-                print(f"  would delete {row['artifact']}")
+                print(f"  would delete {row.get('stem') or row['artifact']}")
         else:
             print(f"Deleting stale artifacts in scope {scope!r}:")
             removed = delete_stale(deletable, scope)
