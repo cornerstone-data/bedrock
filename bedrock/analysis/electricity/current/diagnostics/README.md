@@ -272,6 +272,33 @@ python -m bedrock.analysis.electricity.current.diagnostics.deck --all --derive
 
 ---
 
+## Nowcast-2024 reaggregation ladder (v0.4)
+
+Parallel to the v0.3.1 mixed-units ladder above. Terminal step is **reaggregation
+to monetary 221100** (no mixed units yet). All stems pin
+`nowcast_mut_vintage: v0.3.0_4276083` and use `apply_io_year_adjustments: False`.
+
+| Stem | Role |
+|---|---|
+| `2025_usa_cornerstone_v0_4_nowcast_2024_electricity_footing` | Footing (margins off) |
+| `…_electricity_reallocation` | Co-production reallocation |
+| `…_electricity_disaggregation` | 3-way G/T/D |
+| `…_electricity_reaggregation` | Collapse G/T/D → 221100 (margins on) |
+
+Deck / N-variance defaults stay on the v0.3.1 mixed-units constants. Parallel
+names live in `deck/pairs.py` (`NOWCAST_2024_*`) and
+`ef_comparison/analyze_n_variance.py`.
+
+Soft residual vs plain nowcast 2024:
+
+```bash
+python -m bedrock.analysis.electricity.current.diagnostics.reaggregated_vs_plain_nowcast_2024
+```
+
+Writes CSVs under `local_data/reaggregated_vs_plain_nowcast_2024/`.
+
+---
+
 ## Suggested order
 
 1. Sheet cache + BLy waterfalls (`bly_dispersion`) and EF plots (`ef_comparison.plot_ef`)

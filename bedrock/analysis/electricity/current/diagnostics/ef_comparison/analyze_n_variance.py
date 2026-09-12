@@ -47,6 +47,17 @@ FOOTING_CONFIG = "2025_usa_cornerstone_v0_3_electricity_footing"
 SPLIT_CONFIG = "2025_usa_cornerstone_v0_3_electricity_disaggregation"
 MIXED_CONFIG = "2025_usa_cornerstone_v0_3_electricity_mixed_units"
 
+# Parallel nowcast-2024 ladder (defaults above stay on v0.3.1 mixed-units).
+NOWCAST_2024_FOOTING_CONFIG = (
+    "2025_usa_cornerstone_v0_4_nowcast_2024_electricity_footing"
+)
+NOWCAST_2024_SPLIT_CONFIG = (
+    "2025_usa_cornerstone_v0_4_nowcast_2024_electricity_disaggregation"
+)
+NOWCAST_2024_REAGG_CONFIG = (
+    "2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation"
+)
+
 FOOTING_ELEC = [ELECTRICITY_AGGREGATE_SECTOR]
 SPLIT_ELEC = list(ELECTRICITY_DISAGG_SECTORS)
 
