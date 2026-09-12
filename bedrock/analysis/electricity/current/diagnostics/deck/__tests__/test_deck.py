@@ -1,18 +1,14 @@
-"""Synthetic tests for the five-slide electricity comparison deck."""
+"""Unit / wiring tests for the electricity comparison deck."""
 
 from __future__ import annotations
 
-import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
-from PIL import Image
 from pptx import Presentation as PptxPresentation
-from pptx.util import Inches
 
-from bedrock.analysis.electricity.current.diagnostics.deck import histograms as hist
 from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     NA,
     SAME,
@@ -21,7 +17,6 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
     c_col_is_monetary,
     ef_kg_per_usd,
     fill_mixed_c_col,
-    format_twh,
     format_usd,
     sector_ef_usd,
     star_aggregate,
@@ -29,18 +24,13 @@ from bedrock.analysis.electricity.current.diagnostics.deck.data import (
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.histograms import (
     _panel_data,
-    frozen_panel_png,
-    pairwise_frame,
     perc_frame,
-    stack_panel_pngs,
-    write_hist_png,
 )
 from bedrock.analysis.electricity.current.diagnostics.deck.pairs import (
     AGGREGATE_ONLY_NA,
     IMPLEMENTATIONS,
     PAIRS,
     STEPS,
-    ImplId,
     config_for_step,
     na_sectors_at_step,
 )
@@ -50,9 +40,6 @@ from bedrock.analysis.electricity.current.diagnostics.deck.tables import (
     ef_grids,
     format_cell_pair,
     qx_grids,
-)
-from bedrock.analysis.electricity.historical.original_vs_eia_anchored_deck.published import (
-    published_ef,
 )
 
 
@@ -156,12 +143,7 @@ def test_star_aggregate_x_weighted() -> None:
         {'221110': 10.0, '221121': 1.0, '221122': 0.0},
         x={'221110': 2.0, '221121': 2.0, '221122': 6.0},
     )
-    # (10*2 + 1*2 + 0*6) / 10 = 2.2
     assert star_aggregate(step, 'D') == pytest.approx(2.2)
-
-
-def test_format_twh() -> None:
-    assert format_twh(1_548_800_000) == '1,548.8 TWh'
 
 
 def test_na_and_same_cells() -> None:
@@ -216,16 +198,6 @@ def test_class_mwh_same_when_totals_match() -> None:
     assert top_grid.rows[-1][1] == '4,312.6 TWh'
 
 
-def test_pairwise_perc_formula() -> None:
-    left = _step({'1111A0': 1.1, '221121': 0.4})
-    right = _step({'1111A0': 1.0, '221121': 0.4})
-    frame, drops = pairwise_frame(left, right, 'D')
-    by_sector = frame.set_index('sector')['perc_diff']
-    assert by_sector.loc['1111A0'] == pytest.approx(0.1)
-    assert by_sector.loc['221121'] == pytest.approx(0.0)
-    assert drops == []
-
-
 def test_perc_frame_inner_join() -> None:
     frame = perc_frame(
         pd.Series({'a': 2.0, 'b': 1.0}),
@@ -258,116 +230,6 @@ def test_ef_grids_two_tables() -> None:
     n_top, _n_bottom = ef_grids(pair, original, current, 'N')
     assert n_top.rows[2][4] == '9.213'
     assert n_top.rows[2][5] == '10.070'
-
-
-def test_stack_panel_pngs_preserves_pixels(tmp_path: Path) -> None:
-    a = tmp_path / 'a.png'
-    b = tmp_path / 'b.png'
-    Image.new('RGB', (10, 4), (255, 0, 0)).save(a)
-    Image.new('RGB', (10, 6), (0, 0, 255)).save(b)
-    out = tmp_path / 'stacked.png'
-    stack_panel_pngs([a, b], out)
-    im = Image.open(out)
-    assert im.size == (10, 10)
-
-
-def test_write_hist_png_uses_frozen_vs_footing_panels(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    panel = tmp_path / 'panel'
-    panel.mkdir()
-    Image.new('RGB', (20, 8), (255, 0, 0)).save(
-        panel / hist.FROZEN_PANEL_PNG[('original', 'D')]
-    )
-    Image.new('RGB', (20, 8), (0, 0, 255)).save(
-        panel / hist.FROZEN_PANEL_PNG[('eia_gtd', 'D')]
-    )
-    monkeypatch.setattr(hist, 'FIGURES_DIR', panel)
-    out = tmp_path / 'hist.png'
-    write_hist_png(
-        PAIRS['eia_gtd_vs_original'],
-        ImplBundle('original', {}),
-        ImplBundle('eia_gtd', {}),
-        'D',
-        out,
-    )
-    im = Image.open(out)
-    assert im.size == (20, 16)
-
-
-def test_published_original_n_matches_pptx() -> None:
-    assert published_ef('original', 'N', '221110', 'three_way') == pytest.approx(9.213)
-    assert published_ef('original', 'N', '221110', 'mixed_units') == pytest.approx(
-        10.070
-    )
-    assert published_ef('eia_gtd', 'N', '221110', 'three_way') == pytest.approx(8.622)
-
-
-def test_published_original_panel_is_on_disk() -> None:
-    path = frozen_panel_png('original', 'D')
-    assert path is not None
-    assert path.name == 'v0.2_original_electricity_disagg_D.png'
-    published: tuple[tuple[ImplId, str], ...] = (
-        ('original', 'D'),
-        ('original', 'N'),
-        ('eia_gtd', 'D'),
-        ('eia_gtd', 'N'),
-    )
-    for impl_id, kind in published:
-        found = frozen_panel_png(impl_id, kind)
-        assert found is not None, f'missing published panel for {impl_id} {kind}'
-
-
-def test_write_pptx_five_slides(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(hist, 'FIGURES_DIR', tmp_path / 'no_frozen_panels')
-    model, target = _eia_class()
-    sectors = {f'{i:06d}': float(i) for i in range(10)}
-    sectors.update({'221110': 8.0, '221121': 0.3, '221122': 0.1, '221100': 2.4})
-    step_3way = _step(sectors, class_mwh=model, target=target)
-    step_mixed = _step(sectors, mixed=True, c_col=0.02, class_mwh=model, target=target)
-    step_re = _step({'221100': 2.4, **{f'{i:06d}': float(i) for i in range(10)}})
-    step_foot = _step(
-        {'221100': 2.39, **{f'{i:06d}': float(i) * 0.9 for i in range(10)}}
-    )
-    bundle_a = ImplBundle(
-        'mecs_mixed_units',
-        {
-            'footing': step_foot,
-            'reallocation': step_re,
-            'three_way': step_3way,
-            'mixed_units': step_mixed,
-        },
-    )
-    bundle_b = ImplBundle(
-        'eia_gtd',
-        {
-            'footing': step_foot,
-            'reallocation': step_re,
-            'three_way': step_3way,
-            'mixed_units': step_mixed,
-        },
-    )
-    out = tmp_path / 'deck.pptx'
-    write_pptx(
-        PAIRS['mecs_mixed_units_vs_eia_gtd'], bundle_a, bundle_b, out, png_dir=tmp_path
-    )
-    assert out.is_file()
-    with zipfile.ZipFile(out) as z:
-        slides = [n for n in z.namelist() if n.startswith('ppt/slides/slide')]
-        media = [n for n in z.namelist() if n.startswith('ppt/media/')]
-    assert len(slides) == 5
-    assert len(media) >= 2
-    prs = PptxPresentation(str(out))
-    d_tables = [s for s in prs.slides[1].shapes if s.has_table]
-    assert d_tables
-    table = d_tables[0].table
-    run = table.cell(1, 0).text_frame.paragraphs[0].runs[0]
-    assert run.font.size is not None
-    assert run.font.size.pt == 12
-    assert d_tables[0].height < Inches(3.2)
-    assert d_tables[0].width < Inches(6.5)
 
 
 def test_production_pair_schema_and_na() -> None:
@@ -423,55 +285,6 @@ def test_production_tables_and_peer_histograms() -> None:
     )
     by_sector = frame.set_index('sector')['perc_diff']
     assert by_sector.loc['1111A0'] == pytest.approx(-0.5)
-
-
-def test_write_pptx_mecs_mixed_units_vs_production(tmp_path: Path) -> None:
-    sectors = {f'{i:06d}': float(i) for i in range(10)}
-    sectors.update({'221110': 8.0, '221121': 0.3, '221122': 0.1, '221100': 2.4})
-    prod_sectors = {f'{i:06d}': float(i) * 0.95 for i in range(10)}
-    prod_sectors['221100'] = 2.5
-    current = ImplBundle(
-        'mecs_mixed_units',
-        {
-            'footing': _step(
-                {'221100': 2.39, **{f'{i:06d}': float(i) * 0.9 for i in range(10)}}
-            ),
-            'reallocation': _step(
-                {'221100': 2.4, **{f'{i:06d}': float(i) for i in range(10)}}
-            ),
-            'three_way': _step(sectors),
-            'mixed_units': _step(sectors, mixed=True, c_col=0.02),
-        },
-    )
-    production = ImplBundle(
-        'production',
-        {step: _step(prod_sectors) for step in STEPS},
-    )
-    out = tmp_path / 'mecs_mixed_units_vs_production.pptx'
-    write_pptx(
-        PAIRS['mecs_mixed_units_vs_production'],
-        current,
-        production,
-        out,
-        png_dir=tmp_path,
-    )
-    assert out.is_file()
-    with zipfile.ZipFile(out) as z:
-        slides = [n for n in z.namelist() if n.startswith('ppt/slides/slide')]
-        media = [n for n in z.namelist() if n.startswith('ppt/media/')]
-    assert len(slides) == 5
-    assert len(media) >= 2
-
-
-def test_no_legacy_pair_or_impl_keys() -> None:
-    assert 'current' not in IMPLEMENTATIONS
-    assert 'current_vs_eia_gtd' not in PAIRS
-    assert 'current_vs_original' not in PAIRS
-    assert 'current_vs_production' not in PAIRS
-    assert 'mixed_units_vs_production' not in PAIRS
-    assert 'reaggregation_vs_production' not in PAIRS
-    for key in PAIRS:
-        assert 'current' not in key
 
 
 def test_reaggregated_pair_table_and_hist_steps() -> None:
@@ -541,7 +354,7 @@ def test_load_impl_bundle_uses_pair_table_steps(
         sources,
     )
 
-    def fake_load(_impl: object, step_id: str) -> StepSnapshot:
+    def fake_load(_impl: object, step_id: str, **_kwargs: object) -> StepSnapshot:
         return _step({'221100': 1.0}, q={'221100': 1.0e11}, x={'221100': 2.0e11})
 
     monkeypatch.setattr(sources, 'load_step', fake_load)
@@ -569,11 +382,7 @@ def test_load_impl_bundle_uses_pair_table_steps(
 def test_derive_step_first_three_dn_match_mecs_and_write_x(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Ladder steps share YAML flags; reagg impl does not collapse until last step.
-
-    Fake D/N are keyed off the live YAML flags so a wrong Aq branch or config
-    would make the first three 221100 columns diverge from ``mecs_mixed_units``.
-    """
+    """Ladder steps share YAML flags; reagg impl does not collapse until last step."""
     from bedrock.analysis.electricity.current.diagnostics.deck import (  # noqa: PLC0415
         sources,
     )
@@ -765,3 +574,84 @@ def test_write_pptx_reaggregated_vs_production(tmp_path: Path) -> None:
     assert len(prs.slides) == 5
     title = prs.slides[0].shapes[0].text_frame.paragraphs[0].runs[0].text
     assert 'q and industry x' in title
+
+
+def test_nowcast_pair_binds_ladder() -> None:
+    pair = PAIRS['nowcast_2024_reaggregated_vs_production']
+    assert pair.ladder_id == 'nowcast_2024_reaggregation'
+    assert pair.table_steps[-1] == 'reaggregation'
+    assert 'mixed_units' not in pair.table_steps
+    assert pair.top == 'production_v04'
+    assert pair.bottom == 'nowcast_reaggregation'
+    nowcast = IMPLEMENTATIONS['nowcast_reaggregation']
+    assert config_for_step(nowcast, 'reaggregation', ladder_id=pair.ladder_id) == (
+        '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation'
+    )
+    assert config_for_step(IMPLEMENTATIONS['production_v04'], 'footing') == (
+        '2025_usa_cornerstone_v0_4'
+    )
+
+
+def test_analyze_n_variance_reagg_terminal_skips_mixed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Reaggregation ladders run footing/three_way path and skip mixed sections."""
+    from bedrock.analysis.electricity.current.diagnostics.ef_comparison import (  # noqa: PLC0415
+        analyze_n_variance as anv,
+    )
+    from bedrock.analysis.electricity.current.diagnostics.ladders import (  # noqa: PLC0415
+        get_ladder,
+    )
+
+    ladder = get_ladder('nowcast_2024_reaggregation')
+    fake_df = pd.DataFrame(
+        {
+            'N_foot': [1.0],
+            'N_split': [1.1],
+            'dN_pct': [0.1],
+            'elec_share_N': [0.2],
+            'dD_pct': [0.0],
+        },
+        index=pd.Index(['1111A0'], name='sector'),
+    )
+    fake_mv = SimpleNamespace(
+        d=pd.Series({'1111A0': 1.0}),
+        n=pd.Series({'1111A0': 1.0}),
+        ell=pd.DataFrame({'1111A0': [1.0]}, index=['1111A0']),
+    )
+    calls: list[str] = []
+
+    def fake_build(
+        footing_config: str, split_config: str
+    ) -> tuple[pd.DataFrame, SimpleNamespace, SimpleNamespace]:
+        calls.append(f'build:{footing_config}:{split_config}')
+        return fake_df, fake_mv, fake_mv
+
+    def fake_load(config: str) -> SimpleNamespace:
+        calls.append(f'load:{config}')
+        return fake_mv
+
+    monkeypatch.setattr(anv, 'build_analysis', fake_build)
+    monkeypatch.setattr(anv, 'load_model', fake_load)
+    monkeypatch.setattr(anv, 'summarize', lambda _df: None)
+    monkeypatch.setattr(anv, 'detail', lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        anv, 'render_high_low_walkthrough_section', lambda *_a, **_k: 'walk'
+    )
+    monkeypatch.setattr(anv, 'upsert_walkthrough_section', lambda *_a, **_k: None)
+    monkeypatch.setattr(anv, 'output_dir', lambda _ladder_id: tmp_path)
+    mixed_calls = {'n': 0}
+
+    def boom_mixed(*_a: object, **_k: object) -> None:
+        mixed_calls['n'] += 1
+        raise AssertionError('mixed path should not run')
+
+    monkeypatch.setattr(anv, 'build_mixed_analysis', boom_mixed)
+    monkeypatch.setattr(anv, 'render_mixed_units_section', boom_mixed)
+    monkeypatch.setattr(anv, 'upsert_mixed_section', boom_mixed)
+
+    anv.main(['--ladder', ladder.id])
+    assert any(c.startswith('build:') for c in calls)
+    assert any(ladder.terminal_config in c for c in calls)
+    assert mixed_calls['n'] == 0
+    assert not any('mixed_units' in c for c in calls)

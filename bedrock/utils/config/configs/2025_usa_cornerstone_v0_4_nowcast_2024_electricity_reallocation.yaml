@@ -1,0 +1,12 @@
+# v0.4 nowcast 2024 electricity chain: co-production reallocation (margins off).
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_4276083'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: False
+implement_electricity_reallocation: True

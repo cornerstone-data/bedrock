@@ -20,6 +20,7 @@ Outputs (under ``output/ef/panel/``):
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -30,7 +31,15 @@ import pandas as pd
 from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace import (
     _clear_model_caches,
 )
-from bedrock.analysis.electricity.current.diagnostics.paths import OUT_DIR
+from bedrock.analysis.electricity.current.diagnostics.ladders import get_ladder
+from bedrock.analysis.electricity.current.diagnostics.ladders.registry import (
+    add_ladder_arg,
+    resolve_ladder,
+)
+from bedrock.analysis.electricity.current.diagnostics.paths import (
+    DEFAULT_LADDER_ID,
+    output_dir,
+)
 from bedrock.publish.model_objects import get_D, get_L, get_N
 from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.electricity_end_use_mapping import (
@@ -43,14 +52,22 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_DISAGG_SECTORS,
 )
 
-FOOTING_CONFIG = "2025_usa_cornerstone_v0_3_electricity_footing"
-SPLIT_CONFIG = "2025_usa_cornerstone_v0_3_electricity_disaggregation"
-MIXED_CONFIG = "2025_usa_cornerstone_v0_3_electricity_mixed_units"
+_BEA_MIXED = get_ladder("bea_v03_mixed_units")
+_NOWCAST_2024 = get_ladder("nowcast_2024_reaggregation")
+
+FOOTING_CONFIG = _BEA_MIXED.config_for_step("footing")
+SPLIT_CONFIG = _BEA_MIXED.config_for_step("three_way")
+MIXED_CONFIG = _BEA_MIXED.config_for_step("mixed_units")
+
+# Parallel nowcast-2024 ladder (defaults above stay on v0.3.1 mixed-units).
+NOWCAST_2024_FOOTING_CONFIG = _NOWCAST_2024.config_for_step("footing")
+NOWCAST_2024_SPLIT_CONFIG = _NOWCAST_2024.config_for_step("three_way")
+NOWCAST_2024_REAGG_CONFIG = _NOWCAST_2024.config_for_step("reaggregation")
 
 FOOTING_ELEC = [ELECTRICITY_AGGREGATE_SECTOR]
 SPLIT_ELEC = list(ELECTRICITY_DISAGG_SECTORS)
 
-PANEL_DIR = OUT_DIR / "ef" / "panel"
+PANEL_DIR = output_dir(DEFAULT_LADDER_ID) / "ef" / "panel"
 EXPLAINED_MD = PANEL_DIR / "n_variance_explained.md"
 MIXED_SECTION_BEGIN = "<!-- BEGIN mixed-units-n-variance -->"
 MIXED_SECTION_END = "<!-- END mixed-units-n-variance -->"
@@ -114,9 +131,12 @@ def elec_dollars_embodied(mv: ModelVectors, elec_sectors: list[str]) -> pd.Serie
     return mv.ell.loc[present].sum(axis=0).astype(float)
 
 
-def build_analysis() -> tuple[pd.DataFrame, ModelVectors, ModelVectors]:
-    foot = load_model(FOOTING_CONFIG)
-    split = load_model(SPLIT_CONFIG)
+def build_analysis(
+    footing_config: str = FOOTING_CONFIG,
+    split_config: str = SPLIT_CONFIG,
+) -> tuple[pd.DataFrame, ModelVectors, ModelVectors]:
+    foot = load_model(footing_config)
+    split = load_model(split_config)
 
     # Verify the decomposition identity N_j == sum_i D_i L_ij on the footing.
     n_check = pd.Series(
@@ -842,38 +862,63 @@ def summarize(df: pd.DataFrame) -> None:
     )
 
 
-def main() -> None:
-    df, foot, split = build_analysis()
-    PANEL_DIR.mkdir(parents=True, exist_ok=True)
-    out_csv = PANEL_DIR / "n_variance_analysis.csv"
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Analyze N variance across an electricity config ladder."
+    )
+    add_ladder_arg(parser, default=DEFAULT_LADDER_ID)
+    args = parser.parse_args(argv)
+    ladder = resolve_ladder(args)
+
+    panel_dir = output_dir(ladder.id) / "ef" / "panel"
+    explained_md = panel_dir / "n_variance_explained.md"
+    footing_cfg = ladder.config_for_step("footing")
+    split_cfg = ladder.config_for_step("three_way")
+
+    df, foot, split = build_analysis(footing_cfg, split_cfg)
+    panel_dir.mkdir(parents=True, exist_ok=True)
+    out_csv = panel_dir / "n_variance_analysis.csv"
     df.to_csv(out_csv)
     print(f"Wrote {out_csv}")
     summarize(df)
     detail(df, foot, split)
 
     walkthrough = render_high_low_walkthrough_section(df, foot, split)
-    upsert_walkthrough_section(EXPLAINED_MD, walkthrough)
-    print(f"Updated high/low walkthrough section in {EXPLAINED_MD}")
+    upsert_walkthrough_section(explained_md, walkthrough)
+    print(f"Updated high/low walkthrough section in {explained_md}")
 
-    print("\n=== Mixed units (physical generation) ===")
-    mixed = load_model(MIXED_CONFIG)
-    mixed_df = build_mixed_analysis(df, split, mixed)
-    out_mixed = PANEL_DIR / "n_variance_mixed_analysis.csv"
-    mixed_df.to_csv(out_mixed)
-    print(f"Wrote {out_mixed}")
-    print(
-        f"median dN_pct vs footing: 3-way={mixed_df['dN_pct'].median():.4f} "
-        f"mixed={mixed_df['dN_pct_mixed_vs_foot'].median():.4f}"
-    )
-    print(
-        f"median C_elec mixed/split = "
-        f"{mixed_df['Celec_ratio_mixed_split'].median():.4f}"
-    )
-    print("end-use counts:\n", mixed_df["end_use"].value_counts().to_string())
+    if ladder.terminal == "mixed_units":
+        print("\n=== Mixed units (physical generation) ===")
+        mixed = load_model(ladder.config_for_step("mixed_units"))
+        mixed_df = build_mixed_analysis(df, split, mixed)
+        out_mixed = panel_dir / "n_variance_mixed_analysis.csv"
+        mixed_df.to_csv(out_mixed)
+        print(f"Wrote {out_mixed}")
+        print(
+            f"median dN_pct vs footing: 3-way={mixed_df['dN_pct'].median():.4f} "
+            f"mixed={mixed_df['dN_pct_mixed_vs_foot'].median():.4f}"
+        )
+        print(
+            f"median C_elec mixed/split = "
+            f"{mixed_df['Celec_ratio_mixed_split'].median():.4f}"
+        )
+        print("end-use counts:\n", mixed_df["end_use"].value_counts().to_string())
 
-    section = render_mixed_units_section(mixed_df, split, mixed)
-    upsert_mixed_section(EXPLAINED_MD, section)
-    print(f"Updated mixed-units section in {EXPLAINED_MD}")
+        section = render_mixed_units_section(mixed_df, split, mixed)
+        upsert_mixed_section(explained_md, section)
+        print(f"Updated mixed-units section in {explained_md}")
+        return
+
+    # Reaggregation terminal: footing → three_way → reaggregation; no mixed sections.
+    terminal_cfg = ladder.terminal_config
+    print(f"\n=== Reaggregation terminal ({terminal_cfg}) ===")
+    terminal = load_model(terminal_cfg)
+    drop = set(FOOTING_ELEC) | set(SPLIT_ELEC)
+    common = [s for s in df.index if s in terminal.n.index and s not in drop]
+    print(
+        f"loaded terminal N for {len(common)} non-electricity sectors "
+        f"(skipping mixed-units MD/CSV sections)"
+    )
 
 
 if __name__ == "__main__":

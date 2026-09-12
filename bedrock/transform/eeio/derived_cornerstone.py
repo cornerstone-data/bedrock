@@ -564,15 +564,26 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     ``model_base_year``. When electricity disaggregation is enabled, re-anchors
     electricity rows/columns after inflation.
 
-    No-op shortcuts (return ``derive_cornerstone_Aq()`` unchanged):
+    No-op shortcuts:
 
-    - ``usa_detail_io_source == 'nowcast'`` — detail IO is already at the IO
-      calendar year; summary-ratio scaling and PI inflation do not apply.
+    - ``usa_detail_io_source == 'nowcast'`` without electricity disaggregation —
+      detail IO is already at the IO calendar year; summary-ratio scaling and PI
+      inflation do not apply. When electricity disaggregation is enabled, re-anchors
+      G/T/D at ``model_base_year`` via ``reanchor_electricity_aq_at_year``.
     - ``scale_a_matrix_with_useeio_method`` — USEEIO-parity A path.
     """
     base = derive_cornerstone_Aq()
     cfg = get_usa_config()
     if cfg.usa_detail_io_source == 'nowcast':
+        if electricity_disaggregation_enabled():
+            from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+                reanchor_electricity_aq_at_year,
+            )
+
+            out = reanchor_electricity_aq_at_year(base, year=cfg.model_base_year)
+            return _cornerstone_aq_matrix_set(
+                Adom=out.Adom, Aimp=out.Aimp, scaled_q=out.scaled_q
+            )
         return base
     io_year = cfg.usa_io_data_year
     detail_year = cfg.usa_detail_original_year

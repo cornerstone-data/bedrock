@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import dataclasses as dc
 from collections.abc import Sequence
 from types import ModuleType
@@ -9,7 +10,18 @@ from typing import Any, cast
 
 import pandas as pd
 
-from bedrock.analysis.electricity.current.diagnostics.paths import OUT_DIR
+from bedrock.analysis.electricity.current.diagnostics.ladders import (
+    LadderSpec,
+    get_ladder,
+)
+from bedrock.analysis.electricity.current.diagnostics.ladders.registry import (
+    add_ladder_arg,
+    resolve_ladder,
+)
+from bedrock.analysis.electricity.current.diagnostics.paths import (
+    DEFAULT_LADDER_ID,
+    output_dir,
+)
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
@@ -43,12 +55,30 @@ from bedrock.utils.validation.calculate_national_accounting_balance_diagnostics 
     _compute_bly_series,
 )
 
-CONFIG_CHAIN: list[tuple[str, str]] = [
-    ("v0.3.1 footing", "2025_usa_cornerstone_v0_3_electricity_footing"),
-    ("reallocation", "2025_usa_cornerstone_v0_3_electricity_reallocation"),
-    ("3-way split", "2025_usa_cornerstone_v0_3_electricity_disaggregation"),
-    ("unit conversion", "2025_usa_cornerstone_v0_3_electricity_mixed_units"),
-]
+_STEP_CHAIN_LABEL: dict[str, str] = {
+    "footing": "v0.3.1 footing",
+    "reallocation": "reallocation",
+    "three_way": "3-way split",
+    "mixed_units": "unit conversion",
+    "reaggregation": "reaggregation",
+}
+
+
+def config_chain_for_ladder(ladder: LadderSpec) -> list[tuple[str, str]]:
+    """Build (label, config) pairs for full_trace from a ladder."""
+    chain: list[tuple[str, str]] = []
+    for step_id, config in ladder.steps:
+        if step_id == "footing" and ladder.id != DEFAULT_LADDER_ID:
+            label = "footing"
+        else:
+            label = _STEP_CHAIN_LABEL.get(step_id, step_id)
+        chain.append((label, config))
+    return chain
+
+
+CONFIG_CHAIN: list[tuple[str, str]] = config_chain_for_ladder(
+    get_ladder(DEFAULT_LADDER_ID)
+)
 
 GHG_ORDER = ["CO2", "CH4", "N2O", "SF6", "HFCs", "PFCs", "NF3"]
 
@@ -383,8 +413,11 @@ def _weighted_ef(
     return num / den if den else 0.0
 
 
-def collect_all_traces() -> list[ConfigTrace]:
-    return [collect_config_trace(label, cfg) for label, cfg in CONFIG_CHAIN]
+def collect_all_traces(
+    chain: list[tuple[str, str]] | None = None,
+) -> list[ConfigTrace]:
+    use_chain = chain if chain is not None else CONFIG_CHAIN
+    return [collect_config_trace(label, cfg) for label, cfg in use_chain]
 
 
 def _fmt_usd_b(val: float) -> str:
@@ -442,14 +475,17 @@ def _delta_note(
         "Unit conversion: block total mixes MWh (221110) and USD (T/D); "
         "not comparable to prior USD totals — see walkthrough."
     )
+    has_unit_conversion = any(label == "unit conversion" for label, _ in CONFIG_CHAIN)
     compare_values = values
-    if row == "y_nab (USD)" and len(values) >= 4:
+    if row == "y_nab (USD)" and has_unit_conversion and len(values) >= 4:
         compare_values = values[:3]
 
     rel = [abs(v - base) / abs(base) for v in compare_values[1:]]
     max_rel = max(rel) if rel else 0.0
     if max_rel < 0.005:
-        return y_nab_mixed_caveat if row == "y_nab (USD)" else ""
+        return (
+            y_nab_mixed_caveat if row == "y_nab (USD)" and has_unit_conversion else ""
+        )
     idx = _earliest_max_rel_step_index(rel, max_rel)
     step = CONFIG_CHAIN[idx][0]
     notes = {
@@ -516,36 +552,46 @@ def _delta_note(
         )
 
     if row == "y_nab (USD)":
-        return f"{base_note} {y_nab_mixed_caveat}"
+        if has_unit_conversion:
+            return f"{base_note} {y_nab_mixed_caveat}"
+        return base_note
     return base_note
 
 
 def write_full_trace_markdown(
     traces: list[ConfigTrace],
     out_path: Any,
+    *,
+    ladder: LadderSpec | None = None,
 ) -> None:
     labels = [t.label for t in traces]
+    ladder_id = ladder.id if ladder is not None else DEFAULT_LADDER_ID
+    chain_desc = " → ".join(f"**{lbl}**" for lbl in labels)
     lines: list[str] = [
-        "# Electricity full trace across v0.3.1 electricity chain",
+        f"# Electricity full trace ({ladder_id})",
         "",
         "Comparison of IO anchors, emissions inventory **E**, direct EF **D**, "
         "total EF **N**, and **BLy** for the electricity block.",
         "",
-        "Configs: **v0.3.1 footing** → **reallocation** → **3-way split** "
-        "→ **unit conversion** (mixed units).",
+        f"Configs: {chain_desc}.",
         "",
         "Rows labeled **221100\\*** after PR3 are re-aggregated values for "
         "**221110 + 221121 + 221122**. They retain the report's existing aggregate "
         "calculation (sums for additive metrics; output-weighted values for EFs). "
         "The individual child-sector rows are also shown.",
         "",
-        "Mixed units only change the pipeline starting at **A/q** (and matrices "
-        "derived from them: **L**, then **B**/**D**/**N** for generation). Make, "
-        "Use, VA, Y, Vnorm, and industry output **x** remain monetary even at the "
-        "unit-conversion step. Physical generation q and `c_col` are shown in the "
-        "mixed-units detail table below.",
-        "",
     ]
+    if ladder is None or ladder.terminal == "mixed_units":
+        lines.extend(
+            [
+                "Mixed units only change the pipeline starting at **A/q** (and matrices "
+                "derived from them: **L**, then **B**/**D**/**N** for generation). Make, "
+                "Use, VA, Y, Vnorm, and industry output **x** remain monetary even at the "
+                "unit-conversion step. Physical generation q and `c_col` are shown in the "
+                "mixed-units detail table below.",
+                "",
+            ]
+        )
 
     # IO anchors — skip internal-only rows in main table
     io_rows = [
@@ -999,15 +1045,26 @@ def _table_bly(traces: list[ConfigTrace], labels: list[str]) -> list[str]:
     ]
 
 
-def main() -> None:
-    traces = collect_all_traces()
-    out = OUT_DIR / "electricity_full_trace.md"
-    write_full_trace_markdown(traces, out)
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Collect electricity full-trace report across a config ladder."
+    )
+    add_ladder_arg(parser, default=DEFAULT_LADDER_ID)
+    args = parser.parse_args(argv)
+    ladder = resolve_ladder(args)
+
+    global CONFIG_CHAIN
+    CONFIG_CHAIN = config_chain_for_ladder(ladder)
+    traces = collect_all_traces(CONFIG_CHAIN)
+    out_root = output_dir(ladder.id)
+    out_root.mkdir(parents=True, exist_ok=True)
+    out = out_root / "electricity_full_trace.md"
+    write_full_trace_markdown(traces, out, ladder=ladder)
     from bedrock.analysis.electricity.current.diagnostics.full_trace.decompose_d_n_step import (  # noqa: PLC0415
         append_walkthrough_to_report,
     )
 
-    append_walkthrough_to_report(str(out))
+    append_walkthrough_to_report(str(out), ladder=ladder)
     print(f"Wrote {out}")
 
 
