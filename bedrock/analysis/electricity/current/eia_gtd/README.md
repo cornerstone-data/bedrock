@@ -26,6 +26,18 @@ use `get_2017_eia_purchaser_allocation`.
 
 Markdown lands at `current/diagnostics/output/eia_gtd_purchaser_tables.md`.
 
+## Annual MECS / IO / Census electricity shares
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.annual_electricity_shares
+# options: --years 2017-2024  --top 15  --csv  --check
+```
+
+Puts the Table 7.7 kWh weights, the nowcast Use table's electricity row and
+Census cost of purchased electricity (`CSTELEC` in EC 2017/2022 and ASM
+2018-2021, `EXPS_ELEC_VAL` in AIES 2023-2024) on one 232-sector axis as shares
+of the manufacturing total. Findings are in `About_electricity_shares.md`.
+
 ## Why Table 7.7 stays FBA (not FBS)
 
 No MECS Energy FBS exists in bedrock. Tables 2.2/3.2 stay FBA and enter GHG (and CAP/HAP) FBS build as attribution sources. Table 7.7 is also left as FBA: it only supplies manufacturing purchased-kWh weights inside the electricity (Generation/Transmission/Distribution) purchaser allocation. We do not build an FBS because that path would run `estimate_suppressed_mecs_energy` and a generic NAICS→BEA crosswalk, both wrong for table 7.7 for the following reasons:
