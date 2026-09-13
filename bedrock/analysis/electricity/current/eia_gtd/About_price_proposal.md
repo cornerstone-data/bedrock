@@ -412,8 +412,12 @@ python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_control \
     #   PCE is anchored to EIA residential (worst 6.1%)
 ```
 
-`--mut-vintage` is needed only because the per-year configs omit the pin and
-would otherwise probe GCS for the newest upload. EIA-861 retail revenue is held
+`--mut-vintage` is a convenience, not a correction: the per-year configs omit the
+pin, so without it the loaders probe GCS for the newest upload. ✅ Verified
+2026-09-13 against live credentials — the newest upload **is** `v0.3.0_4276083`
+for all eight years, and the unpinned run reproduces every cell of the pinned one
+exactly. The numbers above are on the current production build, not a stale local
+one. EIA-861 retail revenue is held
 as a literal in the module — the repo has no EIA-861 extractor. Regenerate it
 from the EIA v2 API series `electricity/retail-sales`, annual, `stateid=US`,
 facet `revenue`, all `sectorid`.
