@@ -1,12 +1,11 @@
-# Proposal: price the kWh before allocating the dollars
+# Proposal: price the kWh, and make T&D the residual
 
 **Status: draft for discussion.** Pairs a revision of the electricity G/T/D
-disaggregation with a revision of the nowcast electricity Use column, because
-neither can be fixed alone — the allocator's weights and the Use row it allocates
-over disagree, and each is currently used to justify the other.
+disaggregation with a revision of the nowcast electricity Use column. Neither
+works alone: the allocator's weights and the Use row it allocates over disagree,
+and at present each is used to justify the other.
 
-Companion measurement: `About_electricity_shares.md` (annual three-source
-shares), issue #894, PR #892 (the integration this would revise).
+Companion measurement: `About_electricity_shares.md`, issue #894, PR #892.
 
 ## The defect
 
@@ -15,124 +14,180 @@ purchaser in the economy**:
 
 ```python
 p = (p_share_2017 * electricity_purchases_total) / egrid_mwh   # a scalar
-...
 proportional = mwh.loc[members] * p
 ```
 
-Inside manufacturing the MWh are distributed by MECS Table 7.7 kWh shares, so a
-sector's generation dollars are `its kWh share × the average price`. Where a
-sector actually buys cheap power, that product exceeds what it spends on
-electricity in total, water-fill caps it, and the excess is pushed onto other
-purchasers.
+Inside manufacturing the MWh come from MECS Table 7.7 kWh shares, so a sector's
+generation dollars are `its kWh share × the average price`. Where a sector buys
+cheap power that product exceeds its entire electricity bill, water-fill caps it,
+and the excess lands on other purchasers. Measured on the 2024 nowcast: **44
+manufacturing sectors clip under MECS weights, zero under dollar weights**, and
+**47 end with no T&D dollars at all** — modelled as buying generation and no
+transmission or distribution, which no real purchaser does.
 
-This is measured, not hypothesised. On the 2024 nowcast purchases, 44
-manufacturing sectors clip under MECS weights and **zero** clip under dollar
-weights, and the clipped sectors are the cheap-power ones — median 5.58 ¢/kWh
-against 8.68 ¢/kWh for the rest.
+Stated precisely: the flat `p` is **4.67 ¢/kWh**, and the cheapest manufacturing
+industry's *entire* electricity bill is **4.21 ¢/kWh** (325194 cyclic crudes).
+The method charges some industries more for generation alone than they spend on
+electricity in total.
 
-⚠️ Those counts used the published `p_share`/`td_share`, not #892's re-anchored
-ones, and the prices behind them were Census-derived. Both need redoing on the
-re-anchored shares and on MECS Table 7.2 before the magnitudes are quotable. The
-sign and the mechanism are not in doubt.
+## The governing idea
 
-## What the data says a price should look like
+**Generation is a commodity; T&D is not.** Wholesale generation barely varies by
+customer, while a smelter at transmission voltage pays almost no distribution. So
+the price differential between industries is substantially a *T&D* differential,
+and T&D should be derived as a residual rather than assumed as a fixed share.
 
-**Manufacturing prices vary, and MECS publishes them.** Table 7.2 gives
-$/MMBtu by NAICS and Table 7.10 gives expenditure in dollars; 7.2 and 7.10÷7.7
-agree to within 0.124 ¢/kWh on all 82 published rows, and the 31-33 aggregate
-lands at 6.86 ¢/kWh against EIA's published industrial average of 6.92. The
-published detail runs from 4.21 ¢/kWh (cyclic crudes) to 11.83 (asphalt paving),
-with the heavy continuous-process industries cheap — newsprint 4.43, nonferrous
-smelting 4.68, inorganic chemicals 4.71, iron and steel 4.95 — and light
-discrete assembly dear: apparel 9.97, furniture 10.02, machinery 10.23.
+The data bears this out. Holding generation at one price, implied T&D per kWh
+orders exactly as the theory predicts:
 
-**Commercial prices barely vary.** CBECS 2018 Table C13 gives consumption and
-expenditure by principal building activity; across the thirteen activities the
-implied price spans only **9.19 to 11.22 ¢/kWh, a 1.22× spread**, against an
-all-buildings 9.95. Manufacturing's spread is 1.8× at the deciles and wider at
-the extremes.
+| lowest T&D | ¢/kWh | | highest T&D | ¢/kWh |
+|---|---:|---|---|---:|
+| Cyclic crudes | 1.21 | | Asphalt paving | 8.83 |
+| Newsprint mills | 1.43 | | Secondary aluminum | 8.54 |
+| Petrochemicals | 1.60 | | Aircraft | 6.81 |
+| Nonferrous smelting | 1.68 | | Beverages | 6.39 |
+| Inorganic chemicals | 1.71 | | Aerospace parts | 5.76 |
 
-That asymmetry is the design input:
+Large continuous-process plants at transmission voltage at the top, small
+distribution-connected plants at the bottom.
 
-| | within-class price spread | so a single class price is |
-|---|---|---|
-| Commercial | 1.22× | **defensible** |
-| Manufacturing | 1.8× at deciles, 4.21-11.83 full | **not defensible** |
+## The price source is MECS, not Census
 
-And the between-class gap is larger than either: commercial 9.95 against
-manufacturing 6.86, a 45% premium that one economy-wide `p` cannot represent.
+MECS publishes the manufacturing price itself: **Table 7.2** as $/MMBtu and
+**Table 7.10** as expenditure in dollars, on the same NAICS frame as 7.7's kWh.
+They agree to within **0.124 ¢/kWh across all 82 published rows**, and the 31-33
+aggregate is **6.86 ¢/kWh against EIA's published industrial 6.92** (−0.9%).
 
-## Proposal
+Census-derived prices are rejected for this role. Dividing Census `CSTELEC` by
+MECS kWh lands at 6.57 (−5.0% against published), produces impossible tail values
+(max 171 ¢/kWh against 11.83 on the MECS-internal series), diverges from MECS by
+more than 25% on 15 of 81 rows, and is noise-dominated across years — rank
+correlation 0.55-0.60 between 2018 and 2022, against **0.919** for MECS.
 
-**A. Make `p` vary by end-use class.** EIA Table 2.4 publishes price by end-use
-class and the repo already knows this is missing — `decompose_d_n_step` states
-"there is **no** Table 2.4 class-varying `c_j = λ / p_j`". This alone should fix
-most of the commercial and residential side, where CBECS says one price per
-class is close to right.
+Census keeps the job it is good at and already does: the annual **dollar** index
+on the Use row, via `nonmaterial_seed`'s existing `CSTELEC → 221100` mapping.
 
-**B. Inside manufacturing, price the kWh from MECS Table 7.2, then allocate
-dollars.** Replace `gen = mwh × p` with `gen = mwh × p_naics`, using the deepest
-published MECS row for each IO sector and falling back to its parent. Cost of the
-fallback is measured: kWh-weighted mean deviation of a six-digit child from its
-three-digit parent is **12.0%**, and 92.5% of manufacturing kWh sits in children
-within 25% of their parent — small against the 1.8× spread it captures. Sectors
-on a fallback should be flagged, not silently inherited.
+## A. Annual per-industry price
 
-**C. Reconcile the Use column against the priced kWh, rather than allocating
-over it unexamined.** With a price, MECS kWh becomes MECS dollars, directly
-comparable to the Use electricity row. Today the two disagree by 15.6-20.2pp of
-the manufacturing total with no reconciliation step and no report. Priced, the
-disagreement becomes a residual that can be attributed — to the survey, to the
-nowcast, or to a genuine scope difference — instead of being silently resolved in
-the allocator by whichever source happens to be used.
+The level moves and the structure does not, and each is observed by the source
+that sees it best:
 
-**D. Make water-fill an exception, not a mechanism.** With the right price,
-clipping should be rare. If 44 sectors still clip after A-C, that is a finding
-about the Use column, and should be surfaced rather than absorbed. In particular
-**47 sectors currently end with zero T&D dollars** — modelled as buying
-generation and no transmission or distribution, which no real purchaser does.
+| | 2018 → 2022 |
+|---|---|
+| price **level** | +23.6% (EIA published industrial +22.1%) |
+| **relative** structure, rank correlation | **0.919** |
+| kWh-weighted mean \|relative change\| | **6.8%** |
+| industries with relative price moving <20% | **72 of 76 — 99% of kWh** |
 
-## Why the nowcast column has to move in tandem
+So:
 
-Fixing only the allocator hides the other half. Three defects sit in the Use
-column itself and none is caused by MECS:
+```
+price_i(t) = relative_i(t) × published_industrial_price(t)
+             └ interpolated, MECS 2018/2022 ┘   └ EIA, observed annually ┘
+```
 
-- **322120 Paper mills carries $0 electricity in the pinned MUT
-  `v0.3.0_4276083`, in 2021 and 2023** ($0.722bn / **$0** / $0.908bn / **$0** /
-  $0.744bn over 2020-2024). Among the most electricity-intensive manufacturers.
-- **324110 refineries swing 5.72% to 12.14% of manufacturing electricity and
-  back** across 2017-2024, while both independent surveys stay inside 4.8-7.0%.
-- The IO-vs-MECS gap **widens across the nowcast span**, 15.62pp to 20.22pp, on a
-  MECS side that is frozen — all of 2018-2024 rides the 2022 survey.
+Outside the anchors, hold the relative structure and let the published level
+carry it — the same "hold past the last observation" form the nowcast already
+uses.
 
-A price-based allocator sitting on that column would attribute its instability to
-the electricity method.
+**Two tests fall out.** The kWh-weighted aggregate of `price_i(t)` must reproduce
+the published industrial price for every year. At t = 2018 and 2022 it must
+reproduce MECS exactly — the identity check every seed in this repo is held to.
+
+⚠️ Four industries move their relative price more than 20% (1% of kWh). Name and
+flag them; aluminum smelter closures are exactly this shape, and a real contract
+change should not be smoothed away.
+
+## B. Use column: MECS levels at the anchors, Census as the annual index
+
+Realign manufacturing electricity levels to MECS at 2018 and 2022, and index
+annually on Census between them — the same anchor-and-index pattern
+`Census_ASM_Expenses` already describes itself as ("the annual bridge between the
+two Economic Census materials breakouts").
+
+Two constraints this must respect:
+
+- ⚠️ **The column control rescales whatever is set.** `apply_column_control`
+  rescales the block to `GO − VAPRO`, and `composed_seed` is explicit that "the
+  dollar level here is never the estimate ... a seed changes *how a column
+  divides*, nothing else". So realigning to MECS realigns the **shape** of the
+  electricity row unless it is placed where the control does not override it.
+- ✅ **Anchoring at 2018 rather than 2017 protects the benchmark match.** 2017
+  keeps BEA's published cross-section. It does create a seam — the two
+  cross-sections differ by roughly 13pp of shape — which should be stated, not
+  smoothed.
+
+Why realignment and not just indexing: the existing seed is
+`seed[c,i] = Use2017[c,i] × survey[i,k,t] / survey[i,k,2017]`, which aligns how a
+column *moves* and never how the row *divides*. That is why IO-vs-Census sits at
+12.96pp **at 2017 itself** and stays 11-15pp across the span.
+
+⚠️ Adopting Census's cross-section instead would import scope error: the
+Census/BEA ratio is 0.866 in aggregate but runs p10 0.663 to p90 1.728, a
+**BEA-weighted 18.1% mean deviation**. MECS is the tie-breaker — it disagrees with
+Census precisely where Census looks wrong (primary batteries 26.5×, clothing
+14.5×, computers 9.55× against BEA, and the same industries return impossible
+prices).
+
+## C. Disaggregation: generation at a class price, T&D as the residual
+
+```
+gen_i = kWh_i × p_gen(class)
+T&D_i = electricity_i − gen_i     ( = kWh_i × (price_i − p_gen) )
+```
+
+Water-fill becomes an exception rather than a mechanism. At any uniform
+`p_gen ≤ 4.21 ¢/kWh`, **no manufacturing industry goes negative**; at the current
+4.67, three do (2.8% of kWh). Against 44 clipping sectors today.
+
+**Commercial keeps a single class price.** CBECS 2018 Table C13 gives 9.19 to
+11.22 ¢/kWh across all thirteen building activities — a **1.22× spread**, against
+manufacturing's 1.8× at the deciles. One price per class is defensible there and
+is not in manufacturing. The gap between classes (9.95 vs 6.86) is larger than
+either internal spread, which is what one economy-wide `p` cannot represent.
+
+⚠️ **CBECS cannot allocate.** It classifies by principal building activity and
+the 2018 microdata codebook contains **zero NAICS references**. A building is not
+an establishment and a multi-tenant office cannot be resolved to NAICS by any
+mapping. CBECS prices a class; it does not distribute one.
 
 ## Open questions
 
-1. Does a class-varying `p` break the eGRID class-MWh targets, or do they
-   already accommodate it?
-2. Which is right where MECS and Census disagree most? At fine detail they
-   diverge badly — semiconductors 6.36 ¢/kWh on MECS against 14.70 from Census,
-   on an identical kWh denominator, so the two surveys differ 2.3× on the dollars
-   alone. Three-digit rows agree far better (paper −3.9%, chemicals −3.0%).
-3. Non-manufacturing, non-commercial industrial — agriculture, mining,
-   construction — has neither a MECS nor a CBECS price. Class price, or
-   something better?
-4. MECS is quadrennial. Interpolate prices between surveys, or hold?
+1. **`p_gen` is not free** — it is pinned by requiring generation dollars to foot
+   to the UGO generation share, which yields 4.67, above the 4.21 ceiling. Three
+   distinguishable resolutions: the generation share is wrong; `p_gen` should
+   vary by class; or a few smelters genuinely buy below average wholesale on
+   long-term contracts. Only 3 industries and 2.8% of kWh ride on it.
+2. Does a class-varying `p` disturb the eGRID class-MWh targets?
+3. Agriculture, mining and construction have neither a MECS nor a CBECS price.
+4. MECS is quadrennial — the relative-price interpolation above is the proposed
+   answer, but it is untested before 2018 and after 2022.
 
-## Work required before this is actionable
+## Prerequisites
 
-- ⚠️ **Add Table 7.2 and 7.10 to the MECS extractor.** Both are commented out of
-  the `tables:` list in `EIA_MECS_Energy.yaml`; 7.10 has a 2018 layout but
-  **neither has a 2022 layout**, and the 2022 row offsets differ from 7.7's by
-  one row, so the ranges must be verified against the workbook rather than
-  derived. Until then the only 7.10 data on hand is in the superseded 2018
-  parquet `EIA_MECS_Energy_2018_v2.0.0_c31283d`.
-- Add CBECS C13 as a source for the commercial price. ⚠️ **CBECS has no NAICS at
-  any level** — it classifies by principal building activity and the 2018
-  microdata codebook contains zero NAICS references — so it can supply a
-  commercial *price*, which is a tariff-class property, but it cannot supply a
-  commercial *allocation* by industry. A building is not an establishment, and a
-  multi-tenant office cannot be resolved to NAICS by any mapping.
+- ⚠️ **Add MECS Table 7.2 and 7.10 to the extractor.** Both are commented out of
+  the `tables:` list in `EIA_MECS_Energy.yaml`; 7.10 has a 2018 layout and
+  **neither has a 2022 layout**. The 2022 row offsets differ from 7.7's by one
+  row (region markers at 15/98/181/264/347 against 16/99/182/265/348) and the RSE
+  blocks differ again, so ranges must be **verified against the workbook, not
+  derived**. Until then the only 7.10 on hand is the superseded
+  `EIA_MECS_Energy_2018_v2.0.0_c31283d` parquet.
+- Add `EIA_CBECS_Energy` for table C13. `EIA_CBECS_Land` and `EIA_CBECS_Water`
+  give the extractor pattern; C13 sits at `ce/xls/c13.xlsx` rather than the
+  `bc/` path those use.
 - Re-run the clip and reassignment counts under #892's re-anchored shares.
+
+## Why the nowcast column must move in tandem
+
+Three defects sit in the Use column and none is caused by MECS:
+
+- **322120 Paper mills carries $0 electricity in the pinned MUT
+  `v0.3.0_4276083`, in 2021 and 2023** ($0.722bn / **$0** / $0.908bn / **$0** /
+  $0.744bn over 2020-2024).
+- **324110 refineries swing 5.72% to 12.14% of manufacturing electricity and
+  back**, while both independent surveys stay inside 4.8-7.0%.
+- The IO-vs-MECS gap **widens across the span**, 15.62pp to 20.22pp, against a
+  MECS side that is frozen on one survey.
+
+A priced allocator sitting on that column would attribute its instability to the
+electricity method.
