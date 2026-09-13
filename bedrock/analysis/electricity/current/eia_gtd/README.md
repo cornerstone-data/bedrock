@@ -50,7 +50,9 @@ Traces the 221100 row back to its output control and compares it with BEA's
 published `UGO305-A` gross output and EIA-861 retail revenue, then splits each
 year-over-year move into a column effect and a share effect. `--mut-vintage`
 pins a MUT build already on disk; without it the per-year configs probe GCS for
-the newest upload. EIA-861 revenue is a literal in the module, not an extractor.
+the newest upload. Both arms agree — as of 2026-09-13 the newest upload is
+`v0.3.0_4276083`, so the flag only saves the probe. EIA-861 revenue is a literal
+in the module, not an extractor.
 Findings are in `About_price_proposal.md`.
 
 ## Why Table 7.7 stays FBA (not FBS)
