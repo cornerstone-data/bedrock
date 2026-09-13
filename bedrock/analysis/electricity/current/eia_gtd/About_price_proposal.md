@@ -151,6 +151,54 @@ the 2018 microdata codebook contains **zero NAICS references**. A building is no
 an establishment and a multi-tenant office cannot be resolved to NAICS by any
 mapping. CBECS prices a class; it does not distribute one.
 
+## ⛔ Blocking precondition: the electricity row does not foot to EIA
+
+Deriving kWh from `dollars ÷ price` requires the dollars to be on the same basis
+as the price. They are not. Against EIA-861 published retail revenue:
+
+| year | EIA commercial | ours | gap | EIA industrial | ours | gap | EIA residential | PCE | gap |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2017 | 145.0 | 190.3 | **+31.3%** | 67.7 | 77.1 | **+13.9%** | 177.7 | 177.8 | **+0.1%** |
+| 2018 | 148.2 | 205.0 | +38.4% | 69.2 | 84.1 | +21.5% | 189.0 | 191.2 | +1.1% |
+| 2022 | 173.4 | 276.1 | **+59.3%** | 84.9 | 120.1 | **+41.5%** | 227.0 | 219.9 | −3.1% |
+| 2024 | 185.9 | 227.3 | +22.2% | 84.1 | 92.4 | +9.9% | 244.4 | 259.3 | +6.1% |
+
+$bn. "Ours" is the 221100 intermediate row grouped by band — commercial =
+services + trade + government + transportation, industrial = manufacturing +
+mining + construction + agriculture — against the matching EIA customer class.
+
+This is **two separate problems** and they need separating before either is
+acted on.
+
+**A stable level offset, present at the benchmark.** Commercial is +31.3% and
+industrial +13.9% at **2017**, which is matched to published BEA. So the offset
+is a BEA-versus-EIA scope or valuation difference, not a nowcast defect.
+Candidates: purchaser-price valuation carrying utility and sales taxes EIA's
+revenue excludes; on-site generation entering as an implicit purchase; or BEA's
+industry assignment differing from EIA's customer class. ⚠️ Until this is
+attributed, `kWh = dollars / price` inherits it and will not reconcile against
+the eGRID MWh targets. Residential is the control that proves the point — PCE
+matches EIA to **+0.1%** in 2017, so the offset is specific to the intermediate
+block, not a general valuation wedge.
+
+**A time-varying error, which is a nowcast defect.** The gap is not stable: it
+widens to +59.3% commercial and +41.5% industrial in **2022**, then falls back by
+2024. A scope difference does not do that. 2022 carries roughly $138bn of excess
+intermediate electricity against EIA, while PCE that year sits −3.1%, so it is
+confined to the intermediate block. This is the same 2022 anomaly that shows up
+as 324110 refineries taking 12.14% of manufacturing electricity in that year
+against 5.72% either side.
+
+The surveys agree independently: MECS says manufacturing spent $53.4bn in 2018
+against our $63.0bn (+18.0%), and CBECS says commercial buildings spent $119.0bn
+against our $205.0bn commercial-like band — though CBECS covers buildings only,
+which is why EIA-861 is the control above and CBECS is not.
+
+**Neither A nor C should be built until the stable offset is attributed and the
+2022 excursion is explained.** Both are cheap to test: the offset against BEA's
+own 2017 benchmark and the published tax/margin tables, and the excursion against
+the seed and column control for that year.
+
 ## Open questions
 
 1. **`p_gen` is not free** — it is pinned by requiring generation dollars to foot
