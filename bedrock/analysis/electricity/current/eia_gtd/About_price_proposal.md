@@ -196,12 +196,43 @@ within ±6% across the span, while commercial sits +31% at the same moment. A
 uniform additive wedge cannot produce a 0% gap on one class and +31% on another.
 Whatever the offset is, it is specific to the intermediate block.
 
-Remaining candidates, in order: **scope of the 221100 commodity** beyond retail
-sales (resale, transmission service, direct use of self-generated power — EIA's
-`Table 2.2` reports Direct Use separately and the repo already loads it), and
-**industry-versus-customer-class assignment**, which can move dollars between
-commercial and industrial but cannot change the total and so cannot be the whole
-story.
+### ✅ Attributed: BEA's intermediate electricity is a sum of Census expense
+cells, with no control to electricity actually sold
+
+**BEA Table C2** names the sources for intermediate inputs, and "purchased
+electricity" is an expense cell taken from the Census surveys, industry by
+industry: 2017 Economic Census for manufacturing, mining and construction; the
+AWTS/ARTS Business Expenses Supplement for wholesale, retail and accommodation;
+and SAS for services, transportation and utilities. **Nothing constrains their
+sum to electricity revenue.** Meanwhile PCE electricity is EIA-anchored — Table
+C1 gives EIA forms 861 and 861M for the utilities output — which is exactly why
+residential matches to +0.1% and the intermediate block does not.
+
+So the offset is not a scope wedge to be netted off. It is an **accumulation of
+unreconciled survey expense estimates**, on the same Census cells this
+investigation has already found unreliable at detail (primary batteries 26.5×
+BEA, clothing 14.5×, computers 9.55×).
+
+The 2017 reconciliation, $bn:
+
+| | |
+|---|---:|
+| BEA 221100 total uses (SUT) | 457.1 |
+| less intra-utility resale | −12.6 |
+| = uses outside the utility sector | **444.5** |
+| EIA-861 retail revenue, all sectors | **390.3** |
+| residual | **+54.2 (+13.9%)** |
+
+Residential is exact, so the entire residual sits in the non-residential block:
+BEA $266.7bn against EIA's $212.6bn, **+25.4%**. Expressed as a price, BEA's
+non-residential dollars imply **11.37 ¢/kWh** against the 9.07 ¢/kWh EIA says was
+actually paid.
+
+Two candidates remain for part of the residual and neither closes it: **Direct
+Use**, 141.0 TWh of self-generated power in 2017 (EIA Table 2.2, which the repo
+already loads) — roughly $14bn if BEA imputes it, which is unverified; and the
+**$23.44bn of product taxes**, which the residential control argues against
+subtracting.
 
 ### The excursion is the nowcast's
 
