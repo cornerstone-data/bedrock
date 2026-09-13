@@ -5,7 +5,9 @@ disaggregation with a revision of the nowcast electricity Use column. Neither
 works alone: the allocator's weights and the Use row it allocates over disagree,
 and at present each is used to justify the other.
 
-Companion measurement: `About_electricity_shares.md`, issue #894, PR #892.
+Companion measurements: `About_electricity_shares.md` (the three-source
+comparison) and `electricity_row_control.py` (what drives the row). Issue #894,
+PR #892.
 
 ## The defect
 
@@ -151,7 +153,11 @@ the 2018 microdata codebook contains **zero NAICS references**. A building is no
 an establishment and a multi-tenant office cannot be resolved to NAICS by any
 mapping. CBECS prices a class; it does not distribute one.
 
-## ⛔ Blocking precondition: the electricity row does not foot to EIA
+## ✅ Former blocking precondition: the electricity row and EIA
+
+**Resolved — see the three subsections from "the excursion is BEA's" onward.**
+Kept in full because the measurement stands and the reconciliation is still owed;
+what changed is the verdict, not the numbers.
 
 Deriving kWh from `dollars ÷ price` requires the dollars on the price's basis.
 They are not. The derived balanced Use SUT (purchaser price — the valuation the
@@ -234,23 +240,112 @@ already loads) — roughly $14bn if BEA imputes it, which is unverified; and the
 **$23.44bn of product taxes**, which the residential control argues against
 subtracting.
 
-### The excursion is the nowcast's
+### ✅ Resolved: the excursion is BEA's, not the nowcast's
 
-The gap is not stable. It runs +31.3% at 2017, balloons to **+67.5% commercial in
-2021** and **+41.4% industrial in 2022**, then falls back to +22.3% / +9.8% by
-2024 — below the 2017 base on the industrial side. A scope difference does not do
-that. The excursion coincides with the 2021-22 energy price surge: EIA commercial
-revenue rose 149.7 → 173.4 while ours rose 250.6 → 276.2, so **the electricity row
-over-responds to price movement**. This is the same excursion that puts 324110
-refineries at 12.14% of manufacturing electricity in 2022 against 5.72% either
-side, now visible at the aggregate.
+This section previously read "the excursion is the nowcast's". **That was wrong,
+and the correction unblocks sections A and C.** Measured by
+`electricity_row_control.py`.
+
+**Our 221100 industry gross output reproduces BEA's published `UGO305-A`.** The
+offset is flat at −1.7% to −2.0% in every year of the span, and the two growth
+rates agree to 0.4pp or better every year. The swing is BEA's own number:
+
+| | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| BEA `UGO305-A` growth | 8.40 | 0.24 | −5.38 | **20.50** | 15.37 | **−8.82** | −0.90 |
+| ours | 8.47 | 0.19 | −5.32 | **20.58** | 15.00 | **−8.72** | −0.95 |
+| EIA-861 retail revenue | 4.11 | −1.16 | −1.98 | 7.28 | 15.11 | 1.27 | 4.58 |
+
+A flat offset with matching growth is the signature of faithful reproduction. The
+nowcast is not over-responding to price; it is carrying BEA's control.
+
+**Inside BEA's series the move is a fuel and purchased-power cost pass-through.**
+BEA's own intermediate inputs to 221100, $bn: 131.0, 158.8, 151.5, 118.2, **160.9,
+199.1**, 138.5, 139.6 — growth of +36.1%, +23.7%, then **−30.4%**. That is the gas
+price cycle, and it is roughly half of the 2021 and 2022 gross-output moves and
+123% of the 2023 fall. Natural gas distribution does the same thing beside it
+(+22.3%, +32.1%, −5.0%), which is what a common fuel-price driver looks like.
+
+### Why the whole swing lands on the intermediate block
+
+`intermediate = q(221100) − Y(221100)`, to within 1.7bn in seven of eight years,
+and **`Y` is anchored while `q` is not**: PCE tracks EIA residential to +0.04% at
+2017 and stays inside ±6.1% across the span. Final demand therefore cannot absorb
+any of the control's movement, so **every dollar of it lands on the intermediate
+row**. That is the structural reason the intermediate block looks unstable while
+residential looks perfect — and it is a property of the accounting, not a defect.
+
+⚠️ 2022 is the exception to the residual identity at **$10.4bn**, 1.6% of a $646bn
+row. That is a supply-use gap on this one commodity after redefinitions and is
+worth a look on its own.
+
+### ⚠️ The comparison itself was mis-specified: commodity ≠ industry
+
+The table above compares our **commodity** row against EIA-861. The two are not
+the same population:
+
+| 2017, $bn | |
+|---|---:|
+| BEA 221100 **industry** gross output | 389.4 |
+| EIA-861 all-seller retail revenue | **390.3** |
+| **agreement** | **−0.2%** |
+
+The industry and EIA agree almost exactly. The **commodity** row is $455.2bn
+because government-owned utilities make electricity as a secondary product:
+
+| maker | 2017 | 2021 | 2024 |
+|---|---:|---:|---:|
+| 221100 private utilities | 374.3 | 465.7 | 482.7 |
+| `S00202` state and local government electric utilities | 63.4 | 69.3 | 85.3 |
+| `S00101` federal electric utilities — TVA, BPA, the PMAs | 15.7 | 23.5 | 18.1 |
+| 221200 natural gas distribution | 1.7 | 2.7 | 2.9 |
+
+⚠️ **`S00101` is a wholesale leg being matched against a retail benchmark.**
+Federal electric utilities sell overwhelmingly *for resale* to municipals and
+co-ops, whose retail sales are already inside EIA-861's $390.3bn. Yet only
+$1.98bn of electricity is bought by any utility in the table ($1.72bn by 221100,
+$0.26bn by `S00202`), so the $15.7bn does not flow as resale — it reaches final
+purchasers directly. That is a real double count against EIA and is worth 29% of
+the $54.2bn residual on its own.
+
+### What remains a nowcast defect: the allocation, in 2023-24
+
+Each year-over-year change in the row splits into a **column effect** (the
+purchaser's whole input column grew and electricity rode along) and a **share
+effect** (electricity took a larger bite of that column). Only the second is
+owned by the electricity method. $bn:
+
+| | Δ row | column effect | share effect | share % | all-`U` growth |
+|---|---:|---:|---:|---:|---:|
+| 2017→18 | 24.1 | 18.2 | 5.9 | 24 | 6.7 |
+| 2018→19 | 3.5 | 5.9 | −2.3 | −66 | 1.7 |
+| 2019→20 | −27.2 | −22.1 | −5.1 | 19 | −4.7 |
+| 2020→21 | **88.1** | 60.6 | 27.6 | 31 | 18.1 |
+| 2021→22 | 51.1 | 58.2 | −7.1 | −14 | 14.2 |
+| 2022→23 | **−66.9** | −12.0 | **−54.9** | **82** | **0.2** |
+| 2023→24 | −21.7 | 7.9 | **−29.6** | **136** | 3.4 |
+
+**This relocates the defect.** 2021's rise is mostly the column effect — nominal
+input costs surged economy-wide and electricity rode along, which is correct
+behaviour. The **2023 and 2024 falls are almost entirely share effect**, against
+an all-intermediate total that was flat (+0.2%) and then grew (+3.4%). Electricity
+as a share of all intermediate use: 1.88, 1.91, 1.90, 1.82, 2.03, 2.02, **1.70,
+1.54** — stable for six years, then two breaks in a row.
+
+The 2022→23 collapse is broad rather than concentrated — food and beverage stores
+−$3.1bn, limited-service restaurants −$3.0bn, hospitals −$2.4bn, general
+merchandise −$2.3bn, enterprise management −$2.1bn — which is the signature of a
+row-wide rescale, not of any one purchaser's seed.
 
 ⚠️ Note where the seeds are: manufacturing electricity is indexed on Census
 `CSTELEC` through `nonmaterial_seed`, but the commercial band — the larger and
-worse-behaved half — has no electricity seed and moves on the carry.
+worse-behaved half — has no electricity seed and moves on the carry. A row-wide
+rescale is exactly what an unseeded band does when the control moves.
 
-**Sections A and C are blocked** until the base offset is attributed and the
-2021-22 excursion explained.
+**Sections A and C are unblocked.** The base offset is attributed (BEA's Census
+expense cells, plus the commodity-vs-industry and federal-wholesale corrections
+above) and the 2021-22 movement is explained as BEA's own fuel pass-through. What
+should be filed separately is the **2023-24 share collapse**, which is ours.
 
 ## Open questions
 
@@ -263,6 +358,15 @@ worse-behaved half — has no electricity seed and moves on the carry.
 3. Agriculture, mining and construction have neither a MECS nor a CBECS price.
 4. MECS is quadrennial — the relative-price interpolation above is the proposed
    answer, but it is untested before 2018 and after 2022.
+5. **What rescales the row in 2023-24?** The share effect is −$54.9bn then
+   −$29.6bn against columns that barely moved, and it is broad rather than
+   concentrated. File separately; it is ours.
+6. **Does `S00101`'s $15.7bn belong in the commodity row as a retail sale?**
+   Federal power is sold for resale, but only $1.98bn of electricity is bought by
+   any utility in the table. If it should flow as resale, the reconciliation to
+   EIA changes and so does any `kWh = dollars / price` derivation.
+7. **The $10.4bn supply-use gap on electricity in 2022** — 1.6% of the row, an
+   order of magnitude above every other year.
 
 ## Prerequisites
 
@@ -289,6 +393,27 @@ Three defects sit in the Use column and none is caused by MECS:
   back**, while both independent surveys stay inside 4.8-7.0%.
 - The IO-vs-MECS gap **widens across the span**, 15.62pp to 20.22pp, against a
   MECS side that is frozen on one survey.
+- **The row loses share of all intermediate use in 2023 and 2024** — 2.02% →
+  1.70% → 1.54% after six years at 1.82-2.03 — with the column control flat
+  behind it.
 
 A priced allocator sitting on that column would attribute its instability to the
 electricity method.
+
+## Reproducing the row measurements
+
+```
+python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_control \
+    --mut-vintage v0.3.0_4276083 --csv
+    # --check asserts the four identities the argument rests on:
+    #   the intermediate block is q less final demand (worst gap 1.6% of the row)
+    #   our 221100 GO growth matches BEA UGO305-A (worst 0.4pp)
+    #   the offset to BEA GO is flat (-2.01% to -1.69%, spread 0.32pp)
+    #   PCE is anchored to EIA residential (worst 6.1%)
+```
+
+`--mut-vintage` is needed only because the per-year configs omit the pin and
+would otherwise probe GCS for the newest upload. EIA-861 retail revenue is held
+as a literal in the module — the repo has no EIA-861 extractor. Regenerate it
+from the EIA v2 API series `electricity/retail-sales`, annual, `stateid=US`,
+facet `revenue`, all `sectorid`.

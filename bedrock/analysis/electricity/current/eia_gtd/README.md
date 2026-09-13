@@ -38,6 +38,21 @@ Census cost of purchased electricity (`CSTELEC` in EC 2017/2022 and ASM
 2018-2021, `EXPS_ELEC_VAL` in AIES 2023-2024) on one 232-sector axis as shares
 of the manufacturing total. Findings are in `About_electricity_shares.md`.
 
+## What drives the electricity Use row
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_control \
+    --mut-vintage v0.3.0_4276083
+# options: --years 2017-2024  --top 12  --csv  --check  --mut-vintage VINTAGE
+```
+
+Traces the 221100 row back to its output control and compares it with BEA's
+published `UGO305-A` gross output and EIA-861 retail revenue, then splits each
+year-over-year move into a column effect and a share effect. `--mut-vintage`
+pins a MUT build already on disk; without it the per-year configs probe GCS for
+the newest upload. EIA-861 revenue is a literal in the module, not an extractor.
+Findings are in `About_price_proposal.md`.
+
 ## Why Table 7.7 stays FBA (not FBS)
 
 No MECS Energy FBS exists in bedrock. Tables 2.2/3.2 stay FBA and enter GHG (and CAP/HAP) FBS build as attribution sources. Table 7.7 is also left as FBA: it only supplies manufacturing purchased-kWh weights inside the electricity (Generation/Transmission/Distribution) purchaser allocation. We do not build an FBS because that path would run `estimate_suppressed_mecs_energy` and a generic NAICS→BEA crosswalk, both wrong for table 7.7 for the following reasons:
