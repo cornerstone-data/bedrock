@@ -55,6 +55,21 @@ the newest upload. Both arms agree — as of 2026-09-13 the newest upload is
 in the module, not an extractor.
 Findings are in `About_price_proposal.md`.
 
+## Why the flat generation price fails
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.flat_price_clipping \
+    --mut-vintage v0.3.0_4276083
+# options: --years 2017-2024  --top 12  --csv  --check  --mut-vintage VINTAGE
+```
+
+Runs the live purchaser allocator and checks the cap against the price
+distribution. A purchaser's generation dollars are capped at its own bill
+exactly when its all-in price is below the single national generation price, so
+the capped set and the below-price set should be identical; `--check` asserts
+they are, and that every capped purchaser is left with zero T&D. Findings are in
+`About_why_the_flat_price_fails.md`.
+
 ## Why Table 7.7 stays FBA (not FBS)
 
 No MECS Energy FBS exists in bedrock. Tables 2.2/3.2 stay FBA and enter GHG (and CAP/HAP) FBS build as attribution sources. Table 7.7 is also left as FBA: it only supplies manufacturing purchased-kWh weights inside the electricity (Generation/Transmission/Distribution) purchaser allocation. We do not build an FBS because that path would run `estimate_suppressed_mecs_energy` and a generic NAICS→BEA crosswalk, both wrong for table 7.7 for the following reasons:
