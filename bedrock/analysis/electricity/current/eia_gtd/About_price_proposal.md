@@ -9,6 +9,18 @@ Companion measurements: `About_electricity_shares.md` (the three-source
 comparison) and `electricity_row_control.py` (what drives the row). Issue #894,
 PR #892.
 
+**The three pieces, referred to by letter throughout this work:**
+
+| | | in one phrase |
+|---|---|---|
+| **A** | Annual per-industry price | **the price** — MECS relative structure carried on EIA's published annual level |
+| **B** | Use column | **the bills** — the nowcast electricity row the allocator divides |
+| **C** | Disaggregation | **the split** — generation at a class price, T&D as the residual |
+
+B is a nowcast change and C is an allocator change. Neither works alone: the
+allocator's weights and the Use row it allocates over disagree, and at present
+each is used to justify the other.
+
 ## The defect
 
 `allocate_purchaser_gtd` converts MWh to dollars with **one price for every

@@ -315,11 +315,12 @@ What has to move on the nowcast side, measured in
    across the span, because the existing seed aligns how a column *moves* and
    never how the row *divides*.
 
-`About_price_proposal.md` section **B** is the proposed answer to 2, 3 and 5 —
+`About_price_proposal.md` is organised in three sections — **A** the price, **B**
+the bills, **C** the split — and its section **B** is the proposed answer to 2, 3 and 5 —
 realign manufacturing electricity to MECS levels at the 2018 and 2022 anchors
 and index annually on Census between them. It is written, and it is where the
-detail belongs; this document's point is that **section B is not optional
-alongside section C.** A correctly priced allocator dividing a row that sheds a
+detail belongs; this document's point is that **fixing the bills is not optional
+alongside fixing the split.** A correctly priced allocator dividing a row that sheds a
 fifth of its share in two years will still produce a growing capped set, because
 point 4 shows that is exactly what has been driving the growth.
 
@@ -379,7 +380,7 @@ mechanism.
 
 Stated up front, because the risk is regressing to iteration 1.
 
-**On the allocator (`About_price_proposal.md` section C):**
+**On the allocator** — `About_price_proposal.md` section C, the split:
 
 1. **Class ratios stay at 1.000.** Residential and Com+Ind+Trans+Exports must
    still reproduce the EIA class mix. This is the iteration-1 regression test
@@ -395,7 +396,8 @@ Stated up front, because the risk is regressing to iteration 1.
    not of the electricity row's dollar total, so that point 4's coupling is
    broken.
 
-**On the nowcast electricity row (section B), which has to move too:**
+**On the nowcast electricity row** — section B, the bills the allocator divides,
+which has to move too:
 
 6. **The row's share of all intermediate use is stable across the span**, or its
    movement is attributed to something observed. The 2.02% → 1.70% → 1.54% break
