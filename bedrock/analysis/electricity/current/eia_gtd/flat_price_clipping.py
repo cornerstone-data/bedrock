@@ -215,6 +215,45 @@ def summarize(results: dict[int, YearResult]) -> pd.DataFrame:
     return t
 
 
+def growth_decomposition(results: dict[int, YearResult]) -> pd.DataFrame:
+    """Why the capped count grows: the bar rising, or the distribution falling?
+
+    A purchaser is capped when its own price is below ``p``, so the count can
+    only grow because ``p`` rose or because own prices fell. Separate them by
+    counterfactual, on the purchasers present in both the base year and year
+    *t* so the changing sector list contributes nothing.
+    """
+    years = sorted(results)
+    base = years[0]
+    prices = {
+        y: results[y].table.loc[results[y].table['bill'] > 0, 'price_cents_per_kwh']
+        for y in years
+    }
+    p_of = {y: results[y].p_cents_per_kwh for y in years}
+
+    rows = {}
+    for year in years:
+        common = prices[base].index.intersection(prices[year].index)
+        then, now = prices[base].reindex(common), prices[year].reindex(common)
+        baseline = int((then < p_of[base]).sum())
+        rows[year] = {
+            'p': p_of[year],
+            'common_purchasers': len(common),
+            'baseline': baseline,
+            'actual': int((now < p_of[year]).sum()),
+            'if_only_p_moved': int((then < p_of[year]).sum()),
+            'if_only_prices_moved': int((now < p_of[base]).sum()),
+            'p10_own_price': float(now.quantile(0.10)),
+            'median_own_price': float(now.median()),
+        }
+    t = pd.DataFrame(rows).T
+    t['growth'] = t['actual'] - t['baseline']
+    t['from_p'] = t['if_only_p_moved'] - t['baseline']
+    t['from_prices'] = t['if_only_prices_moved'] - t['baseline']
+    t['interaction'] = t['growth'] - t['from_p'] - t['from_prices']
+    return t
+
+
 def run_checks(summary: pd.DataFrame) -> int:
     """The two claims the case rests on. Returns the failure count."""
     failures = 0
@@ -288,6 +327,40 @@ def main() -> None:
             ['median_ef_unclipped', 'median_ef_clipped', 'ef_distortion_x']
         ].to_string(float_format=_fmt)
     )
+
+    if len(years) > 1:
+        growth = growth_decomposition(results)
+        print('\n=== why the capped count grows: the bar, or the distribution? ===')
+        print(
+            growth[
+                [
+                    'p',
+                    'common_purchasers',
+                    'baseline',
+                    'actual',
+                    'if_only_p_moved',
+                    'if_only_prices_moved',
+                ]
+            ].to_string(float_format=_fmt)
+        )
+        print(
+            '\n  baseline             = base-year prices vs base-year p\n'
+            '  if_only_p_moved      = base-year prices vs p(t)\n'
+            '  if_only_prices_moved = prices(t) vs base-year p'
+        )
+        print('\n--- decomposition, and where the distribution went ---')
+        print(
+            growth[
+                [
+                    'growth',
+                    'from_p',
+                    'from_prices',
+                    'interaction',
+                    'p10_own_price',
+                    'median_own_price',
+                ]
+            ].to_string(float_format=_fmt)
+        )
 
     last = results[years[-1]]
     live = last.table[last.table['bill'] > 0]
