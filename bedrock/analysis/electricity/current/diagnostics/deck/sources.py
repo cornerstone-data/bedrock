@@ -72,13 +72,25 @@ def _load_folder(folder: Path, *, mixed: bool) -> StepSnapshot | None:
     )
 
 
-def _candidate_dirs(impl: Implementation, step_id: StepId) -> list[Path]:
-    return [impl_cache_dir(impl.id, config_for_step(impl, step_id))]
+def _candidate_dirs(
+    impl: Implementation,
+    step_id: StepId,
+    *,
+    ladder_id: str | None = None,
+) -> list[Path]:
+    return [
+        impl_cache_dir(impl.id, config_for_step(impl, step_id, ladder_id=ladder_id))
+    ]
 
 
-def load_step(impl: Implementation, step_id: StepId) -> StepSnapshot | None:
+def load_step(
+    impl: Implementation,
+    step_id: StepId,
+    *,
+    ladder_id: str | None = None,
+) -> StepSnapshot | None:
     mixed = step_id == 'mixed_units'
-    for folder in _candidate_dirs(impl, step_id):
+    for folder in _candidate_dirs(impl, step_id, ladder_id=ladder_id):
         snap = _load_folder(folder, mixed=mixed)
         if snap is not None:
             return snap
@@ -140,7 +152,12 @@ def _write_class_mwh(folder: Path) -> None:
     pd.DataFrame(rows).to_parquet(folder / 'class_generation_mwh.parquet')
 
 
-def derive_step(impl: Implementation, step_id: StepId) -> StepSnapshot:
+def derive_step(
+    impl: Implementation,
+    step_id: StepId,
+    *,
+    ladder_id: str | None = None,
+) -> StepSnapshot:
     """Live-derive one config and write the deck cache."""
     from bedrock.publish.cache_reset import clear_all_publish_caches  # noqa: PLC0415
     from bedrock.publish.model_objects import get_x  # noqa: PLC0415
@@ -162,7 +179,7 @@ def derive_step(impl: Implementation, step_id: StepId) -> StepSnapshot:
         pull_efs_for_diagnostics,
     )
 
-    config = config_for_step(impl, step_id)
+    config = config_for_step(impl, step_id, ladder_id=ladder_id)
     reset_usa_config()
     clear_all_publish_caches()
     set_global_usa_config(config)
@@ -210,14 +227,16 @@ def load_impl_bundle(
     derive: bool = False,
     load_snapshot_footing: bool = False,
     table_steps: tuple[StepId, ...] | None = None,
+    ladder_id: str | None = None,
 ) -> ImplBundle:
     steps_for_pair = table_steps if table_steps is not None else STEPS
+    resolved_ladder = ladder_id or impl.ladder_id
     if impl.id in PUBLISHED_IMPLS:
         return ImplBundle(impl_id=impl.id, steps={})
     if impl.single_config is not None:
-        snap = load_step(impl, 'footing')
+        snap = load_step(impl, 'footing', ladder_id=resolved_ladder)
         if snap is None and derive:
-            snap = derive_step(impl, 'footing')
+            snap = derive_step(impl, 'footing', ladder_id=resolved_ladder)
         copied: dict[StepId, StepSnapshot] = {}
         if snap is not None:
             for step_id in steps_for_pair:
@@ -225,7 +244,7 @@ def load_impl_bundle(
         return ImplBundle(impl_id=impl.id, steps=copied)
     steps: dict[StepId, StepSnapshot] = {}
     for step_id in steps_for_pair:
-        snap = load_step(impl, step_id)
+        snap = load_step(impl, step_id, ladder_id=resolved_ladder)
         if (
             snap is None
             and step_id == 'footing'
@@ -242,7 +261,7 @@ def load_impl_bundle(
                     exc,
                 )
         if snap is None and derive and impl.schema == 'disagg':
-            snap = derive_step(impl, step_id)
+            snap = derive_step(impl, step_id, ladder_id=resolved_ladder)
         if snap is not None:
             steps[step_id] = snap
     bundle = ImplBundle(impl_id=impl.id, steps=steps)

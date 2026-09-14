@@ -176,18 +176,46 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
 
-_EGRID_FBS_METHOD_BY_YEAR: dict[int, str] = {
-    2023: 'GHG_national_Cornerstone_2023_egrid',
-    2024: 'GHG_national_Cornerstone_2024_egrid',
+# (usa_detail_io_source, usa_ghg_data_year) → eGRID-backed Cornerstone GHG FBS stem.
+_EGRID_FBS_METHOD_BY_SOURCE_YEAR: dict[tuple[str, int], str] = {
+    ('bea_published', 2023): 'GHG_national_Cornerstone_2023_egrid',
+    ('bea_published', 2024): 'GHG_national_Cornerstone_2024_egrid',
+    ('nowcast', 2024): 'GHG_national_Cornerstone_nowcast_2024_egrid',
 }
 
 
-def egrid_fbs_method_for_year(year: int) -> str:
-    """Return the eGRID-backed Cornerstone GHG FBS method name for *year*."""
+def egrid_fbs_method_for_config() -> str:
+    """Return the eGRID-backed Cornerstone GHG FBS method for the active config.
+
+    Branches on ``usa_detail_io_source`` and ``usa_ghg_data_year`` so electricity
+    disaggregation composes with nowcast Use attribution instead of always
+    selecting the published ``*_egrid`` stem.
+    """
+    usa = get_usa_config()
+    key = (usa.usa_detail_io_source, usa.usa_ghg_data_year)
     try:
-        return _EGRID_FBS_METHOD_BY_YEAR[year]
+        return _EGRID_FBS_METHOD_BY_SOURCE_YEAR[key]
     except KeyError as exc:
-        supported = ', '.join(str(y) for y in sorted(_EGRID_FBS_METHOD_BY_YEAR))
+        supported = ', '.join(
+            f'{src}/{yr}' for src, yr in sorted(_EGRID_FBS_METHOD_BY_SOURCE_YEAR)
+        )
+        raise ValueError(
+            f'usa_detail_io_source={usa.usa_detail_io_source!r}, '
+            f'usa_ghg_data_year={usa.usa_ghg_data_year} is unsupported for the '
+            f'electricity-disaggregation eGRID FBS; supported: {supported}'
+        ) from exc
+
+
+def egrid_fbs_method_for_year(year: int) -> str:
+    """Published-BEA alias: eGRID FBS stem for *year* (``bea_published`` only)."""
+    key = ('bea_published', year)
+    try:
+        return _EGRID_FBS_METHOD_BY_SOURCE_YEAR[key]
+    except KeyError as exc:
+        published_years = sorted(
+            yr for src, yr in _EGRID_FBS_METHOD_BY_SOURCE_YEAR if src == 'bea_published'
+        )
+        supported = ', '.join(str(y) for y in published_years)
         raise ValueError(
             f'usa_ghg_data_year={year} is unsupported for the electricity-'
             f'disaggregation eGRID FBS; supported years: {supported}'
@@ -197,14 +225,13 @@ def egrid_fbs_method_for_year(year: int) -> str:
 def _select_cornerstone_ghg_fbs_base_name() -> str:
     """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
 
-    ``usa_ghg_data_year`` selects the inventory-year method stem. For 2024,
+    ``usa_ghg_data_year`` selects the inventory-year method stem.
     ``usa_detail_io_source`` distinguishes published BEA Use attribution
-    (``GHG_national_Cornerstone_2024``) from nowcast Use attribution
-    (``GHG_national_Cornerstone_2024``). Other years use the bare year stem
-    (nowcast Use attribution in the method YAML).
+    (``GHG_national_Cornerstone_{year}``) from nowcast Use attribution
+    (``GHG_national_Cornerstone_nowcast_{year}``).
 
-    Electricity-disaggregation configs keep the existing ``*_egrid`` map;
-    those includes still need a follow-up review against the 2024 rename.
+    Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
+    instead of this helper.
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
@@ -216,11 +243,10 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
     """Load the eGRID-based national GHG FBS for electricity disaggregation.
 
-    Selects ``GHG_national_Cornerstone_<year>_egrid`` from
-    ``usa_ghg_data_year`` so v0.2 (2023) and v0.3 (2024) electricity configs
-    stay year-matched.
+    Selects the method stem via :func:`egrid_fbs_method_for_config` so nowcast
+    and published electricity configs stay year- and IO-source-matched.
     """
-    method = egrid_fbs_method_for_year(get_usa_config().usa_ghg_data_year)
+    method = egrid_fbs_method_for_config()
     try:
         return _load_cornerstone_ghg_fbs_from_gcs(base_name=method)
     except FileNotFoundError:

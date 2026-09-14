@@ -1,6 +1,6 @@
 """EIA-anchored generation / transmission / distribution purchaser allocation.
 
-Pure allocator plus the 2017 cached getter and Use/Y/A/q writers.
+Pure allocator plus the year-keyed cached getter and Use/Y/A/q writers.
 Table 2.2 / 2.14 / 3.1 loaders live in ``egrid_generation``.
 
 Table 7.7 purchased kWh is read from the ``EIA_MECS_Energy`` **FBA** parquet.
@@ -627,8 +627,8 @@ def allocate_purchaser_gtd(
     *,
     self_use_key: str,
     eia_year: int,
-    p_share_2017: float,
-    td_share_2017: float,
+    p_share: float,
+    td_share: float,
     industrial_weights: IndustrialWeighting = 'mecs',
 ) -> EIAPurchaserAllocation:
     """Allocate domestic electricity purchaser use to G/T/D.
@@ -652,7 +652,7 @@ def allocate_purchaser_gtd(
         raise ValueError(
             f'industrial_weights must be mecs or dollars, got {industrial_weights!r}'
         )
-    if not np.isfinite(p_share_2017) or p_share_2017 <= 0:
+    if not np.isfinite(p_share) or p_share <= 0:
         raise ValueError(
             'UGO generation share is missing or non-positive; '
             'Table 8.3 is not a p backup'
@@ -665,7 +665,7 @@ def allocate_purchaser_gtd(
     class_mwh = _class_mwh_targets(eia_year, egrid_mwh)
     electricity_purchases_total = float(electricity_purchases.sum())
     p = (
-        (p_share_2017 * electricity_purchases_total) / egrid_mwh
+        (p_share * electricity_purchases_total) / egrid_mwh
         if egrid_mwh
         else float('nan')
     )
@@ -722,8 +722,8 @@ def allocate_purchaser_gtd(
     )
 
     leftover = electricity_purchases - gen
-    t_dollars = leftover * float(td_share_2017)
-    d_dollars = leftover * (1.0 - float(td_share_2017))
+    t_dollars = leftover * float(td_share)
+    d_dollars = leftover * (1.0 - float(td_share))
     return EIAPurchaserAllocation(
         electricity_purchases=electricity_purchases,
         end_use_class=classes,
@@ -734,7 +734,7 @@ def allocate_purchaser_gtd(
         clipped=clipped,
         p=float(p),
         egrid_mwh=float(egrid_mwh),
-        td_share=float(td_share_2017),
+        td_share=float(td_share),
     )
 
 
@@ -915,11 +915,14 @@ def make_last_weights_from_domestic_use_y(
     return weights / total
 
 
-@functools.cache
-def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
-    """Cached 2017 domestic electricity purchases → G/T/D.
+def purchaser_electricity_purchases_at_io_year() -> pd.Series:
+    """Absolute domestic electricity purchases from IO-year checkpoints.
 
-    Does not call the IO bundle or Ytot.
+    Industry dollars are the electricity aggregate Use row from
+    ``_derive_post_reallocation_checkpoint_for_disagg``; FD dollars are the
+    aggregate Y row from ``_derive_y_before_electricity_disagg_lazy``. Drops
+    ``IMPORT_FD_CODE``. Used by the nowcast A/q reanchor path and by the
+    year-keyed EIA purchaser allocation getter.
     """
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         _derive_post_reallocation_checkpoint_for_disagg,
@@ -936,23 +939,42 @@ def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
     electricity_purchases = use_row.add(y_row, fill_value=0.0)
     if IMPORT_FD_CODE in electricity_purchases.index:
         electricity_purchases = electricity_purchases.drop(index=IMPORT_FD_CODE)
+    return electricity_purchases.astype(float)
+
+
+@functools.cache
+def get_eia_purchaser_allocation(eia_year: int) -> EIAPurchaserAllocation:
+    """Cached domestic electricity purchases → G/T/D for ``eia_year``.
+
+    Does not call the IO bundle or Ytot.
+    """
+    electricity_purchases = purchaser_electricity_purchases_at_io_year()
     p_share, td_share = _go_p_and_td_shares()
     return allocate_purchaser_gtd(
         electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
-        eia_year=2017,
-        p_share_2017=p_share,
-        td_share_2017=td_share,
+        eia_year=eia_year,
+        p_share=p_share,
+        td_share=td_share,
     )
+
+
+def get_2017_eia_purchaser_allocation() -> EIAPurchaserAllocation:
+    """Thin alias for ``get_eia_purchaser_allocation(2017)``.
+
+    Not separately cached; clearing ``get_eia_purchaser_allocation`` is enough.
+    """
+    return get_eia_purchaser_allocation(2017)
 
 
 def apply_purchaser_allocation_to_y(Y: pd.DataFrame) -> pd.DataFrame:
-    """Split the 2017 Y electricity row from the shared 2017 allocation."""
+    """Split the Y electricity row from the shared IO-year allocation."""
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         reindex_y_commodities_to_elec_schema,
     )
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    allocation = get_2017_eia_purchaser_allocation()
+    allocation = get_eia_purchaser_allocation(get_usa_config().usa_base_io_data_year)
     children = list(ELECTRICITY_DISAGG_SECTORS)
     Y = _ensure_index_codes(Y, children)
     agg = ELECTRICITY_AGGREGATE
@@ -1073,15 +1095,15 @@ def _scaled_export_fd_electricity_purchases(
         inflate_cornerstone_q_or_y_with_industry_pi,
     )
 
-    y2017 = derive_disagg_Ytot_with_trade()
+    y_detail = derive_disagg_Ytot_with_trade()
     elec = list(ELECTRICITY_DISAGG_SECTORS)
-    if EXPORT_FD_CODE not in y2017.columns:
+    if EXPORT_FD_CODE not in y_detail.columns:
         raise ValueError(f'{EXPORT_FD_CODE} missing from 2017 Y')
-    slice_2017 = y2017.loc[elec, EXPORT_FD_CODE].astype(float)
-    q_2017 = derive_cornerstone_Aq().scaled_q.astype(float).reindex(elec)
+    slice_detail = y_detail.loc[elec, EXPORT_FD_CODE].astype(float)
+    q_detail = derive_cornerstone_Aq().scaled_q.astype(float).reindex(elec)
     pre = pre_q.astype(float).reindex(elec)
-    ratio = (pre / q_2017.replace(0.0, np.nan)).fillna(1.0)
-    scaled = slice_2017 * ratio
+    ratio = (pre / q_detail.replace(0.0, np.nan)).fillna(1.0)
+    scaled = slice_detail * ratio
     if use_commodity_pi:
         inflated = inflate_cornerstone_q_or_y_with_commodity_pi(
             scaled, original_year=original_year, target_year=model_year
@@ -1148,29 +1170,26 @@ def _purchaser_electricity_purchases_from_aq(
 
     y_snap = backcompute_y_from_A_and_q(A=adom, q=q)
     y_elec_total = float(y_snap.reindex(elec).fillna(0.0).sum())
-    y2017 = derive_disagg_Ytot_with_trade()
-    y2017_elec = y2017.loc[elec].sum(axis=0).astype(float)
-    y2017_sum = float(y2017_elec.sum())
+    y_detail = derive_disagg_Ytot_with_trade()
+    y_detail_elec = y_detail.loc[elec].sum(axis=0).astype(float)
+    y_detail_sum = float(y_detail_elec.sum())
     fd_purchases = pd.Series(dtype=float)
-    if y2017_sum > 0:
-        for col, val in y2017_elec.items():
+    if y_detail_sum > 0:
+        for col, val in y_detail_elec.items():
             col_s = str(col)
             if col_s in (EXPORT_FD_CODE, IMPORT_FD_CODE):
                 continue
-            fd_purchases[col_s] = y_elec_total * (float(val) / y2017_sum)
+            fd_purchases[col_s] = y_elec_total * (float(val) / y_detail_sum)
     electricity_purchases = industry_purchases.add(fd_purchases, fill_value=0.0)
     return electricity_purchases.astype(float)
 
 
-def reanchor_electricity_aq_after_year_scaling(
+def _apply_eia_purchaser_allocation_to_aq(
     aq: SingleRegionAqMatrixSet,
-    *,
-    original_year: int,
-    target_year: int,
-    model_year: int,
-    use_commodity_pi: bool,
+    allocation: EIAPurchaserAllocation,
+    td_share: float,
 ) -> SingleRegionAqMatrixSet:
-    """Rewrite published A/q electricity G/T/D after price-index inflation."""
+    """Rewrite A/q electricity G/T/D from an existing purchaser allocation."""
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         GENERATION_FUEL_COMMODITIES,
     )
@@ -1180,37 +1199,6 @@ def reanchor_electricity_aq_after_year_scaling(
     aimp = aq.Aimp.copy()
     q = aq.scaled_q.astype(float).copy()
     elec = list(ELECTRICITY_DISAGG_SECTORS)
-
-    adom_purchases, q_purchases = _inflate_summary_year_scaled_aq(
-        original_year=original_year,
-        target_year=target_year,
-        model_year=model_year,
-        use_commodity_pi=use_commodity_pi,
-    )
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        get_summary_year_scaled_aq,
-    )
-
-    pre = get_summary_year_scaled_aq(original_year, target_year)
-    electricity_purchases = _purchaser_electricity_purchases_from_aq(
-        adom_purchases, q_purchases
-    )
-    electricity_purchases[EXPORT_FD_CODE] = _scaled_export_fd_electricity_purchases(
-        original_year=original_year,
-        target_year=target_year,
-        model_year=model_year,
-        use_commodity_pi=use_commodity_pi,
-        pre_q=pre.q,
-    )
-    p_share, td_share = _go_p_and_td_shares()
-    allocation = allocate_purchaser_gtd(
-        electricity_purchases,
-        self_use_key=ELECTRICITY_AGGREGATE,
-        eia_year=model_year,
-        p_share_2017=p_share,
-        td_share_2017=td_share,
-    )
-    set_reanchored_eia_purchaser_allocation(allocation)
 
     udom = pd.DataFrame(adom.multiply(q, axis=1))
     uimp = pd.DataFrame(aimp.multiply(q, axis=1))
@@ -1298,3 +1286,69 @@ def reanchor_electricity_aq_after_year_scaling(
         Aimp=cast(pt.DataFrame[AMatrix], aimp_out),
         scaled_q=q,
     )
+
+
+def reanchor_electricity_aq_at_year(
+    aq: SingleRegionAqMatrixSet,
+    *,
+    year: int,
+) -> SingleRegionAqMatrixSet:
+    """Rewrite A/q electricity G/T/D using absolute IO-year purchases at ``year``.
+
+    Nowcast path only. Purchases come from checkpoint Use/Y aggregates via
+    ``purchaser_electricity_purchases_at_io_year`` — never from year-scaled A/q
+    or export FD scaling helpers.
+    """
+    electricity_purchases = purchaser_electricity_purchases_at_io_year()
+    p_share, td_share = _go_p_and_td_shares()
+    allocation = allocate_purchaser_gtd(
+        electricity_purchases,
+        self_use_key=ELECTRICITY_AGGREGATE,
+        eia_year=year,
+        p_share=p_share,
+        td_share=td_share,
+    )
+    set_reanchored_eia_purchaser_allocation(allocation)
+    return _apply_eia_purchaser_allocation_to_aq(aq, allocation, td_share)
+
+
+def reanchor_electricity_aq_after_year_scaling(
+    aq: SingleRegionAqMatrixSet,
+    *,
+    original_year: int,
+    target_year: int,
+    model_year: int,
+    use_commodity_pi: bool,
+) -> SingleRegionAqMatrixSet:
+    """Rewrite published A/q electricity G/T/D after price-index inflation."""
+    adom_purchases, q_purchases = _inflate_summary_year_scaled_aq(
+        original_year=original_year,
+        target_year=target_year,
+        model_year=model_year,
+        use_commodity_pi=use_commodity_pi,
+    )
+    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
+        get_summary_year_scaled_aq,
+    )
+
+    pre = get_summary_year_scaled_aq(original_year, target_year)
+    electricity_purchases = _purchaser_electricity_purchases_from_aq(
+        adom_purchases, q_purchases
+    )
+    electricity_purchases[EXPORT_FD_CODE] = _scaled_export_fd_electricity_purchases(
+        original_year=original_year,
+        target_year=target_year,
+        model_year=model_year,
+        use_commodity_pi=use_commodity_pi,
+        pre_q=pre.q,
+    )
+    p_share, td_share = _go_p_and_td_shares()
+    allocation = allocate_purchaser_gtd(
+        electricity_purchases,
+        self_use_key=ELECTRICITY_AGGREGATE,
+        eia_year=model_year,
+        p_share=p_share,
+        td_share=td_share,
+    )
+    set_reanchored_eia_purchaser_allocation(allocation)
+    return _apply_eia_purchaser_allocation_to_aq(aq, allocation, td_share)

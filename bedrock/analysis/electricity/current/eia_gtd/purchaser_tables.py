@@ -236,16 +236,16 @@ def dual_run_industrial_allocations(
         alloc.electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=eia_year,
-        p_share_2017=p_share,
-        td_share_2017=float(alloc.td_share),
+        p_share=p_share,
+        td_share=float(alloc.td_share),
         industrial_weights='mecs',
     )
     dollars = allocate_purchaser_gtd(
         alloc.electricity_purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=eia_year,
-        p_share_2017=p_share,
-        td_share_2017=float(alloc.td_share),
+        p_share=p_share,
+        td_share=float(alloc.td_share),
         industrial_weights='dollars',
     )
     return mecs, dollars

@@ -19,6 +19,9 @@ from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     get_2017_eia_purchaser_allocation as get_2017_eia_purchaser_allocation,
 )
+from bedrock.transform.eeio.electricity_gtd_allocation import (
+    get_eia_purchaser_allocation as get_eia_purchaser_allocation,
+)
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
 )
@@ -37,7 +40,6 @@ logger = logging.getLogger(__name__)
 ELECTRICITY_AGGREGATE = '221100'
 BALANCE_TOLERANCE = 1e6
 DISAGG_BALANCE_ATOL = 1.0
-IO_ACCOUNT_YEAR = 2017
 
 TABLE_8_3_DESCRIPTION = (
     'Table 8.3 Revenue and expense statistics for major U.S. '
@@ -193,6 +195,7 @@ def apply_single_coproduction_transfer(
     udom_before = Udom.copy()
     uimp_before = Uimp.copy()
     va_before = VA.copy()
+    v_neg_before = V < -1e-6
 
     V.loc[d, d] = _make_diagonal(V, d) + T
     V.loc[s, d] = 0.0
@@ -207,7 +210,10 @@ def apply_single_coproduction_transfer(
     _assert_row_totals_unchanged(uimp_before, Uimp, label='Uimp')
     _assert_row_totals_unchanged(va_before, VA, label='VA')
 
-    if (V < -1e-6).any().any():
+    # Nowcast Make can carry pre-existing negatives unrelated to electricity
+    # (e.g. S00600×221300). Fail only when this transfer introduces new ones.
+    v_neg_after = V < -1e-6
+    if (v_neg_after & ~v_neg_before).any().any():
         raise AssertionError('Make has negative values after transfer')
 
     return V, Udom, Uimp, VA
@@ -371,7 +377,9 @@ def _normalize_gtd_expense_weights(expenses: dict[str, float]) -> pd.Series[floa
 @functools.cache
 def build_electricity_disagg_use_intersection_weights() -> pd.Series[float]:
     """Return Table 8.3 Purchased Power + T/D shares for step 2 intersection."""
-    expenses = _iou_utility_gtd_operating_expenses(IO_ACCOUNT_YEAR)
+    expenses = _iou_utility_gtd_operating_expenses(
+        get_usa_config().usa_base_io_data_year
+    )
     return _normalize_gtd_expense_weights(expenses)
 
 
@@ -861,7 +869,7 @@ def disaggregate_electricity_make_use_va(
         write_purchaser_gtd_use_and_y,
     )
 
-    allocation = get_2017_eia_purchaser_allocation()
+    allocation = get_eia_purchaser_allocation(get_usa_config().usa_base_io_data_year)
     y = _derive_y_before_electricity_disagg_lazy()
     Udom, Uimp, _y = write_purchaser_gtd_use_and_y(Udom, Uimp, y, allocation)
     _enforce_go_identity_precondition(V, Udom, Uimp, VA)

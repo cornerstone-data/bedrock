@@ -990,6 +990,17 @@ class FlowByActivity(_FlowBy):
                     raise ValueError(
                         f'{fba.full_name} failed while preparing FBS: {exc}'
                     ) from exc
+            # All activity sets may be intentionally empty (e.g. eGRID overlays
+            # neutralize UMD_GHGIA_T_3_7.electric_power, which is that source's
+            # only set). Return an empty FBS so the parent concat can skip it.
+            if not prepared:
+                log.warning(
+                    f'{self.full_name}: all activity sets empty; returning empty FBS'
+                )
+                return FlowBySector(
+                    pd.DataFrame(),
+                    convert_df_to_flowby=True,
+                )
             return FlowBySector(
                 pd.concat(prepared).reset_index(drop=True),
                 convert_df_to_flowby=True,
