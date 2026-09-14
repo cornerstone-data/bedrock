@@ -13,9 +13,9 @@ PR #892.
 
 | | | in one phrase |
 |---|---|---|
-| **A** | Annual per-industry price | **the price** — MECS relative structure carried on EIA's published annual level |
-| **B** | Use column | **the bills** — the nowcast electricity row the allocator divides |
-| **C** | Disaggregation | **the split** — generation at a class price, T&D as the residual |
+| **A** | Annual per-industry price | **the kWh price** — what each industry pays per kWh, MECS relative structure carried on EIA's published annual level |
+| **B** | Use column | **electricity purchases** — what each industry spends, the nowcast Use row the allocator divides (`electricity_purchases` in code) |
+| **C** | Disaggregation | **the split** — those purchases divided into generation and T&D |
 
 B is a nowcast change and C is an allocator change. Neither works alone: the
 allocator's weights and the Use row it allocates over disagree, and at present
@@ -33,14 +33,15 @@ proportional = mwh.loc[members] * p
 
 Inside manufacturing the MWh come from MECS Table 7.7 kWh shares, so a sector's
 generation dollars are `its kWh share × the average price`. Where a sector buys
-cheap power that product exceeds its entire electricity bill, water-fill caps it,
+cheap power that product exceeds its entire electricity purchases, water-fill caps it,
 and the excess lands on other purchasers. Measured on the 2024 nowcast: **44
 manufacturing sectors clip under MECS weights, zero under dollar weights**, and
 **47 end with no T&D dollars at all** — modelled as buying generation and no
 transmission or distribution, which no real purchaser does.
 
 Stated precisely: the flat `p` is **4.67 ¢/kWh**, and the cheapest manufacturing
-industry's *entire* electricity bill is **4.21 ¢/kWh** (325194 cyclic crudes).
+industry's *entire* electricity purchases come to **4.21 ¢/kWh** (325194 cyclic
+crudes).
 The method charges some industries more for generation alone than they spend on
 electricity in total.
 
