@@ -10,7 +10,7 @@ comparable purchaser gets.
 
 Points 1 to 5 are about the allocator. **Point 6 is about the nowcast
 electricity row it divides**, which turns out to be the larger of the two
-problems: most of the growth in point 4 comes from the bills, not from the
+problems: most of the growth in point 4 comes from electricity purchases, not from the
 price. Both have to move, and in that order.
 
 Measured by `flat_price_clipping.py`. Companions: `About_electricity_shares.md`
@@ -23,7 +23,7 @@ Measured by `flat_price_clipping.py`. Companions: `About_electricity_shares.md`
 |---|---|---|
 | **1st** (#85) | BEA gross output for the split; **EIA retail prices by end-use class** to turn dollars into MWh | ❌ Residential MWh came out **0.532×** EIA's. Non-electricity `N` moved ~14%. |
 | **2nd** (#88 + #90) | EIA class shares set MWh; **one national generation price**; MECS kWh inside manufacturing | ✅ Class ratios 1.000. `N` moves ~4% (mixed units) / ~1.4% (reaggregated). |
-| **3rd** (proposed) | keep every bill; **price generation by class**, T&D as the residual | — |
+| **3rd** (proposed) | keep every purchaser's electricity purchases; **price generation by class**, T&D as the residual | — |
 
 The flat price was adopted *specifically* to fix iteration 1. The results deck
 is explicit: "Main reason for decrease is we using one price for monetary to
@@ -40,16 +40,17 @@ follows is that the cure has a defect of its own, in a different place.
 
 Each purchaser is given a quantity of electricity in MWh. That quantity is
 turned into generation dollars by multiplying it by `p`, the one national
-generation price. Whatever is left of the purchaser's electricity bill after
+generation price. Whatever is left of the purchaser's electricity purchases after
 those generation dollars are taken out is recorded as transmission and
 distribution.
 
 This can ask a purchaser to pay more for generation than it spends on
 electricity in total. The method handles that by **capping generation at the
-bill**: the purchaser is charged its whole bill for generation and nothing for
-delivery. The generation dollars that did not fit are then moved to other
-purchasers in the same customer class — spread across whatever room those
-purchasers have left between their own generation charge and their own bill.
+purchaser's electricity purchases**: the whole of what it spends is charged to
+generation and nothing to delivery. The generation dollars that did not fit are
+then moved onto other purchasers in the same customer class, spread across
+whatever room each has left between its own generation charge and its own
+electricity purchases.
 
 > #88 D8 calls that redistribution step "water-fill", and the code calls a
 > purchaser whose generation was capped "clipped". This document says **capped**
@@ -57,36 +58,36 @@ purchasers have left between their own generation charge and their own bill.
 
 ### When the cap binds
 
-Generation fits inside the bill when
+Generation fits inside those purchases when
 
 ```
-MWh × p  ≤  bill
+MWh × p  ≤  purchases
 ```
 
 Divide both sides by MWh:
 
 ```
-p  ≤  bill / MWh
+p  ≤  purchases / MWh
 ```
 
-`bill / MWh` is simply what that purchaser pays per kWh for electricity in
-total, generation and delivery together — call it **the purchaser's own price**.
-So the cap binds whenever the purchaser's own price is below `p`.
+`purchases / MWh` is simply what that purchaser pays per kWh for electricity in
+total, generation and delivery together — call it **the purchaser's price per
+kWh**. So the cap binds whenever a purchaser's price per kWh is below `p`.
 
 **That is a fact about the arithmetic, not about the data.** It does not depend
-on MECS being right, on the bills being right, or on `p` being well chosen. Any
+on MECS being right, on electricity purchases being right, or on `p` being well chosen. Any
 purchaser that pays less per kWh than `p` cannot be represented: the model must
 either charge it more for generation alone than it spends on electricity
-altogether, which is impossible, or cap generation at the bill and leave it with
+altogether, which is impossible, or cap generation at the purchases and leave it with
 no delivery costs. There is no third option.
 
 ### It holds exactly, every year
 
 If the reasoning above is right, then two lists should match: the purchasers the
-allocator actually capped, and the purchasers whose own price is below `p`. They
+allocator actually capped, and the purchasers whose price per kWh is below `p`. They
 do — for every Industrial purchaser, in all eight years:
 
-| year | `p` ¢/kWh | purchasers | capped | own price below `p` | purchasers where the two agree |
+| year | `p` ¢/kWh | purchasers | capped | price per kWh below `p` | purchasers where the two agree |
 |---|---:|---:|---:|---:|---:|
 | 2017 | 3.87 | 265 | 6 | 6 | **265 of 265** |
 | 2018 | 4.05 | 264 | 10 | 10 | **264 of 264** |
@@ -109,43 +110,43 @@ purchaser in six falls below it.
 
 | | |
 |---|---:|
-| electricity bill | **$389.0m** |
+| electricity purchases | **$389.0m** |
 | MWh assigned to it (MECS Table 7.7 shares) | 11.254m MWh |
-| its own price — $389.0m ÷ 11.254m MWh | **3.46 ¢/kWh** |
+| its price per kWh — $389.0m ÷ 11.254m MWh | **3.46 ¢/kWh** |
 | national generation price `p` | **4.67 ¢/kWh** |
 | generation it is therefore asked to pay — 11.254m × $46.70 | **$525.6m** |
 
-The method asks primary aluminium to pay **$525.6m for generation alone out of a
-$389.0m total electricity bill** — $136.6m more than it spends on electricity
-altogether. That cannot be recorded, so generation is capped at the full
+The method asks primary aluminium to pay **$525.6m for generation alone against
+$389.0m of total electricity purchases** — $136.6m more than it spends on
+electricity altogether. That cannot be recorded, so generation is capped at the full
 $389.0m, transmission and distribution are set to **$0**, and the $136.6m is
 moved onto other purchasers in the same class.
 
 Compare primary iron and steel in the same year, which pays **6.13 ¢/kWh** —
-above `p`. It is asked for $2,614.6m of generation against a $3,434.1m bill,
+above `p`. It is asked for $2,614.6m of generation against $3,434.1m of purchases,
 which fits, so it keeps **$802.5m** of transmission and distribution and is not
 capped.
 
 Nothing distinguishes these two cases except which side of 4.67 ¢/kWh the
-purchaser's own price falls on.
+purchaser's price per kWh falls on.
 
 ⚠️ **The example is not cherry-picked — it is the industry the method was
 extended to serve.** Discussion #90's guiding principle 2 justified adopting
 MECS by naming three industries: "Aluminum, chemicals, and paper should get more
-generation MWh than their share of the electricity bill would imply." In 2024
-**all three are capped**: primary aluminium, paper ($743.9m bill, 4.15 ¢/kWh),
+generation MWh than their share of the electricity purchases would imply." In 2024
+**all three are capped**: primary aluminium, paper ($743.9m of purchases, 4.15 ¢/kWh),
 and **13 chemical industries** including other basic inorganic chemicals
-($1,252.7m bill, 4.56 ¢/kWh), pharmaceutical products, adhesives and paints.
+($1,252.7m of purchases, 4.56 ¢/kWh), pharmaceutical products, adhesives and paints.
 Giving those industries more MWh is exactly what pushes their price per kWh
 below `p`, which is exactly what gets them capped.
 
 ## 2. Every capped purchaser is left with zero transmission and distribution
 
-T&D is the residual of the bill after generation (#88 D8), so a cap that
-consumes the whole bill leaves nothing. This is not a near-zero; it is zero, for
+T&D is the residual of purchases after generation (#88 D8), so a cap that
+consumes the whole of it leaves nothing. This is not a near-zero; it is zero, for
 every capped purchaser in every year:
 
-| year | capped | **with zero T&D** | their bill | % of Industrial | median T&D share, uncapped |
+| year | capped | **with zero T&D** | their purchases | % of Industrial | median T&D share, uncapped |
 |---|---:|---:|---:|---:|---:|
 | 2017 | 6 | **6** | $3.87bn | 4.5% | 53.5% |
 | 2018 | 10 | **10** | $1.97bn | 2.1% | 49.2% |
@@ -156,7 +157,7 @@ every capped purchaser in every year:
 | 2023 | 41 | **41** | $5.75bn | 5.4% | 49.1% |
 | 2024 | 44 | **44** | $6.39bn | 6.3% | 51.1% |
 
-A comparable purchaser spends about half its electricity bill on delivery. These
+A comparable purchaser spends about half its electricity purchases on delivery. These
 44 are modelled as buying generation and no delivery at all, which no real
 purchaser does.
 
@@ -186,7 +187,7 @@ electricity emission factor is the pure generation factor:
 | 2023 | 3.67 | 7.20 | 1.96× |
 | 2024 | 3.52 | 7.20 | **2.04×** |
 
-The 2024 list is not obscure: other basic inorganic chemicals ($1.25bn bill),
+The 2024 list is not obscure: other basic inorganic chemicals ($1.25bn of purchases),
 paper ($0.74bn), ready-mix concrete ($0.49bn), primary aluminium ($0.39bn), corn
 products, pharmaceutical products, soap and cleaning compounds, fabric,
 adhesives, paints. These are electricity-intensive industries — which is the
@@ -200,11 +201,11 @@ extended to represent better.
 method over the eight nowcast years, not a change of method. The capped count
 goes 6, 10, 9, 11, 24, 27, 41, **44**.
 
-From point 1, a purchaser is capped when its own price is below `p`. So there
+From point 1, a purchaser is capped when its price per kWh is below `p`. So there
 are only two ways the count can grow:
 
 - **the bar rises** — `p` goes up while purchasers' prices stay put, or
-- **the distribution falls** — purchasers' own prices go down while `p` stays put.
+- **the distribution falls** — purchasers' prices per kWh go down while `p` stays put.
 
 These can be separated by counterfactual. Take the purchasers present in both
 2017 and year *t*, so the changing sector list contributes nothing, and count
@@ -221,7 +222,7 @@ how many would be capped if only one of the two had moved:
 | 2023 | 41 | 8 | 20 | +3 | **+15** | +18 |
 | 2024 | 44 | 7 | 30 | +1 | **+24** | +13 |
 
-**The dominant cause is purchasers' own prices falling, not `p` rising.** Of the
+**The dominant cause is purchasers' prices per kWh falling, not `p` rising.** Of the
 38 extra capped purchasers in 2024, `p` moving explains **1**, prices moving
 explains **24**, and the remaining 13 need both. `p` itself is barely higher
 than in 2017 — 4.67 against 3.87 — and in 2023 and 2024 it is *falling* while
@@ -232,24 +233,24 @@ the capped count keeps climbing.
 | | 2017 | 2020 | 2022 | 2024 |
 |---|---:|---:|---:|---:|
 | `p` | 3.87 | 4.00 | 5.15 | 4.67 |
-| 10th percentile of own prices | **5.63** | 4.41 | 5.12 | **3.87** |
-| median own price | 8.15 | 7.94 | 11.57 | 8.33 |
+| 10th percentile of prices per kWh | **5.63** | 4.41 | 5.12 | **3.87** |
+| median price per kWh | 8.15 | 7.94 | 11.57 | 8.33 |
 
 The median is flat across the whole span. The cheap tail drops by a third. That
 is what pushes purchasers under the bar.
 
 ### Why the cheap tail falls
 
-A purchaser's own price is `bill ÷ MWh`. Both terms are exposed:
+A purchaser's price per kWh is `purchases ÷ MWh`. Both terms are exposed:
 
 - **The MWh are frozen in relative terms.** #90 M6 uses the 2022 MECS survey for
   every year 2018-2024 with no interpolation, so how manufacturing MWh divide
   between industries does not move at all after 2018. Only the size of the pool
   moves.
-- **The bills move with the electricity Use row**, which
+- **Electricity purchases move with the nowcast Use row**, which
   `electricity_row_control.py` shows is unsettled: it lost roughly a fifth of
   its share of all intermediate use across 2023-24 (issue **#896**). Falling
-  bills over frozen MWh shares lower the cheap tail directly — and 2023 and 2024
+  purchases over frozen MWh shares lower the cheap tail directly — and 2023 and 2024
   are exactly where the "growth from prices" column jumps to +15 and +24.
 
 `p` has its own exposure in the years where it does the work. It is
@@ -265,7 +266,7 @@ industry had risen 20.5% then 15.4% on a fuel-cost pass-through, and `p` went
 
 **Either way the conclusion is the same.** Which purchasers the method can
 represent is set by the electricity row's dollar level — through `p` in 2022,
-through the bills in 2023-24 — and that level is not a settled quantity.
+through electricity purchases in 2023-24 — and that level is not a settled quantity.
 
 ## 5. The published validation cannot see any of this
 
@@ -278,34 +279,34 @@ class's MWh as its EIA share of (eGRID − exports). A ratio of 1.000 confirms t
 constraint binds; it is not independent evidence about the allocation. Every
 finding above is *within* class, where nothing is checked.
 
-## 6. Fixing the allocator alone will not work — the bills it divides are defective too
+## 6. Fixing the allocator alone will not work — electricity purchases it divides are defective too
 
 Everything above is about the **allocator** (`allocate_purchaser_gtd`, the EEIO
 side, Discussions #88 and #90). But the allocator does not decide how much
-electricity anyone buys. It takes each purchaser's electricity bill as given and
-only splits it into generation and delivery. Those bills come from the
+electricity anyone buys. It takes each purchaser's electricity purchases as given and
+only splits it into generation and delivery. Those purchases come from the
 **nowcast's electricity Use row**, which is a separate piece of work with
 separate defects.
 
 Point 4 is what makes this load-bearing rather than a caveat. **Of the 38 extra
-capped purchasers in 2024, 24 come from purchasers' own prices falling, and a
-purchaser's own price is `bill ÷ MWh`.** The bills are doing most of the damage,
-and they are not the allocator's to fix.
+capped purchasers in 2024, 24 come from purchasers' prices per kWh falling, and a
+purchaser's price per kWh is `purchases ÷ MWh`.** Electricity purchases are doing
+most of the damage, and they are not the allocator's to fix.
 
 What has to move on the nowcast side, measured in
 `electricity_row_control.py` and `About_electricity_shares.md`:
 
 1. **The row loses a fifth of its share of intermediate use across 2023-24**
    (issue **#896**) — 2.02% of all intermediate use in 2022 to 1.70% and 1.54%,
-   after six years steady at 1.82-2.03%. That fall lowers manufacturing bills,
-   which lowers own prices, which is the +15 and +24 in point 4's table. **#896
+   after six years steady at 1.82-2.03%. That fall lowers manufacturing purchases,
+   which lowers prices per kWh, which is the +15 and +24 in point 4's table. **#896
    is on the critical path for this method, not beside it.**
 2. **The commercial band has no electricity seed at all** and moves on the
    carry, so the larger half of the row is unanchored. Manufacturing at least
    rides on Census `CSTELEC` through `nonmaterial_seed`.
 3. **The row is a residual.** `intermediate = q − Y` with final demand anchored
    to EIA and commodity output not, so every dollar of movement in the output
-   control lands on the bills the allocator divides — including BEA's 2021-22
+   control lands on electricity purchases the allocator divides — including BEA's 2021-22
    fuel-cost pass-through.
 4. **Individual cells are wrong.** 322120 paper mills carries **$0** electricity
    in 2021 and 2023 in the pinned MUT. Paper is one of the three industries #90
@@ -316,15 +317,15 @@ What has to move on the nowcast side, measured in
    never how the row *divides*.
 
 `About_price_proposal.md` is organised in three sections — **A** the price, **B**
-the bills, **C** the split — and its section **B** is the proposed answer to 2, 3 and 5 —
+electricity purchases, **C** the split — and its section **B** is the proposed answer to 2, 3 and 5 —
 realign manufacturing electricity to MECS levels at the 2018 and 2022 anchors
 and index annually on Census between them. It is written, and it is where the
-detail belongs; this document's point is that **fixing the bills is not optional
+detail belongs; this document's point is that **fixing electricity purchases is not optional
 alongside fixing the split.** A correctly priced allocator dividing a row that sheds a
 fifth of its share in two years will still produce a growing capped set, because
 point 4 shows that is exactly what has been driving the growth.
 
-⚠️ Sequencing matters and cuts the other way too: **the bills must be fixed
+⚠️ Sequencing matters and cuts the other way too: **electricity purchases must be fixed
 first, or the allocator's improvement cannot be measured.** If both move in one
 change, a reduced capped count cannot be attributed to either.
 
@@ -343,7 +344,7 @@ delivery costs, and doubles their emission factor — and that this is a propert
 of the arithmetic rather than of the MECS weights.
 
 ⚠️ #90 M5 anticipated this failure mode in the record, while arguing to defer
-MECS Table 11.3: assigning plants more MWh than their bill can pay for means
+MECS Table 11.3: assigning plants more MWh than their purchases can pay for means
 "published mixed-units MWh then follow the capped dollars, so those plants would
 not actually keep the extra onsite kWh." The same exposure applies to Table 7.7,
 which was adopted. The argument was made and not carried across.
@@ -355,14 +356,14 @@ This is the objection the proposal has to answer, and the distinction is sharp.
 **Iteration 1 used prices to move dollars between purchasers.** It changed who
 pays what for electricity, and that is what broke the MWh pattern against EIA.
 
-**The proposal changes no bill.** #88 D8 — each purchaser keeps its own
+**The proposal changes no purchaser's electricity purchases.** #88 D8 — each purchaser keeps its own
 electricity dollars — is retained exactly. What changes is that generation is
 priced by class rather than by one national scalar, and T&D becomes the explicit
 residual:
 
 ```
 gen_i  = kWh_i × p_gen(class)
-T&D_i  = bill_i − gen_i     ( = kWh_i × (price_i − p_gen) )
+T&D_i  = purchases_i − gen_i     ( = kWh_i × (price_i − p_gen) )
 ```
 
 This is the current method's own logic applied *within* class instead of only
@@ -396,7 +397,7 @@ Stated up front, because the risk is regressing to iteration 1.
    not of the electricity row's dollar total, so that point 4's coupling is
    broken.
 
-**On the nowcast electricity row** — section B, the bills the allocator divides,
+**On the nowcast electricity row** — section B, electricity purchases the allocator divides,
 which has to move too:
 
 6. **The row's share of all intermediate use is stable across the span**, or its
