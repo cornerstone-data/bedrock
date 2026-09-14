@@ -21,6 +21,7 @@ from pathlib import Path
 import pandas as pd
 
 import bedrock.utils.mapping as mapping
+from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.trade.utilities import (
     ELECTRICITY_EXPORTS_ACTIVITY,
     ELECTRICITY_IMPORTS_ACTIVITY,
@@ -45,38 +46,30 @@ def test_both_activities_map_to_the_electricity_commodity_as_a_commodity() -> No
         assert rows.at[activity, 'SectorType'] == 'C'
 
 
-def _fba_stub() -> pd.DataFrame:
+def _fba() -> FlowByActivity:
     """Two Table 2.14 rows, one per direction, in the shape the clean sees."""
-    return pd.DataFrame(
-        {
-            'FlowName': ['electricity exports', 'electricity imports'],
-            'Description': ['EIA Table 2.14 CA', 'EIA Table 2.14 CA'],
-            'FlowAmount': [1.0, 2.0],
-            'Unit': ['MWh', 'MWh'],
-            'Class': ['Energy', 'Energy'],
-            'Location': ['00000', '00000'],
-            'ActivityProducedBy': [None, None],
-            'ActivityConsumedBy': [None, None],
-            'Year': [2022, 2022],
-        }
+    return FlowByActivity(
+        pd.DataFrame(
+            {
+                'FlowName': ['electricity exports', 'electricity imports'],
+                'Description': ['EIA Table 2.14 CA', 'EIA Table 2.14 CA'],
+                'FlowAmount': [1.0, 2.0],
+                'Unit': ['MWh', 'MWh'],
+                'Class': ['Energy', 'Energy'],
+                'Location': ['00000', '00000'],
+                'ActivityProducedBy': [None, None],
+                'ActivityConsumedBy': [None, None],
+                'Year': [2022, 2022],
+            }
+        ),
+        full_name='EIA_ElectricPowerAnnual.electricity',
+        config={'year': 2022},
+        convert_df_to_flowby=True,
     )
 
 
-class _Stub(pd.DataFrame):
-    """Minimal stand-in carrying the two attributes the clean reads."""
-
-    _metadata = ['config', 'full_name']
-
-    @property
-    def _constructor(self) -> type[pd.DataFrame]:
-        return pd.DataFrame
-
-
 def _dollarized() -> pd.DataFrame:
-    stub = _Stub(_fba_stub())
-    stub.config = {'year': 2022}
-    stub.full_name = 'EIA_ElectricPowerAnnual.electricity'
-    return pd.DataFrame(dollarize_electricity_trade_fba(stub))
+    return pd.DataFrame(dollarize_electricity_trade_fba(_fba()))
 
 
 def test_export_row_carries_the_commodity_on_the_produced_side() -> None:
