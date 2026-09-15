@@ -464,6 +464,14 @@ EPA_CDDPath:
   - Other
   activity_schema: null
   sector_hierarchy: flat
+EPA_eGRID_electric:
+  data_format: FBS_outside_flowsa
+  class:
+  - Chemicals
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: flat
 EPA_FactsAndFigures:
   data_format: FBA
   class:

@@ -23,11 +23,6 @@
           attribution_method: direct
 
     EPA_eGRID_electric:
-      data_format: FBS_outside_flowsa
-      activity_schema:
-        naics:
-          year: 2017
-          hierarchy: flat
       activity_to_sector_mapping: EPA_eGRID
       FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
       inventory_dict:
