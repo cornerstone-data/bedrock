@@ -162,6 +162,28 @@ ATTRIBUTION_CLASS: dict[str, str] = {
 #: year-to-year movement is not independent evidence about emissions.
 IO_DERIVED_CLASSES = frozenset({'io_use_table', 'io_gross_output'})
 
+#: ⚠️ **EPA renumbered these attribution tables mid-span, and without the merge
+#: the renumbering reads as an emissions collapse.** The soils vector is
+#: ``T_5_17`` in 2017-18 and ``T_5_18`` from 2019; the indirect-soils vector
+#: moved ``T_5_18`` to ``T_5_19`` at the same time, so ``T_5_18`` means
+#: *direct* in some years and *indirect* in others. Non-energy use moved
+#: ``T_3_25b`` to ``T_3_25`` for 2023. Left unmerged, 2019 shows −308 Mt on
+#: ``T_5_17`` against +290 Mt on ``T_5_18`` while the emissions themselves run
+#: flat at ~290 Mt, and 2023 does the same at ~90 Mt for non-energy use.
+#:
+#: Merging on the table number alone would be wrong, because the number does
+#: not identify the role. Merging onto the **role** is safe: the pair's
+#: ``MetaSources`` half already carries it (``UMD_GHGIA_T_5_10.direct`` against
+#: ``.indirect``), and in any one year each MetaSource pairs with exactly one
+#: EPA table. The raw value is kept in ``AttributionSources`` throughout.
+ATTRIBUTION_ROLE_ALIAS: dict[str, str] = {
+    'EPA_GHGI_T_5_17': 'EPA_GHGI_soils',
+    'EPA_GHGI_T_5_18': 'EPA_GHGI_soils',
+    'EPA_GHGI_T_5_19': 'EPA_GHGI_soils',
+    'EPA_GHGI_T_3_25': 'EPA_GHGI_NEU',
+    'EPA_GHGI_T_3_25b': 'EPA_GHGI_NEU',
+}
+
 
 def canonical_attribution(value: str) -> str:
     """Strip a trailing calendar year so a stratum is comparable across years.
@@ -170,6 +192,18 @@ def canonical_attribution(value: str) -> str:
     stratum; without this every year would look like a different source.
     """
     return _YEAR_SUFFIX.sub('', str(value))
+
+
+def attribution_role(value: str) -> str:
+    """The vintage-stable name of an attribution vector.
+
+    :data:`ATTRIBUTION_ROLE_ALIAS` folds EPA's mid-span table renumberings onto
+    one role; everything else is :func:`canonical_attribution` unchanged. This
+    is the column every rollup keys on, because the raw table number turns a
+    relabelling into a several-hundred-megatonne swing.
+    """
+    canonical = canonical_attribution(value)
+    return ATTRIBUTION_ROLE_ALIAS.get(canonical, canonical)
 
 
 def classify_attribution(value: str) -> str:
@@ -364,7 +398,9 @@ def stratified_E(year: int, vintage: str) -> pd.DataFrame:
     )
     grouped.columns = pd.Index(['sector', *STRATUM, 'CO2e'])
     grouped['year'] = year
-    grouped['attribution'] = grouped['AttributionSources'].map(canonical_attribution)
+    # `attribution` is the vintage-stable role every rollup keys on; the raw
+    # table number stays in `AttributionSources` for provenance.
+    grouped['attribution'] = grouped['AttributionSources'].map(attribution_role)
     grouped['attribution_class'] = grouped['AttributionSources'].map(
         classify_attribution
     )
@@ -444,6 +480,20 @@ class Span:
     #: year -> Vnorm (405 x 405) for that year's nowcast Make
     Vnorm: dict[int, pd.DataFrame]
     vintages: SpanVintages
+
+    def __post_init__(self) -> None:
+        """Recompute the derived attribution columns from the raw FBS value.
+
+        A cached ``E`` was written before :data:`ATTRIBUTION_ROLE_ALIAS` gained
+        an entry would otherwise carry a stale role and re-introduce a
+        renumbering as a real movement. ``AttributionSources`` is the raw value
+        and never changes, so deriving from it on every load is cheap and
+        leaves no stale-cache failure mode.
+        """
+        self.E = self.E.assign(
+            attribution=self.E['AttributionSources'].map(attribution_role),
+            attribution_class=self.E['AttributionSources'].map(classify_attribution),
+        )
 
     def output(self, real: bool) -> pd.DataFrame:
         """``x_real`` when *real*, else nominal ``x``."""
@@ -933,6 +983,13 @@ def report(
         .to_string(),
     )
 
+    # The raw table numbers, kept so EPA's mid-span renumbering stays visible
+    # somewhere rather than only in ATTRIBUTION_ROLE_ALIAS. Read it as evidence
+    # about vintages, never as evidence about emissions.
+    tables['divergence_by_attribution_raw'] = divergence_by(
+        detail, 'AttributionSources'
+    )
+
     tables['divergence_by_class'] = divergence_by(detail, 'attribution_class')
     tables['divergence_by_metasource'] = divergence_by(detail, 'MetaSources', top=15)
     logger.info(
@@ -1027,22 +1084,135 @@ def plot_E_and_x_indexed(span: Span) -> None:
     plt.close(fig)
 
 
-def plot_divergence_stack(detail: pd.DataFrame) -> None:
-    """Each year's E-versus-x gap, stacked by attribution source."""
+#: Short names for the attribution vectors, for chart labels.
+_ATTRIBUTION_ABBREV: dict[str, str] = {
+    'Nowcast_Detail_Use_AfterRedef': 'Use',
+    'BEA_Detail_GrossOutput_IO': 'GO',
+    'Energy_manufacturing_national_nowcast': 'MECS',
+    'Direct': 'Direct',
+}
+
+_TABLE_STEM = re.compile(r'^(UMD_GHGIA|EPA_GHGI)_T_([A-Za-z0-9_]+?)(?:\.(.*))?$')
+
+
+def abbreviate_source(value: str) -> str:
+    """``UMD_GHGIA_T_3_11.ng_manufacturing`` -> ``UMD 3-11 ng_manufacturing``.
+
+    Anything that does not look like a GHGI table name is returned unchanged,
+    so a new source shows up in full rather than being silently mangled.
+    """
+    match = _TABLE_STEM.match(str(value))
+    if not match:
+        return _ATTRIBUTION_ABBREV.get(str(value), str(value))
+    family, table, suffix = match.groups()
+    short = f'{"UMD" if family.startswith("UMD") else "EPA"} {table.replace("_", "-")}'
+    if suffix:
+        short = f'{short} {suffix[:22]}'
+    return short
+
+
+def source_pair_label(meta: str, attribution: str) -> str:
+    """``<inventory table> -> <what spread it across sectors>``, abbreviated."""
+    return f'{abbreviate_source(meta)} → {abbreviate_source(attribution)}'
+
+
+def divergence_by_source_pair(
+    detail: pd.DataFrame, threshold: float = 0.03
+) -> pd.DataFrame:
+    """Divergence per year by ``MetaSources`` x ``AttributionSources`` pair.
+
+    A pair is kept in its own right when, in at least one year, it carries
+    *threshold* or more of that year's **gross** divergence - the sum of the
+    absolute value of every pair's term, which is the right denominator here
+    because the signed total nets opposing movements to something much smaller
+    than the movements themselves. Everything below that in every year is
+    bundled into ``other``, which is a real sum and not a remainder: the
+    bundled and kept terms still add to the year's signed divergence.
+
+    ⚠️ **Two legend entries can be the same stratum in different GHGI
+    vintages.** EPA renumbered the soils tables - the direct-soils vector is
+    ``EPA_GHGI_T_5_17`` in 2017 and ``EPA_GHGI_T_5_18`` from 2019, and the
+    indirect one moved ``T_5_18`` to ``T_5_19`` - so ``T_5_18`` means *direct*
+    in some years and *indirect* in others. They are deliberately not merged
+    on the table number, because the number alone does not identify the role;
+    the ``MetaSources`` half of the pair (``UMD_GHGIA_T_5_10.direct`` against
+    ``.indirect``) is what does. Non-energy use moved ``T_3_25b`` to ``T_3_25``
+    for 2024 the same way.
+    """
+    pairs = (
+        detail.groupby(['year_to', 'MetaSources', 'attribution'])['divergence']
+        .sum()
+        .reset_index()
+    )
+    pairs['label'] = [
+        source_pair_label(m, a)
+        for m, a in zip(pairs['MetaSources'], pairs['attribution'])
+    ]
+    gross = pairs.groupby('year_to')['divergence'].apply(lambda s: s.abs().sum())
+    pairs['share_of_gross'] = pairs['divergence'].abs() / pairs['year_to'].map(gross)
+    peak = pairs.groupby('label')['share_of_gross'].max()
+    kept = set(peak.index[peak >= threshold])
+    pairs['bundled'] = ~pairs['label'].isin(kept)
+    pairs.loc[pairs['bundled'], 'label'] = 'other'
+    logger.info(
+        'Source pairs: %d kept at the %.0f%% threshold, %d bundled into "other" '
+        '(%.1f%% of gross divergence)',
+        len(kept),
+        threshold * 100,
+        peak.size - len(kept),
+        pairs.loc[pairs['bundled'], 'divergence'].abs().sum()
+        / pairs['divergence'].abs().sum()
+        * 100,
+    )
+    return pairs
+
+
+def plot_divergence_stack(
+    detail: pd.DataFrame,
+    filename: str = 'divergence_by_source.png',
+    title_suffix: str = '',
+    threshold: float = 0.03,
+) -> pd.DataFrame:
+    """Each year's E-versus-x gap, stacked by inventory table and attribution.
+
+    Returns the plotted frame so the bundling is inspectable rather than only
+    visible in the picture.
+    """
+    pairs = divergence_by_source_pair(detail, threshold)
+    plotted = pairs.groupby(['year_to', 'label'])['divergence'].sum().reset_index()
     pivot = (
-        divergence_by(detail, 'attribution')
-        .pivot(index='year_to', columns='attribution', values='divergence')
-        .fillna(0.0)
+        plotted.pivot(index='year_to', columns='label', values='divergence').fillna(0.0)
         / 1e9
     )
-    fig, ax = plt.subplots(figsize=(11, 6))
-    colours = plt.get_cmap('tab20')(np.linspace(0, 1, len(pivot.columns)))
+    # Biggest movers first, 'other' always last, so the legend reads in order.
+    order = (
+        pivot.drop(columns='other', errors='ignore')
+        .abs()
+        .sum()
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+    if 'other' in pivot.columns:
+        order.append('other')
+    pivot = pivot[order]
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+    # tab20 alone repeats once past 20 series, which puts two different sources
+    # in the same blue; chain the three 20-colour qualitative maps instead.
+    palette = [
+        c
+        for name in ('tab20', 'tab20b', 'tab20c')
+        for c in plt.get_cmap(name).colors  # type: ignore[attr-defined]
+    ]
+    colours = [palette[i % len(palette)] for i in range(len(order))]
     bottom_pos = np.zeros(len(pivot))
     bottom_neg = np.zeros(len(pivot))
     # Positive and negative halves stack from zero in opposite directions, so a
     # source that flips sign between years keeps one colour and one legend entry.
     for colour, column in zip(colours, pivot.columns):
         values = pivot[column].to_numpy(dtype=float)
+        if column == 'other':
+            colour = (0.6, 0.6, 0.6)
         positive = np.clip(values, 0, None)
         negative = np.clip(values, None, 0)
         ax.bar(
@@ -1052,13 +1222,24 @@ def plot_divergence_stack(detail: pd.DataFrame) -> None:
         bottom_pos += positive
         bottom_neg += negative
     ax.axhline(0, color='black', linewidth=0.8)
-    ax.set_title('Emissions that did not track output, by attribution source')
+    # Autoscale sees each half-stack, not the stacked extent, so set the limits
+    # from the stacks themselves or the tallest bar gets clipped at the frame.
+    headroom = 0.08 * max(bottom_pos.max() - bottom_neg.min(), 1.0)
+    ax.set_ylim(bottom_neg.min() - headroom, bottom_pos.max() + headroom)
+    ax.set_title(
+        'Emissions that did not track output, by inventory table and what '
+        f'spread it across sectors{title_suffix}\n'
+        f'pairs under {threshold:.0%} of gross divergence in every year are '
+        'bundled into "other"',
+        fontsize=11,
+    )
     ax.set_xlabel('year')
     ax.set_ylabel('Mt CO2e above (+) or below (-) output-tracking')
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=7, ncol=2, loc='center left', bbox_to_anchor=(1.0, 0.5))
     fig.tight_layout()
-    fig.savefig(OUTPUT_DIR / 'divergence_by_attribution.png', dpi=150)
+    fig.savefig(OUTPUT_DIR / filename, dpi=150, bbox_inches='tight')
     plt.close(fig)
+    return pairs
 
 
 def plot_elasticity(elasticity: pd.DataFrame) -> None:
@@ -1166,7 +1347,14 @@ def main(
     save_tables(tables)
 
     plot_E_and_x_indexed(span)
-    plot_divergence_stack(detail)
+    tables['divergence_by_source_plotted'] = plot_divergence_stack(
+        detail, 'divergence_by_source.png', ' (nominal x)'
+    )
+    tables['divergence_by_source_plotted_real'] = plot_divergence_stack(
+        detail_real,
+        'divergence_by_source_real.png',
+        f' (x in constant {int(span.x.columns[0])} $)',
+    )
     plot_elasticity(tables['output_elasticity'])
     logger.info('Wrote plots to %s', OUTPUT_DIR)
 
