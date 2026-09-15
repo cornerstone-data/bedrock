@@ -327,9 +327,11 @@ def fbs_to_co2e(fbs: pd.DataFrame) -> pd.DataFrame:
         'CH4_non_fossil'
     )
 
-    gwp = dict(GWP100_AR6_CEDA)
-    gwp['HFCs'] = 1  # already CO2e as published
-    gwp['PFCs'] = 1
+    # Widened to plain str keys: GWP100_AR6_CEDA is typed on a Literal of the
+    # gas names it knows, and the two basket rows below are not among them.
+    gwp: dict[str, float] = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp['HFCs'] = 1.0  # already CO2e as published
+    gwp['PFCs'] = 1.0
     factors = mapped['Flowable'].map(gwp)
     unmapped = sorted(set(mapped.loc[factors.isna(), 'Flowable'].astype(str)))
     if unmapped:
@@ -572,7 +574,7 @@ def emissions_without_output(span: Span) -> pd.DataFrame:
     pivot['total'] = pivot['on_industries'] + pivot['no_output_row']
     pivot['excluded_share'] = pivot['no_output_row'] / pivot['total']
     excluded = sorted(set(per_sector.loc[~per_sector['has_output'], 'sector']))
-    logger.info('Rows with no x, excluded from the decomposition: %s', excluded)
+    logger.debug('Rows with no x, excluded from the decomposition: %s', excluded)
     return pivot[['on_industries', 'no_output_row', 'total', 'excluded_share']]
 
 
@@ -822,13 +824,24 @@ def B_by_attribution(span: Span) -> pd.DataFrame:
 # --- reporting --------------------------------------------------------------
 
 
+#: Widened to plain str keys; INDUSTRY_DESC is typed on a Literal of the 405
+#: codes, and these frames carry codes as ordinary strings.
+_INDUSTRY_NAME: dict[str, str] = {str(k): str(v) for k, v in INDUSTRY_DESC.items()}
+
+
 def _with_names(frame: pd.DataFrame, column: str = 'sector') -> pd.DataFrame:
     """Attach the Cornerstone description next to a sector or commodity code."""
     out = frame.copy()
+    position = out.columns.get_loc(column)
+    if not isinstance(position, int):
+        raise ValueError(
+            f'{column!r} is not a single column of this frame, so there is no '
+            f'one place to insert its name beside.'
+        )
     out.insert(
-        out.columns.get_loc(column) + 1,
+        position + 1,
         'name',
-        out[column].map(lambda code: INDUSTRY_DESC.get(str(code), '')),
+        out[column].map(lambda code: _INDUSTRY_NAME.get(str(code), '')),
     )
     return out
 
@@ -897,10 +910,6 @@ def report(
     )
 
     tables['emissions_without_output'] = emissions_without_output(span)
-    logger.info(
-        'E on rows with no x - outside every figure below:\n%s',
-        tables['emissions_without_output'].to_string(),
-    )
 
     tables['io_derived_share'] = io_derived_share(span)
     logger.info(
