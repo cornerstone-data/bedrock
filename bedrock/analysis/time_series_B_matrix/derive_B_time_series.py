@@ -1383,11 +1383,37 @@ def load_span(years: tuple[int, ...] = YEARS) -> Span:
 
 
 def save_tables(tables: dict[str, pd.DataFrame]) -> None:
-    """Write every table to CSV next to the plots."""
+    """Write every table to CSV next to the plots.
+
+    ⚠️ **One unwritable file must not cost the other twenty.** A CSV open in
+    Excel is locked on Windows, and a bare loop aborts on the first
+    ``PermissionError`` - leaving every table after it in the iteration order
+    silently absent, which reads exactly like the analysis never produced them.
+    Each write is therefore attempted on its own, and the failures are
+    collected and raised together at the end, naming the files to close.
+    """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    failed: dict[str, str] = {}
     for name, frame in tables.items():
-        frame.to_csv(OUTPUT_DIR / f'{name}.csv')
-    logger.info('Wrote %d tables to %s', len(tables), OUTPUT_DIR)
+        try:
+            frame.to_csv(OUTPUT_DIR / f'{name}.csv')
+        except OSError as exc:
+            failed[name] = str(exc)
+    logger.info(
+        'Wrote %d of %d tables to %s',
+        len(tables) - len(failed),
+        len(tables),
+        OUTPUT_DIR,
+    )
+    if failed:
+        listing = '\n'.join(
+            f'  {name}.csv: {reason}' for name, reason in failed.items()
+        )
+        raise OSError(
+            f'{len(failed)} of {len(tables)} tables could not be written - every '
+            f'other table was written and is current. Close these files (an open '
+            f'spreadsheet locks them on Windows) and re-run:\n{listing}'
+        )
 
 
 # --- main -------------------------------------------------------------------
@@ -1416,8 +1442,10 @@ def main(
     tables = report(span, detail, detail_real)
     tables['divergence_detail'] = detail
     tables['divergence_detail_real'] = detail_real
-    save_tables(tables)
 
+    # Plot before saving: the two plot calls return the frames they charted,
+    # and those belong in `tables` before `save_tables` walks it. Saving first
+    # wrote every table except the two that had not been added yet.
     plot_E_and_x_indexed(span)
     tables['divergence_by_source_plotted'] = plot_divergence_stack(
         detail, 'divergence_by_source.png', ' (nominal x)'
@@ -1429,6 +1457,8 @@ def main(
     )
     plot_elasticity(tables['output_elasticity'])
     logger.info('Wrote plots to %s', OUTPUT_DIR)
+
+    save_tables(tables)
 
     return tables
 
