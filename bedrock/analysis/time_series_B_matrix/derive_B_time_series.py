@@ -677,7 +677,13 @@ def divergence_by(
     by: str | list[str] = 'attribution',
     top: int | None = None,
 ) -> pd.DataFrame:
-    """Roll :func:`divergence` up to *by*, ranked by absolute divergence."""
+    """Roll :func:`divergence` up to *by*, ranked by absolute divergence.
+
+    ⚠️ *top* truncates to the *n* largest **absolute** movers per year, which
+    is the wrong ranking for a percentage question - a small source can move a
+    long way in percentage terms and never appear. Pass it only for a log
+    preview, and leave it off for anything saved.
+    """
     keys = [by] if isinstance(by, str) else list(by)
     rolled = (
         detail.groupby(['year_from', 'year_to', *keys])[
@@ -689,6 +695,11 @@ def divergence_by(
     rolled['divergence_pct_of_E_from'] = np.where(
         rolled['E_from'] > 0, rolled['divergence'] / rolled['E_from'] * 100, np.nan
     )
+    # Sort key for "which sectors moved furthest relative to their own size",
+    # as opposed to the signed column, which sorts overshoot above undershoot.
+    # ⚠️ Read it next to E_from: a sector carrying a few kilotonnes can post a
+    # vast percentage off a rounding-scale numerator.
+    rolled['divergence_pct_of_E_abs'] = rolled['divergence_pct_of_E_from'].abs()
     rolled = rolled.sort_values(
         ['year_to', 'divergence'],
         key=lambda s: s.abs() if s.name == 'divergence' else s,
@@ -991,19 +1002,24 @@ def report(
     )
 
     tables['divergence_by_class'] = divergence_by(detail, 'attribution_class')
-    tables['divergence_by_metasource'] = divergence_by(detail, 'MetaSources', top=15)
+    # Saved tables are never truncated - a top-n by absolute movement is the
+    # wrong ranking for the percentage question, and a reader sorting the CSV
+    # on divergence_pct_of_E_abs would be sorting a pre-filtered file without
+    # knowing it. Truncation belongs in the log preview only.
+    tables['divergence_by_metasource'] = divergence_by(detail, 'MetaSources')
     logger.info(
-        'Top MetaSources by |divergence|, per year:\n%s',
-        tables['divergence_by_metasource'][
+        'Top MetaSources by |divergence|, per year (preview; the CSV is complete):\n%s',
+        divergence_by(detail, 'MetaSources', top=15)[
             ['year_to', 'MetaSources', 'E_from', 'E_to', 'divergence']
         ].to_string(index=False),
     )
 
-    tables['divergence_by_sector'] = _with_names(
-        divergence_by(detail, 'sector', top=15)
+    tables['divergence_by_sector'] = _with_names(divergence_by(detail, 'sector'))
+    tables['divergence_by_sector_real'] = _with_names(
+        divergence_by(detail_real, 'sector')
     )
     tables['divergence_by_sector_stratum'] = divergence_by(
-        detail, ['sector', 'attribution', 'MetaSources'], top=25
+        detail, ['sector', 'attribution', 'MetaSources']
     )
 
     tables['identity_check_real'] = verify_identity(span, detail_real, real=True)
@@ -1015,9 +1031,7 @@ def report(
         .pivot(index='attribution', columns='year_to', values='divergence')
         .to_string(),
     )
-    tables['divergence_by_metasource_real'] = divergence_by(
-        detail_real, 'MetaSources', top=15
-    )
+    tables['divergence_by_metasource_real'] = divergence_by(detail_real, 'MetaSources')
 
     tables['output_elasticity'] = output_elasticity(detail, 'attribution')
     logger.info(
