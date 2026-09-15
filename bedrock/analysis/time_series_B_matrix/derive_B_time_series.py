@@ -840,21 +840,66 @@ def output_elasticity(detail: pd.DataFrame, by: str = 'attribution') -> pd.DataF
 # --- Step 6: B, as a by-product ---------------------------------------------
 
 
-def B_total(span: Span) -> pd.DataFrame:
+def B_total(span: Span, real: bool = False) -> pd.DataFrame:
     """Total-CO2e commodity intensity, ``(E / x) @ Vnorm``, commodity x year.
 
     One row per commodity rather than per gas - the gas split is what #906
-    asked to drop.
+    asked to drop. *real* divides by the deflated output instead, giving
+    CO2e per constant first-year dollar.
     """
+    x_all = span.output(real)
     columns: dict[int, pd.Series] = {}
     for year in span.Vnorm:
         E_sector = span.E[span.E['year'] == year].groupby('sector')['CO2e'].sum()
         Vnorm = span.Vnorm[year]
-        x = span.x[year].reindex(Vnorm.index).fillna(0.0)
+        x = x_all[year].reindex(Vnorm.index).fillna(0.0)
         E_aligned = E_sector.reindex(Vnorm.index).fillna(0.0)
         intensity = (E_aligned / x).replace([np.inf, -np.inf], 0.0).fillna(0.0)
         columns[year] = intensity @ Vnorm
     return pd.DataFrame(columns).rename_axis(index='commodity', columns='year')
+
+
+def B_change(span: Span, real: bool = True) -> pd.DataFrame:
+    """Year-on-year change in the emission factor itself, one row per year-pair.
+
+    ``B`` is the published EF - CO2e per dollar of that commodity, indirect
+    effects included via ``Vnorm`` - so this is the table to sort when the
+    question is *where did the factor move*, rather than where the emissions
+    behind it moved. Long rather than wide, so it sorts on year and commodity
+    together, and defaults to **real** dollars: a nominal EF falls whenever
+    prices rise, which over this span would put inflation at the top of the
+    ranking (see :func:`price_effect`).
+
+    ⚠️ **Sort on** ``abs_pct_change`` **but read it next to** ``B_from``. A
+    commodity with a near-zero factor posts a huge percentage off a
+    rounding-scale numerator; filtering on ``B_from`` first is what makes the
+    ranking mean anything. ``pct_change`` is left NaN where ``B_from`` is zero,
+    since there is no percentage of nothing.
+    """
+    B = B_total(span, real=real)
+    years = [int(y) for y in B.columns]
+    frames = []
+    for prior, current in zip(years, years[1:]):
+        block = pd.DataFrame(
+            {
+                'year_from': prior,
+                'year_to': current,
+                'commodity': B.index,
+                'B_from': B[prior].to_numpy(),
+                'B_to': B[current].to_numpy(),
+            }
+        )
+        frames.append(block)
+    out = pd.concat(frames, ignore_index=True)
+    out['delta_B'] = out['B_to'] - out['B_from']
+    out['pct_change'] = np.where(
+        out['B_from'] != 0, out['delta_B'] / out['B_from'] * 100, np.nan
+    )
+    out['abs_pct_change'] = np.abs(out['pct_change'])
+    out = _with_names(out, 'commodity')
+    return out.sort_values(
+        ['year_to', 'abs_pct_change'], ascending=[True, False]
+    ).reset_index(drop=True)
 
 
 def B_by_attribution(span: Span) -> pd.DataFrame:
@@ -1047,7 +1092,20 @@ def report(
     )
 
     tables['B_total'] = B_total(span)
+    tables['B_total_real'] = B_total(span, real=True)
     tables['B_by_attribution'] = B_by_attribution(span)
+    # The EF movement table: sort on abs_pct_change, filter on B_from.
+    tables['B_change_real'] = B_change(span, real=True)
+    logger.info(
+        'Largest EF movements in constant %d dollars, per year (preview of a '
+        'complete CSV; filtered to commodities over 0.1 kg CO2e/$ so the '
+        'ranking is not led by rounding-scale factors):\n%s',
+        int(span.x.columns[0]),
+        tables['B_change_real'][tables['B_change_real']['B_from'] > 1e-4]
+        .groupby('year_to')
+        .head(3)[['year_to', 'commodity', 'name', 'B_from', 'B_to', 'abs_pct_change']]
+        .to_string(index=False),
+    )
     tables['x'] = span.x
     tables['x_real'] = span.x_real
 
