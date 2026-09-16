@@ -16,6 +16,10 @@ Based on
 
 Create the diagnostics to identify and prioritize the drivers. 
 
+Drivers found so far, what each is worth, and whether it has been shown to
+be justified, are tracked in
+[`B_driver_investigation.md`](B_driver_investigation.md).
+
 ### Determine why the drivers change and how to fix them
 
 `B = (E/x) @ Vnorm` 
@@ -45,7 +49,7 @@ for remediation, being the nowcast Make, even though it is a direct term in
 
 ## Methods: which diagnostic answers which approach
 
-Everything below comes from `derive_B_time_series.py` in this folder. Run it
+Everything below comes from `B_change_diagnostics.py` in this folder. Run it
 with no arguments; it writes 28 tables and 3 figures to `output/`. Figures for
 the numbers quoted here are from the run of 2026-09-15 on FBS vintage
 `v0.3.0_796a6ca` and MUT vintage `v0.3.0_4276083`. **Treat the module and its

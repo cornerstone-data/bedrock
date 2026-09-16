@@ -1,10 +1,11 @@
 # What moves `B`, and how much of it is real
 
-Findings from `derive_B_time_series.py`, run 2026-09-16 against FBS vintage
+Findings from `B_change_diagnostics.py`, run 2026-09-16 against FBS vintage
 `v0.3.0_796a6ca` and nowcast MUT vintage `v0.3.0_4276083`, nowcast models
 2017-2024. Method and the diagnostic-to-approach mapping are in
 [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md); this note holds the
-numbers.
+numbers, and [`B_driver_investigation.md`](B_driver_investigation.md) tracks
+which of them have been shown to be justified.
 
 `B = (E / x) @ Vnorm`, so the three drivers the plan names — `E`, `x` and
 `Vnorm` — are the three places a factor can move from. The sections below

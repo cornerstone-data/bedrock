@@ -88,8 +88,8 @@ build vintages measures the rebuild, not the years. :func:`resolve_span_vintage`
 picks the newest local vintage that covers every requested year, and
 ``--fbs-vintage`` / ``--mut-vintage`` override it::
 
-    python -m bedrock.analysis.time_series_B_matrix.derive_B_time_series
-    python -m bedrock.analysis.time_series_B_matrix.derive_B_time_series --list-vintages
+    python -m bedrock.analysis.time_series_B_matrix.B_change_diagnostics
+    python -m bedrock.analysis.time_series_B_matrix.B_change_diagnostics --list-vintages
 """
 
 from __future__ import annotations
