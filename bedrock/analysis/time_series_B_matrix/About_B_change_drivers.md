@@ -196,10 +196,28 @@ cell ends where it started. **That is the justified-versus-unjustified question
 in measurable form**, and it does not fall out of magnitude alone.
 
 The single largest cell on the span is electric power's own direct emissions
-against `221100`, 609 Mt of gross movement — and it is *not* a smoothing
-target. Its oscillation is 0.42 and its net is −355 Mt: emissions falling
-faster than output, year after year, in the same direction. Smoothing that
-would erase decarbonisation.
+against `221100`, 609 Mt of gross movement, net −355 Mt. Direct intensity falls
+from 3.82 to 3.06 kg CO2e per constant-2017 dollar, so the dominant direction
+is real decarbonisation and smoothing the cell would erase it.
+
+⚠️ **But it is not monotone, and its oscillation of 0.42 is the honest score.**
+Two of the seven years reverse, for two different reasons:
+
+| year | E growth | real `x` growth | divergence |
+|---|---:|---:|---:|
+| 2021 | **+7.0%** | +0.4% | **+96.3 Mt** |
+| 2024 | +0.4% | **−1.8%** | **+30.9 Mt** |
+
+In 2021 emissions rose 103 Mt on flat real output — intensity went *up* 6.6%,
+from 3.19 to 3.40. In 2024 emissions were flat and real output contracted. Fuel
+switching in the generation mix is the obvious candidate for 2021 and is not
+measured here; what the diagnostic establishes is that the reversal is on the
+emissions side, not the output side.
+
+⚠️ 2021 is also the sharpest illustration of why the real series is the one to
+read. Nominal electricity output rose **19.8%** that year, from $473bn to
+$567bn, while real output rose 0.4%. On nominal `x` this cell would post a
+large *negative* divergence in the very year its emissions rose.
 
 Of the 63 cells carrying more than 10 Mt of gross movement, **33 oscillate
 above 0.75 and carry 1,158 Mt between them**, against 7 trending cells below
