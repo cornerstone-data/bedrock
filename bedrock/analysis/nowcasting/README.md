@@ -70,6 +70,13 @@ uv run python -m bedrock.analysis.nowcasting.plots \
 # the colour-vision separation check behind the palette
 uv run python -m bedrock.analysis.nowcasting.plots --check-palette
 
+# the Steps 1-7 flow diagram (writes images/)
+uv run python -m bedrock.analysis.nowcasting.pipeline_diagram
+
+# Excel dumps of stored balanced SUTs and after-redef MUTs (writes output/)
+uv run python -m bedrock.analysis.nowcasting.export_tables
+# options: --year 2023  --check  (report vintages only; write nothing)
+
 # toy SUT balancer walkthrough (writes sut_balancing/output/)
 uv run python bedrock/analysis/nowcasting/sut_balancing/plot_full_nowcasting_sut_balance.py
 ```
@@ -108,6 +115,22 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   `imshow`, with the row totals as a strip down the right edge and the column
   totals along the bottom, on the same colour scale. `palette_separation()`
   re-runs the colour-vision check behind the palette.
+- `pipeline_diagram.py` — the build as one picture: Steps 1-7, the sources
+  each reads, and the data product each hands on, drawn from the plan and
+  reconciled against the `transform/iot` modules. Steps 1-4 arrow into the
+  blocks of a schematic Supply and Use pair rather than into abstract product
+  boxes, which is what makes their parallelism legible — they do not feed each
+  other, they fill four parts of one seed. Downstream of the balance every
+  table gets its own box, and Step 5 shows what holds it: the target set and
+  the frozen cells. The figure is year-free by design — one pass for any
+  nowcast year, with no vintages, storage layout or units in it. Writes the
+  tracked `images/nowcast_pipeline_steps_1_to_7.png`.
+- `export_tables.py` — Excel dumps of the stored nowcast products for reading
+  and sharing: balanced SUT pair, after-redefinitions Make/Use/Import, and the
+  Margins transaction list, each as its own workbook in USD under `output/`.
+  Resolves the newest parquet per artifact family by mtime (`--check` reports
+  the pick and the spread between families). A Provenance sheet names the
+  source parquet, branch, commit and units.
 - `initial_Y_pur_baseline.py` — the Step 1 final-demand comparison against the
   published 2017 detail Use table and against the PCE/PEQ bridges. Writes the
   cell-wise CSV exports in `output/` that `sections.py` reads as the Step 1
