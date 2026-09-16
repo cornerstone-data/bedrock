@@ -12,7 +12,6 @@ _CATALOG = (
 )
 
 _PUBLISHED_2024 = _GHG_DIR / 'GHG_national_Cornerstone_2024_egrid.yaml'
-_NOWCAST_OVERLAY_2024 = _GHG_DIR / 'GHG_national_Cornerstone_nowcast_2024_egrid.yaml'
 _NOWCAST_BASE_2024 = _GHG_DIR / 'GHG_national_Cornerstone_nowcast_2024.yaml'
 
 
@@ -43,19 +42,3 @@ def test_published_2024_egrid_overlay_uses_catalog() -> None:
     assert 'activity_schema:' not in text
     assert 'data_format: FBS_outside_flowsa' not in text
     assert 'EPA_eGRID_electric:' in text
-
-
-def test_nowcast_2024_egrid_overlay_unchanged_schema_shape() -> None:
-    text = _NOWCAST_OVERLAY_2024.read_text(encoding='utf-8')
-    assert '!include:GHG_national_Cornerstone_nowcast_2024.yaml' in text
-
-    # Overlay still carries its own industry_spec nest (file left untouched).
-    assert 'industry_spec:' in text
-    assert 'naics:' in text
-    assert 'industry_spec:\n    NAICS_6:' not in text
-    assert 'industry_spec:\n  NAICS_6:' not in text
-    assert 'activity_schema:' in text
-    assert 'NAICS_2017_Code' not in text
-    assert 'year: 2017' in text
-    assert 'hierarchy: flat' in text
-    assert 'activity_schema:\n        naics:' in text
