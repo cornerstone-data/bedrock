@@ -71,6 +71,97 @@ against `pct_change_N` of +81.7% in 2022, because its supply chain moved even
 though its own factor fell. `pct_change_N` is carried in the table for exactly
 that comparison.
 
+### The 30 largest weighted factor movements
+
+Every commodity-year in `B_change_real.csv`, ranked on `abs_delta_B_pct_of_N`,
+highest first. `own share` is `own_direct_share_of_N`; the bolded column is the
+gate metric; `pct_change_N` is what the commodity's total factor actually did.
+
+⚠️ marks a row whose factor is **negative** on one side of the pair. Those four
+rows are a data defect, not a movement — see the next section. Read the list
+past them.
+
+| year | commodity | name | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
+|---|---|---|---:|---:|---:|---:|
+| 2021 | `114000` ⚠ | Fishing, hunting and trapping | -0.49 | -779.2% | **+379.4%** | +567.2% |
+| 2021 | `483000` | Water transportation | 0.79 | +111.5% | **+87.6%** | +87.3% |
+| 2020 | `114000` ⚠ | Fishing, hunting and trapping | 0.63 | -115.5% | **-72.4%** | -80.1% |
+| 2023 | `114000` ⚠ | Fishing, hunting and trapping | 0.34 | -152.7% | **-51.9%** | -84.8% |
+| 2019 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.11 | +371.1% | **+41.3%** | +159.2% |
+| 2024 | `114000` ⚠ | Fishing, hunting and trapping | -1.18 | +35.0% | **-41.2%** | -75.7% |
+| 2020 | `611100` | Elementary and secondary schools | 0.53 | +71.9% | **+38.3%** | +30.2% |
+| 2022 | `111300` | Fruit and tree nut farming | 0.67 | -52.6% | **-35.1%** | -47.9% |
+| 2022 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.77 | -44.0% | **-33.8%** | -33.1% |
+| 2022 | `111200` | Vegetable and melon farming | 0.67 | +44.3% | **+29.5%** | +24.2% |
+| 2023 | `325310` | Fertilizer manufacturing | 0.89 | -32.0% | **-28.4%** | -30.8% |
+| 2021 | `315000` | Apparel manufacturing | 0.32 | -87.7% | **-28.0%** | -13.0% |
+| 2021 | `325110` | Petrochemical manufacturing | 0.64 | +41.6% | **+26.5%** | +25.2% |
+| 2022 | `483000` | Water transportation | 0.89 | -29.1% | **-25.8%** | -20.3% |
+| 2018 | `114000` | Fishing, hunting and trapping | 0.63 | -39.0% | **-24.5%** | -29.3% |
+| 2020 | `21311A` | Other support activities for mining | 0.47 | -46.5% | **-21.8%** | -32.9% |
+| 2021 | `332114` | Custom roll forming | 0.15 | +148.0% | **+21.8%** | +38.7% |
+| 2020 | `532100` | Automotive equipment rental and leasing | 0.29 | -74.3% | **-21.8%** | -37.7% |
+| 2023 | `2123A0` | Other nonmetallic mineral mining and quarrying | 0.47 | +46.4% | **+21.8%** | +14.0% |
+| 2022 | `532100` | Automotive equipment rental and leasing | 0.13 | +166.4% | **+21.4%** | +31.5% |
+| 2022 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.23 | -92.4% | **-21.2%** | +81.7% |
+| 2021 | `325180` | Other basic inorganic chemical manufacturing | 0.73 | -28.4% | **-20.7%** | -17.1% |
+| 2021 | `325130` | Synthetic dye and pigment manufacturing | 0.41 | +50.2% | **+20.6%** | +25.2% |
+| 2022 | `114000` | Fishing, hunting and trapping | 0.50 | -39.6% | **-19.6%** | -11.8% |
+| 2023 | `611100` | Elementary and secondary schools | 0.62 | -31.2% | **-19.3%** | -26.7% |
+| 2020 | `481000` | Air transportation | 0.80 | +24.1% | **+19.3%** | +11.9% |
+| 2021 | `325310` | Fertilizer manufacturing | 0.86 | +21.9% | **+18.9%** | +21.0% |
+| 2021 | `325510` | Paint and coating manufacturing | 0.26 | +70.4% | **+18.1%** | +35.7% |
+| 2021 | `312110` | Soft drink and ice manufacturing | 0.10 | +177.4% | **+18.1%** | +36.4% |
+| 2021 | `331313` | Alumina refining and primary aluminum production | 0.68 | -26.5% | **-18.0%** | -13.3% |
+
+Reading it: the list is led by commodities that **are** their own footprint.
+Water transportation, fertilizer manufacturing, fruit and nut farming, metal
+ore mining and air transportation all sit at own-shares of 0.63 to 0.89 —
+sectors whose emissions happen on their own site, so a move in their direct
+factor passes almost undamped into what their buyers carry. Own-shares across
+the 30 run 0.10 to 0.89, so a low-share commodity can still make the list on a
+large enough move; what it can no longer do is make it on a large move that
+barely touches `N`. The unweighted ranking led with rental and leasing and
+internet publishing, own-shares 0.13 and 0.004.
+
+2021 supplies 11 of the 30, more than any other year, consistent with 2021
+being the worst year on every other measure here.
+
+### ⚠️ Negative emission factors in two commodities
+
+`114000` fishing, hunting and trapping and `327910` abrasive product
+manufacturing carry a **negative** `B` in several years:
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `114000` E, Mt CO2e | 1.44 | 0.77 | 0.67 | **−0.18** | 0.68 | 0.34 | **−0.27** | **−0.42** |
+| `114000` `B` real | 0.164 | 0.100 | 0.088 | **−0.014** | 0.093 | 0.056 | **−0.030** | **−0.040** |
+
+`327910` is negative in 2020 through 2024. No other commodity is negative in
+any year.
+
+This is a defect, not a sink. The negative mass sits on fossil-combustion
+inventory rows — `UMD_GHGIA_T_3_11.petroleum_industrial`,
+`natural_gas_nonmanufacturing`, `ng_manufacturing`, and
+`UMD_GHGIA_T_2_S1.carbonate_use` — and a negative quantity of burned petroleum
+does not exist. For `114000` the petroleum row runs 1.178, 0.626, 0.536,
+**−0.148**, 0.565, 0.276, **−0.217**, **−0.330** Mt.
+
+Ruled out so far: gross output, which is positive for both commodities in every
+year; and negative cells in the nowcast Use table for those columns, of which
+there are none — `324110` petroleum refineries into `114000` is 256.3, 81.5 and
+131.0 $M in 2017, 2020 and 2024. The nowcast Use table does carry 383 to 699
+negative cells overall out of 170,910, but not in these columns, so that is
+adjacent rather than causal.
+
+The remaining candidate is a subtractive step inside the attribution — a
+national total allocated net of an already-allocated portion, which goes
+negative when the subtracted part exceeds the total. Not confirmed.
+
+⚠️ Until this is resolved, `B_change_real.csv` rows for these two commodities
+cannot be ranked or gated: a percentage off a negative base has no
+interpretation, and `114000` otherwise takes 6 of the top 30 slots.
+
 ### `L` moves `N` more than the factors do, and is out of scope
 
 `N = B @ L`, and `L` comes from each year's own `A` at that year's prices —
