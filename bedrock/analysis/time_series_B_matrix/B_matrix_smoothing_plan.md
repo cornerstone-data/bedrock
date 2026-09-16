@@ -10,7 +10,7 @@ Identify sources of emissions and/or output changes that cause unjustified direc
 
 Based on 
 1. Emissions data sources or economic output sources driving the most change (top-down)
-2. Sector direct EF internannual changes over 5% in real dollars coupled with justified fixes that can potentially reduce cumulatively (across all EFs) the most (bottom-up).
+2. Sector direct EF internannual changes in real dollars coupled with justified fixes that can potentially reduce cumulatively (across all EFs) the most (bottom-up).
 
 ## Develop diagnostics to identify drivers
 
@@ -46,7 +46,7 @@ CSVs as the live source** — quoted numbers here go stale, the outputs do not.
 | 1, top-down | is it emissions moving, or output? | E by attribution class against x, indexed | `E_vs_x_indexed.png` |
 | 1, top-down | did this source ever track output at all? | `dlog(E)` on `dlog(x)` per source, emissions-weighted | `output_elasticity.csv`, `output_elasticity_real.csv` |
 | 1, top-down | how much of the apparent move is just prices? | nominal vs constant-dollar counterfactual | `price_effect.csv` |
-| 2, bottom-up | which EFs moved most, per year, in real dollars? | year-on-year change in `B` | `B_change_real.csv` |
+| 2, bottom-up | which EFs moved most, per year, in real dollars? | year-on-year change in `B`, ranked on `abs_delta_B_pct_of_N` — the change in the direct factor weighted by its share of that commodity's own `N` | `B_change_real.csv` |
 | 2, bottom-up | which source sits behind a given commodity's EF? | `B` split by attribution | `B_by_attribution.csv` |
 | 1 → 2 bridge | which sector *and* source jointly? | divergence by sector × source pair | `divergence_by_sector_stratum.csv` |
 
@@ -65,9 +65,10 @@ substitutes for the other.
 "Test for acceptance" needs a number to move. The module already computes two
 that work as before-and-after measures, both on real-dollar EFs:
 
-- **median absolute interannual EF change**, per year — currently 4.8% to
-  16.9% depending on year;
-- **share of commodities over the chosen gate**, per year.
+- **median `abs_delta_B_pct_of_N`**, per year — currently 0.33% to 1.44%
+  depending on year;
+- **share of commodities over the chosen gate**, per year — a 5% gate on
+  `abs_delta_B_pct_of_N` currently admits 5.2% to 22.5%.
 
 Record both before any remediation, and re-run after. The second bullet of the
 retest step — did the fix cause other EFs to move — is the same two numbers

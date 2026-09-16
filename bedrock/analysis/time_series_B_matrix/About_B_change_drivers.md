@@ -1,6 +1,6 @@
 # What moves `B`, and how much of it is real
 
-Findings from `derive_B_time_series.py`, run 2026-09-15 against FBS vintage
+Findings from `derive_B_time_series.py`, run 2026-09-16 against FBS vintage
 `v0.3.0_796a6ca` and nowcast MUT vintage `v0.3.0_4276083`, nowcast models
 2017-2024. Method and the diagnostic-to-approach mapping are in
 [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md); this note holds the
@@ -8,8 +8,9 @@ numbers.
 
 `B = (E / x) @ Vnorm`, so the three drivers the plan names — `E`, `x` and
 `Vnorm` — are the three places a factor can move from. The sections below
-measure how much each contributes, what a 5% gate actually selects, and four
-mechanisms that produce movement with nothing underneath it.
+measure how much each contributes, how to gate on a factor change in a way
+that discriminates, and four mechanisms that produce movement with nothing
+underneath it.
 
 ⚠️ **Every figure here is industry emissions only.** `F01000` personal
 consumption expenditures has no gross output, so it cannot enter `E / x`; the
@@ -17,34 +18,74 @@ production path drops it for the same reason.
 
 ---
 
-## 1. A 5% gate selects most of the economy
+## 1. Weighting the factor change by its share of `N`
 
-Interannual change in the real-dollar commodity factor, `B_change_real.csv`,
-commodities with a non-negligible prior factor:
+The project's target is a steady `N`, so a move in a commodity's direct factor
+matters in proportion to how much of `N` that factor drives. Weighting the
+percentage change in `B` by its own-direct share of `N` cancels to something
+simple:
 
-| year | commodities | over 5% | over 10% | over 20% | median |
+```
+delta_B_pct_of_N = pct_change_B * own_direct_share_of_N
+                 = (dB / B) * (B * L[j,j] / N)
+                 = dB * L[j,j] / N
+```
+
+`own_direct_share_of_N` is small for most commodities — **median 0.077**, so
+for the typical commodity only 8% of its footprint is its own direct
+emissions. Tenth percentile 0.019, ninetieth 0.499, maximum 0.988.
+
+That is why an unweighted gate does not discriminate. Share of commodities a
+5% gate admits, real-dollar factors, `B_change_real.csv`:
+
+| year | commodities | on `abs_pct_change_B` | on `abs_delta_B_pct_of_N` | median `B` | median `N`-weighted |
 |---|---:|---:|---:|---:|---:|
-| 2018 | 402 | 48.8% | 27.6% | 6.0% | 4.9% |
-| 2019 | 402 | 48.3% | 23.6% | 7.5% | 4.8% |
-| 2020 | 402 | 68.7% | 42.5% | 19.4% | 8.6% |
-| 2021 | 400 | **85.5%** | 70.2% | 42.8% | 16.9% |
-| 2022 | 401 | 71.6% | 47.4% | 23.2% | 9.5% |
-| 2023 | 401 | 67.6% | 46.1% | 20.9% | 9.0% |
-| 2024 | 400 | 64.5% | 38.5% | 11.0% | 7.6% |
+| 2018 | 402 | 48.8% | **5.5%** | 4.9% | 0.33% |
+| 2019 | 402 | 48.3% | **5.2%** | 4.8% | 0.34% |
+| 2020 | 402 | 68.7% | **10.9%** | 8.6% | 0.60% |
+| 2021 | 400 | 85.5% | **22.5%** | 16.9% | 1.44% |
+| 2022 | 401 | 71.6% | **10.0%** | 9.5% | 0.78% |
+| 2023 | 401 | 67.6% | **10.2%** | 9.0% | 0.57% |
+| 2024 | 400 | 64.5% | **5.8%** | 7.6% | 0.64% |
 
-The median commodity moves about as much as the gate, so 2021 admits 342 of
-400. Raising it to 20% admits 6-43% depending on year.
+The unweighted gate admits 48-86% of commodities; the weighted one admits
+5-23%, and 2021 is still visibly the worst year. The ranking also changes, not
+just the count. For 2022:
 
-⚠️ **A percentage ranking does not answer "reduces cumulatively the most".** An
-EF on a commodity nobody buys ranks the same as one on electricity. Rank on
-`|delta_B| × q` — the change in the factor times the commodity's output — to
-get the cumulative-impact ordering. `B_change_real.csv` carries `delta_B` and
-`B_from`; the weight joins from `q` or final demand.
+| rank | on `abs_delta_B_pct_of_N` | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
+|---|---|---:|---:|---:|---:|
+| 1 | Fruit and tree nut farming | 0.67 | −52.6% | **−35.1%** | −48.0% |
+| 2 | Iron, gold, silver, other metal ore mining | 0.77 | −44.0% | **−33.8%** | −33.1% |
+| 3 | Vegetable and melon farming | 0.67 | +44.3% | **+29.5%** | +24.2% |
+| 4 | Water transportation | 0.89 | −29.1% | **−25.8%** | −20.3% |
 
-⚠️ Sort `B_change_real.csv` on `abs_pct_change` but filter on `B_from` first. A
-commodity whose factor rounds to zero posts a large percentage off a
-rounding-scale numerator: 2023 leads with watch and clock manufacturing at
-−1208% off a 0.0004 Mt base.
+against the unweighted ranking, which leads with automotive equipment rental
+(own share 0.13, `pct_change_B` +166%, `N` effect +21.4%) and puts internet
+publishing fourth on a +105% factor move that shifts its `N` by 0.45%, because
+its own direct emissions are 0.4% of its footprint.
+
+Where the own share is high the weighted figure tracks the actual `N` move
+closely, which is the check that it is measuring the right thing. It will not
+always: motorcycle and bicycle manufacturing shows `delta_B_pct_of_N` of −21.2%
+against `pct_change_N` of +81.7% in 2022, because its supply chain moved even
+though its own factor fell. `pct_change_N` is carried in the table for exactly
+that comparison.
+
+⚠️ **A percentage ranking still does not answer "reduces cumulatively the
+most".** This weighting fixes *within* a commodity — how much of its own `N`
+its direct factor drives — not *across* commodities. A change in `B[j]` also
+moves `N` for everything that buys from `j`, and a commodity nobody buys ranks
+the same as electricity. The cross-commodity version is `dB[j]` propagated
+through row `j` of `L`, output-weighted.
+
+⚠️ Read any of these next to `B_from`. A commodity with a near-zero factor
+posts a large percentage off a rounding-scale numerator. Percentages are NaN
+rather than fabricated where the base is zero.
+
+⚠️ `L` comes from each year's own `A`, at that year's prices, while a real `B`
+is in constant first-year dollars. The ratios are unaffected because numerator
+and denominator share the `B` basis, but `N` as a level is mixed-basis and
+should not be compared across years as a level.
 
 ## 2. `Vnorm` is a quarter of the movement in 2023
 

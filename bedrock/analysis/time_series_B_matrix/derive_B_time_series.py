@@ -106,12 +106,14 @@ import pandas as pd
 
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.eeio.derived_cornerstone import (
+    derive_cornerstone_Aq_scaled,
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.math.formulas import compute_L_matrix
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
 logger = logging.getLogger(__name__)
@@ -479,6 +481,10 @@ class Span:
     x_real: pd.DataFrame
     #: year -> Vnorm (405 x 405) for that year's nowcast Make
     Vnorm: dict[int, pd.DataFrame]
+    #: year -> the Leontief inverse, ``(I - (Adom + Aimp))^-1``, commodity x
+    #: commodity. Total rather than domestic-only, matching the production
+    #: path. Needed for ``N``, and for the own-loop term ``L[j, j]``.
+    L: dict[int, pd.DataFrame]
     vintages: SpanVintages
 
     def __post_init__(self) -> None:
@@ -509,6 +515,7 @@ def build_span(
     E_parts: list[pd.DataFrame] = []
     x_parts: dict[int, pd.Series] = {}
     Vnorm: dict[int, pd.DataFrame] = {}
+    L: dict[int, pd.DataFrame] = {}
 
     for year in years:
         logger.info('--- %d ---', year)
@@ -520,6 +527,8 @@ def build_span(
             E_year = stratified_E(year, pinned.fbs)
             x_year = derive_cornerstone_x()
             Vnorm[year] = derive_cornerstone_Vnorm_scrap_corrected()
+            aq = derive_cornerstone_Aq_scaled()
+            L[year] = compute_L_matrix(A=aq.Adom + aq.Aimp)
         E_parts.append(E_year)
         x_parts[year] = x_year
         logger.info(
@@ -553,6 +562,7 @@ def build_span(
         x=x,
         x_real=x_real,
         Vnorm=Vnorm,
+        L=L,
         vintages=pinned,
     )
 
@@ -859,27 +869,76 @@ def B_total(span: Span, real: bool = False) -> pd.DataFrame:
     return pd.DataFrame(columns).rename_axis(index='commodity', columns='year')
 
 
-def B_change(span: Span, real: bool = True) -> pd.DataFrame:
-    """Year-on-year change in the emission factor itself, one row per year-pair.
+def N_total(span: Span, real: bool = False) -> pd.DataFrame:
+    """Total-CO2e commodity factor including indirect effects, commodity x year.
 
-    ``B`` is the published EF - CO2e per dollar of that commodity, indirect
-    effects included via ``Vnorm`` - so this is the table to sort when the
-    question is *where did the factor move*, rather than where the emissions
-    behind it moved. Long rather than wide, so it sorts on year and commodity
-    together, and defaults to **real** dollars: a nominal EF falls whenever
-    prices rise, which over this span would put inflation at the top of the
-    ranking (see :func:`price_effect`).
+    ``N = B @ L`` with ``L = (I - (Adom + Aimp))^-1``, matching the production
+    path's total-requirements form. This is the factor the smoothing project is
+    ultimately trying to hold steady; ``B`` is only the direct part of it.
 
-    ⚠️ **Sort on** ``abs_pct_change`` **but read it next to** ``B_from``. A
-    commodity with a near-zero factor posts a huge percentage off a
-    rounding-scale numerator; filtering on ``B_from`` first is what makes the
-    ranking mean anything. ``pct_change`` is left NaN where ``B_from`` is zero,
-    since there is no percentage of nothing.
+    ⚠️ ``L`` comes from each year's own ``A``, which is at that year's prices,
+    while a *real* ``B`` is in constant first-year dollars. The ratios this
+    feeds - ``own_direct_share_of_N`` and ``delta_B_pct_of_N`` - are unaffected,
+    because numerator and denominator share the ``B`` basis. ``N`` itself is
+    a mixed-basis level and should not be compared across years as a level.
     """
     B = B_total(span, real=real)
+    columns: dict[int, pd.Series] = {}
+    for year in span.L:
+        L = span.L[year]
+        columns[year] = B[year].reindex(L.index).fillna(0.0) @ L
+    return pd.DataFrame(columns).rename_axis(index='commodity', columns='year')
+
+
+def B_change(span: Span, real: bool = True) -> pd.DataFrame:
+    """Year-on-year change in the emission factor, one row per year-pair.
+
+    ``B`` is the **direct** commodity factor and ``N = B @ L`` the total one,
+    indirect effects included. The project's target is a steady ``N``, so a
+    move in ``B`` matters in proportion to how much of ``N`` it drives. Long
+    rather than wide, so it sorts on year and commodity together, and defaults
+    to **real** dollars: a nominal factor falls whenever prices rise, which
+    over this span would put inflation at the top of the ranking (see
+    :func:`price_effect`).
+
+    **Rank on** ``abs_delta_B_pct_of_N``, the default sort. It is the change in
+    a commodity's own direct factor weighted by that factor's share of its own
+    total factor, and the weighting cancels to something simpler than it
+    sounds::
+
+        delta_B_pct_of_N = pct_change_B * own_direct_share_of_N
+                         = (dB / B) * (B * L[j,j] / N)
+                         = dB * L[j,j] / N
+
+    - ``own_direct_share_of_N`` - how much of this commodity's total factor is
+      its own direct emissions, own-loop included via ``L[j, j]``.
+    - ``delta_B_pct_of_N`` - the same move expressed against ``N`` instead of
+      against ``B``.
+
+    ⚠️ **This is a strictly smaller number than** ``pct_change_B``, and
+    deliberately so. A commodity whose direct emissions are a tenth of its
+    footprint can post a 50% move in ``B`` and shift ``N`` by 5%; on
+    ``abs_pct_change_B`` it outranks a commodity that *is* its own footprint and
+    moved 10%, which changed ``N`` by the same 10%. Re-using a 5% gate on the
+    two columns therefore selects very different sets.
+
+    ``pct_change_N`` is carried alongside so the weighted figure can be checked
+    against what ``N`` actually did. They will not match: ``N`` also moves when
+    *other* commodities' factors move, or when ``L`` does.
+
+    ⚠️ Read any of these next to ``B_from``. A commodity with a near-zero
+    factor posts a large percentage off a rounding-scale numerator; filtering
+    on ``B_from`` is what makes the ranking mean anything. Percentages are NaN
+    rather than fabricated where the base is zero.
+    """
+    B = B_total(span, real=real)
+    N = N_total(span, real=real)
     years = [int(y) for y in B.columns]
     frames = []
     for prior, current in zip(years, years[1:]):
+        own_loop = pd.Series(
+            np.diag(span.L[prior].to_numpy()), index=span.L[prior].index
+        ).reindex(B.index)
         block = pd.DataFrame(
             {
                 'year_from': prior,
@@ -887,18 +946,37 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
                 'commodity': B.index,
                 'B_from': B[prior].to_numpy(),
                 'B_to': B[current].to_numpy(),
+                'N_from': N[prior].to_numpy(),
+                'N_to': N[current].to_numpy(),
+                'L_own_loop': own_loop.to_numpy(),
             }
         )
         frames.append(block)
     out = pd.concat(frames, ignore_index=True)
     out['delta_B'] = out['B_to'] - out['B_from']
-    out['pct_change'] = np.where(
+    out['delta_N'] = out['N_to'] - out['N_from']
+    out['pct_change_B'] = np.where(
         out['B_from'] != 0, out['delta_B'] / out['B_from'] * 100, np.nan
     )
-    out['abs_pct_change'] = np.abs(out['pct_change'])
+    out['abs_pct_change_B'] = np.abs(out['pct_change_B'])
+    out['pct_change_N'] = np.where(
+        out['N_from'] != 0, out['delta_N'] / out['N_from'] * 100, np.nan
+    )
+    out['abs_pct_change_N'] = np.abs(out['pct_change_N'])
+    out['own_direct_share_of_N'] = np.where(
+        out['N_from'] != 0,
+        out['B_from'] * out['L_own_loop'] / out['N_from'],
+        np.nan,
+    )
+    out['delta_B_pct_of_N'] = np.where(
+        out['N_from'] != 0,
+        out['delta_B'] * out['L_own_loop'] / out['N_from'] * 100,
+        np.nan,
+    )
+    out['abs_delta_B_pct_of_N'] = np.abs(out['delta_B_pct_of_N'])
     out = _with_names(out, 'commodity')
     return out.sort_values(
-        ['year_to', 'abs_pct_change'], ascending=[True, False]
+        ['year_to', 'abs_delta_B_pct_of_N'], ascending=[True, False]
     ).reset_index(drop=True)
 
 
@@ -1094,7 +1172,7 @@ def report(
     tables['B_total'] = B_total(span)
     tables['B_total_real'] = B_total(span, real=True)
     tables['B_by_attribution'] = B_by_attribution(span)
-    # The EF movement table: sort on abs_pct_change, filter on B_from.
+    # The EF movement table: rank on abs_delta_B_pct_of_N, filter on B_from.
     tables['B_change_real'] = B_change(span, real=True)
     logger.info(
         'Largest EF movements in constant %d dollars, per year (preview of a '
@@ -1103,7 +1181,17 @@ def report(
         int(span.x.columns[0]),
         tables['B_change_real'][tables['B_change_real']['B_from'] > 1e-4]
         .groupby('year_to')
-        .head(3)[['year_to', 'commodity', 'name', 'B_from', 'B_to', 'abs_pct_change']]
+        .head(3)[
+            [
+                'year_to',
+                'commodity',
+                'name',
+                'B_from',
+                'own_direct_share_of_N',
+                'abs_pct_change_B',
+                'abs_delta_B_pct_of_N',
+            ]
+        ]
         .to_string(index=False),
     )
     tables['x'] = span.x
@@ -1352,6 +1440,8 @@ def save_span(span: Span) -> None:
     span.x_real.to_parquet(CACHE_DIR / 'x_real.parquet')
     for year, Vnorm in span.Vnorm.items():
         Vnorm.to_parquet(CACHE_DIR / f'Vnorm_{year}.parquet')
+    for year, L in span.L.items():
+        L.to_parquet(CACHE_DIR / f'L_{year}.parquet')
     (CACHE_DIR / 'vintages.txt').write_text(
         f'fbs={span.vintages.fbs}\nmut={span.vintages.mut}\n'
     )
@@ -1359,7 +1449,12 @@ def save_span(span: Span) -> None:
 
 
 def load_span(years: tuple[int, ...] = YEARS) -> Span:
-    """Reload a cached span."""
+    """Reload a cached span.
+
+    Raises rather than filling a gap when the cache predates a field: a span
+    silently missing ``L`` would drop every N-weighted column without saying
+    so, and the tables would look complete.
+    """
     pinned = dict(
         line.split('=', 1)
         for line in (CACHE_DIR / 'vintages.txt').read_text().split()
@@ -1371,6 +1466,14 @@ def load_span(years: tuple[int, ...] = YEARS) -> Span:
         frame.columns = pd.Index([int(c) for c in frame.columns], name='year')
         return frame.rename_axis(index='sector')
 
+    missing = [y for y in years if not (CACHE_DIR / f'L_{y}.parquet').exists()]
+    if missing:
+        raise FileNotFoundError(
+            f'The cached span has no Leontief inverse for {missing} - it was '
+            f'written before L was part of the span. Re-run without '
+            f'--use-cache to rebuild it.'
+        )
+
     return Span(
         E=pd.read_parquet(CACHE_DIR / 'E_stratified.parquet'),
         x=_read('x.parquet'),
@@ -1378,6 +1481,7 @@ def load_span(years: tuple[int, ...] = YEARS) -> Span:
         Vnorm={
             year: pd.read_parquet(CACHE_DIR / f'Vnorm_{year}.parquet') for year in years
         },
+        L={year: pd.read_parquet(CACHE_DIR / f'L_{year}.parquet') for year in years},
         vintages=SpanVintages(fbs=pinned['fbs'], mut=pinned['mut']),
     )
 
