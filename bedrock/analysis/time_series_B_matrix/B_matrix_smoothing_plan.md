@@ -26,6 +26,16 @@ Was it `E`, `x`, or `Vnorm` that jumped the most out of tune with the others? Wh
 
 Inflation is an expected and acceptable form of change, so inflation effects must be separated from the real change.
 
+### Out of scope: `L`
+
+`B = (E/x) @ Vnorm` has exactly three inputs and `L` is not one of them; it
+enters only through `N = B @ L`. `L` comes from `A = U_norm @ V_norm`, the
+nowcast's own IO product, so no emissions-side change can move it — and it
+moves `N` two to four times as much as the factors do. Diagnosed here,
+remediated in Nowcast Phase 2. `Vnorm` falls on the same side of that line
+for remediation, being the nowcast Make, even though it is a direct term in
+`B`.
+
 ### Implement change and retest
 
 1. Rerun key diagnostic(s) following the change. Was change effective? Did it have indirect effects causing other EF change to occur?

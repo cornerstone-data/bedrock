@@ -926,6 +926,23 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
     against what ``N`` actually did. They will not match: ``N`` also moves when
     *other* commodities' factors move, or when ``L`` does.
 
+    ⚠️ **``L`` moves ``N`` two to four times as much as the factors do, and
+    ``L`` is not deflated.** The nowcast configs set
+    ``apply_io_year_adjustments: False``, so each year's ``A`` - and therefore
+    ``L`` - is at that year's prices. Median absolute ``N`` movement runs 4% to
+    18% a year, of which only 1% to 5% survives holding ``L`` at the prior
+    year. ``pct_change_N_L_held`` is the factor-driven part and
+    ``pct_change_N_L_effect`` the remainder, so a disagreement between
+    ``delta_B_pct_of_N`` and ``pct_change_N`` can be read rather than guessed
+    at. Everything the gate itself uses is deflated: ``dB`` is real, and the
+    weight is a ratio in which the dollar year cancels.
+
+    ⚠️ **``L`` is out of scope for the smoothing project.** ``B = (E/x) @
+    Vnorm`` has exactly three inputs, and ``L`` is not one of them - it enters
+    only through ``N``. It comes from ``A = U_norm @ V_norm``, the nowcast's
+    own IO product, so no emissions-side change can move it. Diagnose it here,
+    remediate it in Nowcast Phase 2.
+
     ⚠️ Read any of these next to ``B_from``. A commodity with a near-zero
     factor posts a large percentage off a rounding-scale numerator; filtering
     on ``B_from`` is what makes the ranking mean anything. Percentages are NaN
@@ -936,9 +953,18 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
     years = [int(y) for y in B.columns]
     frames = []
     for prior, current in zip(years, years[1:]):
-        own_loop = pd.Series(
-            np.diag(span.L[prior].to_numpy()), index=span.L[prior].index
-        ).reindex(B.index)
+        L_prior = span.L[prior]
+        own_loop = pd.Series(np.diag(L_prior.to_numpy()), index=L_prior.index).reindex(
+            B.index
+        )
+        # N for the current year's factors run through the PRIOR year's L.
+        # Differencing this against N_from isolates the part of the N move that
+        # the emission factors explain, leaving the rest to L.
+        N_to_L_held = (
+            (B[current].reindex(L_prior.index).fillna(0.0) @ L_prior)
+            .reindex(B.index)
+            .to_numpy()
+        )
         block = pd.DataFrame(
             {
                 'year_from': prior,
@@ -948,6 +974,7 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
                 'B_to': B[current].to_numpy(),
                 'N_from': N[prior].to_numpy(),
                 'N_to': N[current].to_numpy(),
+                'N_to_L_held': N_to_L_held,
                 'L_own_loop': own_loop.to_numpy(),
             }
         )
@@ -963,6 +990,13 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
         out['N_from'] != 0, out['delta_N'] / out['N_from'] * 100, np.nan
     )
     out['abs_pct_change_N'] = np.abs(out['pct_change_N'])
+    # Split the N move into the part the factors explain and the part L does.
+    out['pct_change_N_L_held'] = np.where(
+        out['N_from'] != 0,
+        (out['N_to_L_held'] - out['N_from']) / out['N_from'] * 100,
+        np.nan,
+    )
+    out['pct_change_N_L_effect'] = out['pct_change_N'] - out['pct_change_N_L_held']
     out['own_direct_share_of_N'] = np.where(
         out['N_from'] != 0,
         out['B_from'] * out['L_own_loop'] / out['N_from'],

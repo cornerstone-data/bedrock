@@ -71,6 +71,46 @@ against `pct_change_N` of +81.7% in 2022, because its supply chain moved even
 though its own factor fell. `pct_change_N` is carried in the table for exactly
 that comparison.
 
+### `L` moves `N` more than the factors do, and is out of scope
+
+`N = B @ L`, and `L` comes from each year's own `A` at that year's prices —
+the nowcast configs set `apply_io_year_adjustments: False`, so nothing deflates
+it. Holding `L` at the prior year isolates the part of the `N` move that the
+emission factors explain; `pct_change_N_L_held` and `pct_change_N_L_effect`
+carry the split. Medians over commodities:
+
+| year | median \|Δ`N`\| | factors | `L` |
+|---|---:|---:|---:|
+| 2018 | 3.7% | 1.4% | 3.1% |
+| 2019 | 9.1% | 3.0% | 6.2% |
+| 2020 | 11.8% | 3.4% | 9.3% |
+| 2021 | 18.2% | 3.8% | **14.9%** |
+| 2022 | 5.7% | 3.9% | 5.0% |
+| 2023 | 16.1% | 5.4% | **10.5%** |
+| 2024 | 6.2% | 1.9% | 3.9% |
+
+`L` accounts for two to four times what the factors do. Some of that is real
+structural change and some is relative prices; the two are not separated here
+because `A` is not deflated on this path.
+
+⚠️ **`L` is out of scope for the smoothing project, by construction.**
+`B = (E/x) @ Vnorm` has exactly three inputs and `L` is not one of them — it
+enters only through `N`. `L` comes from `A = U_norm @ V_norm`, the nowcast's
+own IO product, so no emissions-side change can move it. Diagnose it here,
+remediate it in Nowcast Phase 2.
+
+The same boundary applies to `Vnorm` for *remediation* even though it is a
+direct term in `B`: its 26.6% share of `B` movement in 2023 is the nowcast Make
+moving, and no GHG inventory or attribution change will touch it. This project
+owns the `E` and `x` sides of the fix, and hands the Make and the `A` matrix
+over.
+
+⚠️ **What this means for the objective.** The stated intent is to reduce the
+`N` change to justifiable changes. With `L` out of scope, this project can
+deliver the factor-driven column above — 1.4% to 5.4% a year — and not the `L`
+column. A flat median factor change should not later be read as "`N` is now
+smooth".
+
 ⚠️ **A percentage ranking still does not answer "reduces cumulatively the
 most".** This weighting fixes *within* a commodity — how much of its own `N`
 its direct factor drives — not *across* commodities. A change in `B[j]` also
