@@ -129,6 +129,8 @@ being the worst year on every other measure here.
 
 ### ⚠️ Negative emission factors in two commodities
 
+Filed as [#912](https://github.com/cornerstone-data/bedrock/issues/912).
+
 `114000` fishing, hunting and trapping and `327910` abrasive product
 manufacturing carry a **negative** `B` in several years:
 
@@ -161,6 +163,14 @@ negative when the subtracted part exceeds the total. Not confirmed.
 ⚠️ Until this is resolved, `B_change_real.csv` rows for these two commodities
 cannot be ranked or gated: a percentage off a negative base has no
 interpretation, and `114000` otherwise takes 6 of the top 30 slots.
+
+It also shrinks every count in the gate table above, because that table
+filters on a positive prior-year factor. Of the 405 commodities, three carry
+no direct emissions in any year and are always absent — `4200ID`, `814000`
+and `S00402` — leaving 402. From the 2021 row the negative ones drop out too:
+2021 loses both, 2022 and 2023 lose `327910`, 2024 loses both again. The
+filter reads the **prior** year's factor, which is why negatives that start
+in 2020 first show up as a smaller count in the 2021 row.
 
 ### `L` moves `N` more than the factors do, and is out of scope
 
