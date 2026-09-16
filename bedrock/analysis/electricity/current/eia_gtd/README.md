@@ -26,6 +26,60 @@ use `get_2017_eia_purchaser_allocation`.
 
 Markdown lands at `current/diagnostics/output/eia_gtd_purchaser_tables.md`.
 
+## Annual MECS / IO / Census electricity shares
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.annual_electricity_shares
+# options: --years 2017-2024  --top 15  --csv  --check
+```
+
+Puts the Table 7.7 kWh weights, the nowcast Use table's electricity row and
+Census cost of purchased electricity (`CSTELEC` in EC 2017/2022 and ASM
+2018-2021, `EXPS_ELEC_VAL` in AIES 2023-2024) on one 232-sector axis as shares
+of the manufacturing total. Findings are in `About_electricity_shares.md`.
+
+## What drives the electricity Use row
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_control \
+    --mut-vintage v0.3.0_4276083
+# options: --years 2017-2024  --top 12  --csv  --check  --mut-vintage VINTAGE
+```
+
+Traces the 221100 row back to its output control and compares it with BEA's
+published `UGO305-A` gross output and EIA-861 retail revenue, then splits each
+year-over-year move into a column effect and a share effect. `--mut-vintage`
+pins a MUT build already on disk; without it the per-year configs probe GCS for
+the newest upload. Both arms agree — as of 2026-09-13 the newest upload is
+`v0.3.0_4276083`, so the flag only saves the probe. EIA-861 revenue is a literal
+in the module, not an extractor.
+Findings are in `About_price_proposal.md`.
+
+⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
+`annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
+(see `bedrock/extract/README.md`). `electricity_row_control` also needs the
+gitignored `bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv`;
+generate it once with:
+
+```bash
+python -m bedrock.utils.mapping.write_ec_alt_measures
+```
+
+## Why the flat generation price fails
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.flat_price_clipping \
+    --mut-vintage v0.3.0_4276083
+# options: --years 2017-2024  --top 12  --csv  --check  --mut-vintage VINTAGE
+```
+
+Runs the live purchaser allocator and checks the cap against the price
+distribution. A purchaser's generation dollars are capped at its own bill
+exactly when its all-in price is below the single national generation price, so
+the capped set and the below-price set should be identical; `--check` asserts
+they are, and that every capped purchaser is left with zero T&D. Findings are in
+`About_why_the_flat_price_fails.md`.
+
 ## Why Table 7.7 stays FBA (not FBS)
 
 No MECS Energy FBS exists in bedrock. Tables 2.2/3.2 stay FBA and enter GHG (and CAP/HAP) FBS build as attribution sources. Table 7.7 is also left as FBA: it only supplies manufacturing purchased-kWh weights inside the electricity (Generation/Transmission/Distribution) purchaser allocation. We do not build an FBS because that path would run `estimate_suppressed_mecs_energy` and a generic NAICS→BEA crosswalk, both wrong for table 7.7 for the following reasons:
