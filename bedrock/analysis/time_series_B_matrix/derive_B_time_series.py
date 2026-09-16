@@ -160,6 +160,21 @@ ATTRIBUTION_CLASS: dict[str, str] = {
     'Direct': 'direct',
 }
 
+#: Chart labels for :data:`ATTRIBUTION_CLASS`. The class keys are fine as
+#: identifiers and are what the CSVs carry, but on a legend they read as
+#: quantities rather than as what they are - **every one of these is a slice
+#: of E, told apart by the weight used to spread it across sectors**. A
+#: reader should not have to guess that ``io_gross_output`` is emissions
+#: attributed *using* gross output rather than gross output itself.
+ATTRIBUTION_CLASS_LABEL: dict[str, str] = {
+    'direct': 'E: inventory names the sector directly',
+    'io_use_table': 'E: spread by a Use table row (fuel purchases)',
+    'energy_survey': 'E: spread by the MECS manufacturing energy survey',
+    'inventory_table': 'E: spread by another GHG inventory table '
+    '(soils, non-energy use)',
+    'io_gross_output': 'E: spread by gross output',
+}
+
 #: Classes whose sector split comes out of the IO tables themselves, so their
 #: year-to-year movement is not independent evidence about emissions.
 IO_DERIVED_CLASSES = frozenset({'io_use_table', 'io_gross_output'})
@@ -1286,26 +1301,53 @@ def make_reallocation(span: Span, base_year: int | None = None) -> pd.Series:
 
 
 def plot_E_and_x_indexed(span: Span) -> None:
-    """E by attribution class against x, both indexed to the first year."""
+    """All three drivers of ``B`` on one axis pair: ``E``, ``x`` and the Make."""
     by_class = (
         span.E.groupby(['year', 'attribution_class'])['CO2e'].sum().unstack('year')
     )
     x_total = span.x.sum()
     x_real_total = span.x_real.sum()
     base = by_class.columns[0]
+    shares = by_class[base] / by_class[base].sum()
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    # Total first, so the reader sees that the five coloured lines partition it
+    # rather than being five unrelated quantities.
+    total = by_class.sum()
+    ax.plot(
+        total.index,
+        total / total.iloc[0] * 100,
+        marker='D',
+        color='tab:red',
+        linewidth=2.5,
+        label='E: total GHG inventory (all five below)',
+    )
     for label, series in by_class.iterrows():
         if series[base] <= 0:
             continue
-        ax.plot(series.index, series / series[base] * 100, marker='o', label=str(label))
+        share = float(shares.get(label, 0.0))
+        # ⚠️ A class carrying a fraction of a percent must not be drawn as a
+        # peer of one carrying half the inventory: io_gross_output is 1.2 Mt,
+        # and its swings are a fifth of a megatonne rendered as the most
+        # dramatic line on the chart.
+        minor = share < 0.01
+        ax.plot(
+            series.index,
+            series / series[base] * 100,
+            marker='.' if minor else 'o',
+            linewidth=1.0 if minor else 1.8,
+            alpha=0.55 if minor else 1.0,
+            label='{}  ({:.2g}% of E)'.format(
+                ATTRIBUTION_CLASS_LABEL.get(str(label), str(label)), share * 100
+            ),
+        )
     ax.plot(
         x_total.index,
         x_total / x_total.iloc[0] * 100,
         marker='s',
         color='black',
         linewidth=2.5,
-        label='x (gross output, nominal)',
+        label='x: gross output, nominal (dollars, not emissions)',
     )
     ax.plot(
         x_real_total.index,
@@ -1314,12 +1356,13 @@ def plot_E_and_x_indexed(span: Span) -> None:
         color='dimgrey',
         linewidth=2.5,
         linestyle='--',
-        label=f'x (gross output, constant {base} $)',
+        label=f'x: gross output, constant {base} $ (dollars, not emissions)',
     )
     ax.axhline(100, color='grey', linewidth=0.8, linestyle=':')
     ax.set_title(
-        f'E by attribution class against x, indexed to {base} = 100\n'
-        'with the third driver, the Make, on the right axis'
+        f'The three drivers of B, indexed to {base} = 100\n'
+        'E split by what spread it across sectors, in emissions;  '
+        'x in dollars;  the Make as the mass it has reallocated'
     )
     ax.set_xlabel('year')
     ax.set_ylabel(f'index ({base} = 100)')

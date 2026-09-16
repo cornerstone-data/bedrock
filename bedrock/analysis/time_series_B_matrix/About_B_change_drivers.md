@@ -336,6 +336,25 @@ lead.
 
 ![E, x and the Make](images/E_vs_x_indexed.png)
 
+⚠️ **The five coloured E lines are one quantity, not five.** They are total
+emissions partitioned by *what vector spread them across sectors*, so they sum
+to the red total line. None of them is an output series — `x` is the black and
+grey pair, in dollars.
+
+| line | what it is | share of E |
+|---|---|---:|
+| E: total GHG inventory | the sum of the five below | 100% |
+| inventory names the sector directly | `Direct` — no attribution vector used | 54% |
+| spread by a Use table row | each sector's purchases of a fuel commodity | 30% |
+| spread by the MECS energy survey | `Energy_manufacturing_national_nowcast` | 9.5% |
+| spread by another GHG inventory table | EPA soils and non-energy use tables | 6.4% |
+| spread by gross output | `BEA_Detail_GrossOutput_IO` | **0.018%** |
+
+⚠️ The last of those is 1.2 Mt. Drawn at equal weight it was the most dramatic
+line on the chart, swinging on a fifth of a megatonne; it is now thin and
+carries its share in the label. It is emissions attributed *using* gross output
+as the weight — not gross output, which is `x`.
+
 ## 3. Prices are 73% of the 2021 and 2022 gap
 
 The nowcast configs set `apply_io_year_adjustments: False`, so `x` is nominal:
