@@ -481,6 +481,9 @@ class Span:
     x_real: pd.DataFrame
     #: year -> Vnorm (405 x 405) for that year's nowcast Make
     Vnorm: dict[int, pd.DataFrame]
+    #: commodity x year, USD - commodity output, the column-side counterpart
+    #: of ``x``. Nominal, matching the year's own Make.
+    q: pd.DataFrame
     #: year -> the Leontief inverse, ``(I - (Adom + Aimp))^-1``, commodity x
     #: commodity. Total rather than domestic-only, matching the production
     #: path. Needed for ``N``, and for the own-loop term ``L[j, j]``.
@@ -516,6 +519,7 @@ def build_span(
     x_parts: dict[int, pd.Series] = {}
     Vnorm: dict[int, pd.DataFrame] = {}
     L: dict[int, pd.DataFrame] = {}
+    q_parts: dict[int, pd.Series] = {}
 
     for year in years:
         logger.info('--- %d ---', year)
@@ -529,6 +533,7 @@ def build_span(
             Vnorm[year] = derive_cornerstone_Vnorm_scrap_corrected()
             aq = derive_cornerstone_Aq_scaled()
             L[year] = compute_L_matrix(A=aq.Adom + aq.Aimp)
+            q_parts[year] = aq.scaled_q
         E_parts.append(E_year)
         x_parts[year] = x_year
         logger.info(
@@ -561,6 +566,7 @@ def build_span(
         E=pd.concat(E_parts, ignore_index=True),
         x=x,
         x_real=x_real,
+        q=pd.DataFrame(q_parts).rename_axis(index='commodity', columns='year'),
         Vnorm=Vnorm,
         L=L,
         vintages=pinned,
@@ -1237,6 +1243,48 @@ def report(
 # --- plots ------------------------------------------------------------------
 
 
+def make_reallocation(span: Span, base_year: int | None = None) -> pd.Series:
+    """Emissions the Make has shuffled between commodities since *base_year*, Mt.
+
+    ⚠️ **``Vnorm`` cannot appear on an indexed-levels chart, because it nets to
+    nothing in the aggregate.** The output-weighted total of ``B`` is total
+    emissions by construction - measured, 5,023 Mt against 5,017 Mt in 2022,
+    the 0.13% gap being the scrap correction - and freezing ``Vnorm`` at 2017
+    moves that total by 0.1%. The Make redistributes emissions across
+    commodities; it does not create or destroy them. A ``Vnorm`` level line
+    would sit flat at 100 and say nothing, and ``q`` would not help: ``q`` and
+    ``x`` are the same money counted along two axes and total to the dollar.
+
+    What *is* visible is the redistribution itself::
+
+        0.5 * sum_j | B_j(Vnorm_t) q_j  -  B_j(Vnorm_base) q_j |
+
+    holding each year's own ``E / x`` and ``q`` fixed so only the Make moves.
+    Zero in the base year by construction, and rising as the Make drifts away
+    from it. Units are Mt CO2e: the mass of emissions sitting on a different
+    commodity than the base-year Make would have put it on.
+    """
+    base = int(base_year if base_year is not None else list(span.x.columns)[0])
+    base_Vnorm = span.Vnorm[base]
+    out: dict[int, float] = {}
+    for year in span.Vnorm:
+        Vnorm = span.Vnorm[year]
+        x = span.x[year].reindex(Vnorm.index).fillna(0.0)
+        q = span.q[year].reindex(Vnorm.columns).fillna(0.0)
+        E = (
+            span.E[span.E['year'] == year]
+            .groupby('sector')['CO2e']
+            .sum()
+            .reindex(Vnorm.index)
+            .fillna(0.0)
+        )
+        intensity = (E / x).replace([np.inf, -np.inf], 0.0).fillna(0.0)
+        actual = (intensity @ Vnorm) * q
+        counterfactual = (intensity @ base_Vnorm) * q
+        out[int(year)] = 0.5 * float((actual - counterfactual).abs().sum())
+    return pd.Series(out).rename(f'reallocated_vs_{base}').rename_axis('year')
+
+
 def plot_E_and_x_indexed(span: Span) -> None:
     """E by attribution class against x, both indexed to the first year."""
     by_class = (
@@ -1269,10 +1317,42 @@ def plot_E_and_x_indexed(span: Span) -> None:
         label=f'x (gross output, constant {base} $)',
     )
     ax.axhline(100, color='grey', linewidth=0.8, linestyle=':')
-    ax.set_title(f'E by attribution class against x, indexed to {base} = 100')
+    ax.set_title(
+        f'E by attribution class against x, indexed to {base} = 100\n'
+        'with the third driver, the Make, on the right axis'
+    )
     ax.set_xlabel('year')
     ax.set_ylabel(f'index ({base} = 100)')
-    ax.legend(fontsize=8)
+
+    # Vnorm on its own axis and in its own units: it nets to nothing in the
+    # aggregate, so it has no level line to index. See make_reallocation.
+    twin = ax.twinx()
+    reallocated = make_reallocation(span, int(base)) / 1e9
+    twin.fill_between(
+        reallocated.index,
+        0.0,
+        reallocated.to_numpy(),
+        color='tab:green',
+        alpha=0.13,
+        zorder=0,
+    )
+    twin.plot(
+        reallocated.index,
+        reallocated.to_numpy(),
+        marker='^',
+        color='tab:green',
+        linewidth=2.0,
+        linestyle='-.',
+        label=f'Vnorm: emissions reallocated vs {base} (right axis)',
+    )
+    twin.set_ylabel(f'Mt CO2e on a different commodity than the {base} Make')
+    twin.set_ylim(bottom=0)
+
+    handles, labels = ax.get_legend_handles_labels()
+    twin_handles, twin_labels = twin.get_legend_handles_labels()
+    ax.legend(
+        handles + twin_handles, labels + twin_labels, fontsize=8, loc='upper left'
+    )
     fig.tight_layout()
     fig.savefig(OUTPUT_DIR / 'E_vs_x_indexed.png', dpi=150)
     plt.close(fig)
@@ -1668,6 +1748,7 @@ def save_span(span: Span) -> None:
     span.E.to_parquet(CACHE_DIR / 'E_stratified.parquet')
     span.x.to_parquet(CACHE_DIR / 'x.parquet')
     span.x_real.to_parquet(CACHE_DIR / 'x_real.parquet')
+    span.q.to_parquet(CACHE_DIR / 'q.parquet')
     for year, Vnorm in span.Vnorm.items():
         Vnorm.to_parquet(CACHE_DIR / f'Vnorm_{year}.parquet')
     for year, L in span.L.items():
@@ -1697,17 +1778,20 @@ def load_span(years: tuple[int, ...] = YEARS) -> Span:
         return frame.rename_axis(index='sector')
 
     missing = [y for y in years if not (CACHE_DIR / f'L_{y}.parquet').exists()]
+    if not (CACHE_DIR / 'q.parquet').exists():
+        missing = list(years)
     if missing:
         raise FileNotFoundError(
-            f'The cached span has no Leontief inverse for {missing} - it was '
-            f'written before L was part of the span. Re-run without '
-            f'--use-cache to rebuild it.'
+            f'The cached span is missing L or q for {missing} - it was written '
+            f'before they were part of the span. Re-run without --use-cache to '
+            f'rebuild it.'
         )
 
     return Span(
         E=pd.read_parquet(CACHE_DIR / 'E_stratified.parquet'),
         x=_read('x.parquet'),
         x_real=_read('x_real.parquet'),
+        q=_read('q.parquet').rename_axis(index='commodity'),
         Vnorm={
             year: pd.read_parquet(CACHE_DIR / f'Vnorm_{year}.parquet') for year in years
         },

@@ -31,7 +31,8 @@ Inflation is an expected and acceptable form of change, so inflation effects mus
 `B = (E/x) @ Vnorm` has exactly three inputs and `L` is not one of them; it
 enters only through `N = B @ L`. `L` comes from `A = U_norm @ V_norm`, the
 nowcast's own IO product, so no emissions-side change can move it — and it
-moves `N` two to four times as much as the factors do. Diagnosed here,
+moves `N` two to four times as much as the factors do, and `Vnorm` is 3% to
+13% of gross `B` movement depending on year. Diagnosed here,
 remediated in Nowcast Phase 2. `Vnorm` falls on the same side of that line
 for remediation, being the nowcast Make, even though it is a direct term in
 `B`.
@@ -53,7 +54,7 @@ CSVs as the live source** — quoted numbers here go stale, the outputs do not.
 | Approach | Question it asks | Diagnostic | Output |
 |---|---|---|---|
 | 1, top-down | which data source moves the most CO2e away from output? | divergence decomposition by `MetaSources` × `AttributionSources` | `divergence_by_source.png`, `divergence_by_source_real.png`, `divergence_by_attribution.csv`, `divergence_by_metasource.csv` |
-| 1, top-down | is it emissions moving, or output? | E by attribution class against x, indexed | `E_vs_x_indexed.png` |
+| 1, top-down | is it `E`, `x` or `Vnorm` moving? | E by attribution class against x indexed, with the Make's reallocation on a second axis | `E_vs_x_indexed.png` |
 | 1, top-down | did this source ever track output at all? | `dlog(E)` on `dlog(x)` per source, emissions-weighted | `output_elasticity.csv`, `output_elasticity_real.csv` |
 | 1, top-down | how much of the apparent move is just prices? | nominal vs constant-dollar counterfactual | `price_effect.csv` |
 | 2, bottom-up | which EFs moved most, per year, in real dollars? | year-on-year change in `B`, ranked on `abs_delta_B_pct_of_N` — the change in the direct factor weighted by its share of that commodity's own `N` | `B_change_real.csv` |

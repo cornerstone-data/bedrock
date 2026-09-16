@@ -9,8 +9,8 @@ numbers.
 `B = (E / x) @ Vnorm`, so the three drivers the plan names — `E`, `x` and
 `Vnorm` — are the three places a factor can move from. The sections below
 measure how much each contributes, how to gate on a factor change in a way
-that discriminates, and four mechanisms that produce movement with nothing
-underneath it.
+that discriminates, which movements are worth smoothing at all, and four
+mechanisms that produce movement with nothing underneath it.
 
 ⚠️ **Every figure here is industry emissions only.** `F01000` personal
 consumption expenditures has no gross output, so it cannot enter `E / x`; the
@@ -181,6 +181,8 @@ in 2020 first show up as a smaller count in the 2021 row.
 
 ### Drift or oscillation: which movement is worth smoothing
 
+![Drift against oscillation](images/sector_stratum_divergence.png)
+
 `sector_stratum_divergence.png` and `sector_stratum_span.csv` place every
 (sector, inventory table, attribution) cell by how much it moves against
 whether the movement goes anywhere:
@@ -292,20 +294,47 @@ is in constant first-year dollars. The ratios are unaffected because numerator
 and denominator share the `B` basis, but `N` as a level is mixed-basis and
 should not be compared across years as a level.
 
-## 2. `Vnorm` is a quarter of the movement in 2023
+## 2. `Vnorm`: a tenth of the movement by mass, a quarter unweighted
 
 Each year's `Vnorm` is built from that year's nowcast Make, so a commodity's
 factor moves when the industry-to-commodity mix moves, with `E / x` flat.
-Holding one side at a time and differencing:
+Holding one side at a time and differencing gives the Make's share of gross `B`
+movement — but the answer depends on whether commodities are weighted by how
+much of them anyone buys:
 
 | year | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `Vnorm` share of gross `B` movement | 9.0% | 7.3% | 10.5% | 7.5% | 11.2% | **26.6%** | **21.6%** |
+| unweighted, every commodity equal | 7.5% | 7.2% | 9.2% | 5.9% | 6.0% | **26.5%** | **23.4%** |
+| weighted by commodity output `q` | 3.8% | 5.2% | 6.4% | 3.7% | 2.8% | **10.7%** | **13.0%** |
 
-Under 12% through 2022, then 26.6% in 2023 and 21.6% in 2024. For 133
-commodity-years — 4.7% of the panel — `Vnorm` moved the factor more than
-`E / x` did. Those cannot be remediated on either the emissions or the output
-side. What changed in the 2023 Make is an open question and is its own lead.
+⚠️ **Quote the weighted row.** The unweighted figure counts a kg/$ swing on a
+commodity nobody buys the same as one on electricity, and roughly doubles the
+Make's apparent importance. On the weighting that matters the Make is 3% to 6%
+of gross `B` movement through 2022 and then 10.7% and 13.0% — still a clear
+step up in 2023, still the one driver this project cannot remediate, but half
+the size the unweighted number suggests.
+
+In absolute terms the Make has moved **25 Mt CO2e onto a different commodity**
+than the 2017 Make would have put it on, by 2024 — about 0.5% of total
+emissions, rising monotonically across the span. That is the green line on
+`E_vs_x_indexed.png`.
+
+⚠️ **`Vnorm` has no level line, and `q` is not a substitute for one.** The
+output-weighted total of `B` is total emissions by construction — measured,
+5,023 Mt against 5,017 Mt in 2022, the 0.13% gap being the scrap correction —
+and freezing `Vnorm` at 2017 moves that total by 0.1%. The Make redistributes
+emissions across commodities; it does not create or destroy them, so an indexed
+`Vnorm` line would sit flat at 100. `q` would not help either: `q` and `x` are
+the same money counted along two axes and total to the dollar. The
+redistribution is the only thing there is to plot, which is what
+:func:`make_reallocation` measures.
+
+For 133 commodity-years — 4.7% of the panel — `Vnorm` moved the factor more
+than `E / x` did. Those cannot be remediated on either the emissions or the
+output side. What changed in the 2023 Make is an open question and is its own
+lead.
+
+![E, x and the Make](images/E_vs_x_indexed.png)
 
 ## 3. Prices are 73% of the 2021 and 2022 gap
 
