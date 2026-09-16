@@ -210,10 +210,23 @@ def _egrid_plprmfl_to_plfuelct(fuel: str) -> str | None:
 def load_egrid_emissions_via_stewi(year: str | int) -> pd.DataFrame:
     """Load stewi eGRID flow-by-facility emissions with facility location and fuel."""
     year_str = str(year)
-    df = stewi.getInventory('eGRID', year_str, download_if_missing=True)
-    facilities = stewi.getInventoryFacilities(
-        'eGRID', year_str, download_if_missing=True
-    )
+    try:
+        df = stewi.getInventory('eGRID', year_str, download_if_missing=True)
+        facilities = stewi.getInventoryFacilities(
+            'eGRID', year_str, download_if_missing=True
+        )
+        if facilities is None:
+            raise TypeError('eGRID facility inventory missing after download')
+    except TypeError:
+        # download_if_missing=True looks for data on EPA server, so generatate locally
+        log.info(
+            f'eGRID {year_str} not available via download; '
+            'regenerating with download_if_missing=False'
+        )
+        df = stewi.getInventory('eGRID', year_str, download_if_missing=False)
+        facilities = stewi.getInventoryFacilities(
+            'eGRID', year_str, download_if_missing=False
+        )
     facilities = (
         facilities[['FacilityID', 'State', 'County', 'Plant primary fuel']]
         .drop_duplicates(subset='FacilityID', keep='first')
