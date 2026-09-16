@@ -280,12 +280,39 @@ def _trade_fbs_commodity_vector(method: str, download_sources_ok: bool) -> pd.Se
         download_FBAs_if_missing=download_sources_ok,
         download_FBS_if_missing=download_sources_ok,
     )
+    frame = pd.DataFrame(fbs)
+    _assert_no_unproduced_mass(frame, method)
     return (
-        pd.DataFrame(fbs)
-        .groupby('SectorProducedBy')['FlowAmount']
+        frame.groupby('SectorProducedBy')['FlowAmount']
         .sum()
         .reindex(USA_2017_COMMODITY_CODES)
         .fillna(0.0)
+    )
+
+
+def _assert_no_unproduced_mass(frame: pd.DataFrame, method: str) -> None:
+    """Refuse a Trade FBS carrying dollars on a null ``SectorProducedBy`` (#889).
+
+    ``groupby`` drops null keys silently, so a row built with the commodity on
+    the wrong side vanishes between the FBS and the commodity vector. That is
+    how dollarized electricity exports went missing in all eight years: the loss
+    was $0.84bn against a $2,441bn exports column in 2022, under one part in two
+    thousand, so no column-total check could see it. Comparing the two totals
+    does see it -- they are equal exactly when every row reaches a commodity.
+    """
+    produced = frame['SectorProducedBy']
+    unproduced = frame.loc[produced.isna() | (produced.astype(str).str.len() == 0)]
+    if unproduced.empty:
+        return
+    lost = float(unproduced['FlowAmount'].sum())
+    total = float(frame['FlowAmount'].sum())
+    flowables = sorted(set(unproduced['Flowable'].astype(str)))
+    raise ValueError(
+        f'{method}: {len(unproduced)} row(s) carry no SectorProducedBy and would '
+        f'be dropped from the commodity vector, losing ${lost:,.0f} of '
+        f'${total:,.0f} ({lost / total * 100:.4f}%). Flowables: {flowables}. '
+        f'An export row must carry its producing commodity on the produced side '
+        f'and its final-demand code on the consumed side; see #889.'
     )
 
 
