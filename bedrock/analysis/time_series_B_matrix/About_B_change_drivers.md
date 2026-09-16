@@ -77,18 +77,17 @@ Every commodity-year in `B_change_real.csv`, ranked on `abs_delta_B_pct_of_N`,
 highest first. `own share` is `own_direct_share_of_N`; the bolded column is the
 gate metric; `pct_change_N` is what the commodity's total factor actually did.
 
-⚠️ marks a row whose factor is **negative** on one side of the pair. Those four
-rows are a data defect, not a movement — see the next section. Read the list
-past them.
+⚠️ **`114000` and `327910` are excluded** pending
+[#912](https://github.com/cornerstone-data/bedrock/issues/912). Their factors
+go negative, so a percentage change has no interpretation for them; `114000`
+otherwise took 6 of these 30 slots including first place, at a nominal +379%
+that is entirely an artefact of crossing zero. Restore them to the ranking when
+the defect is fixed, not before.
 
 | year | commodity | name | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
 |---|---|---|---:|---:|---:|---:|
-| 2021 | `114000` ⚠ | Fishing, hunting and trapping | -0.49 | -779.2% | **+379.4%** | +567.2% |
 | 2021 | `483000` | Water transportation | 0.79 | +111.5% | **+87.6%** | +87.3% |
-| 2020 | `114000` ⚠ | Fishing, hunting and trapping | 0.63 | -115.5% | **-72.4%** | -80.1% |
-| 2023 | `114000` ⚠ | Fishing, hunting and trapping | 0.34 | -152.7% | **-51.9%** | -84.8% |
 | 2019 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.11 | +371.1% | **+41.3%** | +159.2% |
-| 2024 | `114000` ⚠ | Fishing, hunting and trapping | -1.18 | +35.0% | **-41.2%** | -75.7% |
 | 2020 | `611100` | Elementary and secondary schools | 0.53 | +71.9% | **+38.3%** | +30.2% |
 | 2022 | `111300` | Fruit and tree nut farming | 0.67 | -52.6% | **-35.1%** | -47.9% |
 | 2022 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.77 | -44.0% | **-33.8%** | -33.1% |
@@ -97,7 +96,6 @@ past them.
 | 2021 | `315000` | Apparel manufacturing | 0.32 | -87.7% | **-28.0%** | -13.0% |
 | 2021 | `325110` | Petrochemical manufacturing | 0.64 | +41.6% | **+26.5%** | +25.2% |
 | 2022 | `483000` | Water transportation | 0.89 | -29.1% | **-25.8%** | -20.3% |
-| 2018 | `114000` | Fishing, hunting and trapping | 0.63 | -39.0% | **-24.5%** | -29.3% |
 | 2020 | `21311A` | Other support activities for mining | 0.47 | -46.5% | **-21.8%** | -32.9% |
 | 2021 | `332114` | Custom roll forming | 0.15 | +148.0% | **+21.8%** | +38.7% |
 | 2020 | `532100` | Automotive equipment rental and leasing | 0.29 | -74.3% | **-21.8%** | -37.7% |
@@ -106,26 +104,35 @@ past them.
 | 2022 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.23 | -92.4% | **-21.2%** | +81.7% |
 | 2021 | `325180` | Other basic inorganic chemical manufacturing | 0.73 | -28.4% | **-20.7%** | -17.1% |
 | 2021 | `325130` | Synthetic dye and pigment manufacturing | 0.41 | +50.2% | **+20.6%** | +25.2% |
-| 2022 | `114000` | Fishing, hunting and trapping | 0.50 | -39.6% | **-19.6%** | -11.8% |
 | 2023 | `611100` | Elementary and secondary schools | 0.62 | -31.2% | **-19.3%** | -26.7% |
 | 2020 | `481000` | Air transportation | 0.80 | +24.1% | **+19.3%** | +11.9% |
 | 2021 | `325310` | Fertilizer manufacturing | 0.86 | +21.9% | **+18.9%** | +21.0% |
 | 2021 | `325510` | Paint and coating manufacturing | 0.26 | +70.4% | **+18.1%** | +35.7% |
 | 2021 | `312110` | Soft drink and ice manufacturing | 0.10 | +177.4% | **+18.1%** | +36.4% |
 | 2021 | `331313` | Alumina refining and primary aluminum production | 0.68 | -26.5% | **-18.0%** | -13.3% |
+| 2021 | `322110` | Pulp mills | 0.48 | +37.9% | **+18.0%** | +24.1% |
+| 2022 | `327993` | Mineral wool manufacturing | 0.31 | +57.4% | **+17.8%** | +15.6% |
+| 2021 | `332800` | Coating, engraving, heat treating and allied activities | 0.25 | +71.6% | **+17.6%** | +43.0% |
+| 2021 | `233240` | Power and communication structures | 0.45 | -38.5% | **-17.3%** | +7.2% |
+| 2021 | `2332D0` | Other nonresidential structures | 0.34 | -49.9% | **-16.9%** | +0.8% |
+| 2023 | `212100` | Coal mining | 0.88 | +18.9% | **+16.7%** | +15.1% |
 
-Reading it: the list is led by commodities that **are** their own footprint.
-Water transportation, fertilizer manufacturing, fruit and nut farming, metal
-ore mining and air transportation all sit at own-shares of 0.63 to 0.89 —
-sectors whose emissions happen on their own site, so a move in their direct
-factor passes almost undamped into what their buyers carry. Own-shares across
-the 30 run 0.10 to 0.89, so a low-share commodity can still make the list on a
-large enough move; what it can no longer do is make it on a large move that
-barely touches `N`. The unweighted ranking led with rental and leasing and
-internet publishing, own-shares 0.13 and 0.004.
+The list spans +87.6% down to 16.7% on the gate metric, and is led by
+commodities that **are** their own footprint. Water transportation, fertilizer
+manufacturing, fruit and nut farming, metal ore mining and petrochemical
+manufacturing all sit at own-shares of 0.63 to 0.89 — sectors whose emissions
+happen on their own site, so a move in their direct factor passes almost
+undamped into what their buyers carry. Own-shares across the 30 run 0.10 to
+0.89, so a low-share commodity can still make the list on a large enough move;
+what it can no longer do is make it on a large move that barely touches `N`.
+The unweighted ranking led with rental and leasing and internet publishing,
+own-shares 0.13 and 0.004.
 
-2021 supplies 11 of the 30, more than any other year, consistent with 2021
-being the worst year on every other measure here.
+⚠️ **The span is not evenly represented, and the reason is not remediable.**
+2021 supplies 14 of the 30 and 2022 seven; 2018 and 2024 supply none at all.
+That is the COVID rebound showing up as a genuine one-year movement in real
+output and in fuel use together, not a defect to smooth away. Prioritising on
+this list alone would spend the project's effort on 2021.
 
 ### ⚠️ Negative emission factors in two commodities
 
