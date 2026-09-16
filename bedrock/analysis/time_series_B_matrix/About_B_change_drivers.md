@@ -179,6 +179,63 @@ and `S00402` — leaving 402. From the 2021 row the negative ones drop out too:
 filter reads the **prior** year's factor, which is why negatives that start
 in 2020 first show up as a smaller count in the 2021 row.
 
+### Drift or oscillation: which movement is worth smoothing
+
+`sector_stratum_divergence.png` and `sector_stratum_span.csv` place every
+(sector, inventory table, attribution) cell by how much it moves against
+whether the movement goes anywhere:
+
+```
+oscillation = 1 - |sum(divergence)| / sum(|divergence|)
+```
+
+0 means every year pointed the same way; 1 means the movements cancel and the
+cell ends where it started. **That is the justified-versus-unjustified question
+in measurable form**, and it does not fall out of magnitude alone.
+
+The single largest cell on the span is electric power's own direct emissions
+against `221100`, 609 Mt of gross movement — and it is *not* a smoothing
+target. Its oscillation is 0.42 and its net is −355 Mt: emissions falling
+faster than output, year after year, in the same direction. Smoothing that
+would erase decarbonisation.
+
+Of the 63 cells carrying more than 10 Mt of gross movement, **33 oscillate
+above 0.75 and carry 1,158 Mt between them**, against 7 trending cells below
+0.25 carrying 270 Mt. The largest rocky cells:
+
+| cell | gross | net | oscillation |
+|---|---:|---:|---:|
+| `211000` oil and gas \| UMD 3-11 natural_gas_nonmanufacturing → Use | 121.8 Mt | +3.9 | **0.97** |
+| `211000` oil and gas \| UMD 3-11 petroleum_industrial → MECS | 106.6 Mt | +9.2 | **0.91** |
+| `481000` air transport \| UMD 3-8 direct_jet → Direct | 99.5 Mt | −24.7 | 0.75 |
+| `324110` refineries \| UMD 3-11 petroleum_industrial → MECS | 79.4 Mt | −4.6 | **0.94** |
+| `1111B0` grain farming \| UMD 5-10 direct → EPA_GHGI_soils | 71.8 Mt | −10.6 | 0.85 |
+| `1111B0` grain farming \| UMD 3-11 natural_gas_nonmanufacturing → Use | 60.2 Mt | −9.0 | 0.85 |
+
+Oil and gas extraction appears twice at the top, moving 228 Mt between the two
+cells and arriving 13 Mt from where it started. Both are industrial-fuel rows
+attributed through the Use table or the MECS energy FBS, which is the same pair
+of attribution routes behind most of this list.
+
+⚠️ `oscillation` is unreliable where the gross is small — two rounding
+movements that happen to cancel score 1.0 — so read it next to `total`. The
+figures above are all filtered to cells above 10 Mt.
+
+⚠️ **Net within the cell-year before taking absolute values.** The detail frame
+is keyed on the raw `AttributionSources`, and a vintage-suffixed vector splits
+one cell-year across two rows: the MECS energy FBS carries a year in its name,
+so the 2018 pair has an `..._2017` row holding the `E_from` side and an
+`..._2018` row holding the `E_to` side, each with a large divergence that
+cancels against its sibling. Summing `|divergence|` over raw rows counts both
+halves of that cancellation as movement — it put petroleum refineries' gas
+combustion at 740 Mt of gross movement against an actual 21 Mt, a factor of 35,
+and it put that cell top of the ranking. Same family of trap as the EPA table
+renumbering.
+
+Concentration, after that correction: the 1,991 cells carry 3,304 Mt of gross
+movement between them, and the top 10 hold 40%, the top 25 hold 56%, the top
+50 hold 69%. A top-N view is representative rather than a sample.
+
 ### `L` moves `N` more than the factors do, and is out of scope
 
 `N = B @ L`, and `L` comes from each year's own `A` at that year's prices —

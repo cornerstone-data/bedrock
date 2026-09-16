@@ -1436,6 +1436,202 @@ def plot_divergence_stack(
     return pairs
 
 
+def sector_stratum_span(detail: pd.DataFrame) -> pd.DataFrame:
+    """One row per (sector, inventory table, attribution) cell across the span.
+
+    Adds the column the finest-grained table was missing: whether a cell
+    **drifts** or **oscillates**::
+
+        oscillation = 1 - |sum(divergence)| / sum(|divergence|)
+
+    0 means every year's divergence pointed the same way - the cell is on a
+    trend. 1 means the movements cancel exactly - the cell goes back and forth
+    and ends where it started.
+
+    ⚠️ **That distinction is the justified-versus-unjustified question in
+    measurable form, and it does not fall out of magnitude alone.** A cell can
+    be enormous and entirely legitimate: electric power's own direct emissions
+    against `221100` carry the largest gross divergence on the span, 808 Mt,
+    at an oscillation of 0.06 - emissions falling faster than output, every
+    year, in the same direction. Smoothing that would erase decarbonisation.
+    A cell of a sixteenth the size can be the better target: industrial
+    petroleum into petroleum refineries oscillates at 0.92, moving 47.6 Mt in
+    total and arriving 3.8 Mt from where it started.
+
+    ⚠️ ``oscillation`` is unreliable where the total is small - two rounding
+    movements that happen to cancel score 1.0. Read it next to ``total``.
+    """
+    # ⚠️ Net the cell out WITHIN each year before taking absolute values.
+    # `detail` is keyed on the raw `AttributionSources`, and a vintage-suffixed
+    # vector splits one cell-year across two rows - the MECS energy FBS carries
+    # a year in its name, so the 2018 pair has an `..._2017` row holding the
+    # `E_from` side and an `..._2018` row holding the `E_to` side, each with a
+    # large divergence that cancels against its sibling. Summing |divergence|
+    # over raw rows counts both halves of that cancellation as movement: it put
+    # petroleum refineries' gas combustion at 740 Mt of gross movement against
+    # an actual 21 Mt, a factor of 35.
+    per_year = (
+        detail.assign(
+            cell=lambda d: d['sector']
+            + ' | '
+            + d['MetaSources']
+            + ' -> '
+            + d['attribution']
+        )
+        .groupby(['cell', 'sector', 'MetaSources', 'attribution', 'year_to'])[
+            'divergence'
+        ]
+        .sum()
+        .reset_index()
+    )
+    cells = (
+        per_year.groupby(['cell', 'sector', 'MetaSources', 'attribution'])
+        .agg(
+            total=('divergence', lambda s: float(s.abs().sum())),
+            net=('divergence', 'sum'),
+            years=('year_to', 'nunique'),
+        )
+        .reset_index()
+    )
+    cells['oscillation'] = np.where(
+        cells['total'] > 0, 1 - cells['net'].abs() / cells['total'], np.nan
+    )
+    cells['share_of_gross'] = cells['total'] / cells['total'].sum()
+    return cells.sort_values('total', ascending=False).reset_index(drop=True)
+
+
+def plot_sector_stratum_divergence(
+    detail: pd.DataFrame,
+    filename: str = 'sector_stratum_divergence.png',
+    title_suffix: str = '',
+    top: int = 25,
+) -> pd.DataFrame:
+    """Two views of the finest-grained divergence: drift-or-oscillate, and when.
+
+    Left: every cell placed by how much it moves against whether the movement
+    goes anywhere. The top-right corner - large and oscillating - is the
+    smoothing project's target list; the bottom-right is large and trending,
+    which is a real signal and should be left alone.
+
+    Right: the *top* cells year by year, signed, so the pattern behind the
+    oscillation score is visible rather than taken on trust.
+    """
+    cells = sector_stratum_span(detail)
+    ranked = cells.head(top)
+
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(17, 9), gridspec_kw={'width_ratios': [1.05, 1]}
+    )
+
+    # --- left: magnitude against drift-or-oscillate -------------------------
+    x = cells['total'].to_numpy(dtype=float) / 1e9
+    y = cells['oscillation'].to_numpy(dtype=float)
+    left.scatter(x, y, s=12, alpha=0.35, color='tab:blue', edgecolors='none')
+    left.scatter(
+        ranked['total'] / 1e9,
+        ranked['oscillation'],
+        s=45,
+        color='tab:red',
+        edgecolors='black',
+        linewidths=0.4,
+        zorder=3,
+        label=f'top {top} by gross movement',
+    )
+    # Label to the LEFT: the big cells sit against the right edge of a log
+    # axis, so a right-hand label runs off the panel and into its neighbours.
+    for _, row in cells.head(8).iterrows():
+        left.annotate(
+            _abbreviate_cell(row['sector'], row['MetaSources'], row['attribution']),
+            (row['total'] / 1e9, row['oscillation']),
+            textcoords='offset points',
+            xytext=(-10, 0),
+            ha='right',
+            fontsize=6.5,
+            va='center',
+            color='black',
+        )
+    left.set_xscale('log')
+    left.set_ylim(-0.03, 1.03)
+    left.axhline(0.5, color='grey', linestyle=':', linewidth=0.8)
+    left.set_xlabel('gross movement over the span, Mt CO2e (log)')
+    left.set_ylabel('oscillation:  0 = one direction,  1 = cancels out')
+    left.set_title(
+        'Does the movement go anywhere?\n'
+        'high and right = rocky with nothing underneath;  '
+        'low and right = a real trend',
+        fontsize=10,
+    )
+    left.legend(fontsize=7, loc='lower left')
+
+    # --- right: the top cells, year by year, signed -------------------------
+    signed = (
+        detail.assign(
+            cell=lambda d: d['sector']
+            + ' | '
+            + d['MetaSources']
+            + ' -> '
+            + d['attribution']
+        )
+        .pivot_table(
+            index='cell', columns='year_to', values='divergence', aggfunc='sum'
+        )
+        .reindex(ranked['cell'])
+        .fillna(0.0)
+        / 1e9
+    )
+    # ⚠️ Row-normalise. On a shared colour scale the largest cell sets the
+    # limits and every other row renders white, which hides the very thing the
+    # panel exists to show - electric power alone swings 131 Mt in a year,
+    # against single-digit Mt for most of the rest. Each row is therefore drawn
+    # as a share of its own gross movement, and the magnitude it is a share
+    # *of* is printed in the row label.
+    gross = np.abs(signed.to_numpy()).sum(axis=1, keepdims=True)
+    shares = np.divide(
+        signed.to_numpy(), gross, out=np.zeros_like(signed.to_numpy()), where=gross > 0
+    )
+    image = right.imshow(shares, cmap='RdBu_r', vmin=-1, vmax=1, aspect='auto')
+    right.set_xticks(range(len(signed.columns)))
+    right.set_xticklabels([str(c) for c in signed.columns])
+    right.set_yticks(range(len(signed)))
+    right.set_yticklabels(
+        [
+            '{}  ({:,.0f} Mt)'.format(
+                _abbreviate_cell(r['sector'], r['MetaSources'], r['attribution']),
+                r['total'] / 1e9,
+            )
+            for _, r in ranked.iterrows()
+        ],
+        fontsize=6.5,
+    )
+    right.set_xlabel('year')
+    right.set_title(
+        f'The {top} largest cells, signed\n'
+        'a row that alternates colour is oscillating; one colour is a trend',
+        fontsize=10,
+    )
+    fig.colorbar(
+        image,
+        ax=right,
+        label="share of that cell's own gross movement",
+        shrink=0.7,
+    )
+
+    fig.suptitle(f'Divergence by sector and source{title_suffix}', fontsize=12, y=0.99)
+    fig.tight_layout()
+    fig.savefig(OUTPUT_DIR / filename, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    return cells
+
+
+def _abbreviate_cell(sector: str, meta: str, attribution: str) -> str:
+    """``221100 electric_power -> Direct``, short enough for an axis label."""
+    name = _INDUSTRY_NAME.get(str(sector), '')
+    return (
+        f'{sector} {name[:18]} | '
+        f'{abbreviate_source(meta)} → {abbreviate_source(attribution)}'
+    )
+
+
 def plot_elasticity(elasticity: pd.DataFrame) -> None:
     """Each attribution source's slope of dlog E on dlog x, sized by its mass."""
     frame = elasticity.dropna(subset=['slope_dlogE_on_dlogx'])
@@ -1591,6 +1787,11 @@ def main(
     tables['divergence_by_source_plotted_real'] = plot_divergence_stack(
         detail_real,
         'divergence_by_source_real.png',
+        f' (x in constant {int(span.x.columns[0])} $)',
+    )
+    tables['sector_stratum_span'] = plot_sector_stratum_divergence(
+        detail_real,
+        'sector_stratum_divergence.png',
         f' (x in constant {int(span.x.columns[0])} $)',
     )
     plot_elasticity(tables['output_elasticity'])

@@ -59,6 +59,7 @@ CSVs as the live source** — quoted numbers here go stale, the outputs do not.
 | 2, bottom-up | which EFs moved most, per year, in real dollars? | year-on-year change in `B`, ranked on `abs_delta_B_pct_of_N` — the change in the direct factor weighted by its share of that commodity's own `N` | `B_change_real.csv` |
 | 2, bottom-up | which source sits behind a given commodity's EF? | `B` split by attribution | `B_by_attribution.csv` |
 | 1 → 2 bridge | which sector *and* source jointly? | divergence by sector × source pair | `divergence_by_sector_stratum.csv` |
+| 1 → 2 bridge | does a cell drift or just oscillate? | gross movement against `oscillation = 1 - \|net\| / gross` per cell | `sector_stratum_divergence.png`, `sector_stratum_span.csv` |
 
 Findings from these diagnostics, including what a 5% gate actually selects
 and how much of the movement each of `E`, `x` and `Vnorm` accounts for, are
