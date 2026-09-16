@@ -412,8 +412,9 @@ which has to move too:
 
 **On the order of work:**
 
-10. Bills first, allocator second, each measured on its own. If both move in one
-    change, a reduced capped count cannot be attributed to either.
+10. Electricity purchases first, allocator second, each measured on its own. If
+    both move in one change, a reduced capped count cannot be attributed to
+    either.
 
 ## Reproducing
 

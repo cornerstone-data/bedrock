@@ -144,8 +144,8 @@ def allocate_year(year: int, mut_vintage: str | None) -> YearResult:
         purchases,
         self_use_key=ELECTRICITY_AGGREGATE,
         eia_year=year,
-        p_share_2017=P_SHARE_2017,
-        td_share_2017=TD_SHARE_2017,
+        p_share=P_SHARE_2017,
+        td_share=TD_SHARE_2017,
         industrial_weights='mecs',
     )
     # allocate_purchaser_gtd reports p in USD per MWh; 1 c/kWh = 10 USD/MWh.

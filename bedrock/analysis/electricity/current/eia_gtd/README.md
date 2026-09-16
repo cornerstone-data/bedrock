@@ -55,6 +55,16 @@ the newest upload. Both arms agree — as of 2026-09-13 the newest upload is
 in the module, not an extractor.
 Findings are in `About_price_proposal.md`.
 
+⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
+`annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
+(see `bedrock/extract/README.md`). `electricity_row_control` also needs the
+gitignored `bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv`;
+generate it once with:
+
+```bash
+python -m bedrock.utils.mapping.write_ec_alt_measures
+```
+
 ## Why the flat generation price fails
 
 ```bash

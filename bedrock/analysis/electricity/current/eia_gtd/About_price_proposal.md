@@ -6,8 +6,11 @@ works alone: the allocator's weights and the Use row it allocates over disagree,
 and at present each is used to justify the other.
 
 Companion measurements: `About_electricity_shares.md` (the three-source
-comparison) and `electricity_row_control.py` (what drives the row). Issue #894,
-PR #892.
+comparison) and `electricity_row_control.py` (what drives the row). Issue #894.
+Nowcast electricity integration for 2024 landed in #892; the flat-price
+identities and 2024 capped counts below were re-checked against that merge
+(unchanged once `allocate_purchaser_gtd`'s `p_share` / `td_share` kwargs are
+used).
 
 **The three pieces, referred to by letter throughout this work:**
 
@@ -27,7 +30,7 @@ each is used to justify the other.
 purchaser in the economy**:
 
 ```python
-p = (p_share_2017 * electricity_purchases_total) / egrid_mwh   # a scalar
+p = (p_share * electricity_purchases_total) / egrid_mwh   # a scalar
 proportional = mwh.loc[members] * p
 ```
 
@@ -35,9 +38,11 @@ Inside manufacturing the MWh come from MECS Table 7.7 kWh shares, so a sector's
 generation dollars are `its kWh share × the average price`. Where a sector buys
 cheap power that product exceeds its entire electricity purchases, water-fill caps it,
 and the excess lands on other purchasers. Measured on the 2024 nowcast: **44
-manufacturing sectors clip under MECS weights, zero under dollar weights**, and
-**47 end with no T&D dollars at all** — modelled as buying generation and no
-transmission or distribution, which no real purchaser does.
+manufacturing sectors clip under MECS weights, zero under dollar weights**.
+Every capped purchaser is left with **zero T&D** (the same 44 — T&D is the
+residual of the bill after generation, so the cap consumes it all), modelled as
+buying generation and no transmission or distribution, which no real purchaser
+does.
 
 Stated precisely: the flat `p` is **4.67 ¢/kWh**, and the cheapest manufacturing
 industry's *entire* electricity purchases come to **4.21 ¢/kWh** (325194 cyclic
@@ -393,7 +398,6 @@ should be filed separately is the **2023-24 share collapse**, which is ours.
 - Add `EIA_CBECS_Energy` for table C13. `EIA_CBECS_Land` and `EIA_CBECS_Water`
   give the extractor pattern; C13 sits at `ce/xls/c13.xlsx` rather than the
   `bc/` path those use.
-- Re-run the clip and reassignment counts under #892's re-anchored shares.
 
 ## Why the nowcast column must move in tandem
 
