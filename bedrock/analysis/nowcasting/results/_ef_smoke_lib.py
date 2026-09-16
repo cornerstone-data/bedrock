@@ -59,8 +59,9 @@ NOWCAST_COMPARE_YEAR = 2024
 NOWCAST_COMPARE_SNAPSHOT: str | None = None
 # v0.3.2, not v0.3.1: the MECS Energy methodology (#688, ported to the nowcast
 # GHG configs in #858) moves manufacturing B, so a v0.3.1 baseline charges the
-# nowcast for an emissions change that is really a v0.3 patch. v0.3.2 is also
-# what ``.SNAPSHOT_KEY`` points at. Both are 2024$, so nothing downstream shifts
+# nowcast for an emissions change that is really a v0.3 patch. ``v0_3_2`` is the
+# current v0.3 release label; ``.SNAPSHOT_KEY`` may point at a later release
+# (e.g. v0.4). Both v0.3.1 and v0.3.2 are 2024$, so nothing downstream shifts
 # denominator year.
 V03_SNAPSHOT = releases.v0_3_2
 

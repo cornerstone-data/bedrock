@@ -73,6 +73,10 @@ uv run python -m bedrock.analysis.nowcasting.plots --check-palette
 # the Steps 1-7 flow diagram (writes images/)
 uv run python -m bedrock.analysis.nowcasting.pipeline_diagram
 
+# Excel dumps of stored balanced SUTs and after-redef MUTs (writes output/)
+uv run python -m bedrock.analysis.nowcasting.export_tables
+# options: --year 2023  --check  (report vintages only; write nothing)
+
 # toy SUT balancer walkthrough (writes sut_balancing/output/)
 uv run python bedrock/analysis/nowcasting/sut_balancing/plot_full_nowcasting_sut_balance.py
 ```
@@ -121,6 +125,12 @@ Blocks with no candidate yet are skipped with a message rather than failing.
   the frozen cells. The figure is year-free by design — one pass for any
   nowcast year, with no vintages, storage layout or units in it. Writes the
   tracked `images/nowcast_pipeline_steps_1_to_7.png`.
+- `export_tables.py` — Excel dumps of the stored nowcast products for reading
+  and sharing: balanced SUT pair, after-redefinitions Make/Use/Import, and the
+  Margins transaction list, each as its own workbook in USD under `output/`.
+  Resolves the newest parquet per artifact family by mtime (`--check` reports
+  the pick and the spread between families). A Provenance sheet names the
+  source parquet, branch, commit and units.
 - `initial_Y_pur_baseline.py` — the Step 1 final-demand comparison against the
   published 2017 detail Use table and against the PCE/PEQ bridges. Writes the
   cell-wise CSV exports in `output/` that `sections.py` reads as the Step 1
