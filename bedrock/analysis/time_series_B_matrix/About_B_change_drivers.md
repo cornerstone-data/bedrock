@@ -334,8 +334,16 @@ the size the unweighted number suggests.
 
 In absolute terms the Make has moved **25 Mt CO2e onto a different commodity**
 than the 2017 Make would have put it on, by 2024 — about 0.5% of total
-emissions, rising monotonically across the span. That is the green line on
+emissions. It rises steadily to 25.9 Mt in 2022 and then flattens, 24.2 Mt in
+2023 and 25.0 Mt in 2024, so the mix drift is a 2017-2022 story that has since
+stalled rather than a continuing trend. That is the green line on
 `E_vs_x_indexed.png`.
+
+⚠️ That flattening sits oddly beside the Make's *share* of gross `B` movement,
+which steps up in exactly those two years. Both are measured and neither is
+wrong: the Make has stopped drifting further from the 2017 mix while the
+year-on-year reshuffling within it got larger. Cumulative displacement and
+annual churn are different quantities.
 
 ⚠️ **`Vnorm` has no level line, and `q` is not a substitute for one.** The
 output-weighted total of `B` is total emissions by construction — measured,
