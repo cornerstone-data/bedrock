@@ -18,13 +18,13 @@ Create the diagnostics to identify and prioritize the drivers.
 
 ### Determine why the drivers change and how to fix them
 
-B = (E/x) @ Vnorm 
+`B = (E/x) @ Vnorm` 
 
-There are 3 drivers of change. 
+There are 3 primary sources of change, `E`, `x`, and `Vnorm`. This project starts without bias toward any of those sources.
 
-Was it E, x, or Vnorm that jumped the most out of tune with the others? Why the change - is there solid justification for the change? If not how do we remediate it? If so should another variable then be adjusted, and how?
+Was it `E`, `x`, or `Vnorm` that jumped the most out of tune with the others? Why the change - is there solid justification for the change? If not how do we remediate it? If so should another variable then be adjusted, and how?
 
-Inflation is an expected and acceptable form of change, so inflation effects must be separated from the 
+Inflation is an expected and acceptable form of change, so inflation effects must be separated from the real change.
 
 ### Implement change and retest
 
