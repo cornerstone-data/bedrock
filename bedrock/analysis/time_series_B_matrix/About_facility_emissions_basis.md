@@ -37,35 +37,92 @@ compared against everything the inventory assigns the sector.
 
 ---
 
-## 2. Does it agree with the inventory?
+## 2. How much of the split could it carry?
 
-Coverage is facility total over everything the inventory assigns that sector:
+**Scope: mining, utilities and manufacturing** — BEA detail codes beginning 21,
+22 and 31-33, 232 sectors. These are the industries whose emissions happen at a
+plant somebody reports. Everything else a vector currently places — government
+buildings, livestock, trucking, real estate — is mobile, biological or diffuse,
+and no facility reports it because none emits it.
 
-| basis | sectors | inventory Mt | of which allocated | of which `Direct` | facility Mt |
-|---|---:|---:|---:|---:|---:|
-| facility | 58 | 876.2 | 396.7 | 479.5 | 730.2 |
-| facility + residual | 101 | 251.2 | 132.9 | 118.4 | 72.0 |
-| facility exceeds the inventory | 29 | 238.4 | 183.7 | 54.7 | 567.4 |
-| no facility data | 205 | 5,007.4 | 2,303.2 | 2,704.2 | 2.1 |
+⚠️ Two sectors are excluded from *both* sides of the comparison: `221100`
+electric power, which runs on eGRID in this model and is filtered out of the
+facility union by construction, and `F01000` personal consumption, which has no
+gross output and is outside this module entirely.
 
-The sectors this work is about land well:
+⚠️ **Scoring the basis across every sector measures the boundary, not the basis.**
+In scope it reaches 94% of the allocated mass; across all 391 sectors it reaches
+34%, and the difference is entirely sectors that were never candidates. An
+earlier version of this note quoted the unscoped figure without saying so.
 
-| sector | inventory Mt | facility Mt | coverage |
+### What is in scope, and which part of it is even improvable
+
+| | Mt | |
+|---|---:|---|
+| **vector-allocated** | **720** | placed by MECS or a Use row — the only part a facility basis could restate |
+| inventory-assigned (`Direct`) | 524 | the inventory names the sector itself; counted, never improvable — §3 |
+| **total inventory, in scope** | **1,244** | |
+
+### How much of the allocated 720 Mt has facility data behind it
+
+| facility coverage of the sector | sectors | vector-allocated Mt | share of allocated |
 |---|---:|---:|---:|
-| `331110` iron and steel | 68.8 | 65.9 | **0.96** |
-| `325310` fertilizer | 48.2 | 46.2 | **0.96** |
-| `211000` oil and gas extraction | 322.8 | 256.0 | 0.79 |
-| `327400` lime and gypsum | 23.1 | 34.3 | 1.49 |
-| `327310` cement | 57.8 | 89.2 | 1.54 |
-| `324110` petroleum refineries | 86.9 | 228.0 | 2.62 |
+| **covered** — facility total is 50-150% of the inventory's | 55 | 395.5 | **54.9%** |
+| **partly covered** — 5-50% | 88 | 109.9 | 15.3% |
+| **over 150%** — double counting, see below | 25 | 171.3 | 23.8% |
+| **none** — under 5% | 64 | 43.4 | **6.0%** |
 
-⚠️ **The overshoots are not yet a finding.** Deduplication depends on `FRS_ID`
-matching, and 668 Mt of GHGRP mass has no NEI match at all, so a site the match
-misses is counted twice. Refineries at 2.62 is the clearest suspect. That is an
-implementation defect to fix before any of these levels are quoted, not evidence
-about the inventory.
+**94% of the vector-allocated mass in mining, utilities and manufacturing has
+facility-reported data behind it.** The 6% that does not is 64 small specialty
+manufacturers, none above 8 Mt — paint and coating 7.4, soft drinks 5.2, light
+trucks 4.4.
 
----
+By major group:
+
+| | sectors | vector-allocated Mt | facility-reported Mt |
+|---|---:|---:|---:|
+| 21 mining | 8 | 144.5 | 318.1 |
+| 22 utilities (excluding electric power) | 2 | 0.6 | 36.7 |
+| 31-33 manufacturing | 222 | 575.0 | 868.5 |
+
+### Where it reaches, does it disagree — and which side is wrong?
+
+⚠️ **There is no authoritative denominator here, which is the whole point.** For
+these sectors the inventory does **not** attribute fossil combustion directly. The
+"current method" column is the GHGI national total pushed through MECS shares and
+BEA Use rows — the very derivation under suspicion — plus whatever the inventory
+did assign directly. So a facility total above it is a **disagreement**, not an
+overcount, and the ratio alone cannot say which side moved.
+
+One column can be read without that caveat. **GHGRP alone is a single source, so
+no cross-source double count is possible in it** — whatever #925 does to the
+union, it cannot inflate this:
+
+| sector | current: allocated | current: `Direct` | GHGRP alone | facility union | GHGRP ÷ current |
+|---|---:|---:|---:|---:|---:|
+| `324110` petroleum refineries | 83.4 | 3.6 | **176.4** | 228.0 | **2.03** |
+| `311221` wet corn milling | 7.4 | 0.0 | **14.8** | 20.5 | **2.00** |
+| `327310` cement | 15.9 | 41.9 | 67.9 | 89.2 | 1.18 |
+| `327400` lime and gypsum | 10.8 | 12.2 | 25.5 | 34.3 | 1.11 |
+| `325310` fertilizer | 26.6 | 21.6 | 40.3 | 46.2 | 0.84 |
+| `331110` iron and steel | 21.7 | 47.0 | 55.9 | 65.9 | 0.81 |
+| `221200` natural gas distribution | 0.2 | 30.5 | 23.4 | 26.9 | 0.76 |
+| `211000` oil and gas extraction | 110.9 | 211.9 | 221.2 | 256.0 | 0.69 |
+| `325110` petrochemicals | 48.2 | 20.7 | 26.6 | 54.2 | 0.39 |
+
+**In 14 in-scope sectors GHGRP alone exceeds the current method — 368 Mt against
+231 Mt.** Refineries at 2.03x is the clearest: a mandatory, verified programme
+reports more than twice what our derivation assigns, from one source that cannot
+double count itself. The remaining explanations are that the current method
+under-allocates, or that GHGRP counts process units the inventory books to another
+table. Facility-side overcounting is not one of them.
+
+⚠️ **Only one comparison here settles direction**, and it is the like-for-like one
+in §4: GHGRP subpart C is combustion and table 3-11 is combustion, and subpart C
+is a threshold-limited **lower bound**. When the current method falls below it —
+`211000` at 0.18 in 2020 — the current method is too low and there is nothing to
+argue about. Everywhere else the ratios above are a flag for investigation, not a
+verdict.
 
 ## 3. ⚠️ Where a facility basis cannot help
 
@@ -74,8 +131,9 @@ about the inventory.
 no MECS and no vector in between. A facility basis cannot improve an assignment
 that was never derived.
 
-So the columns are kept apart, and `allocated_Mt` is the one to rank on: 3,016 Mt
-is vector-allocated and improvable; 3,357 Mt is already `Direct` and is not.
+So the columns are kept apart, and `allocated_Mt` is the one to rank on: within
+the 3,459 Mt in scope, 2,099 Mt is vector-allocated and improvable; 1,359 Mt is
+already `Direct` and is not.
 Widening the *comparison* was necessary to stop scoring kilns against the wrong
 denominator. It does not widen what is on offer.
 
@@ -171,6 +229,7 @@ to be fixed before the levels are trusted.
 3. **Lease fuel.** An oil and gas producer burning its own field gas is burning
    natural gas, and the SCC says natural gas, so `facility_derived` does not
    catch it. Same "no purchase exists" defect as byproduct gas.
-4. **The 205 sectors with no facility data**, 2,303 Mt of allocated mass —
-   agriculture, construction and the rest of the dispersed sources. They stay on
-   the Use row, which is also where MECS never reached.
+4. **The 203 sectors with no facility data**, 1,386 Mt of allocated mass and two
+   thirds of what a vector places — government, agriculture, trucking, buildings.
+   They stay on the Use row, which is also where MECS never reached. This is a
+   boundary, not a backlog: no facility reports them because none emits them.

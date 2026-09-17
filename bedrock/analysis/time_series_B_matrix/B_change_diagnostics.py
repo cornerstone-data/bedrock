@@ -1135,7 +1135,11 @@ def vnorm_share_of_B_movement(span: Span) -> pd.DataFrame:
 
         gross = float(total.abs().sum())
         gross_weighted = float((total.abs() * q).sum())
-        row = {'year_from': prior, 'year_to': current, 'commodities': int(len(total))}
+        row: dict[str, float] = {
+            'year_from': prior,
+            'year_to': current,
+            'commodities': len(total),
+        }
         for name, effect in (
             ('vnorm_share', symmetric),
             ('vnorm_share_paasche', paasche),
@@ -1469,6 +1473,24 @@ ONSITE_SCC_BRANCHES = ('1', '2', '3')
 #: The combustion half of that, where fuel burned is separable.
 COMBUSTION_SCC_BRANCHES = ('1', '2')
 
+#: Sectors the facility side never carries, so the inventory side must not
+#: either. ``221100`` runs on eGRID here and is filtered out of the facility
+#: union by construction; ``F01000`` is personal consumption, which has no gross
+#: output and is outside this module's premise entirely. Scoring the facility
+#: basis against a denominator containing them reports a coverage failure where
+#: there was only a scope boundary - together they were 58% of the sectors that
+#: looked uncovered, and neither was ever a candidate.
+NOT_FACILITY_COMPARABLE = frozenset({'221100', 'F01000'})
+
+#: The industries this basis is for: mining, utilities and manufacturing. These
+#: are where emissions happen at a plant somebody reports. Everything else that a
+#: vector currently places - government buildings, livestock, trucking, real
+#: estate - is mobile, biological or diffuse, and no facility reports it because
+#: none emits it. Scoring the basis across all of those measures the boundary
+#: rather than the basis: in scope it reaches 94% of the allocated mass, and
+#: across every sector it reaches 34%.
+FACILITY_SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
+
 #: GHGRP subpart D is electricity generation, which runs on eGRID in this model.
 #: Every other subpart is on-site emissions at an industrial facility, so the
 #: default is to take them all rather than to guess which ones "are combustion" -
@@ -1704,7 +1726,9 @@ def facility_basis_comparison(
     so the older combustion-only reading stays visible next to the new one.
     """
     year = int(facility['year'].iloc[0])
-    emissions = span.E[span.E['year'] == year]
+    emissions = span.E[
+        (span.E['year'] == year) & ~span.E['sector'].isin(NOT_FACILITY_COMPARABLE)
+    ]
     if emissions.empty:
         raise ValueError(
             f'No emissions for {year} in the span. D15 can only compare a year '
@@ -1762,7 +1786,12 @@ def facility_basis_comparison(
     out['share_shift_pp'] = out['hybrid_share_%'] - out['allocated_share_%']
 
     out = _with_names(out.rename_axis('sector').reset_index())
-    return out.sort_values('inventory_Mt', ascending=False).reset_index(drop=True)
+    out['in_scope'] = (
+        out['sector'].astype(str).str.strip().str[:2].isin(FACILITY_SCOPE_PREFIXES)
+    )
+    return out.sort_values(
+        ['in_scope', 'inventory_Mt'], ascending=[False, False]
+    ).reset_index(drop=True)
 
 
 def report(

@@ -79,7 +79,8 @@ for sector, group in wide.groupby('n3'):
     group = group[group[CANDIDATES].notna().all(axis=1)]
     if len(group) < 90:
         continue
-    chosen, errs = [], {name: [] for name in CANDIDATES + ['PICKED']}
+    chosen: list[str] = []
+    errs: dict[str, list[float]] = {name: [] for name in CANDIDATES + ['PICKED']}
     for _ in range(REPEATS):
         order = rng.permutation(len(group))
         third = len(group) // 3
@@ -88,8 +89,8 @@ for sector, group in wide.groupby('n3'):
             group.iloc[order[third : 2 * third]],
             group.iloc[order[2 * third :]],
         )
-        scores = {p: predict(a, b, p) for p in CANDIDATES}
-        scores = {p: v for p, v in scores.items() if v is not None}
+        scored = {p: predict(a, b, p) for p in CANDIDATES}
+        scores: dict[str, float] = {p: v for p, v in scored.items() if v is not None}
         if not scores:
             continue
         pick = min(scores, key=lambda p: scores[p])
