@@ -73,9 +73,20 @@ def dollarize_electricity_trade_fba(fba: FlowByActivity, **_: Any) -> FlowByActi
         if isinstance(flow, str):
             wanted_flows.add(flow)
 
+    # ⚠️ Both directions put the Activity on the PRODUCED side (#889).  It reads
+    # like a missing mirror, but the producing commodity belongs there either
+    # way: the crosswalk maps both Activities to 221100 with SectorType ``C``,
+    # so ``SectorProducedBy`` is where the commodity has to land for the row to
+    # reach a commodity at all.  The export row previously carried the Activity
+    # on the consumed side, where the activity set's
+    # ``assign_sector_consumed_by_from_clean_parameter`` overwrote it with
+    # ``F04000`` and left ``SectorProducedBy`` null -- and a null groupby key is
+    # dropped, so electricity exports never reached commodity 221100 in any year.
+    # The goods and service export sets already carry a real commodity produced
+    # and ``F04000`` consumed; this matches them.
     rows: list[pd.DataFrame] = []
     for flow_name, direction, produced, consumed in (
-        (_EXPORT_FLOW, 'exports', None, ELECTRICITY_EXPORTS_ACTIVITY),
+        (_EXPORT_FLOW, 'exports', ELECTRICITY_EXPORTS_ACTIVITY, None),
         (_IMPORT_FLOW, 'imports', ELECTRICITY_IMPORTS_ACTIVITY, None),
     ):
         if wanted_flows and flow_name not in wanted_flows:
