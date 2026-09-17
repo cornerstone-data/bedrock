@@ -2,7 +2,7 @@
 
 Production hooks live in
 :mod:`bedrock.transform.iot.nowcast_sut_assembly`
-(``sweep_offset_residue``, ``assert_post_balance_hygiene``, save sidecar).
+(``illicit_negative_mask``, ``sweep_offset_residue``, ``assert_post_balance_hygiene``, save sidecar).
 This package is the repeatable analysis and documentation for those items.
 """
 

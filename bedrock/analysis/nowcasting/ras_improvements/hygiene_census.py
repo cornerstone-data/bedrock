@@ -98,7 +98,7 @@ def _census_year(year: int) -> dict[str, object]:
         flush=True,
     )
 
-    cleaned, n_swept = sweep_offset_residue(use, RESIDUE_EPS_USD_M)
+    cleaned, n_swept = sweep_offset_residue(use, use_mask, pattern, RESIDUE_EPS_USD_M)
     illicit_after = illicit_mask(cleaned, use_mask, pattern)
     n_illicit_after = int(illicit_after.to_numpy().sum())
     n_below_after = int(

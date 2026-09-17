@@ -150,20 +150,51 @@ def _require_matching_labels(a: pd.DataFrame, b: pd.DataFrame, what: str) -> Non
         raise ValueError(f'{what}: column labels differ')
 
 
+def illicit_negative_mask(
+    balanced: pd.DataFrame,
+    mask: SutMask,
+    pattern2017: pd.DataFrame,
+) -> pd.DataFrame:
+    """Boolean frame: Use negatives outside the #839 hygiene whitelist.
+
+    Whitelist (never illicit): ``sign_lock == -1``,
+    :data:`~bedrock.transform.iot.nowcast_mask.INVENTORY_CHANGE_COLUMN`,
+    :data:`_RESIDUAL_VA_ROW`, and cells with ``pattern2017 < 0``.
+    """
+    _require_matching_labels(balanced, mask.sign_lock, 'illicit_negative_mask')
+    _require_matching_labels(balanced, pattern2017, 'illicit_negative_mask pattern2017')
+    illicit = (balanced < 0.0) & (mask.sign_lock != -1) & ~(pattern2017 < 0.0)
+    if INVENTORY_CHANGE_COLUMN in balanced.columns:
+        illicit = illicit.copy()
+        illicit.loc[:, INVENTORY_CHANGE_COLUMN] = False
+    if _RESIDUAL_VA_ROW in balanced.index:
+        illicit = illicit.copy()
+        illicit.loc[_RESIDUAL_VA_ROW, :] = False
+    return illicit
+
+
 def sweep_offset_residue(
-    frame: pd.DataFrame, eps: float = RESIDUE_EPS_USD_M
+    frame: pd.DataFrame,
+    mask: SutMask,
+    pattern2017: pd.DataFrame,
+    eps: float = RESIDUE_EPS_USD_M,
 ) -> tuple[pd.DataFrame, int]:
-    """Copy *frame* with cells whose absolute value is strictly below *eps* zeroed.
+    """Copy *frame* with illicit below-*eps* negatives zeroed (issue #839 item 1).
+
+    Sweeps only cells in :func:`illicit_negative_mask` with
+    ``0 < |x| < eps``. Exact zeros and non-illicit near-zeros (including
+    positive dust on 2017-nonzero structure) are left alone. ``n_swept``
+    counts cells that actually change.
 
     Returns ``(cleaned, n_swept)``. Does not mutate *frame*.
     """
+    illicit = illicit_negative_mask(frame, mask, pattern2017)
+    dust = illicit & (frame.abs() > 0.0) & (frame.abs() < float(eps))
+    n_swept = int(dust.to_numpy().sum())
     cleaned = frame.copy()
-    values = cleaned.to_numpy(dtype=float, copy=False)
-    dust = abs(values) < float(eps)
-    n_swept = int(dust.sum())
     if n_swept:
-        values = values.copy()
-        values[dust] = 0.0
+        values = cleaned.to_numpy(dtype=float, copy=True)
+        values[dust.to_numpy()] = 0.0
         cleaned = pd.DataFrame(values, index=cleaned.index, columns=cleaned.columns)
     return cleaned, n_swept
 
@@ -185,20 +216,10 @@ def illicit_sign_residue(
 ) -> tuple[int, float]:
     """Illicit Use negatives above *eps*: count and max abs among that set.
 
-    Whitelist (never illicit): ``sign_lock == -1``,
-    :data:`~bedrock.transform.iot.nowcast_mask.INVENTORY_CHANGE_COLUMN`,
-    :data:`_RESIDUAL_VA_ROW`, and cells with ``pattern2017 < 0``.
+    Whitelist (never illicit): see :func:`illicit_negative_mask`.
     ``max_abs`` is over the above-eps illicit set only (``0.0`` when empty).
     """
-    _require_matching_labels(balanced, mask.sign_lock, 'illicit_sign_residue')
-    _require_matching_labels(balanced, pattern2017, 'illicit_sign_residue pattern2017')
-    illicit = (balanced < 0.0) & (mask.sign_lock != -1) & ~(pattern2017 < 0.0)
-    if INVENTORY_CHANGE_COLUMN in balanced.columns:
-        illicit = illicit.copy()
-        illicit.loc[:, INVENTORY_CHANGE_COLUMN] = False
-    if _RESIDUAL_VA_ROW in balanced.index:
-        illicit = illicit.copy()
-        illicit.loc[_RESIDUAL_VA_ROW, :] = False
+    illicit = illicit_negative_mask(balanced, mask, pattern2017)
     above = illicit & (balanced.abs() > float(eps))
     n_above = int(above.to_numpy().sum())
     if n_above == 0:
@@ -555,9 +576,21 @@ def save_balance(
         f'soft deferred {result.soft_deferred or "none"}'
     )
     written: list[Path] = []
+    use_pattern: pd.DataFrame | None = None
     for block, frame in balance.balanced.items():
         if block == 'use':
-            cleaned, n_swept = sweep_offset_residue(frame, RESIDUE_EPS_USD_M)
+            if 'use' not in balance.masks:
+                raise ValueError(
+                    'save_balance needs balance.masks["use"] for residue sweep'
+                )
+            if use_pattern is None:
+                use_pattern = published_2017_panel('use')
+            cleaned, n_swept = sweep_offset_residue(
+                frame,
+                balance.masks['use'],
+                use_pattern,
+                RESIDUE_EPS_USD_M,
+            )
         else:
             cleaned, n_swept = frame, 0
         name = BALANCED_ARTIFACT_NAMES.get(block, f'Balanced_{block}')
@@ -584,6 +617,7 @@ def save_balance(
                 'builder': 'bedrock.transform.iot.nowcast_sut_assembly',
                 'residue_eps_usd_m': RESIDUE_EPS_USD_M,
                 'residue_swept_cells': n_swept,
+                'residue_sweep': 'illicit_below_eps',
             },
         }
         meta_path = directory / f'{stem}_metadata.json'

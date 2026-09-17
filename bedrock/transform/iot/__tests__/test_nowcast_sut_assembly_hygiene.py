@@ -13,6 +13,7 @@ from bedrock.transform.iot.nowcast_sut_assembly import (
     assert_post_balance_hygiene,
     balance_year,
     illicit_sign_residue,
+    sweep_offset_residue,
     zero_pattern_leak,
 )
 from bedrock.utils.economic.balance.mask import SutMask
@@ -119,6 +120,25 @@ def test_illicit_sign_whitelist_and_label_contract() -> None:
     misaligned = pattern.drop(index='sub')
     with pytest.raises(ValueError, match='row labels differ'):
         illicit_sign_residue(balanced, mask, misaligned)
+
+
+def test_sweep_offset_residue_illicit_below_eps_only() -> None:
+    index = ['c1', 'V00300']
+    columns = ['i1', INVENTORY_CHANGE_COLUMN]
+    mask = _mask(index=index, columns=columns)
+    pattern = pd.DataFrame(0.0, index=index, columns=columns)
+    use = pd.DataFrame(
+        [[-0.01, -1.0], [-2.0, 1e-4]],
+        index=index,
+        columns=columns,
+    )
+    cleaned, n_swept = sweep_offset_residue(use, mask, pattern)
+    assert n_swept == 1
+    assert cleaned.loc['c1', 'i1'] == 0.0
+    assert cleaned.loc['c1', INVENTORY_CHANGE_COLUMN] == pytest.approx(-1.0)
+    assert cleaned.loc['V00300', 'i1'] == pytest.approx(-2.0)
+    assert cleaned.loc['V00300', INVENTORY_CHANGE_COLUMN] == pytest.approx(1e-4)
+    assert use.loc['c1', 'i1'] == pytest.approx(-0.01)
 
 
 def test_balance_year_calls_assert_post_balance_hygiene(

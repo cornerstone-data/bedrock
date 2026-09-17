@@ -5,7 +5,9 @@ hygiene items (residue sweep + standing zero-pattern / sign audits).
 
 **Production code** (called on every balance) stays in
 `bedrock/transform/iot/nowcast_sut_assembly.py`:
-`sweep_offset_residue`, `assert_post_balance_hygiene`, save-sidecar fields.
+`illicit_negative_mask`, `sweep_offset_residue` (illicit below-eps only),
+`assert_post_balance_hygiene`, save-sidecar fields
+(`residue_sweep=illicit_below_eps`).
 Unit tests: `bedrock/transform/iot/__tests__/test_nowcast_sut_assembly_hygiene.py`
 and the save sweep cases in `test_nowcast_sut_assembly_save.py`.
 

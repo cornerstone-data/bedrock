@@ -23,16 +23,19 @@ Issues along the way (resolved during the first local campaign):
 
 ### Fresh balance (this branch) — pre-sweep → post-sweep
 
-| Year | **2a** Use leak cells / mass | **2a** Supply | **2b** illicit negatives (below / at / above 0.05 $M) | Item 1: cells swept (`|x|<0.05`) | Illicit below-eps after sweep |
+| Year | **2a** Use leak cells / mass | **2a** Supply | **2b** illicit negatives (below / at / above 0.05 $M) | Item 1: illicit below-eps swept | Illicit below-eps after sweep |
 |------|------------------------------|---------------|------------------------------------------------------|-----------------------------------|-------------------------------|
-| 2018 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | 123,960 | **0** |
-| 2021 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | 123,771 | **0** |
-| 2023 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | 124,362 | **0** |
+| 2018 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | **0** | **0** |
+| 2021 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | **0** | **0** |
+| 2023 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | **0** | **0** |
 
 **A / item 1.** On today’s balance there are **no illicit offset-residue
-negatives** to remove. The sweep still zeros ~124k sub-0.05 $M cells (mostly
-positive dust); the sidecar records `residue_swept_cells` /
-`residue_eps_usd_m=0.05`. Post-save Use has **0** illicit below-eps cells.
+negatives** to remove. Item 1 sweeps only that class (`0 < |x| < 0.05` on the
+illicit mask); the sidecar records `residue_swept_cells` /
+`residue_eps_usd_m=0.05` / `residue_sweep=illicit_below_eps`. An earlier
+revision of the sweep used `|x| < eps` on **all** Use cells and reported
+~124k “swept” per year — almost entirely exact zeros already at 0, not
+economic edits (see §3).
 
 **2a.** Structural-zero leak mass is **$0** on both blocks (0 cells) — passes
 the mass gate.
@@ -120,3 +123,43 @@ squeeze.
 **Reproduce**::
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.illicit_vintage_diff
+
+---
+
+## 3. Implementation follow-up: why item 1 is an *illicit* below-eps sweep
+
+#839 asked to zero cells with `|x|` below ε at save time so the Use table is
+bit-clean of offset residue. The first implementation took that literally and
+swept **every** Use cell with `|x| < 0.05 $M`. Review against saved vintages
+showed that was the wrong cut:
+
+1. **The ~202 sub-\$50k illicit census does not reappear on current seeds.**
+   Fresh balances are already at **0 illicit** of any size. The large illicit
+   counts on `163db0e` were mostly **above** ε (the pre-#856 VA squeeze in §2),
+   not the publication-dust class #839 described. So item 1 is a standing
+   cleanup for when that dust class returns, not a fix that must rewrite today’s
+   tables.
+
+2. **Among cells that actually change under a broad `|x| < ε` sweep
+   (`0 < |x| < ε`), almost none are zero in the 2017 detail pattern** — on
+   `d2e2112` / `163db0e`, ~93–100% sit on **2017-nonzero** positions (tiny
+   remnants of allowed structure). Zero structural-zero leak (2a) already
+   means RAS is not depositing mass into frozen zeros; the free near-zeros are
+   not “empty cells filled with artifact.”
+
+3. **The ~124k sidecar count was misleading.** `|x| < ε` includes exact zeros.
+   On a 2023 Use table (~171k cells), ~124k are already 0; only ~15–20 are true
+   dust. Broad sweep “re-zeroed” the sparse pattern and counted it as residue.
+
+4. **A/L and EF impact of narrowing is negligible on clean tables.** Leaving
+   those ~15–20 non-illicit dust cells in place moves ~\$0.4M L1 on a
+   \$60–80T Use table (~5×10⁻⁹). That will not show up in A, L, D, or N at
+   any precision used in diagnostics. Narrowing is a correctness choice, not an
+   EF tradeoff.
+
+**Decision.** Item 1 sweeps only **illicit** Use negatives with
+`0 < |x| < RESIDUE_EPS_USD_M` (same whitelist as 2b). Positive near-zeros and
+whitelisted negatives stay. Sidecar: `residue_sweep=illicit_below_eps`, and
+`residue_swept_cells` counts cells that actually change (expect **0** on
+current builds; non-zero if offset dust returns). Above-ε illicit remains a
+hard fail in `assert_post_balance_hygiene`, not a save-time sweep.

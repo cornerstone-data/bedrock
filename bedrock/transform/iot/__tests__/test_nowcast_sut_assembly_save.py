@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -16,7 +17,16 @@ from bedrock.transform.iot.nowcast_sut_assembly import (
 )
 from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult
 from bedrock.utils.config.settings import GIT_HASH, PKG_VERSION_NUMBER
+from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.targets import TargetSet
+
+
+def _toy_mask(index: list[str], columns: list[str]) -> SutMask:
+    return SutMask(
+        structural_zero=pd.DataFrame(False, index=index, columns=columns),
+        fixed_value=pd.DataFrame(False, index=index, columns=columns),
+        sign_lock=pd.DataFrame(0, index=index, columns=columns, dtype=int),
+    )
 
 
 def _toy_balance(
@@ -45,7 +55,16 @@ def _toy_balance(
     return YearBalance(
         year=2022,
         seeds={'use': use_frame, 'supply': supply_frame},
-        masks={},
+        masks={
+            'use': _toy_mask(
+                list(use_frame.index.astype(str)),
+                list(use_frame.columns.astype(str)),
+            ),
+            'supply': _toy_mask(
+                list(supply_frame.index.astype(str)),
+                list(supply_frame.columns.astype(str)),
+            ),
+        },
         targets=TargetSet.of(),
         sweep=pd.DataFrame(),
         result=result,
@@ -56,9 +75,18 @@ def _toy_balance(
 def test_save_balance_writes_parquet_and_sidecar_per_block(tmp_path: Path) -> None:
     balance = _toy_balance()
     assert balance.balanced is not None
-    written = save_balance(
-        balance, tmp_path, protocol='soft (impose_soft=True), max_outer=20'
+    pattern = pd.DataFrame(
+        0.0,
+        index=balance.balanced['use'].index,
+        columns=balance.balanced['use'].columns,
     )
+    with patch(
+        'bedrock.transform.iot.nowcast_sut_assembly.published_2017_panel',
+        return_value=pattern,
+    ):
+        written = save_balance(
+            balance, tmp_path, protocol='soft (impose_soft=True), max_outer=20'
+        )
 
     assert len(written) == 4  # two blocks x (parquet + sidecar)
     hash_suffix = f'_{GIT_HASH}' if GIT_HASH is not None else ''
@@ -74,9 +102,10 @@ def test_save_balance_writes_parquet_and_sidecar_per_block(tmp_path: Path) -> No
         assert 'T11 max |residual| 0.0 $M' in meta['tool_meta']['engine_result']
         assert meta['tool_meta']['residue_eps_usd_m'] == RESIDUE_EPS_USD_M
         assert meta['tool_meta']['residue_swept_cells'] == 0
+        assert meta['tool_meta']['residue_sweep'] == 'illicit_below_eps'
 
 
-def test_save_balance_sweeps_use_residue_on_copy(tmp_path: Path) -> None:
+def test_save_balance_sweeps_illicit_below_eps_only(tmp_path: Path) -> None:
     use = pd.DataFrame(
         [[1e-4, -0.01, RESIDUE_EPS_USD_M, -0.06]],
         index=['c1'],
@@ -85,7 +114,12 @@ def test_save_balance_sweeps_use_residue_on_copy(tmp_path: Path) -> None:
     supply = pd.DataFrame([[3.0]], index=['c1'], columns=['i1'])
     balance = _toy_balance(use=use, supply=supply)
     assert balance.balanced is not None
-    written = save_balance(balance, tmp_path, protocol='soft')
+    pattern = pd.DataFrame(0.0, index=use.index, columns=use.columns)
+    with patch(
+        'bedrock.transform.iot.nowcast_sut_assembly.published_2017_panel',
+        return_value=pattern,
+    ):
+        written = save_balance(balance, tmp_path, protocol='soft')
     assert written
 
     hash_suffix = f'_{GIT_HASH}' if GIT_HASH is not None else ''
@@ -96,7 +130,9 @@ def test_save_balance_sweeps_use_residue_on_copy(tmp_path: Path) -> None:
         f'{BALANCED_ARTIFACT_NAMES["supply"]}_2022_v{PKG_VERSION_NUMBER}{hash_suffix}'
     )
     saved_use = pd.read_parquet(tmp_path / f'{use_stem}.parquet')
-    assert saved_use.loc['c1', 'a'] == 0.0
+    # Positive near-zero kept; illicit below-eps negative swept; at-eps and
+    # above-eps negatives kept (above-eps is a 2b gate concern, not item 1).
+    assert saved_use.loc['c1', 'a'] == pytest.approx(1e-4)
     assert saved_use.loc['c1', 'b'] == 0.0
     assert saved_use.loc['c1', 'at_eps'] == pytest.approx(RESIDUE_EPS_USD_M)
     assert saved_use.loc['c1', 'c'] == pytest.approx(-0.06)
@@ -105,8 +141,9 @@ def test_save_balance_sweeps_use_residue_on_copy(tmp_path: Path) -> None:
     assert balance.balanced['use'].loc['c1', 'b'] == pytest.approx(-0.01)
 
     use_meta = json.loads((tmp_path / f'{use_stem}_metadata.json').read_text())
-    assert use_meta['tool_meta']['residue_swept_cells'] == 2
+    assert use_meta['tool_meta']['residue_swept_cells'] == 1
     assert use_meta['tool_meta']['residue_eps_usd_m'] == RESIDUE_EPS_USD_M
+    assert use_meta['tool_meta']['residue_sweep'] == 'illicit_below_eps'
     supply_meta = json.loads((tmp_path / f'{supply_stem}_metadata.json').read_text())
     assert supply_meta['tool_meta']['residue_swept_cells'] == 0
     assert supply_meta['tool_meta']['residue_eps_usd_m'] == RESIDUE_EPS_USD_M

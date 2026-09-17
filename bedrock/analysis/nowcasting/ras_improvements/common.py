@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.transform.iot.nowcast_mask import INVENTORY_CHANGE_COLUMN
+from bedrock.transform.iot.nowcast_sut_assembly import illicit_negative_mask
 from bedrock.utils.economic.balance.mask import SutMask
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -15,7 +15,6 @@ OUTPUT_DIR = PACKAGE_DIR.parent / 'output' / 'ras_improvements'
 #: Prior local runs before the reorg (still readable as a fallback).
 _LEGACY_OUTPUT_DIR = PACKAGE_DIR.parent / 'output' / 'ras_hygiene_839'
 
-RESIDUAL_VA_ROW = 'V00300'
 GCS_BALANCED_SUT = 'flowsa/BalancedSUT'
 
 
@@ -42,14 +41,8 @@ def illicit_mask(
 ) -> pd.DataFrame:
     """Boolean frame: Use negatives outside the #839 hygiene whitelist.
 
-    Whitelist: ``sign_lock == -1``, :data:`INVENTORY_CHANGE_COLUMN`,
-    :data:`RESIDUAL_VA_ROW`, and cells with ``pattern2017 < 0``.
+    Delegates to
+    :func:`~bedrock.transform.iot.nowcast_sut_assembly.illicit_negative_mask`
+    so analysis stays in lockstep with production.
     """
-    illicit = (balanced < 0.0) & (mask.sign_lock != -1) & ~(pattern2017 < 0.0)
-    if INVENTORY_CHANGE_COLUMN in balanced.columns:
-        illicit = illicit.copy()
-        illicit.loc[:, INVENTORY_CHANGE_COLUMN] = False
-    if RESIDUAL_VA_ROW in balanced.index:
-        illicit = illicit.copy()
-        illicit.loc[RESIDUAL_VA_ROW, :] = False
-    return illicit
+    return illicit_negative_mask(balanced, mask, pattern2017)

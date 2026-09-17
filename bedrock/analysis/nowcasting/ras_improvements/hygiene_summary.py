@@ -105,7 +105,9 @@ def main() -> int:
         mass_ill = float(use.where(ill, 0.0).abs().sum().sum())
         signed = float(use.where(ill, 0.0).sum().sum())
         max_abs = float(use.where(ill, 0.0).abs().max().max()) if n_ill else 0.0
-        cleaned, n_swept = sweep_offset_residue(use)
+        cleaned, n_swept = sweep_offset_residue(
+            use, masks['use'], pattern, RESIDUE_EPS_USD_M
+        )
         ill_a = illicit_mask(cleaned, masks['use'], pattern)
         n_below_a = int((ill_a & (cleaned.abs() < RESIDUE_EPS_USD_M)).to_numpy().sum())
         print(
@@ -120,7 +122,7 @@ def main() -> int:
         )
         print(
             f'  item1 after sweep: illicit_below_eps={n_below_a} '
-            f'(swept_all={n_swept}, illicit_zeroed={n_below})',
+            f'(swept_illicit_below_eps={n_swept})',
             flush=True,
         )
     return 0
