@@ -218,7 +218,7 @@ def load_egrid_emissions_via_stewi(year: str | int) -> pd.DataFrame:
         if facilities is None:
             raise TypeError('eGRID facility inventory missing after download')
     except TypeError:
-        # download_if_missing=True looks for data on EPA server, so generatate locally
+        # download_if_missing=True looks for data on EPA server, so generate locally
         log.info(
             f'eGRID {year_str} not available via download; '
             'regenerating with download_if_missing=False'
@@ -227,10 +227,11 @@ def load_egrid_emissions_via_stewi(year: str | int) -> pd.DataFrame:
         facilities = stewi.getInventoryFacilities(
             'eGRID', year_str, download_if_missing=False
         )
+
     facilities = (
         facilities[['FacilityID', 'State', 'County', 'Plant primary fuel']]
         .drop_duplicates(subset='FacilityID', keep='first')
-        .pipe(lambda d: apply_county_FIPS(d, unmatched='national'))
+        .pipe(apply_county_FIPS)
     )
     return df.merge(facilities, how='left', on='FacilityID')
 
@@ -322,6 +323,10 @@ def egrid_to_sector(
     egrid_year = inventory_dict['eGRID']
 
     df = load_egrid_emissions_via_stewi(egrid_year)
+
+    # Drop plants with no FIPS (territories like PR) so national update_geoscale
+    # does not reassign null Location to 00000.
+    df = df.loc[df['Location'].notna()].reset_index(drop=True)
 
     df = assign_naics_from_egrid_fuel(
         df, mapping_name, external_config_path=external_config_path
