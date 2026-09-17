@@ -9,7 +9,7 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Sheet IDs point at diagnostics spreadsheets in the v0.4 Diagnostics Drive
+Sheet IDs point at diagnostics spreadsheets in the v0.3 waterfall Drive
 folder; each ``sheet_title`` records the date and release the sheet was
 generated for.
 
@@ -30,21 +30,21 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1_SCHEMA_GHG = ProgressionSheet(
     step_label="G1: USEEIO-like A/margins + Cornerstone schema/GHG",
-    sheet_id="17-kEDZVXzlWnszK8qhFfRl46Wvfhyie8UiwkNC-MLms",
+    sheet_id="1QiWLS9N2wig5SGa2eujGIS-B2cB5DTnIfWHo-fPOXgk",
     config_name="v03_waterfall_useeio_g1_schema_ghg",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, USEEIO based, "
-        "v0.3.1 / waterfall USEEIO G1 schema/GHG] EFs diagnostics"
+        "[2026-09-10, bedrock repo, 2024, useeio, "
+        "v03_waterfall_useeio_g1_schema_ghg] EFs diagnostics"
     ),
 )
 
 G2_METHODS = ProgressionSheet(
     step_label="G2: Bedrock methods (CEDA A/price, margins, inflation)",
-    sheet_id="1mGI0TkGqMhvIKIyLm-sYwM8pCvmT2uNyFiWUuHMymZk",
+    sheet_id="1Z_0HL8NfZl0gLtpp9Gd83uxL_RgmbxW0_PRN1MCnhlU",
     config_name="v03_waterfall_g2_methods",
     sheet_title=(
-        "[2026-08-06, bedrock repo, 2024, USEEIO based, "
-        "v0.3.1 / waterfall G2 methods] EFs diagnostics"
+        "[2026-09-10, bedrock repo, 2024, useeio, "
+        "v03_waterfall_g2_methods] EFs diagnostics"
     ),
 )
 

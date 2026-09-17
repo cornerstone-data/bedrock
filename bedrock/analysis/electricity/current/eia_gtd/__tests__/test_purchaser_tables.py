@@ -1,4 +1,4 @@
-"""Unit tests for class-MWh targets, leftover T&D, and nibble vs clipped tables."""
+"""Unit tests for class-MWh targets, nibble/clipped, and MECS-vs-dollar tables."""
 
 from __future__ import annotations
 
@@ -8,12 +8,9 @@ import pytest
 from bedrock.analysis.electricity.current.eia_gtd.purchaser_tables import (
     class_mwh_targets_frame,
     class_nibble_frame,
-    leftover_td_class_frame,
     leftover_td_purchaser_frame,
-    leftover_td_usd,
     manufacturing_mecs_vs_dollar_frame,
     optional_implied_cents_kwh_frame,
-    p_share_from_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import EIAPurchaserAllocation
 
@@ -80,29 +77,6 @@ def test_class_mwh_identity_matches_class_targets() -> None:
     assert by_class.loc['Residential', 'ratio_vs_class_target'] == pytest.approx(1.0)
 
 
-def test_leftover_td_is_electricity_purchases_minus_gen_dollars() -> None:
-    alloc = _alloc(
-        electricity_purchases={'F01000': 100.0, '1111A0': 40.0},
-        classes={'F01000': 'Residential', '1111A0': 'Industrial'},
-        mwh={'F01000': 1.0, '1111A0': 0.4},
-        gen={'F01000': 25.0, '1111A0': 10.0},
-        td_share=0.2,
-    )
-    leftover = leftover_td_usd(alloc)
-    assert leftover['F01000'] == pytest.approx(75.0)
-    assert leftover['1111A0'] == pytest.approx(30.0)
-    purchasers = leftover_td_purchaser_frame(alloc).set_index('purchaser')
-    assert purchasers.loc['F01000', 'leftover_td'] == pytest.approx(75.0)
-    assert purchasers.loc['F01000', 't_dollars'] == pytest.approx(15.0)
-    assert purchasers.loc['F01000', 'd_dollars'] == pytest.approx(60.0)
-    assert purchasers['leftover_td'].to_numpy() == pytest.approx(
-        (purchasers['t_dollars'] + purchasers['d_dollars']).to_numpy()
-    )
-    by_class = leftover_td_class_frame(alloc).set_index('end_use_class')
-    assert by_class.loc['Residential', 'leftover_td'] == pytest.approx(75.0)
-    assert by_class.loc['Industrial', 'leftover_td'] == pytest.approx(30.0)
-
-
 def test_nibble_is_class_totals_clipped_is_purchaser_only() -> None:
     alloc = _alloc(
         electricity_purchases={'F01000': 10.0, '452000': 80.0, '1111A0': 50.0},
@@ -145,17 +119,6 @@ def test_optional_implied_cents_kwh_is_electricity_purchases_over_mwh() -> None:
     assert frame.loc['Residential', 'implied_cents_kwh'] == pytest.approx(16.0)
     assert frame.loc['Residential', 'table_24_cents_kwh'] == pytest.approx(16.0)
     assert 'Exports' not in frame.index
-
-
-def test_p_share_from_allocation_recovers_generation_share() -> None:
-    alloc = _alloc(
-        electricity_purchases={'F01000': 200.0, '1111A0': 100.0},
-        classes={'F01000': 'Residential', '1111A0': 'Industrial'},
-        mwh={'F01000': 2.0, '1111A0': 1.0},
-        p=40.0,
-        egrid_mwh=150.0,
-    )
-    assert p_share_from_allocation(alloc) == pytest.approx(40.0 * 150.0 / 300.0)
 
 
 def test_manufacturing_mecs_vs_dollar_flags() -> None:

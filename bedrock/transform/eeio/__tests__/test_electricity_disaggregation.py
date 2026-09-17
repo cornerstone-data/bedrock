@@ -48,6 +48,7 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     build_electricity_disagg_use_intersection_weights,
     disaggregate_use_industry_columns,
     get_2017_eia_purchaser_allocation,
+    get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
@@ -73,7 +74,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     build_electricity_disagg_use_intersection_weights,
     build_electricity_detail_GO_growth_ratios,
     applied_utilities_summary_q_growth_ratio,
-    get_2017_eia_purchaser_allocation,
+    get_eia_purchaser_allocation,
     mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
     derive_cornerstone_V,
@@ -307,7 +308,7 @@ class Test2017EIAPurchaserAllocation:
                 with mock.patch(
                     'bedrock.transform.eeio.cornerstone_disagg_pipeline.derive_disagg_Ytot_with_trade'
                 ) as y_mock:
-                    get_2017_eia_purchaser_allocation.cache_clear()
+                    get_eia_purchaser_allocation.cache_clear()
                     _derive_post_reallocation_checkpoint_for_disagg.cache_clear()
                     with dollar_industrial_weights():
                         alloc = get_2017_eia_purchaser_allocation()
@@ -589,8 +590,8 @@ def test_import_fd_column_uses_child_sum_when_aggregate_missing(
         td_share=0.06,
     )
     monkeypatch.setattr(
-        'bedrock.transform.eeio.electricity_gtd_allocation.get_2017_eia_purchaser_allocation',
-        lambda: alloc,
+        'bedrock.transform.eeio.electricity_gtd_allocation.get_eia_purchaser_allocation',
+        lambda eia_year: alloc,
     )
     Y = pd.DataFrame(
         0.0,

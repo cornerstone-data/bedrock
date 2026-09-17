@@ -36,12 +36,14 @@ def build_pair(
         derive=derive,
         load_snapshot_footing=vs_footing,
         table_steps=pair.table_steps,
+        ladder_id=pair.ladder_id,
     )
     bottom = load_impl_bundle(
         IMPLEMENTATIONS[pair.bottom],
         derive=derive,
         load_snapshot_footing=vs_footing,
         table_steps=pair.table_steps,
+        ladder_id=pair.ladder_id,
     )
     png_dir = dest / 'png'
     return write_pptx(pair, top, bottom, dest / pair.filename, png_dir=png_dir)
@@ -59,7 +61,10 @@ def build_pair(
 @click.option(
     '--derive',
     is_flag=True,
-    help='Live-derive missing mecs_mixed_units, reaggregation, and production steps (slow).',
+    help=(
+        'Live-derive missing mecs_mixed_units, reaggregation, production, '
+        'nowcast_reaggregation, and production_v04 steps (slow).'
+    ),
 )
 def main(pair_key: str | None, build_all: bool, derive: bool) -> None:
     if build_all:

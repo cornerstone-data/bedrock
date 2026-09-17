@@ -9,7 +9,10 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.allocation import derived as allocation_derived
-from bedrock.transform.allocation.derived import egrid_fbs_method_for_year
+from bedrock.transform.allocation.derived import (
+    egrid_fbs_method_for_config,
+    egrid_fbs_method_for_year,
+)
 from bedrock.utils.config.usa_config import USAConfig, reset_usa_config
 
 
@@ -37,6 +40,64 @@ def test_egrid_fbs_method_for_year_unsupported() -> None:
 
 
 @pytest.mark.parametrize(
+    ('usa_detail_io_source', 'year', 'expected'),
+    [
+        ('bea_published', 2023, 'GHG_national_Cornerstone_2023_egrid'),
+        ('bea_published', 2024, 'GHG_national_Cornerstone_2024_egrid'),
+        ('nowcast', 2024, 'GHG_national_Cornerstone_nowcast_2024_egrid'),
+    ],
+)
+def test_egrid_fbs_method_for_config(
+    usa_detail_io_source: str,
+    year: int,
+    expected: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if usa_detail_io_source == 'nowcast':
+        cfg = USAConfig(
+            usa_detail_io_source='nowcast',
+            usa_base_io_data_year=2024,
+            model_base_year=2024,
+            usa_ghg_data_year=2024,
+            apply_io_year_adjustments=False,
+            use_cornerstone_ghg_model=True,
+            implement_waste_disaggregation=True,
+            implement_electricity_reallocation=True,
+            implement_electricity_disaggregation=True,
+        )
+    else:
+        cfg = USAConfig(
+            usa_detail_io_source='bea_published',
+            usa_ghg_data_year=year,  # type: ignore[arg-type]
+            use_cornerstone_ghg_model=True,
+            implement_waste_disaggregation=True,
+            implement_electricity_reallocation=True,
+            implement_electricity_disaggregation=True,
+        )
+    monkeypatch.setattr(allocation_derived, 'get_usa_config', lambda: cfg)
+    assert egrid_fbs_method_for_config() == expected
+
+
+def test_egrid_fbs_method_for_config_unsupported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = USAConfig(
+        usa_detail_io_source='nowcast',
+        usa_base_io_data_year=2023,
+        model_base_year=2023,
+        usa_ghg_data_year=2023,
+        apply_io_year_adjustments=False,
+        use_cornerstone_ghg_model=True,
+        implement_waste_disaggregation=True,
+        implement_electricity_reallocation=True,
+        implement_electricity_disaggregation=True,
+    )
+    monkeypatch.setattr(allocation_derived, 'get_usa_config', lambda: cfg)
+    with pytest.raises(ValueError, match='unsupported'):
+        egrid_fbs_method_for_config()
+
+
+@pytest.mark.parametrize(
     ('year', 'expected_method'),
     [
         (2023, 'GHG_national_Cornerstone_2023_egrid'),
@@ -48,6 +109,7 @@ def test_load_egrid_fbs_selects_method_by_ghg_year(
     expected_method: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Default USAConfig is bea_published, so stems are the published overlays.
     cfg = USAConfig(
         usa_ghg_data_year=year,  # type: ignore[arg-type]
         use_cornerstone_ghg_model=True,
@@ -78,6 +140,46 @@ def test_load_egrid_fbs_selects_method_by_ghg_year(
     out = allocation_derived._load_egrid_fbs_for_electricity_disagg()
     assert out is sentinel
     assert gcs_calls == [expected_method]
+    flowsa.assert_not_called()
+
+
+def test_load_egrid_fbs_selects_nowcast_method(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = USAConfig(
+        usa_detail_io_source='nowcast',
+        usa_base_io_data_year=2024,
+        model_base_year=2024,
+        usa_ghg_data_year=2024,
+        apply_io_year_adjustments=False,
+        use_cornerstone_ghg_model=True,
+        implement_waste_disaggregation=True,
+        implement_electricity_reallocation=True,
+        implement_electricity_disaggregation=True,
+    )
+    monkeypatch.setattr(allocation_derived, 'get_usa_config', lambda: cfg)
+
+    sentinel = pd.DataFrame({'ok': [1]})
+    gcs_calls: list[str] = []
+
+    def fake_gcs(
+        *, base_name: str | None = None, year: int | None = None
+    ) -> pd.DataFrame:
+        assert base_name is not None
+        gcs_calls.append(base_name)
+        return sentinel
+
+    monkeypatch.setattr(
+        allocation_derived,
+        '_load_cornerstone_ghg_fbs_from_gcs',
+        fake_gcs,
+    )
+    flowsa = MagicMock()
+    monkeypatch.setattr(allocation_derived, 'getFlowBySector', flowsa)
+
+    out = allocation_derived._load_egrid_fbs_for_electricity_disagg()
+    assert out is sentinel
+    assert gcs_calls == ['GHG_national_Cornerstone_nowcast_2024_egrid']
     flowsa.assert_not_called()
 
 
