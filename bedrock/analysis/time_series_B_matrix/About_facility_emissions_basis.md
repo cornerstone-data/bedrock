@@ -220,16 +220,52 @@ to be fixed before the levels are trusted.
 
 ---
 
-## 7. Known gaps before this can ship
+## 7. Prerequisites for implementation
 
-1. **Deduplication.** 668 Mt of GHGRP mass has no `FRS_ID` match into NEI, and
-   unmatched sites are double counted. Section 2's overshoots are the symptom.
-2. **The NEI 2020/2021 reclassification.** Combustion SCCs go from 3.2% to 75.1%
-   of NEI CO2 with the total flat. GHGRP has no such break and covers 2017-2023.
-3. **Lease fuel.** An oil and gas producer burning its own field gas is burning
-   natural gas, and the SCC says natural gas, so `facility_derived` does not
-   catch it. Same "no purchase exists" defect as byproduct gas.
-4. **The 203 sectors with no facility data**, 1,386 Mt of allocated mass and two
-   thirds of what a vector places — government, agriculture, trucking, buildings.
-   They stay on the Use row, which is also where MECS never reached. This is a
-   boundary, not a backlog: no facility reports them because none emits them.
+Tracked on
+[**Facility-based fuel combustion GHGs**](https://github.com/orgs/cornerstone-data/projects/34),
+which feeds
+[B Smoothing Phase 1](https://github.com/orgs/cornerstone-data/projects/31)
+through a single issue:
+[#929](https://github.com/cornerstone-data/bedrock/issues/929) is the
+integration step and is cross-listed on both boards, so the B smoothing work
+depends on that one while the rest of project 34 feeds it.
+
+### Blocking — the levels cannot be quoted until these are settled
+
+| | | why it blocks |
+|---|---|---|
+| [#925](https://github.com/cornerstone-data/bedrock/issues/925) | FRS deduplication between GHGRP and NEI | 668 Mt of GHGRP mass has no NEI match, so an unmatched site is counted twice. Every ratio above 1 in §2 is suspect until this is fixed. ⚠️ Does **not** touch §5 — churn is measured on shares, and a stable double count does not move a share |
+| [#926](https://github.com/cornerstone-data/bedrock/issues/926) | NEI's 2020/2021 SCC reclassification | Combustion SCCs go from 3.2% to 75.1% of NEI CO2 with the total flat. `fuel_class` is derived from the SCC, so it means something different either side of the break |
+
+### Coverage — needed before the basis spans the model
+
+| | | |
+|---|---|---|
+| [#931](https://github.com/cornerstone-data/bedrock/issues/931) | GHGRP 2024 into StEWI from the FOIA'd static files | GHGRP stops at 2023 |
+| [#932](https://github.com/cornerstone-data/bedrock/issues/932) | NEI (EIS) 2023 and 2024 | NEI stops at 2022, which is what bounds D15 today |
+
+Together these take the basis from 2017-2022 to the full 2017-2024 nowcast span,
+so §5's churn comparison could be stated for every year the model produces.
+
+### Method decisions
+
+| | | |
+|---|---|---|
+| [#927](https://github.com/cornerstone-data/bedrock/issues/927) | Lease and plant fuel is self-supplied but classified as purchased | An oil and gas producer burning its own field gas is burning natural gas, and the SCC says natural gas. Same "no purchase exists" defect as byproduct gas, and the structural reason `211000` sits below the floor in 2017 |
+| [#928](https://github.com/cornerstone-data/bedrock/issues/928) | The residual rule for sectors the basis cannot reach | 64 in-scope sectors carrying 43.4 Mt have no facility data, and 88 more are partly covered. Mixing a facility level with a Use-derived remainder needs a stated method |
+
+### Integration
+
+| | | |
+|---|---|---|
+| [#929](https://github.com/cornerstone-data/bedrock/issues/929) | Build a **new** facility-based GHG FBS alongside the existing one | ⚠️ The current method must keep running. Every before-and-after number here compares against it, and §5's claim is only checkable while both series can be built from the same code on the same span |
+| [#930](https://github.com/cornerstone-data/bedrock/issues/930) | Preserve facility location for a future state-level model | Not needed nationally; nearly free now and expensive to retrofit |
+
+### ⚠️ Not a prerequisite, and not a backlog
+
+The 203 sectors with no facility data — 1,386 Mt across all sectors, two thirds
+of what a vector places — are government, agriculture, trucking and buildings.
+They stay on the Use row, which is also where MECS never reached. No facility
+reports them because none emits them. In the mining, utilities and manufacturing
+scope this basis is for, the equivalent figure is **6% of allocated mass**.
