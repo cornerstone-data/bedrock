@@ -22,6 +22,7 @@ from bedrock.transform.flowbyfunctions import (
 from bedrock.utils.config.schema import flow_by_activity_fields
 from bedrock.utils.config.settings import externaldatapath
 from bedrock.utils.logging.flowsa_log import log
+from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 
 SECTOR_DICT = {
     'Res.': 'Residential',
@@ -777,6 +778,127 @@ def ghg_parse(
             cleaned_list.append(df)
 
     return cleaned_list
+
+
+def get_manufacturing_nowcast_use_ratios(
+    parameter_dict: dict[str, Any],
+) -> dict[str, float]:
+    """Manufacturing share of industrial Use $ by fuel commodity (nowcast m2).
+
+    For each fuel in ``fuel_commodities``, loads sector targets from the activity
+    crosswalk (``activity_to_sector_mapping``, default UMD_GHGIA): manufacturing
+    activity sectors in the numerator; union of base industrial + manufacturing
+    sectors in the denominator. Use consumers match those codes by prefix.
+
+    TODO: drop this function if ultimately not used in stationary combustion rework
+    """
+    use_fba = parameter_dict.get('use_fba')
+    if not use_fba:
+        raise ValueError('use_fba is required when split_source is nowcast_use')
+    fuel_commodities = parameter_dict.get('fuel_commodities')
+    if not isinstance(fuel_commodities, dict) or not fuel_commodities:
+        raise ValueError(
+            'fuel_commodities is required when split_source is nowcast_use'
+        )
+    year = cast(int, parameter_dict.get('year'))
+    mapping_name = cast(
+        str, parameter_dict.get('activity_to_sector_mapping', 'UMD_GHGIA')
+    )
+    # FD columns excluded from nowcast Use intermediate attribution (matches GHG YAML).
+    fd_exclusions = parameter_dict.get(
+        'fd_exclusions',
+        (
+            'F03000',
+            'F04000',
+            'F05000',
+            'F02E00',
+            'F06E00',
+            'F07E00',
+            'F10E00',
+            'F02R00',
+        ),
+    )
+    # Base industrial activities split by allocate_industrial_combustion → fuel label.
+    fuel_base_activities = {
+        'Natural Gas': 'Natural Gas Industrial',
+        'Coal': 'Coal Industrial',
+    }
+
+    use = load_fba_w_standardized_units(
+        datasource=cast(str, use_fba),
+        year=year,
+        download_FBA_if_missing=True,
+    )
+    use = use.loc[~use['ActivityConsumedBy'].isin(list(fd_exclusions))].reset_index(
+        drop=True
+    )
+
+    cw = get_activitytosector_mapping(mapping_name)
+    activity_cf = cw['Activity'].astype(str).str.casefold()
+
+    pct_dict: dict[str, float] = {}
+    for fuel, commodity in fuel_commodities.items():
+        base_activity = fuel_base_activities.get(fuel)
+        if base_activity is None:
+            log.warning(
+                f'No base industrial activity mapped for fuel {fuel!r}; '
+                f'skipping nowcast_use ratio'
+            )
+            continue
+        mfg_activity = f'{base_activity} - Manufacturing'
+        mfg_sectors = set(
+            cw.loc[activity_cf == mfg_activity.casefold(), 'Sector']
+            .dropna()
+            .astype(str)
+        )
+        base_sectors = set(
+            cw.loc[activity_cf == base_activity.casefold(), 'Sector']
+            .dropna()
+            .astype(str)
+        )
+        industrial_sectors = mfg_sectors | base_sectors
+        if not mfg_sectors or not industrial_sectors:
+            log.warning(
+                f'Empty crosswalk sectors for {fuel!r} '
+                f'(mfg={sorted(mfg_sectors)}, industrial={sorted(industrial_sectors)}); '
+                f'p_mfg set to 0'
+            )
+            pct_dict[fuel] = 0.0
+            continue
+
+        commodity_rows = use.loc[
+            use['ActivityProducedBy'].astype(str) == str(commodity)
+        ].reset_index(drop=True)
+        consumers = commodity_rows['ActivityConsumedBy'].astype(str)
+        mfg_mask = consumers.str.startswith(tuple(mfg_sectors))
+        industrial_mask = consumers.str.startswith(tuple(industrial_sectors))
+        mfg_sum = float(commodity_rows.loc[mfg_mask, 'FlowAmount'].sum())
+        industrial_sum = float(commodity_rows.loc[industrial_mask, 'FlowAmount'].sum())
+        if industrial_sum == 0:
+            log.warning(
+                f'Zero industrial Use $ for {fuel!r} commodity {commodity} '
+                f'year {year}; p_mfg set to 0'
+            )
+            pct_dict[fuel] = 0.0
+            continue
+
+        p = float(np.minimum(mfg_sum / industrial_sum, 1.0))
+        if p <= 1e-12 or p >= 1.0 - 1e-12:
+            log.warning(
+                f'Degenerate T_3_11 mfg split for {fuel}: p={p}, '
+                f'mfg_use={mfg_sum}, industrial_use={industrial_sum}, '
+                f'commodity={commodity}, year={year}'
+            )
+        pct_dict[fuel] = p
+
+    requested = set(fuel_commodities)
+    obtained = {k for k, v in pct_dict.items() if v > 0.0}
+    if len(requested) > 1 and len(obtained) == 1:
+        log.warning(
+            f'nowcast_use mfg split only produced a positive p for {obtained}; '
+            f'requested fuels were {sorted(requested)}'
+        )
+    return pct_dict
 
 
 def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str, float]:
