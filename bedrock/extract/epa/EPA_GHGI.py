@@ -902,7 +902,21 @@ def get_manufacturing_nowcast_use_ratios(
 
 
 def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str, float]:
-    """Calculate energy ratio by fuel between GHGI and EIA MECS."""
+    """Manufacturing share of industrial fuel use for allocate_industrial_combustion.
+
+    ``split_source: nowcast_use`` uses Nowcast Detail Use $ and UMD crosswalk
+    sector sets. Otherwise MECS manufacturing energy / GHGI industrial energy.
+    """
+    if parameter_dict.get('split_source') == 'nowcast_use':
+        return get_manufacturing_nowcast_use_ratios(parameter_dict)
+
+    energy_fba = parameter_dict.get('energy_fba')
+    if not energy_fba:
+        raise ValueError(
+            'energy_fba is required for MECS mfg split '
+            '(or set split_source: nowcast_use with use_fba)'
+        )
+
     # flow correspondence between GHGI and MECS
     flow_corr = {
         'Industrial Other Coal': 'Coal',
@@ -920,7 +934,7 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
 
     # Filter MECS for total national energy consumption for manufacturing sectors
     mecs = load_fba_w_standardized_units(
-        datasource=cast(str, parameter_dict.get('energy_fba')),
+        datasource=cast(str, energy_fba),
         year=cast(int, ratio_mecs_year),
         flowclass='Energy',
         download_FBA_if_missing=True,
