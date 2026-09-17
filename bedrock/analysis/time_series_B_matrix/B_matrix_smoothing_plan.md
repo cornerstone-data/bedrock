@@ -18,7 +18,17 @@ Create the diagnostics to identify and prioritize the drivers.
 
 Drivers found so far, what each is worth, and whether it has been shown to
 be justified, are tracked in
-[`B_driver_investigation.md`](B_driver_investigation.md).
+[`B_driver_investigation.md`](B_driver_investigation.md). That tracker is the
+bridge between the two halves of this plan: one row per driver, carrying the
+diagnostic that found it, its potency, a `Justified?` verdict, and the issue
+that owns the remediation.
+
+⚠️ **A driver is not prioritised until it has a verdict, and not actioned until
+it has an issue.** Ranking on potency alone would put effort into movements that
+turn out to be real — the tracker holds three `justified` rows whose correct
+action is to leave them alone, and two that are `out of scope` here and were
+handed to Nowcasting Phase 2. Every `unresolved` row carries an issue so that
+nothing measured here depends on this document being re-read to survive.
 
 ### Determine why the drivers change and how to fix them
 
