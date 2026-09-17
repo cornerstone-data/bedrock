@@ -1460,9 +1460,21 @@ def combustion_floor_test(
 
 # --- D15: a facility-reported basis for stationary combustion ---------------
 
-#: SCC level 1: 1 is external combustion, 2 is internal combustion. Everything
-#: else is a process, an evaporative loss or waste handling, not fuel burned.
+#: SCC level 1: 1 is external combustion, 2 is internal combustion, 3 is an
+#: industrial process. All three are on-site emissions a facility reports, and
+#: all three are needed: a cement kiln burns fuel and calcines limestone in one
+#: vessel, and NEI books the vessel under 3.
+ONSITE_SCC_BRANCHES = ('1', '2', '3')
+
+#: The combustion half of that, where fuel burned is separable.
 COMBUSTION_SCC_BRANCHES = ('1', '2')
+
+#: GHGRP subpart D is electricity generation, which runs on eGRID in this model.
+#: Every other subpart is on-site emissions at an industrial facility, so the
+#: default is to take them all rather than to guess which ones "are combustion" -
+#: subpart H is one CO2 number covering a kiln's fuel and its calcination
+#: together, and no field in it separates them.
+GHGRP_EXCLUDED_SUBPARTS = frozenset({'D'})
 
 #: SCC level 3 == '007' is **process gas** - refinery still gas, coke oven gas,
 #: blast furnace gas. Fuel the facility made itself as a byproduct.
@@ -1564,12 +1576,17 @@ def facility_combustion(year: int) -> pd.DataFrame:
     )
     nei = nei[
         (nei['FlowName'] == 'Carbon Dioxide')
-        & nei['Process'].astype(str).str[0].isin(COMBUSTION_SCC_BRANCHES)
+        & nei['Process'].astype(str).str[0].isin(ONSITE_SCC_BRANCHES)
     ].copy()
+    branch = nei['Process'].astype(str).str[0]
     nei['fuel_class'] = np.where(
-        nei['Process'].astype(str).str[3:6] == PROCESS_GAS_SCC_LEVEL3,
-        'facility_derived',
-        'purchased',
+        ~branch.isin(COMBUSTION_SCC_BRANCHES),
+        'process',
+        np.where(
+            nei['Process'].astype(str).str[3:6] == PROCESS_GAS_SCC_LEVEL3,
+            'facility_derived',
+            'purchased',
+        ),
     )
     nei = (
         nei.groupby(['FacilityID', 'fuel_class'])['FlowAmount']
@@ -1585,7 +1602,8 @@ def facility_combustion(year: int) -> pd.DataFrame:
         'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
     )
     ghgrp = ghgrp[
-        (ghgrp['Process'] == 'C') & ghgrp['FlowName'].isin(GHGRP_FLOW_MAP)
+        ~ghgrp['Process'].isin(GHGRP_EXCLUDED_SUBPARTS)
+        & ghgrp['FlowName'].isin(GHGRP_FLOW_MAP)
     ].copy()
     ghgrp['CO2e'] = ghgrp['FlowAmount'] * ghgrp['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
     ghgrp = (
@@ -1593,7 +1611,7 @@ def facility_combustion(year: int) -> pd.DataFrame:
         .sum()
         .reset_index()
         .join(_facility_sectors('GHGRP', year), on='FacilityID')
-        .assign(source='GHGRP', fuel_class='purchased', fuel_class_known=False)
+        .assign(source='GHGRP', fuel_class='unclassified', fuel_class_known=False)
     )
 
     matches = facilitymatcher.get_matches_for_inventories(['NEI', 'GHGRP'])
@@ -1611,24 +1629,29 @@ def facility_combustion(year: int) -> pd.DataFrame:
     # refinery and steel mill lands in GHGRP unclassified, and the
     # facility-derived total collapses to a quarter of what NEI alone can see.
     nei_by_frs = (
-        nei.dropna(subset=['FRS_ID']).groupby(['FRS_ID', 'fuel_class'])['CO2e'].sum()
-    )
-    derived_share = (
-        nei_by_frs.unstack('fuel_class')
+        nei.dropna(subset=['FRS_ID'])
+        .groupby(['FRS_ID', 'fuel_class'])['CO2e']
+        .sum()
+        .unstack('fuel_class')
         .fillna(0.0)
-        .pipe(lambda f: f.get('facility_derived', 0.0) / f.sum(axis=1))
-        .replace([np.inf, -np.inf], np.nan)
-        .dropna()
     )
-    imputed = ghgrp['FRS_ID'].map(derived_share)
-    ghgrp['fuel_class_known'] = imputed.notna()
-    ghgrp_derived = ghgrp.assign(
-        CO2e=ghgrp['CO2e'] * imputed.fillna(0.0), fuel_class='facility_derived'
+    mix = nei_by_frs.div(nei_by_frs.sum(axis=1), axis=0).replace(
+        [np.inf, -np.inf], np.nan
     )
-    ghgrp_purchased = ghgrp.assign(
-        CO2e=ghgrp['CO2e'] * (1 - imputed.fillna(0.0)), fuel_class='purchased'
-    )
-    ghgrp = pd.concat([ghgrp_purchased, ghgrp_derived], ignore_index=True)
+    ghgrp['fuel_class_known'] = ghgrp['FRS_ID'].map(mix.notna().any(axis=1))
+    pieces = []
+    for cls in ('purchased', 'facility_derived', 'process'):
+        share = ghgrp['FRS_ID'].map(mix[cls]) if cls in mix else None
+        if share is None:
+            continue
+        pieces.append(
+            ghgrp.assign(CO2e=ghgrp['CO2e'] * share.fillna(0.0), fuel_class=cls)
+        )
+    # A facility NEI never saw keeps its whole total, labelled unclassified.
+    unmatched = ghgrp['FRS_ID'].map(mix.sum(axis=1)).isna()
+    pieces.append(ghgrp[unmatched])
+    ghgrp = pd.concat(pieces, ignore_index=True)
+    ghgrp = ghgrp[ghgrp['CO2e'] > 0]
 
     covered = set(ghgrp['FRS_ID'].dropna())
     nei_only = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]
@@ -1649,69 +1672,86 @@ def facility_combustion(year: int) -> pd.DataFrame:
 
 
 def facility_basis_comparison(
-    detail: pd.DataFrame, facility: pd.DataFrame
+    span: Span, facility: pd.DataFrame, detail: pd.DataFrame | None = None
 ) -> pd.DataFrame:
-    """**D15.** The facility basis against the allocation it would replace.
+    """**D15.** The facility basis against the inventory it would replace.
 
-    ⚠️ **Compare shares, not levels.** The national table 3-11 total is fixed by
-    the GHG inventory; only its split across sectors is ours to set. Facility
-    data is a census of reporters, not a national total, so it will not match
-    the level - and where it exceeds it, that is the boundary question of which
-    process-derived fuels the inventory books in table 3-11, not a coverage
-    failure.
+    ⚠️ **Compared against everything the inventory gives the sector, not against
+    table 3-11 alone.** A cement kiln burns fuel and calcines limestone in the
+    same vessel, and both GHGRP and NEI report the vessel: subpart H is one CO2
+    number with no combustion/process field, and NEI puts 69 of cement's 69.2 Mt
+    on process SCCs. Scoring facility data against a combustion-only total
+    therefore manufactures a coverage failure - cement scored 0.04 - and, at the
+    other end, manufactures a 150% overshoot for refineries and steel whose
+    facility totals legitimately include process units. Neither was real.
 
-    ``residual_Mt`` is what a facility basis cannot reach and the BEA Use row
-    would still have to carry. It is concentrated in agriculture and
-    construction - dispersed, largely non-point sources - which is also where
-    MECS never applied, since MECS covers NAICS 31-33 only.
+    ⚠️ **Widening the comparison does not widen what can be improved.** The
+    process rows this pulls in - ``UMD_GHGIA_T_2_S1.direct``, ``T_4_31`` and the
+    rest, 433 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
+    already names the sector, with no Use row, no MECS and no vector in between.
+    A facility basis cannot improve an assignment that was never derived. So the
+    columns are kept apart:
+
+    ``inventory_Mt``
+        everything the inventory assigns the sector.
+    ``allocated_Mt``
+        the part a vector placed, and therefore the only part a facility basis
+        could restate. **This is the number to rank on.**
+    ``direct_Mt``
+        the part the inventory placed itself. Counted, never improvable.
+
+    *detail* is optional and only used to carry the table 3-11 subtotal through,
+    so the older combustion-only reading stays visible next to the new one.
     """
-    combustion = detail[
-        detail['MetaSources'].str.contains(COMBUSTION_METASOURCE, na=False)
-    ]
     year = int(facility['year'].iloc[0])
-    allocated = (
-        combustion[combustion['year_to'] == year].groupby('sector')['E_to'].sum() / 1e9
-    )
-    if allocated.empty:
+    emissions = span.E[span.E['year'] == year]
+    if emissions.empty:
         raise ValueError(
-            f'No table 3-11 rows for {year} in the divergence detail. D15 can only '
-            f'compare a year the span was built for.'
+            f'No emissions for {year} in the span. D15 can only compare a year '
+            f'the span was built for.'
         )
+    by_sector = emissions.groupby('sector')['CO2e']
+    is_direct = emissions['attribution'] == 'Direct'
 
-    by_sector = facility.groupby('sector')
     out = pd.DataFrame(
         {
-            'allocated_Mt': allocated,
-            'facility_Mt': by_sector['CO2e'].sum() / 1e9,
+            'inventory_Mt': by_sector.sum() / 1e9,
+            'direct_Mt': emissions[is_direct].groupby('sector')['CO2e'].sum() / 1e9,
+            'allocated_Mt': emissions[~is_direct].groupby('sector')['CO2e'].sum() / 1e9,
+            'facility_Mt': facility.groupby('sector')['CO2e'].sum() / 1e9,
             'derived_Mt': facility[facility['fuel_class'] == 'facility_derived']
             .groupby('sector')['CO2e']
             .sum()
             / 1e9,
-            'facilities': by_sector.size(),
-            'states': by_sector['State'].nunique(),
+            'facilities': facility.groupby('sector').size(),
+            'states': facility.groupby('sector')['State'].nunique(),
         }
     )
-    out = out[out['allocated_Mt'].notna() & (out['allocated_Mt'] > 0)].fillna(0.0)
-    out['coverage'] = out['facility_Mt'] / out['allocated_Mt']
+    if detail is not None:
+        combustion = detail[
+            detail['MetaSources'].str.contains(COMBUSTION_METASOURCE, na=False)
+            & (detail['year_to'] == year)
+        ]
+        out['table_3_11_Mt'] = combustion.groupby('sector')['E_to'].sum() / 1e9
+    out = out[out['inventory_Mt'].notna() & (out['inventory_Mt'] > 0)].fillna(0.0)
+
+    out['coverage'] = out['facility_Mt'] / out['inventory_Mt']
     out['residual_Mt'] = (out['allocated_Mt'] - out['facility_Mt']).clip(lower=0.0)
-    out['allocated_share_%'] = out['allocated_Mt'] / out['allocated_Mt'].sum() * 100
     out['basis'] = np.where(
         out['coverage'] < 0.05,
-        'Use row - no facility data',
+        'no facility data',
         np.where(
             out['coverage'] > 1.5,
-            'facility, boundary to settle',
-            np.where(out['coverage'] >= 0.5, 'facility', 'facility + Use residual'),
+            'facility exceeds the inventory',
+            np.where(out['coverage'] >= 0.5, 'facility', 'facility + residual'),
         ),
     )
 
-    # ⚠️ The comparison a hybrid actually implies. Sectors with no facility data
-    # keep their current Use-based allocation rather than dropping to zero, and
-    # the anchored group keeps the same total share it has today - only its
-    # INTERNAL distribution is restated on facility evidence. Ranking the
-    # facility totals against the whole of table 3-11 instead would charge the
-    # unanchored sectors for a coverage gap rather than a disagreement.
-    anchored = out['basis'] != 'Use row - no facility data'
+    # Shares are taken on the ALLOCATED mass only: restating a Direct row would
+    # move a number the inventory already set, which is not on offer here.
+    total_allocated = out['allocated_Mt'].sum()
+    out['allocated_share_%'] = out['allocated_Mt'] / total_allocated * 100
+    anchored = (out['basis'] != 'no facility data') & (out['allocated_Mt'] > 0)
     group_share = out.loc[anchored, 'allocated_share_%'].sum()
     facility_total = out.loc[anchored, 'facility_Mt'].sum()
     out['hybrid_share_%'] = out['allocated_share_%']
@@ -1720,8 +1760,9 @@ def facility_basis_comparison(
             out.loc[anchored, 'facility_Mt'] / facility_total * group_share
         )
     out['share_shift_pp'] = out['hybrid_share_%'] - out['allocated_share_%']
+
     out = _with_names(out.rename_axis('sector').reset_index())
-    return out.sort_values('allocated_Mt', ascending=False).reset_index(drop=True)
+    return out.sort_values('inventory_Mt', ascending=False).reset_index(drop=True)
 
 
 def report(
@@ -2561,7 +2602,9 @@ def main(
         basis_year = min(max(floor_years), NEI_LAST_YEAR)
         facility = facility_combustion(basis_year)
         tables['facility_combustion'] = facility
-        tables['facility_basis'] = facility_basis_comparison(detail_real, facility)
+        tables['facility_basis'] = facility_basis_comparison(
+            span, facility, detail_real
+        )
         derived = facility[facility['fuel_class'] == 'facility_derived']
         logger.info(
             'D15 %d: %.1f Mt over %d facilities in %d jurisdictions, of which %.1f '
