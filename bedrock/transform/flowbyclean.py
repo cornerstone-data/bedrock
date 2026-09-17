@@ -163,6 +163,84 @@ def weighted_average(
     return wt_flow
 
 
+def average_flowby(
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    download_sources_ok: bool = True,
+    **_kwargs: Any,
+) -> FlowBySector:
+    """
+    Average FlowAmount across all ``datasource_*`` entries in the FBS config.
+
+    Each ``datasource_N`` is ``{source_name: overrides}`` (same shape as
+    ``clean_source``). Loads via ``get_flowby_from_config`` + ``prepare_fbs``.
+    """
+    ds_keys = sorted(
+        (k for k in config if str(k).startswith('datasource_')),
+        key=lambda k: int(str(k).rsplit('_', 1)[-1]),
+    )
+    method_keys = config.get('method_config_keys') or ()
+    prepared: list[_FlowBy] = []
+    for key in ds_keys:
+        ((name, overrides),) = config[key].items()
+        fb = get_flowby_from_config(
+            name=name,
+            config={
+                **{
+                    k: v
+                    for k, v in config.items()
+                    if k in method_keys or k == 'method_config_keys'
+                },
+                **get_catalog_info(name),
+                **(overrides or {}),
+            },
+            external_config_path=external_config_path,
+            download_sources_ok=download_sources_ok,
+        ).prepare_fbs(  # type: ignore[operator]
+            download_sources_ok=download_sources_ok
+        )
+        prepared.append(fb.reset_index(drop=True))
+
+    source_labels = [
+        (
+            f'{fb.full_name} ({year})'
+            if (year := fb.config.get('year')) is not None
+            else fb.full_name
+        )
+        for fb in prepared
+    ]
+    log.info(f'Averaging FlowAmounts across {source_labels} for {full_name}.')
+    # Same identity cols FlowBy uses to aggregate: non-float columns
+    # except Description / group_id; Year dropped.
+    join_cols = [c for c in prepared[0].groupby_cols if c != 'Year']
+    amounts = prepared[0].groupby(join_cols, dropna=False)['FlowAmount'].sum()
+    for fb in prepared[1:]:
+        amounts = amounts.add(
+            fb.groupby(join_cols, dropna=False)['FlowAmount'].sum(), fill_value=0
+        )
+    averaged = (
+        amounts.div(len(prepared))
+        .rename('FlowAmount')
+        .reset_index()
+        .assign(Year=int(config['year']))
+    )
+    # Mean of totals cannot exceed the largest source total
+    avg_total = float(averaged['FlowAmount'].sum())
+    max_source_total = max(float(fb['FlowAmount'].sum()) for fb in prepared)
+    if avg_total > max_source_total:
+        log.warning(
+            f'{full_name}: averaged FlowAmount sum {avg_total} exceeds max '
+            f'source sum {max_source_total}'
+        )
+    return FlowBySector(
+        averaged,
+        full_name=full_name,
+        config=config,
+        convert_df_to_flowby=True,
+    )
+
+
 def substitute_nonexistent_values(
     fb: FB, download_sources_ok: bool = True, **_kwargs: Any
 ) -> _FlowBy:
