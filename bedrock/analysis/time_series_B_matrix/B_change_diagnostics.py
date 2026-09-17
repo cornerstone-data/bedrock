@@ -1135,7 +1135,11 @@ def vnorm_share_of_B_movement(span: Span) -> pd.DataFrame:
 
         gross = float(total.abs().sum())
         gross_weighted = float((total.abs() * q).sum())
-        row = {'year_from': prior, 'year_to': current, 'commodities': int(len(total))}
+        row: dict[str, float] = {
+            'year_from': prior,
+            'year_to': current,
+            'commodities': len(total),
+        }
         for name, effect in (
             ('vnorm_share', symmetric),
             ('vnorm_share_paasche', paasche),
