@@ -180,7 +180,7 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
 _EGRID_FBS_METHOD_BY_SOURCE_YEAR: dict[tuple[str, int], str] = {
     ('bea_published', 2023): 'GHG_national_Cornerstone_2023_egrid',
     ('bea_published', 2024): 'GHG_national_Cornerstone_2024_egrid',
-    ('nowcast', 2024): 'GHG_national_Cornerstone_nowcast_2024_egrid',
+    ('nowcast', 2024): 'GHG_national_Cornerstone_nowcast_2024',
 }
 
 

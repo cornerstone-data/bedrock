@@ -28,7 +28,11 @@ from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.settings import process_adjustmentpath
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import sector as naics_mapping
-from bedrock.utils.mapping.location import apply_county_FIPS, update_geoscale
+from bedrock.utils.mapping.location import (
+    apply_county_FIPS,
+    filter_to_model_geography,
+    update_geoscale,
+)
 from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 
 InventoryDict = dict[str, str]
@@ -210,16 +214,43 @@ def _egrid_plprmfl_to_plfuelct(fuel: str) -> str | None:
 def load_egrid_emissions_via_stewi(year: str | int) -> pd.DataFrame:
     """Load stewi eGRID flow-by-facility emissions with facility location and fuel."""
     year_str = str(year)
-    df = stewi.getInventory('eGRID', year_str, download_if_missing=True)
-    facilities = stewi.getInventoryFacilities(
-        'eGRID', year_str, download_if_missing=True
-    )
+    try:
+        df = stewi.getInventory('eGRID', year_str, download_if_missing=True)
+        facilities = stewi.getInventoryFacilities(
+            'eGRID', year_str, download_if_missing=True
+        )
+        if facilities is None:
+            raise TypeError('eGRID facility inventory missing after download')
+    except TypeError:
+        # download_if_missing=True looks for data on EPA server, so generate locally
+        log.info(
+            f'eGRID {year_str} not available via download; '
+            'regenerating with download_if_missing=False'
+        )
+        df = stewi.getInventory('eGRID', year_str, download_if_missing=False)
+        facilities = stewi.getInventoryFacilities(
+            'eGRID', year_str, download_if_missing=False
+        )
+
     facilities = (
         facilities[['FacilityID', 'State', 'County', 'Plant primary fuel']]
         .drop_duplicates(subset='FacilityID', keep='first')
-        .pipe(lambda d: apply_county_FIPS(d, unmatched='national'))
+        # Cut to BEA's economic territory here, while State is still a
+        # two-letter code -- apply_county_FIPS overwrites it with a full name.
+        .pipe(filter_to_model_geography, label=f'eGRID {year_str}')
+        .pipe(apply_county_FIPS)
     )
-    return df.merge(facilities, how='left', on='FacilityID')
+    merged = df.merge(facilities, how='inner', on='FacilityID')
+    orphans = df.loc[~df['FacilityID'].isin(facilities['FacilityID'])]
+    if not orphans.empty:
+        log.warning(
+            'eGRID %s: %d emission rows over %d facilities have no facility '
+            'record and are dropped',
+            year_str,
+            len(orphans),
+            orphans['FacilityID'].nunique(),
+        )
+    return merged
 
 
 def assign_naics_from_egrid_fuel(

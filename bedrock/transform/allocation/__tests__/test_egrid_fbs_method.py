@@ -44,7 +44,7 @@ def test_egrid_fbs_method_for_year_unsupported() -> None:
     [
         ('bea_published', 2023, 'GHG_national_Cornerstone_2023_egrid'),
         ('bea_published', 2024, 'GHG_national_Cornerstone_2024_egrid'),
-        ('nowcast', 2024, 'GHG_national_Cornerstone_nowcast_2024_egrid'),
+        ('nowcast', 2024, 'GHG_national_Cornerstone_nowcast_2024'),
     ],
 )
 def test_egrid_fbs_method_for_config(
@@ -179,7 +179,7 @@ def test_load_egrid_fbs_selects_nowcast_method(
 
     out = allocation_derived._load_egrid_fbs_for_electricity_disagg()
     assert out is sentinel
-    assert gcs_calls == ['GHG_national_Cornerstone_nowcast_2024_egrid']
+    assert gcs_calls == ['GHG_national_Cornerstone_nowcast_2024']
     flowsa.assert_not_called()
 
 
