@@ -35,6 +35,7 @@ _HERMETIC: tuple[str, ...] = (
     'bedrock/utils/config/__tests__',
     'bedrock/transform/iot/__tests__/test_supply_to_make.py',
     'bedrock/transform/eeio/__tests__/test_nowcast_x_q.py',
+    'bedrock/analysis/nowcasting/ras_improvements/__tests__',
 )
 
 _ROOT = Path(__file__).resolve().parent.parent
