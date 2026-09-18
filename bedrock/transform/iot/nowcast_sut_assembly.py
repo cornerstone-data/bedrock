@@ -43,15 +43,11 @@ is *returned* so the precheck can print every swept cell. Violations above
 the threshold are **left in place** - they are real contradictions and the
 right failure mode is the machinery's refusal, not a silent larger sweep.
 
-Testing: no direct unit tests, on purpose. This module is wiring over heavy
-cached derivations (the fit, the seeds, the GO panel), so a unit test would
-either mock all of them - pinning the wiring to itself - or re-run them. The
-per-year precheck gates (:mod:`~bedrock.analysis.nowcasting.ras_prechecks`)
-are the
-test: nine consistency checks on the real assembled objects, including the
-exact ``T1 - T18`` / fit-column identity and the T1-arm reconciliation with
-swept VA dust added back. The layers underneath (mask, targets) carry their
-own unit suites.
+Testing: assembly / ``balance_year`` wiring over heavy cached derivations is
+still gated by the per-year precheck
+(:mod:`~bedrock.analysis.nowcasting.ras_prechecks`). Post-balance hygiene
+helpers and ``save_balance`` residue sweep carry hermetic unit tests under
+``__tests__/``.
 """
 
 from __future__ import annotations
@@ -78,12 +74,14 @@ from bedrock.transform.iot.nowcast import (
 from bedrock.transform.iot.nowcast_interior_fit import FIT_YEARS, fit_interior
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
+    INVENTORY_CHANGE_COLUMN,
     SUPPLY_BRIDGE_COLUMNS,
     VA_ROWS,
     balance_commodities,
     balance_industries,
     build_sut_mask,
     panel_labels,
+    published_2017_panel,
 )
 from bedrock.transform.iot.nowcast_supply_go_control import go_controlled_supply_block
 from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult, engine
@@ -130,8 +128,182 @@ DUST_USD_M = 1.0
 #: allocation cannot support, so it is swept to zero like any other dust.
 SIGN_DUST_USD_M = 10.0
 
+#: Offset-residue sweep / illicit-sign gate, in $M ($50k). Strict ``<`` /
+#: ``>`` — unlike seed :data:`DUST_USD_M`, which uses ``<=``. Issue #839.
+RESIDUE_EPS_USD_M = 0.05
+
+#: Structural-zero leak mass gate after restore, in $M. Named separately from
+#: seed :data:`DUST_USD_M` even though the numeric grain matches. Issue #839.
+ZERO_PATTERN_MASS_USD_M = 1.0
+
+#: Unlocked residual VA row — negatives here are legitimate, not illicit dust.
+_RESIDUAL_VA_ROW = 'V00300'
+
 #: The bridge derivation labels its trade column without BEA's trailing space.
 _BRIDGE_RENAMES = {'TRADE': 'TRADE '}
+
+
+def _require_matching_labels(a: pd.DataFrame, b: pd.DataFrame, what: str) -> None:
+    if not a.index.equals(b.index):
+        raise ValueError(f'{what}: row labels differ')
+    if not a.columns.equals(b.columns):
+        raise ValueError(f'{what}: column labels differ')
+
+
+def illicit_negative_mask(
+    balanced: pd.DataFrame,
+    mask: SutMask,
+    pattern2017: pd.DataFrame,
+) -> pd.DataFrame:
+    """Boolean frame: Use negatives outside the #839 hygiene whitelist.
+
+    Whitelist (never illicit): ``sign_lock == -1``,
+    :data:`~bedrock.transform.iot.nowcast_mask.INVENTORY_CHANGE_COLUMN`,
+    :data:`_RESIDUAL_VA_ROW`, and cells with ``pattern2017 < 0``.
+    """
+    _require_matching_labels(balanced, mask.sign_lock, 'illicit_negative_mask')
+    _require_matching_labels(balanced, pattern2017, 'illicit_negative_mask pattern2017')
+    illicit = (balanced < 0.0) & (mask.sign_lock != -1) & ~(pattern2017 < 0.0)
+    if INVENTORY_CHANGE_COLUMN in balanced.columns:
+        illicit = illicit.copy()
+        illicit.loc[:, INVENTORY_CHANGE_COLUMN] = False
+    if _RESIDUAL_VA_ROW in balanced.index:
+        illicit = illicit.copy()
+        illicit.loc[_RESIDUAL_VA_ROW, :] = False
+    return illicit
+
+
+def sweep_offset_residue(
+    frame: pd.DataFrame,
+    mask: SutMask,
+    pattern2017: pd.DataFrame,
+    eps: float = RESIDUE_EPS_USD_M,
+) -> tuple[pd.DataFrame, int]:
+    """Copy *frame* with illicit below-*eps* negatives zeroed (issue #839 item 1).
+
+    Sweeps only cells in :func:`illicit_negative_mask` with
+    ``0 < |x| < eps``. Exact zeros and non-illicit near-zeros (including
+    positive dust on 2017-nonzero structure) are left alone. ``n_swept``
+    counts cells that actually change.
+
+    Returns ``(cleaned, n_swept)``. Does not mutate *frame*.
+    """
+    illicit = illicit_negative_mask(frame, mask, pattern2017)
+    dust = illicit & (frame.abs() > 0.0) & (frame.abs() < float(eps))
+    n_swept = int(dust.to_numpy().sum())
+    cleaned = frame.copy()
+    if n_swept:
+        values = cleaned.to_numpy(dtype=float, copy=True)
+        values[dust.to_numpy()] = 0.0
+        cleaned = pd.DataFrame(values, index=cleaned.index, columns=cleaned.columns)
+    return cleaned, n_swept
+
+
+def zero_pattern_leak(
+    balanced: pd.DataFrame,
+    pattern2017: pd.DataFrame,
+) -> tuple[int, float]:
+    """Count and dollar mass of nonzero fills where the 2017 pattern is zero.
+
+    Issue #839 item 2(a): audit against the **published** 2017 detail panel
+    (``published_2017_panel``), not ``mask.structural_zero``. The mask drops
+    deliberate trade/fiscal exemptions from Tier 0; fills there are expected
+    (cell counts often tens to hundreds by year; dollar mass can be large on
+    fiscal rows). Census/reporting uses this helper. The production **fail**
+    gate for empty-cell integrity stays on :func:`structural_zero_leak`.
+    """
+    _require_matching_labels(balanced, pattern2017, 'zero_pattern_leak')
+    leak = (pattern2017 == 0.0) & (balanced != 0.0)
+    n_cells = int(leak.to_numpy().sum())
+    mass = float(balanced.where(leak, 0.0).abs().sum().sum())
+    return n_cells, mass
+
+
+def structural_zero_leak(
+    balanced: pd.DataFrame,
+    mask: SutMask,
+) -> tuple[int, float]:
+    """Count and dollar mass of nonzero fills into ``mask.structural_zero``.
+
+    Stricter than :func:`zero_pattern_leak`: Tier 0 cells the engine must hold
+    at zero. Used as the standing mass fail gate in
+    :func:`assert_post_balance_hygiene`.
+    """
+    _require_matching_labels(balanced, mask.structural_zero, 'structural_zero_leak')
+    leak = mask.structural_zero & (balanced != 0.0)
+    n_cells = int(leak.to_numpy().sum())
+    mass = float(balanced.where(leak, 0.0).abs().sum().sum())
+    return n_cells, mass
+
+
+def illicit_sign_residue(
+    balanced: pd.DataFrame,
+    mask: SutMask,
+    pattern2017: pd.DataFrame,
+    eps: float = RESIDUE_EPS_USD_M,
+) -> tuple[int, float]:
+    """Illicit Use negatives above *eps*: count and max abs among that set.
+
+    Whitelist (never illicit): see :func:`illicit_negative_mask`.
+    ``max_abs`` is over the above-eps illicit set only (``0.0`` when empty).
+    """
+    illicit = illicit_negative_mask(balanced, mask, pattern2017)
+    above = illicit & (balanced.abs() > float(eps))
+    n_above = int(above.to_numpy().sum())
+    if n_above == 0:
+        return 0, 0.0
+    max_abs = float(balanced.where(above, 0.0).abs().max().max())
+    return n_above, max_abs
+
+
+def assert_post_balance_hygiene(
+    year: int,
+    balanced: dict[str, pd.DataFrame],
+    masks: dict[str, SutMask],
+    *,
+    pattern2017: pd.DataFrame | None = None,
+    patterns2017: dict[str, pd.DataFrame] | None = None,
+    zero_mass_bound: float = ZERO_PATTERN_MASS_USD_M,
+    residue_eps: float = RESIDUE_EPS_USD_M,
+) -> None:
+    """Gate Tier-0 structural-zero fills and Use illicit signs.
+
+    Item 2(a) **monitoring** (published-pattern fills, including trade/fiscal
+    exemptions) is :func:`zero_pattern_leak` in the census CLIs — dollar mass
+    there is often ≫ ``zero_mass_bound`` (legitimate fiscal moves). The
+    standing **fail** gate here is :func:`structural_zero_leak` (engine must
+    not fill frozen zeros). Item 2(b) fails on illicit Use negatives above
+    ``residue_eps``.
+
+    *patterns2017* / *pattern2017* supply Use pattern for 2(b); if omitted,
+    loads :func:`~bedrock.transform.iot.nowcast_mask.published_2017_panel`.
+    """
+
+    def _pattern(block: str) -> pd.DataFrame:
+        if patterns2017 is not None and block in patterns2017:
+            return patterns2017[block]
+        if block == 'use' and pattern2017 is not None:
+            return pattern2017
+        return published_2017_panel(block)  # type: ignore[arg-type]
+
+    for block, frame in balanced.items():
+        mask = masks[block]
+        n_cells, mass = structural_zero_leak(frame, mask)
+        if mass > float(zero_mass_bound):
+            raise ValueError(
+                f'{year} {block}: structural-zero leak mass '
+                f'{mass:.6g} $M across {n_cells} cells exceeds '
+                f'{zero_mass_bound} $M'
+            )
+    use = balanced['use']
+    use_mask = masks['use']
+    use_pattern = _pattern('use')
+    n_above, max_abs = illicit_sign_residue(use, use_mask, use_pattern, residue_eps)
+    if n_above > 0:
+        raise ValueError(
+            f'{year} use: {n_above} illicit negative cell(s) above '
+            f'{residue_eps} $M (max abs {max_abs:.6g} $M)'
+        )
 
 
 def _million(frame: pd.DataFrame) -> pd.DataFrame:
@@ -368,6 +540,7 @@ def balance_year(
         max_outer=max_outer,
     )
     restored = restore_fixed_blocks(out.blocks, frozen)
+    assert_post_balance_hygiene(assembled.year, restored, assembled.masks)
     return YearBalance(
         year=assembled.year,
         seeds=assembled.seeds,
@@ -447,13 +620,29 @@ def save_balance(
         f'soft deferred {result.soft_deferred or "none"}'
     )
     written: list[Path] = []
+    use_pattern: pd.DataFrame | None = None
     for block, frame in balance.balanced.items():
+        if block == 'use':
+            if 'use' not in balance.masks:
+                raise ValueError(
+                    'save_balance needs balance.masks["use"] for residue sweep'
+                )
+            if use_pattern is None:
+                use_pattern = published_2017_panel('use')
+            cleaned, n_swept = sweep_offset_residue(
+                frame,
+                balance.masks['use'],
+                use_pattern,
+                RESIDUE_EPS_USD_M,
+            )
+        else:
+            cleaned, n_swept = frame, 0
         name = BALANCED_ARTIFACT_NAMES.get(block, f'Balanced_{block}')
         stem = f'{name}_{balance.year}_v{PKG_VERSION_NUMBER}'
         if GIT_HASH is not None:
             stem = f'{stem}_{GIT_HASH}'
         parquet_path = directory / f'{stem}.parquet'
-        frame.to_parquet(parquet_path)
+        cleaned.to_parquet(parquet_path)
         meta = {
             'tool': 'bedrock',
             'category': 'BalancedSUT',
@@ -470,6 +659,9 @@ def save_balance(
                 'commit': GIT_HASH_LONG,
                 'engine_result': engine_line,
                 'builder': 'bedrock.transform.iot.nowcast_sut_assembly',
+                'residue_eps_usd_m': RESIDUE_EPS_USD_M,
+                'residue_swept_cells': n_swept,
+                'residue_sweep': 'illicit_below_eps',
             },
         }
         meta_path = directory / f'{stem}_metadata.json'
