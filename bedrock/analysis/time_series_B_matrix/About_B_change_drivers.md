@@ -822,3 +822,54 @@ absolute divergence are
 `UMD 2-S1 electric_power → Direct` at 609 Mt, then
 `UMD 3-11 petroleum_industrial` and `UMD 5-10 direct → EPA_GHGI_soils` at
 107 Mt each, and `UMD 3-11 ng_manufacturing → MECS` at 101 Mt.
+
+### Reading the legend: the unit is the table, not the label
+
+⚠️ **Neither half of a legend entry identifies a driver family.** An entry is
+`<UMD inventory table>.<stratum> → <what spread it across sectors>`, and both
+halves mislead if read as a category:
+
+- **The attribution half is a route, not a provenance.** `UMD 3-11
+  petroleum_industrial → MECS` is not a MECS vector. Its weights are BEA Use
+  purchases of `324110` rescaled by a MECS fuel fraction that is constant
+  within a survey vintage (section 4) — the largest Use-table cell in the panel
+  wearing a MECS label.
+- **A fuel name is not a combustion category.** `petroleum` appears on mobile
+  combustion, on residential and commercial combustion, on industrial
+  combustion, and on non-combustion fugitives.
+
+What the tables are, from `UMD_GHGIA.yaml` and the activity-set comments in
+`GHG_national_Cornerstone_nowcast_<year>.yaml`:
+
+| UMD table | what it covers |
+|---|---|
+| **3-11** | stationary combustion — **industrial**. The whole of [#923](https://github.com/cornerstone-data/bedrock/issues/923) |
+| 3-4 | stationary combustion — residential and commercial |
+| 3-8 | **mobile** combustion, transportation end-use |
+| 3-14 | non-energy use — carbon in feedstocks, never burned |
+| 3-25, 3-26 | petroleum *systems* — fugitive and vented, not combustion |
+
+So the #923 family on this figure is **every `UMD 3-11` entry and only those**:
+`petroleum_industrial` 107.2 Mt, `ng_manufacturing` 101.4,
+`natural_gas_nonmanufac` 48.5, plus `coal_manufacturing` 24.3 and
+`coal_nonmanufacturing` 9.6 bundled inside `other` — **291.0 Mt, 14.5%** of the
+panel. Filtering on the legend text instead — every entry naming MECS, plus
+every `petroleum* → Use` — gets 418 Mt that is only half the right mass: it
+catches 208.6 Mt of table 3-11, pulls in 209.5 Mt that is not (145.9 Mt of 3-8
+mobile, 63.5 Mt of 3-4 commercial), and drops the 82.4 Mt of table 3-11 that is
+natural gas and coal.
+
+⚠️ **291.0 Mt here and the 698 Mt in tracker row 15 are the same family on two
+aggregations, not a disagreement.** This figure sums sectors within a year
+before taking the absolute value, so opposing sector movements net; D9 keeps
+each (sector × source) cell separate. Quote 291.0 Mt against this figure and
+697.9 Mt against `sector_stratum_span.csv`, and never mix them in one
+comparison.
+
+Table 3-4 is stationary combustion too, so #923's title reaches it while its
+body scopes table 3-11 alone. Facility data would not anchor it either —
+commercial buildings sit below GHGRP's 25,000 tCO2e threshold and are not NEI
+point sources — so the 63.5 Mt on `3-4 petroleum_commercial` shares the
+Use-table mechanism of tracker row 12
+([#933](https://github.com/cornerstone-data/bedrock/issues/933)) but needs a
+different fix, and is not covered by #923 as written.
