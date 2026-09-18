@@ -62,9 +62,15 @@ for remediation, being the nowcast Make, even though it is a direct term in
 Everything below comes from `B_change_diagnostics.py` in this folder. Run it
 with no arguments; it writes 30 tables and 5 figures to `output/`. `--facility-data`
 adds D14 and D15 and four more tables, and is the one option that needs a network. Figures for
-the numbers quoted here are from the run of 2026-09-15 on FBS vintage
-`v0.3.0_796a6ca` and MUT vintage `v0.3.0_4276083`. **Treat the module and its
+the numbers quoted here are from the run of 2026-09-18 on FBS vintage
+`v0.3.0_99655e9` and MUT vintage `v0.3.0_4276083`. **Treat the module and its
 CSVs as the live source** — quoted numbers here go stale, the outputs do not.
+
+⚠️ **Check the vintage, not just the numbers.** An earlier run of this note
+resolved to a local-only FBS build that no ref reaches, and published a set of
+findings off it. `--list-vintages` prints the provenance of every build on
+disk; `resolve_span_vintage` now prefers one reachable from `origin/main` and
+refuses to choose when several span-covering builds are present and none is.
 
 | ID | Approach | Question it asks | Diagnostic | Output |
 |---|---|---|---|---|
@@ -108,7 +114,7 @@ substitutes for the other.
 "Test for acceptance" needs a number to move. The module already computes two
 that work as before-and-after measures, both on real-dollar EFs:
 
-- **median `abs_delta_B_pct_of_N`**, per year — currently 0.33% to 1.44%
+- **median `abs_delta_B_pct_of_N`**, per year — currently 0.32% to 1.17%
   depending on year;
 - **share of commodities over the chosen gate**, per year — a 5% gate on
   `abs_delta_B_pct_of_N` currently admits 5.2% to 22.5%.

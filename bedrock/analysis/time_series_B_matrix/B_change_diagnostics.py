@@ -85,8 +85,11 @@ after-redefinition nowcast MUTs - is resolved **local-first** from
 ``transform/output_data``, at one vintage pinned across the whole span. A
 span-wide pin is not tidiness: a cross-year comparison assembled from mixed
 build vintages measures the rebuild, not the years. :func:`resolve_span_vintage`
-picks the newest local vintage that covers every requested year, and
-``--fbs-vintage`` / ``--mut-vintage`` override it::
+picks a local vintage that covers every requested year **and whose hash is
+reachable from origin/main**, newest commit first; it never ranks on file
+mtime, for the reason recorded there. ``--fbs-vintage`` / ``--mut-vintage``
+override it, and ``--list-vintages`` shows what is on disk with the provenance
+of each::
 
     python -m bedrock.analysis.time_series_B_matrix.B_change_diagnostics
     python -m bedrock.analysis.time_series_B_matrix.B_change_diagnostics --list-vintages
@@ -95,8 +98,10 @@ picks the newest local vintage that covers every requested year, and
 from __future__ import annotations
 
 import argparse
+import functools
 import logging
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -113,7 +118,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
-from bedrock.utils.config.settings import FBS_DIR
+from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.math.formulas import compute_L_matrix
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
@@ -246,10 +251,83 @@ def classify_attribution(value: str) -> str:
 # --- vintage resolution -----------------------------------------------------
 
 
+#: Ordered best-first, for display and for ranking equally-covering vintages.
+#: Only ``on_main`` lets an unpinned run *choose* between candidates; see
+#: :func:`resolve_span_vintage`.
+_PROVENANCE_ORDER: tuple[str, ...] = (
+    'on_main',
+    'on_branch',
+    'dangling',
+    'no_such_commit',
+)
+
+
+@functools.cache
+def _commit_time_on_main(git_hash: str) -> int | None:
+    """Commit timestamp of *git_hash* if it is reachable from ``origin/main``.
+
+    ``None`` means "do not trust this vintage unattended": either the hash names
+    no commit in this clone, or it names one that no released history contains.
+    """
+    try:
+        subprocess.check_output(
+            ['git', 'merge-base', '--is-ancestor', git_hash, 'origin/main'],
+            cwd=MODULEPATH,
+            stderr=subprocess.DEVNULL,
+        )
+        return int(
+            subprocess.check_output(
+                ['git', 'show', '-s', '--format=%ct', git_hash],
+                cwd=MODULEPATH,
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return None
+
+
+def vintage_provenance(vintage: str) -> str:
+    """Where the code behind a ``v<version>_<hash>`` build vintage came from.
+
+    ``on_main`` - reachable from ``origin/main``. ``on_branch`` - reachable from
+    some other ref: ordinary for anything built on a PR branch, since a
+    squash-merge lands under a *new* hash and the artifact keeps the branch's.
+    ``dangling`` - the commit object is here but no ref reaches it, so the
+    branch is gone and nobody can check out what built it. ``no_such_commit`` -
+    not in this clone at all.
+
+    Only the first two are reproducible, and the distinction is not academic:
+    the FBS behind #912's phantom negative emission factors was ``dangling``.
+    """
+    git_hash = vintage.rsplit('_', 1)[-1]
+    if _commit_time_on_main(git_hash) is not None:
+        return 'on_main'
+    try:
+        subprocess.check_output(
+            ['git', 'cat-file', '-e', f'{git_hash}^{{commit}}'],
+            cwd=MODULEPATH,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return 'no_such_commit'
+    refs = subprocess.run(
+        ['git', 'branch', '-a', '--contains', git_hash],
+        cwd=MODULEPATH,
+        capture_output=True,
+        check=False,
+    )
+    return 'on_branch' if refs.stdout.strip() else 'dangling'
+
+
 def local_vintages(stem_template: str, years: tuple[int, ...] = YEARS) -> pd.DataFrame:
     """Vintages of *stem_template* present in ``transform/output_data``.
 
-    One row per vintage: the years it covers and its newest file's mtime.
+    One row per vintage: the years it covers, its newest file's mtime, and the
+    :func:`vintage_provenance` of the hash it is stamped with. Ordered the way
+    :func:`resolve_span_vintage` chooses - span coverage, then provenance, then
+    **commit** date. ``mtime`` is reported but never ranked on; see there.
     """
     rows: list[dict[str, object]] = []
     for year in years:
@@ -264,9 +342,11 @@ def local_vintages(stem_template: str, years: tuple[int, ...] = YEARS) -> pd.Dat
                 }
             )
     if not rows:
-        return pd.DataFrame(columns=['vintage', 'years', 'n_years', 'mtime'])
+        return pd.DataFrame(
+            columns=['vintage', 'years', 'n_years', 'mtime', 'provenance', 'committed']
+        )
     found = pd.DataFrame(rows)
-    return (
+    grouped = (
         found.groupby('vintage')
         .agg(
             years=('year', lambda s: tuple(sorted(s))),
@@ -274,16 +354,37 @@ def local_vintages(stem_template: str, years: tuple[int, ...] = YEARS) -> pd.Dat
             mtime=('mtime', 'max'),
         )
         .reset_index()
-        .sort_values(['n_years', 'mtime'], ascending=False)
+    )
+    grouped['provenance'] = grouped['vintage'].map(vintage_provenance)
+    grouped['committed'] = grouped['vintage'].map(
+        lambda v: _commit_time_on_main(v.rsplit('_', 1)[-1]) or 0
+    )
+    grouped['_rank'] = grouped['provenance'].map(_PROVENANCE_ORDER.index)
+    return (
+        grouped.sort_values(
+            ['n_years', '_rank', 'committed'], ascending=[False, True, False]
+        )
+        .drop(columns='_rank')
         .reset_index(drop=True)
     )
 
 
 def resolve_span_vintage(stem_template: str, years: tuple[int, ...] = YEARS) -> str:
-    """The newest local vintage of *stem_template* covering **every** year.
+    """The local vintage of *stem_template* covering **every** year.
 
     Raises rather than falling back to a partial vintage: a span assembled from
     two builds measures the rebuild, not the years.
+
+    ⚠️ **Never breaks a tie on file mtime.** A build's mtime records when it was
+    written, not which code wrote it, and the two disagree the moment anyone
+    checks out an older branch to rebuild something. That is not hypothetical:
+    #912 reported negative fossil-combustion emission factors on ``114000`` and
+    ``327910`` that turned out to be an unmerged side-branch FBS outranking the
+    published one by three quarters of an hour of mtime. So an unpinned run
+    resolves only among vintages whose hash is reachable from ``origin/main``,
+    newest **commit** first, and raises if more than one candidate survives with
+    none of them on main. A single off-main vintage is allowed through - there
+    is no ambiguity to resolve - but says so loudly in the log.
     """
     available = local_vintages(stem_template, years)
     covering = available[available['n_years'] == len(years)]
@@ -299,8 +400,38 @@ def resolve_span_vintage(stem_template: str, years: tuple[int, ...] = YEARS) -> 
             f'Pass --fbs-vintage/--mut-vintage explicitly, or download the '
             f'missing years into {FBS_DIR}.'
         )
-    vintage = str(covering.iloc[0]['vintage'])
-    logger.info('Resolved %s -> %s', stem_template.format(year='<year>'), vintage)
+
+    on_main = covering[covering['provenance'] == 'on_main']
+    if len(on_main):
+        chosen = on_main.iloc[0]
+    elif len(covering) == 1:
+        chosen = covering.iloc[0]
+    else:
+        raise FileNotFoundError(
+            f'{len(covering)} local vintages of '
+            f'{stem_template.format(year="<year>")!r} cover '
+            f'{years[0]}-{years[-1]} and none is reachable from origin/main, so '
+            f'there is no defensible way to choose between them:\n'
+            f'{covering[["vintage", "provenance"]].to_string(index=False)}\n'
+            f'Pin one with --fbs-vintage/--mut-vintage. Fetch origin/main first '
+            f'if one of these is in fact published.'
+        )
+
+    vintage, provenance = str(chosen['vintage']), str(chosen['provenance'])
+    logger.info(
+        'Resolved %s -> %s (%s)',
+        stem_template.format(year='<year>'),
+        vintage,
+        provenance,
+    )
+    if provenance in ('dangling', 'no_such_commit'):
+        logger.warning(
+            'Vintage %s is %s: no ref in this clone reaches the commit that '
+            'built it, so no finding published off this run can be reproduced. '
+            'Rebuild from main before publishing anything from it.',
+            vintage,
+            provenance,
+        )
     return vintage
 
 
@@ -2523,6 +2654,23 @@ def main(
         logger.info(
             'Loaded cached span (fbs=%s, mut=%s)', span.vintages.fbs, span.vintages.mut
         )
+        # A pin the cache cannot honour has to fail, not be ignored: the whole
+        # point of passing one is to control which build the findings describe.
+        asked = {'fbs': fbs_vintage, 'mut': mut_vintage}
+        clashed = {
+            family: (want, getattr(span.vintages, family))
+            for family, want in asked.items()
+            if want and want != getattr(span.vintages, family)
+        }
+        if clashed:
+            raise ValueError(
+                '--use-cache would ignore the vintage you pinned: '
+                + '; '.join(
+                    f'{family} pinned {want!r} but the cache holds {held!r}'
+                    for family, (want, held) in clashed.items()
+                )
+                + '. Drop --use-cache to rebuild at the pinned vintage.'
+            )
     else:
         span = build_span(years, resolve_vintages(fbs_vintage, mut_vintage, years))
         save_span(span)
@@ -2656,7 +2804,12 @@ if __name__ == '__main__':
     if args.list_vintages:
         for stem in (FBS_STEM, MUT_STEM):
             print(f'\n{stem.format(year="<year>")}')
-            print(local_vintages(stem, span_years).to_string(index=False))
+            table = local_vintages(stem, span_years)
+            for col in ('mtime', 'committed'):
+                table[col] = pd.to_datetime(
+                    table[col].replace(0, np.nan), unit='s'
+                ).dt.strftime('%Y-%m-%d %H:%M')
+            print(table.fillna('-').to_string(index=False))
     else:
         main(
             years=span_years,

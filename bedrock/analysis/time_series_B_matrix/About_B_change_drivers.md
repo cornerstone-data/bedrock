@@ -1,8 +1,18 @@
 # What moves `B`, and how much of it is real
 
-Findings from `B_change_diagnostics.py`, run 2026-09-16 against FBS vintage
-`v0.3.0_796a6ca` and nowcast MUT vintage `v0.3.0_4276083`, nowcast models
-2017-2024. Method and the diagnostic-to-approach mapping are in
+Findings from `B_change_diagnostics.py`, run 2026-09-18 against FBS vintage
+`v0.3.0_99655e9` and nowcast MUT vintage `v0.3.0_4276083`, nowcast models
+2017-2024. The FBS is the one published build on GCS, and its hash is
+reachable from `origin/main`.
+
+⚠️ **Every figure here was restated on 2026-09-18.** The previous run resolved
+to `v0.3.0_796a6ca`, a local-only build off a branch that no ref reaches, and
+it moved up to 1.8% of total `E` between commodities — enough to reverse two
+findings outright. What changed, and the resolver fix that stops it recurring,
+are under "The negative emission factors were a build-vintage artefact" in
+section 1.
+
+Method and the diagnostic-to-approach mapping are in
 [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md); this note holds the
 numbers, and [`B_driver_investigation.md`](B_driver_investigation.md) tracks
 which of them have been shown to be justified.
@@ -32,45 +42,50 @@ delta_B_pct_of_N = pct_change_B * own_direct_share_of_N
                  = dB * L[j,j] / N
 ```
 
-`own_direct_share_of_N` is small for most commodities — **median 0.077**, so
+`own_direct_share_of_N` is small for most commodities — **median 0.079**, so
 for the typical commodity only 8% of its footprint is its own direct
-emissions. Tenth percentile 0.019, ninetieth 0.499, maximum 0.988.
+emissions. Tenth percentile 0.020, ninetieth 0.511, maximum 0.987.
 
 That is why an unweighted gate does not discriminate. Share of commodities a
 5% gate admits, real-dollar factors, `B_change_real.csv`:
 
 | year | commodities | on `abs_pct_change_B` | on `abs_delta_B_pct_of_N` | median `B` | median `N`-weighted |
 |---|---:|---:|---:|---:|---:|
-| 2018 | 402 | 48.8% | **5.5%** | 4.9% | 0.33% |
-| 2019 | 402 | 48.3% | **5.2%** | 4.8% | 0.34% |
-| 2020 | 402 | 68.7% | **10.9%** | 8.6% | 0.60% |
-| 2021 | 400 | 85.5% | **22.5%** | 16.9% | 1.44% |
-| 2022 | 401 | 71.6% | **10.0%** | 9.5% | 0.78% |
-| 2023 | 401 | 67.6% | **10.2%** | 9.0% | 0.57% |
-| 2024 | 400 | 64.5% | **5.8%** | 7.6% | 0.64% |
+| 2018 | 402 | 46.5% | **4.2%** | 4.6% | 0.32% |
+| 2019 | 402 | 49.3% | **4.2%** | 5.0% | 0.33% |
+| 2020 | 402 | 65.7% | **10.9%** | 7.7% | 0.61% |
+| 2021 | 402 | 81.8% | **18.4%** | 14.5% | 1.17% |
+| 2022 | 402 | 64.2% | **8.0%** | 7.2% | 0.55% |
+| 2023 | 402 | 64.9% | **9.5%** | 7.9% | 0.59% |
+| 2024 | 402 | 59.2% | **7.0%** | 7.0% | 0.58% |
 
-The unweighted gate admits 48-86% of commodities; the weighted one admits
-5-23%, and 2021 is still visibly the worst year. The ranking also changes, not
-just the count. For 2022:
+The unweighted gate admits 47-82% of commodities; the weighted one admits
+4-18%, and 2021 is still visibly the worst year. The count is 402 in every
+year: of the 405 commodities, three carry no direct emissions in any year and
+are always absent — `4200ID`, `814000` and `S00402`.
+
+The ranking also changes, not just the count. For 2022:
 
 | rank | on `abs_delta_B_pct_of_N` | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
 |---|---|---:|---:|---:|---:|
-| 1 | Fruit and tree nut farming | 0.67 | −52.6% | **−35.1%** | −48.0% |
-| 2 | Iron, gold, silver, other metal ore mining | 0.77 | −44.0% | **−33.8%** | −33.1% |
-| 3 | Vegetable and melon farming | 0.67 | +44.3% | **+29.5%** | +24.2% |
-| 4 | Water transportation | 0.89 | −29.1% | **−25.8%** | −20.3% |
+| 1 | Iron, gold, silver, other metal ore mining | 0.76 | −40.8% | **−31.2%** | −30.6% |
+| 2 | Water transportation | 0.89 | −29.0% | **−25.8%** | −20.6% |
+| 3 | Automotive equipment rental and leasing | 0.15 | +144.2% | **+22.3%** | +31.6% |
+| 4 | Mineral wool manufacturing | 0.31 | +61.0% | **+18.7%** | +16.5% |
 
-against the unweighted ranking, which leads with automotive equipment rental
-(own share 0.13, `pct_change_B` +166%, `N` effect +21.4%) and puts internet
-publishing fourth on a +105% factor move that shifts its `N` by 0.45%, because
-its own direct emissions are 0.4% of its footprint.
+against the unweighted ranking, whose top four across the whole span are
+motorcycle manufacturing, breweries, wineries and motorcycle manufacturing
+again — own shares 0.072, 0.075, 0.048 and 0.080. Not one of the high-own-share
+sectors that lead the weighted ranking appears in it. The sharpest case is
+internet publishing, whose +85% factor move in 2022 shifts its `N` by 0.34%,
+because its own direct emissions are 0.4% of its footprint.
 
 Where the own share is high the weighted figure tracks the actual `N` move
 closely, which is the check that it is measuring the right thing. It will not
-always: motorcycle and bicycle manufacturing shows `delta_B_pct_of_N` of −21.2%
-against `pct_change_N` of +81.7% in 2022, because its supply chain moved even
-though its own factor fell. `pct_change_N` is carried in the table for exactly
-that comparison.
+always: motorcycle and bicycle manufacturing shows `delta_B_pct_of_N` of +15.0%
+against `pct_change_N` of +136.8% in 2022, because its supply chain moved far
+more than its own factor did. `pct_change_N` is carried in the table for
+exactly that comparison.
 
 ### The 30 largest weighted factor movements
 
@@ -78,107 +93,110 @@ Every commodity-year in `B_change_real.csv`, ranked on `abs_delta_B_pct_of_N`,
 highest first. `own share` is `own_direct_share_of_N`; the bolded column is the
 gate metric; `pct_change_N` is what the commodity's total factor actually did.
 
-⚠️ **`114000` and `327910` are excluded** pending
-[#912](https://github.com/cornerstone-data/bedrock/issues/912). Their factors
-go negative, so a percentage change has no interpretation for them; `114000`
-otherwise took 6 of these 30 slots including first place, at a nominal +379%
-that is entirely an artefact of crossing zero. Restore them to the ranking when
-the defect is fixed, not before.
-
 | year | commodity | name | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
 |---|---|---|---:|---:|---:|---:|
-| 2021 | `483000` | Water transportation | 0.79 | +111.5% | **+87.6%** | +87.3% |
-| 2019 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.11 | +371.1% | **+41.3%** | +159.2% |
-| 2020 | `611100` | Elementary and secondary schools | 0.53 | +71.9% | **+38.3%** | +30.2% |
-| 2022 | `111300` | Fruit and tree nut farming | 0.67 | -52.6% | **-35.1%** | -47.9% |
-| 2022 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.77 | -44.0% | **-33.8%** | -33.1% |
-| 2022 | `111200` | Vegetable and melon farming | 0.67 | +44.3% | **+29.5%** | +24.2% |
+| 2021 | `483000` | Water transportation | 0.78 | +111.4% | **+87.0%** | +85.9% |
+| 2021 | `114000` | Fishing, hunting and trapping | 0.63 | +103.0% | **+65.2%** | +108.6% |
+| 2019 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.07 | +519.8% | **+37.7%** | +163.9% |
+| 2021 | `111300` | Fruit and tree nut farming | 0.72 | -48.6% | **-35.2%** | -45.0% |
+| 2022 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.76 | -40.8% | **-31.2%** | -30.6% |
 | 2023 | `325310` | Fertilizer manufacturing | 0.89 | -32.0% | **-28.4%** | -30.8% |
-| 2021 | `315000` | Apparel manufacturing | 0.32 | -87.7% | **-28.0%** | -13.0% |
-| 2021 | `325110` | Petrochemical manufacturing | 0.64 | +41.6% | **+26.5%** | +25.2% |
-| 2022 | `483000` | Water transportation | 0.89 | -29.1% | **-25.8%** | -20.3% |
-| 2020 | `21311A` | Other support activities for mining | 0.47 | -46.5% | **-21.8%** | -32.9% |
-| 2021 | `332114` | Custom roll forming | 0.15 | +148.0% | **+21.8%** | +38.7% |
-| 2020 | `532100` | Automotive equipment rental and leasing | 0.29 | -74.3% | **-21.8%** | -37.7% |
-| 2023 | `2123A0` | Other nonmetallic mineral mining and quarrying | 0.47 | +46.4% | **+21.8%** | +14.0% |
-| 2022 | `532100` | Automotive equipment rental and leasing | 0.13 | +166.4% | **+21.4%** | +31.5% |
-| 2022 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.23 | -92.4% | **-21.2%** | +81.7% |
-| 2021 | `325180` | Other basic inorganic chemical manufacturing | 0.73 | -28.4% | **-20.7%** | -17.1% |
-| 2021 | `325130` | Synthetic dye and pigment manufacturing | 0.41 | +50.2% | **+20.6%** | +25.2% |
-| 2023 | `611100` | Elementary and secondary schools | 0.62 | -31.2% | **-19.3%** | -26.7% |
-| 2020 | `481000` | Air transportation | 0.80 | +24.1% | **+19.3%** | +11.9% |
-| 2021 | `325310` | Fertilizer manufacturing | 0.86 | +21.9% | **+18.9%** | +21.0% |
-| 2021 | `325510` | Paint and coating manufacturing | 0.26 | +70.4% | **+18.1%** | +35.7% |
-| 2021 | `312110` | Soft drink and ice manufacturing | 0.10 | +177.4% | **+18.1%** | +36.4% |
-| 2021 | `331313` | Alumina refining and primary aluminum production | 0.68 | -26.5% | **-18.0%** | -13.3% |
-| 2021 | `322110` | Pulp mills | 0.48 | +37.9% | **+18.0%** | +24.1% |
-| 2022 | `327993` | Mineral wool manufacturing | 0.31 | +57.4% | **+17.8%** | +15.6% |
-| 2021 | `332800` | Coating, engraving, heat treating and allied activities | 0.25 | +71.6% | **+17.6%** | +43.0% |
-| 2021 | `233240` | Power and communication structures | 0.45 | -38.5% | **-17.3%** | +7.2% |
-| 2021 | `2332D0` | Other nonresidential structures | 0.34 | -49.9% | **-16.9%** | +0.8% |
-| 2023 | `212100` | Coal mining | 0.88 | +18.9% | **+16.7%** | +15.1% |
+| 2021 | `315000` | Apparel manufacturing | 0.32 | -87.7% | **-27.9%** | -13.4% |
+| 2020 | `611100` | Elementary and secondary schools | 0.53 | +50.5% | **+26.7%** | +18.6% |
+| 2023 | `111400` | Greenhouse, nursery, and floriculture production | 0.86 | +30.3% | **+26.0%** | +25.6% |
+| 2022 | `483000` | Water transportation | 0.89 | -29.0% | **-25.8%** | -20.6% |
+| 2021 | `111400` | Greenhouse, nursery, and floriculture production | 0.87 | -28.6% | **-25.0%** | -31.8% |
+| 2021 | `325110` | Petrochemical manufacturing | 0.63 | +38.2% | **+24.1%** | +21.4% |
+| 2021 | `111200` | Vegetable and melon farming | 0.75 | -31.4% | **-23.6%** | -27.0% |
+| 2023 | `111300` | Fruit and tree nut farming | 0.70 | +32.4% | **+22.8%** | +28.8% |
+| 2024 | `111300` | Fruit and tree nut farming | 0.72 | +31.4% | **+22.7%** | +25.9% |
+| 2022 | `532100` | Automotive equipment rental and leasing | 0.15 | +144.2% | **+22.3%** | +31.6% |
+| 2019 | `114000` | Fishing, hunting and trapping | 0.62 | -34.9% | **-21.6%** | -35.7% |
+| 2023 | `611100` | Elementary and secondary schools | 0.57 | -36.6% | **-21.0%** | -29.1% |
+| 2021 | `325180` | Other basic inorganic chemical manufacturing | 0.73 | -28.6% | **-20.8%** | -17.4% |
+| 2021 | `332114` | Custom roll forming | 0.15 | +131.7% | **+20.4%** | +36.9% |
+| 2020 | `532100` | Automotive equipment rental and leasing | 0.29 | -69.2% | **-19.7%** | -35.4% |
+| 2021 | `325510` | Paint and coating manufacturing | 0.25 | +77.0% | **+19.6%** | +35.9% |
+| 2020 | `481000` | Air transportation | 0.80 | +24.4% | **+19.5%** | +13.0% |
+| 2021 | `325310` | Fertilizer manufacturing | 0.86 | +22.3% | **+19.1%** | +21.3% |
+| 2023 | `114000` | Fishing, hunting and trapping | 0.56 | -33.6% | **-18.9%** | -40.5% |
+| 2022 | `327993` | Mineral wool manufacturing | 0.31 | +61.0% | **+18.7%** | +16.5% |
+| 2021 | `322110` | Pulp mills | 0.47 | +39.2% | **+18.6%** | +24.6% |
+| 2021 | `312120` | Breweries | 0.07 | +248.5% | **+18.6%** | +36.9% |
+| 2020 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.75 | -24.7% | **-18.5%** | -22.9% |
+| 2022 | `111300` | Fruit and tree nut farming | 0.67 | -27.0% | **-18.1%** | -31.0% |
 
-The list spans +87.6% down to 16.7% on the gate metric, and is led by
-commodities that **are** their own footprint. Water transportation, fertilizer
-manufacturing, fruit and nut farming, metal ore mining and petrochemical
-manufacturing all sit at own-shares of 0.63 to 0.89 — sectors whose emissions
-happen on their own site, so a move in their direct factor passes almost
-undamped into what their buyers carry. Own-shares across the 30 run 0.10 to
-0.89, so a low-share commodity can still make the list on a large enough move;
-what it can no longer do is make it on a large move that barely touches `N`.
-The unweighted ranking led with rental and leasing and internet publishing,
-own-shares 0.13 and 0.004.
+The list spans +87.0% down to 18.1% on the gate metric, and is led by
+commodities that **are** their own footprint. Water transportation, fishing,
+fertilizer manufacturing, fruit and nut farming, greenhouse production and
+metal ore mining all sit at own-shares of 0.56 to 0.89 — sectors whose
+emissions happen on their own site, so a move in their direct factor passes
+almost undamped into what their buyers carry. Own-shares across the 30 run
+0.07 to 0.89, so a low-share commodity can still make the list on a large
+enough move; what it can no longer do is make it on a large move that barely
+touches `N`. The unweighted ranking led with motorcycle manufacturing and
+breweries, own shares 0.072 and 0.075.
+
+Agriculture and fishing take 10 of the 30 slots between them, and `114000`
+fishing, hunting and trapping takes 3 — on real movement rather than the
+zero-crossing artefact the previous run reported; see below.
 
 ⚠️ **The span is not evenly represented, and the reason is not remediable.**
-2021 supplies 14 of the 30 and 2022 seven; 2018 and 2024 supply none at all.
-That is the COVID rebound showing up as a genuine one-year movement in real
-output and in fuel use together, not a defect to smooth away. Prioritising on
-this list alone would spend the project's effort on 2021.
+2021 supplies 13 of the 30, 2022 and 2023 five each, 2020 four, 2019 two and
+2024 one; 2018 supplies none at all. That is the COVID rebound showing up as a
+genuine one-year movement in real output and in fuel use together, not a defect
+to smooth away. Prioritising on this list alone would spend the project's
+effort on 2021.
 
-### ⚠️ Negative emission factors in two commodities
+### ⚠️ The negative emission factors were a build-vintage artefact
 
-Filed as [#912](https://github.com/cornerstone-data/bedrock/issues/912).
-
+[#912](https://github.com/cornerstone-data/bedrock/issues/912) reported that
 `114000` fishing, hunting and trapping and `327910` abrasive product
-manufacturing carry a **negative** `B` in several years:
+manufacturing carried a **negative** `B` in several years, on
+fossil-combustion inventory rows where a negative has no physical meaning.
+**It does not reproduce on the published FBS, and the defect was in which
+build this module resolved to, not in the pipeline.**
 
-| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+`114000` E, Mt CO2e, on the two builds:
+
+| FBS vintage | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `114000` E, Mt CO2e | 1.44 | 0.77 | 0.67 | **−0.18** | 0.68 | 0.34 | **−0.27** | **−0.42** |
-| `114000` `B` real | 0.164 | 0.100 | 0.088 | **−0.014** | 0.093 | 0.056 | **−0.030** | **−0.040** |
+| `v0.3.0_99655e9` — published | 1.46 | 1.07 | 0.67 | 0.50 | 1.17 | 1.04 | 0.65 | 0.55 |
+| `v0.3.0_796a6ca` — local only | 1.44 | 0.77 | 0.67 | **−0.18** | 0.68 | 0.34 | **−0.27** | **−0.42** |
 
-`327910` is negative in 2020 through 2024. No other commodity is negative in
-any year.
+On `99655e9` **no commodity carries a negative factor in any year of the
+span**; on `796a6ca` five do — `114000`, `327910`, `33451A`, `339930` and
+`5191A0`. The national total is identical between the two builds every year,
+to the tonne, so the whole difference is a redistribution across sectors.
 
-This is a defect, not a sink. The negative mass sits on fossil-combustion
-inventory rows — `UMD_GHGIA_T_3_11.petroleum_industrial`,
-`natural_gas_nonmanufacturing`, `ng_manufacturing`, and
-`UMD_GHGIA_T_2_S1.carbonate_use` — and a negative quantity of burned petroleum
-does not exist. For `114000` the petroleum row runs 1.178, 0.626, 0.536,
-**−0.148**, 0.565, 0.276, **−0.217**, **−0.330** Mt.
+**What `796a6ca` is.** A commit dated 2026-09-04 on a branch that no longer
+exists: `git branch --contains` finds no ref, so nobody can check out the code
+that built it. Its tree does not even contain the per-year
+`Energy_manufacturing_national_nowcast_<year>.yaml` methods that the parquet it
+produced names in `AttributionSources`, so it was assembled from a mixed
+working tree rather than from any commit. It was never uploaded; GCS holds one
+nowcast FBS vintage, `v0.3.0_99655e9`, which is main's own build.
 
-Ruled out so far: gross output, which is positive for both commodities in every
-year; and negative cells in the nowcast Use table for those columns, of which
-there are none — `324110` petroleum refineries into `114000` is 256.3, 81.5 and
-131.0 $M in 2017, 2020 and 2024. The nowcast Use table does carry 383 to 699
-negative cells overall out of 170,910, but not in these columns, so that is
-adjacent rather than causal.
+**Why it won.** `resolve_span_vintage` used to break ties on **file mtime**,
+and the `796a6ca` parquets were written at 12:45 on 8 September, 33 minutes
+after the published `99655e9` set. Newer file, older and unreachable code. The
+resolver now ranks on `vintage_provenance` first — reachable from
+`origin/main`, then some other ref, then dangling — and refuses to choose at
+all when several span-covering vintages are on disk and none is on main.
+`--list-vintages` prints the provenance of each so the check is one command.
 
-The remaining candidate is a subtractive step inside the attribution — a
-national total allocated net of an already-allocated portion, which goes
-negative when the subtracted part exceeds the total. Not confirmed.
+⚠️ **The lesson generalises past this module.** Every artifact stem in
+`transform/output_data` carries a git hash, and any of them can be shadowed the
+same way by a rebuild done on a checked-out branch. An mtime is evidence about
+when a file was written and none at all about what wrote it.
 
-⚠️ Until this is resolved, `B_change_real.csv` rows for these two commodities
-cannot be ranked or gated: a percentage off a negative base has no
-interpretation, and `114000` otherwise takes 6 of the top 30 slots.
-
-It also shrinks every count in the gate table above, because that table
-filters on a positive prior-year factor. Of the 405 commodities, three carry
-no direct emissions in any year and are always absent — `4200ID`, `814000`
-and `S00402` — leaving 402. From the 2021 row the negative ones drop out too:
-2021 loses both, 2022 and 2023 lose `327910`, 2024 loses both again. The
-filter reads the **prior** year's factor, which is why negatives that start
-in 2020 first show up as a smaller count in the 2021 row.
+**What it cost.** Up to 1.8% of total `E` moved between commodities (2020;
+0.9-1.2% in most other years), with 300-340 commodities shifting more than 1%.
+Two findings reversed outright: `114000` is a real large mover rather than a
+zero-crossing artefact and now ranks second in the whole panel, while `327910`
+turns out to be unremarkable at rank 655 of 2,835. Two more moved materially —
+oil and gas extraction's floor volatility in D14, and the facility-basis shift
+in D15 — and are restated in their own sections below.
 
 ### Drift or oscillation: which movement is worth smoothing
 
@@ -198,7 +216,7 @@ in measurable form**, and it does not fall out of magnitude alone.
 
 The single largest cell on the span is electric power's own direct emissions
 against `221100`, 609 Mt of gross movement, net −355 Mt. Direct intensity falls
-from 3.82 to 3.06 kg CO2e per constant-2017 dollar, so the dominant direction
+from 3.75 to 3.01 kg CO2e per constant-2017 dollar, so the dominant direction
 is real decarbonisation and smoothing the cell would erase it.
 
 ⚠️ **But it is not monotone, and its oscillation of 0.42 is the honest score.**
@@ -209,8 +227,8 @@ Two of the seven years reverse, for two different reasons:
 | 2021 | **+7.0%** | +0.4% | **+96.3 Mt** |
 | 2024 | +0.4% | **−1.8%** | **+30.9 Mt** |
 
-In 2021 emissions rose 103 Mt on flat real output — intensity went *up* 6.6%,
-from 3.19 to 3.40. In 2024 emissions were flat and real output contracted. Fuel
+In 2021 emissions rose 101 Mt on flat real output — intensity went *up* 6.7%,
+from 3.13 to 3.34. In 2024 emissions were flat and real output contracted. Fuel
 switching in the generation mix is the obvious candidate for 2021 and is not
 measured here; what the diagnostic establishes is that the reversal is on the
 emissions side, not the output side.
@@ -220,23 +238,28 @@ read. Nominal electricity output rose **19.8%** that year, from $473bn to
 $567bn, while real output rose 0.4%. On nominal `x` this cell would post a
 large *negative* divergence in the very year its emissions rose.
 
-Of the 63 cells carrying more than 10 Mt of gross movement, **33 oscillate
-above 0.75 and carry 1,158 Mt between them**, against 7 trending cells below
-0.25 carrying 270 Mt. The largest rocky cells:
+Of the 59 cells carrying more than 10 Mt of gross movement, **28 oscillate
+above 0.75 and carry 860 Mt between them**, against 8 trending cells below
+0.25 carrying 289 Mt. The largest cells above 10 Mt:
 
 | cell | gross | net | oscillation |
 |---|---:|---:|---:|
-| `211000` oil and gas \| UMD 3-11 natural_gas_nonmanufacturing → Use | 121.8 Mt | +3.9 | **0.97** |
-| `211000` oil and gas \| UMD 3-11 petroleum_industrial → MECS | 106.6 Mt | +9.2 | **0.91** |
+| `221100` electric power \| UMD 2-S1 electric_power → Direct | 609.2 Mt | −354.7 | 0.42 |
 | `481000` air transport \| UMD 3-8 direct_jet → Direct | 99.5 Mt | −24.7 | 0.75 |
-| `324110` refineries \| UMD 3-11 petroleum_industrial → MECS | 79.4 Mt | −4.6 | **0.94** |
-| `1111B0` grain farming \| UMD 5-10 direct → EPA_GHGI_soils | 71.8 Mt | −10.6 | 0.85 |
-| `1111B0` grain farming \| UMD 3-11 natural_gas_nonmanufacturing → Use | 60.2 Mt | −9.0 | 0.85 |
+| `1111B0` grain farming \| UMD 5-10 direct → EPA_GHGI_soils | 88.1 Mt | −9.5 | 0.89 |
+| `211000` oil and gas \| UMD 3-28 → Direct | 79.0 Mt | −70.0 | 0.11 |
+| `211000` oil and gas \| UMD 3-11 natural_gas_nonmanufacturing → Use | 64.0 Mt | −1.1 | **0.98** |
+| `211000` oil and gas \| UMD 3-25 → Direct | 62.9 Mt | −52.4 | 0.17 |
+| `211000` oil and gas \| UMD 3-11 petroleum_industrial → MECS | 51.3 Mt | +6.6 | **0.87** |
+| `212100` coal mining \| UMD 2-S1 direct → Direct | 42.9 Mt | −5.7 | **0.87** |
 
-Oil and gas extraction appears twice at the top, moving 228 Mt between the two
-cells and arriving 13 Mt from where it started. Both are industrial-fuel rows
-attributed through the Use table or the MECS energy FBS, which is the same pair
-of attribution routes behind most of this list.
+Oil and gas extraction takes four of the eight, and they split cleanly by
+attribution route: its two `Direct` cells trend hard, oscillation 0.11 and
+0.17, while its two industrial-fuel cells attributed through the Use table or
+the MECS energy FBS move 115 Mt between them and arrive 6 Mt from where they
+started. **The inventory-named part of this sector goes somewhere; the derived
+part does not.** That contrast is the single clearest statement in the panel of
+what attribution churn costs, and it is the mechanism sections below pursue.
 
 ⚠️ `oscillation` is unreliable where the gross is small — two rounding
 movements that happen to cancel score 1.0 — so read it next to `total`. The
@@ -253,9 +276,9 @@ combustion at 740 Mt of gross movement against an actual 21 Mt, a factor of 35,
 and it put that cell top of the ranking. Same family of trap as the EPA table
 renumbering.
 
-Concentration, after that correction: the 1,991 cells carry 3,304 Mt of gross
-movement between them, and the top 10 hold 40%, the top 25 hold 56%, the top
-50 hold 69%. A top-N view is representative rather than a sample.
+Concentration, after that correction: the 1,991 cells carry 2,993 Mt of gross
+movement between them, and the top 10 hold 39%, the top 25 hold 56%, the top
+50 hold 70%. A top-N view is representative rather than a sample.
 
 ### `L` moves `N` more than the factors do, and is out of scope
 
@@ -267,13 +290,13 @@ carry the split. Medians over commodities:
 
 | year | median \|Δ`N`\| | factors | `L` |
 |---|---:|---:|---:|
-| 2018 | 3.7% | 1.4% | 3.1% |
-| 2019 | 9.1% | 3.0% | 6.2% |
-| 2020 | 11.8% | 3.4% | 9.3% |
-| 2021 | 18.2% | 3.8% | **14.9%** |
-| 2022 | 5.7% | 3.9% | 5.0% |
-| 2023 | 16.1% | 5.4% | **10.5%** |
-| 2024 | 6.2% | 1.9% | 3.9% |
+| 2018 | 3.8% | 1.4% | 3.1% |
+| 2019 | 9.1% | 2.9% | 6.2% |
+| 2020 | 12.8% | 3.8% | 9.4% |
+| 2021 | 18.4% | 3.3% | **14.8%** |
+| 2022 | 5.3% | 3.6% | 5.0% |
+| 2023 | 15.9% | 5.2% | **10.3%** |
+| 2024 | 6.4% | 1.9% | 3.9% |
 
 `L` accounts for two to four times what the factors do. Some of that is real
 structural change and some is relative prices; the two are not separated here
@@ -286,14 +309,14 @@ own IO product, so no emissions-side change can move it. Diagnose it here,
 remediate it in Nowcast Phase 2.
 
 The same boundary applies to `Vnorm` for *remediation* even though it is a
-direct term in `B`: its 26.6% share of `B` movement in 2023 is the nowcast Make
+direct term in `B`: its 12.2% share of `B` movement in 2023, output-weighted, is the nowcast Make
 moving, and no GHG inventory or attribution change will touch it. This project
 owns the `E` and `x` sides of the fix, and hands the Make and the `A` matrix
 over.
 
 ⚠️ **What this means for the objective.** The stated intent is to reduce the
 `N` change to justifiable changes. With `L` out of scope, this project can
-deliver the factor-driven column above — 1.4% to 5.4% a year — and not the `L`
+deliver the factor-driven column above — 1.4% to 5.2% a year — and not the `L`
 column. A flat median factor change should not later be read as "`N` is now
 smooth".
 
@@ -323,33 +346,33 @@ much of them anyone buys. D13, `vnorm_share_of_B_movement.csv`:
 
 | year | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| unweighted, every commodity equal | 8.2% | 7.7% | 10.0% | 5.4% | 5.8% | **35.7%** | **23.4%** |
-| weighted by commodity output `q` | 3.9% | 5.6% | 6.7% | 3.4% | 2.7% | **12.0%** | **13.3%** |
+| unweighted, every commodity equal | 8.5% | 7.1% | 9.6% | 5.2% | 5.9% | **35.9%** | **22.8%** |
+| weighted by commodity output `q` | 3.9% | 5.0% | 6.4% | 3.4% | 2.7% | **12.2%** | **11.9%** |
 
 ⚠️ **These figures supersede an earlier set that could not be reproduced.** The
-numbers previously printed here — 26.5% unweighted in 2023 against 35.7% now —
+numbers previously printed here — 26.5% unweighted in 2023 against 35.9% now —
 came from an ad-hoc calculation, and none of the three defensible index forms
 reproduces them on the same span and the same vintages. The module's version is
 now the source. The story is unchanged: a step up in 2023-24, and the weighted
 figure roughly half the unweighted one.
 
 ⚠️ **The direction of the index matters more than it looks.** Moving `Vnorm`
-against the current year's intensity gives 4.8% in 2021 and against the prior
-year's gives 6.1%, a 27% spread on the same quantity. Neither year has a claim
+against the current year's intensity gives 4.7% in 2021 and against the prior
+year's gives 5.8%, a 25% spread on the same quantity. Neither year has a claim
 to being the base, so the headline above is their average and both one-sided
 readings are carried in the CSV.
 
 ⚠️ **Quote the weighted row.** The unweighted figure counts a kg/$ swing on a
 commodity nobody buys the same as one on electricity, and roughly doubles the
 Make's apparent importance. On the weighting that matters the Make is 3% to 6%
-of gross `B` movement through 2022 and then 10.7% and 13.0% — still a clear
-step up in 2023, still the one driver this project cannot remediate, but half
-the size the unweighted number suggests.
+of gross `B` movement through 2022 and then 12.2% and 11.9% — still a clear
+step up in 2023, still the one driver this project cannot remediate, but a
+third the size the unweighted number suggests.
 
 In absolute terms the Make has moved **25 Mt CO2e onto a different commodity**
 than the 2017 Make would have put it on, by 2024 — about 0.5% of total
-emissions. It rises steadily to 25.9 Mt in 2022 and then flattens, 24.2 Mt in
-2023 and 25.0 Mt in 2024, so the mix drift is a 2017-2022 story that has since
+emissions. It rises steadily to 25.9 Mt in 2022 and then flattens, 24.5 Mt in
+2023 and 25.5 Mt in 2024, so the mix drift is a 2017-2022 story that has since
 stalled rather than a continuing trend. That is the green line on
 `E_vs_x_indexed.png`.
 
@@ -361,7 +384,7 @@ annual churn are different quantities.
 
 ⚠️ **`Vnorm` has no level line, and `q` is not a substitute for one.** The
 output-weighted total of `B` is total emissions by construction — measured,
-5,023 Mt against 5,017 Mt in 2022, the 0.13% gap being the scrap correction —
+5,026 Mt against 5,019 Mt in 2022, the 0.14% gap being the scrap correction —
 and freezing `Vnorm` at 2017 moves that total by 0.1%. The Make redistributes
 emissions across commodities; it does not create or destroy them, so an indexed
 `Vnorm` line would sit flat at 100. `q` would not help either: `q` and `x` are
@@ -369,8 +392,8 @@ the same money counted along two axes and total to the dollar. The
 redistribution is the only thing there is to plot, which is what
 :func:`make_reallocation` measures.
 
-For 234 commodity-years — 8.3% of the panel — `Vnorm` moved the factor more
-than `E / x` did, `vnorm_dominant_commodities` in D13, between 21 and 49 a year.
+For 263 commodity-years — 9.3% of the panel — `Vnorm` moved the factor more
+than `E / x` did, `vnorm_dominant_commodities` in D13, between 22 and 51 a year.
 Those cannot be remediated on either the emissions or the output side. (This
 figure also supersedes an unreproducible earlier count of 133.) What changed in the 2023 Make is an open question and is its own
 lead.
@@ -396,7 +419,7 @@ line on the chart, swinging on a fifth of a megatonne; it is now thin and
 carries its share in the label. It is emissions attributed *using* gross output
 as the weight — not gross output, which is `x`.
 
-## 3. Prices are 73% of the 2021 and 2022 gap
+## 3. Prices are 74% of the 2021 and 2022 gap
 
 The nowcast configs set `apply_io_year_adjustments: False`, so `x` is nominal:
 the row sum of that year's Make in that year's dollars. Nominal gross output
@@ -411,13 +434,13 @@ the two close exactly on `total_gap_nominal == total_gap_real + price`:
 | 2019 | 21% |
 | 2020 | 14% |
 | 2021 | **74%** |
-| 2022 | **73%** |
+| 2022 | **74%** |
 | 2023 | 19% |
 | 2024 | 40% |
 
 On the factor itself the same effect shows as a median absolute EF change of
-13.4% nominal against 9.3% real in 2022. 2024 runs the other way: 3.8% nominal,
-7.6% real.
+10.8% nominal against 7.2% real in 2022. 2024 runs the other way: 3.4% nominal,
+7.0% real.
 
 ⚠️ Any approach-1 ranking built on nominal `x` charges sources for inflation.
 Use the `*_real` tables.
@@ -431,8 +454,8 @@ Five mechanisms found so far:
    mid-span — `T_5_17` to `T_5_18` for direct soils, `T_5_18` to `T_5_19` for
    indirect — and non-energy use moved `T_3_25b` to `T_3_25` for 2023, so
    `T_5_18` means *direct* in some years and *indirect* in others. Keyed on the
-   raw table number, 2019 booked −297 Mt against +255 Mt while the emissions
-   ran flat at ~290 Mt; 2023 did the same at ~90 Mt. Definitionally
+   raw table number, 2019 booked −301 Mt against +255 Mt while the emissions
+   ran flat at ~290 Mt; 2023 did the same at −80 Mt against +86 Mt. Definitionally
    unjustified. Handled in the module via `ATTRIBUTION_ROLE_ALIAS`, which
    merges onto the role rather than the table number because the number alone
    does not identify the role. `divergence_by_attribution_raw.csv` keeps the
@@ -444,8 +467,9 @@ Five mechanisms found so far:
    29.7% to 31.7% and steady across the span. `output_elasticity.csv`
    measures which sources actually tracked output; on real `x`, `Direct`
    comes out at 0.54 and
-   `Nowcast_Detail_Use_AfterRedef` at 1.51, so neither behaves the way its
-   label alone would suggest.
+   `Nowcast_Detail_Use_AfterRedef` at 1.02, so the inventory-named half tracks
+   output barely more than half as fast as the Use-derived half, which tracks
+   it one for one.
 4. **`Vnorm` churn.** Section 2.
 5. **Survey vintage steps.** A four-yearly survey applied with a hard cutoff
    moves the whole allocation on the cutoff year and nowhere else. Measured
@@ -457,14 +481,14 @@ Tracked as [#918](https://github.com/cornerstone-data/bedrock/issues/918);
 tracker rows 1, 2 and 15.
 
 EPA table 3-11, fossil fuel combustion, is **the largest driver family in the
-panel**: 1,009 Mt of gross movement over 567 cells, 30.5% of all gross movement
-in the panel, netting only −45 Mt. It reaches sectors by two different routes,
+panel**: 698 Mt of gross movement over 567 cells, 23.3% of all gross movement
+in the panel, netting only −50 Mt. It reaches sectors by two different routes,
 and the split is roughly 70/30:
 
 | route | who it covers | gross | net | cells |
 |---|---|---:|---:|---:|
-| `Energy_manufacturing_national_nowcast` | manufacturing, via MECS | 706 Mt | −13 Mt | 525 |
-| `Nowcast_Detail_Use_AfterRedef` | non-manufacturing, via the Use table | 303 Mt | −32 Mt | 42 |
+| `Energy_manufacturing_national_nowcast` | manufacturing, via MECS | 504 Mt | −16 Mt | 525 |
+| `Nowcast_Detail_Use_AfterRedef` | non-manufacturing, via the Use table | 194 Mt | −34 Mt | 42 |
 
 `mecs_year` in `bedrock/transform/energy/Energy_manufacturing_national_nowcast_*.yaml`
 holds the survey vintage behind each nowcast year, and it steps once:
@@ -482,25 +506,25 @@ with no survey vintage in it at all:
 
 | year | MECS route (steps at 2021) | Use route (no MECS — control) |
 |---|---:|---:|
-| 2018 | 10.3 | 24.9 |
-| 2019 | 4.5 | 11.7 |
-| 2020 | 19.9 | 41.7 |
-| **2021** | **27.6** | **39.6** |
-| 2022 | 13.6 | 32.8 |
-| 2023 | 11.4 | 26.7 |
-| 2024 | 7.4 | 13.7 |
-| mean excluding 2021 | 11.2 | 25.2 |
-| **2021 as a multiple of that** | **2.47x** | 1.57x |
+| 2018 | 6.2 | 16.1 |
+| 2019 | 5.2 | 7.6 |
+| 2020 | 9.5 | 22.0 |
+| **2021** | **19.6** | **27.3** |
+| 2022 | 7.5 | 23.8 |
+| 2023 | 7.4 | 24.2 |
+| 2024 | 4.4 | 8.4 |
+| mean excluding 2021 | 6.7 | 17.0 |
+| **2021 as a multiple of that** | **2.92x** | 1.60x |
 
 2021 is the largest reallocation year on both routes, so some of it is the COVID
-rebound — but the control puts that at 1.57x, and the MECS route runs 2.47x.
+rebound — but the control puts that at 1.60x, and the MECS route runs 2.92x.
 Scaling the MECS baseline by the control's own amplification leaves roughly
-**10 percentage points of 2021 reallocation that the cutoff explains and the
+**9 percentage points of 2021 reallocation that the cutoff explains and the
 rebound does not.**
 
 ⚠️ **This bounds the effect; it does not isolate it.** The control is a
-different sector population — non-manufacturing is intrinsically rockier, 25pp
-a year against 11pp — so it is the wrong population to subtract, only the right
+different sector population — non-manufacturing is intrinsically rockier, 17pp
+a year against 7pp — so it is the wrong population to subtract, only the right
 one to compare a *ratio* against. The clean measurement is the counterfactual
 #918 already asks for: rerun the FBS with one MECS vintage held across the
 cutoff and difference the two. Until that is run, the emissions effect of the
@@ -548,13 +572,13 @@ place it.
 
 | basis | sectors | our Mt | % of table 3-11 |
 |---|---:|---:|---:|
-| facility | 53 | 390.5 | 48.3% |
-| facility + Use residual | 89 | 95.9 | 11.9% |
-| facility, boundary to settle | 19 | 61.8 | 7.6% |
-| **Use row — no facility data** | 91 | **260.6** | **32.2%** |
+| facility | 49 | 281.5 | 34.8% |
+| facility + Use residual | 91 | 102.7 | 12.7% |
+| facility, boundary to settle | 19 | 141.0 | 17.4% |
+| **Use row — no facility data** | 94 | **283.5** | **35.1%** |
 
-**67.8% of table 3-11 could be facility-backed.** The 32.2% that cannot is
-agriculture (~95 Mt) and construction (~58 Mt), plus cement and coal mining -
+**64.9% of table 3-11 could be facility-backed.** The 35.1% that cannot is
+agriculture and construction, plus cement and coal mining -
 dispersed, largely non-point sources, and precisely where MECS never applied
 either, since MECS covers NAICS 31-33 only.
 
@@ -584,19 +608,20 @@ is the level bias behind [#922](https://github.com/cornerstone-data/bedrock/issu
 
 Sectors with no facility data keep their current allocation, and the anchored
 group keeps its current total share - only its internal distribution is restated
-on facility evidence. Total absolute movement **31.9 percentage points**:
+on facility evidence. Total absolute movement **14.9 percentage points**:
 
 | sector | allocated Mt | facility Mt | now | hybrid | shift | facilities |
 |---|---:|---:|---:|---:|---:|---:|
-| `324110` petroleum refineries | 83.2 | 124.3 | 10.29% | 15.55% | **+5.25pp** | 147 |
-| **`211000` oil and gas extraction** | 109.4 | 71.2 | 13.52% | 8.91% | **−4.61pp** | 1,461 |
-| `325110` petrochemicals | 22.6 | 41.1 | 2.80% | 5.13% | +2.34pp | 52 |
-| `331110` iron and steel | 21.5 | 38.1 | 2.66% | 4.76% | +2.11pp | 131 |
-| `311221` wet corn milling | 7.4 | 20.4 | 0.91% | 2.55% | +1.63pp | 33 |
-| `221200` natural gas distribution | 0.15 | 11.9 | 0.02% | 1.49% | +1.47pp | 60 |
+| `324110` petroleum refineries | 76.1 | 124.3 | 9.40% | 14.90% | **+5.50pp** | 147 |
+| **`211000` oil and gas extraction** | 90.1 | 71.2 | 11.14% | 8.54% | **−2.60pp** | 1,461 |
+| `325110` petrochemicals | 22.3 | 41.0 | 2.76% | 4.92% | +2.16pp | 52 |
+| `331110` iron and steel | 21.5 | 38.1 | 2.66% | 4.57% | +1.91pp | 131 |
+| `311221` wet corn milling | 7.4 | 20.4 | 0.91% | 2.44% | +1.53pp | 33 |
+| `221200` natural gas distribution | 0.15 | 11.9 | 0.02% | 1.42% | +1.41pp | 60 |
+| `325180` other basic inorganic chemicals | 14.9 | 6.6 | 1.84% | 0.79% | −1.05pp | 91 |
 
 ⚠️ **Oil and gas extraction is the one large sector the facility basis marks
-*down*, by 4.6 percentage points.** That is an independent corroboration of
+*down*, by 2.6 percentage points.** That is an independent corroboration of
 #922, reached from facility records rather than from the coefficient, and it
 points the same way: the Use-table basis over-allocates this sector.
 
@@ -627,22 +652,28 @@ refinery still gas, coke oven and blast furnace gas — that the GHG inventory
 books outside table 3-11. A constant offset cannot make a factor rocky. Reading
 those seven as errors would be the wrong conclusion from the right test.
 
-The intermittent group is where the test bites, and one sector dominates it:
+The intermittent group is where the test bites, and oil and gas extraction
+leads it:
 
 | sector | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | spread |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **`211000` oil and gas extraction** | **0.66** | 1.36 | 1.14 | **0.18** | 1.35 | 2.34 | 1.38 | **13.0x** |
-| `322110` pulp mills | 0.77 | 0.86 | 0.88 | 0.91 | 1.14 | 1.78 | 1.49 | 2.3x |
-| `2123A0` other nonmetallic mining | 1.09 | 1.11 | 1.12 | 0.95 | 0.72 | 0.76 | 1.02 | 1.6x |
-| `324190` other petroleum and coal products | 0.95 | 1.04 | 1.07 | 0.75 | 1.01 | 1.08 | 1.22 | 1.6x |
-| `325110` petrochemicals | 0.92 | 0.86 | 0.87 | 0.80 | 1.04 | 1.02 | 0.99 | 1.3x |
+| **`211000` oil and gas extraction** | **0.66** | 1.16 | 1.12 | **0.81** | 1.29 | 1.93 | 1.21 | **2.93x** |
+| `322110` pulp mills | 0.77 | 0.87 | 0.89 | 0.90 | 1.14 | 1.79 | 1.49 | 2.32x |
+| `2123A0` other nonmetallic mining | 1.08 | 1.21 | 1.16 | 0.86 | 0.80 | 0.95 | 1.05 | 1.52x |
+| `322120` paper mills | 1.11 | 1.10 | 1.14 | 1.06 | 0.86 | 1.02 | 1.06 | 1.32x |
+| `327400` lime and gypsum | 0.84 | 0.82 | 0.82 | 0.83 | 1.05 | 0.98 | 0.98 | 1.28x |
+| `325110` petrochemicals | 0.92 | 0.85 | 0.88 | 0.82 | 1.02 | 1.00 | 0.98 | 1.24x |
 
-Oil and gas extraction is **5.7x more volatile against the floor than the next
-worst sector**. In 2020 we allocate it 8.6 Mt where its own facilities reported
-46.4 Mt — a factor of 5.4 below a measured lower bound, in a year its physical
-combustion did not move at all.
+⚠️ **This is the finding the build vintage most distorted.** The previous run
+put oil and gas at a 13.0x spread and **5.7x more volatile than the next worst
+sector**, on a 2020 ratio of 0.18. On the published FBS the spread is 2.93x and
+pulp mills sit at 2.32x, so it leads the group by 1.26x rather than running
+away with it. It is still first, still breaches in two years, and its 2022 peak
+of 1.93 is still the largest single-year overshoot in the group — but the
+"one sector dominates" reading does not survive, and neither does the factor of
+5.4 in 2020, which is now 1.23 the other way.
 
-⚠️ **2017 is below the floor too, at 0.66, and 2017 is matched to the published
+⚠️ **2017 is below the floor at 0.66, and 2017 is matched to the published
 benchmark.** So the level problem is not the nowcast's construction. The likely
 cause is structural: oil and gas extraction burns a large share of its own
 produced gas as lease and plant fuel, and self-supplied fuel is never a
@@ -686,15 +717,17 @@ combustion, so it moves only when fuel burned moves:
 |---|---:|---:|---:|
 | GHGRP subpart C, NAICS `211` facilities | 46.7 Mt | 48.4 Mt | **+3.6%** |
 | reporting facilities | 542 | 532 | −1.8% |
-| our table 3-11 for `211000` | 109.3 Mt | 66.6 Mt | **−39.1%** |
+| our table 3-11 for `211000` | 90.1 Mt | 58.6 Mt | **−35.0%** |
 
 Both years use the 2022 MECS survey, so the fuel share is constant and the whole
 move is the Use table.
 
-⚠️ **This bounds the verdict rather than proving it.** Subpart C covers 43-73%
-of what we assign to this sector — the rest is below GHGRP's 25,000 tCO2e
-threshold — so it is a partial yardstick. What it establishes is that the
-*covered* portion did not move while our allocation share fell by a third.
+⚠️ **This bounds the verdict rather than proving it.** Subpart C runs 52% to
+152% of what we assign to this sector across the span — below 100% where the
+sub-threshold tail is what we are missing, above it in 2017 and 2020 where the
+floor is breached — so it is a partial yardstick in both directions. What it
+establishes is that the *covered* portion did not move while our allocation
+fell by a third.
 
 ⚠️ `32551` paint and coating manufacturing moves **17.69x** on the same measure
 over the same span. It is smaller in mass but larger in ratio, and it is already
@@ -738,31 +771,31 @@ that FBS. The MECS fuel share is a scalar reweighting on top, and it is
 **constant within a survey vintage**, so for 2018-19, 2019-20, 2022-23 and
 2023-24 every year-on-year move in this vector is Use-table movement.
 
-⚠️ **That re-reads the whole family.** Of the 706 Mt of gross movement the
-route labels assign to MECS, 412 Mt is `petroleum_industrial`. On provenance
+⚠️ **That re-reads the whole family.** Of the 504 Mt of gross movement the
+route labels assign to MECS, 216 Mt is `petroleum_industrial`. On provenance
 rather than label:
 
 | driver | gross movement | share of table 3-11 |
 |---|---:|---:|
-| BEA Use table (`natural_gas_nonmanufacturing`, `coal_nonmanufacturing`, **and `petroleum_industrial`**) | ~716 Mt | **71%** |
-| MECS survey quantities (`ng_manufacturing`, `coal_manufacturing`) | ~293 Mt | 29% |
+| BEA Use table (`natural_gas_nonmanufacturing`, `coal_nonmanufacturing`, **and `petroleum_industrial`**) | ~409 Mt | **59%** |
+| MECS survey quantities (`ng_manufacturing`, `coal_manufacturing`) | ~288 Mt | 41% |
 
-So the Use table carries roughly seven tenths of the largest driver family in
-the panel, against the 348 Mt that the route labels alone suggest. This is the
-mass behind section 4's third mechanism, and it is why rows 1 and 2 of the
-tracker move together: they are two Use-table cells, not one Use cell and one
-MECS cell.
+So the Use table carries nearly six tenths of the largest driver family in the
+panel, against the 194 Mt that the route labels alone suggest. This is the mass
+behind section 4's third mechanism, and it is why rows 1 and 2 of the tracker
+move together: they are two Use-table cells, not one Use cell and one MECS
+cell.
 
 ⚠️ **It also bounds what #918 can buy.** Smoothing the MECS vintage cutoff
 changes a scalar multiplier on `petroleum_industrial`, not its shape, so it
-cannot move the two largest rocky cells. #918 owns the ~293 Mt that MECS
+cannot move the largest rocky cells. #918 owns the ~288 Mt that MECS
 quantities actually allocate.
 
 ⚠️ **A smoothed cutoff is not the only candidate fix.**
 [#919](https://github.com/cornerstone-data/bedrock/issues/919) would replace the
 source rather than interpolate it — GHGRP facility data aggregated to NAICS is
 annual, so the four-yearly step disappears instead of being smoothed over. The
-two issues are alternatives on the same rows, and #919 also reaches the 303 Mt
+two issues are alternatives on the same rows, and #919 also reaches the 194 Mt
 Use-table route that a MECS fix cannot touch.
 
 The two sectors that lead this family are ones GHGRP reports on directly —
@@ -786,5 +819,6 @@ residual of 1e-14 percent. `divergence_by_source_real.png` stacks it per year.
 Of `E` itself, just over two thirds is attributed by something other than
 the IO tables, and the largest single source-and-attribution pairs by
 absolute divergence are
-`UMD 2-S1 electric_power → Direct`, `UMD 5-10 direct → EPA_GHGI_soils` and
-`UMD 3-11 ng_manufacturing → MECS`.
+`UMD 2-S1 electric_power → Direct` at 609 Mt, then
+`UMD 3-11 petroleum_industrial` and `UMD 5-10 direct → EPA_GHGI_soils` at
+107 Mt each, and `UMD 3-11 ng_manufacturing → MECS` at 101 Mt.
