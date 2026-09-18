@@ -634,44 +634,62 @@ GHGRP subpart C is stationary fuel combustion reported facility by facility, for
 facilities over the 25,000 tCO2e threshold. It is therefore a **lower bound** on
 what a sector burned — whatever we allocate to a sector's table 3-11 should be
 at least this much. It needs no answer key, no deflator and no benchmark year,
-and it is published annually, which makes it the only external check in this
-note that works on every year of the span.
+and it now reaches 2024, which makes it the only external check in this note
+that works on **every** year of the span.
 
-Of the 26 sectors carrying a floor above 1 Mt in all seven years:
+⚠️ EPA stopped publishing the GHGRP after 2023. 2024 is the same Envirofacts
+views, released under FOIA and built into `stewi` ([#931](https://github.com/cornerstone-data/bedrock/issues/931)), so it comes
+from the local store rather than by download. Subparts E, BB, CC, L and O are
+absent from that build — none of them is subpart C, so the floor is unaffected.
 
-| | sectors | GHGRP mass 2022 | reading |
+Of the 26 sectors carrying a floor above 1 Mt in all eight years:
+
+| | sectors | GHGRP mass 2024 | reading |
 |---|---:|---:|---|
-| clears the floor every year | 12 | 110 Mt | nothing to answer |
-| **below it every year** | 7 | 181 Mt | a **constant** offset — a boundary definition difference, not rockiness |
-| **intermittent** | 7 | 106 Mt | clears in some years, breaches in others — **only volatility can do this** |
+| clears the floor every year | 12 | 111 Mt | nothing to answer |
+| **below it every year** | 6 | 173 Mt | a **constant** offset — a boundary definition difference, not rockiness |
+| **intermittent** | 8 | 106 Mt | clears in some years, breaches in others — **only volatility can do this** |
+
+Adding 2024 moved exactly one sector, and it moved the right way: sugar and
+confectionery `311300` was below the floor in all seven earlier years and clears
+it in 2024 at 1.02. What read as a boundary definition difference turns out to
+be something that can clear, which makes it a candidate defect rather than a
+category to set aside. No sector's 2024 ratio is a new breach.
 
 ⚠️ **The persistent group is not a defect list.** Petroleum refineries `324110`,
 iron and steel `331110` and wet corn milling `311221` sit below the floor in all
-seven years because GHGRP subpart C counts combustion of process-derived fuels —
+eight years because GHGRP subpart C counts combustion of process-derived fuels —
 refinery still gas, coke oven and blast furnace gas — that the GHG inventory
 books outside table 3-11. A constant offset cannot make a factor rocky. Reading
-those seven as errors would be the wrong conclusion from the right test.
+those six as errors would be the wrong conclusion from the right test.
 
 The intermittent group is where the test bites, and oil and gas extraction
 leads it:
 
-| sector | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | spread |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **`211000` oil and gas extraction** | **0.66** | 1.16 | 1.12 | **0.81** | 1.29 | 1.93 | 1.21 | **2.93x** |
-| `322110` pulp mills | 0.77 | 0.87 | 0.89 | 0.90 | 1.14 | 1.79 | 1.49 | 2.32x |
-| `2123A0` other nonmetallic mining | 1.08 | 1.21 | 1.16 | 0.86 | 0.80 | 0.95 | 1.05 | 1.52x |
-| `322120` paper mills | 1.11 | 1.10 | 1.14 | 1.06 | 0.86 | 1.02 | 1.06 | 1.32x |
-| `327400` lime and gypsum | 0.84 | 0.82 | 0.82 | 0.83 | 1.05 | 0.98 | 0.98 | 1.28x |
-| `325110` petrochemicals | 0.92 | 0.85 | 0.88 | 0.82 | 1.02 | 1.00 | 0.98 | 1.24x |
+| sector | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | spread |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **`211000` oil and gas extraction** | **0.66** | 1.16 | 1.12 | **0.81** | 1.29 | 1.93 | 1.21 | 1.24 | **2.93x** |
+| `322110` pulp mills | 0.77 | 0.87 | 0.89 | 0.90 | 1.14 | 1.79 | 1.49 | 1.82 | 2.36x |
+| `2123A0` other nonmetallic mining | 1.08 | 1.21 | 1.16 | 0.86 | 0.80 | 0.95 | 1.05 | 1.04 | 1.52x |
+| `322120` paper mills | 1.11 | 1.10 | 1.14 | 1.06 | 0.86 | 1.02 | 1.06 | 1.02 | 1.32x |
+| `327400` lime and gypsum | 0.84 | 0.82 | 0.82 | 0.83 | 1.05 | 0.98 | 0.98 | 1.08 | 1.32x |
+| `325110` petrochemicals | 0.92 | 0.85 | 0.88 | 0.82 | 1.02 | 1.00 | 0.98 | 0.95 | 1.24x |
 
 ⚠️ **This is the finding the build vintage most distorted.** The previous run
 put oil and gas at a 13.0x spread and **5.7x more volatile than the next worst
 sector**, on a 2020 ratio of 0.18. On the published FBS the spread is 2.93x and
-pulp mills sit at 2.32x, so it leads the group by 1.26x rather than running
+pulp mills sit at 2.36x, so it leads the group by 1.24x rather than running
 away with it. It is still first, still breaches in two years, and its 2022 peak
 of 1.93 is still the largest single-year overshoot in the group — but the
 "one sector dominates" reading does not survive, and neither does the factor of
 5.4 in 2020, which is now 1.23 the other way.
+
+⚠️ **The eighth year left the range unchanged.** Both ends of oil and gas
+extraction's spread are pre-2024 — the 0.66 floor breach in 2017 and the 1.93
+overshoot in 2022 — so 2024 at 1.24 falls inside it and the 2.93x stands. An
+additional year of measured data that neither widens nor narrows the spread is
+the strongest form this test takes: the volatility is ours, not the
+measurement's.
 
 ⚠️ **2017 is below the floor at 0.66, and 2017 is matched to the published
 benchmark.** So the level problem is not the nowcast's construction. The likely
@@ -713,14 +731,18 @@ published benchmark, which the nowcast matches by construction.
 **The external check.** GHGRP subpart C is facility-reported stationary fuel
 combustion, so it moves only when fuel burned moves:
 
-| | 2022 | 2023 | change |
-|---|---:|---:|---:|
-| GHGRP subpart C, NAICS `211` facilities | 46.7 Mt | 48.4 Mt | **+3.6%** |
-| reporting facilities | 542 | 532 | −1.8% |
-| our table 3-11 for `211000` | 90.1 Mt | 58.6 Mt | **−35.0%** |
+| | 2022 | 2023 | 2024 | 2022 → 2024 |
+|---|---:|---:|---:|---:|
+| GHGRP subpart C, NAICS `211` facilities | 46.7 Mt | 48.4 Mt | 44.9 Mt | **−3.9%** |
+| reporting facilities | 542 | 532 | 501 | −7.6% |
+| our table 3-11 for `211000` | 90.1 Mt | 58.6 Mt | 55.5 Mt | **−38.3%** |
 
-Both years use the 2022 MECS survey, so the fuel share is constant and the whole
-move is the Use table.
+All three years sit on the 2022 MECS survey, the latest published, so the fuel
+share is constant and the whole move is the Use table.
+
+The 2024 year sharpens this rather than changing it. The measured floor falls
+7.2% from 2023 while our allocation falls 5.2%, so the two move together at the
+end of the span — the discontinuity is 2022 → 2023, not 2023 → 2024.
 
 ⚠️ **This bounds the verdict rather than proving it.** Subpart C runs 52% to
 152% of what we assign to this sector across the span — below 100% where the

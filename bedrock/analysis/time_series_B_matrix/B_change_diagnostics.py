@@ -127,9 +127,14 @@ logger = logging.getLogger(__name__)
 
 YEARS: tuple[int, ...] = tuple(range(2017, 2025))
 
-#: Last year GHGRP subpart C is published for. The reporting programme runs a
-#: year behind the nowcast span, so D14 can never cover the final year.
-GHGRP_LAST_YEAR = 2023
+#: Last year GHGRP subpart C is available for. This now reaches the end of the
+#: nowcast span, so D14 covers every year of it.
+GHGRP_LAST_YEAR = 2024
+
+#: Years GHGRP cannot be downloaded for, because EPA never published them. 2024
+#: was released under FOIA and is built from those static files into ``stewi``
+#: locally (#931), so it is present or it is not - there is nothing to fetch.
+GHGRP_LOCAL_BUILD_YEARS: tuple[int, ...] = (2024,)
 
 #: Last year NEI point sources are published for, which trails GHGRP by a
 #: further year. D15 needs both inventories, so it is bounded by this one.
@@ -1434,6 +1439,32 @@ def _naics_to_bea_detail() -> pd.Series:
     return unique.set_index('NAICS_2017_Code')['BEA_2017_Detail_Code']
 
 
+def ghgrp_served_years(years: tuple[int, ...]) -> tuple[int, ...]:
+    """Drop years ``stewi`` has no way to serve, naming each one.
+
+    Every year EPA published arrives by download. 2024 did not happen: EPA
+    stopped at 2023, so that year is built into ``stewi`` from the FOIA'd
+    Envirofacts views and lives only in the local store. On a machine without
+    that build there is nothing to download, and ``stewi`` would fail deep
+    inside the year loop. Skipping it keeps the floor test worth running over
+    the years that are there.
+    """
+    local = stewi.getAvailableInventoriesandYears('flowbyprocess').get('GHGRP', [])
+    served = []
+    for year in years:
+        if year in GHGRP_LOCAL_BUILD_YEARS and str(year) not in local:
+            logger.warning(
+                'GHGRP %d skipped: EPA never published it, so stewi has nothing '
+                'to download. Build it from the FOIA archive first - '
+                'stewi.GHGRP A then B, -Y %d -A <EF_Views_*.zip>.',
+                year,
+                year,
+            )
+            continue
+        served.append(year)
+    return tuple(served)
+
+
 def ghgrp_subpart_C(years: tuple[int, ...]) -> pd.DataFrame:
     """GHGRP subpart C by BEA detail sector and year, Mt CO2e. Requires network.
 
@@ -1445,6 +1476,11 @@ def ghgrp_subpart_C(years: tuple[int, ...]) -> pd.DataFrame:
     to regenerate the inventory from the live GHGRP API, which no longer serves
     the tables the 2017-2021 builds need, and those five years fail with errors
     that read like missing data rather than a missing flag.
+
+    ⚠️ **2024 does not download**, it is built locally - see
+    :func:`ghgrp_served_years`. Subparts E, BB, CC, L and O are absent from that
+    build because EPA only publishes them in aggregated spreadsheets that stop
+    at 2023. None of them is subpart C, so the floor is unaffected.
 
     ⚠️ **Electric power is excluded.** ``221100`` runs on eGRID in this model,
     not on table 3-11, so leaving it in would compare a floor against an
@@ -1467,7 +1503,7 @@ def ghgrp_subpart_C(years: tuple[int, ...]) -> pd.DataFrame:
         return None
 
     columns = []
-    for year in years:
+    for year in ghgrp_served_years(years):
         flows = stewi.getInventory(
             'GHGRP', year=year, stewiformat='flowbyprocess', download_if_missing=True
         )
@@ -1510,7 +1546,7 @@ def combustion_floor_test(
     estimate of the total. Whatever table 3-11 allocates to a sector should be
     at least this much. That makes it the only external check in this module
     needing no answer key, no deflator and no benchmark year, and it is
-    published for every year of the span.
+    available for every year of the span, 2024 included.
 
     ⚠️ **A sector below the floor in every year is not a defect.** Petroleum
     refineries, iron and steel and wet corn milling sit below it throughout
@@ -2768,8 +2804,8 @@ def main(
     logger.info('Wrote plots to %s', OUTPUT_DIR)
 
     if facility_data:
-        # GHGRP publishes a year behind the nowcast span, so the floor covers
-        # what it covers rather than what was asked for.
+        # GHGRP now reaches the end of the span, but keep the bound explicit so
+        # that a span extended past it degrades rather than failing.
         floor_years = tuple(y for y in years if y <= GHGRP_LAST_YEAR)
         floor = ghgrp_subpart_C(floor_years)
         tables['ghgrp_subpart_C'] = floor
