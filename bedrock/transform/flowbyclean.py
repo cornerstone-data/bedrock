@@ -163,6 +163,35 @@ def weighted_average(
     return wt_flow
 
 
+def _index_series_total(
+    name: str,
+    overrides: dict[str, Any] | None,
+    year: int,
+    external_config_path: str | None,
+    download_sources_ok: bool,
+) -> float:
+    """
+    Total FlowAmount of an ``index_source`` series in ``year``.
+
+    Only the ratio between two years of this series is used, so its units and
+    level need not match the series being scaled.
+    """
+    source_config = {**get_catalog_info(name), **(overrides or {}), 'year': year}
+    fb = get_flowby_from_config(
+        name=name,
+        config=source_config,
+        external_config_path=external_config_path,
+        download_sources_ok=download_sources_ok,
+    ).select_by_fields(selection_fields=source_config.get('selection_fields'))
+    total = float(fb['FlowAmount'].sum())
+    if total <= 0:
+        raise ValueError(
+            f'Index source {name} sums to {total} in {year}; check '
+            '`index_source.selection_fields`.'
+        )
+    return total
+
+
 def average_flowby(
     config: dict[str, Any],
     full_name: str,
@@ -175,6 +204,12 @@ def average_flowby(
 
     Each ``datasource_N`` is ``{source_name: overrides}`` (same shape as
     ``clean_source``). Loads via ``get_flowby_from_config`` + ``prepare_fbs``.
+
+    An optional ``index_source`` (also ``{source_name: overrides}``) turns the
+    plain average into an indexed one: each source year is first moved onto the
+    target ``year`` by the index series' own ratio between the two years, and
+    only then averaged. Use it whenever the target year is not on the straight
+    line between the source years -- a plain average assumes it is.
     """
     ds_keys = sorted(
         (k for k in config if str(k).startswith('datasource_')),
@@ -210,24 +245,85 @@ def average_flowby(
         )
         for fb in prepared
     ]
+    target_year = int(config['year'])
+
+    # Move each source year onto the target year with the index series' own
+    # year-over-year ratio, so the average carries the sources' composition
+    # but the index's timing.
+    factors = [1.0] * len(prepared)
+    index_config = config.get('index_source')
+    if index_config:
+        ((index_name, index_overrides),) = index_config.items()
+        index_target = _index_series_total(
+            index_name,
+            index_overrides,
+            target_year,
+            external_config_path,
+            download_sources_ok,
+        )
+        for i, fb in enumerate(prepared):
+            source_year = fb.config.get('year')
+            if source_year is None:
+                raise ValueError(
+                    f'{full_name}: `index_source` needs a `year` on every '
+                    f'datasource; {fb.full_name} has none.'
+                )
+            index_source_year = _index_series_total(
+                index_name,
+                index_overrides,
+                int(source_year),
+                external_config_path,
+                download_sources_ok,
+            )
+            factors[i] = index_target / index_source_year
+            log.info(
+                f'{full_name}: scaling {source_labels[i]} by {factors[i]:.4f} '
+                f'({index_name} {target_year}/{source_year} = {index_target:.6g}'
+                f'/{index_source_year:.6g}) before averaging.'
+            )
+
     log.info(f'Averaging FlowAmounts across {source_labels} for {full_name}.')
     # Same identity cols FlowBy uses to aggregate: non-float columns
     # except Description / group_id; Year dropped.
     join_cols = [c for c in prepared[0].groupby_cols if c != 'Year']
-    amounts = prepared[0].groupby(join_cols, dropna=False)['FlowAmount'].sum()
-    for fb in prepared[1:]:
+    amounts = (
+        prepared[0].groupby(join_cols, dropna=False)['FlowAmount'].sum() * factors[0]
+    )
+    for fb, factor in zip(prepared[1:], factors[1:]):
         amounts = amounts.add(
-            fb.groupby(join_cols, dropna=False)['FlowAmount'].sum(), fill_value=0
+            fb.groupby(join_cols, dropna=False)['FlowAmount'].sum() * factor,
+            fill_value=0,
         )
     averaged = (
         amounts.div(len(prepared))
         .rename('FlowAmount')
         .reset_index()
-        .assign(Year=int(config['year']))
+        .assign(Year=target_year)
     )
-    # Mean of totals cannot exceed the largest source total
+
+    scaled_totals = [
+        float(fb['FlowAmount'].sum()) * factor for fb, factor in zip(prepared, factors)
+    ]
+    # Each scaled source is an independent estimate of the target year, so a
+    # wide spread between them means the index is not carrying these sources.
+    if index_config and len(scaled_totals) > 1:
+        spread = (max(scaled_totals) - min(scaled_totals)) / (
+            sum(scaled_totals) / len(scaled_totals)
+        )
+        tolerance = float(config.get('index_agreement_tolerance', 0.05))
+        log.info(
+            f'{full_name}: indexed source estimates of {target_year} span '
+            f'{spread:.2%} (tolerance {tolerance:.2%}).'
+        )
+        if spread > tolerance:
+            log.warning(
+                f'{full_name}: indexed source estimates of {target_year} '
+                f'disagree by {spread:.2%}, above the {tolerance:.2%} '
+                f'tolerance: {dict(zip(source_labels, scaled_totals))}'
+            )
+    # Mean of totals cannot exceed the largest (scaled) source total
     avg_total = float(averaged['FlowAmount'].sum())
-    max_source_total = max(float(fb['FlowAmount'].sum()) for fb in prepared)
+    max_source_total = max(scaled_totals)
     if avg_total > max_source_total:
         log.warning(
             f'{full_name}: averaged FlowAmount sum {avg_total} exceeds max '

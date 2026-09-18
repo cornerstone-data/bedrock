@@ -12,6 +12,10 @@ parse_response_fxn: !script_function:UMD_GHGIA umd_ghgia_parse
 gcs_fxn: !script_function:UMD_GHGIA umd_ghgia_load
 extract_data_from_raw_sources: False # Not available
 years:
+  # 2016 is outside the model span; it is here only as the second anchor for the
+  # eGRID 2017 estimate in GHG_national_Cornerstone_nowcast_2017.yaml. The
+  # staged CSVs carry 1990-2024, so any year in that range parses.
+  - 2016
   - 2017
   - 2018
   - 2019
