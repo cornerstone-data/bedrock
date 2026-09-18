@@ -82,12 +82,6 @@ source_names:
            FlowName: SF6
          attribution_method: direct
 
-       electric_power:
-         selection_fields:
-           PrimaryActivity:
-             Electric Power Sector: Electric Power # CO2
-         attribution_method: direct
-
        liming: # liming of agricultural soils
          selection_fields:
            PrimaryActivity: Liming #CO2
@@ -547,21 +541,56 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
-  UMD_GHGIA_T_3_7:  # stationary combustion - electricity
-    year: *ghgi_year
-    activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: UMD_GHGIA_AR5_100
-    activity_sets:
-     electric_power:
-       selection_fields:
-         FlowName: [CH4, N2O]  # exclude co2 - counted in T 2-S1
-         PrimaryActivity:
-           Coal Electric Power: Coal Electric Power
-           Natural Gas Electric Power: Natural Gas Electric Power
-           Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
-           Petroleum Electric Power: Petroleum Electric Power
-           Wood Electric Power: Wood Electric Power
-       attribution_method: direct
+  # EPA published no eGRID 2017, so 2017 is estimated from the two neighbouring
+  # eGRID years. They are NOT averaged in levels: 2017 was a trough for power
+  # sector emissions, not a point on the line between 2016 and 2018. The GHG
+  # inventory has electric power CO2 at 1808.9 MMT in 2016, 1732.0 in 2017 and
+  # 1753.4 in 2018 -- down 4.3% then back up 1.2% -- so a straight average puts
+  # 2017 2.8% too high and turns the 2017->2018 rise into a 1.5% fall. Almost
+  # all of that is natural gas (GHGI table 3-7: gas CO2 dips to 505.6 MMT in
+  # 2017 from 545.0 in 2016, then rebounds to 577.9 in 2018; coal is close to
+  # linear over the same three years).
+  #
+  # Instead each eGRID year is moved onto 2017 by the inventory's own ratio
+  # between the two years, and the two resulting estimates are averaged. eGRID
+  # supplies the plant-level composition, the inventory supplies the timing.
+  # The two estimates land at 1767.3 and 1769.0 MMT CO2 -- 0.10% apart, against
+  # an eGRID/GHGI level offset of 1.0203 in 2016 and 1.0214 in 2018, which is
+  # what makes the index credible here. Closes #914.
+  EPA_eGRID_electric:
+    FBS_datapull_fxn: !clean_function:flowbyclean average_flowby
+    index_source:
+      # Electric power sector CO2, the series this source replaced for 2018+.
+      # Only its 2017/2016 and 2017/2018 ratios are used, so the MMT CO2e unit
+      # and the boundary difference against eGRID both cancel. Table 3-7's
+      # all-gas total gives the same ratios to within 0.03%.
+      UMD_GHGIA_T_2_S1:
+        selection_fields:
+          ActivityProducedBy: Electric Power Sector
+          FlowName: CO2
+    datasource_1:
+      EPA_eGRID_electric:
+        FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
+        inventory_dict:
+          eGRID: 2016
+        year: 2016
+        activity_to_sector_mapping: EPA_eGRID
+        include_flow_names:
+          - Carbon dioxide
+          - Methane
+          - Nitrous oxide
+    datasource_2:
+      EPA_eGRID_electric:
+        FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
+        inventory_dict:
+          eGRID: 2018
+        year: 2018
+        activity_to_sector_mapping: EPA_eGRID
+        include_flow_names:
+          - Carbon dioxide
+          - Methane
+          - Nitrous oxide
+    year: 2017  # target year: what the eGRID years are indexed onto
 
   UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
      year: *ghgi_year
