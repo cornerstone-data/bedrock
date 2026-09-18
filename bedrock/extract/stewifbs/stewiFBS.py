@@ -28,7 +28,11 @@ from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.settings import process_adjustmentpath
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping import sector as naics_mapping
-from bedrock.utils.mapping.location import apply_county_FIPS, update_geoscale
+from bedrock.utils.mapping.location import (
+    apply_county_FIPS,
+    filter_to_model_geography,
+    update_geoscale,
+)
 from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
 
 InventoryDict = dict[str, str]
@@ -231,9 +235,22 @@ def load_egrid_emissions_via_stewi(year: str | int) -> pd.DataFrame:
     facilities = (
         facilities[['FacilityID', 'State', 'County', 'Plant primary fuel']]
         .drop_duplicates(subset='FacilityID', keep='first')
+        # Cut to BEA's economic territory here, while State is still a
+        # two-letter code -- apply_county_FIPS overwrites it with a full name.
+        .pipe(filter_to_model_geography, label=f'eGRID {year_str}')
         .pipe(apply_county_FIPS)
     )
-    return df.merge(facilities, how='left', on='FacilityID')
+    merged = df.merge(facilities, how='inner', on='FacilityID')
+    orphans = df.loc[~df['FacilityID'].isin(facilities['FacilityID'])]
+    if not orphans.empty:
+        log.warning(
+            'eGRID %s: %d emission rows over %d facilities have no facility '
+            'record and are dropped',
+            year_str,
+            len(orphans),
+            orphans['FacilityID'].nunique(),
+        )
+    return merged
 
 
 def assign_naics_from_egrid_fuel(
@@ -323,10 +340,6 @@ def egrid_to_sector(
     egrid_year = inventory_dict['eGRID']
 
     df = load_egrid_emissions_via_stewi(egrid_year)
-
-    # Drop plants with no FIPS (territories like PR) so national update_geoscale
-    # does not reassign null Location to 00000.
-    df = df.loc[df['Location'].notna()].reset_index(drop=True)
 
     df = assign_naics_from_egrid_fuel(
         df, mapping_name, external_config_path=external_config_path
