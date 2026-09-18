@@ -67,6 +67,10 @@ bedrock/analysis/electricity/current/diagnostics/local_data/*
 # path-specific — if the report ever moves again, move this line with it or its
 # figures silently stop being tracked and the embeds break on GitHub.
 !bedrock/analysis/nowcasting/images/*.png
+# Figures embedded in bedrock/analysis/time_series_B_matrix/
+# About_B_change_drivers.md. Same rule as above: the working copies under
+# output/ stay ignored, and the committed pair lives in images/.
+!bedrock/analysis/time_series_B_matrix/images/*.png
 
 # Ignore JetBrains IDE project files
 .idea/
