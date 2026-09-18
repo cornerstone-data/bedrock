@@ -51,8 +51,9 @@ def main() -> int:
         meta = json.loads(meta_path.read_text())
         masks = assemble_masks(year)
         pattern = published_2017_panel('use')
-        n_u, mass_u = zero_pattern_leak(use, masks['use'])
-        n_s, mass_s = zero_pattern_leak(supply, masks['supply'])
+        supply_pattern = published_2017_panel('supply')
+        n_u, mass_u = zero_pattern_leak(use, pattern)
+        n_s, mass_s = zero_pattern_leak(supply, supply_pattern)
         ill = illicit_mask(use, masks['use'], pattern)
         tm = meta['tool_meta']
         print(
@@ -96,8 +97,11 @@ def main() -> int:
             columns=masks['supply'].structural_zero.columns,
             fill_value=0.0,
         )
-        n_u, mass_u = zero_pattern_leak(use, masks['use'])
-        n_s, mass_s = zero_pattern_leak(supply, masks['supply'])
+        supply_pattern = published_2017_panel('supply').reindex(
+            index=supply.index, columns=supply.columns, fill_value=0.0
+        )
+        n_u, mass_u = zero_pattern_leak(use, pattern)
+        n_s, mass_s = zero_pattern_leak(supply, supply_pattern)
         ill = illicit_mask(use, masks['use'], pattern)
         n_ill = int(ill.to_numpy().sum())
         below = ill & (use.abs() < RESIDUE_EPS_USD_M)

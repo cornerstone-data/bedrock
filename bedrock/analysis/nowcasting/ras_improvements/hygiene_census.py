@@ -62,7 +62,8 @@ def _census_year(year: int) -> dict[str, object]:
     }
 
     for block in ('use', 'supply'):
-        n_cells, mass = zero_pattern_leak(balance.balanced[block], balance.masks[block])
+        block_pattern = pattern if block == 'use' else published_2017_panel('supply')
+        n_cells, mass = zero_pattern_leak(balance.balanced[block], block_pattern)
         rows[f'{block}_zero_leak_cells'] = n_cells
         rows[f'{block}_zero_leak_mass_usd_m'] = mass
         print(

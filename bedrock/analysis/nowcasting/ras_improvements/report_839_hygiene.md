@@ -21,13 +21,13 @@ Issues along the way (resolved during the first local campaign):
 2. First long run died mid-2021 with no traceback (buffered stdout); rerun with
    `-u` / `PYTHONUNBUFFERED` succeeded.
 
-### Fresh balance (this branch) — pre-sweep → post-sweep
+### Fresh balance (this branch) — item 1 / 2b
 
-| Year | **2a** Use leak cells / mass | **2a** Supply | **2b** illicit negatives (below / at / above 0.05 $M) | Item 1: illicit below-eps swept | Illicit below-eps after sweep |
-|------|------------------------------|---------------|------------------------------------------------------|-----------------------------------|-------------------------------|
-| 2018 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | **0** | **0** |
-| 2021 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | **0** | **0** |
-| 2023 | 0 / **$0M** | 0 / $0M | **0** (0/0/0) | **0** | **0** |
+| Year | **2b** illicit negatives (below / at / above 0.05 $M) | Item 1: illicit below-eps swept | Illicit below-eps after sweep |
+|------|------------------------------------------------------|-----------------------------------|-------------------------------|
+| 2018 | **0** (0/0/0) | **0** | **0** |
+| 2021 | **0** (0/0/0) | **0** | **0** |
+| 2023 | **0** (0/0/0) | **0** | **0** |
 
 **A / item 1.** On today’s balance there are **no illicit offset-residue
 negatives** to remove. Item 1 sweeps only that class (`0 < |x| < 0.05` on the
@@ -37,19 +37,116 @@ revision of the sweep used `|x| < eps` on **all** Use cells and reported
 ~124k “swept” per year — almost entirely exact zeros already at 0, not
 economic edits (see §3).
 
-**2a.** Structural-zero leak mass is **$0** on both blocks (0 cells) — passes
-the mass gate.
-
 **2b.** **0** illicit Use negatives outside the whitelist
 (`sign_lock != -1`, excl. `F03000` / `V00300` / `pattern2017 < 0`).
 
+### 2a — published-pattern fills
+
+#### Walkthrough (what the check counts)
+
+After balance, item 2(a) loads the official 2017 Use/Supply detail as the
+**pattern** (`published_2017_panel` in `nowcast_mask.py`). Most 2017 zeros are
+true structure and stay empty. The leak set is only the cells that were **zero
+in that pattern and nonzero after balance**:
+
+```python
+leak = (pattern2017 == 0.0) & (balanced != 0.0)  # zero_pattern_leak
+```
+
+The engine is **not** allowed to fill most of those empties: they are frozen as
+`mask.structural_zero` (Tier 0). A small set of 2017 zeros is **deliberately
+freed** because a 2017 zero there means “no flow that year,” not “never.” When
+later years put real dollars there, 2(a) counts them. Those exemptions are built
+in `structural_zero_mask` (`nowcast_mask.py` ~459–502):
+
+| Kind | Plain language | Code |
+|------|----------------|------|
+| Trade / inventory (Use) | Exports and inventory-change columns | `TRADE_FLOW_USE_COLUMNS` (`F04000`, `F03000`) |
+| Trade / duties (Supply) | Import / adjustment / duty bridges (with carve-outs) | `TRADE_FLOW_SUPPLY_COLUMNS`, `NEVER_IMPORTED_COMMODITIES` |
+| Subsidies (Supply) | Subsidy bridge | `SUBSIDY_FLOW_SUPPLY_COLUMNS` (`SUB`) |
+| Fiscal rows (Use) | Tax / subsidy VA rows over industries | `FISCAL_FLOW_USE_ROWS` (`T00TOP`, `T00SUB`, `T00OSUB`) |
+
+So #839’s original **~21–40 cells / ~$0M** audit was mostly **expected exemption
+fills** (plus dust), not a Tier-0 breach. An early PR implementation audited
+`structural_zero` instead of the published pattern and therefore always reported
+**0 / $0M** — that was the wrong population (Wes’s review on #915), not proof
+the balance had cleaned up.
+
+#### Measured series (GCS `d2e2112`, 2018–2024)
+
+Re-ran `hygiene_census_gcs` after the published-pattern definition landed:
+
+| Year | Use cells | Use mass ($M) | Supply cells | Supply mass ($M) |
+|------|----------:|--------------:|-------------:|-----------------:|
+| 2018 | 35 | 171 | 52 | 1,855 |
+| 2019 | 35 | 272 | 52 | 5,913 |
+| 2020 | **423** | **561,486** | 53 | 27,963 |
+| 2021 | **423** | **401,145** | 52 | 27,165 |
+| 2022 | 355 | 49,259 | 53 | 38,129 |
+| 2023 | 54 | 20,155 | 53 | 14,023 |
+| 2024 | 53 | 11,246 | 53 | 11,752 |
+
+Same metric on this branch’s fresh local saves (`b25b8ac`, 2018/2021/2023)
+matches GCS to rounding (e.g. 2018 Use 34–35 cells / ~$171M).
+
+**How to read the series.** Use cell counts in **2018–2019** sit in #839’s
+historical **~21–40** band; later years are higher. Decomposition on 2018 Use:
+all 35 leak cells are **outside** `structural_zero` (exemptions); **34** are
+on fiscal rows `T00TOP`/`T00SUB` (~$170M) and **1** on trade/inventory
+(`F03000`, ~$0.4M). **2020–2021** jump in Use cells/mass is dominated by large
+fiscal-row fills (e.g. pandemic-era subsidy incidence on 2017-zero industry
+cells) — still exempt, not an engine breach of Tier 0. Structural-zero leak
+remains **0 cells / $0M** every year (engine invariant).
+
+**Mass vs #839’s “~$0M”.** On current vintages, published-pattern **dollar mass
+is routinely ≫ $1M**, even in quiet years (~$171M Use in 2018). The issue’s
+~$0M figure does not hold for this metric on today’s tables; the useful
+comparison is cell counts in quiet years and the fiscal-driven spikes later.
+
+#### Census vs fail gate (why measure fills we do not zero)
+
+Two different jobs:
+
+| | Published-pattern 2(a) | Structural Tier 0 |
+|--|------------------------|-------------------|
+| Helper | `zero_pattern_leak` | `structural_zero_leak` |
+| Role | **Census / YoY telemetry** — how far this year departed from 2017 sparsity on *allowed* empties | **Production fail gate** — engine must not fill frozen zeros |
+| `$1M` mass gate | **No** (exemption mass routinely exceeds it) | **Yes** (`ZERO_PATTERN_MASS_USD_M` in `assert_post_balance_hygiene`) |
+
+If nothing is “done” about large exemption fills, that is intentional: those
+cells are free by design. The census still earns its keep by confirming fills
+land on expected trade/fiscal rows, flagging year shocks (2020–2021), and
+keeping #839’s quiet-year cell band grounded. The check that protects later
+years is the structural gate (silent when healthy).
+
+#### Open follow-up: seed vs RAS on the leak set
+
+Today’s census CLIs only see the **balanced** table
+(`hygiene_census_gcs`) or call `zero_pattern_leak` only on balanced even when
+`YearBalance.seeds` is available (`hygiene_census`). So we **cannot yet** say
+how much of the non-structural 2017-zero → filled mass was already in the
+**seed** versus introduced or moved by **RAS**.
+
+That split is a thin extension (~40–80 lines on `hygiene_census`: eligible =
+`(pattern == 0) & ~structural_zero`, then seed fills / balanced fills /
+RAS-introduced / RAS-cleared / `Σ|bal − seed|` on movers). Wall-clock cost is
+re-running `balance_year` (or pairing `assemble` seeds with a matching GCS
+balanced vintage), not engine work. Worth doing only if we care whether
+pandemic-era fiscal mass is mostly seed incidence vs balance reshuffling.
+
+Reproduce::
+
+    uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census_gcs \
+        --years 2018,2019,2020,2021,2022,2023,2024
+    uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_summary
+
 ### Contrast: older GCS vintage `163db0e` (2026-09-01)
 
-| Year | 2a mass | 2b illicit (below 0.05 $M) | After sweep: illicit below-eps |
-|------|---------|----------------------------|--------------------------------|
-| 2018 | $0 | 0 (0) | 0 |
-| 2021 | $0 | **258** (**62**) | **0** (those 62 zeroed) |
-| 2023 | $0 | **328** (**3**) | **0** (those 3 zeroed) |
+| Year | 2a Use cells / mass (published pattern) | 2b illicit (below 0.05 $M) | After sweep: illicit below-eps |
+|------|-----------------------------------------|----------------------------|--------------------------------|
+| 2018 | 35 / $171M | 0 (0) | 0 |
+| 2021 | 423 / $415,278M | **258** (**62**) | **0** (those 62 zeroed) |
+| 2023 | 54 / $20,189M | **328** (**3**) | **0** (those 3 zeroed) |
 
 On that vintage, item 1 **does** clear the sub-eps illicit set. Many illicit
 cells there are **above** 0.05 $M (up to hundreds of $M) — that is **not** the
@@ -143,9 +240,10 @@ showed that was the wrong cut:
 2. **Among cells that actually change under a broad `|x| < ε` sweep
    (`0 < |x| < ε`), almost none are zero in the 2017 detail pattern** — on
    `d2e2112` / `163db0e`, ~93–100% sit on **2017-nonzero** positions (tiny
-   remnants of allowed structure). Zero structural-zero leak (2a) already
-   means RAS is not depositing mass into frozen zeros; the free near-zeros are
-   not “empty cells filled with artifact.”
+   remnants of allowed structure). The engine still preserves
+   `mask.structural_zero` (Tier 0) exactly; published-pattern 2(a) is a
+   separate census (see §1 walkthrough) — not a reason to broaden the item-1
+   sweep onto 2017-nonzero cells.
 
 3. **The ~124k sidecar count was misleading.** `|x| < ε` includes exact zeros.
    On a 2023 Use table (~171k cells), ~124k are already 0; only ~15–20 are true

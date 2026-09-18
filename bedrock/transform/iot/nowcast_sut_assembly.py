@@ -199,9 +199,37 @@ def sweep_offset_residue(
     return cleaned, n_swept
 
 
-def zero_pattern_leak(balanced: pd.DataFrame, mask: SutMask) -> tuple[int, float]:
-    """Count and dollar mass of nonzero fills into ``mask.structural_zero``."""
-    _require_matching_labels(balanced, mask.structural_zero, 'zero_pattern_leak')
+def zero_pattern_leak(
+    balanced: pd.DataFrame,
+    pattern2017: pd.DataFrame,
+) -> tuple[int, float]:
+    """Count and dollar mass of nonzero fills where the 2017 pattern is zero.
+
+    Issue #839 item 2(a): audit against the **published** 2017 detail panel
+    (``published_2017_panel``), not ``mask.structural_zero``. The mask drops
+    deliberate trade/fiscal exemptions from Tier 0; fills there are expected
+    (cell counts often tens to hundreds by year; dollar mass can be large on
+    fiscal rows). Census/reporting uses this helper. The production **fail**
+    gate for empty-cell integrity stays on :func:`structural_zero_leak`.
+    """
+    _require_matching_labels(balanced, pattern2017, 'zero_pattern_leak')
+    leak = (pattern2017 == 0.0) & (balanced != 0.0)
+    n_cells = int(leak.to_numpy().sum())
+    mass = float(balanced.where(leak, 0.0).abs().sum().sum())
+    return n_cells, mass
+
+
+def structural_zero_leak(
+    balanced: pd.DataFrame,
+    mask: SutMask,
+) -> tuple[int, float]:
+    """Count and dollar mass of nonzero fills into ``mask.structural_zero``.
+
+    Stricter than :func:`zero_pattern_leak`: Tier 0 cells the engine must hold
+    at zero. Used as the standing mass fail gate in
+    :func:`assert_post_balance_hygiene`.
+    """
+    _require_matching_labels(balanced, mask.structural_zero, 'structural_zero_leak')
     leak = mask.structural_zero & (balanced != 0.0)
     n_cells = int(leak.to_numpy().sum())
     mass = float(balanced.where(leak, 0.0).abs().sum().sum())
@@ -234,17 +262,33 @@ def assert_post_balance_hygiene(
     masks: dict[str, SutMask],
     *,
     pattern2017: pd.DataFrame | None = None,
+    patterns2017: dict[str, pd.DataFrame] | None = None,
     zero_mass_bound: float = ZERO_PATTERN_MASS_USD_M,
     residue_eps: float = RESIDUE_EPS_USD_M,
 ) -> None:
-    """Gate structural-zero leak mass (both blocks) and Use illicit sign residue.
+    """Gate Tier-0 structural-zero fills and Use illicit signs.
 
-    If *pattern2017* is omitted, loads ``published_2017_panel('use')``. Tests
-    must inject a toy pattern so the suite stays hermetic.
+    Item 2(a) **monitoring** (published-pattern fills, including trade/fiscal
+    exemptions) is :func:`zero_pattern_leak` in the census CLIs — dollar mass
+    there is often ≫ ``zero_mass_bound`` (legitimate fiscal moves). The
+    standing **fail** gate here is :func:`structural_zero_leak` (engine must
+    not fill frozen zeros). Item 2(b) fails on illicit Use negatives above
+    ``residue_eps``.
+
+    *patterns2017* / *pattern2017* supply Use pattern for 2(b); if omitted,
+    loads :func:`~bedrock.transform.iot.nowcast_mask.published_2017_panel`.
     """
+
+    def _pattern(block: str) -> pd.DataFrame:
+        if patterns2017 is not None and block in patterns2017:
+            return patterns2017[block]
+        if block == 'use' and pattern2017 is not None:
+            return pattern2017
+        return published_2017_panel(block)  # type: ignore[arg-type]
+
     for block, frame in balanced.items():
         mask = masks[block]
-        n_cells, mass = zero_pattern_leak(frame, mask)
+        n_cells, mass = structural_zero_leak(frame, mask)
         if mass > float(zero_mass_bound):
             raise ValueError(
                 f'{year} {block}: structural-zero leak mass '
@@ -253,8 +297,8 @@ def assert_post_balance_hygiene(
             )
     use = balanced['use']
     use_mask = masks['use']
-    pattern = published_2017_panel('use') if pattern2017 is None else pattern2017
-    n_above, max_abs = illicit_sign_residue(use, use_mask, pattern, residue_eps)
+    use_pattern = _pattern('use')
+    n_above, max_abs = illicit_sign_residue(use, use_mask, use_pattern, residue_eps)
     if n_above > 0:
         raise ValueError(
             f'{year} use: {n_above} illicit negative cell(s) above '

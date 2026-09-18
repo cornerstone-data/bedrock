@@ -75,6 +75,7 @@ def _census_year(year: int) -> dict[str, object]:
     balanced = _download_balanced(year)
     masks = assemble_masks(year)
     pattern = published_2017_panel('use')
+    supply_pattern = published_2017_panel('supply')
 
     for block in ('use', 'supply'):
         mask = masks[block]
@@ -95,7 +96,21 @@ def _census_year(year: int) -> dict[str, object]:
     rows: dict[str, object] = {'year': year, 'source': 'GCS BalancedSUT'}
 
     for block in ('use', 'supply'):
-        n_cells, mass = zero_pattern_leak(balanced[block], masks[block])
+        block_pattern = pattern if block == 'use' else supply_pattern
+        if not (
+            balanced[block].index.equals(block_pattern.index)
+            and balanced[block].columns.equals(block_pattern.columns)
+        ):
+            block_pattern = block_pattern.reindex(
+                index=balanced[block].index,
+                columns=balanced[block].columns,
+                fill_value=0.0,
+            )
+            if block == 'use':
+                pattern = block_pattern
+            else:
+                supply_pattern = block_pattern
+        n_cells, mass = zero_pattern_leak(balanced[block], block_pattern)
         rows[f'{block}_zero_leak_cells'] = n_cells
         rows[f'{block}_zero_leak_mass_usd_m'] = mass
         print(

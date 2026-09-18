@@ -13,6 +13,7 @@ from bedrock.transform.iot.nowcast_sut_assembly import (
     assert_post_balance_hygiene,
     balance_year,
     illicit_sign_residue,
+    structural_zero_leak,
     sweep_offset_residue,
     zero_pattern_leak,
 )
@@ -40,35 +41,57 @@ def _mask(
     return SutMask(structural_zero=zeros, fixed_value=fixed, sign_lock=locks)
 
 
-def test_zero_pattern_leak_mass_gates_on_dollars_not_count() -> None:
+def test_zero_pattern_leak_uses_published_pattern_not_structural_mask() -> None:
+    """#839 2(a): count fills where the published pattern is zero.
+
+    A cell that is free in the mask (not structural_zero) but zero in the
+    published pattern must still count — those are the deliberate exemptions.
+    """
     index, columns = ['c1', 'c2'], ['i1', 'i2']
+    # Pattern has zeros in col i1; those cells are free in a typical mask
+    # (trade/fiscal exemptions) — 2(a) must still count them.
+    pattern = pd.DataFrame([[0.0, 5.0], [0.0, 5.0]], index=index, columns=columns)
+    dusty = pd.DataFrame([[0.4, 1.0], [0.4, 2.0]], index=index, columns=columns)
+    n_cells, mass = zero_pattern_leak(dusty, pattern)
+    assert n_cells == 2
+    assert mass == pytest.approx(0.8)
+
+
+def test_structural_zero_leak_mass_gates_on_dollars_not_count() -> None:
+    index, columns = ['c1', 'c2'], ['i1', 'i2']
+    # Fail gate is structural_zero; published-pattern leak is census-only.
     structural = pd.DataFrame(
         [[True, False], [True, False]], index=index, columns=columns
     )
     mask = _mask(index=index, columns=columns, structural_zero=structural)
-    # Two leak cells, each 0.4 $M → mass 0.8 under bound.
+    pattern = pd.DataFrame([[0.0, 5.0], [0.0, 5.0]], index=index, columns=columns)
+    supply_pattern = pd.DataFrame(1.0, index=index, columns=columns)
+    patterns = {'use': pattern, 'supply': supply_pattern}
+
     dusty = pd.DataFrame([[0.4, 1.0], [0.4, 2.0]], index=index, columns=columns)
-    n_cells, mass = zero_pattern_leak(dusty, mask)
-    assert n_cells == 2
-    assert mass == pytest.approx(0.8)
+    n_pub, mass_pub = zero_pattern_leak(dusty, pattern)
+    assert n_pub == 2
+    assert mass_pub == pytest.approx(0.8)
+    n_sz, mass_sz = structural_zero_leak(dusty, mask)
+    assert n_sz == 2
+    assert mass_sz == pytest.approx(0.8)
     assert_post_balance_hygiene(
         2022,
         {'use': dusty, 'supply': dusty.copy()},
         {'use': mask, 'supply': mask},
-        pattern2017=pd.DataFrame(0.0, index=index, columns=columns),
+        patterns2017=patterns,
         zero_mass_bound=ZERO_PATTERN_MASS_USD_M,
     )
-    # Same cell count, mass above bound → fail.
     heavy = pd.DataFrame([[0.6, 1.0], [0.6, 2.0]], index=index, columns=columns)
-    n_cells, mass = zero_pattern_leak(heavy, mask)
-    assert n_cells == 2
-    assert mass == pytest.approx(1.2)
+    n_sz, mass_sz = structural_zero_leak(heavy, mask)
+    assert n_sz == 2
+    assert mass_sz == pytest.approx(1.2)
     with pytest.raises(ValueError, match='structural-zero leak mass'):
         assert_post_balance_hygiene(
             2022,
             {'use': heavy, 'supply': dusty.copy()},
             {'use': mask, 'supply': mask},
-            pattern2017=pd.DataFrame(0.0, index=index, columns=columns),
+            patterns2017=patterns,
         )
 
 
@@ -76,7 +99,9 @@ def test_illicit_sign_residue_above_eps_fails_below_passes() -> None:
     index = ['c1', 'V00300']
     columns = ['i1', INVENTORY_CHANGE_COLUMN]
     mask = _mask(index=index, columns=columns)
-    pattern = pd.DataFrame(0.0, index=index, columns=columns)
+    # Nonzero published pattern everywhere so 2(a) does not fire; this test is 2(b).
+    pattern = pd.DataFrame(1.0, index=index, columns=columns)
+    supply_pattern = pd.DataFrame(1.0, index=['c1'], columns=['i1'])
     # Illicit below eps → pass; max_abs of above-eps set is 0.
     dusty = pd.DataFrame([[-0.01, -1.0], [-2.0, 0.0]], index=index, columns=columns)
     n_above, max_abs = illicit_sign_residue(dusty, mask, pattern)
@@ -96,7 +121,7 @@ def test_illicit_sign_residue_above_eps_fails_below_passes() -> None:
                 'use': mask,
                 'supply': _mask(index=['c1'], columns=['i1']),
             },
-            pattern2017=pattern,
+            patterns2017={'use': pattern, 'supply': supply_pattern},
         )
 
 
