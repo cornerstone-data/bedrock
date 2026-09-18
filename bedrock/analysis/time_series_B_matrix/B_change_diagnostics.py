@@ -1876,7 +1876,7 @@ def facility_basis_comparison(
 
     ⚠️ **Widening the comparison does not widen what can be improved.** The
     process rows this pulls in - ``UMD_GHGIA_T_2_S1.direct``, ``T_4_31`` and the
-    rest, 433 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
+    rest, 524 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
     already names the sector, with no Use row, no MECS and no vector in between.
     A facility basis cannot improve an assignment that was never derived. So the
     columns are kept apart:
