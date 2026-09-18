@@ -10,10 +10,11 @@ Production hooks: `bedrock.transform.iot.nowcast_sut_assembly`
 
 ---
 
-## 1. Pipeline status (balance check 2018 / 2021 / 2023)
+## 1. Pipeline status (balance check 2018–2024)
 
-Fresh `balance_year` for **2018, 2021, 2023** completed (~15–17 min each) and
-saved under the analysis output dir (`b25b8ac` artifact hash).
+Item 1 / 2b spot-check on fresh `balance_year` for **2018, 2021, 2023**
+(~15–17 min each; `b25b8ac` artifact hash). Seed-vs-RAS attribution below uses
+a later soft `hygiene_census` span **2018–2024** (same machine; `--force`).
 
 Issues along the way (resolved during the first local campaign):
 
@@ -117,24 +118,71 @@ If nothing is “done” about large exemption fills, that is intentional: those
 cells are free by design. The census still earns its keep by confirming fills
 land on expected trade/fiscal rows, flagging year shocks (2020–2021), and
 keeping #839’s quiet-year cell band grounded. The check that protects later
-years is the structural gate (silent when healthy).
+years is the structural gate (silent when healthy). Seed vs RAS attribution of
+those fills is in the next subsection.
 
-#### Open follow-up: seed vs RAS on the leak set
+#### Seed vs RAS on exemption fills
 
-Today’s census CLIs only see the **balanced** table
-(`hygiene_census_gcs`) or call `zero_pattern_leak` only on balanced even when
-`YearBalance.seeds` is available (`hygiene_census`). So we **cannot yet** say
-how much of the non-structural 2017-zero → filled mass was already in the
-**seed** versus introduced or moved by **RAS**.
+Same eligible set as non-structural 2(a):
+`(pattern2017 == 0) & ~structural_zero`. Question: is the 2020–22 Use mass
+mostly already in the **seed** when it enters GRAS, or does RAS **open** those
+cells?
 
-That split is a thin extension (~40–80 lines on `hygiene_census`: eligible =
-`(pattern == 0) & ~structural_zero`, then seed fills / balanced fills /
-RAS-introduced / RAS-cleared / `Σ|bal − seed|` on movers). Wall-clock cost is
-re-running `balance_year` (or pairing `assemble` seeds with a matching GCS
-balanced vintage), not engine work. Worth doing only if we care whether
-pandemic-era fiscal mass is mostly seed incidence vs balance reshuffling.
+**Definitions** (seed = post-`conform_seeds` frame on `YearBalance.seeds`):
 
-Reproduce::
+| Metric | Meaning |
+|--------|---------|
+| `seed_fill` | Eligible + nonzero in seed (count + abs seed mass) |
+| `bal_fill` | Eligible + nonzero after balance (exemption-restricted 2a) |
+| `ras_introduced` | Eligible + seed 0 + bal ≠ 0 — cells RAS opened |
+| `ras_cleared` | Eligible + seed ≠ 0 + bal 0 — count + abs seed mass RAS zeroed |
+| `ras_moved_l1` | `Σ\|bal − seed\|` on eligible cells that changed |
+| `ras_introduced_share` | `ras_introduced_mass / bal_fill_mass` — **primary** |
+| `seed_share_of_bal_fill_mass` | Balanced mass on cells that were already nonzero in the seed / `bal_fill_mass` — **location** share only (not seed-dollar attribution) |
+
+**Vintage lock.** Tables below are from one local soft `hygiene_census`
+2018–2024 run (matched seed + balanced). Do **not** attach these shares to the
+GCS `d2e2112` 2(a) mass table above. Local `bal_fill` cells/mass match that GCS
+series to rounding (same spike years and order of magnitude).
+
+**Use results**
+
+| Year | bal_fill cells / $M | seed_fill cells / $M | ras_introduced cells / $M | ras_cleared cells / $M | ras_introduced_share | seed_share (location) | ras_moved_l1 ($M) |
+|------|--------------------:|---------------------:|--------------------------:|-----------------------:|---------------------:|----------------------:|------------------:|
+| 2018 | 35 / 171 | 35 / 172 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 2 |
+| 2019 | 35 / 272 | 35 / 270 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 6 |
+| 2020 | 423 / 561,436 | 423 / 554,325 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 7,130 |
+| 2021 | 423 / 401,144 | 423 / 394,179 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 6,982 |
+| 2022 | 355 / 49,249 | 355 / 46,566 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 2,722 |
+| 2023 | 54 / 20,155 | 54 / 19,960 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 208 |
+| 2024 | 53 / 11,244 | 53 / 11,150 | **0 / 0** | 0 / 0 | **0.00** | 1.00 | 107 |
+
+**Supply** (same story): `ras_introduced_share = 0` every year; ~52–53
+`bal_fill` cells; `ras_moved_l1` peaks ~$5–9B in 2020–22 on cells already open
+in the seed.
+
+**Interpretation**
+
+1. **Quiet years (2018–19):** `ras_introduced_share = 0` — every exemption fill
+   that survives balance was already nonzero entering the engine. RAS only
+   nudges dollars (`ras_moved_l1` ~$2–6M on Use).
+2. **2020–21 Use spike:** Still `ras_introduced_share = 0` and
+   `seed_fill_cells == bal_fill_cells` (423). The hundreds-of-billions of
+   fiscal mass are **seed incidence** (post-conform seed already carries them),
+   not RAS inventing new 2017-zero cells. RAS does **reshape** those cells
+   (`ras_moved_l1` ~$7B) but does not open the set.
+3. **2022–24:** Same zero introduced share; cell counts and mass unwind toward
+   quiet-year levels while L1 falls.
+4. **Standing hygiene story unchanged.** Exemption fills remain free by design;
+   Tier 0 stays the fail gate. Nothing here argues for a production assert on
+   published-pattern mass or RAS-introduced share — RAS is not the opener.
+
+Reproduce (matched seed + balanced; ~15–17 min/year)::
+
+    uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census \
+        --years 2018,2019,2020,2021,2022,2023,2024 --force
+
+Balanced-only YoY (no seed split)::
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census_gcs \
         --years 2018,2019,2020,2021,2022,2023,2024
@@ -158,10 +206,10 @@ illicit-clean, like 2018 in the issue.
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_summary
 
-**Reproduce with a full Step 5 balance**::
+**Reproduce with a full Step 5 balance** (includes seed-vs-RAS split)::
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census \
-        --years 2018,2021,2023
+        --years 2018,2019,2020,2021,2022,2023,2024 --force
 
 ---
 
