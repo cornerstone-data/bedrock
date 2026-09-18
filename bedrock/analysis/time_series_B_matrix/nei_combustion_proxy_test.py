@@ -89,11 +89,12 @@ for sector, group in wide.groupby('n3'):
             group.iloc[order[third : 2 * third]],
             group.iloc[order[2 * third :]],
         )
-        scored = {p: predict(a, b, p) for p in CANDIDATES}
-        scores: dict[str, float] = {p: v for p, v in scored.items() if v is not None}
-        if not scores:
+        scored: dict[str, float] = {
+            p: v for p in CANDIDATES if (v := predict(a, b, p)) is not None
+        }
+        if not scored:
             continue
-        pick = min(scores, key=lambda p: scores[p])
+        pick = min(scored, key=lambda p: scored[p])
         chosen.append(pick)
         for p in CANDIDATES:
             v = predict(a, c, p)

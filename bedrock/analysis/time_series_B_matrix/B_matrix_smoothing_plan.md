@@ -18,7 +18,17 @@ Create the diagnostics to identify and prioritize the drivers.
 
 Drivers found so far, what each is worth, and whether it has been shown to
 be justified, are tracked in
-[`B_driver_investigation.md`](B_driver_investigation.md).
+[`B_driver_investigation.md`](B_driver_investigation.md). That tracker is the
+bridge between the two halves of this plan: one row per driver, carrying the
+diagnostic that found it, its potency, a `Justified?` verdict, and the issue
+that owns the remediation.
+
+⚠️ **A driver is not prioritised until it has a verdict, and not actioned until
+it has an issue.** Ranking on potency alone would put effort into movements that
+turn out to be real — the tracker holds three `justified` rows whose correct
+action is to leave them alone, and two that are `out of scope` here and were
+handed to Nowcasting Phase 2. Every `unresolved` row carries an issue so that
+nothing measured here depends on this document being re-read to survive.
 
 ### Determine why the drivers change and how to fix them
 
@@ -52,9 +62,15 @@ for remediation, being the nowcast Make, even though it is a direct term in
 Everything below comes from `B_change_diagnostics.py` in this folder. Run it
 with no arguments; it writes 30 tables and 5 figures to `output/`. `--facility-data`
 adds D14 and D15 and four more tables, and is the one option that needs a network. Figures for
-the numbers quoted here are from the run of 2026-09-15 on FBS vintage
-`v0.3.0_796a6ca` and MUT vintage `v0.3.0_4276083`. **Treat the module and its
+the numbers quoted here are from the run of 2026-09-18 on FBS vintage
+`v0.3.0_99655e9` and MUT vintage `v0.3.0_4276083`. **Treat the module and its
 CSVs as the live source** — quoted numbers here go stale, the outputs do not.
+
+⚠️ **Check the vintage, not just the numbers.** An earlier run of this note
+resolved to a local-only FBS build that no ref reaches, and published a set of
+findings off it. `--list-vintages` prints the provenance of every build on
+disk; `resolve_span_vintage` now prefers one reachable from `origin/main` and
+refuses to choose when several span-covering builds are present and none is.
 
 | ID | Approach | Question it asks | Diagnostic | Output |
 |---|---|---|---|---|
@@ -98,7 +114,7 @@ substitutes for the other.
 "Test for acceptance" needs a number to move. The module already computes two
 that work as before-and-after measures, both on real-dollar EFs:
 
-- **median `abs_delta_B_pct_of_N`**, per year — currently 0.33% to 1.44%
+- **median `abs_delta_B_pct_of_N`**, per year — currently 0.32% to 1.17%
   depending on year;
 - **share of commodities over the chosen gate**, per year — a 5% gate on
   `abs_delta_B_pct_of_N` currently admits 5.2% to 22.5%.
