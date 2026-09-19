@@ -170,6 +170,13 @@ Block = Literal['use', 'supply']
 #: (:data:`NON_POSITIVE_USE_ROWS`) rather than pattern-derived layers.
 VA_ROWS = ('V00100', 'T00OTOP', 'T00OSUB', 'V00300', 'T00TOP', 'T00SUB')
 
+#: #808 B2: Use industries where 2017 commodity sparsity is support-limiting
+#: (housing / gov enterprises / federal). Private households ``814000`` is
+#: handled by the T18 closer special-case, not by freing commodity zeros.
+VA_OPEN_SUPPORT_INDUSTRIES = frozenset(
+    {'531HSO', '531ORE', 'GSLGE', 'GSLGO', 'GSLGH', 'S00600'}
+)
+
 #: Supply columns between basic (``T013``) and purchaser (``T016``) value. The
 #: subtotals ``T007``/``T013``/``T014``/``T015``/``T016`` are derived and are
 #: deliberately absent - the balance solves for the components. The trailing
@@ -573,6 +580,29 @@ def sign_lock_mask(block: Block, panel: pd.DataFrame | None = None) -> pd.DataFr
     return locks
 
 
+def clear_va_open_support_structural_zeros(use_mask: SutMask) -> int:
+    """Clear Tier-0 on commodity × :data:`VA_OPEN_SUPPORT_INDUSTRIES` (Use only).
+
+    Mutates ``use_mask.structural_zero`` in place. Returns the number of cells
+    that flipped from True to False. Idempotent: already-cleared cells
+    contribute 0. Leaves ``VA_ROWS`` and non-frozenset industries alone.
+    """
+    commodities = [
+        c for c in balance_commodities() if c in use_mask.structural_zero.index
+    ]
+    industries = [
+        j
+        for j in sorted(VA_OPEN_SUPPORT_INDUSTRIES)
+        if j in use_mask.structural_zero.columns
+    ]
+    if not commodities or not industries:
+        return 0
+    before = use_mask.structural_zero.loc[commodities, industries].copy()
+    use_mask.structural_zero.loc[commodities, industries] = False
+    after = use_mask.structural_zero.loc[commodities, industries]
+    return int((before & ~after).to_numpy().sum())
+
+
 def build_sut_mask(
     block: Block, year: int = 2017, panel: pd.DataFrame | None = None
 ) -> SutMask:
@@ -588,6 +618,8 @@ def build_sut_mask(
         fixed_value=fixed_value_mask(block, year, values),
         sign_lock=sign_lock_mask(block, values),
     )
+    if block == 'use':
+        clear_va_open_support_structural_zeros(mask)
     mask.validate_against(values)
     return mask
 

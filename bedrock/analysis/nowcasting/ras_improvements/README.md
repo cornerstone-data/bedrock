@@ -51,3 +51,14 @@ Artifacts write under `bedrock/analysis/nowcasting/output/ras_improvements/`
 as a fallback.
 
 Report: [`report_839_hygiene.md`](report_839_hygiene.md).
+
+## #808 VA support
+
+Soft-only census of named VA-dominated Use columns (T1/T17/T18 residuals +
+closer support + `b1_gate` for `814000`). Does not call `balance_year`::
+
+    uv run python -m bedrock.analysis.nowcasting.ras_improvements.va_support_census \
+        --years 2018,2021,2022,2023 --force
+
+CSVs: `bedrock/analysis/nowcasting/output/va_support/` (gitignored).
+Report: [`report_808_va_support.md`](report_808_va_support.md).
