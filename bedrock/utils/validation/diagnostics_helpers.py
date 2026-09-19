@@ -7,7 +7,7 @@ This module provides:
 - Inflation adjustment for EF denominators
 - Data loading for diagnostics (optional ``D_new_inflated`` / ``N_new_inflated`` when
   eligible; merged into ``D_and_diffs`` / ``N_and_diffs`` by ``calculate_ef_diagnostics``)
-- Schema alignment for CEDA v7 ↔ cornerstone diagnostics
+- Schema alignment for historical CEDA v7 baselines ↔ Cornerstone diagnostics
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
-from bedrock.utils.economic.inflation_helpers_ceda import (
+from bedrock.utils.economic.inflation_helpers_bea import (
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
@@ -35,6 +35,7 @@ from bedrock.utils.snapshots.loader import (
 from bedrock.utils.snapshots.names import SnapshotName
 from bedrock.utils.snapshots.releases import ef_dollar_year_for_snapshot
 from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
+from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +44,14 @@ logger = logging.getLogger(__name__)
 #
 # Sources of truth:
 #   Waste:       taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
-#   Appliance:   taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
-#   Aluminum:    taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
+#   Appliance:   BEA 2017 keeps 335220; historical CEDA baselines split to 335221/2/4/8
+#   Aluminum:    BEA/Cornerstone 33131B; historical CEDA baselines use 331313
 #   Electricity: schemas/cornerstone_schemas.py  (221100 → 221110/221121/221122)
 # ---------------------------------------------------------------------------
-# Appliances: old has 4 codes (see bea_v2017_commodity__bea_ceda_v7); new aggregates to 335220
+# Appliances: old CEDA baselines have 4 codes; Cornerstone aggregates to 335220
 _APPLIANCE_OLD_CODES: ta.List[str] = ['335221', '335222', '335224', '335228']
 _APPLIANCE_NEW_CODE = '335220'
-# Aluminum: old has 331313 only; new may split into 331313 + 33131B
+# Aluminum: old CEDA baselines have 331313 only; Cornerstone may split 331313 + 33131B
 _ALUMINUM_OLD_CODE = '331313'
 _ALUMINUM_NEW_EXTRA_CODE = '33131B'
 # Diagnostics-only sector names for electricity disaggregation children (not in COMMODITY_DESC).
@@ -174,17 +175,14 @@ def _waste_disagg() -> ta.Tuple[str, ta.List[str]]:
 def get_aligned_sector_desc() -> ta.Dict[str, str]:
     """Build a sector description dict that covers the aligned diagnostic index.
 
-    Combines CEDA v7 descriptions with cornerstone-only codes so that every
-    sector in the aligned index has a human-readable name.
+    Starts from Cornerstone commodity descriptions, then fills codes that appear
+    only on historical CEDA v7 baselines (appliance detail, aluminum ``331313``,
+    waste aggregate ``562000``).
     """
-    from bedrock.utils.taxonomy.cornerstone.commodities import (  # noqa: PLC0415
-        COMMODITY_DESC,
-    )
-
-    desc: ta.Dict[str, str] = dict(CEDA_V7_SECTOR_DESC)  # type: ignore[arg-type]
-    for code, name in COMMODITY_DESC.items():
+    desc: ta.Dict[str, str] = {str(k): str(v) for k, v in COMMODITY_DESC.items()}
+    for code, name in CEDA_V7_SECTOR_DESC.items():
         if code not in desc:
-            desc[code] = name
+            desc[str(code)] = name
     if get_usa_config().implement_electricity_disaggregation:
         desc.update(_ELECTRICITY_DISAGG_SECTOR_DESC)
     return desc
@@ -462,13 +460,13 @@ def diff_and_perc_diff_two_sector_vectors(
         old_val_name: Name for old value columns
         new_val_name: Name for new value columns
         sector_desc: Mapping of sector codes to descriptions.
-            Defaults to ``CEDA_V7_SECTOR_DESC``.
+            Defaults to Cornerstone commodity names via ``get_aligned_sector_desc``.
 
     Returns:
         DataFrame with sector_name column prepended to diff results
     """
     if sector_desc is None:
-        sector_desc = CEDA_V7_SECTOR_DESC  # type: ignore[assignment]
+        sector_desc = get_aligned_sector_desc()
 
     comparison = diff_and_perc_diff_two_vectors(
         vector_new,
@@ -528,7 +526,7 @@ def construct_ef_diff_dataframe(
         ef_new: New emission factor DataFrame
         ef_old: Old EF (raw + inflated)
         sector_desc: Mapping of sector codes to descriptions.
-            Defaults to ``CEDA_V7_SECTOR_DESC``.
+            Defaults to Cornerstone commodity names via ``get_aligned_sector_desc``.
 
     Returns:
         DataFrame with columns for new values, old values (raw & inflated),
