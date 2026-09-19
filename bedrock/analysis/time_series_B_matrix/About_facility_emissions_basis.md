@@ -103,11 +103,37 @@ BEA Use rows — the very derivation under suspicion — plus whatever the inven
 did assign directly. So a facility total above it is a **disagreement**, not an
 overcount, and the ratio alone cannot say which side moved.
 
-One column can be read without that caveat. **GHGRP alone is a single source, so
-no cross-source double count is possible in it** — whatever #925 does to the
-union, it cannot inflate this:
+**How the columns relate.** The current method's two columns **sum** to the
+denominator of the last one: refineries is 176.4 ÷ (76.2 + 3.6) = 2.21.
 
-| sector | current: allocated | current: `Direct` | GHGRP alone | facility union | GHGRP ÷ current |
+⚠️ **The denominator is not `allocated` alone**, even though `allocated` is the
+only part a facility basis could restate. The numerator is not combustion alone
+either: the basis takes every GHGRP subpart except `D`, so subpart H (kiln
+calcination), Q (iron and steel), W (oil and gas systems) and Y (refinery
+process and flaring) sit inside these GHGRP figures — which is exactly the mass
+the inventory books as `Direct`. Both sides therefore have to carry both parts
+or neither. Score GHGRP against `allocated` alone and the answer is an artefact
+of the mismatch rather than a finding: natural gas distribution reads **160x**
+instead of 0.76, because its 30.5 Mt of fugitives are in the numerator and have
+been struck out of the denominator.
+
+For the same reason `Direct` is **not** added to the facility side. What the
+table compresses is
+
+> `allocated` + `Direct`  **vs**  facility union + a residual where facilities
+> do not reach
+
+and adding `Direct` to the right-hand side would book the process mass twice.
+The consequence for implementation — a facility total spans both parts, so it
+cannot be dropped in as a *level* for `allocated` — is
+[#953](https://github.com/cornerstone-data/bedrock/issues/953), and is a
+different question from the coverage residual #928 asks.
+
+One column can be read without the "no authoritative denominator" caveat above.
+**GHGRP alone is a single source, so no cross-source double count is possible in
+it** — whatever #925 does to the union, it cannot inflate this:
+
+| sector | current: allocated | current: `Direct` | GHGRP alone | facility union | GHGRP ÷ (allocated + `Direct`) |
 |---|---:|---:|---:|---:|---:|
 | `324110` petroleum refineries | 76.2 | 3.6 | **176.4** | 228.0 | **2.21** |
 | `311221` wet corn milling | 7.4 | 0.0 | **14.8** | 20.5 | **2.00** |
@@ -295,7 +321,8 @@ so §5's churn comparison could be stated for every year the model produces.
 | | | |
 |---|---|---|
 | [#927](https://github.com/cornerstone-data/bedrock/issues/927) | Lease and plant fuel is self-supplied but classified as purchased | An oil and gas producer burning its own field gas is burning natural gas, and the SCC says natural gas. Same "no purchase exists" defect as byproduct gas, and the structural reason `211000` sits below the floor in 2017 |
-| [#928](https://github.com/cornerstone-data/bedrock/issues/928) | The residual rule for sectors the basis cannot reach | 68 in-scope sectors carrying 50.0 Mt have no facility data, and 90 more are partly covered. Mixing a facility level with a Use-derived remainder needs a stated method |
+| [#928](https://github.com/cornerstone-data/bedrock/issues/928) | The **coverage** residual: sectors the basis cannot reach | 68 in-scope sectors carrying 50.0 Mt have no facility data, and 90 more are partly covered. Mixing a facility level with a Use-derived remainder needs a stated method |
+| [#953](https://github.com/cornerstone-data/bedrock/issues/953) | The **scope** residual: a facility total spans `allocated` and `Direct` | §2's denominator has to carry both because the facility number does. That is fine for a comparison, but it means the facility total cannot be dropped in as a *level* for the only part §3 says is improvable — cement's weight is 89.2 against an allocated mass of 15.9 |
 
 ### Integration
 
