@@ -70,6 +70,9 @@ MCIF = 'MCIF'
 #: The Use row T18's closer moves. Everything else in the value-added block is
 #: left where its own source put it; see the module docstring.
 V00300 = 'V00300'
+#: Private households — #808 B1 absorber (matches ``value_added_residual_row``).
+V00100 = 'V00100'
+HOUSEHOLDS_INDUSTRY = '814000'
 
 NAMED = ('T1', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17', 'T18')
 KNOWN_HARD = frozenset(NAMED)
@@ -382,6 +385,10 @@ def _apply_t4_closer(
 
     Copy first: ``_balance_block`` wraps ``result.matrix`` with no copy.
     Write only compensable columns. The group may miss ``desired``.
+
+    ``V00100×814000`` is treated as **frozen for T4 group accounting only**
+    (#808): counted in ``frozen_sum``, never scaled, never written, and the
+    member is skipped entirely so siblings do not mis-scale.
     """
     z = z_use.copy()
     term, row_label = _t4_term(t4)
@@ -402,6 +409,10 @@ def _apply_t4_closer(
         frozen_sum = 0.0
         for j in members:
             val = float(np.asarray(z.loc[row_label, j], dtype=np.float64))
+            # #808: households compensation is B1's absorber — accounting freeze.
+            if str(j) == HOUSEHOLDS_INDUSTRY and str(row_label) == V00100:
+                frozen_sum += val
+                continue
             if bool(free.loc[row_label, j]):
                 free_sum += val
             else:
@@ -410,6 +421,8 @@ def _apply_t4_closer(
             continue
         factor = (float(desired.loc[g_name]) - frozen_sum) / free_sum
         for j in members:
+            if str(j) == HOUSEHOLDS_INDUSTRY and str(row_label) == V00100:
+                continue
             if not bool(free.loc[row_label, j]):
                 continue
             compensators: list[tuple[str, float]] = []
@@ -455,6 +468,10 @@ def _apply_t18_closer(
     leaves a hard target unmet rather than forcing it, and shows up as a
     nonzero T18 residual in the replay table; forcing it would have to move a
     frozen cell or flip a sign lock.
+
+    **#808 special case ``814000``:** ``V00300`` is Tier-0 (no GOS). Put the
+    full ``delta`` on ``V00100`` with no commodity offset when that cell is
+    free. This moves the column sum (T1 absorbs ~former T18) by design.
     """
     z = z_use.copy()
     rows = set(_t18_rows(t18))
@@ -465,11 +482,18 @@ def _apply_t18_closer(
 
     for label in values.index:
         column = str(label)
-        if not bool(free.loc[V00300, column]):
-            continue
         current = sum(_cell(z, str(i), column) for i in z.index if str(i) in rows)
         delta = float(values.loc[label]) - current
         if delta == 0.0:
+            continue
+
+        if column == HOUSEHOLDS_INDUSTRY:
+            if V00100 not in z.index or not bool(free.loc[V00100, column]):
+                continue
+            z.loc[V00100, column] = _cell(z, V00100, column) + delta
+            continue
+
+        if not bool(free.loc[V00300, column]):
             continue
         offsets: list[tuple[str, float]] = []
         abs_sum = 0.0
