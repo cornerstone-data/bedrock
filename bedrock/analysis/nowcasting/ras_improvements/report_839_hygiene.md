@@ -309,3 +309,13 @@ whitelisted negatives stay. Sidecar: `residue_sweep=illicit_below_eps`, and
 `residue_swept_cells` counts cells that actually change (expect **0** on
 current builds; non-zero if offset dust returns). Above-ε illicit remains a
 hard fail in `assert_post_balance_hygiene`, not a save-time sweep.
+
+---
+
+## Later-additions pointer: #808
+
+[#808](https://github.com/cornerstone-data/bedrock/issues/808) VA-support work
+shipped B1 (`814000` T18 via `V00100`) and tried B2 (commodity Tier-0 clear on
+`VA_OPEN_SUPPORT_INDUSTRIES`). Soft post-fix census: hygiene green / T11
+exact; B2 did **not** cut housing/gov T1/T17. No new #839 hygiene gate from
+that freing. Detail: [`report_808_va_support.md`](report_808_va_support.md).

@@ -28,13 +28,14 @@ from bedrock.transform.iot.nowcast_mask import (
     balance_commodities,
     balance_industries,
     build_sut_mask,
+    clear_va_open_support_structural_zeros,
     fixed_value_mask,
     never_imported_violations,
     panel_labels,
     sign_lock_mask,
     structural_zero_mask,
 )
-from bedrock.utils.economic.balance.mask import assert_subsidies_negative
+from bedrock.utils.economic.balance.mask import SutMask, assert_subsidies_negative
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -485,3 +486,40 @@ def test_the_identity_specials_stay_excluded_from_the_commodity_axis() -> None:
     the strongest restriction is exclusion, and it must not erode."""
     assert 'S00900' in EXCLUDED_COMMODITIES
     assert '4200ID' in EXCLUDED_COMMODITIES
+
+
+def test_clear_va_open_support_structural_zeros_commodity_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#808 B2: clears commodity×frozenset Tier-0; leaves VA rows; idempotent."""
+    index = ['c1', 'c2', 'V00100', 'V00300']
+    columns = ['531HSO', '814000', 'other']
+    structural = pd.DataFrame(
+        [
+            [True, True, True],
+            [True, True, False],
+            [True, True, True],
+            [True, True, True],
+        ],
+        index=index,
+        columns=columns,
+    )
+    mask = SutMask(
+        structural_zero=structural.copy(),
+        fixed_value=pd.DataFrame(False, index=index, columns=columns),
+        sign_lock=pd.DataFrame(0, index=index, columns=columns, dtype=int),
+    )
+    monkeypatch.setattr(
+        'bedrock.transform.iot.nowcast_mask.balance_commodities',
+        lambda: ('c1', 'c2'),
+    )
+    opened = clear_va_open_support_structural_zeros(mask)
+    # Only 531HSO in frozenset; c1 and c2 were both True → 2 opened.
+    assert opened == 2
+    assert not bool(mask.structural_zero.loc['c1', '531HSO'])
+    assert not bool(mask.structural_zero.loc['c2', '531HSO'])
+    # VA rows untouched; 814000 / other untouched.
+    assert bool(mask.structural_zero.loc['V00100', '531HSO'])
+    assert bool(mask.structural_zero.loc['c1', '814000'])
+    assert bool(mask.structural_zero.loc['c1', 'other'])
+    assert clear_va_open_support_structural_zeros(mask) == 0
