@@ -27,7 +27,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_x,
     derive_cornerstone_Ytot_matrix_set,
 )
-from bedrock.utils.economic.inflation_helpers_ceda import (
+from bedrock.utils.economic.inflation_helpers_bea import (
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.economic.inflation_helpers_cornerstone import (

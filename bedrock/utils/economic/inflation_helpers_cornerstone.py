@@ -23,7 +23,7 @@ import pandas as pd
 
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.economic.inflation_helpers_ceda import (
+from bedrock.utils.economic.inflation_helpers_bea import (
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.economic.inflation_helpers_useeio import (

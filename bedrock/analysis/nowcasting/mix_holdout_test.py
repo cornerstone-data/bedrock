@@ -24,10 +24,10 @@ group total by industry output alone.
 
 ⚠️ **After redefinitions, in producer prices.** BEA has moved the 2012 benchmark
 off static download into an interactive application, so the only 2012 detail Make
-available here is the redefined one in ``CEDA6IO.xlsx``; it is paired with the
-2017 redefined table so both sides sit in the same space. Redefinitions reassign
-secondary production, and economy-wide they cut the off-diagonal share from
-**9.54% to 5.53%** — 1.73x — so a naive reading would understate Step 4a's
+available here is the redefined sheet in the CEDA6IO workbook; it is paired with
+the 2017 redefined table so both sides sit in the same space. Redefinitions
+reassign secondary production, and economy-wide they cut the off-diagonal share
+from **9.54% to 5.53%** — 1.73x — so a naive reading would understate Step 4a's
 before-redefinitions exposure.
 
 ✅ **But that bias is much smaller than it looks for this test**, because what is
@@ -56,6 +56,7 @@ Run: ``uv run python -m bedrock.analysis.nowcasting.mix_holdout_test``
 from __future__ import annotations
 
 import argparse
+import os
 
 import numpy as np
 import pandas as pd
@@ -64,8 +65,13 @@ from bedrock.analysis.nowcasting.frozen_mix_diagnostic import (
     detail_block,
     detail_to_summary,
 )
-from bedrock.extract.iot.io_2012 import load_2012_VR_usa
 from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa
+from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import GCS_V5_INPUT_DIR
+from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
+from bedrock.utils.taxonomy.bea.v2012_commodity import USA_2012_COMMODITY_CODES
+from bedrock.utils.taxonomy.bea.v2012_industry import USA_2012_INDUSTRY_CODES
 
 #: The only five detail codes that changed between the 2012 and 2017 benchmarks.
 #: ``33391A`` was renumbered; the four ``3352xx`` motor/generator codes merged.
@@ -79,10 +85,27 @@ RENAME = {
 
 BILLION = 1e9
 
+#: Redefined 2012 Make from the CEDA6IO pack (only static 2012 detail Make on hand;
+#: BEA moved the 2012 benchmark off a downloadable spreadsheet).
+_CEDA6_IO_XLSX = 'CEDA6IO.xlsx'
+
+
+def _load_2012_redefined_make() -> pd.DataFrame:
+    """2012 redefined Make (producer prices, USD) labeled with BEA 2012 codes."""
+    local_dir = local_dir_for_gcs_sub_bucket(GCS_V5_INPUT_DIR)
+    path = os.path.join(local_dir, _CEDA6_IO_XLSX)
+    download_gcs_file_if_not_exists(
+        name=_CEDA6_IO_XLSX, sub_bucket=GCS_V5_INPUT_DIR, pth=path
+    )
+    df = pd.read_excel(path, sheet_name='VR', header=None).astype(float)
+    df.index = pd.Index(USA_2012_INDUSTRY_CODES, name='industry')
+    df.columns = pd.Index(USA_2012_COMMODITY_CODES, name='commodity')
+    return df * MILLION_CURRENCY_TO_CURRENCY
+
 
 def aligned_make_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
     """2012 and 2017 Make tables on one shared industry x commodity index."""
-    v12 = load_2012_VR_usa().rename(index=RENAME, columns=RENAME)
+    v12 = _load_2012_redefined_make().rename(index=RENAME, columns=RENAME)
     # groupby on both axes: the 3352xx merge maps four codes onto one
     v12 = v12.groupby(v12.index).sum().T.groupby(lambda c: c).sum().T
 

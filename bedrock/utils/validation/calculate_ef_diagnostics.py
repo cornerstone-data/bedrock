@@ -11,7 +11,6 @@ import pandas as pd
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import update_sheet_tab
 from bedrock.utils.snapshots.loader import load_configured_snapshot
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTOR_DESC
 from bedrock.utils.validation.diagnostics_helpers import (
     align_efs_across_schemas,
     calculate_summary_stats_for_ef_diff_dataframe,
@@ -484,9 +483,7 @@ def diff_and_perc_diff_two_output_contribution_matrices(
     """
     assert top_N > 0, 'top_N must be greater than 0'
 
-    _desc: ta.Dict[str, str] = sector_desc or ta.cast(
-        ta.Dict[str, str], CEDA_V7_SECTOR_DESC
-    )
+    _desc: ta.Dict[str, str] = sector_desc or get_aligned_sector_desc()
     matrix_old = matrix_old.reindex(
         index=matrix_new.index, columns=matrix_new.columns, fill_value=0.0
     )
