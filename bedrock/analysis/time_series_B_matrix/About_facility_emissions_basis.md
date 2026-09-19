@@ -3,8 +3,18 @@
 What happens if the sector split for industrial emissions comes from facilities
 that reported them, instead of from a purchase row or a survey share.
 
-Measured with **D15** in `B_change_diagnostics.py` (`--facility-data`), 2017-2022,
-against the production basis on FBS `v0.3.0_796a6ca` and MUT `v0.3.0_4276083`.
+Measured with **D15** and **D15b** in `B_change_diagnostics.py`
+(`--facility-data`), 2017-2022, against the production basis on FBS
+`v0.3.0_99655e9` and MUT `v0.3.0_4276083`.
+
+⚠️ **Restated on the published build.** This note first quoted
+`v0.3.0_796a6ca`, a local-only build off a commit no ref reaches, which the
+span vintage resolver picked because it ranked candidates on file mtime. That
+is the defect #912 turned out to be, fixed in `6e6a5947`. The facility side is
+GHGRP and NEI and a build vintage cannot touch it — every facility-only figure
+below was re-measured and came back identical. What moved is our own
+allocation, and with it every comparison against it. Two findings reversed and
+say so in place.
 Driver context is in [`B_driver_investigation.md`](B_driver_investigation.md);
 the diagnostic register is in
 [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
@@ -17,7 +27,7 @@ the diagnostic register is in
 total spread across sectors by a vector. `ng_manufacturing` and
 `coal_manufacturing` ride MECS survey shares; `petroleum_industrial` and
 `natural_gas_nonmanufacturing` ride rows of the nowcast Use table. No sector
-assignment in it points at a measured source, and ~71% of the family moves with
+assignment in it points at a measured source, and 59% of the family moves with
 the Use table.
 
 **Proposed.** GHGRP first — facilities report under a mandatory GHG programme —
@@ -40,7 +50,7 @@ compared against everything the inventory assigns the sector.
 ## 2. How much of the split could it carry?
 
 **Scope: mining, utilities and manufacturing** — BEA detail codes beginning 21,
-22 and 31-33, 232 sectors. These are the industries whose emissions happen at a
+22 and 31-33, 233 sectors. These are the industries whose emissions happen at a
 plant somebody reports. Everything else a vector currently places — government
 buildings, livestock, trucking, real estate — is mobile, biological or diffuse,
 and no facility reports it because none emits it.
@@ -51,39 +61,39 @@ facility union by construction, and `F01000` personal consumption, which has no
 gross output and is outside this module entirely.
 
 ⚠️ **Scoring the basis across every sector measures the boundary, not the basis.**
-In scope it reaches 94% of the allocated mass; across all 391 sectors it reaches
-34%, and the difference is entirely sectors that were never candidates. An
+In scope it reaches 93% of the allocated mass; across all 393 sectors it reaches
+33%, and the difference is entirely sectors that were never candidates. An
 earlier version of this note quoted the unscoped figure without saying so.
 
 ### What is in scope, and which part of it is even improvable
 
 | | Mt | |
 |---|---:|---|
-| **vector-allocated** | **720** | placed by MECS or a Use row — the only part a facility basis could restate |
+| **vector-allocated** | **699** | placed by MECS or a Use row — the only part a facility basis could restate |
 | inventory-assigned (`Direct`) | 524 | the inventory names the sector itself; counted, never improvable — §3 |
-| **total inventory, in scope** | **1,244** | |
+| **total inventory, in scope** | **1,223** | |
 
 ### How much of the allocated 720 Mt has facility data behind it
 
 | facility coverage of the sector | sectors | vector-allocated Mt | share of allocated |
 |---|---:|---:|---:|
-| **covered** — facility total is 50-150% of the inventory's | 55 | 395.5 | **54.9%** |
-| **partly covered** — 5-50% | 88 | 109.9 | 15.3% |
-| **over 150%** — double counting, see below | 25 | 171.3 | 23.8% |
-| **none** — under 5% | 64 | 43.4 | **6.0%** |
+| **covered** — facility total is 50-150% of the inventory's | 51 | 372.7 | **53.3%** |
+| **partly covered** — 5-50% | 90 | 109.2 | 15.6% |
+| **over 150%** — double counting, see below | 24 | 167.2 | 23.9% |
+| **none** — under 5% | 68 | 50.0 | **7.2%** |
 
-**94% of the vector-allocated mass in mining, utilities and manufacturing has
-facility-reported data behind it.** The 6% that does not is 64 small specialty
-manufacturers, none above 8 Mt — paint and coating 7.4, soft drinks 5.2, light
-trucks 4.4.
+**93% of the vector-allocated mass in mining, utilities and manufacturing has
+facility-reported data behind it.** The 7% that does not is 68 small specialty
+manufacturers, none above 8 Mt — paint and coating 7.9, soft drinks 4.8,
+paperboard containers 4.7, light trucks 4.6.
 
 By major group:
 
 | | sectors | vector-allocated Mt | facility-reported Mt |
 |---|---:|---:|---:|
-| 21 mining | 8 | 144.5 | 318.1 |
-| 22 utilities (excluding electric power) | 2 | 0.6 | 36.7 |
-| 31-33 manufacturing | 222 | 575.0 | 868.5 |
+| 21 mining | 8 | 128.2 | 318.1 |
+| 22 utilities (excluding electric power) | 2 | 0.9 | 36.7 |
+| 31-33 manufacturing | 223 | 570.0 | 868.7 |
 
 ### Where it reaches, does it disagree — and which side is wrong?
 
@@ -94,46 +104,127 @@ BEA Use rows — the very derivation under suspicion — plus whatever the inven
 did assign directly. So a facility total above it is a **disagreement**, not an
 overcount, and the ratio alone cannot say which side moved.
 
-One column can be read without that caveat. **GHGRP alone is a single source, so
-no cross-source double count is possible in it** — whatever #925 does to the
-union, it cannot inflate this:
+**How the columns relate.** The current method's two columns **sum** to the
+denominator of the last one: refineries is 176.4 ÷ (76.2 + 3.6) = 2.21.
 
-| sector | current: allocated | current: `Direct` | GHGRP alone | facility union | GHGRP ÷ current |
+⚠️ **The denominator carries `Direct` because the numerator does, and for no
+other reason.** The basis takes every GHGRP subpart except `D`, so subpart H
+(kiln calcination), Q (iron and steel), W (oil and gas systems) and Y (refinery
+process and flaring) sit inside these GHGRP figures — the same kind of mass the
+inventory books as `Direct`. Score GHGRP against `allocated` alone and the
+answer measures that mismatch rather than the sector: natural gas distribution
+reads **160x** instead of 0.76, because its 30.5 Mt of fugitives are in the
+numerator and have been struck out of the denominator. `Direct` is not added to
+the facility side either, for the same reason — the union already contains that
+kind of mass.
+
+⚠️ **Carrying `Direct` on both sides makes the totals commensurable. It does
+not make the facility union a candidate replacement for `Direct`, and nothing
+here proposes one.** The two sides draw the process boundary differently, and
+§2's next block measures how differently. This is a **boundary comparison**, not
+a replacement test.
+
+One column can be read without the "no authoritative denominator" caveat above.
+**GHGRP alone is a single source, so no cross-source double count is possible in
+it** — whatever #925 does to the union, it cannot inflate this:
+
+| sector | current: allocated | current: `Direct` | GHGRP alone | facility union | GHGRP ÷ (allocated + `Direct`) |
 |---|---:|---:|---:|---:|---:|
-| `324110` petroleum refineries | 83.4 | 3.6 | **176.4** | 228.0 | **2.03** |
+| `324110` petroleum refineries | 76.2 | 3.6 | **176.4** | 228.0 | **2.21** |
 | `311221` wet corn milling | 7.4 | 0.0 | **14.8** | 20.5 | **2.00** |
-| `327310` cement | 15.9 | 41.9 | 67.9 | 89.2 | 1.18 |
-| `327400` lime and gypsum | 10.8 | 12.2 | 25.5 | 34.3 | 1.11 |
-| `325310` fertilizer | 26.6 | 21.6 | 40.3 | 46.2 | 0.84 |
+| `327310` cement | 15.9 | 41.9 | 67.9 | 89.2 | 1.17 |
+| `327400` lime and gypsum | 10.9 | 12.2 | 25.5 | 34.3 | 1.11 |
+| `325310` fertilizer | 25.7 | 21.6 | 40.3 | 46.2 | 0.85 |
 | `331110` iron and steel | 21.7 | 47.0 | 55.9 | 65.9 | 0.81 |
-| `221200` natural gas distribution | 0.2 | 30.5 | 23.4 | 26.9 | 0.76 |
-| `211000` oil and gas extraction | 110.9 | 211.9 | 221.2 | 256.0 | 0.69 |
-| `325110` petrochemicals | 48.2 | 20.7 | 26.6 | 54.2 | 0.39 |
+| `221200` natural gas distribution | 0.1 | 30.5 | 23.4 | 26.9 | 0.76 |
+| `211000` oil and gas extraction | 91.3 | 211.9 | 221.2 | 256.0 | 0.73 |
+| `325110` petrochemicals | 47.9 | 20.7 | 26.6 | 54.2 | 0.39 |
 
-**In 14 in-scope sectors GHGRP alone exceeds the current method — 368 Mt against
-231 Mt.** Refineries at 2.03x is the clearest: a mandatory, verified programme
-reports more than twice what our derivation assigns, from one source that cannot
-double count itself. The remaining explanations are that the current method
+⚠️ The **GHGRP alone** and **facility union** columns are identical to what this
+note first reported — they are external data. Every other column is ours, and
+every one of them fell.
+
+**In 23 in-scope sectors GHGRP alone exceeds the current method — 373 Mt against
+228 Mt.** That is nine more sectors than the retired build showed, because the
+current method assigns less: the GHGRP side did not move. Refineries at 2.21x is
+the clearest case: a mandatory, verified programme reports more than twice what
+our derivation assigns, from one source that cannot double count itself. The remaining explanations are that the current method
 under-allocates, or that GHGRP counts process units the inventory books to another
 table. Facility-side overcounting is not one of them.
 
-⚠️ **Only one comparison here settles direction**, and it is the like-for-like one
-in §4: GHGRP subpart C is combustion and table 3-11 is combustion, and subpart C
-is a threshold-limited **lower bound**. When the current method falls below it —
-`211000` at 0.18 in 2020 — the current method is too low and there is nothing to
-argue about. Everywhere else the ratios above are a flag for investigation, not a
-verdict.
+### Split the ratio in two, and only one half is evidence
+
+**D15b**, `facility_scope_split.csv`.
+
+⚠️ **Only one comparison settles direction, and the table above is not it.**
+GHGRP subpart C is stationary fuel combustion; every other subpart is process or
+fugitive. So the ratio decomposes, each half against the half of the inventory it
+actually corresponds to — subpart C against the table 3-11 allocation our vector
+splits, and the rest against `Direct`. In scope, 2022:
+
+| | inventory | GHGRP | ratio |
+|---|---:|---:|---:|
+| combustion — table 3-11 vs subpart C | 592.9 | 431.7 | 0.73 |
+| process and fugitive — `Direct` vs every other subpart | 524.0 | 494.0 | 0.94 |
+
+⚠️ **That 0.94 is offsetting errors, not coverage.** Per sector the process half
+runs from 0.00 to 17.35, with a median of 0.73. **GHGRP does not report the
+process emissions the inventory books directly**, and where it does report them
+it is frequently counting something the inventory put elsewhere:
+
+| sector | table 3-11 | `Direct` | subpart C | other subparts | C ÷ 3-11 | other ÷ `Direct` |
+|---|---:|---:|---:|---:|---:|---:|
+| `324110` petroleum refineries | 76.1 | 3.6 | 114.8 | 61.6 | **1.51** | 17.35 |
+| `311221` wet corn milling | 7.4 | 0.0 | 14.8 | 0.0 | **2.00** | — |
+| `331110` iron and steel | 21.5 | 47.0 | 35.0 | 20.9 | **1.63** | 0.44 |
+| `327400` lime and gypsum | 10.8 | 12.2 | 11.1 | 14.5 | 1.02 | 1.19 |
+| `325110` petrochemicals | 22.3 | 20.7 | 22.3 | 4.3 | 1.00 | 0.21 |
+| `325310` fertilizer | 12.6 | 21.6 | 11.8 | 28.5 | 0.93 | 1.32 |
+| `211000` oil and gas extraction | 90.1 | 211.9 | 46.7 | 174.4 | **0.52** | 0.82 |
+| `327310` cement | 15.9 | 41.9 | 0.6 | 67.3 | 0.04 | 1.61 |
+| `221200` natural gas distribution | 0.1 | 30.5 | 8.5 | 14.8 | — | 0.49 |
+
+Five in-scope sectors carrying **147.6 Mt of `Direct` get 40.4 Mt from GHGRP** —
+water and sewage 44.1 Mt against nothing at all, iron and steel 0.44, natural gas
+distribution 0.49, petrochemicals 0.21, semiconductors 0.06. Refineries runs the
+other way at 17.35. Neither direction is a finding about the sector; both are two
+inventories drawing the process boundary in different places, and **the facility
+union is not a candidate replacement for `Direct`** —
+[#953](https://github.com/cornerstone-data/bedrock/issues/953).
+
+**The combustion half is the half that carries the case, and split out it is
+sharper than the total ratio.** Subpart C is threshold-limited, so it is a
+**floor**; table 3-11 is the row the vector splits. Combustion against
+combustion, no process mass on either side, no boundary question left to argue.
+In **21 in-scope sectors the current method allocates less table 3-11 combustion
+than those sectors' own facilities reported under subpart C: 184 Mt against
+257 Mt**, a 72 Mt shortfall led by refineries (+38.7), iron and steel (+13.5),
+natural gas distribution (+8.4) and wet corn milling (+7.4). §4 makes the same
+comparison for `211000` across the span, where 2020 sits at 0.81.
+
+⚠️ **Two of the nine reverse when split this way, and both reversals go against
+the basis.** Petrochemicals is not 0.39, it is **1.00**: 25.5 of its 47.9 Mt of
+allocated mass is vector-placed *non-combustion*, so the total ratio scored
+combustion data against a denominator that is half something else. And cement's
+0.04 is the artefact §1 warns about rather than a coverage failure — the kiln's
+fuel is reported under subpart H alongside its calcination, so subpart C never
+sees it. `221200` is left blank because a 0.15 Mt allocation makes any ratio
+meaningless.
 
 ## 3. ⚠️ Where a facility basis cannot help
 
-**433 Mt of the process emissions this widening pulls in are already
+**524 Mt of the process emissions this widening pulls in are already
 `Direct`-attributed** — the inventory names the sector itself, with no Use row,
 no MECS and no vector in between. A facility basis cannot improve an assignment
 that was never derived.
 
-So the columns are kept apart, and `allocated_Mt` is the one to rank on: within
-the 3,459 Mt in scope, 2,099 Mt is vector-allocated and improvable; 1,359 Mt is
-already `Direct` and is not.
+So the columns are kept apart, and `allocated_Mt` is the one to rank on: across
+the 3,461 Mt the widened comparison covers, 2,102 Mt is vector-allocated and
+improvable; 1,359 Mt is already `Direct` and is not. ⚠️ These three totals are
+the *only* figures in this note the vintage barely moved, and the reason is
+instructive: the retired build differs from the published one purely by
+redistributing emissions across sectors, so every national total is the same to
+within a rounding step while every per-sector split changed.
 Widening the *comparison* was necessary to stop scoring kilns against the wrong
 denominator. It does not widen what is on offer.
 
@@ -146,20 +237,33 @@ largest oscillating cell in the B panel:
 
 1. **It breaches a measured floor.** GHGRP subpart C is a lower bound, since it
    only covers facilities over the reporting threshold. In 2020 the current basis
-   allocates oil and gas extraction **8.6 Mt where its own facilities reported
-   46.4 Mt** — a factor of 5.4 below a floor. 2017 breaches it too, at 0.66.
+   allocates oil and gas extraction **37.7 Mt where its own facilities reported
+   46.5 Mt** — 1.23x below a floor. 2017 breaches it too, and harder, at 0.66.
+   ⚠️ The retired build put 2020 at 8.6 Mt, a factor of 5.4 below. The breach is
+   real in both, but it is a modest one, not a fivefold one.
 2. **Its driver is a coefficient nothing corroborates.** Purchases of refined
    petroleum per $100 of the sector's own gross output run 0.85 → 2.64 → 1.69,
    a 3.11x rise at the 98th percentile of that Use row, against a median buyer
    of 0.91x. Both sides are nominal and every buyer purchases the same commodity,
    so no price move can produce it. [#922](https://github.com/cornerstone-data/bedrock/issues/922).
 3. **The physical series does not move.** GHGRP subpart C for the same facilities
-   holds 44.9-48.4 Mt across 2017-2023, a **1.08x span**, while the current basis
-   spans **12.8x**.
+   holds 44.9-48.4 Mt across 2017-2024, a **1.08x span**, while the current basis
+   spans **3.05x**.
 
-And the facility basis marks the sector **down 4.6 percentage points** of share —
-reached from facility records rather than from the coefficient, and pointing the
-same way as all three.
+⚠️ **The fourth check reversed and is withdrawn.** This note previously added
+that the facility basis marks the sector **down 4.6 percentage points** of
+share, reading it as a fourth line of evidence pointing the same way as the
+other three. On the published build `share_shift_pp` for `211000` is
+**+1.81 pp** — the facility basis would give the sector *more* share, not less.
+
+That is not a contradiction of the three checks above, and it is worth being
+precise about why: they compare our allocation against subpart C, which is
+combustion only and threshold-limited, while the share shift compares it against
+the full facility union of 256 Mt, which includes the process units GHGRP books
+under other subparts. The three checks say the sector's fuel combustion is
+allocated erratically and sometimes below a measured floor. They never said the
+sector was over-allocated overall, and the share shift never supported that
+reading on this build. The case in §5 does not depend on it.
 
 ---
 
@@ -169,26 +273,35 @@ Accuracy in a single year is not what this project is for. `B` is rocky because
 the vector that splits emissions across sectors **moves between years**, so the
 test is which basis reshuffles less. Same measure used for the MECS cutoff: the
 sum of the absolute year-on-year change in every sector's share, in percentage
-points, over the 235 sectors both bases carry.
+points, over the 227 in-scope sectors both bases carry — those with a positive
+allocated mass and facility data in at least one year of the span.
 
 | year | current basis | facility basis | ratio |
 |---|---:|---:|---:|
-| 2018 | 14.3 pp | **3.9 pp** | 0.27 |
-| 2019 | 5.7 pp | **4.3 pp** | 0.75 |
-| 2020 | 25.9 pp | **5.6 pp** | 0.22 |
-| 2021 | 32.6 pp | **3.8 pp** | 0.12 |
-| 2022 | 16.9 pp | **4.1 pp** | 0.24 |
-| **median** | **15.6 pp** | **4.0 pp** | **0.24x** |
+| 2018 | 8.7 pp | **3.9 pp** | 0.45 |
+| 2019 | 6.3 pp | **4.3 pp** | 0.68 |
+| 2020 | 11.9 pp | **5.6 pp** | 0.47 |
+| 2021 | 24.0 pp | **3.7 pp** | 0.16 |
+| 2022 | 10.0 pp | **4.1 pp** | 0.41 |
+| **median** | **10.0 pp** | **4.1 pp** | **0.41x** |
 
-**The facility basis reshuffles a quarter as much**, and the gap is widest
-exactly where the B panel hurts most.
+⚠️ **The facility column is unchanged from the retired build** — 3.9, 4.3, 5.6,
+3.7, 4.1 against 3.9, 4.3, 5.6, 3.8, 4.1 — which is the check that this measure
+behaves: the facility basis is external data and should not move when our build
+does. The current basis column fell throughout, so the headline weakens.
 
-⚠️ **Look at 2020 and 2021.** The current basis reshuffles 25.9 and 32.6
-percentage points; the facility basis reshuffles 5.6 and 3.8, which is what it
+**The facility basis reshuffles about two fifths as much**, not the quarter this
+note first claimed, and the gap is still widest exactly where the B panel hurts
+most.
+
+⚠️ **Look at 2020 and 2021.** The current basis reshuffles 11.9 and 24.0
+percentage points; the facility basis reshuffles 5.6 and 3.7, which is what it
 does in every other year. Tracker row 9 attributes the 2021 spike to the COVID
 rebound and reads it as a real event not to be smoothed. Against a facility
 series that barely moves through the same two years, **most of that spike is the
-allocation vector, not the pandemic.** Emissions at those facilities did not
+allocation vector, not the pandemic** — 2021 remains the year with the widest
+gap between the two bases, by a clear margin, on the published build as on the
+retired one. Emissions at those facilities did not
 reshuffle; the purchase rows and survey shares used to place them did.
 
 That is the substantive claim this basis makes: it would remove the single
@@ -196,7 +309,7 @@ largest source of year-to-year movement in the emissions side of `B`, and it
 would do so without smoothing anything — by replacing a derived split with a
 reported one.
 
-⚠️ Two honest qualifications. Facility counts step from 14.3k to 22.1k between
+⚠️ Two honest qualifications. Facility counts step from 14,292 to 22,139 between
 2019 and 2020 when NEI reclassified, so the facility series has a vintage seam of
 its own — though its churn is low on both sides of it, which is the opposite of
 what a seam-driven artefact looks like. And churn is measured on shares, so a
@@ -207,8 +320,10 @@ to be fixed before the levels are trusted.
 
 ## 6. What it also buys
 
-- **Provenance.** Two thirds of the allocated mass would point at named
-  facilities with reported emissions rather than at a purchase row.
+- **Provenance.** In mining, utilities and manufacturing, 93% of the allocated
+  mass would point at named facilities with reported emissions rather than at a
+  purchase row. Across every sector the model carries it is 33%, and the
+  difference is sectors no facility reports — see §7.
 - **Location.** Every facility carries a state and most carry coordinates. If
   this code base later produces state-level EEIO models, the location breakout
   would rest on measured data. That is nearly free now and expensive to retrofit.
@@ -253,7 +368,8 @@ so §5's churn comparison could be stated for every year the model produces.
 | | | |
 |---|---|---|
 | [#927](https://github.com/cornerstone-data/bedrock/issues/927) | Lease and plant fuel is self-supplied but classified as purchased | An oil and gas producer burning its own field gas is burning natural gas, and the SCC says natural gas. Same "no purchase exists" defect as byproduct gas, and the structural reason `211000` sits below the floor in 2017 |
-| [#928](https://github.com/cornerstone-data/bedrock/issues/928) | The residual rule for sectors the basis cannot reach | 64 in-scope sectors carrying 43.4 Mt have no facility data, and 88 more are partly covered. Mixing a facility level with a Use-derived remainder needs a stated method |
+| [#928](https://github.com/cornerstone-data/bedrock/issues/928) | The **coverage** residual: sectors the basis cannot reach | 68 in-scope sectors carrying 50.0 Mt have no facility data, and 90 more are partly covered. Mixing a facility level with a Use-derived remainder needs a stated method |
+| [#953](https://github.com/cornerstone-data/bedrock/issues/953) | The **scope** residual: a facility total spans `allocated` and `Direct` | §2's denominator has to carry both because the facility number does. That is fine for a comparison, but it means the facility total cannot be dropped in as a *level* for the only part §3 says is improvable — cement's weight is 89.2 against an allocated mass of 15.9 |
 
 ### Integration
 
@@ -264,8 +380,8 @@ so §5's churn comparison could be stated for every year the model produces.
 
 ### ⚠️ Not a prerequisite, and not a backlog
 
-The 203 sectors with no facility data — 1,386 Mt across all sectors, two thirds
+The 208 sectors with no facility data — 1,410 Mt across all sectors, 67%
 of what a vector places — are government, agriculture, trucking and buildings.
 They stay on the Use row, which is also where MECS never reached. No facility
 reports them because none emits them. In the mining, utilities and manufacturing
-scope this basis is for, the equivalent figure is **6% of allocated mass**.
+scope this basis is for, the equivalent figure is **7% of allocated mass**.

@@ -1876,7 +1876,7 @@ def facility_basis_comparison(
 
     ⚠️ **Widening the comparison does not widen what can be improved.** The
     process rows this pulls in - ``UMD_GHGIA_T_2_S1.direct``, ``T_4_31`` and the
-    rest, 433 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
+    rest, 524 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
     already names the sector, with no Use row, no MECS and no vector in between.
     A facility basis cannot improve an assignment that was never derived. So the
     columns are kept apart:
@@ -1959,6 +1959,94 @@ def facility_basis_comparison(
     return out.sort_values(
         ['in_scope', 'inventory_Mt'], ascending=[False, False]
     ).reset_index(drop=True)
+
+
+def facility_scope_split(
+    basis: pd.DataFrame, facility: pd.DataFrame, floor: pd.Series
+) -> pd.DataFrame:
+    """**D15b.** The D15 ratio split into its combustion and process halves.
+
+    ⚠️ **D15's total ratio is a boundary comparison, not a replacement test.**
+    ``facility_Mt`` spans both the mass a vector placed and the mass the
+    inventory assigned itself, so its denominator has to span both as well -
+    score GHGRP against ``allocated_Mt`` alone and natural gas distribution
+    reads 160x on its own fugitives. But carrying ``direct_Mt`` on both sides
+    only makes the totals commensurable. It does **not** make the facility
+    union a candidate replacement for the part the inventory assigned itself,
+    and this table is the measurement of how far it is from one.
+
+    GHGRP subpart C is stationary fuel combustion and every other subpart is
+    process or fugitive, so each half scores against the half of the inventory
+    it corresponds to:
+
+    ``C_vs_table_3_11``
+        combustion against combustion, no process mass on either side. Subpart
+        C is threshold-limited, so it is a **floor**: above 1 the current
+        method allocates less than the sector's own facilities reported and
+        there is no boundary question left to argue. **The only column here
+        that settles direction.**
+    ``other_vs_direct``
+        every other subpart against what the inventory assigned the sector
+        itself. In aggregate this lands near 1, but that is offsetting errors -
+        per sector it ran 0.00 to 17.35 in 2022, because the two inventories
+        draw the process boundary in different places. A flag for
+        investigation, never a verdict.
+        `#953 <https://github.com/cornerstone-data/bedrock/issues/953>`_.
+
+    ⚠️ Two sectors reverse against the total ratio, both against the basis.
+    Petrochemicals scores 0.39 on the total and 1.00 here, because a third of
+    its allocated mass is vector-placed *non-combustion* that subpart C was
+    never going to match. Cement scores 0.04 because a kiln reports its fuel
+    under subpart H alongside its calcination, which is the artefact
+    :func:`facility_union` widens the comparison to avoid.
+
+    *floor* is one year of :func:`ghgrp_subpart_C`. Its NAICS-to-BEA resolution
+    is the one :func:`facility_union` uses - equal sector by sector in 2022 -
+    so the non-combustion half is the union's own GHGRP total less this, and
+    never goes negative.
+    """
+    if 'table_3_11_Mt' not in basis:
+        raise ValueError(
+            'D15b needs the table 3-11 subtotal, so D15 has to be built with '
+            'its optional *detail* argument.'
+        )
+    out = basis.set_index('sector').copy()
+    ghgrp = facility[facility['source'] == 'GHGRP']
+    out['ghgrp_Mt'] = (ghgrp.groupby('sector')['CO2e'].sum() / 1e9).reindex(
+        out.index, fill_value=0.0
+    )
+    out['ghgrp_C_Mt'] = floor.reindex(out.index).fillna(0.0)
+    out['ghgrp_other_Mt'] = (out['ghgrp_Mt'] - out['ghgrp_C_Mt']).clip(lower=0.0)
+
+    out['C_vs_table_3_11'] = out['ghgrp_C_Mt'] / out['table_3_11_Mt'].replace(
+        0.0, np.nan
+    )
+    out['other_vs_direct'] = out['ghgrp_other_Mt'] / out['direct_Mt'].replace(
+        0.0, np.nan
+    )
+    # Above the floor on the like-for-like half: the current method allocates
+    # less combustion than the sector's own facilities reported under a
+    # threshold-limited programme. Nothing about the process boundary can
+    # explain this one away.
+    out['breaches_floor'] = out['ghgrp_C_Mt'] > out['table_3_11_Mt']
+
+    columns = [
+        'name',
+        'table_3_11_Mt',
+        'direct_Mt',
+        'allocated_Mt',
+        'ghgrp_C_Mt',
+        'ghgrp_other_Mt',
+        'C_vs_table_3_11',
+        'other_vs_direct',
+        'breaches_floor',
+        'in_scope',
+    ]
+    return (
+        out.reset_index()[['sector', *columns]]
+        .sort_values(['in_scope', 'table_3_11_Mt'], ascending=[False, False])
+        .reset_index(drop=True)
+    )
 
 
 def report(
@@ -2818,6 +2906,9 @@ def main(
         tables['facility_basis'] = facility_basis_comparison(
             span, facility, detail_real
         )
+        tables['facility_scope_split'] = facility_scope_split(
+            tables['facility_basis'], facility, floor[basis_year]
+        )
         derived = facility[facility['fuel_class'] == 'facility_derived']
         logger.info(
             'D15 %d: %.1f Mt over %d facilities in %d jurisdictions, of which %.1f '
@@ -2840,6 +2931,29 @@ def main(
             )
             .round(1)
             .to_string(),
+        )
+        scope = tables['facility_scope_split'].query('in_scope')
+        breach = scope[scope['breaches_floor'] & (scope['table_3_11_Mt'] > 0)]
+        logger.info(
+            'D15b %d: the two halves of the D15 ratio, in scope. Combustion, '
+            'table 3-11 %.1f Mt vs subpart C %.1f Mt (%.2f). Process, Direct '
+            '%.1f Mt vs every other subpart %.1f Mt (%.2f) - but that aggregate '
+            'is offsetting errors, and per sector the process half runs %.2f to '
+            '%.2f, so the union is no replacement for Direct (#953). On the '
+            'like-for-like half %d sectors allocate less combustion than their '
+            'own facilities reported: %.0f Mt against %.0f Mt.',
+            basis_year,
+            scope['table_3_11_Mt'].sum(),
+            scope['ghgrp_C_Mt'].sum(),
+            scope['ghgrp_C_Mt'].sum() / scope['table_3_11_Mt'].sum(),
+            scope['direct_Mt'].sum(),
+            scope['ghgrp_other_Mt'].sum(),
+            scope['ghgrp_other_Mt'].sum() / scope['direct_Mt'].sum(),
+            scope.loc[scope['direct_Mt'] > 1.0, 'other_vs_direct'].min(),
+            scope.loc[scope['direct_Mt'] > 1.0, 'other_vs_direct'].max(),
+            len(breach),
+            breach['table_3_11_Mt'].sum(),
+            breach['ghgrp_C_Mt'].sum(),
         )
         intermittent = tables['combustion_floor_test'].query(
             'verdict == "intermittent"'
