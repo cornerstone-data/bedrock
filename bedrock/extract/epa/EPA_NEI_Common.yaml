@@ -35,7 +35,10 @@ col_dict:
         "FlowName": "pollutant desc"
         "FlowAmount": "total emissions"
         "ActivityProducedBy": "scc"
-        "Location": "geo code"
+        # The county-by-SCC extracts for 2017 and 2020 both name this column
+        # "fips code"; "geo code" matched no column and raised KeyError in
+        # epa_nei_global_parse after the full 145 MB download.
+        "Location": "fips code"
         "Unit": "emissions uom"
         "Description": "pollutant code"
     '2020': *col_dict_2017
