@@ -9,28 +9,28 @@ from bedrock.utils.schemas.base_schemas import (
 
 
 class UMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for CEDA v7 U (use) matrices used by ``derive_2017_*`` accounting.
+    """Legacy single-region U schema (sector × sector).
 
-    Cornerstone U uses ``CornerstoneUMatrix`` (commodity × industry).
+    Live Cornerstone U uses ``CornerstoneUMatrix`` (commodity × industry).
     """
 
     # TODO: add a check that values are within expectations
 
 
 class VMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for CEDA v7 V (make) matrices used by ``derive_2017_*`` accounting.
+    """Legacy single-region V schema (sector × sector).
 
-    Cornerstone V uses ``CornerstoneVMatrix`` (industry × commodity).
+    Live Cornerstone V uses ``CornerstoneVMatrix`` (industry × commodity).
     """
 
     # TODO: add a check that values are within expectations
 
 
 class AMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for CEDA v7 A matrices (legacy square sector × sector).
+    """Legacy single-region A schema (square sector × sector).
 
     Live Cornerstone A uses ``CornerstoneAMatrix``; callers that hold Cornerstone
-    frames cast around this type rather than running CEDA v7 Pandera validation.
+    frames cast around this type rather than running this Pandera validation.
     """
 
     # TODO: add a check that values are between 0 and 1

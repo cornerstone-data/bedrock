@@ -44,14 +44,14 @@ logger = logging.getLogger(__name__)
 #
 # Sources of truth:
 #   Waste:       taxonomy/cornerstone/commodities.py  → WASTE_DISAGG_COMMODITIES
-#   Appliance:   taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (335220 → 4 codes)
-#   Aluminum:    taxonomy/mappings/bea_v2017_commodity__bea_ceda_v7.py  (33131B → 331313)
+#   Appliance:   BEA 2017 keeps 335220; historical CEDA baselines split to 335221/2/4/8
+#   Aluminum:    BEA/Cornerstone 33131B; historical CEDA baselines use 331313
 #   Electricity: schemas/cornerstone_schemas.py  (221100 → 221110/221121/221122)
 # ---------------------------------------------------------------------------
-# Appliances: old has 4 codes (see bea_v2017_commodity__bea_ceda_v7); new aggregates to 335220
+# Appliances: old CEDA baselines have 4 codes; Cornerstone aggregates to 335220
 _APPLIANCE_OLD_CODES: ta.List[str] = ['335221', '335222', '335224', '335228']
 _APPLIANCE_NEW_CODE = '335220'
-# Aluminum: old has 331313 only; new may split into 331313 + 33131B
+# Aluminum: old CEDA baselines have 331313 only; Cornerstone may split 331313 + 33131B
 _ALUMINUM_OLD_CODE = '331313'
 _ALUMINUM_NEW_EXTRA_CODE = '33131B'
 # Diagnostics-only sector names for electricity disaggregation children (not in COMMODITY_DESC).

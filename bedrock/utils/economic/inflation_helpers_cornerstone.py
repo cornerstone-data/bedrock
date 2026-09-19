@@ -1,10 +1,10 @@
 """Cornerstone-specific inflation helpers.
 
-Mirrors inflate_to_target_year.py but reindexes the CEDA v7 price index to
-cornerstone codes (405 base taxonomy; 407 when electricity is disaggregated).
+Reindexes the BEA industry price index to Cornerstone codes (405 base taxonomy;
+407 when electricity is disaggregated).
 
-Codes that exist only in cornerstone and were disaggregated from a CEDA v7 parent
-(e.g. waste 562111 ← 562000) inherit the parent's price ratio.  Codes with no
+Codes that exist only in Cornerstone and were disaggregated from a BEA parent
+(e.g. waste 562111 ← 562000) inherit the parent's price ratio. Codes with no
 identifiable parent (e.g. S00402 used goods) receive a neutral ratio of 1.0.
 
 Under ``apply_io_year_adjustments``, industry price ratios stay on the industry
@@ -70,13 +70,12 @@ _StrKey = ta.TypeVar("_StrKey", bound=str)
 
 
 @functools.cache
-def _cornerstone_to_ceda_v7_parent() -> dict[str, str]:
-    """Map cornerstone-only codes back to their CEDA v7 parent for price lookup.
+def _cornerstone_to_bea_price_parent() -> dict[str, str]:
+    """Map Cornerstone-only codes back to their BEA 2017 parent for price lookup.
 
-    Built from the BEA 2017 → cornerstone commodity mapping.  For any BEA code
-    that maps to multiple cornerstone codes, each child inherits the BEA code
-    (which is also the CEDA v7 code) as its price-index parent.  1:1 mapped
-    codes already exist in the CEDA v7 index and need no override.
+    Built from the BEA 2017 → Cornerstone commodity mapping. For any BEA code
+    that maps to multiple Cornerstone codes, each child inherits the BEA code
+    as its price-index parent. 1:1 mapped codes need no override.
     """
     mapping = load_bea_v2017_commodity_to_cornerstone_commodity()
     parent: dict[str, str] = {}
@@ -113,7 +112,7 @@ def get_cornerstone_industry_price_ratio(
     or industries-elec when electricity is disaggregated). Otherwise: cornerstone
     **commodity** codes (legacy positional ``diag(p) @ A`` alignment).
 
-    Cornerstone-only child codes (e.g. waste subsectors) inherit their CEDA v7
+    Cornerstone-only child codes (e.g. waste subsectors) inherit their BEA
     parent's price ratio so that inflation is applied consistently.
     """
     cfg = get_usa_config()
@@ -128,11 +127,11 @@ def get_cornerstone_industry_price_ratio(
         target_codes = CORNERSTONE_COMMODITIES
     pi_ratio: pd.Series[float] = price_index[target_year] / price_index[original_year]
 
-    # Start with direct reindex (codes shared with CEDA v7 get their own ratio)
+    # Start with direct reindex (codes shared with BEA detail get their own ratio)
     ratio = pi_ratio.reindex(target_codes, fill_value=np.nan)
 
-    # Fill cornerstone-only children with their CEDA v7 parent's ratio
-    parent_map = _cornerstone_to_ceda_v7_parent()
+    # Fill Cornerstone-only children with their BEA parent's ratio
+    parent_map = _cornerstone_to_bea_price_parent()
     for child, parent_code in parent_map.items():
         if child in ratio.index and pd.isna(ratio[child]):
             if parent_code in pi_ratio.index:
@@ -719,7 +718,7 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
 
     pi_year: pd.Series[float] = price_index[year]
     series = pi_year.reindex(CORNERSTONE_INDUSTRIES).astype(float)
-    parent_map = _cornerstone_to_ceda_v7_parent()
+    parent_map = _cornerstone_to_bea_price_parent()
     for child, parent_code in parent_map.items():
         if (
             child in series.index
