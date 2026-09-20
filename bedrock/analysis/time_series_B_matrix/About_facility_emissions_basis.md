@@ -88,7 +88,7 @@ candidates. Every coverage figure below is the in-scope one.
 | inventory-assigned (`Direct`) | 524 | the inventory names the sector itself; counted, never improvable — §3 |
 | **total inventory, in scope** | **1,223** | |
 
-### How much of the allocated 720 Mt has facility data behind it
+### How much of the allocated 699 Mt has facility data behind it
 
 | facility coverage of the sector | sectors | vector-allocated Mt | share of allocated |
 |---|---:|---:|---:|
@@ -294,7 +294,7 @@ sector is over-allocated overall, and §5 does not depend on it.
 
 ---
 
-## 5. The case on smoothing, which is the one that matters
+## 5. The case on smoothing
 
 Accuracy in a single year is not what this project is for. `B` is rocky because
 the vector that splits emissions across sectors **moves between years**, so the
