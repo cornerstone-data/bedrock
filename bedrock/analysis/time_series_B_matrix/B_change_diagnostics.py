@@ -1964,9 +1964,36 @@ def facility_basis_comparison(
 def facility_scope_split(
     basis: pd.DataFrame, facility: pd.DataFrame, floor: pd.Series
 ) -> pd.DataFrame:
-    """**D15b.** The D15 ratio split into its combustion and process halves.
+    """**D15b.** What the inventory gives a sector, against what its own
+    facilities reported - as a total, and split into its two halves.
 
-    ⚠️ **D15's total ratio is a boundary comparison, not a replacement test.**
+    **Read** ``ghgrp_vs_inventory`` **first.** GHGRP only covers facilities over
+    25,000 tCO2e, so a sector's GHGRP total is a **floor** on what its
+    facilities emit. Where that floor clears the whole inventory assignment -
+    ``allocated_Mt`` and ``direct_Mt`` together - the sector is
+    **under-attributed**, and the statement survives every boundary objection
+    the half-ratios attract, because it assumes nothing about which subpart
+    answers which inventory table. ``under_attributed_Mt`` is the same finding
+    in Mt, which is the order to act in.
+
+    ⚠️ **A half-ratio above 1 does not imply under-attribution.** Fertilizer
+    runs 1.32 on the process half and 0.93 on the combustion half, and lands at
+    **0.85 on the total**; other basic inorganic chemicals run 1.05 and 0.38 and
+    land at **0.41**. Both are over-attributed on the process side and
+    under-covered overall. The correction runs the other way for cement, whose
+    process half of 1.61 is inflated because subpart H reports a kiln's fuel
+    together with its calcination - on the total it is **1.17**, and that is the
+    figure to quote.
+
+    ⚠️ **A large ratio is sometimes a reallocation between two sectors, not a
+    level error.** Petroleum refineries read 2.21 and oil and gas extraction
+    0.73; **together they read 1.04**. The inventory books the refining segment
+    of its petroleum systems tables to extraction - ``211000`` takes 56.4 Mt of
+    ``UMD_GHGIA_T_3_25`` and ``T_3_26`` where ``324110`` takes 3.55 - so check
+    the obvious counterpart sector before reading a ratio as a level.
+
+    ⚠️ **D15's own total ratio is a boundary comparison, not a replacement
+    test.**
     ``facility_Mt`` spans both the mass a vector placed and the mass the
     inventory assigned itself, so its denominator has to span both as well -
     score GHGRP against ``allocated_Mt`` alone and natural gas distribution
@@ -2030,13 +2057,29 @@ def facility_scope_split(
     # explain this one away.
     out['breaches_floor'] = out['ghgrp_C_Mt'] > out['table_3_11_Mt']
 
+    # The accuracy test, and the one to read first. GHGRP only covers
+    # facilities over 25,000 tCO2e, so a sector's GHGRP total is a FLOOR on
+    # what its facilities emit. Where that floor clears the whole inventory
+    # assignment - allocated and Direct together - the sector is
+    # under-attributed, and unlike either half-ratio the statement needs no
+    # assumption about which subpart answers which inventory table.
+    out['ghgrp_total_Mt'] = out['ghgrp_C_Mt'] + out['ghgrp_other_Mt']
+    out['ghgrp_vs_inventory'] = out['ghgrp_total_Mt'] / out['inventory_Mt'].replace(
+        0.0, np.nan
+    )
+    out['under_attributed_Mt'] = out['ghgrp_total_Mt'] - out['inventory_Mt']
+
     columns = [
         'name',
-        'table_3_11_Mt',
-        'direct_Mt',
         'allocated_Mt',
+        'direct_Mt',
+        'inventory_Mt',
+        'table_3_11_Mt',
         'ghgrp_C_Mt',
         'ghgrp_other_Mt',
+        'ghgrp_total_Mt',
+        'ghgrp_vs_inventory',
+        'under_attributed_Mt',
         'C_vs_table_3_11',
         'other_vs_direct',
         'breaches_floor',
@@ -2044,7 +2087,7 @@ def facility_scope_split(
     ]
     return (
         out.reset_index()[['sector', *columns]]
-        .sort_values(['in_scope', 'table_3_11_Mt'], ascending=[False, False])
+        .sort_values(['in_scope', 'ghgrp_vs_inventory'], ascending=[False, False])
         .reset_index(drop=True)
     )
 
