@@ -186,27 +186,7 @@ excursion.
 
 Always check the obvious counterpart sector before reading a ratio as a level.
 
-### Where GHGRP must not be used
-
-Substituting it where it sits below the inventory would delete real emissions —
-33 sectors, 363 Mt in 2022. The largest are petrochemicals −42.0, water and
-sewage −40.0, coal mining −35.7, other basic organic −15.4, plastics −15.0,
-other basic inorganic −13.0 and iron and steel −12.9. These stay on the GHGI.
-`211000` is the exception that proves the rule: its −82.1 is not under-coverage,
-it is the refinery mass it should not be holding.
-
-⚠️ **Water and sewage deserves its own line, because the obvious objection was
-checked rather than assumed.** Water utilities are largely state and local
-**government enterprises** — the reallocation plan puts $68,351m of `S00203`
-water output against $15,138m of private `221300`, making the merged sector 82%
-government — so a municipally owned plant could report under a government NAICS
-and never reach `221300`. It does not: facilities at NAICS 2213 report only
-subparts C and D in every year 2017-2022; GHGRP facilities *named* as water or
-wastewater operators total 12 facilities and 1.04 Mt across all NAICS; all
-GHGRP mass at NAICS 92xx is 3.21 Mt and is mostly military bases. Publicly
-owned treatment works are not a GHGRP source category whoever owns them.
-
-### The like-for-like half, where the combustion case lives
+### Split the comparison in two: combustion and process
 
 **D15b**, `facility_scope_split.csv`. GHGRP subpart C is stationary fuel
 combustion and every other subpart is process or fugitive, so each half scores
@@ -232,6 +212,88 @@ in-scope sectors the current method allocates less table 3-11 combustion than
 those sectors' own facilities reported: 184 Mt against 257 Mt**, a 72 Mt
 shortfall led by refineries (+38.7), iron and steel (+13.5), natural gas
 distribution (+8.4) and wet corn milling (+7.4).
+
+Both halves being floors is what makes the next section possible: each one can
+be ruled on separately.
+
+### ⚠️ The verdict is per half, not per sector
+
+**Both halves are threshold-limited, so both are floors**, and each gets its own
+test: subpart C against the table 3-11 allocation, and every other subpart
+against `Direct`. A sector can clear one floor and fall well short of the other,
+and most do — so there is no such thing as a sector where GHGRP "should not be
+used". There are sectors where it should not be used *for one part*.
+
+**Iron and steel is the case that makes the point.** On the total it reads 0.81,
+which looks like a sector to leave alone. Split:
+
+| | inventory | GHGRP floor | verdict |
+|---|---:|---:|---|
+| combustion — table 3-11 vs subpart C | 21.5 | 35.0 | **use it: +13.5 Mt under-allocated** |
+| process — `Direct` vs other subparts | 47.0 | 20.9 | leave it: GHGRP has 44% of it |
+
+The combustion half is one of the largest floor breaches in the model. A
+total-only verdict would have thrown it away.
+
+**Of the 210 in-scope sectors that sit below the inventory on the total, 7
+breach the combustion floor anyway, by 27 Mt** — iron and steel +13.5, natural
+gas distribution +8.4, water and sewage +4.8, and four smaller.
+
+Sectors with at least 4 Mt on either side, sorted by the combustion gap:
+
+| sector | table 3-11 | subpart C | **combustion** | `Direct` | other subparts | **process** |
+|---|---:|---:|---|---:|---:|---|
+| `324110` petroleum refineries | 76.1 | 114.8 | **use, +38.7** | 3.6 | 61.6 | **use, +58.1** |
+| `331110` iron and steel mills and ferroalloy manufacturing | 21.5 | 35.0 | **use, +13.5** | 47.0 | 20.9 | no, -26.2 |
+| `221200` natural gas distribution | 0.1 | 8.5 | **use, +8.4** | 30.5 | 14.8 | no, -15.6 |
+| `311221` wet corn milling | 7.4 | 14.8 | **use, +7.4** | 0.0 | 0.0 | — none |
+| `221300` water, sewage and other systems | 0.0 | 4.8 | **use, +4.8** | 44.1 | 0.0 | no, -44.1 |
+| `311300` sugar and confectionery product manufacturing | 4.1 | 4.6 | **use, +0.5** | 0.0 | 1.1 | — none |
+| `2123A0` other nonmetallic mineral mining and quarrying | 6.9 | 7.3 | **use, +0.4** | 0.0 | 1.4 | — none |
+| `327400` lime and gypsum product manufacturing | 10.8 | 11.0 | **use, +0.2** | 12.2 | 14.5 | **use, +2.3** |
+| `325190` other basic organic chemical manufacturing | 45.6 | 45.6 | no, 0.0 | 11.8 | 6.7 | no, -5.1 |
+| `325110` petrochemical manufacturing | 22.3 | 22.3 | no, -0.1 | 20.7 | 4.3 | no, -16.4 |
+| `334413` semiconductor and related device manufacturing | 1.0 | 0.8 | no, -0.2 | 5.2 | 0.3 | no, -5.0 |
+| `322120` paper mills | 12.8 | 12.5 | no, -0.3 | 0.0 | 3.6 | — none |
+| `325310` fertilizer manufacturing | 12.6 | 11.8 | no, -0.8 | 21.6 | 28.5 | **use, +6.9** |
+| `327200` glass and glass product manufacturing | 5.9 | 5.0 | no, -0.9 | 2.0 | 1.9 | no, -0.1 |
+| `33131B` aluminum product manufacturing from purchased aluminum | 4.3 | 2.0 | no, -2.3 | 0.0 | 0.0 | — none |
+| `325120` industrial gas manufacturing | 7.2 | 4.3 | no, -2.9 | 8.5 | 27.3 | **use, +18.8** |
+| `3259A0` all other chemical product and preparation manufacturing | 4.4 | 1.4 | no, -3.0 | 0.0 | 0.0 | — none |
+| `21311A` other support activities for mining | 4.3 | 0.5 | no, -3.8 | 0.7 | 8.1 | **use, +7.4** |
+| `332800` coating, engraving, heat treating and allied activities | 4.1 | 0.3 | no, -3.9 | 0.0 | 0.0 | — none |
+| `324121` asphalt paving mixture and block manufacturing | 4.2 | 0.0 | no, -4.2 | 0.0 | 0.0 | — none |
+| `312110` soft drink and ice manufacturing | 4.3 | 0.0 | no, -4.3 | 0.0 | 0.0 | — none |
+| `31161A` animal (except poultry) slaughtering, rendering, and processing | 7.0 | 2.7 | no, -4.4 | 0.0 | 0.8 | — none |
+| `322210` paperboard container manufacturing | 4.7 | 0.0 | no, -4.7 | 0.0 | 0.0 | — none |
+| `325510` paint and coating manufacturing | 5.9 | 0.0 | no, -5.9 | 0.0 | 0.0 | — none |
+| `325610` soap and cleaning compound manufacturing | 6.5 | 0.3 | no, -6.2 | 0.0 | 0.0 | — none |
+| `322130` paperboard mills | 17.8 | 11.2 | no, -6.6 | 0.0 | 4.7 | — none |
+| `212100` coal mining | 8.3 | 0.2 | no, -8.1 | 55.4 | 28.0 | no, -27.4 |
+| `325180` other basic inorganic chemical manufacturing | 14.9 | 5.6 | no, -9.3 | 3.3 | 3.5 | **use, +0.2** |
+| `325211` plastics material and resin manufacturing | 29.5 | 16.4 | no, -13.0 | 0.0 | 3.7 | — none |
+| `327310` cement manufacturing | 15.9 | 0.6 | no, -15.3 | 41.9 | 67.3 | **use, +25.4** |
+| `211000` oil and gas extraction | 90.1 | 46.7 | no, -43.3 | 211.9 | 174.4 | no, -37.5 |
+
+⚠️ **A "no" on the combustion half has two possible causes and they are not the
+same finding.** Either GHGRP genuinely under-covers the sector's combustion, or
+a process subpart is reporting the fuel and subpart C never sees it. Cement is
+the proven second case — subpart H carries the kiln's fuel with its calcination,
+which is why it reads −15.3 on combustion and +25.4 on process. Read a
+combustion "no" as *do not substitute here*, never as *the inventory is right*.
+
+⚠️ **Water and sewage deserves its own line, because the obvious objection was
+checked rather than assumed.** Water utilities are largely state and local
+**government enterprises** — the reallocation plan puts $68,351m of `S00203`
+water output against $15,138m of private `221300`, making the merged sector 82%
+government — so a municipally owned plant could report under a government NAICS
+and never reach `221300`. It does not: facilities at NAICS 2213 report only
+subparts C and D in every year 2017-2022; GHGRP facilities *named* as water or
+wastewater operators total 12 facilities and 1.04 Mt across all NAICS; all
+GHGRP mass at NAICS 92xx is 3.21 Mt and is mostly military bases. Publicly
+owned treatment works are not a GHGRP source category whoever owns them — which
+is why its process half is 0.00 while its combustion half still clears by
+4.8 Mt.
 
 ## 3. ⚠️ What a facility basis can and cannot do to `Direct`
 
@@ -373,7 +435,10 @@ it is steadier in only 17 of 25 sectors.** That average hides the finding:
 | middle, 0.6-1.0 — 8 sectors | — | — | — | 0.74x |
 | **GHGRP well below, under 0.6** — 9 sectors | 282 | 4.3% | 6.1% | **1.42x — worse** |
 
-Mass-weighted. **The accuracy test predicts the stability gain.** Where GHGRP
+Mass-weighted, and ⚠️ **grouped on the total, which is the coarser cut** — the
+per-half verdict above splits several of these sectors. The statement here is
+about substituting a sector's whole number, which is the case the grouping
+describes. **The accuracy test predicts the stability gain.** Where GHGRP
 reports more than the inventory assigns, it is also markedly steadier — 0.41x,
 and refineries alone go from 5.9% to **0.84%**. Where GHGRP falls well short it
 is *less* stable, because a partial, threshold-limited sample of a sector jumps
