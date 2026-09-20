@@ -65,10 +65,26 @@ compared against everything the inventory assigns the sector.
 ## 2. What the facilities say, against what the inventory assigns
 
 **Scope: mining, utilities and manufacturing** — BEA detail codes beginning 21,
-22 and 31-33, 233 sectors. These are the industries whose emissions happen at a
-plant somebody reports. Everything else a vector currently places — government
-buildings, livestock, trucking, real estate — is mobile, biological or diffuse,
-and no facility reports it because none emits it.
+22 and 31-33, 233 sectors. These are the industries whose *fuel combustion*
+happens at a plant somebody reports, and the scope was drawn for the combustion
+case.
+
+⚠️ **It is too narrow for the attribution case, and two large sectors are
+outside it.** `562212` solid waste landfill carries 127.0 Mt of directly
+attributed inventory against **96.3 Mt of facility-reported landfill CH4**, and
+`486000` pipeline transportation carries 115.5 Mt — all of it `Direct` —
+against **67.0 Mt** of GHGRP. **197.9 Mt of GHGRP mass sits outside this
+scope**, none of it electric power, which is excluded separately for eGRID.
+Waste is additionally invisible rather than merely out of scope: the
+NAICS-to-BEA lookup collapses `562212` onto a `562000` the emissions panel does
+not carry, because the model disaggregates waste past BEA's single code and
+gives the MUTs that finer resolution. GHGRP's own facility NAICS already
+matches the model's codes, so the fix is the lookup.
+[#955](https://github.com/cornerstone-data/bedrock/issues/955).
+
+Within the scope as drawn, everything a vector places that is *not* here —
+government buildings, livestock, trucking, real estate — is mobile, biological
+or diffuse, and no facility reports it.
 
 ⚠️ Two sectors are excluded from *both* sides of the comparison: `221100`
 electric power, which runs on eGRID in this model and is filtered out of the
@@ -480,7 +496,7 @@ to be fixed before the levels are trusted.
 ## 7. Prerequisites for implementation
 
 Tracked on
-[**Facility-based fuel combustion GHGs**](https://github.com/orgs/cornerstone-data/projects/34),
+[**Integrate facility-reported GHGs for attribution**](https://github.com/orgs/cornerstone-data/projects/34),
 which feeds
 [B Smoothing Phase 1](https://github.com/orgs/cornerstone-data/projects/31)
 through a single issue:
@@ -520,11 +536,17 @@ so §5's churn comparison could be stated for every year the model produces.
 |---|---|---|
 | [#929](https://github.com/cornerstone-data/bedrock/issues/929) | Build a **new** facility-based GHG FBS alongside the existing one | ⚠️ The current method must keep running. Every before-and-after number here compares against it, and §5's claim is only checkable while both series can be built from the same code on the same span |
 | [#930](https://github.com/cornerstone-data/bedrock/issues/930) | Preserve facility location for a future state-level model | Not needed nationally; nearly free now and expensive to retrofit |
+| [#955](https://github.com/cornerstone-data/bedrock/issues/955) | Admit waste and pipelines to the scope, and fix the waste NAICS mapping | 197.9 Mt of GHGRP sits outside 21/22/31-33. `562212` maps onto a `562000` the model does not carry, so every waste facility drops on the floor despite GHGRP matching the model's own codes |
 
 ### ⚠️ Not a prerequisite, and not a backlog
 
 The 208 sectors with no facility data — 1,410 Mt across all sectors, 67%
-of what a vector places — are government, agriculture, trucking and buildings.
-They stay on the Use row, which is also where MECS never reached. No facility
-reports them because none emits them. In the mining, utilities and manufacturing
-scope this basis is for, the equivalent figure is **7% of allocated mass**.
+of what a vector places — are largely government, agriculture, trucking and
+buildings. They stay on the Use row, which is also where MECS never reached. In
+the mining, utilities and manufacturing scope this basis is for, the equivalent
+figure is **7% of allocated mass**.
+
+⚠️ **"No facility reports them" is not true of all of them.** Waste and
+pipelines are both facility-reported and both outside the scope as drawn — see
+§2 and [#955](https://github.com/cornerstone-data/bedrock/issues/955). This
+paragraph covers the genuinely diffuse remainder, not everything excluded.
