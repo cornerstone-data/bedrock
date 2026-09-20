@@ -3,27 +3,25 @@
 What happens if the sector split for industrial emissions comes from facilities
 that reported them, instead of from a purchase row or a survey share.
 
-⚠️ **This is not only about fuel combustion.** It began as a question about the
-table 3-11 combustion split, and the combustion case is still §5's. But a
-facility reports its combustion, its process units and its fugitives as one
-number, and scoring that against everything the inventory gives the sector
-turned up a **second, larger finding about the process and fugitive mass the
-inventory assigns directly** — §2. The two are separable and are kept separate
-below, because they have different remedies.
+Industrial emissions reach a sector two ways in this model, and **this note
+examines both**. Fuel combustion is spread across sectors by a vector — MECS
+survey shares, or a row of the nowcast Use table. Process and fugitive emissions
+are attributed directly: the inventory names the sector itself. 699 Mt and
+524 Mt respectively, in scope, in 2022. A facility reports all of it as one
+number, which makes both testable against the same evidence.
+
+There are two findings, they are separable, and they have different remedies.
+**§2 is the larger one: 23 sectors are under-attributed by 145 Mt** against a
+measured floor, and the single biggest case is a misallocation of refinery mass
+to oil and gas extraction. **§5 is the original one: the combustion vector
+reshuffles two and a half times as much between years as a facility basis
+would**, which is what makes `B` rocky.
 
 Measured with **D15** and **D15b** in `B_change_diagnostics.py`
 (`--facility-data`), against the production basis on FBS `v0.3.0_99655e9` and
 MUT `v0.3.0_4276083`. The facility union is bounded at 2022 by NEI; the
 GHGRP-only comparisons in §2 run the full 2017-2024 span.
 
-⚠️ **Restated on the published build.** This note first quoted
-`v0.3.0_796a6ca`, a local-only build off a commit no ref reaches, which the
-span vintage resolver picked because it ranked candidates on file mtime. That
-is the defect #912 turned out to be, fixed in `6e6a5947`. The facility side is
-GHGRP and NEI and a build vintage cannot touch it — every facility-only figure
-below was re-measured and came back identical. What moved is our own
-allocation, and with it every comparison against it. Two findings reversed and
-say so in place.
 Driver context is in [`B_driver_investigation.md`](B_driver_investigation.md);
 the diagnostic register is in
 [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
@@ -77,10 +75,10 @@ electric power, which runs on eGRID in this model and is filtered out of the
 facility union by construction, and `F01000` personal consumption, which has no
 gross output and is outside this module entirely.
 
-⚠️ **Scoring the basis across every sector measures the boundary, not the basis.**
-In scope it reaches 93% of the allocated mass; across all 393 sectors it reaches
-33%, and the difference is entirely sectors that were never candidates. An
-earlier version of this note quoted the unscoped figure without saying so.
+⚠️ **Scoring the basis across every sector would measure the boundary, not the
+basis.** In scope it reaches 93% of the allocated mass; across all 393 sectors
+it reaches 33%, and the difference is entirely sectors that were never
+candidates. Every coverage figure below is the in-scope one.
 
 ### What is in scope, and which part of it is even improvable
 
@@ -183,8 +181,8 @@ mechanism is visible in the source tables: `211000`'s `Direct` carries 56.4 Mt
 of `UMD_GHGIA_T_3_25` and `T_3_26` — the GHGI's petroleum systems tables — while
 `324110` receives 3.55 Mt from those same two. **The refining segment of
 petroleum systems is being attributed to extraction.** Refineries hold at
-+95 to +111 Mt in every year 2017-2024, so this is neither a vintage artefact
-nor a single-year excursion.
++95 to +111 Mt in every year 2017-2024, so this is not a single-year
+excursion.
 
 Always check the obvious counterpart sector before reading a ratio as a level.
 
@@ -241,9 +239,9 @@ distribution (+8.4) and wet corn milling (+7.4).
 `Direct`-attributed** — the inventory names the sector itself, with no Use row,
 no MECS and no vector in between.
 
-⚠️ **An earlier version of this note said a facility basis "cannot improve an
-assignment that was never derived". That is half right and the half it misses
-is the larger finding.** A facility basis cannot *re-derive* a `Direct` row —
+⚠️ **"A facility basis cannot improve an assignment that was never derived" is
+half right, and the half it misses is the larger finding.** A facility basis
+cannot *re-derive* a `Direct` row —
 there is no vector to replace, and GHGRP does not report most of what the
 inventory books directly, so it cannot supply the level either (§2, and
 [#953](https://github.com/cornerstone-data/bedrock/issues/953)). What it can do
@@ -259,13 +257,9 @@ what it can *relocate*.
 The columns are therefore kept apart, and `allocated_Mt` is the one to rank on
 for the combustion case: across
 the 3,461 Mt the widened comparison covers, 2,102 Mt is vector-allocated and
-improvable; 1,359 Mt is already `Direct` and is not. ⚠️ These three totals are
-the *only* figures in this note the vintage barely moved, and the reason is
-instructive: the retired build differs from the published one purely by
-redistributing emissions across sectors, so every national total is the same to
-within a rounding step while every per-sector split changed.
-Widening the *comparison* was necessary to stop scoring kilns against the wrong
-denominator. It does not widen what is on offer.
+1,359 Mt is already `Direct`. Widening the *comparison* was necessary to stop
+scoring kilns against the wrong denominator; it does not by itself widen what is
+on offer.
 
 ---
 
@@ -278,8 +272,7 @@ largest oscillating cell in the B panel:
    only covers facilities over the reporting threshold. In 2020 the current basis
    allocates oil and gas extraction **37.7 Mt where its own facilities reported
    46.5 Mt** — 1.23x below a floor. 2017 breaches it too, and harder, at 0.66.
-   ⚠️ The retired build put 2020 at 8.6 Mt, a factor of 5.4 below. The breach is
-   real in both, but it is a modest one, not a fivefold one.
+   The breach is real but modest: a factor of 1.2, not of 5.
 2. **Its driver is a coefficient nothing corroborates.** Purchases of refined
    petroleum per $100 of the sector's own gross output run 0.85 → 2.64 → 1.69,
    a 3.11x rise at the 98th percentile of that Use row, against a median buyer
@@ -289,20 +282,15 @@ largest oscillating cell in the B panel:
    holds 44.9-48.4 Mt across 2017-2024, a **1.08x span**, while the current basis
    spans **3.05x**.
 
-⚠️ **The fourth check reversed and is withdrawn.** This note previously added
-that the facility basis marks the sector **down 4.6 percentage points** of
-share, reading it as a fourth line of evidence pointing the same way as the
-other three. On the published build `share_shift_pp` for `211000` is
-**+1.81 pp** — the facility basis would give the sector *more* share, not less.
-
-That is not a contradiction of the three checks above, and it is worth being
-precise about why: they compare our allocation against subpart C, which is
+⚠️ **There is no fourth line of evidence here, and it is worth saying why.**
+`share_shift_pp` for `211000` is **+1.81 pp** — against the full facility union
+the basis would give the sector *more* share, not less, which reads at first as
+a contradiction of the three checks above. It is not. They compare our allocation against subpart C, which is
 combustion only and threshold-limited, while the share shift compares it against
 the full facility union of 256 Mt, which includes the process units GHGRP books
 under other subparts. The three checks say the sector's fuel combustion is
-allocated erratically and sometimes below a measured floor. They never said the
-sector was over-allocated overall, and the share shift never supported that
-reading on this build. The case in §5 does not depend on it.
+allocated erratically and sometimes below a measured floor. They do not say the
+sector is over-allocated overall, and §5 does not depend on it.
 
 ---
 
@@ -324,23 +312,18 @@ allocated mass and facility data in at least one year of the span.
 | 2022 | 10.0 pp | **4.1 pp** | 0.41 |
 | **median** | **10.0 pp** | **4.1 pp** | **0.41x** |
 
-⚠️ **The facility column is unchanged from the retired build** — 3.9, 4.3, 5.6,
-3.7, 4.1 against 3.9, 4.3, 5.6, 3.8, 4.1 — which is the check that this measure
-behaves: the facility basis is external data and should not move when our build
-does. The current basis column fell throughout, so the headline weakens.
-
-**The facility basis reshuffles about two fifths as much**, not the quarter this
-note first claimed, and the gap is still widest exactly where the B panel hurts
-most.
+**The facility basis reshuffles about two fifths as much**, and the gap is
+widest exactly where the B panel hurts most. ⚠️ The facility column is external
+data, which makes it the control on this measure: it should not move when our
+own build does, and it does not.
 
 ⚠️ **Look at 2020 and 2021.** The current basis reshuffles 11.9 and 24.0
 percentage points; the facility basis reshuffles 5.6 and 3.7, which is what it
 does in every other year. Tracker row 9 attributes the 2021 spike to the COVID
 rebound and reads it as a real event not to be smoothed. Against a facility
 series that barely moves through the same two years, **most of that spike is the
-allocation vector, not the pandemic** — 2021 remains the year with the widest
-gap between the two bases, by a clear margin, on the published build as on the
-retired one. Emissions at those facilities did not
+allocation vector, not the pandemic** — 2021 is the year with the widest gap
+between the two bases by a clear margin. Emissions at those facilities did not
 reshuffle; the purchase rows and survey shares used to place them did.
 
 ### Per sector, on levels rather than shares — and the two tests agree
