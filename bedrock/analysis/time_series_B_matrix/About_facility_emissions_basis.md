@@ -276,6 +276,14 @@ scope this basis is for, the equivalent figure is **6% of allocated mass**.
 
 ## 8. Lease and plant fuel: what subpart W says that subpart C cannot (#927)
 
+⚠️ **Where the code lives.** This is pipeline data, not a diagnostic, so it does
+not sit in `B_change_diagnostics.py`. The two views are acquired and cached by
+[`bedrock/extract/epa/EPA_GHGRP_SubpartW.py`](../../extract/epa/EPA_GHGRP_SubpartW.py)
+and classified by
+[`bedrock/transform/ghg/ghgrp_subpart_w.py`](../../transform/ghg/ghgrp_subpart_w.py);
+D14 and D15 are consumers of both, and so is the facility-based FBS when #929
+builds it.
+
 `fuel_class` began as byproduct gas alone — refinery still gas, coke oven gas,
 blast furnace gas — read off NEI's process-gas SCCs. That left the larger half of
 the same defect invisible. **An oil and gas producer burning its own field gas is

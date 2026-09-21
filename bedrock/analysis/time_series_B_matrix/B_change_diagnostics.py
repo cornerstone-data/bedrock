@@ -99,21 +99,17 @@ from __future__ import annotations
 
 import argparse
 import functools
-import io
 import logging
-import os
 import re
 import subprocess
-import zipfile
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import facilitymatcher
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import stewi
-from esupy.remote import make_url_request
 
 from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
 from bedrock.transform.eeio.derived_cornerstone import (
@@ -121,10 +117,10 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
 )
+from bedrock.transform.ghg import ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
-from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.math.formulas import compute_L_matrix
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
@@ -1539,334 +1535,11 @@ def ghgrp_subpart_C(years: tuple[int, ...]) -> pd.DataFrame:
 
 
 # --- D14b: the subpart W half of the combustion floor (#927) ---------------
-
-#: Envirofacts, the service holding the GHGRP's reported tables. ``stewi`` reads
-#: the same service, but only imports the tables its inventory needs, and the
-#: two views below are not among them - so this module goes to it directly.
-ENVIROFACTS_URL = 'https://data.epa.gov/efservice'
-
-#: The view holding subpart W combustion: one row per combustion unit type and
-#: fuel, carrying the facility, reporting year, industry segment, fuel type,
-#: **quantity of fuel burned**, unit of measure, and CO2, CH4 and N2O. It is the
-#: subpart W counterpart of ``C_FUEL_LEVEL_INFORMATION``.
-GHGRP_W_COMBUSTION_VIEW = 'ef_w_combust_large_units'
-
-#: The view naming every subpart W reporter's industry segment. Needed for the
-#: segments that report their combustion under subpart C instead, where the fuel
-#: label cannot say whether the fuel was bought - see
-#: :func:`ghgrp_self_supplying_facilities`.
-GHGRP_W_FACILITY_VIEW = 'ef_w_facility_overview'
-
-#: Reporting years taken from the FOIA'd Envirofacts export rather than the API.
-#: EPA stopped publishing after 2023 so 2024 exists nowhere else, and taking the
-#: whole 2019-2024 block from it keeps one vintage across those years instead of
-#: splicing two. 2017 and 2018 are before the export's first year, so they come
-#: from the API, which still serves this view (#927).
-GHGRP_ARCHIVE_YEARS: tuple[int, ...] = tuple(range(2019, 2025))
-
-#: Environment variable naming the FOIA'd export - the same one ``stewi`` takes
-#: its ``-A`` argument from (#931).
-GHGRP_ARCHIVE_ENV = 'GHGRP_EF_VIEWS_ARCHIVE'
-
-#: Subpart W fuel labels naming gas the facility did not buy: field gas, process
-#: gas, and any gas that is **not of pipeline quality** - off-spec gas cannot be
-#: taken delivery of from a pipeline, so it came out of the ground on site. This
-#: is the reporter's own word for the fuel, not an inference from the sector,
-#: which is what makes subpart W able to answer #927 where subpart C cannot.
-SELF_SUPPLIED_FUEL = re.compile(
-    r'field gas|process gas|process vent gas|not (?:of )?pipeline quality',
-    re.IGNORECASE,
-)
-
-#: Biogenic fuels, dropped for the reason :data:`GHGRP_FLOW_MAP` drops biogenic
-#: CO2: the GHG inventory books it separately, so counting it here would compare
-#: a fossil allocation against a fossil-plus-biogenic floor. 0.1 Mt over the
-#: span, all of it landfill gas and biodiesel at gathering sites.
-BIOGENIC_FUEL = re.compile(r'^biomass fuels', re.IGNORECASE)
-
-#: Plausible t CO2 per thousand standard cubic feet of gas burned. Pipeline
-#: natural gas is 0.0544 and field gas sits near it, so a row outside this band
-#: is a **unit-entry error**, not a different fuel: a few reporters enter scf
-#: where the form asks for Mscf, and one 2023 basin row reads 23,533 Bcf against
-#: 1.69 Mt of CO2. The emissions columns are unaffected, so the screen applies
-#: to volumes only - see :func:`ghgrp_subpart_W_combustion`.
-W_GAS_FACTOR_BAND = (0.02, 0.15)
-
-#: The subpart W industry segments whose fuel is self-supplied by the nature of
-#: the operation, even though they report combustion under subpart C where the
-#: fuel label says pipeline natural gas.
-#:
-#: A gas processing plant burns the stream it is processing - that is what EIA
-#: calls **plant fuel** - and 234.7 of the 236.1 Mt of CO2 those plants reported
-#: over 2019-2024 is labelled ``Natural Gas (Weighted U.S. Average)``, the
-#: default emission factor, against 1.15 Mt labelled ``Fuel Gas``. The label is
-#: a factor choice, not a procurement statement, so the classification has to
-#: come from **what the facility is** rather than from what it wrote.
-#:
-#: ⚠️ This one is an **inference**, unlike the lease-fuel side, and it is
-#: labelled as such in ``fuel_class_basis``. Transmission compression is
-#: deliberately absent: a compressor station burns gas out of the pipeline it is
-#: moving, which is a purchase somewhere in the chain, and EIA books it as
-#: pipeline fuel rather than as lease or plant fuel.
-SELF_SUPPLYING_SEGMENTS = ('Onshore natural gas processing',)
-
-
-def _ghgrp_archive() -> Path | None:
-    """The FOIA'd Envirofacts export, if this machine has it."""
-    named = os.environ.get(GHGRP_ARCHIVE_ENV)
-    if not named:
-        return None
-    path = Path(named)
-    return path if path.is_file() else None
-
-
-def _ghgrp_view_from_archive(view: str, year: int) -> pd.DataFrame | None:
-    """One Envirofacts view for one year, read out of the FOIA'd export.
-
-    The export holds every reporting year it covers in one CSV per view, so the
-    year filter happens here rather than in the file name.
-    """
-    archive = _ghgrp_archive()
-    if archive is None:
-        return None
-    with zipfile.ZipFile(archive) as bundle:
-        members = [
-            name
-            for name in bundle.namelist()
-            if PurePosixPath(name).name.lower() == f'{view}.csv'
-        ]
-        if not members:
-            raise FileNotFoundError(
-                f'{view}.csv is not in {archive.name}. The export holds 387 '
-                f'views; check the name against its listing.'
-            )
-        with bundle.open(members[0]) as handle:
-            frame = pd.read_csv(handle, low_memory=False, encoding_errors='replace')
-    frame.columns = frame.columns.str.upper()
-    served = pd.to_numeric(frame['REPORTING_YEAR'], errors='coerce')
-    wanted = frame[served == year]
-    # An export that does not reach this year is the same situation as no export
-    # at all - say nothing, and let the caller fall through to the API.
-    return wanted.copy() if not wanted.empty else None
-
-
-def _ghgrp_view_from_api(view: str, year: int) -> pd.DataFrame:
-    """One Envirofacts view for one year, downloaded whole.
-
-    ⚠️ **Do not page this.** Envirofacts accepts the ``ROWS/start:end`` segment
-    and then ignores it for these views, returning the entire year to every
-    request - so a four-page loop returns each row four times and every total
-    comes out 4x. The row count is checked against the service's own ``COUNT``
-    endpoint instead, which is what catches that if it ever changes.
-    """
-    counted = make_url_request(
-        f'{ENVIROFACTS_URL}/{view}/reporting_year/{year}/COUNT/JSON', timeout=120
-    ).json()
-    expected = int(counted[0]['TOTALQUERYRESULTS'])
-    response = make_url_request(
-        f'{ENVIROFACTS_URL}/{view}/reporting_year/{year}/CSV', timeout=600
-    )
-    frame = pd.read_csv(
-        io.BytesIO(response.content), low_memory=False, encoding_errors='replace'
-    )
-    frame.columns = frame.columns.str.upper()
-    if len(frame) != expected:
-        raise ValueError(
-            f'Envirofacts served {len(frame)} rows of {view} for {year} against '
-            f'a reported count of {expected}. A row count that is a multiple of '
-            f'the count means the service has started paging - fetch whole '
-            f'years, never ranges.'
-        )
-    return frame
-
-
-def ghgrp_view(view: str, year: int) -> pd.DataFrame | None:
-    """An Envirofacts GHGRP view for one reporting year, cached locally.
-
-    Resolution order, and why:
-
-    1. ``extract/input_data/GHGRP/<year>/<VIEW>.csv`` - already fetched.
-    2. the FOIA'd export, for :data:`GHGRP_ARCHIVE_YEARS`.
-    3. the live API, which still serves these views through 2023.
-
-    Returns ``None`` when a year can be reached no way at all - 2024 on a
-    machine without the export - so that the span degrades to the years it has
-    rather than failing.
-    """
-    cached = Path(local_extract_input_dir('GHGRP', year)) / f'{view.upper()}.csv'
-    if cached.is_file():
-        served = pd.read_csv(cached, low_memory=False, encoding_errors='replace')
-        served.columns = served.columns.str.upper()
-        return served
-
-    frame: pd.DataFrame | None = None
-    if year in GHGRP_ARCHIVE_YEARS:
-        frame = _ghgrp_view_from_archive(view, year)
-        if frame is None:
-            logger.info(
-                'GHGRP %d: no FOIA export on this machine, so %s comes from the '
-                'API instead. Set %s to the EF_Views zip to read it from the '
-                'export, which is the only source for years EPA never published.',
-                year,
-                view,
-                GHGRP_ARCHIVE_ENV,
-            )
-    if frame is None:
-        if year in GHGRP_LOCAL_BUILD_YEARS:
-            logger.warning(
-                'GHGRP %d skipped for %s: EPA never published it, and this '
-                'machine has no FOIA export to read it from. Set %s.',
-                year,
-                view,
-                GHGRP_ARCHIVE_ENV,
-            )
-            return None
-        frame = _ghgrp_view_from_api(view, year)
-
-    frame.to_csv(cached, index=False)
-    logger.info('GHGRP %d: cached %d rows of %s to %s', year, len(frame), view, cached)
-    return frame
-
-
-def _facility_id(column: pd.Series) -> pd.Series:
-    """Envirofacts facility ids -> the form ``stewi`` keys facilities on.
-
-    The FOIA export writes them as ``1004628.0000000000`` and the API writes
-    plain integers, while ``stewi`` carries the string of the integer. All three
-    have to land on one key or the sector join silently drops every row.
-    """
-    numeric = pd.to_numeric(column, errors='coerce').astype('Int64')
-    return numeric.astype('string').astype(object).where(numeric.notna())
-
-
-def ghgrp_subpart_W_combustion(years: tuple[int, ...]) -> pd.DataFrame:
-    """**D14b.** Subpart W combustion by facility, fuel and industry segment.
-
-    Onshore production, gathering and boosting, and natural gas distribution
-    report their stationary combustion **under subpart W**, not under subpart C:
-    of 2,801 onshore production facility-years, 4 appear in the subpart C fuel
-    tables, and of 2,157 gathering and boosting facility-years, none do. So a
-    floor built by filtering ``Process == 'C'`` does not contain one tonne of
-    their fuel, and `#922
-    <https://github.com/cornerstone-data/bedrock/issues/922>`_'s breach at
-    ``211000`` was measured against a floor made of other segments' fuel.
-
-    ⚠️ **The fuel label carries the purchased/self-supplied split directly.**
-    Subpart W asks which fuel was burned from a list that names ``Field gas
-    and/or process gas`` and ``... natural gas that is not of pipeline quality``
-    separately from ``Natural gas (pipeline quality)``. That is the distinction
-    #927 needs, written by the reporter rather than inferred - and it is not
-    available anywhere in subpart C, whose list is the Table C-1 emission
-    factors.
-
-    The unit rows reconcile to the facility totals in ``ef_w_combust_equip_summ``
-    exactly, in every segment and year, so **every tonne of subpart W combustion
-    carries a fuel type**; nothing sits in an unlabelled residual.
-
-    Returns one row per facility, year, segment and fuel, with ``CO2e`` in
-    kilograms to match the ``stewi`` convention, and ``Mscf`` carrying the
-    reported volume where it survives :data:`W_GAS_FACTOR_BAND`.
-    """
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
-    frames = []
-    for year in years:
-        raw = ghgrp_view(GHGRP_W_COMBUSTION_VIEW, year)
-        if raw is None:
-            continue
-        frame = pd.DataFrame(
-            {
-                'FacilityID': _facility_id(raw['FACILITY_ID']),
-                'year': year,
-                'segment': raw['INDUSTRY_SEGMENT'].str.split(' [', regex=False).str[0],
-                'fuel_type': raw['FUEL_COMBUSTED_TYPE'].fillna(''),
-                'unit': raw['UNIT_OF_MEASURE'],
-                'quantity': pd.to_numeric(
-                    raw['QUANTITY_OF_FUEL_COMBUSTED'], errors='coerce'
-                ),
-                'CO2': pd.to_numeric(raw['CO2_EMISSIONS'], errors='coerce'),
-                'CH4': pd.to_numeric(raw['CH4_EMISSIONS'], errors='coerce'),
-                'N2O': pd.to_numeric(raw['N2O_EMISSIONS'], errors='coerce'),
-            }
-        )
-        biogenic = frame['fuel_type'].str.contains(BIOGENIC_FUEL)
-        if biogenic.any():
-            logger.info(
-                'GHGRP %d subpart W: dropping %.3f Mt on %d biogenic fuel rows, '
-                'which the GHG inventory books outside the fossil total.',
-                year,
-                frame.loc[biogenic, 'CO2'].sum() / 1e6,
-                int(biogenic.sum()),
-            )
-        frames.append(frame[~biogenic])
-
-    if not frames:
-        return pd.DataFrame(
-            columns=[
-                'FacilityID',
-                'year',
-                'segment',
-                'fuel_type',
-                'fuel_class',
-                'Mscf',
-                'CO2e',
-            ]
-        )
-
-    burned = pd.concat(frames, ignore_index=True)
-    burned = burned[burned['FacilityID'].notna()]
-    # Subpart W reports metric tons; stewi carries flows in kilograms, and the
-    # floor is assembled on the stewi scale.
-    burned['CO2e'] = 1e3 * (
-        burned['CO2'].fillna(0)
-        + burned['CH4'].fillna(0) * gwp['CH4_fossil']
-        + burned['N2O'].fillna(0) * gwp['N2O']
-    )
-    burned['fuel_class'] = np.where(
-        burned['fuel_type'].str.contains(SELF_SUPPLIED_FUEL),
-        'self_supplied',
-        'purchased',
-    )
-
-    # Only a row carrying both a volume and emissions can be checked at all.
-    measurable = (
-        (burned['unit'] == 'thousand standard cubic feet')
-        & burned['quantity'].gt(0)
-        & burned['CO2'].gt(0)
-    )
-    implied = (burned['CO2'] / burned['quantity']).where(measurable)
-    low, high = W_GAS_FACTOR_BAND
-    credible = measurable & implied.between(low, high)
-    burned['Mscf'] = burned['quantity'].where(credible)
-    rejected = measurable & ~credible
-    if rejected.any():
-        logger.info(
-            'GHGRP subpart W: %d of %d gas rows (%.1f%%) imply a factor outside '
-            '%.2f-%.2f t CO2 per Mscf and are entered in the wrong unit. Their '
-            'volumes are dropped, their emissions kept.',
-            int(rejected.sum()),
-            int(measurable.sum()),
-            100 * rejected.sum() / max(int(measurable.sum()), 1),
-            low,
-            high,
-        )
-    return burned[
-        ['FacilityID', 'year', 'segment', 'fuel_type', 'fuel_class', 'Mscf', 'CO2e']
-    ]
-
-
-def ghgrp_self_supplying_facilities(year: int) -> set[str]:
-    """Facilities whose subpart C fuel is self-supplied by what they are.
-
-    :data:`SELF_SUPPLYING_SEGMENTS` says which segments and why. Returns an
-    empty set when the year cannot be reached, so the classification degrades to
-    "not known" rather than to a wrong answer.
-    """
-    raw = ghgrp_view(GHGRP_W_FACILITY_VIEW, year)
-    if raw is None:
-        return set()
-    segment = raw['INDUSTRY_SEGMENT'].str.split(' [', regex=False).str[0]
-    named = _facility_id(raw.loc[segment.isin(SELF_SUPPLYING_SEGMENTS), 'FACILITY_ID'])
-    return set(named.dropna())
+#
+# The views themselves are acquired in bedrock.extract.epa.EPA_GHGRP_SubpartW and
+# classified in bedrock.transform.ghg.ghgrp_subpart_w - this is pipeline data, not
+# a diagnostic. What stays here is the diagnostic use of it: putting subpart W
+# combustion on the BEA sector axis, and adding it to the subpart C floor.
 
 
 def ghgrp_subpart_W_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
@@ -1875,7 +1548,7 @@ def ghgrp_subpart_W_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
     The subpart C floor's counterpart, on the same sector axis and under the
     same geography gate, so the two can simply be added.
     """
-    burned = ghgrp_subpart_W_combustion(years)
+    burned = ghgrp_subpart_w.subpart_W_combustion(years)
     columns = []
     for year in sorted(set(burned['year'])):
         placed = (
@@ -2097,17 +1770,6 @@ GHGRP_EXCLUDED_SUBPARTS = frozenset({'D'})
 #: blast furnace gas. Fuel the facility made itself as a byproduct.
 PROCESS_GAS_SCC_LEVEL3 = '007'
 
-#: The two fuel classes a combustion record can fall in, and why the split is
-#: not cosmetic. See :func:`facility_combustion`.
-#:
-#: ``self_supplied`` is wider than byproduct gas: it is any fuel that never
-#: changed hands, so it covers refinery still gas, coke oven gas and blast
-#: furnace gas **and** the lease and plant fuel an oil and gas operation burns
-#: out of its own stream (#927). All of it has one defect in common - no row of
-#: the Use table can carry a purchase that was never made - which is why it is
-#: one class rather than two.
-FUEL_CLASSES = ('purchased', 'self_supplied')
-
 
 def _facility_sectors(inventory: str, year: int) -> pd.DataFrame:
     """Facility -> BEA sector and state, for *inventory* in *year*.
@@ -2164,94 +1826,6 @@ def _drop_outside_geography(
     return frame[keep]
 
 
-def ghgrp_fuel_class(year: int, total: pd.Series, subpart_c: pd.Series) -> pd.DataFrame:
-    """**#927.** GHGRP facilities whose fuel class comes from their own report.
-
-    Two routes reach it, and the difference between them is worth keeping in
-    the output rather than flattening:
-
-    ``GHGRP subpart W fuel``
-        onshore production, gathering and boosting and natural gas distribution
-        report combustion under subpart W, where the reporter **names the fuel**
-        from a list that separates field and process gas from pipeline-quality
-        natural gas. Nothing is inferred. Whatever is left of the facility's
-        GHGRP mass after its reported combustion is venting, flaring and leaks -
-        not fuel at all - so it lands in ``process``.
-
-    ``GHGRP segment``
-        a gas processing plant reports its combustion under subpart C, where the
-        fuel label is a Table C-1 default and says nothing about who owned the
-        gas. What the facility *is* settles it instead: a plant burns the stream
-        it is processing, which is what EIA counts as plant fuel. Only the
-        plant's subpart C mass is classed this way; its subpart W fugitives are
-        not fuel either.
-
-    ⚠️ **The second route is an inference and the first is not.** Both are
-    better evidence than the NEI process-gas share this replaces, but only the
-    first is the reporter's own statement, so ``fuel_class_basis`` carries which
-    one produced each row.
-    """
-    burned = ghgrp_subpart_W_combustion((year,))
-    told = (
-        burned.groupby(['FacilityID', 'fuel_class'])['CO2e']
-        .sum()
-        .unstack('fuel_class')
-        .reindex(columns=list(FUEL_CLASSES))
-        .fillna(0.0)
-    )
-    rows = []
-    if not told.empty:
-        fuel = told.sum(axis=1)
-        # Venting, flaring and leaks: everything the facility reported that its
-        # combustion units did not burn. Clipped because the subpart W tables
-        # come from a later vintage than the stewi inventory on the archive
-        # years, so a restated facility can exceed its own total by a rounding.
-        rest = (total.reindex(told.index).fillna(0.0) - fuel).clip(lower=0.0)
-        told = told.assign(process=rest)
-        rows.append(
-            told.reset_index()
-            .melt(id_vars='FacilityID', var_name='fuel_class', value_name='CO2e')
-            .assign(fuel_class_basis='GHGRP subpart W fuel')
-        )
-
-    plants = ghgrp_self_supplying_facilities(year) - set(told.index)
-    if plants:
-        plant_fuel = subpart_c.reindex(sorted(plants)).dropna()
-        rest = (total.reindex(plant_fuel.index).fillna(0.0) - plant_fuel).clip(
-            lower=0.0
-        )
-        rows.append(
-            pd.concat(
-                [
-                    plant_fuel.rename('CO2e')
-                    .to_frame()
-                    .assign(fuel_class='self_supplied'),
-                    rest.rename('CO2e').to_frame().assign(fuel_class='process'),
-                ]
-            )
-            .reset_index()
-            .assign(fuel_class_basis='GHGRP segment')
-        )
-
-    if not rows:
-        return pd.DataFrame(
-            columns=['FacilityID', 'fuel_class', 'CO2e', 'fuel_class_basis']
-        )
-    classified = pd.concat(rows, ignore_index=True)
-    logger.info(
-        'D15 %d: %d GHGRP facilities classify their own fuel - %.1f Mt '
-        'self-supplied, %.1f Mt purchased, %.1f Mt not fuel at all. By route: '
-        '%s',
-        year,
-        classified['FacilityID'].nunique(),
-        classified.loc[classified['fuel_class'] == 'self_supplied', 'CO2e'].sum() / 1e9,
-        classified.loc[classified['fuel_class'] == 'purchased', 'CO2e'].sum() / 1e9,
-        classified.loc[classified['fuel_class'] == 'process', 'CO2e'].sum() / 1e9,
-        (classified.groupby('fuel_class_basis')['CO2e'].sum() / 1e9).round(1).to_dict(),
-    )
-    return classified[['FacilityID', 'fuel_class', 'CO2e', 'fuel_class_basis']]
-
-
 def facility_combustion(year: int) -> pd.DataFrame:
     """**D15.** Stationary combustion as reported by facilities, by sector.
 
@@ -2275,7 +1849,8 @@ def facility_combustion(year: int) -> pd.DataFrame:
 
     ⚠️ **Self-supplied fuel is wider than byproduct gas, and an SCC cannot see
     the rest of it.** An oil and gas producer burning its own field gas is
-    burning natural gas, and the SCC says natural gas. :func:`ghgrp_fuel_class`
+    burning natural gas, and the SCC says natural gas.
+    :func:`bedrock.transform.ghg.ghgrp_subpart_w.fuel_class`
     reaches that case from the GHGRP instead, where subpart W has the reporter
     name the fuel and a gas processing plant is identified by its segment - so
     lease and plant fuel are classified on evidence rather than missed (#927).
@@ -2351,7 +1926,7 @@ def facility_combustion(year: int) -> pd.DataFrame:
     # A facility that classified its own fuel does not need NEI's process-gas
     # share inferred onto it - it said what it burned, and for oil and gas NEI
     # cannot see the answer anyway, because field gas is natural gas to an SCC.
-    reported = ghgrp_fuel_class(year, per_facility, subpart_c)
+    reported = ghgrp_subpart_w.fuel_class(year, per_facility, subpart_c)
     said = reported.merge(
         ghgrp.drop(
             columns=['CO2e', 'fuel_class', 'fuel_class_known', 'fuel_class_basis']
@@ -3361,7 +2936,9 @@ def main(
         # that a span extended past it degrades rather than failing.
         floor_years = tuple(y for y in years if y <= GHGRP_LAST_YEAR)
         tables['ghgrp_subpart_C'] = ghgrp_subpart_C(floor_years)
-        tables['ghgrp_subpart_W_combustion'] = ghgrp_subpart_W_combustion(floor_years)
+        tables['ghgrp_subpart_W_combustion'] = ghgrp_subpart_w.subpart_W_combustion(
+            floor_years
+        )
         floor = ghgrp_combustion_floor(floor_years)
         tables['ghgrp_combustion_floor'] = floor
         tables['combustion_floor_test'] = combustion_floor_test(detail_real, floor)
