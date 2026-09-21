@@ -120,7 +120,10 @@ from bedrock.transform.eeio.derived_cornerstone import (
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
-from bedrock.utils.math.formulas import compute_L_matrix
+from bedrock.utils.math.formulas import (
+    compute_L_matrix,
+    rebase_coefficient_matrix,
+)
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
 logger = logging.getLogger(__name__)
@@ -1017,6 +1020,66 @@ def output_elasticity(detail: pd.DataFrame, by: str = 'attribution') -> pd.DataF
 # --- Step 6: B, as a by-product ---------------------------------------------
 
 
+def commodity_price_ratio(span: Span, weight_year: int | None = None) -> pd.DataFrame:
+    """Price ratio, base year to each year, on the **commodity** axis.
+
+    ``x / x_real`` recovers the industry-axis deflator the span was built with,
+    so this cannot drift from the one :func:`deflate_x` already applies to
+    ``B``. ``A`` and ``L`` are commodity x commodity, so that ratio has to be
+    carried across: each commodity takes the average of its supplying
+    industries' ratios, weighted by their base-year shares of its supply::
+
+        r_com[j] = sum_i (V_norm[i, j] / sum_i V_norm[i, j]) * r_ind[i]
+
+    the same form as
+    :func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_vnorm_adjusted_commodity_price_ratio`,
+    built from the span so no ``functools.cache`` can carry a stale config
+    across a year switch. Base-year weights fix the supplier mix, so the ratio
+    measures prices and not mix; *weight_year* overrides that for sensitivity
+    work, and moves the answer by under 0.02 percentage points.
+
+    ⚠️ This is the *commodity* axis; ``B_total(real=True)`` deflates on the
+    *industry* axis before mapping through ``V_norm``. The two coincide only
+    where industry prices are uniform within a commodity's supplying mix - a
+    gap under 0.14% at the median but reaching 36% at the tail. Sized per year
+    by ``L_deflator_axis_gap.csv`` in
+    :mod:`bedrock.analysis.nowcasting.L_dollar_basis`.
+    """
+    base = int(span.x.columns[0])
+    r_ind = span.x / span.x_real
+    if not np.allclose(r_ind[base].dropna(), 1.0):
+        raise ValueError(
+            f'x / x_real is not 1.0 in the base year {base} - x_real was '
+            f'deflated to a different base than the span starts at.'
+        )
+    Vnorm = span.Vnorm[weight_year or base]
+    supply = Vnorm.sum(axis=0)
+    weights = Vnorm.divide(supply.where(supply > 1e-9, 1.0), axis=1)
+    ratio = pd.DataFrame(
+        {
+            year: r_ind[year].reindex(Vnorm.index).fillna(1.0) @ weights
+            for year in span.L
+        }
+    )
+    # A commodity no industry supplies would average over nothing and come back
+    # 0, which cannot divide. Neutral 1.0, as the production helper does.
+    return ratio.where(supply.gt(1e-9), 1.0, axis=0)
+
+
+def L_real(span: Span) -> dict[int, pd.DataFrame]:
+    """Each year's Leontief inverse in constant base-year dollars.
+
+    ``rebase_coefficient_matrix`` is the same similarity transform that
+    deflates ``A``, and it carries through the inverse, so this needs no ``A``
+    and no re-solve.
+    """
+    ratio = commodity_price_ratio(span)
+    return {
+        year: rebase_coefficient_matrix(matrix=L, price_ratio=ratio[year])
+        for year, L in span.L.items()
+    }
+
+
 def B_total(span: Span, real: bool = False) -> pd.DataFrame:
     """Total-CO2e commodity intensity, ``(E / x) @ Vnorm``, commodity x year.
 
@@ -1043,16 +1106,37 @@ def N_total(span: Span, real: bool = False) -> pd.DataFrame:
     path's total-requirements form. This is the factor the smoothing project is
     ultimately trying to hold steady; ``B`` is only the direct part of it.
 
-    ⚠️ ``L`` comes from each year's own ``A``, which is at that year's prices,
-    while a *real* ``B`` is in constant first-year dollars. The ratios this
-    feeds - ``own_direct_share_of_N`` and ``delta_B_pct_of_N`` - are unaffected,
-    because numerator and denominator share the ``B`` basis. ``N`` itself is
-    a mixed-basis level and should not be compared across years as a level.
+    *real* moves **both** sides onto constant base-year dollars - ``B`` through
+    :func:`deflate_x` and ``L`` through :func:`L_real`. ⚠️ **Both or neither**
+    (#957). Until 2026-09-21 this deflated ``B`` and left ``L`` at each year's
+    own prices, which is neither a current-price nor a constant-price factor;
+    ``A`` is a ratio of current dollars to current dollars but it still moves
+    with the *relative* price ``p_i / p_j``, so leaving it alone does not leave
+    it neutral. The hybrid put median ``|dN|`` at 18.4% in 2021 against 8.1%
+    on a consistent basis and flipped the sign of the move for 531 of 2,835
+    commodity-years.
+
+    On a consistent basis the deflation cancels out of the level entirely -
+    ``N_real[j] = r_j * N_nominal[j]``, because the ``r_i`` in ``B_real = B r``
+    meets its inverse in ``L_real[i, j] = L[i, j] r_j / r_i``. So this is the
+    same factor the reporting path produces via
+    ``inflation_adjust_ef_denom_to_new_base_year``, and unlike the hybrid it
+    *is* comparable across years as a level.
+
+    ⚠️ It is not comparable across *bases*. ``delta_B_pct_of_N`` is invariant
+    to the choice of base year, since the ``r_j`` cancels between ``dB`` and
+    ``N``, but it is **not** invariant to the hybrid-to-real switch: its
+    denominator moves, by a median 0% to 15% depending on the year. The
+    ranking it drives is stable - 29 or 30 of the top 30 survive in every year
+    - but a level quoted from a run before 2026-09-21 will not reproduce.
+
+    Method and measurements: ``bedrock/analysis/nowcasting/About_the_L_dollar_basis.md``.
     """
     B = B_total(span, real=real)
+    L_by_year = L_real(span) if real else span.L
     columns: dict[int, pd.Series] = {}
-    for year in span.L:
-        L = span.L[year]
+    for year in L_by_year:
+        L = L_by_year[year]
         columns[year] = B[year].reindex(L.index).fillna(0.0) @ L
     return pd.DataFrame(columns).rename_axis(index='commodity', columns='year')
 
@@ -1093,16 +1177,21 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
     against what ``N`` actually did. They will not match: ``N`` also moves when
     *other* commodities' factors move, or when ``L`` does.
 
-    ⚠️ **``L`` moves ``N`` two to four times as much as the factors do, and
-    ``L`` is not deflated.** The nowcast configs set
-    ``apply_io_year_adjustments: False``, so each year's ``A`` - and therefore
-    ``L`` - is at that year's prices. Median absolute ``N`` movement runs 4% to
-    18% a year, of which only 1% to 5% survives holding ``L`` at the prior
-    year. ``pct_change_N_L_held`` is the factor-driven part and
-    ``pct_change_N_L_effect`` the remainder, so a disagreement between
-    ``delta_B_pct_of_N`` and ``pct_change_N`` can be read rather than guessed
-    at. Everything the gate itself uses is deflated: ``dB`` is real, and the
-    weight is a ratio in which the dollar year cancels.
+    ⚠️ **``L`` moves ``N`` more than the factors do - by 1.1x to 3.0x.**
+    Holding ``L`` at the prior year isolates the part of the move the factors
+    explain: ``pct_change_N_L_held`` is that part and ``pct_change_N_L_effect``
+    the remainder, so a disagreement between ``delta_B_pct_of_N`` and
+    ``pct_change_N`` can be read rather than guessed at. On a real basis the
+    factor part runs 1.4% to 4.6% a year and the ``L`` part 2.7% to 6.1%.
+
+    ⚠️ **These three columns were restated on 2026-09-21** (#957). They were
+    computed against a hybrid ``N`` - real ``B``, nominal ``L`` - which put the
+    ``L`` effect at 14.8 points in 2021 where a consistent basis puts it at
+    6.0, and made ``L`` look 2x to 4x the factors rather than 1.1x to 3.0x. The
+    old figures are not comparable with these and the worst year moved from
+    2021 to 2020. ``delta_B_pct_of_N`` shifted too, by a median 0% to 15% a
+    year, because its ``N`` denominator moved; the ranking it drives held, 29
+    or 30 of the top 30 in every year.
 
     ⚠️ **``L`` is out of scope for the smoothing project.** ``B = (E/x) @
     Vnorm`` has exactly three inputs, and ``L`` is not one of them - it enters
@@ -1117,10 +1206,13 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
     """
     B = B_total(span, real=real)
     N = N_total(span, real=real)
+    # the same basis N was built on, or the L effect is measured against a
+    # denominator that does not share its dollar year
+    L_by_year = L_real(span) if real else span.L
     years = [int(y) for y in B.columns]
     frames = []
     for prior, current in zip(years, years[1:]):
-        L_prior = span.L[prior]
+        L_prior = L_by_year[prior]
         own_loop = pd.Series(np.diag(L_prior.to_numpy()), index=L_prior.index).reindex(
             B.index
         )

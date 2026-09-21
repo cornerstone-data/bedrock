@@ -52,14 +52,17 @@ path. `--check` verifies the cancellation at 6.5e-16.
 ## Where the 2-to-4x came from
 
 `B_change_diagnostics` deflates `B` — correctly, because a nominal `E / x`
-falls whenever prices rise — and leaves `L` at each year's own prices. Its
-`N_total` docstring already warns that the result is "a mixed-basis level"; the
-D6b table that #937 quotes is built on it, and so is the 2-to-4x.
+falls whenever prices rise — and used to leave `L` at each year's own prices.
+Its `N_total` docstring already warned that the result was "a mixed-basis
+level"; the D6b table that #937 quotes is built on it, and so is the 2-to-4x.
+**Fixed on 2026-09-21 ([#957](https://github.com/cornerstone-data/bedrock/issues/957))**
+— `N_total` now moves both sides together, so the middle column below is
+history rather than current output.
 
 Median absolute percent change in `N` over commodities, on each of the three
 ways of holding `B` and `L`:
 
-| year | nominal `B`, nominal `L` | **real `B`, nominal `L`** (reported today) | real `B`, real `L` |
+| year | nominal `B`, nominal `L` | **real `B`, nominal `L`** (the hybrid, pre-#957) | real `B`, real `L` (now) |
 |---|---:|---:|---:|
 | 2018 | 3.49 | 3.83 | **3.41** |
 | 2019 | 8.18 | 9.08 | **7.02** |
@@ -71,7 +74,7 @@ ways of holding `B` and `L`:
 
 And the split into the part the emission factors explain and the part `L` does:
 
-| year | factors (real) | `L` (real) | `L` ÷ factors | *reported today* |
+| year | factors (real) | `L` (real) | `L` ÷ factors | *pre-#957* |
 |---|---:|---:|---:|---:|
 | 2018 | 1.41 | 2.72 | 1.9 | *2.2* |
 | 2019 | 2.87 | 4.49 | 1.6 | *2.1* |
@@ -158,12 +161,20 @@ emission factors — is worth **1.4 to 4.6 points** of median `N` movement a
 year, against `L`'s 2.7 to 6.1. A flat factor column still must not be read as
 "`N` is now smooth".
 
-⚠️ **The correction runs the other way too.** D6b's `pct_change_N`,
-`pct_change_N_L_held` and `pct_change_N_L_effect` are mixed-basis columns, and
-row 10 of the driver tracker quotes them. They should be restated or the basis
-named in place. The `delta_B_pct_of_N` gate is *not* affected — its numerator
-and denominator share the `B` basis, and the dollar year cancels in the ratio,
-as `B_change` already documents.
+✅ **The correction was applied back.** D6b's `pct_change_N`,
+`pct_change_N_L_held` and `pct_change_N_L_effect` were mixed-basis columns and
+row 10 of the driver tracker quoted them; `N_total` now deflates both sides and
+every figure that depended on it has been restated in place
+([#957](https://github.com/cornerstone-data/bedrock/issues/957)).
+
+⚠️ **One claim made when #957 was filed does not survive.** The gate
+`delta_B_pct_of_N` is invariant to the choice of **base year** — the `r_j`
+cancels between `dB` and `N` — but it is **not** invariant to the
+hybrid-to-real switch, because that changes the *basis* and its `N` denominator
+moves with it. Measured: a median shift of 0% (2018) to 15% (2023) in the
+value, 99th percentile 50%. What does hold is the use it is put to — the
+ranking keeps **29 or 30 of the top 30** in every year and pooled. So the
+gate's history is not comparable across the fix, and its verdicts are.
 
 ## Method notes and caveats
 

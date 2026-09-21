@@ -29,11 +29,13 @@ with its own denominator deflated, which is what
 already does on the reporting path. Verified to 5e-16 by ``--check``.
 
 ⚠️ **The cancellation needs both sides or neither.** ``B_change_diagnostics``
-deflates ``B`` and leaves ``L`` at each year's own prices, so its ``N`` is a
-hybrid its own docstring warns about - and the 2-to-4x claim is measured on
-that hybrid. Put both sides on one basis and the ``L`` effect in 2021 falls
-from 14.8 to 6.0 percentage points. ``L`` still leads the factors, by 1.1x to
-3.0x rather than 2x to 4x, and the worst year is no longer 2021.
+used to deflate ``B`` and leave ``L`` at each year's own prices, so its ``N``
+was a hybrid its own docstring warned about - and the 2-to-4x claim in #937 is
+measured on that hybrid. Put both sides on one basis and the ``L`` effect in
+2021 falls from 14.8 to 6.0 percentage points. ``L`` still leads the factors,
+by 1.1x to 3.0x rather than 2x to 4x, and the worst year is no longer 2021.
+**Fixed there on 2026-09-21 (#957)**; this module keeps the hybrid alongside
+the two consistent bases so the correction stays measurable.
 
 Where deflating ``A`` *does* matter is reading it as structure rather than as
 an input to ``N``: on the nominal ``L`` the median commodity's total
@@ -62,8 +64,10 @@ import pandas as pd
 from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     B_total,
     Span,
+    commodity_price_ratio,
     load_span,
 )
+from bedrock.utils.math.formulas import rebase_coefficient_matrix
 from bedrock.utils.validation.analysis.plotting import setup_mpl
 
 logger = logging.getLogger(__name__)
@@ -77,77 +81,23 @@ BASES = ('nominal', 'mixed', 'real')
 
 
 # --- the deflator -----------------------------------------------------------
-
-
-def industry_price_ratio(span: Span) -> pd.DataFrame:
-    """Price ratio, base year to each year, per Cornerstone industry.
-
-    Read straight off the cached pair rather than re-derived: ``x_real`` is
-    ``x`` divided by exactly this ratio, so taking ``x / x_real`` guarantees
-    the deflator here is the one the diagnostics already deflate ``B`` with.
-    A separately derived index could drift from it and the difference would
-    land in the price half of the split.
-    """
-    ratio = span.x / span.x_real
-    base = int(span.x.columns[0])
-    if not np.allclose(ratio[base].dropna(), 1.0):
-        raise ValueError(
-            f'x / x_real is not 1.0 in the base year {base} - the cached x_real '
-            f'was deflated to a different base than the span starts at.'
-        )
-    return ratio
-
-
-def commodity_price_ratio(span: Span, weight_year: int | None = None) -> pd.DataFrame:
-    """The industry ratio carried onto the commodity axis, ``V_norm``-weighted.
-
-    ``A`` and ``L`` are commodity x commodity while the price index is on the
-    industry axis, so the ratio has to be moved across. Each commodity takes
-    the average of its supplying industries' ratios, weighted by their shares
-    of its supply::
-
-        r_com[j] = sum_i (V_norm[i, j] / sum_i V_norm[i, j]) * r_ind[i]
-
-    the same form as
-    :func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_vnorm_adjusted_commodity_price_ratio`,
-    but built from the cached span so it cannot be poisoned by that function's
-    ``functools.cache`` across config switches.
-
-    *weight_year* defaults to the base year, which fixes the supplier mix so
-    the deflator measures prices only. Passing each year's own mix, or using a
-    flat 1:1 industry-to-commodity reindex instead, moves every figure in this
-    module by less than 0.3 percentage points - see ``--check``.
-    """
-    base = int(span.x.columns[0])
-    Vnorm = span.Vnorm[weight_year or base]
-    r_ind = industry_price_ratio(span)
-    supply = Vnorm.sum(axis=0)
-    weights = Vnorm.divide(supply.where(supply > 1e-9, 1.0), axis=1)
-    ratio = pd.DataFrame(
-        {
-            year: r_ind[year].reindex(Vnorm.index).fillna(1.0) @ weights
-            for year in span.L
-        }
-    )
-    # A commodity no industry supplies (V_norm column ~ 0) would take a
-    # weighted average of nothing and come back 0, which would divide by zero
-    # in the transform. Neutral 1.0, as the production helper does.
-    return ratio.where(supply.gt(1e-9), 1.0, axis=0)
+#
+# ``commodity_price_ratio`` lives in ``B_change_diagnostics`` next to
+# ``deflate_x``, because it is built from the span's own ``x / x_real`` and so
+# cannot drift from the deflator ``B`` already uses. The matrix transform lives
+# in ``formulas`` because ``A`` and ``L`` take it identically.
 
 
 def deflate_L(L: pd.DataFrame, ratio: pd.Series) -> pd.DataFrame:
     """``diag(1/r) L diag(r)`` - the Leontief inverse at constant prices.
 
-    Exact rather than approximate: it is the same similarity transform that
-    deflates ``A``, so this is ``(I - A_real)^-1`` without rebuilding ``A``.
-    The diagonal is invariant (``r_j / r_j``), which ``--check`` asserts.
+    Thin wrapper on :func:`~bedrock.utils.math.formulas.rebase_coefficient_matrix`
+    so this module reads in its own terms. Exact rather than approximate: the
+    same similarity transform deflates ``A``, and it carries through the
+    inverse, so this is ``(I - A_real)^-1`` without rebuilding ``A``. The
+    diagonal is invariant (``r_j / r_j``), which ``--check`` asserts.
     """
-    r = ratio.reindex(L.index).fillna(1.0).to_numpy(dtype=float)
-    if (r <= 0).any():
-        raise ValueError('a non-positive price ratio cannot deflate L')
-    return pd.DataFrame(
-        L.to_numpy() * (r[None, :] / r[:, None]), index=L.index, columns=L.columns
-    )
+    return rebase_coefficient_matrix(matrix=L, price_ratio=ratio)
 
 
 # --- the three bases --------------------------------------------------------
@@ -405,16 +355,17 @@ def check(span: Span) -> None:
     # 3. the mixed basis reproduces what B_change_diagnostics publishes
     mixed = n_split(*bases(span)['mixed'])
     logger.info(
-        'mixed basis, median |%%dN| - compare against B_change_real.csv:\n%s',
+        'the hybrid basis #937 was measured on - what B_change_real.csv held '
+        'before #957 restated it:\n%s',
         mixed.round(2).to_string(),
     )
 
     # 4. the deflator choice is not load-bearing
+    # the industry ratio read straight onto the commodity axis, 1:1 by code -
+    # what get_cornerstone_industry_price_ratio does on the nowcast path
+    r_ind = span.x / span.x_real
     r_flat = pd.DataFrame(
-        {
-            y: industry_price_ratio(span)[y].reindex(span.L[base].index).fillna(1.0)
-            for y in years
-        }
+        {y: r_ind[y].reindex(span.L[base].index).fillna(1.0) for y in years}
     )
     variants = {
         'base-year V_norm weights': ratio,
@@ -482,7 +433,7 @@ def plot_bases(comparison: pd.DataFrame, name: str = 'L_dollar_basis.png') -> No
     fig, ax = plt.subplots(figsize=(9, 5.4))
     styles = {
         'nominal': ('tab:grey', '--', 'nominal B and L'),
-        'mixed': ('tab:red', '-', 'real B, nominal L  (reported today)'),
+        'mixed': ('tab:red', '-', 'real B, nominal L  (the hybrid, pre-#957)'),
         'real': ('tab:blue', '-', 'real B and L'),
     }
     for basis, (colour, dash, label) in styles.items():

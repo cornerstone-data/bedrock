@@ -111,6 +111,57 @@ def compute_L_matrix(*, A: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def rebase_coefficient_matrix(
+    *, matrix: pd.DataFrame, price_ratio: pd.Series[float]
+) -> pd.DataFrame:
+    """Move a square coefficient matrix onto another dollar year.
+
+    Applies to ``A`` and to ``L`` in exactly the same form, because the two are
+    related by a transform that preserves it::
+
+        M_rebased[i, j] = M[i, j] * r_j / r_i        i.e. diag(1/r) M diag(r)
+
+    Deflate the input, re-inflate the output, and what is left is a coefficient
+    in constant dollars. ⚠️ **A dollar-to-dollar ratio is not already
+    price-neutral** - ``a[i, j] = (p_i q_ij) / (p_j x_j)`` moves with the
+    *relative* price ``p_i / p_j``, and only uniform inflation cancels.
+
+    ⚠️ **Applied to ``L`` this needs no re-solve.** Since
+    ``I - A_rebased = diag(1/r) (I - A) diag(r)`` and the identity survives the
+    same transform, the inverse carries through it: rebasing ``L`` directly is
+    exactly ``(I - A_rebased)^-1``. The diagonal is invariant - ``r_j / r_j`` -
+    which is the cheapest check that the transform was applied correctly.
+
+    *price_ratio* runs from the target dollar year to the matrix's own year, so
+    passing the ratio base-to-*t* deflates a year-*t* matrix onto base-year
+    dollars. It must be positive and cover every label.
+
+    Read :mod:`bedrock.analysis.nowcasting.L_dollar_basis` before using this on
+    one side of ``N = B @ L`` only: deflating ``B`` without ``L`` (or ``D``
+    without ``L``) leaves a level that is neither current-price nor
+    constant-price. See issues #937, #957 and #958.
+    """
+    if list(matrix.index) != list(matrix.columns):
+        raise ValueError('the matrix must be square with matching index and columns')
+    r = price_ratio.reindex(matrix.index)
+    if r.isna().any():
+        missing = list(r[r.isna()].index[:5])
+        raise ValueError(
+            f'{int(r.isna().sum())} labels have no price ratio ({missing}...). '
+            f'Rebasing only some of the matrix would mix two dollar years.'
+        )
+    values = r.to_numpy(dtype=float)
+    if (values <= 0).any():
+        raise ValueError(
+            'a non-positive price ratio cannot rebase a coefficient matrix'
+        )
+    return pd.DataFrame(
+        matrix.to_numpy() * (values[None, :] / values[:, None]),
+        index=matrix.index,
+        columns=matrix.columns,
+    )
+
+
 def compute_B_ind_matrix(*, E: pd.DataFrame, x: pd.Series[float]) -> pd.DataFrame:
     return E.divide(x, axis=1).fillna(0)
 
