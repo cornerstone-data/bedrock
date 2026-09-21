@@ -142,7 +142,7 @@ def deflate_L(L: pd.DataFrame, ratio: pd.Series) -> pd.DataFrame:
     deflates ``A``, so this is ``(I - A_real)^-1`` without rebuilding ``A``.
     The diagonal is invariant (``r_j / r_j``), which ``--check`` asserts.
     """
-    r = ratio.reindex(L.index).fillna(1.0).to_numpy()
+    r = ratio.reindex(L.index).fillna(1.0).to_numpy(dtype=float)
     if (r <= 0).any():
         raise ValueError('a non-positive price ratio cannot deflate L')
     return pd.DataFrame(
@@ -323,7 +323,9 @@ def per_commodity(span: Span) -> pd.DataFrame:
         columns='basis',
         values=['pct_change_N', 'pct_factors', 'pct_L'],
     )
-    wide.columns = [f'{a}_{b}' for a, b in wide.columns]
+    wide.columns = pd.Index(
+        [f'{col[0]}_{col[1]}' for col in wide.columns.to_flat_index()]
+    )
     wide['basis_gap_N'] = wide['pct_change_N_mixed'] - wide['pct_change_N_real']
     return wide.reset_index().sort_values(
         'basis_gap_N', key=lambda s: s.abs(), ascending=False
@@ -423,9 +425,9 @@ def check(span: Span) -> None:
         '1:1 industry->commodity': r_flat,
     }
     B_real = B_total(span, real=True)
-    spread = {}
-    for name, r in variants.items():
-        L_real = {y: deflate_L(span.L[y], r[y]) for y in years}
+    spread: dict[str, pd.Series] = {}
+    for name, variant in variants.items():
+        L_real = {y: deflate_L(span.L[y], variant[y]) for y in years}
         spread[name] = n_split(B_real, L_real)['L']
 
     # chained: rebase each pair onto its own prior year instead of onto the
