@@ -213,10 +213,11 @@ to be fixed before the levels are trusted.
   this code base later produces state-level EEIO models, the location breakout
   would rest on measured data. That is nearly free now and expensive to retrofit.
 - **A category that does not exist today.** `fuel_class` separates fuel a
-  facility **bought** from fuel it **made itself** — refinery still gas, coke
-  oven gas, blast furnace gas, 46.9 Mt in 2022. Byproduct gas is never a
-  purchase, so no row of the Use table can represent it, and attributing it with
-  one is a category error rather than an inaccuracy. Tracker row 17.
+  facility **bought** from fuel that never changed hands — `self_supplied`,
+  **144.9 Mt in 2022**. Fuel nobody sold is never a purchase, so no row of the
+  Use table can represent it, and attributing it with one is a category error
+  rather than an inaccuracy. Tracker row 17, and see §8 for where the other
+  two thirds of that mass came from.
 
 ---
 
@@ -269,3 +270,87 @@ of what a vector places — are government, agriculture, trucking and buildings.
 They stay on the Use row, which is also where MECS never reached. No facility
 reports them because none emits them. In the mining, utilities and manufacturing
 scope this basis is for, the equivalent figure is **6% of allocated mass**.
+
+
+---
+
+## 8. Lease and plant fuel: what subpart W says that subpart C cannot (#927)
+
+`fuel_class` began as byproduct gas alone — refinery still gas, coke oven gas,
+blast furnace gas — read off NEI's process-gas SCCs. That left the larger half of
+the same defect invisible. **An oil and gas producer burning its own field gas is
+burning natural gas, and the SCC says natural gas.**
+
+The GHGRP answers it directly, in a place `stewi` does not import.
+
+### The lease side is reported, not inferred
+
+Envirofacts view `ef_w_combust_large_units` carries one row per combustion unit
+type and fuel — facility, industry segment, **quantity of fuel burned**, unit of
+measure, CO2, CH4 and N2O — and its fuel list separates `Field gas and/or process
+gas` and `… natural gas that is not of pipeline quality` from `Natural gas
+(pipeline quality)`. The reporter writes that label. The unit rows reconcile to
+the facility totals in `ef_w_combust_equip_summ` exactly, so every tonne of
+subpart W combustion carries a fuel type.
+
+Gas burned at onshore production facilities, Bcf, volumes screened on an implied
+0.02–0.15 t CO2 per Mscf:
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| self-supplied | **233** | 223 | 265 | 257 | 267 | 297 | 313 | **330** |
+| pipeline | 110 | 123 | 129 | 136 | 142 | 137 | 148 | 156 |
+
+Gathering and boosting is roughly twice that, and about half the **carbon** at
+both is self-supplied — lower than the share of gas, because the purchased side
+also carries diesel.
+
+### The plant side is reported, but labelled as if bought
+
+Gas processing plants report their combustion under subpart C, where 234.7 of the
+236.1 Mt of CO2 they reported over 2019-2024 is labelled `Natural Gas (Weighted
+U.S. Average)` against 1.15 Mt of `Fuel Gas`. The label is an emission-factor
+choice, not a procurement statement. So the classification comes from **what the
+facility is**: a plant flagged as an `Onshore natural gas processing` reporter in
+subpart W burns the stream it is processing, which is what EIA counts as plant
+fuel. ⚠️ That one is an inference, and `fuel_class_basis` says so — the lease
+side reads `GHGRP subpart W fuel`, the plant side `GHGRP segment`.
+
+### Which segments report where, so the two halves do not double count
+
+| segment | combustion reported under | facility-years also in the subpart C fuel tables |
+|---|---|---|
+| onshore production | **subpart W** | 4 of 2,801 |
+| gathering and boosting | **subpart W** | 0 of 2,157 |
+| natural gas distribution | **subpart W** | 0 of 969 |
+| onshore natural gas processing | **subpart C** | 2,701 of 2,704 |
+| transmission compression | **subpart C** | 3,915 of 3,915 |
+
+### What it does to D14
+
+The floor was built by filtering `Process == 'C'`, so it held no lease fuel at
+all. In 2017 the facilities carrying a NAICS of 211 reported 44.93 Mt CO2e under
+subpart C and 177.18 Mt under subpart W, and that 44.93 is 78% gas processing
+plants, 11% offshore production and 10% facilities filing no subpart W report —
+**none of it onshore production**. `211000` was being scored against another
+segment's fuel.
+
+| `211000` | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| floor, subpart C only | 44.9 | 46.8 | 47.6 | 46.5 | 46.5 | 46.7 | 48.4 | 44.9 |
+| floor, **C + W combustion** | 113.3 | 120.7 | 130.2 | 122.8 | 127.5 | 134.0 | 140.2 | 139.7 |
+| what we allocate | 29.6 | 54.4 | 53.1 | 37.7 | 60.1 | 90.1 | 58.6 | 55.6 |
+| ratio, subpart C only | 0.66 | 1.16 | 1.12 | 0.81 | 1.29 | 1.93 | 1.21 | 1.24 |
+| **ratio, whole floor** | **0.26** | 0.45 | 0.41 | 0.31 | 0.47 | 0.67 | 0.42 | 0.40 |
+
+⚠️ **The verdict moves from `intermittent` to `boundary_offset`, and that is not
+a reprieve.** `boundary_offset` names a *pattern* — below the floor in every year
+— and the docstring's reading of it as a definition difference holds for
+petroleum refineries, whose still gas the inventory books outside table 3-11.
+`211000` is the other kind: lease and plant fuel **are** inside table 3-11, and
+the allocation misses them because a purchase row cannot see fuel nobody sold.
+Its cumulative shortfall, 589 Mt over the span, is now the largest in the test —
+ahead of refineries at 321 Mt.
+
+`21311A`, other support activities for mining, enters the test for the first time
+once its floor clears 1 Mt, and lands `intermittent`.
