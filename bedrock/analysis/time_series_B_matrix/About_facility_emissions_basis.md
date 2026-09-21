@@ -366,53 +366,66 @@ once its floor clears 1 Mt, and lands `intermittent`.
 
 ---
 
-## 9. What the basis cannot carry: everything outside table 3-11 (#962)
+## 9. The 145 Mt under-attribution: what a vector can restate, and what it cannot (#962)
 
-The facility method replaces an attribution instruction wherever facility data
-applies. Table 3-11 is 808.8 Mt of the vector-allocated mass in facility scope;
-the other **106.2 Mt** rides a vector into the same sectors and has to be asked
-the same question. **D16** asks it. Every family fails, and for four different
-reasons:
+§2 finds the sectors whose GHGRP floor clears their **whole** inventory
+assignment, `allocated` and `Direct` together. **D16** follows that through: the
+gap does not have one fix, and the split decides which piece of work owns it.
 
-| family | Mt | where GHGRP sees nothing | split would move | the mass that would move it |
-|---|---:|---:|---:|---|
-| `T_3_14` non-energy use of fossil fuels | 73.3 | 8.6% | 137.8 pp | `H` 67.3, `P` 27.0, `Q` 25.7 |
-| `T_4_60` refrigerants | 10.7 | **98.3%** | 196.7 pp | `W` 174.4, `Y` 46.9 |
-| `T_2_S1` carbonate use | 10.4 | 51.5% | 161.7 pp | `H` 68.1, `Y` 46.9 |
-| `T_2_S1` urea | 5.8 | 4.7% | 150.7 pp | `Y` 46.9, `P` 41.4 |
-| `T_4_60` foams | 2.2 | **98.5%** | 196.7 pp | `X` 4.9, `Q` 3.8 |
-| `T_3_10` construction and mining | 1.8 | 7.2% | 47.5 pp | `W` 183.3, `FF` 28.0 |
-| `T_4_52` | 1.2 | 63.0% | 101.9 pp | `GG` 0.6, `R` 0.5 |
+⚠️ **This section replaces an earlier one that asked the question family by
+family** — "could a facility vector carry non-energy use, carbonate use, urea?"
+— and ruled each out on which subparts its facility mass sat in. That is the
+half-ratio reasoning §2 warns against, and the verdict it produced ("the basis
+stops at combustion") was withdrawn. The sector total is the test.
 
-⚠️ **Read the last column, not the fourth.** A shift of 200 pp means the two
-distributions share nothing at all, so these are not marginal restatements —
-they are replacements. And what would be doing the replacing is cement
-calcination (`H`), hydrogen production (`P`), metallurgical coke (`Q`), oil and
-gas systems (`W`) and refinery processes (`Y`). Every one of those is an
-inventory line of its own. A facility vector here would spread non-energy-use
-carbon in proportion to cement kilns.
+### It is a standing condition, not a vintage artefact
 
-Three specific findings behind that:
+| year | sectors | gap, Mt | **restate** | **relocate** |
+|---|---:|---:|---:|---:|
+| 2018 | 20 | 160.5 | 23.0 | 137.5 |
+| 2019 | 20 | 145.3 | 21.9 | 123.4 |
+| 2020 | 22 | 153.3 | 22.8 | 130.5 |
+| 2021 | 21 | 155.5 | 23.9 | 131.6 |
+| 2022 | 23 | 144.7 | 17.8 | 126.8 |
+| 2023 | 25 | 153.9 | 20.8 | 133.1 |
+| 2024 | 21 | 152.2 | 15.8 | 136.4 |
 
-- **Carbonate use is invisible to the programme.** The inventory spreads 10.4 Mt
-  over about twenty sectors; GHGRP subpart `U`, miscellaneous use of carbonate,
-  holds **0.1 Mt over six facilities** — 1% of it. Most carbonate users sit under
-  the 25,000 tCO2e threshold. A vector built on six facilities would not restate
-  that split, it would delete it.
-- **Urea is a consumption line and GHGRP reports production.** 5.8 Mt of urea
-  consumed for non-agricultural purposes, against subpart `G` ammonia
-  manufacturing at 20.9 Mt over 29 facilities. No facility reports *consuming*
-  urea, so there is nothing to build a vector from — and the line reaches only
-  two sectors anyway, so a vector could move one boundary at most.
-- **Non-energy use is feedstock carbon, and it is already on a quantity basis.**
-  `T_3_14` rides `EPA_GHGI_T_3_25b`, whose sets are attributed on **MECS
-  feedstock consumption** (`Class: Other`) — a survey measuring the flow being
-  allocated — with the coal sets `direct`. Per sector the facility mass is the
-  wrong carbon: fertilizer manufacturing holds 28.5 Mt of non-combustion GHGRP
-  mass against 10.7 Mt of non-energy use, but it is subpart `G` ammonia and `V`
-  nitric acid; industrial gas holds 27.3 Mt against 1.9 Mt, and it is subpart `P`
-  hydrogen. Petrochemicals is the one sector where the categories are related at
-  all, and there subpart `X` holds 4.2 Mt against 25.5 Mt allocated.
+**12 sectors are under-attributed in every year of the span.** Following §3,
+`restate` is where `Direct` is immaterial — no process mass is in dispute, the
+table 3-11 vector simply gives the sector too little — and `relocate` is where
+`Direct` is material, which a vector cannot touch at all.
 
-**So the facility method replaces the five table 3-11 sections and leaves the
-rest.** That is not a gap to close later; it is the measured answer.
+### Seven eighths of it is not a vector's to close
+
+| 2022 | Mt | sectors |
+|---|---:|---:|
+| **restate** — combustion under-allocation | 17.9 | 17 |
+| **relocate** — process misattribution | **126.7** | 6 |
+
+`324110` petroleum refineries alone is 96.7 Mt of the second: allocated 76.2,
+`Direct` 3.6, against a floor of 176.4. That is §3's pair result — no level is in
+dispute across refineries and `211000` together, only which industry holds it —
+and it belongs to
+[#953](https://github.com/cornerstone-data/bedrock/issues/953). The others are
+`325120` industrial gas 13.8, `327310` cement 10.1, `21311A` 3.6, `327400` lime
+2.4, `331490` 0.1.
+
+⚠️ **So do not read the residual gap after #929 lands as the integration having
+failed.** The facility vector closes the 17.9 Mt, because that is what a better
+combustion split does. It was never going to close the rest.
+
+### And the restate half needs no sections beyond the five
+
+In those 23 sectors, **98% of the allocated mass is table 3-11** — 156.7 Mt of
+160.5 Mt. Every other vector-attributed family together is **3.8 Mt across all 23
+sectors**: non-energy use 2.18, carbonate use 0.83, `T_4_52` 0.44, construction
+and mining 0.24, refrigerants 0.06. The tail families are not where the shortfall
+lives, and that conclusion needs no claim about which subpart answers which
+inventory table.
+
+Coverage facts worth keeping for whoever revisits them: GHGRP subpart `U` holds
+0.1 Mt over six facilities against 10.4 Mt of carbonate use allocated across some
+twenty sectors; 98% of refrigerants and foams land in sectors reporting under 0.5
+Mt to the GHGRP; urea is a consumption line and the GHGRP reports at production;
+and non-energy use is attributed on **MECS feedstock quantities**, not on a
+purchase row, so #929's premise does not apply to it.
