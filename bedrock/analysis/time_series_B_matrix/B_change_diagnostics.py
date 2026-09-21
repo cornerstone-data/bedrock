@@ -1730,6 +1730,136 @@ def combustion_floor_test(
     ).reset_index(drop=True)
 
 
+# --- D16: could the facility basis carry anything outside table 3-11? (#962) --
+
+#: Subparts excluded when asking what non-combustion mass a facility reported.
+#: ``C`` is stationary combustion, which is table 3-11's question and D14's;
+#: ``D`` is electricity, which runs on eGRID here.
+GHGRP_NON_COMBUSTION_EXCLUDED = frozenset({'C', 'D'})
+
+#: A sector holding less GHGRP mass than this is one the reporting programme
+#: effectively cannot see, so a facility vector cannot place emissions in it.
+GHGRP_SIGHTED_Mt = 0.5
+
+
+def ghgrp_by_sector_subpart(year: int) -> pd.DataFrame:
+    """GHGRP non-combustion mass by BEA detail sector and subpart, Mt CO2e.
+
+    The same facility-NAICS rule :func:`ghgrp_subpart_C` uses, with the subpart
+    kept rather than summed away - because *which* subpart a sector's facility
+    mass sits in is the whole question in :func:`non_combustion_correspondence`.
+    """
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    flows = stewi.getInventory(
+        'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    flows = flows[
+        ~flows['Process'].isin(GHGRP_NON_COMBUSTION_EXCLUDED)
+        & flows['FlowName'].isin(GHGRP_FLOW_MAP)
+    ].copy()
+    flows['CO2e'] = flows['FlowAmount'] * flows['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
+    placed = flows.merge(
+        _facility_sectors('GHGRP', year)[['NAICS', 'State', 'sector']],
+        left_on='FacilityID',
+        right_index=True,
+        how='left',
+    )
+    placed = _drop_outside_geography(placed, 'CO2e', 'D16', year)
+    resolved = placed.dropna(subset=['sector'])
+    return (
+        resolved.groupby(['sector', 'Process'])['CO2e']
+        .sum()
+        .unstack('Process')
+        .fillna(0.0)
+        / 1e9
+    )
+
+
+def non_combustion_correspondence(
+    detail: pd.DataFrame, year: int, min_Mt: float = 1.0
+) -> pd.DataFrame:
+    """**D16.** Could a facility vector carry the sections outside table 3-11?
+
+    `#962 <https://github.com/cornerstone-data/bedrock/issues/962>`_. The
+    facility-based method of #929 replaces an attribution instruction wherever
+    facility data applies. Table 3-11 is the case that is made; this asks the
+    same question of everything **else** that rides a vector into a sector a
+    facility reports from - 106.2 Mt in 2022, against 808.8 Mt for table 3-11.
+
+    For each such family the table carries:
+
+    ====================  ====================================================
+    ``inventory_Mt``      what the inventory gives those sectors
+    ``unreachable_pct``   share of the family landing in sectors holding less
+                          than :data:`GHGRP_SIGHTED_Mt` of reported emissions -
+                          where a facility vector has nothing to place at all
+    ``shift_pp``          how far the facility vector would move the family's
+                          sector split, summed absolute percentage points. The
+                          same measure #924 ranks the combustion basis on
+    ``ghgrp_nearby_Mt``   non-combustion GHGRP mass sitting in those sectors
+    ``top_subparts``      what that mass actually is
+    ====================  ====================================================
+
+    ⚠️ **``ghgrp_nearby_Mt`` is not a coverage figure.** It is the mass a naive
+    vector would pick up, and for a family touching most of manufacturing it is
+    simply most of the GHGRP. The columns that decide anything are
+    ``unreachable_pct`` and ``top_subparts``.
+
+    ⚠️ **``top_subparts`` is the finding.** Fertilizer manufacturing holds 28.5
+    Mt of non-combustion GHGRP mass against 10.7 Mt of non-energy use - but it is
+    subpart G ammonia and subpart V nitric acid, which the inventory books on
+    their own lines. A vector built from it would spread non-energy-use carbon in
+    proportion to ammonia production. That is the #953 error in a different
+    family: **split on the reporting boundary before reading any coverage
+    ratio.**
+    """
+    facility = ghgrp_by_sector_subpart(year)
+    sighted = facility.sum(axis=1)
+    rows = []
+    scope = detail[
+        (detail['year_to'] == year)
+        & (detail['AttributionSources'] != 'Direct')
+        & ~detail['MetaSources'].str.contains(COMBUSTION_METASOURCE, na=False)
+        & detail['sector'].astype(str).str[:2].isin(FACILITY_SCOPE_PREFIXES)
+    ]
+    for (family, attributed_on), part in scope.groupby(
+        ['MetaSources', 'AttributionSources']
+    ):
+        inventory = part.groupby('sector')['E_to'].sum() / 1e9
+        if inventory.sum() < min_Mt:
+            continue
+        seen = sighted.reindex(inventory.index).fillna(0.0)
+        blind = inventory[seen < GHGRP_SIGHTED_Mt]
+        mass = facility.reindex(inventory.index).fillna(0.0).sum()
+        # What the split would become if the facility mass in these sectors were
+        # the vector, against what it is now - the #924 churn measure, applied to
+        # a swap of basis rather than to a change of year.
+        now = inventory / inventory.sum()
+        proposed = seen / seen.sum() if seen.sum() > 0 else now * 0
+        rows.append(
+            {
+                'family': family,
+                'attributed_on': attributed_on,
+                'inventory_Mt': inventory.sum(),
+                'unreachable_pct': 100 * blind.sum() / inventory.sum(),
+                'shift_pp': 100 * (proposed - now).abs().sum(),
+                'ghgrp_nearby_Mt': mass.sum(),
+                'top_subparts': ', '.join(
+                    f'{subpart} {value:.1f}'
+                    for subpart, value in mass.sort_values(ascending=False)
+                    .head(3)
+                    .items()
+                    if value > 0.05
+                ),
+            }
+        )
+    return (
+        pd.DataFrame(rows)
+        .sort_values('inventory_Mt', ascending=False)
+        .reset_index(drop=True)
+    )
+
+
 # --- D15: a facility-reported basis for stationary combustion ---------------
 
 #: SCC level 1: 1 is external combustion, 2 is internal combustion, 3 is an
@@ -2942,6 +3072,18 @@ def main(
         floor = ghgrp_combustion_floor(floor_years)
         tables['ghgrp_combustion_floor'] = floor
         tables['combustion_floor_test'] = combustion_floor_test(detail_real, floor)
+
+        # D16 asks #929's question of everything table 3-11 is not.
+        tables['non_combustion_correspondence'] = non_combustion_correspondence(
+            detail_real, max(floor_years)
+        )
+        logger.info(
+            'D16: could a facility vector carry the sections outside table 3-11? '
+            'unreachable_pct is the share landing where the GHGRP sees nothing, '
+            'shift_pp how far the split would move (200 = no overlap at all), '
+            'and top_subparts what would be doing the moving:\n%s',
+            tables['non_combustion_correspondence'].round(1).to_string(index=False),
+        )
 
         # D15 needs NEI as well as GHGRP, and NEI trails it by a year.
         basis_year = min(max(floor_years), NEI_LAST_YEAR)

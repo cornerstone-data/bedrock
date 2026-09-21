@@ -362,3 +362,57 @@ ahead of refineries at 321 Mt.
 
 `21311A`, other support activities for mining, enters the test for the first time
 once its floor clears 1 Mt, and lands `intermittent`.
+
+
+---
+
+## 9. What the basis cannot carry: everything outside table 3-11 (#962)
+
+The facility method replaces an attribution instruction wherever facility data
+applies. Table 3-11 is 808.8 Mt of the vector-allocated mass in facility scope;
+the other **106.2 Mt** rides a vector into the same sectors and has to be asked
+the same question. **D16** asks it. Every family fails, and for four different
+reasons:
+
+| family | Mt | where GHGRP sees nothing | split would move | the mass that would move it |
+|---|---:|---:|---:|---|
+| `T_3_14` non-energy use of fossil fuels | 73.3 | 8.6% | 137.8 pp | `H` 67.3, `P` 27.0, `Q` 25.7 |
+| `T_4_60` refrigerants | 10.7 | **98.3%** | 196.7 pp | `W` 174.4, `Y` 46.9 |
+| `T_2_S1` carbonate use | 10.4 | 51.5% | 161.7 pp | `H` 68.1, `Y` 46.9 |
+| `T_2_S1` urea | 5.8 | 4.7% | 150.7 pp | `Y` 46.9, `P` 41.4 |
+| `T_4_60` foams | 2.2 | **98.5%** | 196.7 pp | `X` 4.9, `Q` 3.8 |
+| `T_3_10` construction and mining | 1.8 | 7.2% | 47.5 pp | `W` 183.3, `FF` 28.0 |
+| `T_4_52` | 1.2 | 63.0% | 101.9 pp | `GG` 0.6, `R` 0.5 |
+
+⚠️ **Read the last column, not the fourth.** A shift of 200 pp means the two
+distributions share nothing at all, so these are not marginal restatements —
+they are replacements. And what would be doing the replacing is cement
+calcination (`H`), hydrogen production (`P`), metallurgical coke (`Q`), oil and
+gas systems (`W`) and refinery processes (`Y`). Every one of those is an
+inventory line of its own. A facility vector here would spread non-energy-use
+carbon in proportion to cement kilns.
+
+Three specific findings behind that:
+
+- **Carbonate use is invisible to the programme.** The inventory spreads 10.4 Mt
+  over about twenty sectors; GHGRP subpart `U`, miscellaneous use of carbonate,
+  holds **0.1 Mt over six facilities** — 1% of it. Most carbonate users sit under
+  the 25,000 tCO2e threshold. A vector built on six facilities would not restate
+  that split, it would delete it.
+- **Urea is a consumption line and GHGRP reports production.** 5.8 Mt of urea
+  consumed for non-agricultural purposes, against subpart `G` ammonia
+  manufacturing at 20.9 Mt over 29 facilities. No facility reports *consuming*
+  urea, so there is nothing to build a vector from — and the line reaches only
+  two sectors anyway, so a vector could move one boundary at most.
+- **Non-energy use is feedstock carbon, and it is already on a quantity basis.**
+  `T_3_14` rides `EPA_GHGI_T_3_25b`, whose sets are attributed on **MECS
+  feedstock consumption** (`Class: Other`) — a survey measuring the flow being
+  allocated — with the coal sets `direct`. Per sector the facility mass is the
+  wrong carbon: fertilizer manufacturing holds 28.5 Mt of non-combustion GHGRP
+  mass against 10.7 Mt of non-energy use, but it is subpart `G` ammonia and `V`
+  nitric acid; industrial gas holds 27.3 Mt against 1.9 Mt, and it is subpart `P`
+  hydrogen. Petrochemicals is the one sector where the categories are related at
+  all, and there subpart `X` holds 4.2 Mt against 25.5 Mt allocated.
+
+**So the facility method replaces the five table 3-11 sections and leaves the
+rest.** That is not a gap to close later; it is the measured answer.
