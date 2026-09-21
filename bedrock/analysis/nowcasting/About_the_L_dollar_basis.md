@@ -21,31 +21,51 @@ one identity, so take that first.
 
 ## The identity
 
-A real input coefficient deflates the input and re-inflates the output —
-`a_real[i, j] = a[i, j] * r_j / r_i`, where `r_j` is commodity *j*'s price ratio
-from the base year. In matrix form that is `A_real = diag(1/r) A diag(r)`, and
-because `I = diag(1/r) I diag(r)` as well, the transform carries straight
-through the inverse:
+Everything below is in the house price term **`ρ`**, the inflation adjustment
+factor of the [v0.2 US methods paper](https://github.com/cornerstone-data/papers/blob/internal-review-draft-US-methods/us-methods/us-methods.md):
 
 ```
-I - A_real = diag(1/r) (I - A) diag(r)
-L_real     = diag(1/r) L diag(r)          L_real[i, j] = L[i, j] * r_j / r_i
+ρ_ty = Π_by / Π_ty
+```
+
+base-year price index over target-year price index, per sector. It is what
+`derive_price_index_panel` publishes as the Excel `Rho` panel and what
+`get_rho_inflation_ratio` returns. ⚠️ **It is the reciprocal of the forward
+ratio** `get_cornerstone_industry_price_ratio` gives — the repo test
+`test_rho_inflation_ratio_is_inverse_of_industry_price_ratio` pins that — so
+these formulas divide where a forward ratio would multiply.
+
+A real input coefficient deflates the input and re-inflates the output,
+`a_real[i, j] = a[i, j] · ρ_i / ρ_j`. In matrix form, and writing `ρ̂` for the
+diagonalised vector as the paper does, that is `A_real = ρ̂ A ρ̂⁻¹` — the
+inverse of the paper's own A-matrix transform `A_ty = ρ̂⁻¹ A_sy ρ̂`, which
+inflates rather than deflates. Because `I = ρ̂ I ρ̂⁻¹` as well, it carries
+straight through the inverse:
+
+```
+I - A_real = ρ̂ (I - A) ρ̂⁻¹
+L_real     = ρ̂ L ρ̂⁻¹                 L_real[i, j] = L[i, j] · ρ_i / ρ_j
 ```
 
 So `L` never has to be re-derived from a deflated `A` — which is also why this
-analysis costs nothing. A real direct factor is `B_real = B * r`: the same
+analysis costs nothing. A real direct factor is `B_real = B / ρ`: the same
 kilograms over fewer constant dollars. Put the two together:
 
 ```
-N_real[j] = sum_i (B[i] * r_i) * (L[i, j] * r_j / r_i)
-          = r_j * sum_i B[i] * L[i, j]
-          = r_j * N[j]
+N_real[j] = sum_i (B[i] / ρ_i) · (L[i, j] · ρ_i / ρ_j)
+          = (1 / ρ_j) · sum_i B[i] · L[i, j]
+          = N[j] / ρ_j
 ```
 
-**The `r_i` cancels.** A consistently deflated `N` is the nominal `N` with its
+**The `ρ_i` cancels.** A consistently deflated `N` is the nominal `N` with its
 own denominator deflated and nothing else — which is exactly what
 `inflation_adjust_ef_denom_to_new_base_year` already does on the reporting
 path. `--check` verifies the cancellation at 6.5e-16.
+
+⚠️ **`ρ` is defined on industries** in the paper. `A` and `L` are commodity ×
+commodity, so a commodity-axis `ρ` has to be derived — see the method note at
+the end, which also says why it is built by weighting the *forward* ratio and
+inverting rather than by averaging `ρ` directly.
 
 ⚠️ **The cancellation needs both sides or neither.** That is the whole finding.
 
@@ -167,12 +187,22 @@ as `B_change` already documents.
 
 ## Method notes and caveats
 
-**The deflator.** `x / x_real` straight off the cached span, so the price index
+**`ρ` on the industry axis.** `x_real / x` straight off the cached span — the
+reciprocal of the forward ratio `x_real` was built with — so the price index
 here is by construction the one the diagnostics already deflate `B` with.
-Carried onto the commodity axis as a `V_norm`-weighted average of supplying
-industries' ratios, with base-year weights, the same form as
+
+**`ρ` on the commodity axis.** A `V_norm`-weighted average of supplying
+industries, base-year weights, the same form as
 `get_vnorm_adjusted_commodity_price_ratio` but built locally so no
 `functools.cache` can carry a stale config across.
+
+⚠️ **The weighting is applied to the forward ratio, and the result inverted —
+not to `ρ` directly.** A weighted mean of reciprocals is not the reciprocal of
+a weighted mean, so the two are different estimators, and the production helper
+averages the forward ratio. Averaging `ρ` instead moves the headline `L` effect
+by up to **0.04 percentage points**: small, but it is a choice rather than
+noise, and this one keeps the figures comparable with anything built on
+`get_vnorm_adjusted_commodity_price_ratio`.
 
 **It is not load-bearing.** Four choices — base-year `V_norm` weights, each
 year's own weights, a flat 1:1 industry-to-commodity reindex, and chaining each
