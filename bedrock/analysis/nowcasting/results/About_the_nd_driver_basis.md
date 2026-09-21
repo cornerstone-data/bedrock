@@ -32,18 +32,25 @@ percentile spread of annual industry price moves goes from 1.06 in 2018-20 to
 
 ## The fix
 
-`A` and `L` take the same transform as each other, `M[i, j] * r_j / r_i`, with
-`r` the very ratio `D` is multiplied by — deflate the input, re-inflate the
-output. It carries through the inverse, so `L` needs no re-solve:
+`A` and `L` take the same transform as each other — deflate the input,
+re-inflate the output — in the house price term `ρ`, the inflation adjustment
+factor `ρ_ty = Π_by / Π_ty`. ⚠️ That is the **reciprocal** of the forward
+ratio `D` is multiplied by. Writing `ρ̂` for the diagonalised vector as the US
+methods paper does:
 
 ```
-I - A_r = diag(1/r) (I - A) diag(r)     =>     L_r = diag(1/r) L diag(r)
+M_rebased = ρ̂ M ρ̂⁻¹                     M[i, j] · ρ_i / ρ_j
+I - A_r   = ρ̂ (I - A) ρ̂⁻¹    =>    L_r = ρ̂ L ρ̂⁻¹
 ```
+
+This is the inverse of the paper's own A transform `A_ty = ρ̂⁻¹ A_sy ρ̂`, which
+inflates rather than deflates. It carries through the inverse, so `L` needs no
+re-solve:
 
 Each year's rebased pair still satisfies `L_r = (I - A_r)^-1`, which is what
 keeps the cell partition `L₂ − L₁ = L₂ (A₂ − A₁) L₁` exact. Both identity
 checks pass on all seven spans, and `rebase` now asserts the cancellation it
-implies — with both sides rebased, `D_r @ L_r` must equal `(D @ L) · r`, which
+implies — with both sides rebased, `D_r @ L_r` must equal `(D @ L) / ρ`, which
 fails the moment one side is left behind.
 
 ✅ **That retires the old warning against comparing levels with

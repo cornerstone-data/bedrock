@@ -321,7 +321,7 @@ survive putting both sides on one basis. **The worst year moved from 2021 to
 The question of how much of what remains is relative prices is now answered
 and the answer is *none of it* — this table is already in constant dollars,
 and a consistent deflation cancels out of `N` entirely
-(`N_real[j] = r_j · N_nominal[j]`), so there is no further price term to
+(`N_real[j] = N_nominal[j] / ρ_j`), so there is no further price term to
 remove. Deflating does not quieten `L` either: its gross year-on-year movement
 is within 9% of the nominal series every year but 2024, where the real `L`
 moves 64% *more*. See
@@ -358,7 +358,7 @@ rather than fabricated where the base is zero.
 
 ⚠️ `N` is now built with `B` and `L` on the same basis, so it *is* comparable
 across years as a level. `delta_B_pct_of_N` is invariant to the choice of base
-year — the `r_j` cancels between `dB` and `N` — but it was **not** invariant to
+year — the `ρ_j` cancels between `dB` and `N` — but it was **not** invariant to
 the 2026-09-21 hybrid-to-real switch, because its `N` denominator moved: by a
 median 0% to 15% depending on the year, with the ranking it drives holding at
 29 or 30 of the top 30. A level quoted from a run before that date will not

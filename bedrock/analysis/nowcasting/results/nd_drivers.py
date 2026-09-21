@@ -127,17 +127,21 @@ def rebase(parts: YearParts, *, old_year: int, new_year: int) -> YearParts:
     was anything but. **The structure effect is the term that absorbs the
     price movement, not the one that survives it.**
 
-    Both take the same transform, ``M[i, j] * r_j / r_i`` - deflate the input,
-    re-inflate the output - with ``r`` the very ratio ``D`` is multiplied by.
-    It carries through the inverse (``I - A_r = diag(1/r) (I - A) diag(r)``),
-    so ``L`` needs no re-solve, and each year's rebased pair still satisfies
+    Both take the same transform, ``M[i, j] * rho_i / rho_j`` - deflate the
+    input, re-inflate the output - where ``rho`` is the house inflation
+    adjustment factor ``PI[new_year] / PI[old_year]``, the reciprocal of the
+    forward ratio ``D`` is multiplied by. In the US methods paper's
+    diagonalised notation this is ``rho_hat M rho_hat^-1``, the inverse of its
+    own A transform ``A_ty = rho_hat^-1 A_sy rho_hat``. It carries through the
+    inverse (``I - A_r = rho_hat (I - A) rho_hat^-1``), so ``L`` needs no
+    re-solve, and each year's rebased pair still satisfies
     ``L_r = (I - A_r)^-1``, which is what keeps the cell partition
     ``L2 - L1 = L2 (A2 - A1) L1`` exact.
 
-    ✅ **``N`` is now basis-independent.** With both sides rebased the ``r_i``
-    cancels and ``D_r @ L_r`` equals ``(D @ L) * r`` exactly, so recomputing
-    ``N`` here and deflating the published ``N`` by the target's own price are
-    the same number. That retires the old warning against quoting a level from
+    ✅ **``N`` is now basis-independent.** With both sides rebased the
+    ``rho_i`` cancels and ``D_r @ L_r`` equals ``(D @ L) / rho`` exactly, so
+    recomputing ``N`` here and deflating the published ``N`` by the target's
+    own price are the same number. That retires the old warning against quoting a level from
     here against one from :mod:`nowcast_key_sector_nd_series`: the two agree.
     ``--check`` asserts it.
     """
@@ -159,27 +163,28 @@ def rebase(parts: YearParts, *, old_year: int, new_year: int) -> YearParts:
         ),
         dtype=float,
     )
-    # the same ratio, read off the same index, so the two sides cannot drift.
-    # fillna(1.0) mirrors inflation_adjust_ef_denom_to_new_base_year: a sector
-    # with no price index is left alone rather than dropped.
+    # rho = PI[new] / PI[old] - the reciprocal of the factor D is multiplied
+    # by, read off the same index so the two sides cannot drift. fillna(1.0)
+    # mirrors inflation_adjust_ef_denom_to_new_base_year: a sector with no
+    # price index is left alone rather than dropped.
     levels = obtain_inflation_factors_from_reference_data()
-    ratio = (levels[old_year] / levels[new_year]).reindex(parts.A.index).fillna(1.0)
-    A = rebase_coefficient_matrix(matrix=parts.A, price_ratio=ratio)
-    L = rebase_coefficient_matrix(matrix=parts.L, price_ratio=ratio)
+    rho = (levels[new_year] / levels[old_year]).reindex(parts.A.index).fillna(1.0)
+    A = rebase_coefficient_matrix(matrix=parts.A, rho=rho)
+    L = rebase_coefficient_matrix(matrix=parts.L, rho=rho)
     N = pd.Series(deflated @ L, dtype=float)
 
     # The cancellation, asserted rather than trusted: with both sides rebased,
-    # D_r @ L_r must equal (D @ L) * r. It fails the moment one side is left
+    # D_r @ L_r must equal (D @ L) / rho. It fails the moment one side is left
     # on its own year's prices, which is the defect this guard exists to catch.
-    expected = parts.N * ratio.reindex(parts.N.index).fillna(1.0)
+    expected = parts.N / rho.reindex(parts.N.index).fillna(1.0)
     scale = expected.abs().max()
     if scale > 0:
         worst = float((N - expected).abs().max() / scale)
         if worst > 1e-9:
             raise ValueError(
                 f'rebasing {old_year} to {new_year} left D and L on different '
-                f'dollar bases: D_r @ L_r departs from (D @ L) * r by {worst:.2e} '
-                f'relative. See #958.'
+                f'dollar bases: D_r @ L_r departs from (D @ L) / rho by '
+                f'{worst:.2e} relative. See #958.'
             )
 
     return YearParts(

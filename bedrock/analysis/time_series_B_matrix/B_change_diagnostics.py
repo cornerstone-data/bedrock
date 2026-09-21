@@ -1020,50 +1020,60 @@ def output_elasticity(detail: pd.DataFrame, by: str = 'attribution') -> pd.DataF
 # --- Step 6: B, as a by-product ---------------------------------------------
 
 
-def commodity_price_ratio(span: Span, weight_year: int | None = None) -> pd.DataFrame:
-    """Price ratio, base year to each year, on the **commodity** axis.
+def commodity_rho(span: Span, weight_year: int | None = None) -> pd.DataFrame:
+    """``rho`` on the **commodity** axis: ``PI[base] / PI[y]``, year by year.
 
-    ``x / x_real`` recovers the industry-axis deflator the span was built with,
+    ``rho`` is the house inflation adjustment factor — the Excel ``Rho`` panel,
+    ``get_rho_inflation_ratio``, and the ``rho_ty = PI_by / PI_ty`` of the US
+    methods paper. ⚠️ It is the **reciprocal** of the forward ratio
+    ``get_cornerstone_industry_price_ratio`` returns.
+
+    ``x_real / x`` recovers the industry-axis ``rho`` the span was built with,
     so this cannot drift from the one :func:`deflate_x` already applies to
-    ``B``. ``A`` and ``L`` are commodity x commodity, so that ratio has to be
-    carried across: each commodity takes the average of its supplying
-    industries' ratios, weighted by their base-year shares of its supply::
+    ``B``. ``A`` and ``L`` are commodity x commodity, so it has to be carried
+    across: each commodity takes the average of its supplying industries,
+    weighted by their base-year shares of its supply, the same form as
+    :func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_vnorm_adjusted_commodity_price_ratio`
+    but built from the span so no ``functools.cache`` can carry a stale config
+    across a year switch.
 
-        r_com[j] = sum_i (V_norm[i, j] / sum_i V_norm[i, j]) * r_ind[i]
+    ⚠️ **The weighting is applied to the forward ratio and the result
+    inverted**, not to ``rho`` directly: a weighted mean of reciprocals is not
+    the reciprocal of a weighted mean, and the production helper averages the
+    forward ratio. The two differ by up to 0.04 percentage points on figures
+    built from this — a different estimator rather than noise.
 
-    the same form as
-    :func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_vnorm_adjusted_commodity_price_ratio`,
-    built from the span so no ``functools.cache`` can carry a stale config
-    across a year switch. Base-year weights fix the supplier mix, so the ratio
-    measures prices and not mix; *weight_year* overrides that for sensitivity
-    work, and moves the answer by under 0.02 percentage points.
+    Base-year weights fix the supplier mix, so it measures prices and not mix;
+    *weight_year* overrides that for sensitivity work and moves the answer by
+    under 0.02 percentage points.
 
     ⚠️ This is the *commodity* axis; ``B_total(real=True)`` deflates on the
     *industry* axis before mapping through ``V_norm``. The two coincide only
-    where industry prices are uniform within a commodity's supplying mix - a
+    where industry prices are uniform within a commodity's supplying mix — a
     gap under 0.14% at the median but reaching 36% at the tail. Sized per year
     by ``L_deflator_axis_gap.csv`` in
     :mod:`bedrock.analysis.nowcasting.L_dollar_basis`.
     """
     base = int(span.x.columns[0])
-    r_ind = span.x / span.x_real
-    if not np.allclose(r_ind[base].dropna(), 1.0):
+    rho_ind = span.x_real / span.x
+    if not np.allclose(rho_ind[base].dropna(), 1.0):
         raise ValueError(
-            f'x / x_real is not 1.0 in the base year {base} - x_real was '
+            f'x_real / x is not 1.0 in the base year {base} - x_real was '
             f'deflated to a different base than the span starts at.'
         )
     Vnorm = span.Vnorm[weight_year or base]
     supply = Vnorm.sum(axis=0)
     weights = Vnorm.divide(supply.where(supply > 1e-9, 1.0), axis=1)
-    ratio = pd.DataFrame(
+    forward = pd.DataFrame(
         {
-            year: r_ind[year].reindex(Vnorm.index).fillna(1.0) @ weights
+            year: (1.0 / rho_ind[year]).reindex(Vnorm.index).fillna(1.0) @ weights
             for year in span.L
         }
     )
+    rho = 1.0 / forward
     # A commodity no industry supplies would average over nothing and come back
     # 0, which cannot divide. Neutral 1.0, as the production helper does.
-    return ratio.where(supply.gt(1e-9), 1.0, axis=0)
+    return rho.where(supply.gt(1e-9), 1.0, axis=0)
 
 
 def L_real(span: Span) -> dict[int, pd.DataFrame]:
@@ -1073,9 +1083,9 @@ def L_real(span: Span) -> dict[int, pd.DataFrame]:
     deflates ``A``, and it carries through the inverse, so this needs no ``A``
     and no re-solve.
     """
-    ratio = commodity_price_ratio(span)
+    rho = commodity_rho(span)
     return {
-        year: rebase_coefficient_matrix(matrix=L, price_ratio=ratio[year])
+        year: rebase_coefficient_matrix(matrix=L, rho=rho[year])
         for year, L in span.L.items()
     }
 
@@ -1117,14 +1127,15 @@ def N_total(span: Span, real: bool = False) -> pd.DataFrame:
     commodity-years.
 
     On a consistent basis the deflation cancels out of the level entirely -
-    ``N_real[j] = r_j * N_nominal[j]``, because the ``r_i`` in ``B_real = B r``
-    meets its inverse in ``L_real[i, j] = L[i, j] r_j / r_i``. So this is the
+    ``N_real[j] = N_nominal[j] / rho_j``, because the ``rho_i`` in
+    ``B_real = B / rho`` meets its inverse in
+    ``L_real[i, j] = L[i, j] rho_i / rho_j``. So this is the
     same factor the reporting path produces via
     ``inflation_adjust_ef_denom_to_new_base_year``, and unlike the hybrid it
     *is* comparable across years as a level.
 
     ⚠️ It is not comparable across *bases*. ``delta_B_pct_of_N`` is invariant
-    to the choice of base year, since the ``r_j`` cancels between ``dB`` and
+    to the choice of base year, since the ``rho_j`` cancels between ``dB`` and
     ``N``, but it is **not** invariant to the hybrid-to-real switch: its
     denominator moves, by a median 0% to 15% depending on the year. The
     ranking it drives is stable - 29 or 30 of the top 30 survive in every year

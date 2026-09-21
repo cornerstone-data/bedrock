@@ -8,22 +8,33 @@ is relative prices rather than structure, and whether ``A`` should be deflated.
 
 **The short answer is that deflating ``A`` changes ``N`` by nothing at all, and
 the 2-to-4x figure is an artefact of a mixed dollar basis.** Both follow from
-one identity. Write ``r_j`` for commodity *j*'s price ratio, base year to *t*.
-A real coefficient is ``a_real[i, j] = a[i, j] * r_j / r_i`` - deflate the input,
-re-inflate the output - and because
+one identity, written in the house price term ``rho``.
 
-    I - A_real = diag(1/r) (I - A) diag(r)
+``rho`` is the useeior/Cornerstone price ratio: ``rho_j = PI_j[base] / PI_j[y]``
+for commodity *j* in year *y*, the same quantity
+:func:`~bedrock.utils.economic.inflation_helpers_cornerstone.derive_price_index_panel`
+publishes as the Excel ``Rho`` panel and
+:func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_rho_inflation_ratio`
+returns. ⚠️ It is the **reciprocal** of the forward ratio
+``get_cornerstone_industry_price_ratio`` gives, so every formula below divides
+where a forward ratio would multiply.
+
+A real coefficient is ``a_real[i, j] = a[i, j] * rho_i / rho_j`` - deflate the
+input, re-inflate the output - and because
+
+    I - A_real = diag(rho) (I - A) diag(1/rho)
 
 the same similarity transform carries through the inverse::
 
-    L_real = diag(1/r) L diag(r)        L_real[i, j] = L[i, j] * r_j / r_i
+    L_real = diag(rho) L diag(1/rho)    L_real[i, j] = L[i, j] * rho_i / rho_j
 
 so ``L`` never has to be re-derived from a deflated ``A``. A real direct factor
-is ``B_real = B * r`` (same kilograms, fewer constant dollars), and then
+is ``B_real = B / rho`` (same kilograms, fewer constant dollars), and then
 
-    N_real[j] = sum_i (B[i] r_i) (L[i, j] r_j / r_i) = r_j * sum_i B[i] L[i, j]
+    N_real[j] = sum_i (B[i] / rho_i) (L[i, j] rho_i / rho_j)
+              = (1 / rho_j) * sum_i B[i] L[i, j]
 
-The ``r_i`` cancels. A consistently deflated ``N`` is just the nominal ``N``
+The ``rho_i`` cancels. A consistently deflated ``N`` is just the nominal ``N``
 with its own denominator deflated, which is what
 :func:`~bedrock.utils.validation.diagnostics_helpers.inflation_adjust_ef_denom_to_new_base_year`
 already does on the reporting path. Verified to 5e-16 by ``--check``.
@@ -64,7 +75,7 @@ import pandas as pd
 from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     B_total,
     Span,
-    commodity_price_ratio,
+    commodity_rho,
     load_span,
 )
 from bedrock.utils.math.formulas import rebase_coefficient_matrix
@@ -82,22 +93,22 @@ BASES = ('nominal', 'mixed', 'real')
 
 # --- the deflator -----------------------------------------------------------
 #
-# ``commodity_price_ratio`` lives in ``B_change_diagnostics`` next to
-# ``deflate_x``, because it is built from the span's own ``x / x_real`` and so
-# cannot drift from the deflator ``B`` already uses. The matrix transform lives
-# in ``formulas`` because ``A`` and ``L`` take it identically.
+# ``commodity_rho`` lives in ``B_change_diagnostics`` next to ``deflate_x``,
+# because it is built from the span's own ``x_real / x`` and so cannot drift
+# from the deflator ``B`` already uses. The matrix transform lives in
+# ``formulas`` because ``A`` and ``L`` take it identically.
 
 
-def deflate_L(L: pd.DataFrame, ratio: pd.Series) -> pd.DataFrame:
-    """``diag(1/r) L diag(r)`` - the Leontief inverse at constant prices.
+def deflate_L(L: pd.DataFrame, rho: pd.Series) -> pd.DataFrame:
+    """``diag(rho) L diag(1/rho)`` - the Leontief inverse at constant prices.
 
     Thin wrapper on :func:`~bedrock.utils.math.formulas.rebase_coefficient_matrix`
     so this module reads in its own terms. Exact rather than approximate: the
     same similarity transform deflates ``A``, and it carries through the
     inverse, so this is ``(I - A_real)^-1`` without rebuilding ``A``. The
-    diagonal is invariant (``r_j / r_j``), which ``--check`` asserts.
+    diagonal is invariant (``rho_j / rho_j``), which ``--check`` asserts.
     """
-    return rebase_coefficient_matrix(matrix=L, price_ratio=ratio)
+    return rebase_coefficient_matrix(matrix=L, rho=rho)
 
 
 # --- the three bases --------------------------------------------------------
@@ -110,8 +121,8 @@ def bases(span: Span) -> dict[str, tuple[pd.DataFrame, dict[int, pd.DataFrame]]]
     ``mixed`` - real ``B``, nominal ``L`` - is what ``B_change_diagnostics``
     reports and is a hybrid of the two.
     """
-    ratio = commodity_price_ratio(span)
-    L_real = {year: deflate_L(span.L[year], ratio[year]) for year in span.L}
+    rho = commodity_rho(span)
+    L_real = {year: deflate_L(span.L[year], rho[year]) for year in span.L}
     return {
         'nominal': (B_total(span, real=False), span.L),
         'mixed': (B_total(span, real=True), span.L),
@@ -184,11 +195,11 @@ def supply_chain_length(span: Span) -> pd.DataFrame:
     column sum falls whenever the inputs a commodity buys get cheaper relative
     to the commodity itself, with no change in what is bought.
     """
-    ratio = commodity_price_ratio(span)
+    rho = commodity_rho(span)
     rows = []
     for year in sorted(span.L):
         nominal = span.L[year].to_numpy().sum(axis=0)
-        real = deflate_L(span.L[year], ratio[year]).to_numpy().sum(axis=0)
+        real = deflate_L(span.L[year], rho[year]).to_numpy().sum(axis=0)
         rows.append(
             {
                 'year': year,
@@ -207,7 +218,9 @@ def deflator_axis_gap(span: Span) -> pd.DataFrame:
     ``B_total(real=True)`` divides each *industry*'s emissions by that
     industry's own deflated output and only then maps to commodities through
     ``V_norm``; the ``L`` deflation has to work on the commodity axis, because
-    that is the axis ``A`` is on. The two coincide only where industry prices
+    that is the axis ``A`` is on. Compared here against ``B / rho`` on the
+    commodity axis, the two being equal only where industry prices are uniform
+    within a commodity's supplying mix. The two coincide only where industry prices
     are uniform within a commodity's supplying mix.
 
     Reported as the relative gap between the two ways of writing a real ``B``.
@@ -215,13 +228,13 @@ def deflator_axis_gap(span: Span) -> pd.DataFrame:
     commodity's real ``N`` should be read against this before it is quoted.
     """
     base = int(span.x.columns[0])
-    ratio = commodity_price_ratio(span)
+    rho = commodity_rho(span)
     B_nom, B_real = B_total(span, real=False), B_total(span, real=True)
     index = span.L[base].index
     rows = []
     for year in sorted(span.L):
         by_industry = B_real[year].reindex(index).fillna(0.0)
-        by_commodity = B_nom[year].reindex(index).fillna(0.0) * ratio[year]
+        by_commodity = B_nom[year].reindex(index).fillna(0.0) / rho[year]
         gap = (
             (by_industry - by_commodity) / by_commodity.where(by_commodity != 0)
         ).abs()
@@ -289,15 +302,15 @@ def L_gross_movement(span: Span) -> pd.DataFrame:
     nominal one every year but 2024, where it is 64% *larger* - nominal prices
     were masking real structural movement, not creating it.
     """
-    ratio = commodity_price_ratio(span)
+    rho = commodity_rho(span)
     years = sorted(span.L)
     rows = []
     for prior, current in zip(years, years[1:]):
         nominal = (span.L[current] - span.L[prior]).abs().to_numpy().sum()
         real = (
             (
-                deflate_L(span.L[current], ratio[current])
-                - deflate_L(span.L[prior], ratio[prior])
+                deflate_L(span.L[current], rho[current])
+                - deflate_L(span.L[prior], rho[prior])
             )
             .abs()
             .to_numpy()
@@ -325,12 +338,12 @@ def check(span: Span) -> None:
     """
     years = sorted(span.L)
     base = years[0]
-    ratio = commodity_price_ratio(span)
+    rho = commodity_rho(span)
 
     # 1. the diagonal survives the similarity transform untouched
     for year in years:
         before = np.diag(span.L[year].to_numpy())
-        after = np.diag(deflate_L(span.L[year], ratio[year]).to_numpy())
+        after = np.diag(deflate_L(span.L[year], rho[year]).to_numpy())
         assert np.allclose(before, after), f'{year}: L diagonal moved under deflation'
     logger.info('OK  L diagonal is invariant under the deflation, every year')
 
@@ -339,9 +352,9 @@ def check(span: Span) -> None:
     worst = 0.0
     for year in years:
         L = span.L[year]
-        r = ratio[year].reindex(L.index).fillna(1.0)
-        both = (B_nom[year].reindex(L.index).fillna(0.0) * r) @ deflate_L(L, r)
-        denom_only = (B_nom[year].reindex(L.index).fillna(0.0) @ L) * r
+        rho_y = rho[year].reindex(L.index).fillna(1.0)
+        both = (B_nom[year].reindex(L.index).fillna(0.0) / rho_y) @ deflate_L(L, rho_y)
+        denom_only = (B_nom[year].reindex(L.index).fillna(0.0) @ L) / rho_y
         worst = max(
             worst, float(np.abs(both - denom_only).max() / np.abs(denom_only).max())
         )
@@ -361,19 +374,19 @@ def check(span: Span) -> None:
     )
 
     # 4. the deflator choice is not load-bearing
-    # the industry ratio read straight onto the commodity axis, 1:1 by code -
-    # what get_cornerstone_industry_price_ratio does on the nowcast path
-    r_ind = span.x / span.x_real
-    r_flat = pd.DataFrame(
-        {y: r_ind[y].reindex(span.L[base].index).fillna(1.0) for y in years}
+    # rho read straight onto the commodity axis, 1:1 by code - the reciprocal
+    # of what get_cornerstone_industry_price_ratio does on the nowcast path
+    rho_ind = span.x_real / span.x
+    rho_flat = pd.DataFrame(
+        {y: rho_ind[y].reindex(span.L[base].index).fillna(1.0) for y in years}
     )
     variants = {
-        'base-year V_norm weights': ratio,
+        'base-year V_norm weights': rho,
         'current-year V_norm weights': pd.concat(
-            [commodity_price_ratio(span, weight_year=y)[y].rename(y) for y in years],
+            [commodity_rho(span, weight_year=y)[y].rename(y) for y in years],
             axis=1,
         ),
-        '1:1 industry->commodity': r_flat,
+        '1:1 industry->commodity': rho_flat,
     }
     B_real = B_total(span, real=True)
     spread: dict[str, pd.Series] = {}
@@ -385,9 +398,7 @@ def check(span: Span) -> None:
     # base year, so no year carries seven years of accumulated price movement
     chained = {}
     for prior, current in zip(years, years[1:]):
-        step = (
-            (ratio[current] / ratio[prior]).reindex(span.L[current].index).fillna(1.0)
-        )
+        step = (rho[current] / rho[prior]).reindex(span.L[current].index).fillna(1.0)
         L_prior = span.L[prior]
         L_current = deflate_L(span.L[current], step)
         N_from = B_real[prior].reindex(L_prior.index).fillna(0.0) @ L_prior
@@ -399,7 +410,7 @@ def check(span: Span) -> None:
     table = pd.DataFrame(spread)
     worst_gap = float((table.max(axis=1) - table.min(axis=1)).max())
     logger.info(
-        'L effect under three deflator choices (median |%%|):\n%s\n'
+        'L effect under four deflator choices (median |%%|):\n%s\n'
         'widest disagreement in any year: %.2f pp',
         table.round(2).to_string(),
         worst_gap,
@@ -472,7 +483,7 @@ def main() -> dict[str, pd.DataFrame]:
         'L_basis_output_weighted': basis_comparison(span, weighted=True),
         'L_supply_chain_length': supply_chain_length(span),
         'L_gross_movement': L_gross_movement(span),
-        'L_commodity_price_ratio': commodity_price_ratio(span),
+        'L_commodity_rho': commodity_rho(span),
         'L_deflator_axis_gap': deflator_axis_gap(span),
         'L_basis_per_commodity': per_commodity(span),
     }
