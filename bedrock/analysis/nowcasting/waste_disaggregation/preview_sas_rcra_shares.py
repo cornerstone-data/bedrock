@@ -11,9 +11,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.figure import Figure
+
+from bedrock.extract.flowbyactivity import getFlowByActivity
+from bedrock.transform.flowbysector import FlowBySector
 
 OUT_DIR = Path(__file__).resolve().parent
 FIG_DIR = OUT_DIR / "figures"
@@ -92,9 +97,7 @@ def _map_sas_naics(code: str) -> str | None:
 
 def load_sas_revenue_shares(years: list[int]) -> pd.DataFrame:
     """Return DataFrame index=year, columns=children, values=revenue shares."""
-    from bedrock.extract.flowbyactivity import getFlowByActivity
-
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for year in years:
         fba = getFlowByActivity("Census_SAS", year)
         # Table 2 detailed NAICS revenue (ActivityProducedBy)
@@ -125,14 +128,14 @@ def load_sas_revenue_shares(years: list[int]) -> pd.DataFrame:
 
 def load_rcra_intersection_shares(years: list[int]) -> dict[int, pd.DataFrame]:
     """Shipper→receiver mass shares among Cornerstone waste children."""
-    from bedrock.transform.flowbysector import FlowBySector
-
     out: dict[int, pd.DataFrame] = {}
     for year in years:
         fbs = FlowBySector.generateFlowBySector(f"CRHW_national_{year}")
         df = pd.DataFrame(fbs) if not isinstance(fbs, pd.DataFrame) else fbs
         if "FlowName" in df.columns:
-            waste = df["FlowName"].astype(str).str.contains("waste", case=False, na=False)
+            waste = (
+                df["FlowName"].astype(str).str.contains("waste", case=False, na=False)
+            )
             if waste.any():
                 df = df.loc[waste]
         prod = next(
@@ -218,9 +221,10 @@ def plot_sas_shares(shares: pd.DataFrame, col_2017: pd.Series) -> Path:
     ax.set_xlabel("Year")
     ax.legend(loc="best", fontsize=8)
     path = FIG_DIR / "sas_child_revenue_shares.png"
-    ax.figure.tight_layout()
-    ax.figure.savefig(path, dpi=140)
-    plt.close(ax.figure)
+    fig = cast(Figure, ax.get_figure())
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
     return path
 
 
@@ -244,7 +248,7 @@ def plot_rcra_delta(delta: pd.DataFrame, year: int) -> Path:
 def main() -> int:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    report: dict = {"status": "ok", "blockers": [], "artifacts": []}
+    report: dict[str, Any] = {"status": "ok", "blockers": [], "artifacts": []}
 
     col_2017, row_2017 = bundled_2017_column_row_shares()
     col_2017.to_csv(CACHE_DIR / "bundled_2017_use_column_sum.csv", header=["share"])

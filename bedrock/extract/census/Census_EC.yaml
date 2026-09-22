@@ -22,6 +22,11 @@ parse_response_fxn: !script_function:Census_EC census_EC_parse
 
 datasets:
   ecnclcust: # Economic Census: Class of Customer Statistics for Selected Geographies
+    '2022':
+      # Selected Sectors: Sales, Value of Shipments, or Revenue by Class of Customer for Selected Geographies: 2022
+      # https://api.census.gov/data/2022/ecnclcust/groups/EC2200CLCUST.html
+      # Wired for the 2024 waste-weight pilot (Decision 4) — who-buys / FD rows.
+      - EC2200CLCUST
     '2017':
       # Selected Sectors: Sales, Value of Shipments, or Revenue by Class of Customer for Selected Geographies: 2017
       - EC1700CLCUST
@@ -53,4 +58,5 @@ datasets:
 years:
 - 2012
 - 2017
+- 2022
 
