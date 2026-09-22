@@ -25,12 +25,15 @@ Report: [`report_755_ras_movement.md`](report_755_ras_movement.md).
 
 ## #839 hygiene
 
-Fresh balance census (slow, ~15–17 min/year)::
+Fresh balance census (slow, ~15–17 min/year; ~2 h for 2018–2024). Includes
+published-pattern 2(a) and the **seed vs RAS** exemption-fill split (JSON keys
+`{use,supply}_seed_fill_*`, `_ras_introduced_*`, …). Use `--force` to drop
+stale year rows and rewrite::
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census \
-        --years 2018,2021,2023
+        --years 2018,2019,2020,2021,2022,2023,2024 --force
 
-GCS BalancedSUT census (no GRAS)::
+GCS BalancedSUT census (no GRAS; balanced-only 2(a)/2b — **no** seed-vs-RAS)::
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census_gcs \
         --years 2018,2021,2023
