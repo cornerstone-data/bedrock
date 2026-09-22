@@ -9,32 +9,28 @@ from bedrock.utils.schemas.base_schemas import (
 
 
 class UMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for the CEDA U matrix (use matrix, sector x sector).
+    """Legacy single-region U schema (sector × sector).
 
-    The U matrix represents the total amount of each commodity used to produce
-    the total output of each commodity.
+    Live Cornerstone U uses ``CornerstoneUMatrix`` (commodity × industry).
     """
 
     # TODO: add a check that values are within expectations
 
 
 class VMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for the CEDA U matrix (use matrix, sector x sector).
+    """Legacy single-region V schema (sector × sector).
 
-    The U matrix represents the total amount of each commodity used to produce
-    the total output of each commodity.
+    Live Cornerstone V uses ``CornerstoneVMatrix`` (industry × commodity).
     """
 
     # TODO: add a check that values are within expectations
 
 
 class AMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for the CEDA A matrix (technical coefficients matrix).
+    """Legacy single-region A schema (square sector × sector).
 
-    The A matrix represents the amount of input from sector i required to produce
-    one unit of output in sector j.
-
-    Values should be between 0 and 1, but we don't yet validate for this.
+    Live Cornerstone A uses ``CornerstoneAMatrix``; callers that hold Cornerstone
+    frames cast around this type rather than running this Pandera validation.
     """
 
     # TODO: add a check that values are between 0 and 1
@@ -42,62 +38,38 @@ class AMatrix(CedaSingleRegionSymmetricMatrixBase):
 
 
 class LMatrix(CedaSingleRegionSymmetricMatrixBase):
-    """Schema for the CEDA L matrix (Leontief inverse matrix).
+    """Schema for CEDA v7 L (Leontief inverse) matrices.
 
-    The L matrix represents the total (direct + indirect) requirements
-    to produce one unit of output. Values should be >= 1 on diagonal
-    and >= 0 elsewhere, but we don't yet validate for this.
+    Values should be >= 1 on diagonal and >= 0 elsewhere, but we don't yet
+    validate for this.
     """
 
     # TODO: add a check that values are within expectations
 
 
 class EMatrix(CedaSingleRegionEmissionsMatrixBase):
-    """Schema for the CEDA E matrix (emissions matrix).
-
-    The E matrix represents the total emissions produced by each sector,
-    split by GHG.
-    """
+    """Schema for CEDA v7 E (emissions) matrices."""
 
 
 class BMatrix(CedaSingleRegionEmissionsMatrixBase):
-    """Schema for the CEDA B matrix (emission coefficients matrix).
-
-    The B matrix represents the amount of each GHG emitted to produce
-    one unit of each sector.
-    """
+    """Schema for CEDA v7 B (emission coefficients) matrices."""
 
 
-"""Schema for the CEDA x vector (industry output vector).
-
-The x vector represents the total industry output of each sector.
-"""
+"""Schema for CEDA v7 x (industry output) vectors."""
 XVectorSchema = CedaSingleRegionEconomicVectorBaseSchema
 
 
-"""Schema for the CEDA q vector (commodity output vector).
-
-The q vector represents the total commodity output of each sector.
-"""
+"""Schema for CEDA v7 q (commodity output) vectors."""
 QVectorSchema = CedaSingleRegionEconomicVectorBaseSchema
 
 
-"""Schema for the CEDA y vector (final demand vector).
-
-The y vector represents the final demand for each sector.
-"""
+"""Schema for CEDA v7 y (final demand) vectors."""
 YVectorSchema = CedaSingleRegionNonNegativeEconomicVectorBaseSchema
 
 
-"""Schema for the CEDA exports vector (exports vector).
-
-The exports vector represents the exports of each sector.
-"""
+"""Schema for CEDA v7 exports vectors."""
 ExportsVectorSchema = CedaSingleRegionNonNegativeEconomicVectorBaseSchema
 
 
-"""Schema for the CEDA imports vector (imports vector).
-
-The imports vector represents the imports of each sector.
-"""
+"""Schema for CEDA v7 imports vectors."""
 ImportsVectorSchema = CedaSingleRegionEconomicVectorBaseSchema

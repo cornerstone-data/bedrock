@@ -1,6 +1,8 @@
 """#839 hygiene census on saved BalancedSUT (GCS or local).
 
 Does not re-run GRAS — use :mod:`hygiene_census` for a full ``balance_year`` run.
+Seed-vs-RAS exemption-fill split requires matched seeds from that path; this
+GCS census has balanced tables only.
 
 Example::
 
