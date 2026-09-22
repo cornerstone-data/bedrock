@@ -2408,7 +2408,14 @@ def facility_coverage_bands(
         sector
     :param basis: one year of :func:`facility_basis_comparison`, to name the
         sectors with no facility data rather than let them fall through
-    :param min_Mt: sectors below this much facility combustion carry no verdict
+    ⚠️ *min_Mt* gates the **exception, not the use**. A sector with facility
+    data but too little of it to bear a ratio - 192 of them in 2022, 10.6 Mt
+    between them - stays a ``floor`` with ``blocked_by`` saying so, rather than
+    dropping out of the table. Facility data is used for every sector that has
+    any; what has to be tested for is permission to go *down*.
+
+    :param min_Mt: below this much facility combustion a sector cannot be
+        tested for the exception, and stays a floor
     """
     nei = union[
         (union['source'] == 'NEI') & union['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
@@ -2424,11 +2431,17 @@ def facility_coverage_bands(
         }
     ).fillna(0.0)
     out['total_Mt'] = out.sum(axis=1)
-    out = out[out['total_Mt'] >= min_Mt]
+    out = out[out['total_Mt'] > 0]
     out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
     out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
+    # A sector too small to bear a ratio is not thereby excluded from the
+    # facility data - it keeps the default, which is a floor. Only the
+    # exception needs enough mass to be tested for.
+    testable = out['total_Mt'] >= min_Mt
     out['verdict'] = np.where(
-        (out['coverage'] >= coverage_floor) & (out['unresolved'] <= unresolved_ceiling),
+        testable
+        & (out['coverage'] >= coverage_floor)
+        & (out['unresolved'] <= unresolved_ceiling),
         'vector',
         'floor',
     )
@@ -2436,9 +2449,13 @@ def facility_coverage_bands(
         out['verdict'] == 'vector',
         '',
         np.where(
-            out['coverage'] < coverage_floor,
-            np.where(out['unresolved'] > unresolved_ceiling, 'both', 'coverage'),
-            'unresolved',
+            ~testable,
+            'under the reporting floor',
+            np.where(
+                out['coverage'] < coverage_floor,
+                np.where(out['unresolved'] > unresolved_ceiling, 'both', 'coverage'),
+                'unresolved',
+            ),
         ),
     )
     if basis is not None:
