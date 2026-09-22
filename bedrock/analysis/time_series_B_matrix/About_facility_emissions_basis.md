@@ -33,11 +33,69 @@ of the question. The basis therefore takes every GHGRP subpart except `D`
 (electricity, which runs on eGRID here) and SCC branches 1, 2 and 3, and is
 compared against everything the inventory assigns the sector.
 
-**2022: 1,486 Mt over 20,638 facilities.**
+**2022: 1,277 Mt.** It was 1,486 Mt until #925 was settled — see below.
+
+> ⚠️ **The tables in sections 2 and 3 were computed on the 1,486 Mt union and
+> have not been recomputed.** #925 took 209 Mt out of it, almost all of it NEI
+> mass that was a second copy of a site the GHGRP already reported, and the
+> facility column of every ratio here is therefore high. The live numbers are
+> the ones `B_change_diagnostics` prints; what changed is set out in
+> **section 2.0** immediately below.
 
 ---
 
 ## 2. How much of the split could it carry?
+
+### 2.0 What #925 changed
+
+`FRS_ID` was the only thing saying that a GHGRP report and an NEI report
+describe one plant, and it says so only where FRS has filed both programs under
+one registry record. Where FRS filed them under two, the site entered the union
+twice — and it had done so for enough of them that recognising the duplicates
+finds an NEI counterpart for another **17.4 percentage points** of GHGRP
+facilities. Three changes, measured on 2022:
+
+| | union Mt | NEI-only Mt | `324110` coverage | sectors over 1.5x | overshoot Mt |
+|---|---:|---:|---:|---:|---:|
+| as section 2 was computed | 1,486.3 | 361.4 | 2.86 | 14 | 321.9 |
+| + rebuilt facility match list | 1,328.8 | 203.9 | 2.41 | 9 | 203.4 |
+| + same-site fallback on the inventories' own addresses | 1,310.6 | 185.7 | 2.40 | 9 | 201.3 |
+| + mobile source codes dropped | **1,277.3** | **152.4** | **2.40** | **9** | **168.1** |
+
+- **The rebuilt match list** is StEWI
+  [#4](https://github.com/cornerstone-data/standardizedinventories/pull/4),
+  which folds FRS registry records that describe one site. The share of GHGRP
+  facilities with an NEI counterpart goes from 42.3% to 59.7% in 2022.
+- **The same-site fallback** applies the same rule a second time in
+  `_same_site_after_FRS`, to the addresses GHGRP and NEI report for themselves,
+  reaching the sites where FRS's own attributes disagree.
+- **Mobile source codes** were never stationary combustion. NEI files aircraft
+  at airports as point sources under SCC `2275`, whose first digit is the same
+  as stationary internal combustion, and 33.6 Mt of it was entering the union.
+  `48A000` read **7.63x** the inventory on that alone.
+
+⚠️ **The 668 Mt in #925 was the right symptom and the wrong measure.** It counted
+GHGRP mass with no NEI match, which includes every landfill, pipeline and
+supplier that NEI has no reason to hold. The measure that matters is NEI mass at
+a site the GHGRP already reported: **374.9 Mt in 2022 before the rebuilt list and 31.1 Mt after**, a 92%
+reduction, with the fallback and the mobile-source fix taking most of what is
+left.
+
+**What is still over.** `facility_overshoot_guard` (D15c) is the standing check,
+and `--check-facility-overshoot` fails on anything it cannot account for. After
+all three fixes, 2022:
+
+| verdict | sectors | overshoot Mt |
+|---|---:|---:|
+| `reallocation` — a counterpart sector is named and the pair clears | 2 | 118.2 |
+| `named` — a boundary difference is on record, not nettable | 1 | 8.0 |
+| `unexplained` | **6** | **41.9** |
+
+Refineries are the whole of the first row: `324110` reads 2.40 alone and the
+pair with `211000` reads **1.15**, because the inventory books the refining
+segment of its petroleum systems tables to extraction. The six unexplained
+sectors — industrial gas 16.7 Mt, wet corn milling 11.7, and four smaller — are
+what a level-based claim still cannot rest on.
 
 **Scope: mining, utilities and manufacturing** — BEA detail codes beginning 21,
 22 and 31-33, 232 sectors. These are the industries whose emissions happen at a
@@ -236,7 +294,7 @@ depends on that one while the rest of project 34 feeds it.
 
 | | | why it blocks |
 |---|---|---|
-| [#925](https://github.com/cornerstone-data/bedrock/issues/925) | FRS deduplication between GHGRP and NEI | 668 Mt of GHGRP mass has no NEI match, so an unmatched site is counted twice. Every ratio above 1 in §2 is suspect until this is fixed. ⚠️ Does **not** touch §5 — churn is measured on shares, and a stable double count does not move a share |
+| ~~[#925](https://github.com/cornerstone-data/bedrock/issues/925)~~ **settled** | FRS deduplication between GHGRP and NEI | 209 Mt came out of the union — see §2.0. What remains is 41.9 Mt over six sectors with no cause on record, which `--check-facility-overshoot` fails on. ⚠️ Never touched §5 — churn is measured on shares, and a stable double count does not move a share |
 | [#926](https://github.com/cornerstone-data/bedrock/issues/926) | NEI's 2020/2021 SCC reclassification | Combustion SCCs go from 3.2% to 75.1% of NEI CO2 with the total flat. `fuel_class` is derived from the SCC, so it means something different either side of the break |
 
 ### Coverage — needed before the basis spans the model
