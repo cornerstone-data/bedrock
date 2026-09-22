@@ -117,6 +117,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
 )
+from bedrock.transform.ghg import ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
@@ -1533,6 +1534,95 @@ def ghgrp_subpart_C(years: tuple[int, ...]) -> pd.DataFrame:
     return floor.drop(index='221100', errors='ignore')
 
 
+# --- D14b: the subpart W half of the combustion floor (#927) ---------------
+#
+# The views themselves are acquired in bedrock.extract.epa.EPA_GHGRP_SubpartW and
+# classified in bedrock.transform.ghg.ghgrp_subpart_w - this is pipeline data, not
+# a diagnostic. What stays here is the diagnostic use of it: putting subpart W
+# combustion on the BEA sector axis, and adding it to the subpart C floor.
+
+
+def ghgrp_subpart_W_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
+    """Subpart W combustion by BEA detail sector and year, Mt CO2e.
+
+    The subpart C floor's counterpart, on the same sector axis and under the
+    same geography gate, so the two can simply be added.
+    """
+    burned = ghgrp_subpart_w.subpart_W_combustion(years)
+    columns = []
+    for year in sorted(set(burned['year'])):
+        placed = (
+            burned[burned['year'] == year]
+            .groupby('FacilityID')['CO2e']
+            .sum()
+            .reset_index()
+            .join(_facility_sectors('GHGRP', year), on='FacilityID')
+        )
+        # A subpart W reporter that stewi's facility file does not carry has no
+        # state and no NAICS, so it can be placed neither in a geography nor in
+        # a sector. Say so, rather than letting the geography gate report it as
+        # a territory - it is a facility file gap, not a boundary.
+        unknown = placed['State'].isna()
+        if unknown.any():
+            logger.info(
+                'GHGRP subpart W %d: %.2f Mt over %d facilities absent from the '
+                'stewi facility file, so they carry no NAICS and no state.',
+                year,
+                placed.loc[unknown, 'CO2e'].sum() / 1e9,
+                int(unknown.sum()),
+            )
+        placed = _drop_outside_geography(placed[~unknown], 'CO2e', 'subpart W', year)
+        resolved = placed.dropna(subset=['sector'])
+        columns.append(
+            (resolved.groupby('sector')['CO2e'].sum() / 1e9).rename(int(year))
+        )
+    if not columns:
+        return pd.DataFrame()
+    return pd.concat(columns, axis=1).drop(index='221100', errors='ignore')
+
+
+def ghgrp_combustion_floor(years: tuple[int, ...]) -> pd.DataFrame:
+    """The whole facility-reported combustion floor: subpart C plus subpart W.
+
+    ⚠️ **Subpart C alone is not the floor, and for oil and gas it is the wrong
+    segment's fuel.** In 2017 the facilities carrying a NAICS of 211 reported
+    44.93 Mt CO2e under subpart C and 177.18 Mt under subpart W. The 44.93 is
+    78% gas processing plants, 11% offshore production and 10% facilities that
+    file no subpart W report at all - and **none of it is onshore production**,
+    which reports its combustion under subpart W. Adding that on the same
+    facility-NAICS rule takes ``211000``'s 2017 floor from 44.9 Mt to 113.4 Mt.
+
+    The two halves do not overlap: the segments that report combustion under
+    subpart W are absent from the subpart C fuel tables, and the processing and
+    transmission segments that report under subpart C are absent from the
+    subpart W combustion tables. Adding them is a union, not a sum of two
+    overlapping sets.
+
+    ⚠️ **Two vintages meet here on the archive years.** Subpart C arrives
+    through ``stewi``, which holds EPA's published build for 2019-2023; subpart W
+    arrives from the FOIA'd export, a later vintage of the same years in which
+    facilities have restated. The difference measured at the total is 0.01% and
+    the sector axis is identical, so it does not move a floor - but it is why
+    the two are logged separately rather than only as a sum.
+    """
+    subpart_c = ghgrp_subpart_C(years)
+    subpart_w = ghgrp_subpart_W_by_sector(years)
+    if subpart_w.empty:
+        return subpart_c
+    shared = [year for year in subpart_c.columns if year in subpart_w.columns]
+    floor = subpart_c.add(subpart_w.reindex(columns=shared), fill_value=0.0)
+    floor = floor.reindex(columns=subpart_c.columns)
+    logger.info(
+        'GHGRP combustion floor, Mt CO2e: subpart C %s, + subpart W combustion '
+        '%s. At 211000 the W half is %s against a C half of %s.',
+        subpart_c.sum().round(0).to_dict(),
+        subpart_w.sum().round(0).to_dict(),
+        subpart_w.reindex(['211000']).iloc[0].round(1).to_dict(),
+        subpart_c.reindex(['211000']).iloc[0].round(1).to_dict(),
+    )
+    return floor
+
+
 def combustion_floor_test(
     detail: pd.DataFrame,
     floor: pd.DataFrame,
@@ -1541,20 +1631,31 @@ def combustion_floor_test(
 ) -> pd.DataFrame:
     """**D14.** Did we allocate a sector less fuel combustion than it reported?
 
-    GHGRP subpart C only covers facilities over the 25,000 tCO2e reporting
-    threshold, so it is a **lower bound** on what a sector burned, never an
-    estimate of the total. Whatever table 3-11 allocates to a sector should be
-    at least this much. That makes it the only external check in this module
-    needing no answer key, no deflator and no benchmark year, and it is
-    available for every year of the span, 2024 included.
+    The GHGRP only covers facilities over the 25,000 tCO2e reporting threshold,
+    so the floor is a **lower bound** on what a sector burned, never an estimate
+    of the total. Whatever table 3-11 allocates to a sector should be at least
+    this much. That makes it the only external check in this module needing no
+    answer key, no deflator and no benchmark year, and it is available for every
+    year of the span, 2024 included.
 
-    ⚠️ **A sector below the floor in every year is not a defect.** Petroleum
-    refineries, iron and steel and wet corn milling sit below it throughout
-    because subpart C counts combustion of process-derived fuels - refinery
-    still gas, coke oven and blast furnace gas - that the GHG inventory books
-    outside table 3-11. That is a boundary definition difference, and **a
-    constant offset cannot make a factor rocky.** Reading those as errors would
-    be the wrong conclusion from the right test.
+    ⚠️ **Pass it the floor from :func:`ghgrp_combustion_floor`, not subpart C
+    alone.** Oil and gas production reports its combustion under subpart W, so a
+    subpart C floor holds none of it and ``211000`` was being scored against gas
+    processing plants' fuel - 44.9 Mt in 2017 where the whole reported floor is
+    113.4 Mt (#927).
+
+    ⚠️ **A sector below the floor in every year is not necessarily a defect,
+    and not necessarily benign either.** ``boundary_offset`` names a pattern -
+    a constant offset, which cannot make a factor rocky - and it has two very
+    different causes. Petroleum refineries, iron and steel and wet corn milling
+    sit below the floor throughout because the GHGRP counts combustion of
+    process-derived fuels, refinery still gas and coke oven and blast furnace
+    gas, that the GHG inventory books outside table 3-11: a definition
+    difference, and reading it as an error would be the wrong conclusion from
+    the right test. ``211000`` is the other kind. Lease and plant fuel **are**
+    inside table 3-11, and the allocation misses them because a purchase row
+    cannot see fuel that nobody sold (#927) - so the same verdict there is a
+    level defect, and the largest shortfall in the table.
 
     The column carrying the finding is therefore ``verdict``:
 
@@ -1669,10 +1770,6 @@ GHGRP_EXCLUDED_SUBPARTS = frozenset({'D'})
 #: blast furnace gas. Fuel the facility made itself as a byproduct.
 PROCESS_GAS_SCC_LEVEL3 = '007'
 
-#: The two fuel classes a combustion record can fall in, and why the split is
-#: not cosmetic. See :func:`facility_combustion`.
-FUEL_CLASSES = ('purchased', 'facility_derived')
-
 
 def _facility_sectors(inventory: str, year: int) -> pd.DataFrame:
     """Facility -> BEA sector and state, for *inventory* in *year*.
@@ -1734,7 +1831,9 @@ def facility_combustion(year: int) -> pd.DataFrame:
 
     Built best-evidence-first and deduplicated on ``FRS_ID``:
 
-    1. **GHGRP subpart C** - measured under a mandatory GHG programme.
+    1. **GHGRP** - measured under a mandatory GHG programme. Subpart C is
+       stationary combustion; onshore production, gathering and boosting and
+       distribution report theirs under subpart W instead (#927).
     2. **NEI combustion SCCs** - the facilities GHGRP's 25,000 tCO2e reporting
        threshold leaves out. NEI carries roughly three times as many.
 
@@ -1748,16 +1847,21 @@ def facility_combustion(year: int) -> pd.DataFrame:
     combustion CO2 sits on process-gas SCCs in 2022, concentrated in petroleum
     refineries (29 Mt), chemicals (11 Mt) and primary metals (3 Mt).
 
-    ⚠️ **The split is only observable on the NEI side.** ``stewi`` exposes GHGRP
-    at subpart granularity, and subpart C does not distinguish the fuel, so a
-    GHGRP-only facility cannot be classified from its own record and is returned
-    as ``purchased`` with ``fuel_class_known`` False. Treat the
-    ``facility_derived`` total as a floor, not a measurement.
+    ⚠️ **Self-supplied fuel is wider than byproduct gas, and an SCC cannot see
+    the rest of it.** An oil and gas producer burning its own field gas is
+    burning natural gas, and the SCC says natural gas.
+    :func:`bedrock.transform.ghg.ghgrp_subpart_w.fuel_class`
+    reaches that case from the GHGRP instead, where subpart W has the reporter
+    name the fuel and a gas processing plant is identified by its segment - so
+    lease and plant fuel are classified on evidence rather than missed (#927).
+    ``fuel_class_basis`` says which route produced each row, and the NEI share
+    is now the fallback rather than the only answer.
 
-    ⚠️ **Self-supplied fuel is wider than process gas.** An oil and gas producer
-    burning its own field gas is burning natural gas, and the SCC says natural
-    gas, so the lease-fuel case is invisible to this split even though it has
-    the same problem - which is the level bias behind #922.
+    ⚠️ **What is left unclassified is still a floor, not a measurement.** A
+    GHGRP facility that neither reports subpart W nor matches an NEI record
+    keeps its whole total labelled ``unclassified`` with ``fuel_class_known``
+    False, because subpart C's fuel list is the Table C-1 emission factors and
+    says nothing about who owned the fuel.
     """
     sectors_nei = _facility_sectors('NEI', year)
     nei = stewi.getInventory(
@@ -1773,7 +1877,7 @@ def facility_combustion(year: int) -> pd.DataFrame:
         'process',
         np.where(
             nei['Process'].astype(str).str[3:6] == PROCESS_GAS_SCC_LEVEL3,
-            'facility_derived',
+            'self_supplied',
             'purchased',
         ),
     )
@@ -1783,24 +1887,31 @@ def facility_combustion(year: int) -> pd.DataFrame:
         .rename('CO2e')
         .reset_index()
         .join(sectors_nei, on='FacilityID')
-        .assign(source='NEI', fuel_class_known=True)
+        .assign(source='NEI', fuel_class_known=True, fuel_class_basis='NEI SCC')
     )
 
     gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
-    ghgrp = stewi.getInventory(
+    flows = stewi.getInventory(
         'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
     )
-    ghgrp = ghgrp[
-        ~ghgrp['Process'].isin(GHGRP_EXCLUDED_SUBPARTS)
-        & ghgrp['FlowName'].isin(GHGRP_FLOW_MAP)
+    flows = flows[
+        ~flows['Process'].isin(GHGRP_EXCLUDED_SUBPARTS)
+        & flows['FlowName'].isin(GHGRP_FLOW_MAP)
     ].copy()
-    ghgrp['CO2e'] = ghgrp['FlowAmount'] * ghgrp['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
+    flows['CO2e'] = flows['FlowAmount'] * flows['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
+    # Held per subpart as well as per facility: a gas processing plant's fuel is
+    # its subpart C mass alone, and its subpart W mass is fugitives (#927).
+    per_facility = flows.groupby('FacilityID')['CO2e'].sum()
+    subpart_c = flows[flows['Process'] == 'C'].groupby('FacilityID')['CO2e'].sum()
     ghgrp = (
-        ghgrp.groupby('FacilityID')['CO2e']
-        .sum()
-        .reset_index()
+        per_facility.reset_index()
         .join(_facility_sectors('GHGRP', year), on='FacilityID')
-        .assign(source='GHGRP', fuel_class='unclassified', fuel_class_known=False)
+        .assign(
+            source='GHGRP',
+            fuel_class='unclassified',
+            fuel_class_known=False,
+            fuel_class_basis='',
+        )
     )
 
     matches = facilitymatcher.get_matches_for_inventories(['NEI', 'GHGRP'])
@@ -1812,11 +1923,24 @@ def facility_combustion(year: int) -> pd.DataFrame:
     ghgrp['FRS_ID'] = ghgrp['FacilityID'].map(frs_of('GHGRP'))
     nei['FRS_ID'] = nei['FacilityID'].map(frs_of('NEI'))
 
+    # A facility that classified its own fuel does not need NEI's process-gas
+    # share inferred onto it - it said what it burned, and for oil and gas NEI
+    # cannot see the answer anyway, because field gas is natural gas to an SCC.
+    reported = ghgrp_subpart_w.fuel_class(year, per_facility, subpart_c)
+    said = reported.merge(
+        ghgrp.drop(
+            columns=['CO2e', 'fuel_class', 'fuel_class_known', 'fuel_class_basis']
+        ),
+        on='FacilityID',
+        how='inner',
+    ).assign(fuel_class_known=True)
+    ghgrp = ghgrp[~ghgrp['FacilityID'].isin(set(reported['FacilityID']))]
+
     # GHGRP wins on the LEVEL where both report a facility - it is the measured
     # one - but only NEI knows the fuel, so the process-gas share of the matched
     # NEI record is carried over onto the GHGRP total. Without this step every
     # refinery and steel mill lands in GHGRP unclassified, and the
-    # facility-derived total collapses to a quarter of what NEI alone can see.
+    # self-supplied total collapses to a quarter of what NEI alone can see.
     nei_by_frs = (
         nei.dropna(subset=['FRS_ID'])
         .groupby(['FRS_ID', 'fuel_class'])['CO2e']
@@ -1829,17 +1953,21 @@ def facility_combustion(year: int) -> pd.DataFrame:
     )
     ghgrp['fuel_class_known'] = ghgrp['FRS_ID'].map(mix.notna().any(axis=1))
     pieces = []
-    for cls in ('purchased', 'facility_derived', 'process'):
+    for cls in ('purchased', 'self_supplied', 'process'):
         share = ghgrp['FRS_ID'].map(mix[cls]) if cls in mix else None
         if share is None:
             continue
         pieces.append(
-            ghgrp.assign(CO2e=ghgrp['CO2e'] * share.fillna(0.0), fuel_class=cls)
+            ghgrp.assign(
+                CO2e=ghgrp['CO2e'] * share.fillna(0.0),
+                fuel_class=cls,
+                fuel_class_basis='NEI SCC share',
+            )
         )
     # A facility NEI never saw keeps its whole total, labelled unclassified.
     unmatched = ghgrp['FRS_ID'].map(mix.sum(axis=1)).isna()
     pieces.append(ghgrp[unmatched])
-    ghgrp = pd.concat(pieces, ignore_index=True)
+    ghgrp = pd.concat([said, *pieces], ignore_index=True)
     ghgrp = ghgrp[ghgrp['CO2e'] > 0]
 
     covered = set(ghgrp['FRS_ID'].dropna())
@@ -1910,7 +2038,7 @@ def facility_basis_comparison(
             'direct_Mt': emissions[is_direct].groupby('sector')['CO2e'].sum() / 1e9,
             'allocated_Mt': emissions[~is_direct].groupby('sector')['CO2e'].sum() / 1e9,
             'facility_Mt': facility.groupby('sector')['CO2e'].sum() / 1e9,
-            'derived_Mt': facility[facility['fuel_class'] == 'facility_derived']
+            'derived_Mt': facility[facility['fuel_class'] == 'self_supplied']
             .groupby('sector')['CO2e']
             .sum()
             / 1e9,
@@ -2807,8 +2935,12 @@ def main(
         # GHGRP now reaches the end of the span, but keep the bound explicit so
         # that a span extended past it degrades rather than failing.
         floor_years = tuple(y for y in years if y <= GHGRP_LAST_YEAR)
-        floor = ghgrp_subpart_C(floor_years)
-        tables['ghgrp_subpart_C'] = floor
+        tables['ghgrp_subpart_C'] = ghgrp_subpart_C(floor_years)
+        tables['ghgrp_subpart_W_combustion'] = ghgrp_subpart_w.subpart_W_combustion(
+            floor_years
+        )
+        floor = ghgrp_combustion_floor(floor_years)
+        tables['ghgrp_combustion_floor'] = floor
         tables['combustion_floor_test'] = combustion_floor_test(detail_real, floor)
 
         # D15 needs NEI as well as GHGRP, and NEI trails it by a year.
@@ -2818,10 +2950,11 @@ def main(
         tables['facility_basis'] = facility_basis_comparison(
             span, facility, detail_real
         )
-        derived = facility[facility['fuel_class'] == 'facility_derived']
+        derived = facility[facility['fuel_class'] == 'self_supplied']
         logger.info(
             'D15 %d: %.1f Mt over %d facilities in %d jurisdictions, of which %.1f '
-            'Mt (%.1f%%) is fuel the facility made itself and no Use row can carry.',
+            'Mt (%.1f%%) is fuel the facility never bought and no Use row can '
+            'carry.',
             basis_year,
             facility['CO2e'].sum() / 1e9,
             facility['FacilityID'].nunique(),

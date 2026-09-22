@@ -599,10 +599,17 @@ matched NEI record is carried onto the GHGRP total. Without that step every
 refinery lands in GHGRP unclassified and the figure collapses to 12.5 Mt. Read
 it as a floor.
 
-⚠️ **Self-supplied fuel is wider than byproduct gas.** An oil and gas producer
-burning its own field gas is burning natural gas, and the SCC says natural gas,
-so lease fuel is invisible to this split while having the same problem - which
-is the level bias behind [#922](https://github.com/cornerstone-data/bedrock/issues/922).
+⚠️ **Self-supplied fuel is wider than byproduct gas, and the 37.0 Mt above is
+only the byproduct half.** An oil and gas producer burning its own field gas is
+burning natural gas, and the SCC says natural gas, so lease fuel was invisible to
+this split while having the same problem — the level bias behind
+[#922](https://github.com/cornerstone-data/bedrock/issues/922). It is no longer
+invisible: GHGRP subpart W has the reporter name the fuel, and a gas processing
+plant is identified by its segment, so lease and plant fuel are now classified on
+evidence ([#927](https://github.com/cornerstone-data/bedrock/issues/927), PR
+#961). On the run that measured it the class reaches **144.9 Mt**, 83.8 Mt of it
+oil and gas extraction. See
+[`About_facility_emissions_basis.md`](About_facility_emissions_basis.md) §8.
 
 #### Where the basis disagrees with the current split
 
