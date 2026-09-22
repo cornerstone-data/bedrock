@@ -362,3 +362,70 @@ ahead of refineries at 321 Mt.
 
 `21311A`, other support activities for mining, enters the test for the first time
 once its floor clears 1 Mt, and lands `intermittent`.
+
+
+---
+
+## 9. The 145 Mt under-attribution: what a vector can restate, and what it cannot (#962)
+
+§2 finds the sectors whose GHGRP floor clears their **whole** inventory
+assignment, `allocated` and `Direct` together. **D16** follows that through: the
+gap does not have one fix, and the split decides which piece of work owns it.
+
+⚠️ **This section replaces an earlier one that asked the question family by
+family** — "could a facility vector carry non-energy use, carbonate use, urea?"
+— and ruled each out on which subparts its facility mass sat in. That is the
+half-ratio reasoning §2 warns against, and the verdict it produced ("the basis
+stops at combustion") was withdrawn. The sector total is the test.
+
+### It is a standing condition, not a vintage artefact
+
+| year | sectors | gap, Mt | **restate** | **relocate** |
+|---|---:|---:|---:|---:|
+| 2018 | 20 | 160.5 | 23.0 | 137.5 |
+| 2019 | 20 | 145.3 | 21.9 | 123.4 |
+| 2020 | 22 | 153.3 | 22.8 | 130.5 |
+| 2021 | 21 | 155.5 | 23.9 | 131.6 |
+| 2022 | 23 | 144.7 | 17.8 | 126.8 |
+| 2023 | 25 | 153.9 | 20.8 | 133.1 |
+| 2024 | 21 | 152.2 | 15.8 | 136.4 |
+
+**12 sectors are under-attributed in every year of the span.** Following §3,
+`restate` is where `Direct` is immaterial — no process mass is in dispute, the
+table 3-11 vector simply gives the sector too little — and `relocate` is where
+`Direct` is material, which a vector cannot touch at all.
+
+### Seven eighths of it is not a vector's to close
+
+| 2022 | Mt | sectors |
+|---|---:|---:|
+| **restate** — combustion under-allocation | 17.9 | 17 |
+| **relocate** — process misattribution | **126.7** | 6 |
+
+`324110` petroleum refineries alone is 96.7 Mt of the second: allocated 76.2,
+`Direct` 3.6, against a floor of 176.4. That is §3's pair result — no level is in
+dispute across refineries and `211000` together, only which industry holds it —
+and it belongs to
+[#953](https://github.com/cornerstone-data/bedrock/issues/953). The others are
+`325120` industrial gas 13.8, `327310` cement 10.1, `21311A` 3.6, `327400` lime
+2.4, `331490` 0.1.
+
+⚠️ **So do not read the residual gap after #929 lands as the integration having
+failed.** The facility vector closes the 17.9 Mt, because that is what a better
+combustion split does. It was never going to close the rest.
+
+### And the restate half needs no sections beyond the five
+
+In those 23 sectors, **98% of the allocated mass is table 3-11** — 156.7 Mt of
+160.5 Mt. Every other vector-attributed family together is **3.8 Mt across all 23
+sectors**: non-energy use 2.18, carbonate use 0.83, `T_4_52` 0.44, construction
+and mining 0.24, refrigerants 0.06. The tail families are not where the shortfall
+lives, and that conclusion needs no claim about which subpart answers which
+inventory table.
+
+Coverage facts worth keeping for whoever revisits them: GHGRP subpart `U` holds
+0.1 Mt over six facilities against 10.4 Mt of carbonate use allocated across some
+twenty sectors; 98% of refrigerants and foams land in sectors reporting under 0.5
+Mt to the GHGRP; urea is a consumption line and the GHGRP reports at production;
+and non-energy use is attributed on **MECS feedstock quantities**, not on a
+purchase row, so #929's premise does not apply to it.

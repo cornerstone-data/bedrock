@@ -1730,6 +1730,154 @@ def combustion_floor_test(
     ).reset_index(drop=True)
 
 
+# --- D16: sectors whose own facilities report more than we assign them (#962) --
+
+#: Subpart ``D`` is electricity, which runs on eGRID in this model, so it is out
+#: of both sides. Everything else a facility reports is in, whichever inventory
+#: table books it - that is the point of the test.
+GHGRP_FLOOR_EXCLUDED_SUBPARTS = frozenset({'D'})
+
+#: Below this much ``Direct`` mass a sector's shortfall has no process component
+#: worth arguing about, so the whole of it is a vector's to restate.
+DIRECT_IMMATERIAL_Mt = 0.05
+
+
+def ghgrp_facility_floor(years: tuple[int, ...]) -> pd.DataFrame:
+    """Everything the GHGRP's facilities reported, by BEA detail sector, Mt CO2e.
+
+    Not :func:`ghgrp_combustion_floor`, and the difference is the whole point.
+    That one is the combustion half, built to be commensurable with table 3-11.
+    This one takes **every subpart except electricity**, so it can be compared
+    against everything the inventory gives a sector - ``allocated`` and
+    ``Direct`` together.
+
+    ⚠️ **That comparison is the one that survives a boundary argument.** A
+    half-ratio invites the objection that subpart H reports a kiln's fuel and its
+    calcination as one number, or that refinery still gas is booked outside table
+    3-11. Against the sector's whole assignment none of that matters, because the
+    test assumes nothing about which subpart answers which inventory table - see
+    :func:`under_attributed_sectors` and #948.
+    """
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    columns = []
+    for year in ghgrp_served_years(years):
+        flows = stewi.getInventory(
+            'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
+        )
+        flows = flows[
+            ~flows['Process'].isin(GHGRP_FLOOR_EXCLUDED_SUBPARTS)
+            & flows['FlowName'].isin(GHGRP_FLOW_MAP)
+        ].copy()
+        flows['CO2e'] = flows['FlowAmount'] * flows['FlowName'].map(GHGRP_FLOW_MAP).map(
+            gwp
+        )
+        placed = flows.merge(
+            _facility_sectors('GHGRP', year)[['NAICS', 'State', 'sector']],
+            left_on='FacilityID',
+            right_index=True,
+            how='left',
+        )
+        placed = _drop_outside_geography(placed, 'CO2e', 'D16', year)
+        resolved = placed.dropna(subset=['sector'])
+        columns.append(
+            (resolved.groupby('sector')['CO2e'].sum() / 1e9).rename(int(year))
+        )
+    return pd.concat(columns, axis=1)
+
+
+def _by_year(detail: pd.DataFrame, mask: pd.Series) -> pd.DataFrame:
+    """A sector-by-year table of ``E`` for the rows *mask* selects, Mt CO2e.
+
+    The first year of the span is only ever an ``E_from``, so it is recovered
+    from the first year-pair rather than lost - the same recovery
+    :func:`combustion_floor_test` makes.
+    """
+    part = detail[mask]
+    table = part.groupby(['year_to', 'sector'])['E_to'].sum().unstack('sector') / 1e9
+    first_pair = int(table.index.min())
+    table.loc[first_pair - 1] = (
+        part[part['year_to'] == first_pair].groupby('sector')['E_from'].sum() / 1e9
+    )
+    return table.sort_index().T
+
+
+def under_attributed_sectors(
+    detail: pd.DataFrame, floor: pd.DataFrame, min_gap_Mt: float = 0.05
+) -> pd.DataFrame:
+    """**D16.** Sectors given less than their own facilities reported (#962).
+
+    The GHGRP covers only facilities over 25,000 tCO2e, so a sector's total is a
+    **lower bound** on what its facilities emitted. Where that lower bound clears
+    the *whole* inventory assignment - ``allocated`` and ``Direct`` together -
+    the sector is under-attributed, and no argument about which subpart answers
+    which table can explain it away. #948 §2.
+
+    ⚠️ **The gap does not have one fix, and the split is the finding.** Following
+    #948 §3, ``allocated`` is what a facility basis can **restate** and ``Direct``
+    is what it can only **relocate**:
+
+    ==============  ==========================================================
+    ``restate``     ``Direct`` is immaterial, so no process mass is in dispute
+                    and the table 3-11 vector simply gives the sector too
+                    little. A better combustion split closes it - this is what
+                    #929 is for.
+    ``relocate``    ``Direct`` is material: the inventory books mass at another
+                    sector that these facilities report. A vector cannot touch
+                    it. #953.
+    ==============  ==========================================================
+
+    In 2022 that split is **17.9 Mt over 17 sectors** to restate against **126.7
+    Mt over 6** to relocate, and petroleum refineries alone is 96.7 Mt of the
+    second. ⚠️ **So do not read the residual gap after #929 lands as the
+    integration having failed** - seven eighths of it was never a vector's to
+    close.
+
+    Ranked by the mass the facilities report over what the inventory assigns.
+    """
+    assigned = _by_year(detail, detail['sector'].notna())
+    shared = [year for year in floor.columns if year in assigned.columns]
+    inventory = assigned.reindex(columns=shared)
+    direct = (
+        _by_year(detail, detail['AttributionSources'] == 'Direct')
+        .reindex(columns=shared)
+        .reindex(index=inventory.index)
+        .fillna(0.0)
+    )
+    in_scope = [
+        sector
+        for sector in inventory.index
+        if str(sector)[:2] in FACILITY_SCOPE_PREFIXES
+        and sector not in NOT_FACILITY_COMPARABLE
+    ]
+    inventory = inventory.loc[in_scope].fillna(0.0)
+    direct = direct.loc[in_scope]
+    reported = floor.reindex(index=in_scope, columns=shared).fillna(0.0)
+
+    gap = (reported - inventory).where(reported > inventory, 0.0)
+    under = gap[(gap > min_gap_Mt).any(axis=1)]
+    if under.empty:
+        return pd.DataFrame()
+    last = shared[-1]
+    out = pd.DataFrame(
+        {
+            'years_under': (gap.loc[under.index] > min_gap_Mt).sum(axis=1),
+            'years': len(shared),
+            'gap_Mt_last': under[last],
+            'gap_Mt_mean': under.mean(axis=1),
+            'allocated_Mt_last': (inventory - direct).loc[under.index, last],
+            'direct_Mt_last': direct.loc[under.index, last],
+            'inventory_Mt_last': inventory.loc[under.index, last],
+            'reported_Mt_last': reported.loc[under.index, last],
+        }
+    )
+    out['fix'] = np.where(
+        direct.loc[under.index, last] < DIRECT_IMMATERIAL_Mt, 'restate', 'relocate'
+    )
+    out = out.join(under.add_prefix('gap_'))
+    out = _with_names(out.rename_axis('sector').reset_index())
+    return out.sort_values('gap_Mt_mean', ascending=False).reset_index(drop=True)
+
+
 # --- D15: a facility-reported basis for stationary combustion ---------------
 
 #: SCC level 1: 1 is external combustion, 2 is internal combustion, 3 is an
@@ -2942,6 +3090,24 @@ def main(
         floor = ghgrp_combustion_floor(floor_years)
         tables['ghgrp_combustion_floor'] = floor
         tables['combustion_floor_test'] = combustion_floor_test(detail_real, floor)
+
+        # D16 scores the sector's WHOLE assignment against its facilities.
+        tables['ghgrp_facility_floor'] = ghgrp_facility_floor(floor_years)
+        tables['under_attributed_sectors'] = under_attributed_sectors(
+            detail_real, tables['ghgrp_facility_floor']
+        )
+        under = tables['under_attributed_sectors']
+        if not under.empty:
+            by_fix = under.groupby('fix')['gap_Mt_last'].agg(['size', 'sum'])
+            logger.info(
+                'D16: %d in-scope sectors report more to the GHGRP than the '
+                'inventory assigns them, %.0f Mt in %d. Only the restate half '
+                "is #929's to close; the rest is relocation (#953):" + chr(10) + '%s',
+                len(under),
+                under['gap_Mt_last'].sum(),
+                int(floor_years[-1]),
+                by_fix.round(1).to_string(),
+            )
 
         # D15 needs NEI as well as GHGRP, and NEI trails it by a year.
         basis_year = min(max(floor_years), NEI_LAST_YEAR)
