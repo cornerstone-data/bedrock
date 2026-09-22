@@ -486,10 +486,11 @@ to be fixed before the levels are trusted.
   this code base later produces state-level EEIO models, the location breakout
   would rest on measured data. That is nearly free now and expensive to retrofit.
 - **A category that does not exist today.** `fuel_class` separates fuel a
-  facility **bought** from fuel it **made itself** — refinery still gas, coke
-  oven gas, blast furnace gas, 46.9 Mt in 2022. Byproduct gas is never a
-  purchase, so no row of the Use table can represent it, and attributing it with
-  one is a category error rather than an inaccuracy. Tracker row 17.
+  facility **bought** from fuel that never changed hands — `self_supplied`,
+  **144.9 Mt in 2022**. Fuel nobody sold is never a purchase, so no row of the
+  Use table can represent it, and attributing it with one is a category error
+  rather than an inaccuracy. Tracker row 17, and see §8 for where the other
+  two thirds of that mass came from.
 
 ---
 
@@ -550,3 +551,161 @@ figure is **7% of allocated mass**.
 pipelines are both facility-reported and both outside the scope as drawn — see
 §2 and [#955](https://github.com/cornerstone-data/bedrock/issues/955). This
 paragraph covers the genuinely diffuse remainder, not everything excluded.
+
+---
+
+## 8. Lease and plant fuel: what subpart W says that subpart C cannot (#927)
+
+⚠️ **Where the code lives.** This is pipeline data, not a diagnostic, so it does
+not sit in `B_change_diagnostics.py`. The two views are acquired and cached by
+[`bedrock/extract/epa/EPA_GHGRP_SubpartW.py`](../../extract/epa/EPA_GHGRP_SubpartW.py)
+and classified by
+[`bedrock/transform/ghg/ghgrp_subpart_w.py`](../../transform/ghg/ghgrp_subpart_w.py);
+D14 and D15 are consumers of both, and so is the facility-based FBS when #929
+builds it.
+
+`fuel_class` began as byproduct gas alone — refinery still gas, coke oven gas,
+blast furnace gas — read off NEI's process-gas SCCs. That left the larger half of
+the same defect invisible. **An oil and gas producer burning its own field gas is
+burning natural gas, and the SCC says natural gas.**
+
+The GHGRP answers it directly, in a place `stewi` does not import.
+
+### The lease side is reported, not inferred
+
+Envirofacts view `ef_w_combust_large_units` carries one row per combustion unit
+type and fuel — facility, industry segment, **quantity of fuel burned**, unit of
+measure, CO2, CH4 and N2O — and its fuel list separates `Field gas and/or process
+gas` and `… natural gas that is not of pipeline quality` from `Natural gas
+(pipeline quality)`. The reporter writes that label. The unit rows reconcile to
+the facility totals in `ef_w_combust_equip_summ` exactly, so every tonne of
+subpart W combustion carries a fuel type.
+
+Gas burned at onshore production facilities, Bcf, volumes screened on an implied
+0.02–0.15 t CO2 per Mscf:
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| self-supplied | **233** | 223 | 265 | 257 | 267 | 297 | 313 | **330** |
+| pipeline | 110 | 123 | 129 | 136 | 142 | 137 | 148 | 156 |
+
+Gathering and boosting is roughly twice that, and about half the **carbon** at
+both is self-supplied — lower than the share of gas, because the purchased side
+also carries diesel.
+
+### The plant side is reported, but labelled as if bought
+
+Gas processing plants report their combustion under subpart C, where 234.7 of the
+236.1 Mt of CO2 they reported over 2019-2024 is labelled `Natural Gas (Weighted
+U.S. Average)` against 1.15 Mt of `Fuel Gas`. The label is an emission-factor
+choice, not a procurement statement. So the classification comes from **what the
+facility is**: a plant flagged as an `Onshore natural gas processing` reporter in
+subpart W burns the stream it is processing, which is what EIA counts as plant
+fuel. ⚠️ That one is an inference, and `fuel_class_basis` says so — the lease
+side reads `GHGRP subpart W fuel`, the plant side `GHGRP segment`.
+
+### Which segments report where, so the two halves do not double count
+
+| segment | combustion reported under | facility-years also in the subpart C fuel tables |
+|---|---|---|
+| onshore production | **subpart W** | 4 of 2,801 |
+| gathering and boosting | **subpart W** | 0 of 2,157 |
+| natural gas distribution | **subpart W** | 0 of 969 |
+| onshore natural gas processing | **subpart C** | 2,701 of 2,704 |
+| transmission compression | **subpart C** | 3,915 of 3,915 |
+
+### What it does to D14
+
+The floor was built by filtering `Process == 'C'`, so it held no lease fuel at
+all. In 2017 the facilities carrying a NAICS of 211 reported 44.93 Mt CO2e under
+subpart C and 177.18 Mt under subpart W, and that 44.93 is 78% gas processing
+plants, 11% offshore production and 10% facilities filing no subpart W report —
+**none of it onshore production**. `211000` was being scored against another
+segment's fuel.
+
+| `211000` | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| floor, subpart C only | 44.9 | 46.8 | 47.6 | 46.5 | 46.5 | 46.7 | 48.4 | 44.9 |
+| floor, **C + W combustion** | 113.3 | 120.7 | 130.2 | 122.8 | 127.5 | 134.0 | 140.2 | 139.7 |
+| what we allocate | 29.6 | 54.4 | 53.1 | 37.7 | 60.1 | 90.1 | 58.6 | 55.6 |
+| ratio, subpart C only | 0.66 | 1.16 | 1.12 | 0.81 | 1.29 | 1.93 | 1.21 | 1.24 |
+| **ratio, whole floor** | **0.26** | 0.45 | 0.41 | 0.31 | 0.47 | 0.67 | 0.42 | 0.40 |
+
+⚠️ **The verdict moves from `intermittent` to `boundary_offset`, and that is not
+a reprieve.** `boundary_offset` names a *pattern* — below the floor in every year
+— and the docstring's reading of it as a definition difference holds for
+petroleum refineries, whose still gas the inventory books outside table 3-11.
+`211000` is the other kind: lease and plant fuel **are** inside table 3-11, and
+the allocation misses them because a purchase row cannot see fuel nobody sold.
+Its cumulative shortfall, 589 Mt over the span, is now the largest in the test —
+ahead of refineries at 321 Mt.
+
+`21311A`, other support activities for mining, enters the test for the first time
+once its floor clears 1 Mt, and lands `intermittent`.
+
+
+---
+
+## 9. The 145 Mt under-attribution: what a vector can restate, and what it cannot (#962)
+
+§2 finds the sectors whose GHGRP floor clears their **whole** inventory
+assignment, `allocated` and `Direct` together. **D16** follows that through: the
+gap does not have one fix, and the split decides which piece of work owns it.
+
+⚠️ **This section replaces an earlier one that asked the question family by
+family** — "could a facility vector carry non-energy use, carbonate use, urea?"
+— and ruled each out on which subparts its facility mass sat in. That is the
+half-ratio reasoning §2 warns against, and the verdict it produced ("the basis
+stops at combustion") was withdrawn. The sector total is the test.
+
+### It is a standing condition, not a vintage artefact
+
+| year | sectors | gap, Mt | **restate** | **relocate** |
+|---|---:|---:|---:|---:|
+| 2018 | 20 | 160.5 | 23.0 | 137.5 |
+| 2019 | 20 | 145.3 | 21.9 | 123.4 |
+| 2020 | 22 | 153.3 | 22.8 | 130.5 |
+| 2021 | 21 | 155.5 | 23.9 | 131.6 |
+| 2022 | 23 | 144.7 | 17.8 | 126.8 |
+| 2023 | 25 | 153.9 | 20.8 | 133.1 |
+| 2024 | 21 | 152.2 | 15.8 | 136.4 |
+
+**12 sectors are under-attributed in every year of the span.** Following §3,
+`restate` is where `Direct` is immaterial — no process mass is in dispute, the
+table 3-11 vector simply gives the sector too little — and `relocate` is where
+`Direct` is material, which a vector cannot touch at all.
+
+### Seven eighths of it is not a vector's to close
+
+| 2022 | Mt | sectors |
+|---|---:|---:|
+| **restate** — combustion under-allocation | 17.9 | 17 |
+| **relocate** — process misattribution | **126.7** | 6 |
+
+`324110` petroleum refineries alone is 96.7 Mt of the second: allocated 76.2,
+`Direct` 3.6, against a floor of 176.4. That is §3's pair result — no level is in
+dispute across refineries and `211000` together, only which industry holds it —
+and it belongs to
+[#953](https://github.com/cornerstone-data/bedrock/issues/953). The others are
+`325120` industrial gas 13.8, `327310` cement 10.1, `21311A` 3.6, `327400` lime
+2.4, `331490` 0.1.
+
+⚠️ **So do not read the residual gap after #929 lands as the integration having
+failed.** The facility vector closes the 17.9 Mt, because that is what a better
+combustion split does. It was never going to close the rest.
+
+### And the restate half needs no sections beyond the five
+
+In those 23 sectors, **98% of the allocated mass is table 3-11** — 156.7 Mt of
+160.5 Mt. Every other vector-attributed family together is **3.8 Mt across all 23
+sectors**: non-energy use 2.18, carbonate use 0.83, `T_4_52` 0.44, construction
+and mining 0.24, refrigerants 0.06. The tail families are not where the shortfall
+lives, and that conclusion needs no claim about which subpart answers which
+inventory table.
+
+Coverage facts worth keeping for whoever revisits them: GHGRP subpart `U` holds
+0.1 Mt over six facilities against 10.4 Mt of carbonate use allocated across some
+twenty sectors; 98% of refrigerants and foams land in sectors reporting under 0.5
+Mt to the GHGRP; urea is a consumption line and the GHGRP reports at production;
+and non-energy use is attributed on **MECS feedstock quantities**, not on a
+purchase row, so #929's premise does not apply to it.
