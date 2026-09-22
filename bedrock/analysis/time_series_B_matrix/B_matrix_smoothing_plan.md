@@ -45,7 +45,7 @@ Inflation is an expected and acceptable form of change, so inflation effects mus
 `B = (E/x) @ Vnorm` has exactly three inputs and `L` is not one of them; it
 enters only through `N = B @ L`. `L` comes from `A = U_norm @ V_norm`, the
 nowcast's own IO product, so no emissions-side change can move it — and it
-moves `N` two to four times as much as the factors do, and `Vnorm` is 3% to
+moves `N` 1.1 to 3.0 times as much as the factors do, and `Vnorm` is 3% to
 13% of gross `B` movement depending on year. Diagnosed here,
 remediated in Nowcast Phase 2. `Vnorm` falls on the same side of that line
 for remediation, being the nowcast Make, even though it is a direct term in
@@ -81,7 +81,7 @@ refuses to choose when several span-covering builds are present and none is.
 | **D4** | 1, top-down | did this source ever track output at all? | `dlog(E)` on `dlog(x)` per source, emissions-weighted | `output_elasticity.csv`, `output_elasticity_real.csv`, `output_elasticity_by_metasource.csv`, `output_elasticity.png` |
 | **D5** | 1, top-down | how much of the apparent move is just prices? | nominal vs constant-dollar counterfactual | `price_effect.csv` |
 | **D6a** | 2, bottom-up | which EFs moved most, per year, in real dollars? | year-on-year change in `B`, ranked on `abs_delta_B_pct_of_N` — the change in the direct factor weighted by its share of that commodity's own `N` | `B_change_real.csv` |
-| **D6b** | 2, bottom-up | how much of the `N` move is the factors, and how much is `L`? | the same table's `pct_change_N_L_held` / `pct_change_N_L_effect`: `N` recomputed with the current year's factors through the prior year's `L` | `B_change_real.csv` |
+| **D6b** | 2, bottom-up | how much of the `N` move is the factors, and how much is `L`? | the same table's `pct_change_N_L_held` / `pct_change_N_L_effect`: `N` recomputed with the current year's factors through the prior year's `L`, both in constant base-year dollars ([#957](https://github.com/cornerstone-data/bedrock/issues/957)) | `B_change_real.csv` |
 | **D7** | 2, bottom-up | which source sits behind a given commodity's EF? | `B` split by attribution | `B_by_attribution.csv` |
 | **D8** | 1 → 2 bridge | which sector *and* source jointly? | divergence by sector, and by sector × source pair | `divergence_by_sector_stratum.csv`, `divergence_by_sector.csv`, `divergence_by_sector_real.csv` |
 | **D9** | 1 → 2 bridge | does a cell drift or just oscillate? | gross movement against `oscillation = 1 - \|net\| / gross` per (sector, inventory table, attribution) cell | `sector_stratum_divergence.png`, `sector_stratum_span.csv` |
