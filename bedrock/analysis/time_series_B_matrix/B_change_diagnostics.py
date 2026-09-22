@@ -106,6 +106,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import facilitymatcher
+import facilitymatcher.colocation as colocation
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -1992,6 +1993,15 @@ ONSITE_SCC_BRANCHES = ('1', '2', '3')
 #: The combustion half of that, where fuel burned is separable.
 COMBUSTION_SCC_BRANCHES = ('1', '2')
 
+#: Mobile and non-road source codes, which NEI files as point sources at the
+#: site that hosts them. Their first digit is ``2``, the same as stationary
+#: internal combustion, so the branch test alone lets them in - and 33.7 Mt of
+#: 2022 CO2 with them, 33.6 Mt of it aircraft at airports under ``2275``. The
+#: GHG inventory books all of it to mobile combustion, not to the airport
+#: operator, so a *stationary* basis that carries it exceeds the inventory by
+#: construction: ``48A000`` read 7.63x before this (#925).
+MOBILE_SCC_PREFIX = '22'
+
 #: Sectors the facility side never carries, so the inventory side must not
 #: either. ``221100`` runs on eGRID here and is filtered out of the facility
 #: union by construction; ``F01000`` is personal consumption, which has no gross
@@ -2077,6 +2087,82 @@ def _drop_outside_geography(
     return frame[keep]
 
 
+def _same_site_after_FRS(
+    ghgrp: pd.DataFrame, nei: pd.DataFrame, year: int
+) -> pd.Series:
+    """NEI facilities at a GHGRP site the FRS bridge did not link (#925).
+
+    ``FRS_ID`` is the only thing saying that a GHGRP report and an NEI report
+    describe one plant, and it says so only when FRS has filed both programmes
+    under one registry record. Where it has filed them under two, the site
+    enters the union twice: once at its GHGRP total and once at its NEI total.
+
+    :func:`facilitymatcher.colocation.canonical_registry_map` folds the
+    duplicate registry records that FRS's *own* facility attributes reveal, and
+    that is where the fix belongs - it is a property of FRS, not of this
+    analysis. It cannot reach the sites where FRS's attributes disagree but the
+    two programmes' do, so the same rule is applied a second time here, to the
+    addresses GHGRP and NEI report for themselves: same state, same normalised
+    street address, and either a shared name token or the same NAICS
+    three-digit prefix. The corroboration is what keeps a **tenant** at a host
+    site - a slag processor at a steel mill, an industrial gas plant at a
+    refinery - from being folded into its host and having its emissions
+    deleted rather than deduplicated.
+
+    :return: Series mapping an NEI ``FacilityID`` to the ``FRS_ID`` of the
+        GHGRP site it shares an address with
+    """
+
+    def keys(inventory: str, ids: pd.Series) -> pd.DataFrame:
+        facilities = stewi.getInventoryFacilities(
+            inventory, year, download_if_missing=True
+        )
+        out = pd.DataFrame(
+            {
+                'FacilityID': facilities['FacilityID'].astype(str),
+                'State': facilities['State'],
+                'address': colocation.normalize_address(facilities['Address']),
+                'tokens': colocation.normalize_name(facilities['FacilityName']).map(
+                    colocation.name_tokens
+                ),
+                'sector3': facilities['NAICS'].fillna('').astype(str).str[:3],
+            }
+        )
+        out = out[out['address'].str.match(r'^\d') & out['FacilityID'].isin(set(ids))]
+        return out
+
+    linked = set(nei['FRS_ID'].dropna())
+    left = ghgrp[ghgrp['FRS_ID'].notna() & ~ghgrp['FRS_ID'].isin(linked)]
+    covered = set(ghgrp['FRS_ID'].dropna())
+    right = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]
+    pairs = keys('GHGRP', left['FacilityID']).merge(
+        keys('NEI', right['FacilityID']),
+        on=['State', 'address'],
+        suffixes=('_g', '_n'),
+    )
+    if pairs.empty:
+        return pd.Series(dtype='object')
+    shares_token = [bool(a & b) for a, b in zip(pairs['tokens_g'], pairs['tokens_n'])]
+    pairs = pairs[
+        pd.Series(shares_token, index=pairs.index)
+        | ((pairs['sector3_g'] == pairs['sector3_n']) & (pairs['sector3_g'] != ''))
+    ]
+    frs_of_ghgrp = ghgrp.drop_duplicates('FacilityID').set_index('FacilityID')['FRS_ID']
+    pairs = pairs.assign(FRS_ID=pairs['FacilityID_g'].map(frs_of_ghgrp))
+    # An NEI record at an address two GHGRP facilities share belongs to that
+    # site whichever of them it is folded onto; pick the lowest so a rerun
+    # gives the same answer.
+    out = pairs.dropna(subset=['FRS_ID']).groupby('FacilityID_n')['FRS_ID'].min()
+    logger.info(
+        'D15 %d: %d NEI facilities sit at the address of a GHGRP facility the '
+        'FRS bridge did not link to them, over %d sites (#925)',
+        year,
+        len(out),
+        out.nunique(),
+    )
+    return out
+
+
 def facility_combustion(year: int) -> pd.DataFrame:
     """**D15.** Stationary combustion as reported by facilities, by sector.
 
@@ -2118,9 +2204,11 @@ def facility_combustion(year: int) -> pd.DataFrame:
     nei = stewi.getInventory(
         'NEI', year, stewiformat='flowbyprocess', download_if_missing=True
     )
+    process = nei['Process'].astype(str)
     nei = nei[
         (nei['FlowName'] == 'Carbon Dioxide')
-        & nei['Process'].astype(str).str[0].isin(ONSITE_SCC_BRANCHES)
+        & process.str[0].isin(ONSITE_SCC_BRANCHES)
+        & (process.str[:2] != MOBILE_SCC_PREFIX)
     ].copy()
     branch = nei['Process'].astype(str).str[0]
     nei['fuel_class'] = np.where(
@@ -2173,6 +2261,12 @@ def facility_combustion(year: int) -> pd.DataFrame:
 
     ghgrp['FRS_ID'] = ghgrp['FacilityID'].map(frs_of('GHGRP'))
     nei['FRS_ID'] = nei['FacilityID'].map(frs_of('NEI'))
+    # Where FRS registered one site twice, the bridge links neither report to
+    # the other and the site is counted twice. Recover those from the
+    # addresses the two programmes report for themselves (#925).
+    relabelled = _same_site_after_FRS(ghgrp, nei, year)
+    if not relabelled.empty:
+        nei['FRS_ID'] = nei['FacilityID'].map(relabelled).fillna(nei['FRS_ID'])
 
     # A facility that classified its own fuel does not need NEI's process-gas
     # share inferred onto it - it said what it burned, and for oil and gas NEI
@@ -2480,6 +2574,161 @@ def facility_scope_split(
         .sort_values(['in_scope', 'ghgrp_vs_inventory'], ascending=[False, False])
         .reset_index(drop=True)
     )
+
+
+#: NEI cannot separate the biomass carbon a mill's recovery furnace emits.
+_PAPER_BIOGENIC = (
+    'NEI publishes one Carbon Dioxide flow and does not separate the biogenic '
+    'part, while the GHGRP does and D15 excludes it. At a pulp or paper mill '
+    'the recovery furnace burning black liquor is most of the carbon dioxide: '
+    'NEI reports 93.8 Mt at NAICS 3221 facilities in 2022 against 35.4 Mt the '
+    'inventory assigns the three paper sectors together. The NEI side of this '
+    'sector therefore carries biomass carbon the inventory books outside the '
+    'fossil total, and no field in NEI separates it'
+)
+
+#: Overshoots D15 has a cause on record for. The key is the sector; the value
+#: is the counterpart sector the inventory books the mass to, or None, and what
+#: the difference is.
+#:
+#: A named cause has to be **checkable**, which is the whole point of the
+#: guard: where a counterpart is named, the excuse holds only if the two
+#: sectors *together* come in under the tolerance. Where none is named, the
+#: entry explains the overshoot without netting it out, and the sector is
+#: reported rather than excused.
+NAMED_BOUNDARY_DIFFERENCES: dict[str, tuple[str | None, str]] = {
+    '324110': (
+        '211000',
+        'the inventory books the refining segment of its petroleum systems '
+        'tables to extraction - 211000 takes 56.4 Mt of UMD_GHGIA_T_3_25 and '
+        'T_3_26 where 324110 takes 3.55 - so the facility side reads the two '
+        'sectors the way the plants are built and the inventory reads them the '
+        'way the tables are written',
+    ),
+    '21311A': (
+        '211000',
+        'gathering and boosting and gas processing report their own fuel and '
+        'fugitives under subpart W, and the inventory books natural gas '
+        'systems to extraction (#927)',
+    ),
+    '322110': (None, _PAPER_BIOGENIC),
+    '322120': (None, _PAPER_BIOGENIC),
+    '322130': (None, _PAPER_BIOGENIC),
+}
+
+
+def facility_overshoot_guard(
+    basis: pd.DataFrame, tolerance: float = 0.5, min_inventory_Mt: float = 1.0
+) -> pd.DataFrame:
+    """**D15c.** No sector may exceed its inventory total without a named cause.
+
+    The facility union is built by taking the GHGRP whole and adding the NEI
+    facilities it does not already cover, and ``FRS_ID`` is the only thing
+    saying which those are. Where the match list is wrong the same plant enters
+    twice, and the symptom is a sector whose facilities report more than the
+    whole inventory gives it. That is what this checks, and it is the check
+    that has to stay green for any level-based claim built on D15 (#925).
+
+    ⚠️ **An overshoot is not automatically an error.** The inventory and the
+    facility programs draw sector boundaries in different places, and where
+    they do, a sector *should* come out over. The guard's job is to make the
+    difference between "we have a reason" and "we do not" explicit, so:
+
+    ``within tolerance``
+        under ``1 + tolerance``. Nothing to answer.
+    ``reallocation``
+        :data:`NAMED_BOUNDARY_DIFFERENCES` names a counterpart sector the
+        inventory books the mass to, **and the two together come in under the
+        tolerance**. The excuse is tested, not asserted - if the pair is still
+        over, the verdict falls back to ``named, still over``.
+    ``named``
+        a boundary difference is on record with its evidence, but it cannot be
+        netted out against another sector. Reported, never excused.
+    ``unexplained``
+        nothing on record. **This is what the guard exists to surface**, and
+        what ``--check-facility-overshoot`` fails on.
+
+    *min_inventory_Mt* drops sectors too small to bear a ratio.
+    """
+    frame = basis.set_index('sector')
+    over = frame[
+        (frame['inventory_Mt'] > min_inventory_Mt) & (frame['coverage'] > 1 + tolerance)
+    ]
+    rows = []
+    for sector, row in over.iterrows():
+        counterpart, reason = NAMED_BOUNDARY_DIFFERENCES.get(str(sector), (None, ''))
+        pair_coverage = np.nan
+        if counterpart is not None and counterpart in frame.index:
+            pair = frame.loc[[sector, counterpart]]
+            pair_coverage = pair['facility_Mt'].sum() / pair['inventory_Mt'].sum()
+        if not reason:
+            verdict = 'unexplained'
+        elif counterpart is None:
+            verdict = 'named'
+        elif pair_coverage <= 1 + tolerance:
+            verdict = 'reallocation'
+        else:
+            verdict = 'named, still over'
+        rows.append(
+            {
+                'sector': sector,
+                'name': row['name'],
+                'inventory_Mt': row['inventory_Mt'],
+                'facility_Mt': row['facility_Mt'],
+                'coverage': row['coverage'],
+                'overshoot_Mt': row['facility_Mt'] - row['inventory_Mt'],
+                'counterpart': counterpart or '',
+                'pair_coverage': pair_coverage,
+                'verdict': verdict,
+                'reason': reason,
+            }
+        )
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            'sector',
+            'name',
+            'inventory_Mt',
+            'facility_Mt',
+            'coverage',
+            'overshoot_Mt',
+            'counterpart',
+            'pair_coverage',
+            'verdict',
+            'reason',
+        ],
+    )
+    return out.sort_values('overshoot_Mt', ascending=False).reset_index(drop=True)
+
+
+def _report_overshoot(guard: pd.DataFrame, year: int) -> int:
+    """Log D15c and return the number of sectors with no cause on record."""
+    if guard.empty:
+        logger.info('D15c %d: no sector exceeds its inventory total.', year)
+        return 0
+    by_verdict = guard.groupby('verdict')['overshoot_Mt'].agg(['size', 'sum'])
+    logger.info(
+        'D15c %d: %d sectors exceed their inventory total, %.1f Mt in ' 'all:\n%s',
+        year,
+        len(guard),
+        guard['overshoot_Mt'].sum(),
+        by_verdict.round(1).to_string(),
+    )
+    unexplained = guard[guard['verdict'] == 'unexplained']
+    if not unexplained.empty:
+        logger.warning(
+            'D15c %d: %d sectors exceed their inventory total with no cause '
+            'on record, %.1f Mt. A level-based claim on any of them is not '
+            'supported until one is named or the overshoot is removed '
+            '(#925):\n%s',
+            year,
+            len(unexplained),
+            unexplained['overshoot_Mt'].sum(),
+            unexplained[['sector', 'name', 'coverage', 'overshoot_Mt']]
+            .round(2)
+            .to_string(index=False),
+        )
+    return len(unexplained)
 
 
 def report(
@@ -3379,6 +3628,10 @@ def main(
             derived['CO2e'].sum() / 1e9,
             derived['CO2e'].sum() / facility['CO2e'].sum() * 100,
         )
+        tables['facility_overshoot'] = facility_overshoot_guard(
+            tables['facility_basis']
+        )
+        _report_overshoot(tables['facility_overshoot'], basis_year)
         logger.info(
             'D15: table 3-11 by the basis it could rest on:\n%s',
             tables['facility_basis']
@@ -3475,9 +3728,26 @@ if __name__ == '__main__':
             'cache'
         ),
     )
+    parser.add_argument(
+        '--check-facility-overshoot',
+        action='store_true',
+        help=(
+            'run D15 alone and exit non-zero if any sector exceeds its '
+            'inventory total with no cause on record in '
+            'NAMED_BOUNDARY_DIFFERENCES (#925). Implies --facility-data and '
+            'reuses the cached span'
+        ),
+    )
     args = parser.parse_args()
 
     span_years = tuple(args.years)
+    if args.check_facility_overshoot:
+        span = load_span(span_years)
+        basis_year = min(min(max(span_years), GHGRP_LAST_YEAR), NEI_LAST_YEAR)
+        guard = facility_overshoot_guard(
+            facility_basis_comparison(span, facility_combustion(basis_year))
+        )
+        raise SystemExit(1 if _report_overshoot(guard, basis_year) else 0)
     if args.list_vintages:
         for stem in (FBS_STEM, MUT_STEM):
             print(f'\n{stem.format(year="<year>")}')
