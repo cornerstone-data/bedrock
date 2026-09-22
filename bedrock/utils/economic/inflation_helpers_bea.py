@@ -1,3 +1,5 @@
+"""BEA industry price index from the Watershed-derived parquet on GCS."""
+
 from __future__ import annotations
 
 import functools
