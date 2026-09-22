@@ -2246,7 +2246,7 @@ def facility_basis_comparison(
 
     ⚠️ **Widening the comparison does not widen what can be improved.** The
     process rows this pulls in - ``UMD_GHGIA_T_2_S1.direct``, ``T_4_31`` and the
-    rest, 433 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
+    rest, 524 Mt in 2022 - are **100% ``Direct``-attributed**: the inventory
     already names the sector, with no Use row, no MECS and no vector in between.
     A facility basis cannot improve an assignment that was never derived. So the
     columns are kept apart:
@@ -2331,154 +2331,146 @@ def facility_basis_comparison(
     ).reset_index(drop=True)
 
 
-#: The GHGRP reporting threshold, 25,000 t CO2e, in the kg StEWI reports.
-#: A facility above it is one the programme should have seen, so NEI-only mass
-#: above it cannot be explained by the threshold - see
-#: :func:`facility_coverage_bands`.
-GHGRP_THRESHOLD_KG = 25_000 * 1_000
-
-#: The fuel classes that are combustion. ``process`` is the calcining and
-#: chemistry half, which the GHGRP threshold has nothing to do with.
-COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
-
-
-def facility_coverage_bands(
-    union: pd.DataFrame,
-    floor: pd.Series,
-    basis: pd.DataFrame | None = None,
-    min_Mt: float = 0.5,
-    coverage_floor: float = 0.95,
-    unresolved_ceiling: float = 0.05,
+def facility_scope_split(
+    basis: pd.DataFrame, facility: pd.DataFrame, floor: pd.Series
 ) -> pd.DataFrame:
-    """**D15d.** Which sectors may take the facility vector *downward*? (#928)
+    """**D15b.** What the inventory gives a sector, against what its own
+    facilities reported - as a total, and split into its two halves.
 
-    A facility union is a **lower bound** on a sector, so it is informative in
-    one direction only. Facility mass above the allocation means the sector is
-    under-allocated and no coverage argument touches it - that is D14 and D16.
-    Facility mass *below* the allocation could be over-allocation, or could be
-    emissions nobody reported, and the data cannot say which. So the default
-    rule is that facility data is a **floor**: it may raise a sector to what its
-    own facilities reported and may never lower it.
+    **Read** ``ghgrp_vs_inventory`` **first.** GHGRP only covers facilities over
+    25,000 tCO2e, so a sector's GHGRP total is a **floor** on what its
+    facilities emit. Where that floor clears the whole inventory assignment -
+    ``allocated_Mt`` and ``direct_Mt`` together - the sector is
+    **under-attributed**, and the statement survives every boundary objection
+    the half-ratios attract, because it assumes nothing about which subpart
+    answers which inventory table. ``under_attributed_Mt`` is the same finding
+    in Mt, which is the order to act in.
 
-    A sector escapes that restriction only where what the facilities report is
-    close to a census of the sector, and this table is the test. Two quantities,
-    both now measurable because #925 fixed the matching they rest on:
+    ⚠️ **A half-ratio above 1 does not imply under-attribution.** Fertilizer
+    runs 1.32 on the process half and 0.93 on the combustion half, and lands at
+    **0.85 on the total**; other basic inorganic chemicals run 1.05 and 0.38 and
+    land at **0.41**. Both are over-attributed on the process side and
+    under-covered overall. The correction runs the other way for cement, whose
+    process half of 1.61 is inflated because subpart H reports a kiln's fuel
+    together with its calcination - on the total it is **1.17**, and that is the
+    figure to quote.
 
-    ``coverage``
-        ``ghgrp_Mt / (ghgrp_Mt + nei_below_Mt)`` - how much of the sector's
-        reported combustion comes from the mandatory programme, against what the
-        25,000 tCO2e threshold leaves to NEI alone.
-    ``unresolved``
-        NEI-only mass at facilities **above** that threshold, as a share of the
-        sector's facility total. Those facilities cannot be below the threshold,
-        so this is not coverage at all - it is a GHGRP twin the match list still
-        misses, or a facility that should report and does not. Either way the
-        sector's facility total is not a census while it is large.
+    ⚠️ **A large ratio is sometimes a reallocation between two sectors, not a
+    level error.** Petroleum refineries read 2.21 and oil and gas extraction
+    0.73; **together they read 1.04**. The inventory books the refining segment
+    of its petroleum systems tables to extraction - ``211000`` takes 56.4 Mt of
+    ``UMD_GHGIA_T_3_25`` and ``T_3_26`` where ``324110`` takes 3.55 - so check
+    the obvious counterpart sector before reading a ratio as a level.
 
-    ⚠️ **Coverage is not the binding constraint, and that is the finding.** In
-    2022 it is 0.976 at the median sector and 0.999 at the 90th percentile;
-    moving its gate from 0.90 to 0.98 changes the verdict for one sector.
-    ``unresolved`` is what decides: 0.091 at the median, 0.391 at the 90th
-    percentile, and **every large sector that fails the joint gate fails on it**
-    - oil and gas extraction at 0.120 with coverage 0.983, petrochemicals at
-    0.313 with coverage 1.000, wet corn milling at 0.363 with coverage 0.999.
+    ⚠️ **D15's own total ratio is a boundary comparison, not a replacement
+    test.**
+    ``facility_Mt`` spans both the mass a vector placed and the mass the
+    inventory assigned itself, so its denominator has to span both as well -
+    score GHGRP against ``allocated_Mt`` alone and natural gas distribution
+    reads 160x on its own fugitives. But carrying ``direct_Mt`` on both sides
+    only makes the totals commensurable. It does **not** make the facility
+    union a candidate replacement for the part the inventory assigned itself,
+    and this table is the measurement of how far it is from one.
 
-    ⚠️ **Imputing CO2 where NEI does not report it does not move this** (#967).
-    It was the obvious way to widen ``coverage``, and it fails twice over: on
-    the population it is used on - NEI facilities reporting no CO2 that have a
-    GHGRP twin to check against - a per-sector CO2-per-criteria-pollutant ratio
-    lands 67% out at the median sector and **+445% on the sub-threshold mass
-    that is the whole point**, because the non-reporting population is not the
-    reporting one at the same NOx. And it would not matter if it worked: taking
-    the imputation at face value against discounting its measured bias moves the
-    median sector's coverage by **0.019**.
+    GHGRP subpart C is stationary fuel combustion and every other subpart is
+    process or fugitive, so each half scores against the half of the inventory
+    it corresponds to:
 
-    ⚠️ **The GHGRP side is the combustion floor, not the union's GHGRP rows.**
-    ``facility_combustion`` labels a GHGRP facility's fuel from its own subpart
-    W report or, failing that, from the fuel mix of its matched NEI record - and
-    **24.7% of GHGRP mass in 2022 has neither**, so it stays ``unclassified``.
-    Taking only the classified part as the numerator would make coverage depend
-    on whether a facility matched into NEI, which is the very thing
-    ``unresolved`` exists to keep separate. :func:`ghgrp_combustion_floor` is
-    the definitional answer instead: subpart C is stationary combustion, plus
-    the subpart W fuel tables for the segments that report there (#927).
+    ``C_vs_table_3_11``
+        combustion against combustion, no process mass on either side. Subpart
+        C is threshold-limited, so it is a **floor**: above 1 the current
+        method allocates less than the sector's own facilities reported and
+        there is no boundary question left to argue. **The only column here
+        that settles direction.**
+    ``other_vs_direct``
+        every other subpart against what the inventory assigned the sector
+        itself. In aggregate this lands near 1, but that is offsetting errors -
+        per sector it ran 0.00 to 17.35 in 2022, because the two inventories
+        draw the process boundary in different places. A flag for
+        investigation, never a verdict.
+        `#953 <https://github.com/cornerstone-data/bedrock/issues/953>`_.
 
-    :param union: one year of :func:`facility_combustion`
-    :param floor: one year of :func:`ghgrp_combustion_floor`, a Series of Mt by
-        sector
-    :param basis: one year of :func:`facility_basis_comparison`, to name the
-        sectors with no facility data rather than let them fall through
-    ⚠️ *min_Mt* gates the **exception, not the use**. A sector with facility
-    data but too little of it to bear a ratio - 192 of them in 2022, 10.6 Mt
-    between them - stays a ``floor`` with ``blocked_by`` saying so, rather than
-    dropping out of the table. Facility data is used for every sector that has
-    any; what has to be tested for is permission to go *down*.
+    ⚠️ Two sectors reverse against the total ratio, both against the basis.
+    Petrochemicals scores 0.39 on the total and 1.00 here, because a third of
+    its allocated mass is vector-placed *non-combustion* that subpart C was
+    never going to match. Cement scores 0.04 because a kiln reports its fuel
+    under subpart H alongside its calcination, which is the artefact
+    :func:`facility_union` widens the comparison to avoid.
 
-    :param min_Mt: below this much facility combustion a sector cannot be
-        tested for the exception, and stays a floor
+    *floor* is one year of :func:`ghgrp_subpart_C`. Its NAICS-to-BEA resolution
+    is the one :func:`facility_union` uses - equal sector by sector in 2022 -
+    so the non-combustion half is the union's own GHGRP total less this, and
+    never goes negative.
+
+    ⚠️ **Subpart C alone is no longer the whole combustion floor.**
+    :func:`ghgrp_combustion_floor` adds the subpart W combustion tables, where
+    onshore production, gathering and boosting and gas distribution report their
+    fuel (#927). Passing that instead moves mass between the two halves and
+    leaves ``ghgrp_total_Mt`` and ``ghgrp_vs_inventory`` **exactly unchanged**,
+    but it flips the combustion verdict for the oil and gas sectors: `211000`
+    goes from 0.52 to **1.49** and `21311A` from 0.13 to **1.26**, both from
+    clearing the floor to breaching it. The tables in
+    ``About_facility_emissions_basis.md`` §2 quote the subpart C reading, so the
+    two move together or not at all.
     """
-    nei = union[
-        (union['source'] == 'NEI') & union['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
-    ]
-    per_facility = nei.groupby(['FacilityID', 'sector'])['CO2e'].sum().reset_index()
-    big = per_facility['CO2e'] > GHGRP_THRESHOLD_KG
-
-    out = pd.DataFrame(
-        {
-            'ghgrp_Mt': floor,
-            'nei_below_Mt': per_facility[~big].groupby('sector')['CO2e'].sum() / 1e9,
-            'nei_above_Mt': per_facility[big].groupby('sector')['CO2e'].sum() / 1e9,
-        }
-    ).fillna(0.0)
-    out['total_Mt'] = out.sum(axis=1)
-    out = out[out['total_Mt'] > 0]
-    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
-    out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
-    # A sector too small to bear a ratio is not thereby excluded from the
-    # facility data - it keeps the default, which is a floor. Only the
-    # exception needs enough mass to be tested for.
-    testable = out['total_Mt'] >= min_Mt
-    out['verdict'] = np.where(
-        testable
-        & (out['coverage'] >= coverage_floor)
-        & (out['unresolved'] <= unresolved_ceiling),
-        'vector',
-        'floor',
-    )
-    out['blocked_by'] = np.where(
-        out['verdict'] == 'vector',
-        '',
-        np.where(
-            ~testable,
-            'under the reporting floor',
-            np.where(
-                out['coverage'] < coverage_floor,
-                np.where(out['unresolved'] > unresolved_ceiling, 'both', 'coverage'),
-                'unresolved',
-            ),
-        ),
-    )
-    if basis is not None:
-        absent = basis[basis['basis'] == 'no facility data']
-        absent = absent[
-            absent['sector'].astype(str).str[:2].isin(FACILITY_SCOPE_PREFIXES)
-        ]
-        named = pd.DataFrame(
-            {
-                'ghgrp_Mt': 0.0,
-                'nei_below_Mt': 0.0,
-                'nei_above_Mt': 0.0,
-                'total_Mt': 0.0,
-                'coverage': np.nan,
-                'unresolved': np.nan,
-                'verdict': 'no facility data',
-                'blocked_by': '',
-            },
-            index=pd.Index(absent['sector'], name='sector'),
+    if 'table_3_11_Mt' not in basis:
+        raise ValueError(
+            'D15b needs the table 3-11 subtotal, so D15 has to be built with '
+            'its optional *detail* argument.'
         )
-        out = pd.concat([out, named[~named.index.isin(out.index)]])
-    out = _with_names(out.rename_axis('sector').reset_index())
-    return out.sort_values('total_Mt', ascending=False).reset_index(drop=True)
+    out = basis.set_index('sector').copy()
+    ghgrp = facility[facility['source'] == 'GHGRP']
+    out['ghgrp_Mt'] = (ghgrp.groupby('sector')['CO2e'].sum() / 1e9).reindex(
+        out.index, fill_value=0.0
+    )
+    out['ghgrp_C_Mt'] = floor.reindex(out.index).fillna(0.0)
+    out['ghgrp_other_Mt'] = (out['ghgrp_Mt'] - out['ghgrp_C_Mt']).clip(lower=0.0)
+
+    out['C_vs_table_3_11'] = out['ghgrp_C_Mt'] / out['table_3_11_Mt'].replace(
+        0.0, np.nan
+    )
+    out['other_vs_direct'] = out['ghgrp_other_Mt'] / out['direct_Mt'].replace(
+        0.0, np.nan
+    )
+    # Above the floor on the like-for-like half: the current method allocates
+    # less combustion than the sector's own facilities reported under a
+    # threshold-limited programme. Nothing about the process boundary can
+    # explain this one away.
+    out['breaches_floor'] = out['ghgrp_C_Mt'] > out['table_3_11_Mt']
+
+    # The accuracy test, and the one to read first. GHGRP only covers
+    # facilities over 25,000 tCO2e, so a sector's GHGRP total is a FLOOR on
+    # what its facilities emit. Where that floor clears the whole inventory
+    # assignment - allocated and Direct together - the sector is
+    # under-attributed, and unlike either half-ratio the statement needs no
+    # assumption about which subpart answers which inventory table.
+    out['ghgrp_total_Mt'] = out['ghgrp_C_Mt'] + out['ghgrp_other_Mt']
+    out['ghgrp_vs_inventory'] = out['ghgrp_total_Mt'] / out['inventory_Mt'].replace(
+        0.0, np.nan
+    )
+    out['under_attributed_Mt'] = out['ghgrp_total_Mt'] - out['inventory_Mt']
+
+    columns = [
+        'name',
+        'allocated_Mt',
+        'direct_Mt',
+        'inventory_Mt',
+        'table_3_11_Mt',
+        'ghgrp_C_Mt',
+        'ghgrp_other_Mt',
+        'ghgrp_total_Mt',
+        'ghgrp_vs_inventory',
+        'under_attributed_Mt',
+        'C_vs_table_3_11',
+        'other_vs_direct',
+        'breaches_floor',
+        'in_scope',
+    ]
+    return (
+        out.reset_index()[['sector', *columns]]
+        .sort_values(['in_scope', 'ghgrp_vs_inventory'], ascending=[False, False])
+        .reset_index(drop=True)
+    )
 
 
 #: NEI cannot separate the biomass carbon a mill's recovery furnace emits.
@@ -2675,6 +2667,156 @@ def _report_overshoot(guard: pd.DataFrame, year: int) -> int:
             .to_string(index=False),
         )
     return len(unexplained)
+
+
+#: The GHGRP reporting threshold, 25,000 t CO2e, in the kg StEWI reports.
+#: A facility above it is one the programme should have seen, so NEI-only mass
+#: above it cannot be explained by the threshold - see
+#: :func:`facility_coverage_bands`.
+GHGRP_THRESHOLD_KG = 25_000 * 1_000
+
+#: The fuel classes that are combustion. ``process`` is the calcining and
+#: chemistry half, which the GHGRP threshold has nothing to do with.
+COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
+
+
+def facility_coverage_bands(
+    union: pd.DataFrame,
+    floor: pd.Series,
+    basis: pd.DataFrame | None = None,
+    min_Mt: float = 0.5,
+    coverage_floor: float = 0.95,
+    unresolved_ceiling: float = 0.05,
+) -> pd.DataFrame:
+    """**D15d.** Which sectors may take the facility vector *downward*? (#928)
+
+    A facility union is a **lower bound** on a sector, so it is informative in
+    one direction only. Facility mass above the allocation means the sector is
+    under-allocated and no coverage argument touches it - that is D14 and D16.
+    Facility mass *below* the allocation could be over-allocation, or could be
+    emissions nobody reported, and the data cannot say which. So the default
+    rule is that facility data is a **floor**: it may raise a sector to what its
+    own facilities reported and may never lower it.
+
+    A sector escapes that restriction only where what the facilities report is
+    close to a census of the sector, and this table is the test. Two quantities,
+    both now measurable because #925 fixed the matching they rest on:
+
+    ``coverage``
+        ``ghgrp_Mt / (ghgrp_Mt + nei_below_Mt)`` - how much of the sector's
+        reported combustion comes from the mandatory programme, against what the
+        25,000 tCO2e threshold leaves to NEI alone.
+    ``unresolved``
+        NEI-only mass at facilities **above** that threshold, as a share of the
+        sector's facility total. Those facilities cannot be below the threshold,
+        so this is not coverage at all - it is a GHGRP twin the match list still
+        misses, or a facility that should report and does not. Either way the
+        sector's facility total is not a census while it is large.
+
+    ⚠️ **Coverage is not the binding constraint, and that is the finding.** In
+    2022 it is 0.976 at the median sector and 0.999 at the 90th percentile;
+    moving its gate from 0.90 to 0.98 changes the verdict for one sector.
+    ``unresolved`` is what decides: 0.091 at the median, 0.391 at the 90th
+    percentile, and **every large sector that fails the joint gate fails on it**
+    - oil and gas extraction at 0.120 with coverage 0.983, petrochemicals at
+    0.313 with coverage 1.000, wet corn milling at 0.363 with coverage 0.999.
+
+    ⚠️ **Imputing CO2 where NEI does not report it does not move this** (#967).
+    It was the obvious way to widen ``coverage``, and it fails twice over: on
+    the population it is used on - NEI facilities reporting no CO2 that have a
+    GHGRP twin to check against - a per-sector CO2-per-criteria-pollutant ratio
+    lands 67% out at the median sector and **+445% on the sub-threshold mass
+    that is the whole point**, because the non-reporting population is not the
+    reporting one at the same NOx. And it would not matter if it worked: taking
+    the imputation at face value against discounting its measured bias moves the
+    median sector's coverage by **0.019**.
+
+    ⚠️ **The GHGRP side is the combustion floor, not the union's GHGRP rows.**
+    ``facility_combustion`` labels a GHGRP facility's fuel from its own subpart
+    W report or, failing that, from the fuel mix of its matched NEI record - and
+    **24.7% of GHGRP mass in 2022 has neither**, so it stays ``unclassified``.
+    Taking only the classified part as the numerator would make coverage depend
+    on whether a facility matched into NEI, which is the very thing
+    ``unresolved`` exists to keep separate. :func:`ghgrp_combustion_floor` is
+    the definitional answer instead: subpart C is stationary combustion, plus
+    the subpart W fuel tables for the segments that report there (#927).
+
+    :param union: one year of :func:`facility_combustion`
+    :param floor: one year of :func:`ghgrp_combustion_floor`, a Series of Mt by
+        sector
+    :param basis: one year of :func:`facility_basis_comparison`, to name the
+        sectors with no facility data rather than let them fall through
+    ⚠️ *min_Mt* gates the **exception, not the use**. A sector with facility
+    data but too little of it to bear a ratio - 192 of them in 2022, 10.6 Mt
+    between them - stays a ``floor`` with ``blocked_by`` saying so, rather than
+    dropping out of the table. Facility data is used for every sector that has
+    any; what has to be tested for is permission to go *down*.
+
+    :param min_Mt: below this much facility combustion a sector cannot be
+        tested for the exception, and stays a floor
+    """
+    nei = union[
+        (union['source'] == 'NEI') & union['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
+    ]
+    per_facility = nei.groupby(['FacilityID', 'sector'])['CO2e'].sum().reset_index()
+    big = per_facility['CO2e'] > GHGRP_THRESHOLD_KG
+
+    out = pd.DataFrame(
+        {
+            'ghgrp_Mt': floor,
+            'nei_below_Mt': per_facility[~big].groupby('sector')['CO2e'].sum() / 1e9,
+            'nei_above_Mt': per_facility[big].groupby('sector')['CO2e'].sum() / 1e9,
+        }
+    ).fillna(0.0)
+    out['total_Mt'] = out.sum(axis=1)
+    out = out[out['total_Mt'] > 0]
+    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
+    out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
+    # A sector too small to bear a ratio is not thereby excluded from the
+    # facility data - it keeps the default, which is a floor. Only the
+    # exception needs enough mass to be tested for.
+    testable = out['total_Mt'] >= min_Mt
+    out['verdict'] = np.where(
+        testable
+        & (out['coverage'] >= coverage_floor)
+        & (out['unresolved'] <= unresolved_ceiling),
+        'vector',
+        'floor',
+    )
+    out['blocked_by'] = np.where(
+        out['verdict'] == 'vector',
+        '',
+        np.where(
+            ~testable,
+            'under the reporting floor',
+            np.where(
+                out['coverage'] < coverage_floor,
+                np.where(out['unresolved'] > unresolved_ceiling, 'both', 'coverage'),
+                'unresolved',
+            ),
+        ),
+    )
+    if basis is not None:
+        absent = basis[basis['basis'] == 'no facility data']
+        absent = absent[
+            absent['sector'].astype(str).str[:2].isin(FACILITY_SCOPE_PREFIXES)
+        ]
+        named = pd.DataFrame(
+            {
+                'ghgrp_Mt': 0.0,
+                'nei_below_Mt': 0.0,
+                'nei_above_Mt': 0.0,
+                'total_Mt': 0.0,
+                'coverage': np.nan,
+                'unresolved': np.nan,
+                'verdict': 'no facility data',
+                'blocked_by': '',
+            },
+            index=pd.Index(absent['sector'], name='sector'),
+        )
+        out = pd.concat([out, named[~named.index.isin(out.index)]])
+    out = _with_names(out.rename_axis('sector').reset_index())
+    return out.sort_values('total_Mt', ascending=False).reset_index(drop=True)
 
 
 def report(
@@ -3556,6 +3698,12 @@ def main(
         tables['facility_basis'] = facility_basis_comparison(
             span, facility, detail_real
         )
+        # Subpart C alone, deliberately: D15b's halves and the §2 tables that
+        # quote them are on that reading. See its docstring for what the
+        # complete combustion floor would move, and #927.
+        tables['facility_scope_split'] = facility_scope_split(
+            tables['facility_basis'], facility, tables['ghgrp_subpart_C'][basis_year]
+        )
         derived = facility[facility['fuel_class'] == 'self_supplied']
         logger.info(
             'D15 %d: %.1f Mt over %d facilities in %d jurisdictions, of which %.1f '
@@ -3587,6 +3735,29 @@ def main(
             )
             .round(1)
             .to_string(),
+        )
+        scope = tables['facility_scope_split'].query('in_scope')
+        breach = scope[scope['breaches_floor'] & (scope['table_3_11_Mt'] > 0)]
+        logger.info(
+            'D15b %d: the two halves of the D15 ratio, in scope. Combustion, '
+            'table 3-11 %.1f Mt vs subpart C %.1f Mt (%.2f). Process, Direct '
+            '%.1f Mt vs every other subpart %.1f Mt (%.2f) - but that aggregate '
+            'is offsetting errors, and per sector the process half runs %.2f to '
+            '%.2f, so the union is no replacement for Direct (#953). On the '
+            'like-for-like half %d sectors allocate less combustion than their '
+            'own facilities reported: %.0f Mt against %.0f Mt.',
+            basis_year,
+            scope['table_3_11_Mt'].sum(),
+            scope['ghgrp_C_Mt'].sum(),
+            scope['ghgrp_C_Mt'].sum() / scope['table_3_11_Mt'].sum(),
+            scope['direct_Mt'].sum(),
+            scope['ghgrp_other_Mt'].sum(),
+            scope['ghgrp_other_Mt'].sum() / scope['direct_Mt'].sum(),
+            scope.loc[scope['direct_Mt'] > 1.0, 'other_vs_direct'].min(),
+            scope.loc[scope['direct_Mt'] > 1.0, 'other_vs_direct'].max(),
+            len(breach),
+            breach['table_3_11_Mt'].sum(),
+            breach['ghgrp_C_Mt'].sum(),
         )
         intermittent = tables['combustion_floor_test'].query(
             'verdict == "intermittent"'

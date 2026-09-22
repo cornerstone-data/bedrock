@@ -1,12 +1,16 @@
 """#839 hygiene census via ``balance_year`` for selected years.
 
-Reports pre-sweep zero-pattern leak (2a), illicit-sign negatives (2b),
-and post-sweep confirmation that sub-eps illicit residue is gone (item 1).
+Reports pre-sweep zero-pattern leak (2a), seed vs RAS exemption-fill split,
+illicit-sign negatives (2b), and post-sweep confirmation that sub-eps illicit
+residue is gone (item 1). Soft balance is ~15–17 min/year (~2 h for 2018–2024).
+
+Seed-vs-RAS split requires matched ``YearBalance.seeds`` + ``balanced`` from
+one ``balance_year`` run — not available from :mod:`hygiene_census_gcs`.
 
 Example::
 
     uv run python -m bedrock.analysis.nowcasting.ras_improvements.hygiene_census \\
-        --years 2018,2021,2023
+        --years 2018,2019,2020,2021,2022,2023,2024 --force
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ import time
 import traceback
 
 from bedrock.analysis.nowcasting.ras_improvements.common import (
+    exemption_pattern_fill_split,
     illicit_mask,
     resolve_artifact_dir,
 )
@@ -29,6 +34,8 @@ from bedrock.transform.iot.nowcast_sut_assembly import (
     sweep_offset_residue,
     zero_pattern_leak,
 )
+
+_DEFAULT_YEARS = '2018,2019,2020,2021,2022,2023,2024'
 
 
 def _write_results(results: list[dict[str, object]]) -> None:
@@ -68,6 +75,26 @@ def _census_year(year: int) -> dict[str, object]:
         rows[f'{block}_zero_leak_mass_usd_m'] = mass
         print(
             f'{year} 2a {block}: {n_cells} cells, mass={mass:.6g} $M',
+            flush=True,
+        )
+        split = exemption_pattern_fill_split(
+            balance.seeds[block],
+            balance.balanced[block],
+            block_pattern,
+            balance.masks[block],
+        )
+        for key, value in split.items():
+            rows[f'{block}_{key}'] = value
+        print(
+            f'{year} seed/RAS {block}: bal_fill={split["bal_fill_cells"]} cells / '
+            f'{split["bal_fill_mass_usd_m"]:.6g} $M; '
+            f'seed_fill={split["seed_fill_cells"]} / '
+            f'{split["seed_fill_mass_usd_m"]:.6g} $M; '
+            f'ras_introduced={split["ras_introduced_cells"]} / '
+            f'{split["ras_introduced_mass_usd_m"]:.6g} $M '
+            f'(share={split["ras_introduced_share"]:.4f}); '
+            f'ras_cleared={split["ras_cleared_cells"]}; '
+            f'ras_moved_l1={split["ras_moved_l1_usd_m"]:.6g} $M',
             flush=True,
         )
 
@@ -133,12 +160,32 @@ def _census_year(year: int) -> dict[str, object]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--years', default='2018,2021,2023')
+    parser.add_argument('--years', default=_DEFAULT_YEARS)
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help=(
+            'Drop existing JSON rows for the listed years (including prior '
+            'errors) and re-run them'
+        ),
+    )
     args = parser.parse_args(argv)
     years = [int(y.strip()) for y in args.years.split(',') if y.strip()]
 
     results = _load_results()
-    done = {r['year'] for r in results if 'error' not in r}
+    if args.force:
+        drop = set(years)
+        before = len(results)
+        results = [r for r in results if int(str(r.get('year', -1))) not in drop]
+        removed = before - len(results)
+        if removed:
+            print(
+                f'--force: dropped {removed} existing row(s) for {sorted(drop)}',
+                flush=True,
+            )
+            _write_results(results)
+
+    done = {int(str(r['year'])) for r in results if 'error' not in r}
     failures = 0
     for year in years:
         if year in done:
@@ -154,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
                 flush=True,
             )
             row = {'year': year, 'error': f'{type(err).__name__}: {err}'}
-        results = [r for r in results if r.get('year') != year]
+        results = [r for r in results if int(str(r.get('year', -1))) != year]
         results.append(row)
 
         def _year_key(row: dict[str, object]) -> int:

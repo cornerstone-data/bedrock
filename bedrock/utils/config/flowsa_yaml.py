@@ -35,9 +35,19 @@ class FlowsaLoader(yaml.SafeLoader):
         except FileNotFoundError:
             transform_file_folder = settings.transformpath
 
+        # An extract config living in a subfolder (e.g. extract/epa/) can
+        # !include a sibling. Only the transform tree was resolved that way, so
+        # such an include raised FileNotFoundError before any download was
+        # attempted. !from_index: already resolves the extract tree this way.
+        try:
+            extract_file_folder = return_folder_path(settings.extractpath, file)
+        except FileNotFoundError:
+            extract_file_folder = settings.extractpath
+
         for folder in [
             *loader.external_paths_to_search,
             settings.extractpath,
+            extract_file_folder,
             settings.datapath,
             settings.transformpath / 'common',
             transform_file_folder,
