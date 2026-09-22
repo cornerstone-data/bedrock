@@ -1,13 +1,13 @@
 # About the #896 electricity Use-row gate
 
-Phase 1 diagnostic for
+Diagnostic for
 [issue #896](https://github.com/cornerstone-data/bedrock/issues/896): decide
 whether the 2023–24 electricity share collapse is a **target** problem
 (`T016 − ΣY`) or an **allocation** problem (seeds / carry / GRAS), without
 changing the production MUT or the G/T/D allocator.
 
-How to read schemas / classification rules: [`About_896_row_gate.md`](About_896_row_gate.md).
-Phase 1 measurement results (cause label): see **Phase 1 results** in
+How to read schemas / classification rules: this note.
+Measured results: **Results** in
 [`issue_896_electricity_row_shares.md`](issue_896_electricity_row_shares.md).
 
 ## Run
@@ -15,8 +15,14 @@ Phase 1 measurement results (cause label): see **Phase 1 results** in
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 \
     --mode bands|gate|stages|seed_status|aies_seam|all \
-    --mut-vintage v0.3.0_4276083 --csv [--check]
+    --mut-vintage v0.3.0_4276083 --csv [--check] \
+    [--anchor-span 2022-2023]
 ```
+
+`--years` (default `2017-2024`) drives **bands** and **gate**.
+`--anchor-span` (default `2022-2023`) drives **stages**, **seed_status** top-N,
+and which industries **aies_seam** ranks. AIES **index** years stay pinned at
+2022/2023 (SAS→AIES survey break) and are never retargeted by `--anchor-span`.
 
 `--mut-vintage` pins the MUT loaders only. Gate **targets** still call
 `interior_row_targets` → live Supply / FD extracts
@@ -34,7 +40,7 @@ denominators, NaNs), not on classification outcome.
 | `bands` | `electricity_row_896_bands.csv` | `BandShareEffectRow` |
 | `gate` | `electricity_row_896_gate_years.csv`, `…_gate_decisions.csv` | `GateYear`, `GateDecision` |
 | `stages` | `electricity_row_896_stages.csv` | `StageCellMove` |
-| `seed_status` | `electricity_row_896_seed_status.csv` | `SeedStatusRow` |
+| `seed_status` | `electricity_row_896_seed_status.csv` | `SeedStatusRow` (`year_a`/`year_b`/`share_effect_bn`) |
 | `aies_seam` | `electricity_row_896_aies_seam.csv` | index ratio + hold-2022 CF $bn |
 
 ## Band partition (claim map)
@@ -71,7 +77,13 @@ else false.
 Sensitivity classifications `classification_at_0_60` / `…_0_80` use level cuts
 0.60 / 0.80; `stable` is unchanged.
 
-**Scheduling** uses 2022→23 and 2023→24 only. Other YoY spans are context.
+**Target scheduling** uses 2022→23 and 2023→24 — those two spans are 82% and
+136% share effect, against 31% for 2020→21. **Allocation diagnostics must not
+inherit that window.** The cell-level `L`-flux ranking (`cf888a6`) puts six of
+eight churn commodities' worst year in 2020–2022, and 52.9% of `441000`'s
+electricity-coefficient movement outside these two spans. Follow-up allocation
+work (#900 / #899) grades on **2017–2024**; the services electricity seam
+triggers only on crisis spans after a post-target re-measure.
 
 ## Stages vintage caveat
 
@@ -88,5 +100,5 @@ CSV. Cell-level GRAS vs IPF is qualitative under warning; the hard gate remains
 uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_electricity_row_896.py
 ```
 
-Pure fixtures: claim-map partition, `GateDecision` classification (quiet span,
-near-zero level + large share, sensitivity fields). No GCS / MUT I/O.
+Pure fixtures: claim-map partition, `GateDecision` classification, `--anchor-span`
+parse. No GCS / MUT I/O.

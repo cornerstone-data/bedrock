@@ -1,138 +1,128 @@
 # Issue #896 — electricity Use row share collapse (plain language)
 
-Companion to the implementation plan for
-[issue #896](https://github.com/cornerstone-data/bedrock/issues/896).
-**Schemas, gate thresholds, and file-level steps** live in the Cursor plan
-`issue_896_electricity_row_2dccb22e` and in
+Diagnostics and measured results for
+[issue #896](https://github.com/cornerstone-data/bedrock/issues/896), as shipped
+in this PR. **Schemas, gate thresholds, and how to read the CSVs** are in
 [`About_896_row_gate.md`](About_896_row_gate.md). Method background:
 `About_why_the_flat_price_fails.md` (point 6) and `About_price_proposal.md`.
 
-Reproduce the original measurement with:
+Reproduce the original row-control measurement:
 
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_control \
     --mut-vintage v0.3.0_4276083 --csv
 ```
 
-Phase 1 diagnostic gate (bands / target gate / stages / seed status / AIES seam):
+Run the diagnostic gate in this PR:
 
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 \
-    --mode all --mut-vintage v0.3.0_4276083 --csv --check
+    --mode all --mut-vintage v0.3.0_4276083 --csv --check \
+    --anchor-span 2022-2023
 ```
+
+`--years` (default `2017-2024`) drives bands and gate. `--anchor-span` drives
+stages / seed_status ranking (and which industries aies_seam lists). AIES
+**index** years stay pinned at 2022/2023 (SAS→AIES survey break).
 
 ## Why this work exists
 
-The model’s electricity **bills** (who spends how much on electricity) look wrong
-in 2023–24: electricity’s share of all intermediate purchases fell sharply.
-Later work that splits each bill into generation vs delivery (G/T/D v3) cannot
-be judged until those bills are fixed and measured on their own. The plan does
-that in order: **find where the dollars went wrong → fix the bills → only then
-change the splitter**.
+The model’s electricity **bills** look wrong in 2023–24: electricity’s share of
+all intermediate purchases fell sharply. Later G/T/D v3 work cannot be judged
+until those bills are fixed and measured on their own: **find where the dollars
+went wrong → fix the bills → only then change the splitter**.
 
-## Phase 1 — Figure out *what* broke (diagnostics only)
+## Analysis on this PR
 
-**In plain terms:** Build better measurement tools. Do not change the production
-model yet.
+This PR adds measurement only. It does **not** change the production MUT or the
+G/T/D allocator.
 
-We already know the electricity row shrank as a share of the economy in 2023–24.
-We do *not* yet know whether:
-
-1. **The total budget for intermediate electricity was cut** (the “target”
-   fell — supply of electricity minus final demand), so the whole row was scaled
-   down together, or
-2. **The total was fine, but the dollars were reshuffled** among industries
-   (especially sectors with weak or missing survey anchors).
-
-Phase 1 answers that with concrete checks:
-
-| Sub-step | Plain question |
+| Check | Plain question |
 |---|---|
-| **1.1 Bands** | Of the lost dollars, how much came from manufacturing vs services vs wholesale/retail vs other? |
-| **1.2 Target gate** | Did the *allowed* intermediate total for electricity fall, or only the *realized* Use row? That decides the next phase. |
-| **1.3 IPF vs GRAS** | Did the shrink happen in the first “fit the margins” step (whole-row rescale) or later when balancing free cells? |
-| **1.4 Seed/mask status** | For the industries that lost the most: were they surveyed, held at 2017, or free for the balancer to move? |
-| **1.5 AIES seam** | For services (restaurants, hospitals, etc.), did the 2023 survey switch (SAS → AIES) jolt purchased-electricity indexes? |
-| **1.6 Docs** | Write down how to run and read these results so the decision is reproducible. |
+| **Bands** | Of the share-effect dollars, how much came from manufacturing vs services vs trade vs other — **every** YoY span 2017–24? |
+| **Target gate** | Did the *allowed* intermediate total for electricity fall, or only the *realized* Use row? |
+| **IPF vs GRAS** | Did the shrink happen when fitting margins, or later in free-cell balance? |
+| **Seed/mask status** | For the industries that lost the most: surveyed, held at 2017, or free for the balancer? |
+| **AIES seam** | Did the 2023 SAS→AIES survey switch jolt purchased-electricity indexes? |
 
-**Exit:** A clear label — “target collapse” or “allocation problem” — plus CSVs.
-Still no production table change.
+## Results (MUT `v0.3.0_4276083`, run 2026-09-22)
 
-## Phase 1 results (MUT `v0.3.0_4276083`, run 2026-09-22)
-
-**Bottom line:** The 2023–24 share drop is primarily a **target collapse** — the
+**Bottom line for the 2023–24 share drop:** primarily a **target collapse** — the
 *allowed* intermediate-electricity budget (`T016 − ΣY`) fell in step with the
-realized Use row. That is the Phase 1 gate’s cause label. Unseeded trade and
-services then absorbed most of the column-level share-effect dollars when the
-row was fitted down. The SAS→AIES electricity seam is **not** the driver.
+realized Use row on both crisis spans. Unseeded trade and services absorbed most
+of the column-level share-effect dollars when the row was fitted down. The
+SAS→AIES electricity seam is **not** the driver.
 
-Reproduce:
+**Dual window (important for follow-ups):** target scheduling stays on
+**2022→23 / 2023→24**. Allocation diagnostics must **not** inherit that window —
+band churn and trade/paper defects show up across **2017–2024** (see full-span
+tables below, especially **2020→21**).
 
-```bash
-python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 \
-    --mode all --mut-vintage v0.3.0_4276083 --csv --check
-```
+Artifacts: `electricity_row_896_*.csv` in this folder.
 
-Artifacts: `electricity_row_896_*.csv` in this folder. How to read schemas:
-[`About_896_row_gate.md`](About_896_row_gate.md).
-
-### 1.2 Target gate — what broke
+### Target gate — full span
 
 | Year | Target $bn | Realized Use $bn | Realized share of all intermediate | Supply−use gap $bn |
 |---:|---:|---:|---:|---:|
+| 2017 | 280.4 | 279.3 | 1.88% | 1.1 |
+| 2018 | 304.8 | 303.3 | 1.91% | 1.5 |
+| 2019 | 308.7 | 306.9 | 1.90% | 1.9 |
+| 2020 | 282.4 | 279.7 | 1.82% | 2.6 |
+| 2021 | 368.2 | 367.8 | 2.03% | 0.4 |
 | 2022 | 419.6 | 418.9 | **2.02%** | 0.7 |
 | 2023 | 358.3 | 352.0 | **1.70%** | 6.3 |
 | 2024 | 337.6 | 330.3 | **1.54%** | 7.3 |
 
-| Span | Gate classification | Target fraction of level move | Shares move together? |
-|---|---|---:|---|
-| **2022→23** | **`target_collapse`** | 0.92 | yes |
-| **2023→24** | **`target_collapse`** | 0.95 | yes |
+| Span | Classification | Target fraction of level | Shares parallel? | Role |
+|---|---|---:|---|---|
+| 2017→18 | `allocation` | 1.02 | no | context |
+| 2018→19 | `stable` | — | no | context |
+| 2019→20 | `target_collapse` | 0.97 | yes | pandemic / BEA swing |
+| 2020→21 | `target_collapse` | 0.97 | yes | mostly **column** effect at row level (+$88bn); still large band share effects |
+| 2021→22 | `allocation` | 1.01 | no | BEA GO already attributed |
+| **2022→23** | **`target_collapse`** | **0.92** | yes | **crisis — target scheduling** |
+| **2023→24** | **`target_collapse`** | **0.95** | yes | **crisis — target scheduling** |
 
-In plain terms: almost all of the dollar decline in the Use row is mirrored by a
-decline in the **row target** itself (supply of electricity less final demand).
-This is **not** “the total was fine and RAS stole from commercial columns”
-as the first-order story — though those columns still show large share effects
-once the smaller total is imposed (below).
+For 2023–24: almost all of the dollar decline in the Use row is mirrored by a
+decline in the **row target**. That is **not** “the total was fine and RAS stole
+from commercial columns” as the first-order story — though those columns still
+show large share effects once the smaller total is imposed.
 
-**Track:** Phase **2T** first (trace / fix `T016` and `ΣY` for `221100`), then
-Phase 2A for residual band defects. Sensitivity cuts at 0.60 and 0.80 give the
-same label on both crisis spans.
+### Bands — full span (share effect $bn)
 
-### 1.1 Bands — where the share-effect dollars landed
+Share effect = electricity changing its bite of each purchaser’s input column.
 
-Share effect = electricity changing its bite of each purchaser’s input column
-(the part the electricity method “owns”). Crisis spans, $bn:
+| Band | 17→18 | 18→19 | 19→20 | **20→21** | 21→22 | **22→23** | **23→24** |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| manufacturing | +1.3 | +1.8 | −0.6 | **+2.3** | +6.3 | **−9.3** | −2.9 |
+| services_transport | +1.9 | −4.0 | −9.3 | **+10.9** | −3.6 | **−13.8** | **−19.4** |
+| trade | +1.9 | −2.2 | +0.7 | **+8.9** | −3.6 | **−17.3** | −3.8 |
+| trade_unseeded | ~0 | ~0 | ~0 | +0.1 | ~0 | −0.3 | ~0 |
+| held_2017 | +0.3 | −0.4 | +3.0 | +1.9 | −1.4 | −8.0 | −1.4 |
+| utilities | +0.1 | +2.1 | ~0 | +3.9 | −3.9 | −3.8 | −1.2 |
+| mining | +0.4 | +0.4 | +0.2 | +0.2 | ~0 | −2.1 | −0.8 |
+| agriculture | −0.1 | ~0 | +0.8 | −0.6 | −0.8 | −0.4 | ~0 |
 
-| Band | 2022→23 | 2023→24 |
-|---|---:|---:|
-| **trade** (seed-set wholesale/retail) | **−17.3** | −3.8 |
-| **services_transport** | −13.8 | **−19.4** |
-| manufacturing | −9.3 | −2.9 |
-| held_2017 (construction, gov, etc.) | −8.0 | −1.4 |
-| utilities | −3.8 | −1.2 |
-| mining | −2.1 | −0.8 |
-| agriculture | −0.4 | ~0 |
-| trade_unseeded | −0.3 | ~0 |
+**2020→21 (highest-value “missing” row in earlier write-ups):** services
+(+$10.9bn) and trade (+$8.9bn) both **rose** hard on share effect while the gate
+also labels `target_collapse` on the row total — the up-leg of a round trip that
+crisis-only tables hide. That is why allocation follow-ups grade **2017–24**,
+not only 2022–24.
 
-So: **2022→23** the largest bite is **trade with no electricity seed**;
-**2023→24** the largest bite is **services**. That matches the “commercial
-band on the carry” intuition for *where* the rescale shows up — but the gate
-says the rescale is driven by a **smaller national intermediate budget**, not
-by those seeds alone.
+**Crisis spans:** 2022→23 largest bite is **trade (unseeded)**; 2023→24 largest
+is **services**. Same “commercial on the carry” picture for *where* the rescale
+shows up, under a **smaller national intermediate budget**.
 
-### 1.3 Stages (IPF vs GRAS) — when in the pipeline
+### Stages (IPF vs GRAS)
 
-On the top losers, moving from the Step-3 seed to the IPF fit
-(`assemble_use_seed` fitted=False → True) cuts 2023 cells by on the order of
-**$1–2bn each**, while GRAS (pinned MUT vs that IPF) is usually small
-(tens of millions; hotels are an exception). In plain terms: the shrink happens
-when the interior is **fitted to the lower row target**, not mainly in the later
-free-cell balancer.
+On top losers for the default anchor 2022→23, Step-3 → IPF cuts 2023 cells by
+on the order of **$1–2bn each**; GRAS vs that IPF is usually small (hotels
+excepted). The shrink happens when the interior is **fitted to the lower row
+target**.
 
-### 1.4 Seed / mask status — top losers 2022→23
+### Seed / mask status — top losers 2022→23
 
-| Industry | Band | Electricity in seed? | Cell free for balancer? | Share effect $bn |
+| Industry | Band | Elec in seed? | Cell free? | Share effect $bn |
 |---|---|---|---|---:|
 | 221100 utilities | utilities | no | yes | −3.6 |
 | 445000 food/beverage stores | **trade** | **no** | yes | −3.1 |
@@ -142,89 +132,64 @@ free-cell balancer.
 | 325190 organic chemicals | manufacturing | yes | yes | −2.1 |
 | 550000 management of companies | **held_2017** | **no** | yes | −2.1 |
 
-Several of the biggest losers have **no electricity overlay** (trade, held_2017,
-utilities) and free Use cells — exactly the columns that can give up dollars when
-the row target falls.
+Several of the biggest losers have **no electricity overlay** and free Use
+cells — columns that can give up dollars when the row target falls.
 
-### 1.5 AIES seam — not the cause of the decline
+### AIES seam — not the cause of the decline
 
-For the large services losers with a measurable SAS-2022 vs AIES-2023 purchased-
+For large services losers with a measurable SAS-2022 vs AIES-2023 purchased-
 electricity index, the index **rose** (restaurants ~+7%, hospitals ~+4%). Holding
-the 2022 index would have made those cells *smaller*, not larger — so the
-SAS→AIES electricity handoff does **not** explain their share-effect losses.
-Trucking’s index jumped sharply and its share effect went *up*. Services-band
-share effect for 2022→23 is **−$13.8bn** (under the plan’s $15bn seam-fix
-trigger); the seam counterfactual does not clear the “explains ≥25% of the band”
-bar either.
+the 2022 index would have made those cells *smaller*. Trucking’s index jumped
+and its share effect went *up*. Services-band share effect for 2022→23 is
+**−$13.8bn**; the seam counterfactual does not explain that loss.
 
-### What to do next
+## Follow-ups (out of scope for this PR)
 
-1. **Phase 2T** — explain and/or fix the 2022→24 drop in the electricity
-   intermediate **target** (Supply `T016` and/or final demand `Y` for `221100`).
-2. **Then Phase 2A** — seed trade (#899), fix paper zeros (#900), and only touch
-   the services electricity seam if a post-2T re-measure still shows a material
-   services-band defect.
-3. Do **not** change the G/T/D allocator until a new MUT clears the row gate.
+Both crisis spans classify as **`target_collapse`**, so the next work is
+**required**. Do **not** change the G/T/D allocator until a new MUT clears the
+row gate. Change one thing, measure one thing.
 
-## Phase 2T — If the *total* electricity budget fell
+### 1. Trace or fix the intermediate electricity target (2022–24 only)
 
-**In plain terms:** Phase 1 classified both crisis spans as **`target_collapse`**,
-so this track is **required**, not optional. The bug is upstream of industry
-seeding: how we build electricity’s total supply and/or final demand for
-2023–24 (data handoffs, anchors, controls). Fix that source so the allowed
-intermediate total stops breaking — or document that the movement is real and
-observed. Rebuild tables, re-run Phase 1, then clean up any leftover
-industry-level issues with Phase 2A.
+Explain and/or fix the drop in Supply `T016` and/or final demand `Y` for
+`221100`. Do **not** expand this track to 2020–21 for target scheduling — that
+span was mostly column effect at the row level.
 
-## Phase 2A — If industries are mis-allocated (default expected path)
+### 2. Residual bill / allocation fixes (grade on 2017–24)
 
-**In plain terms:** The total may be roughly right, but who gets how much
-electricity inside the table is wrong. Fix that in small, separately measured
-steps. **Do not change the G/T/D splitter yet**, so any improvement in “capped
-purchasers” can be credited to better bills.
+After the target is settled (or attributed), fix who gets how much electricity
+inside the table. **#900** (paper $0) and **#899** (trade electricity seed)
+must be graded on the **full 2017–24** span — including the 2021 paper zero and
+2021 wholesale peaks visible in the band table. Prefer commercial electricity
+that moves **uniformly** across trade (or stays physically consistent), not
+idiosyncratic sector churn.
 
-| Sub-step | Plain meaning |
+| Follow-up | Plain meaning |
 |---|---|
-| **2A.1 (#900)** | Paper mills sometimes show **$0** electricity in years they clearly operate. Fix that cell and add a guard against “zero in the middle of a normal series.” Small dollars; needed for trust and acceptance. |
-| **2A.2 Services seam** | If Phase 1 shows services own a big chunk of the loss, fix only the **purchased electricity** path across the 2023 survey change — don’t rewrite the whole services seed. |
-| **2A.3 (#899) Trade** | Wholesale/retail largely has **no electricity survey seed** today, so those columns can absorb balancer pressure. Index trade electricity cells on **QCEW payroll by BEA detail** (`qcew_detail_payroll`), graded before wiring. Do not use the quinquennial BES as the 2023–24 production seed. |
-| **2A.4 Re-measure** | Rebuild a MUT vintage; re-check share of intermediate use and capped-purchaser counts with the splitter unchanged. |
+| **Paper mills $0 (#900)** | Fix $0 electricity in **2021 and 2023**; time-series gap guard. |
+| **Services electricity seam** | Only if a **post-target** re-measure still shows material services-band loss on **crisis spans**; this PR’s AIES check did not make that the first lever. |
+| **Trade electricity seed (#899)** | Grade a uniform EIA commercial index (primary) vs QCEW payroll (fallback) on **2017–24**; wire only if Slack bars pass. |
+| **Re-measure** | New MUT; share of intermediate + capped-purchaser counts with allocator frozen. |
 
-**#896 is “done” when:** electricity’s share is stable again (or explained by a
-real series), no bogus $0 bills, trade is seeded on an annual observed series,
-and the services electricity seam is fixed if Phase 1 showed it owned material
-dollars. Construction/government may stay on the carry for this issue.
-Manufacturing’s long-standing shape gap vs Census/MECS is **not** required for
-this exit — that is Phase 3.
+**#896 can close when:** share is stable again (or explained by a named observed
+series), no bogus $0 bills, trade meets the commercial uniformity bars (or
+documented carry), and any remaining services seam defect is fixed or shown
+immaterial. Construction/government may stay on carry. Manufacturing shape vs
+Census/MECS is a **separate** follow-up (#898), not required for #896 exit.
 
-## Phase 3 — Manufacturing shape (#898)
+### 3. Later, separate from #896
 
-**In plain terms:** After the 2023–24 share crisis is handled, improve *how
-manufacturing electricity is divided among industries* — align to MECS at survey
-anchors (2018/2022) and use Census costs as the year-to-year index. This is a
-shape fix, not the same as the 2023–24 share collapse, and it comes after #896
-so the two improvements stay separable.
-
-## Phase 4 — Unlock the allocator (#902)
-
-**In plain terms:** Only a checklist in this plan. Once bills are fixed and
-pinned in a new table vintage, a *separate* project can replace the flat national
-generation price with class prices and residual T&D. This plan deliberately does
-**not** implement that splitter change — so you never mix “better bills” and
-“better split” in one opaque release.
-
-## How the phases fit together
+| Follow-up | Plain meaning |
+|---|---|
+| **Manufacturing shape (#898)** | MECS anchors + Census `CSTELEC` index. |
+| **G/T/D allocator (#902)** | Class `p_gen`, T&D residual — after bills are pinned. |
 
 ```text
-Phase 1: Measure  →  (2T if total budget broke)  →  2A: Fix who gets the bills
-                                                      ↓
-                                              #896 closed
-                                                      ↓
-                                         Phase 3: Manufacturing shape
-                                                      ↓
-                                         Phase 4: Change the splitter
+This PR: measure (full-span bands/gate)  →  fix/attribute the target (2022-24)
+                                              ↓
+                                    residual bills (#900/#899 on 2017-24)
+                                              ↓
+                                          #896 closed
+                                              ↓
+                                 later: #898 → #902
 ```
-
-**One rule throughout:** change one thing, measure one thing. That is how you
-prove the 2023–24 problem was the Use row — and later prove that G/T/D v3
-actually helped.

@@ -14,7 +14,13 @@ failure raises — never silently equated away. Always emit ``supply_use_gap_usd
 
     python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 \\
         --mode bands|gate|stages|seed_status|aies_seam|all \\
-        --mut-vintage v0.3.0_4276083 --csv [--check]
+        --mut-vintage v0.3.0_4276083 --csv [--check] \\
+        [--anchor-span 2022-2023]
+
+``--years`` drives bands/gate. ``--anchor-span`` drives stages / seed_status
+top-N / aies industry ranking (default ``2022-2023``). AIES **index** years stay
+pinned at 2022/2023 (SAS→AIES survey break) and are not retargeted by
+``--anchor-span``.
 """
 
 from __future__ import annotations
@@ -115,7 +121,9 @@ class SeedStatusRow(ta.NamedTuple):
     band: str
     elec_in_seed_overlay: bool
     use_cell_free: bool
-    share_effect_2022_23_bn: float
+    year_a: int
+    year_b: int
+    share_effect_bn: float
 
 
 class ClaimSets(ta.NamedTuple):
@@ -131,12 +139,21 @@ class ClaimSets(ta.NamedTuple):
 
 
 class AiesSeamRow(ta.NamedTuple):
+    """SAS-2022 vs AIES-2023 electricity index (survey break — not ``--anchor-span``).
+
+    ``year_a`` / ``year_b`` / ``share_effect_bn`` describe the ranking span used
+    to pick industries (from ``--anchor-span``). Index columns stay the SAS→AIES
+    break at 2022/2023 and are never swept into the anchor-span parameter.
+    """
+
     industry: str
     index_2022: float | None
     index_2023: float | None
     index_ratio: float | None
     counterfactual_hold_2022_bn: float | None
-    share_effect_2022_23_bn: float
+    year_a: int
+    year_b: int
+    share_effect_bn: float
 
 
 # ---------------------------------------------------------------------------
@@ -570,10 +587,14 @@ def _elec_in_overlay(band: str, industry: str, year: int) -> bool:
 def build_seed_status_rows(
     sets: ClaimSets,
     top: list[tuple[str, float]],
-    year: int = 2023,
+    *,
+    year_a: int,
+    year_b: int,
+    mask_year: int | None = None,
 ) -> list[SeedStatusRow]:
     from bedrock.transform.iot.nowcast_mask import build_sut_mask  # noqa: PLC0415
 
+    year = year_b if mask_year is None else mask_year
     _activate(year, None)
     mask = build_sut_mask('use', year)
     free = mask.free
@@ -592,7 +613,9 @@ def build_seed_status_rows(
                 band=band,
                 elec_in_seed_overlay=_elec_in_overlay(band, industry, year),
                 use_cell_free=cell_free,
-                share_effect_2022_23_bn=effect,
+                year_a=year_a,
+                year_b=year_b,
+                share_effect_bn=effect,
             )
         )
     return rows
@@ -602,7 +625,15 @@ def build_aies_seam_rows(
     panel: PanelByYear,
     sets: ClaimSets,
     top: list[tuple[str, float]],
+    *,
+    year_a: int,
+    year_b: int,
 ) -> list[AiesSeamRow]:
+    """SAS→AIES electricity indexes are pinned at 2022/2023 (survey break).
+
+    Do not retarget those index years from ``--anchor-span``. The ranking span
+    (``year_a``/``year_b``) only chooses which services industries to report.
+    """
     from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415
         _bea_to_survey_industry,
         _panel_for,
@@ -619,6 +650,7 @@ def build_aies_seam_rows(
         idx22 = idx23 = ratio = cf = None
         if naics is not None:
             try:
+                # Survey break pin — not ``--anchor-span``.
                 s22 = relative_index(naics, 2022, panel=_panel_for(2022))
                 s23 = relative_index(naics, 2023, panel=_panel_for(2023))
                 if ELECTRICITY_ROW in s22.index and ELECTRICITY_ROW in s23.index:
@@ -637,7 +669,9 @@ def build_aies_seam_rows(
                 index_2023=idx23,
                 index_ratio=ratio,
                 counterfactual_hold_2022_bn=cf,
-                share_effect_2022_23_bn=effect,
+                year_a=year_a,
+                year_b=year_b,
+                share_effect_bn=effect,
             )
         )
     return rows
@@ -753,6 +787,24 @@ def _fmt_decision(d: GateDecision) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _parse_anchor_span(spec: str) -> tuple[int, int]:
+    """Parse ``YYYY-YYYY`` for stages / seed_status / aies ranking.
+
+    Raises ``ValueError`` if the form is wrong or ``year_a >= year_b``.
+    """
+    lo, sep, hi = spec.partition('-')
+    if not sep or not lo or not hi:
+        raise ValueError(
+            f'--anchor-span must be YYYY-YYYY (got {spec!r}); default is 2022-2023'
+        )
+    year_a, year_b = int(lo), int(hi)
+    if year_a >= year_b:
+        raise ValueError(
+            f'--anchor-span requires year_a < year_b (got {year_a}-{year_b})'
+        )
+    return year_a, year_b
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -761,6 +813,15 @@ def main(argv: list[str] | None = None) -> None:
         choices=('bands', 'gate', 'stages', 'seed_status', 'aies_seam', 'all'),
     )
     parser.add_argument('--years', default='2017-2024')
+    parser.add_argument(
+        '--anchor-span',
+        default='2022-2023',
+        help=(
+            'YoY span for stages / seed_status top-N / aies industry ranking '
+            '(default 2022-2023). AIES index years stay pinned at 2022/2023 '
+            '(SAS→AIES survey break).'
+        ),
+    )
     parser.add_argument('--top', type=int, default=12)
     parser.add_argument('--csv', action='store_true')
     parser.add_argument('--check', action='store_true')
@@ -768,15 +829,25 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     years = _parse_years(args.years)
+    try:
+        anchor_a, anchor_b = _parse_anchor_span(args.anchor_span)
+    except ValueError as exc:
+        raise SystemExit(f'error: {exc}') from exc
     mut_vintage = args.mut_vintage
     modes = (
         {'bands', 'gate', 'stages', 'seed_status', 'aies_seam'}
         if args.mode == 'all'
         else {args.mode}
     )
+    need_top = bool(modes & {'stages', 'seed_status', 'aies_seam'})
 
     print(f'loading MUT panel {years[0]}-{years[-1]} vintage={mut_vintage}')
     panel = {year: load_year(year, mut_vintage) for year in years}
+    if need_top and (anchor_a not in panel or anchor_b not in panel):
+        raise SystemExit(
+            f'error: --anchor-span {anchor_a}-{anchor_b} requires both years '
+            f'in --years {years[0]}-{years[-1]}'
+        )
     sets = build_claim_sets(_panel_industries(panel))
 
     band_rows: list[BandShareEffectRow] = []
@@ -809,12 +880,17 @@ def main(argv: list[str] | None = None) -> None:
             mark = ' *crisis*' if (d.year_a, d.year_b) in CRISIS_SPANS else ''
             print(f'  {_fmt_decision(d)}{mark}')
 
-    top = top_share_effect_industries(panel, 2022, 2023, args.top)
-    top_codes = [i for i, _ in top]
+    top: list[tuple[str, float]] = []
+    top_codes: list[str] = []
+    if need_top:
+        top = top_share_effect_industries(panel, anchor_a, anchor_b, args.top)
+        top_codes = [i for i, _ in top]
 
     if 'stages' in modes:
-        print('\n=== stages (assemble live vs pinned MUT) ===')
-        stage_years = [y for y in (2022, 2023) if y in panel]
+        print(
+            f'\n=== stages (assemble live vs pinned MUT; anchor {anchor_a}->{anchor_b}) ==='
+        )
+        stage_years = [y for y in (anchor_a, anchor_b) if y in panel]
         stage_rows, warnings = build_stage_rows(
             panel, mut_vintage, top_codes, stage_years
         )
@@ -823,13 +899,22 @@ def main(argv: list[str] | None = None) -> None:
         _write_csv('electricity_row_896_stages.csv', stage_rows, args.csv)
 
     if 'seed_status' in modes:
-        print('\n=== seed / mask status (top |share_effect| 2022->23) ===')
-        seed_rows = build_seed_status_rows(sets, top)
+        print(
+            f'\n=== seed / mask status (top |share_effect| {anchor_a}->{anchor_b}) ==='
+        )
+        seed_rows = build_seed_status_rows(
+            sets, top, year_a=anchor_a, year_b=anchor_b, mask_year=anchor_b
+        )
         _write_csv('electricity_row_896_seed_status.csv', seed_rows, args.csv)
 
     if 'aies_seam' in modes:
-        print('\n=== AIES electricity seam (services top losers) ===')
-        seam_rows = build_aies_seam_rows(panel, sets, top)
+        print(
+            '\n=== AIES electricity seam (indexes pinned 2022/2023; '
+            f'ranking {anchor_a}->{anchor_b}) ==='
+        )
+        seam_rows = build_aies_seam_rows(
+            panel, sets, top, year_a=anchor_a, year_b=anchor_b
+        )
         _write_csv('electricity_row_896_aies_seam.csv', seam_rows, args.csv)
 
     if args.check:

@@ -1,4 +1,4 @@
-"""Unit tests for #896 Phase 1 gate classification and claim-map partition."""
+"""Unit tests for #896 gate classification, claim-map, and --anchor-span."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import pytest
 from bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 import (
     ClaimSets,
     GateYear,
+    _parse_anchor_span,
     assign_band,
     band_membership,
     classify_gate,
@@ -26,6 +27,20 @@ def _sets(**kwargs: frozenset[str]) -> ClaimSets:
         trade=kwargs.get('trade', empty),
         trade_unseeded=kwargs.get('trade_unseeded', empty),
     )
+
+
+def test_parse_anchor_span_ok() -> None:
+    assert _parse_anchor_span('2022-2023') == (2022, 2023)
+    assert _parse_anchor_span('2020-2021') == (2020, 2021)
+
+
+def test_parse_anchor_span_rejects_bad() -> None:
+    with pytest.raises(ValueError, match='YYYY-YYYY'):
+        _parse_anchor_span('2022')
+    with pytest.raises(ValueError, match='year_a < year_b'):
+        _parse_anchor_span('2023-2022')
+    with pytest.raises(ValueError, match='year_a < year_b'):
+        _parse_anchor_span('2022-2022')
 
 
 def test_assign_band_partition_priority() -> None:

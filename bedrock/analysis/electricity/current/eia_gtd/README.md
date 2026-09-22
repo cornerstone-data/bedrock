@@ -55,19 +55,21 @@ the newest upload. Both arms agree — as of 2026-09-13 the newest upload is
 in the module, not an extractor.
 Findings are in `About_price_proposal.md`.
 
-## Issue #896 row gate (Phase 1)
+## Issue #896 row gate
 
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 \
-    --mode all --mut-vintage v0.3.0_4276083 --csv --check
+    --mode all --mut-vintage v0.3.0_4276083 --csv --check \
+    --anchor-span 2022-2023
 # modes: bands|gate|stages|seed_status|aies_seam|all
+# --years drives bands/gate; --anchor-span drives stages/seed_status/aies ranking
 ```
 
 Target-vs-allocation gate for the 2023–24 electricity Use-row share collapse:
 band share-effect decomposition, `GateDecision` classification, vintage-safe
 IPF/GRAS stages, seed/mask status, and the services AIES electricity seam.
 Does **not** change production MUT or the allocator. How to read the CSVs:
-`About_896_row_gate.md`. Plain language: `issue_896_electricity_row_shares.md`.
+`About_896_row_gate.md`. Plain-language results: `issue_896_electricity_row_shares.md`.
 
 ⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
 `annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
