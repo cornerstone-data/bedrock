@@ -118,7 +118,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Vnorm_scrap_corrected,
     derive_cornerstone_x,
 )
-from bedrock.transform.ghg import ghgrp_subpart_w
+from bedrock.transform.ghg import ghgrp_self_supplied, ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
@@ -1984,30 +1984,55 @@ def under_attributed_sectors(
     return out.sort_values('gap_Mt_mean', ascending=False).reset_index(drop=True)
 
 
-# --- D17: the lease and plant fuel carve-out (#980) --------------------------
+# --- D17: the self-supplied fuel carve-outs (#980, #983, #984) ---------------
+
+#: Which activity set each carve-out comes out of. Both refinery fuels sit in
+#: the same one, which is why their knock-on compounds: together they are ~58%
+#: of ``petroleum_industrial``, against ~65% for lease and plant fuel alone in
+#: ``natural_gas_nonmanufacturing``.
+CARVEOUT_ACTIVITY_SET = {
+    'lease and plant fuel': 'natural_gas_nonmanufacturing',
+    'still gas': 'petroleum_industrial',
+    'catalyst coke': 'petroleum_industrial',
+}
 
 
-def carveout_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
-    """**D17.** Lease and plant fuel by BEA sector and year, Mt CO2e (#980).
+def carveout_by_sector(years: tuple[int, ...], by_fuel: bool = False) -> pd.DataFrame:
+    """**D17.** Self-supplied fuel by BEA sector and year, Mt CO2e.
 
-    The mass that has to come off the inventory's **Natural Gas Industrial**
-    total before the remainder is spread on the ``221200`` purchase row.
-    :func:`bedrock.transform.ghg.ghgrp_subpart_w.lease_and_plant_fuel` builds it
-    at the facility; this puts it on the model's sector axis and is where the
-    ``stewi`` dependency lives.
+    Fuel that never changed hands, so that no row of the Use table can carry it
+    (#927). Three of them, each from a different part of the GHGRP and each with
+    its own caveats, recorded on the functions that build them:
+
+    - **lease and plant fuel** (#980) -
+      :func:`bedrock.transform.ghg.ghgrp_subpart_w.lease_and_plant_fuel`
+    - **still gas** (#983) and **catalyst coke** (#984) -
+      :mod:`bedrock.transform.ghg.ghgrp_self_supplied`
+
+    This puts them on the model's sector axis and is where the ``stewi``
+    dependency lives.
+
+    ⚠️ **These are recipients and magnitudes, not settled levels.** Two of the
+    three have open level questions - GHGRP ``Fuel Gas`` exceeds the inventory's
+    still gas line, and subpart Y is an upper bound on catalyst coke - so a
+    carve-out must take its level from the inventory and only its *split* from
+    here. The ``fuel`` and ``basis`` columns keep them separable; pass
+    *by_fuel* to see them apart rather than summed.
 
     ⚠️ **Read the ``486000`` row before excluding it.** Gathering and boosting
     and gas processing operators sometimes carry a pipeline-transportation
-    NAICS, and about a ninth of the carve-out lands there. It is still lease and
-    plant fuel, so it still belongs in the industrial total the carve-out comes
-    out of - only *transmission* pipeline fuel goes to transportation, and that
-    segment is excluded from both halves upstream. Dropping ``486000`` on the
-    strength of its NAICS deletes real carve-out mass.
+    NAICS, and about a ninth of the lease and plant carve-out lands there. It is
+    still lease and plant fuel, so it still belongs in the industrial total the
+    carve-out comes out of - only *transmission* pipeline fuel goes to
+    transportation, and that segment is excluded upstream. Dropping ``486000``
+    on the strength of its NAICS deletes real carve-out mass.
 
-    ⚠️ **A year with no gas processing facilities is lease-only**, not small.
-    The subpart W facility view is unpublished for 2024, so unless
-    ``GHGRP_EF_VIEWS_ARCHIVE`` points at the export that year loses its whole
-    plant half silently. The log says so; this table cannot.
+    ⚠️ **A missing source table makes a year EMPTY, not small.** The subpart W
+    facility view is unpublished for 2024, and the subpart C fuel and subpart Y
+    tables are absent for 2020, 2022 and 2023 unless ``stewi`` has built those
+    years. Both are warned about in the log; this table cannot show them.
+
+    :param by_fuel: return sector x fuel x year instead of sector x year
     """
     gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
     subpart_c = {}
@@ -2023,7 +2048,15 @@ def carveout_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
         ).map(gwp)
         subpart_c[year] = combustion.groupby('FacilityID')['CO2e'].sum()
 
-    carved = ghgrp_subpart_w.lease_and_plant_fuel(tuple(years), subpart_c)
+    span = tuple(years)
+    parts = [
+        ghgrp_subpart_w.lease_and_plant_fuel(span, subpart_c).assign(
+            fuel='lease and plant fuel'
+        ),
+        ghgrp_self_supplied.still_gas(span),
+        ghgrp_self_supplied.catalyst_coke(span),
+    ]
+    carved = pd.concat([p for p in parts if not p.empty], ignore_index=True)
     if carved.empty:
         return pd.DataFrame()
 
@@ -2050,7 +2083,23 @@ def carveout_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
     # allocation the carve-out could come out of. A gas processor carrying a
     # 221100 NAICS is a classification oddity, not a claim on that total.
     out = out[~out['sector'].isin(NOT_FACILITY_COMPARABLE)]
-    return (out.groupby(['sector', 'year'])['CO2e'].sum() / 1e9).unstack('year')
+    out = out.assign(activity_set=out['fuel'].map(CARVEOUT_ACTIVITY_SET))
+    # A year missing a source table loses that whole fuel silently, and summing
+    # across fuels would then read as a collapse rather than as a gap. Name the
+    # years that are not comparable before anyone plots the total.
+    present = out.groupby('year')['fuel'].nunique()
+    partial = sorted(present.index[present < len(CARVEOUT_ACTIVITY_SET)])
+    if partial:
+        logger.warning(
+            'D17: %s carry only %s of the %d carve-out fuels, because a source '
+            'table is missing for them. Their totals are NOT comparable with '
+            'the complete years - do not read the sum as a series.',
+            partial,
+            present.reindex(partial).tolist(),
+            len(CARVEOUT_ACTIVITY_SET),
+        )
+    keys = ['sector', 'fuel', 'year'] if by_fuel else ['sector', 'year']
+    return (out.groupby(keys)['CO2e'].sum() / 1e9).unstack('year')
 
 
 # --- D15: a facility-reported basis for stationary combustion ---------------
@@ -4008,9 +4057,10 @@ if __name__ == '__main__':
         '--carveout',
         action='store_true',
         help=(
-            'run D17 alone and exit: the lease and plant fuel carve-out by BEA '
-            'sector and year (#980). Needs the GHGRP only, so it spans '
-            '2017-2024 and does not wait on NEI'
+            'run D17 alone and exit: the self-supplied fuel carve-outs - lease '
+            'and plant fuel (#980), still gas (#983) and catalyst coke (#984) - '
+            'by BEA sector and year. Needs the GHGRP only, so it does not wait '
+            'on NEI'
         ),
     )
     args = parser.parse_args()
@@ -4022,7 +4072,13 @@ if __name__ == '__main__':
             raise SystemExit('no carve-out rows - is the GHGRP cache populated?')
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         carved.to_csv(OUTPUT_DIR / 'carveout_by_sector.csv')
-        print('\nLease and plant fuel carve-out, Mt CO2e by sector and year')
+        per_fuel = carveout_by_sector(span_years, by_fuel=True)
+        per_fuel.to_csv(OUTPUT_DIR / 'carveout_by_sector_fuel.csv')
+        print('\nBy fuel, Mt CO2e (levels are evidence, not settled carve-outs)')
+        # min_count keeps a missing source table showing as blank rather than
+        # as a zero somebody could read as "this fuel stopped".
+        print(per_fuel.groupby('fuel').sum(min_count=1).round(1).to_string())
+        print('\nSelf-supplied fuel carve-outs, Mt CO2e by sector and year')
         latest = carved.columns[-1]
         print(carved.round(2).sort_values(latest, ascending=False).head(12).to_string())
         print(f'\ntotal: {carved.sum().round(1).to_dict()}')
