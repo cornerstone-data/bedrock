@@ -131,11 +131,12 @@ def load_egrid_flowbyfacility(
     (sum of PLNT / US ``USNGENAN``). ``getInventory`` re-aggregates on read and drops
     non-positive ``FlowAmount`` rows, which raises the US electricity total.
 
-    ``read_inventory(..., download_if_missing=True)`` only fetches a pre-built
-    parquet from EPA DMAP S3; it does not generate from the eGRID workbook.
-    Years that exist in Cornerstone stewi config (e.g. 2024) but are not on
-    S3 yet therefore miss. After that miss, generate from source (Zenodo xlsx
-    → processed inventory) and read the local parquet.
+    ``read_inventory(..., download_if_missing=True)`` prefers GCS then EPA DMAP
+    S3. A pure remote miss still returns None (no generate inside StEWI). After
+    that miss, generate from source (Zenodo xlsx → processed inventory) and
+    read the local parquet. On tip StEWI, a schema-invalid local/GCS object
+    (wrong category / missing required field names) is rejected and regenerated
+    inside ``read_inventory`` without a second remote fetch.
     """
     _require_egrid_year(year)
     inv = read_inventory(
