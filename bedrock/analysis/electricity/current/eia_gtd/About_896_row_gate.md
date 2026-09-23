@@ -94,11 +94,24 @@ MUT** Use cell. If the live assembly has drifted from the pin, the module prints
 CSV. Cell-level GRAS vs IPF is qualitative under warning; the hard gate remains
 `GateDecision` on target vs realized.
 
+## Phase 2T / #990 target attribution
+
+One-shot dump (not a standing gate mode):
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
+    --csv [--check]
+```
+
+Schemas / Fix-vs-Attributed decision:
+[`About_990_target_attribution.md`](About_990_target_attribution.md).
+
 ## Unit tests
 
 ```bash
 uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_electricity_row_896.py
+uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_target_attribution_221100.py
 ```
 
 Pure fixtures: claim-map partition, `GateDecision` classification, `--anchor-span`
-parse. No GCS / MUT I/O.
+parse; Phase 2T signed identity / Fix-vs-Attributed rules. No GCS / MUT I/O.

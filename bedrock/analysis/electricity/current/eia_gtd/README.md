@@ -71,6 +71,18 @@ IPF/GRAS stages, seed/mask status, and the services AIES electricity seam.
 Does **not** change production MUT or the allocator. How to read the CSVs:
 `About_896_row_gate.md`. Plain-language results: `issue_896_electricity_row_shares.md`.
 
+## Issue #990 target attribution (Phase 2T)
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
+    --csv --check
+```
+
+One-shot dump of `T016` / `Y_PCE` / `Y_other` contributions to the 2022–24
+interior-row target move. Decides **Attributed** vs **Fix** against published
+BEA UGO305-A / EIA-861 residential. Disposable with #990 — not a standing gate
+mode. See `About_990_target_attribution.md`.
+
 ⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
 `annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
 (see `bedrock/extract/README.md`). `electricity_row_control` also needs the
