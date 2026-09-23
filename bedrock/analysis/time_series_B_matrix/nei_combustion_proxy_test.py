@@ -30,14 +30,13 @@ Run it directly; it needs a network on a cold stewi cache::
     python -m bedrock.analysis.time_series_B_matrix.nei_combustion_proxy_test
 """
 
+from __future__ import annotations
+
 import logging
 
 import numpy as np
 import pandas as pd
 import stewi
-
-logging.disable(logging.INFO)
-pd.set_option('display.width', 220)
 
 CANDIDATES = [
     'Nitrogen Oxides',
@@ -49,23 +48,6 @@ CANDIDATES = [
 ]
 REPEATS = 40
 
-proc = stewi.getInventory('NEI', 2022, 'flowbyprocess', download_if_missing=True)
-comb = proc[proc['Process'].astype(str).str[0].isin(['1', '2'])]
-fac = stewi.getInventoryFacilities('NEI', 2022, download_if_missing=True)[
-    ['FacilityID', 'NAICS']
-]
-wide = (
-    comb[comb['FlowName'].isin(CANDIDATES + ['Carbon Dioxide'])]
-    .groupby(['FacilityID', 'FlowName'])['FlowAmount']
-    .sum()
-    .unstack('FlowName')
-    .join(fac.set_index('FacilityID'))
-)
-wide['n3'] = wide['NAICS'].astype(str).str[:3]
-wide = wide[wide['Carbon Dioxide'] > 0]
-
-rng = np.random.default_rng(1)
-
 
 def predict(fit: pd.DataFrame, held: pd.DataFrame, proxy: str) -> float | None:
     if fit[proxy].sum() <= 0 or held['Carbon Dioxide'].sum() <= 0:
@@ -74,50 +56,77 @@ def predict(fit: pd.DataFrame, held: pd.DataFrame, proxy: str) -> float | None:
     return abs(held[proxy].sum() * ratio / held['Carbon Dioxide'].sum() - 1)
 
 
-rows = []
-for sector, group in wide.groupby('n3'):
-    group = group[group[CANDIDATES].notna().all(axis=1)]
-    if len(group) < 90:
-        continue
-    chosen: list[str] = []
-    errs: dict[str, list[float]] = {name: [] for name in CANDIDATES + ['PICKED']}
-    for _ in range(REPEATS):
-        order = rng.permutation(len(group))
-        third = len(group) // 3
-        a, b, c = (
-            group.iloc[order[:third]],
-            group.iloc[order[third : 2 * third]],
-            group.iloc[order[2 * third :]],
-        )
-        scored: dict[str, float] = {
-            p: v for p in CANDIDATES if (v := predict(a, b, p)) is not None
-        }
-        if not scored:
-            continue
-        pick = min(scored, key=lambda p: scored[p])
-        chosen.append(pick)
-        for p in CANDIDATES:
-            v = predict(a, c, p)
-            if v is not None:
-                errs[p].append(v)
-        v = predict(a, c, pick)
-        if v is not None:
-            errs['PICKED'].append(v)
-    row = {'sector': sector, 'n': len(group)}
-    row.update({p: np.median(v) if v else np.nan for p, v in errs.items()})
-    row['modal_pick'] = pd.Series(chosen).mode().iloc[0] if chosen else None
-    rows.append(row)
+def main() -> None:
+    logging.disable(logging.INFO)
+    pd.set_option('display.width', 220)
 
-out = pd.DataFrame(rows).set_index('sector')
-short = {c: c.split()[0][:7] for c in CANDIDATES}
-disp = (out[['n'] + CANDIDATES + ['PICKED']] * 1).copy()
-for c in CANDIDATES + ['PICKED']:
-    disp[c] = (out[c] * 100).round(1)
-disp['modal_pick'] = out['modal_pick'].map(lambda s: short.get(s, s))
-print('Honest three-way split: fit on A, choose proxy on B, evaluate on C.')
-print('Error % on a held-out sector CO2 total, median of 40 repeats.\n')
-print(disp.rename(columns=short).to_string())
-print('\nmedian across sectors:')
-med = {short.get(c, c): round(float(np.nanmedian(out[c])) * 100, 1) for c in CANDIDATES}
-med['PICKED'] = round(float(np.nanmedian(out['PICKED'])) * 100, 1)
-print(pd.Series(med).sort_values().to_string())
+    proc = stewi.getInventory('NEI', 2022, 'flowbyprocess', download_if_missing=True)
+    comb = proc[proc['Process'].astype(str).str[0].isin(['1', '2'])]
+    fac = stewi.getInventoryFacilities('NEI', 2022, download_if_missing=True)[
+        ['FacilityID', 'NAICS']
+    ]
+    wide = (
+        comb[comb['FlowName'].isin(CANDIDATES + ['Carbon Dioxide'])]
+        .groupby(['FacilityID', 'FlowName'])['FlowAmount']
+        .sum()
+        .unstack('FlowName')
+        .join(fac.set_index('FacilityID'))
+    )
+    wide['n3'] = wide['NAICS'].astype(str).str[:3]
+    wide = wide[wide['Carbon Dioxide'] > 0]
+
+    rng = np.random.default_rng(1)
+
+    rows = []
+    for sector, group in wide.groupby('n3'):
+        group = group[group[CANDIDATES].notna().all(axis=1)]
+        if len(group) < 90:
+            continue
+        chosen: list[str] = []
+        errs: dict[str, list[float]] = {name: [] for name in CANDIDATES + ['PICKED']}
+        for _ in range(REPEATS):
+            order = rng.permutation(len(group))
+            third = len(group) // 3
+            a, b, c = (
+                group.iloc[order[:third]],
+                group.iloc[order[third : 2 * third]],
+                group.iloc[order[2 * third :]],
+            )
+            scored: dict[str, float] = {
+                p: v for p in CANDIDATES if (v := predict(a, b, p)) is not None
+            }
+            if not scored:
+                continue
+            pick = min(scored, key=lambda p: scored[p])
+            chosen.append(pick)
+            for p in CANDIDATES:
+                v = predict(a, c, p)
+                if v is not None:
+                    errs[p].append(v)
+            v = predict(a, c, pick)
+            if v is not None:
+                errs['PICKED'].append(v)
+        row = {'sector': sector, 'n': len(group)}
+        row.update({p: np.median(v) if v else np.nan for p, v in errs.items()})
+        row['modal_pick'] = pd.Series(chosen).mode().iloc[0] if chosen else None
+        rows.append(row)
+
+    out = pd.DataFrame(rows).set_index('sector')
+    short = {c: c.split()[0][:7] for c in CANDIDATES}
+    disp = (out[['n'] + CANDIDATES + ['PICKED']] * 1).copy()
+    for c in CANDIDATES + ['PICKED']:
+        disp[c] = (out[c] * 100).round(1)
+    disp['modal_pick'] = out['modal_pick'].map(lambda s: short.get(s, s))
+    print('Honest three-way split: fit on A, choose proxy on B, evaluate on C.')
+    print('Error % on a held-out sector CO2 total, median of 40 repeats.\n')
+    print(disp.rename(columns=short).to_string())
+    print('\nmedian across sectors:')
+    med = {
+        short.get(c, c): round(float(np.nanmedian(out[c])) * 100, 1) for c in CANDIDATES
+    }
+    med['PICKED'] = round(float(np.nanmedian(out['PICKED'])) * 100, 1)
+    print(pd.Series(med).sort_values().to_string())
+
+
+if __name__ == '__main__':
+    main()
