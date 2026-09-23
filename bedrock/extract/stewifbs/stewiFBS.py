@@ -23,6 +23,7 @@ from esupy.processed_data_mgmt import read_source_metadata
 from stewicombo.globals import addChemicalMatches, compile_metadata, set_stewicombo_meta
 
 from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.extract.stewifbs.facility_combustion import build_facility_combustion
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.settings import process_adjustmentpath
@@ -352,6 +353,98 @@ def egrid_to_sector(
     return prepare_stewi_fbs(df, config)
 
 
+def facility_combustion_to_sector(
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    **_kwargs: Any,
+) -> FlowBySector:
+    """
+    Returns GHGRP/NEI facility combustion weights in FBS format for attribution.
+
+    :param config: may include:
+        inventory_dict: GHGRP and optional NEI years (e.g. ``{'GHGRP':'2023',
+            'NEI':'2022'}``)
+        year: method year written on output rows
+        sector_prefixes: optional 2-digit sector parents to keep
+        exclude_sectors: optional detail codes to drop
+        keep_flowables: optional Flowable labels to keep
+    :param full_name: FBS name
+    :param external_config_path: unused; accepted for FBS_datapull signature
+    :return: FlowBySector with fuel on Flowable and fuel_class on
+        ActivityConsumedBy
+    """
+    _ = (external_config_path, _kwargs)
+    config = dict(config)
+    config['full_name'] = full_name
+    inventory_dict: InventoryDict = config['inventory_dict']
+    if 'GHGRP' not in inventory_dict:
+        raise ValueError(
+            'facility_combustion_to_sector requires inventory_dict with GHGRP'
+        )
+    ghgrp_year = int(inventory_dict['GHGRP'])
+    nei_year = int(inventory_dict.get('NEI', ghgrp_year))
+    year = int(config.get('year', ghgrp_year))
+
+    def _str_tuple(key: str) -> tuple[str, ...] | None:
+        raw = config.get(key)
+        if raw is None:
+            return None
+        return tuple(str(x) for x in raw)
+
+    union = build_facility_combustion(
+        ghgrp_year,
+        nei_year=nei_year,
+        sector_prefixes=_str_tuple('sector_prefixes'),
+        exclude_sectors=_str_tuple('exclude_sectors'),
+        keep_flowables=_str_tuple('keep_flowables'),
+    )
+
+    # BEA sector is already on the union; keep fuel Flowable (do not run fedefl).
+    facility = (
+        union.rename(columns={'CO2e': 'FlowAmount', 'sector': 'SectorProducedBy'})
+        .assign(
+            SectorConsumedBy=np.nan,
+            ActivityConsumedBy=lambda d: d['fuel_class'],
+            ActivityProducedBy=np.nan,
+            Class='Energy',
+            Context='emission/air',
+            Unit='kg',
+            FlowType='ELEMENTARY_FLOW',
+            Year=year,
+            Location='00000',
+            LocationSystem='FIPS',
+            MetaSources='GHGRP_NEI',
+            SectorSourceName='BEA_2017_Detail',
+        )
+        .loc[
+            :,
+            [
+                'Flowable',
+                'Class',
+                'Context',
+                'Unit',
+                'FlowType',
+                'FlowAmount',
+                'Year',
+                'Location',
+                'LocationSystem',
+                'SectorProducedBy',
+                'SectorConsumedBy',
+                'ActivityProducedBy',
+                'ActivityConsumedBy',
+                'MetaSources',
+                'SectorSourceName',
+            ],
+        ]
+    )
+    fbs = FlowBySector(
+        facility, full_name=full_name, config=config, convert_df_to_flowby=True
+    )
+    fbs.config.update({'data_format': 'FBS'})
+    return fbs
+
+
 def reassign_process_to_sectors(
     df: pd.DataFrame,
     year: str,
@@ -557,12 +650,17 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
 
     activity_schema = f"NAICS_{config['activity_schema']['naics']['year']}_Code"
 
+    prepared = df_load.pipe(update_geoscale, config['geoscale']).rename(
+        columns={'NAICS': 'ActivityProducedBy', 'Source': 'SourceName'}
+    )
+    if (
+        'ActivityConsumedBy' not in prepared.columns
+        or prepared['ActivityConsumedBy'].isna().all()
+    ):
+        prepared = prepared.assign(ActivityConsumedBy=np.nan)
+
     fbs = FlowByActivity(
-        df_load.pipe(update_geoscale, config['geoscale'])
-        # ^^ update location to appropriate geoscale prior to aggregating
-        .rename(columns={'NAICS': 'ActivityProducedBy', 'Source': 'SourceName'})
-        .assign(Class='Chemicals')
-        .assign(ActivityConsumedBy=np.nan)
+        prepared.assign(Class='Chemicals')
         .pipe(
             naics_mapping.convert_naics_year,
             f"NAICS_{config['target_schema_year']}_Code",
@@ -584,6 +682,12 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
                 'County',
                 'Plant primary fuel',
                 'PrimaryFuelCategory',
+                'fuel_class',
+                'fuel_class_basis',
+                'fuel_class_known',
+                'sector',
+                'source',
+                'year',
             ],
             errors='ignore',
         )
