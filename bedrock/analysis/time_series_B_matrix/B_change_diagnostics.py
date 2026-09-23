@@ -141,8 +141,10 @@ GHGRP_LAST_YEAR = 2024
 #: locally (#931), so it is present or it is not - there is nothing to fetch.
 GHGRP_LOCAL_BUILD_YEARS: tuple[int, ...] = (2024,)
 
-#: Last year NEI point sources are published for, which trails GHGRP by a
-#: further year. D15 needs both inventories, so it is bounded by this one.
+#: Last year NEI point sources carry Carbon Dioxide. StEWI serves NEI 2023
+#: (roster / NAICS / criteria pollutants), but EPA omitted CO2 from that year
+#: (#932), so D15 mass and ``fuel_class`` weights cannot use it. Carry-forward
+#: for 2023+ is #970.
 NEI_LAST_YEAR = 2022
 
 #: One config per calendar year; each pins usa_base_io_data_year ==

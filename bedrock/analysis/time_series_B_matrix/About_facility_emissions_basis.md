@@ -575,11 +575,29 @@ depends on that one while the rest of project 34 feeds it.
 | | | |
 |---|---|---|
 | [#931](https://github.com/cornerstone-data/bedrock/issues/931) | GHGRP 2024 into StEWI from the FOIA'd static files | GHGRP stops at 2023 |
-| [#932](https://github.com/cornerstone-data/bedrock/issues/932) | NEI (EIS) 2023 and 2024 | NEI stops at 2022, which is what bounds D15 today |
+| [#932](https://github.com/cornerstone-data/bedrock/issues/932) | NEI (EIS) 2023 | In StEWI ([standardizedinventories#5](https://github.com/cornerstone-data/standardizedinventories/pull/5)); Option A inventories and region sources on Cornerstone GCS. EPA omitted Carbon Dioxide, so D15 mass and `fuel_class` weights still stop at 2022 (`NEI_LAST_YEAR`). Roster / NAICS only |
+| [#970](https://github.com/cornerstone-data/bedrock/issues/970) | Carry NEI CO2 mix (and grade mass) past 2022 | With no CO2 in NEI 2023+, D15 needs a prior-year mix for matched GHGRP facilities and a graded level for below-threshold NEI-only mass |
 | [#952](https://github.com/cornerstone-data/bedrock/issues/952) | GHGRP for the directly attributed process and fugitive mass, 2017-2024 | Where §2's floor clears the whole assignment the inventory is under-attributing, and the GHGI could not use GHGRP for 2024 at all. ⚠️ The 2024 GHGRP build lacks subparts E, BB, CC, L and O — 5.74 Mt in scope in 2023, none of it in the sectors §2 puts on the use-it list |
 
-Together these take the basis from 2017-2022 to the full 2017-2024 nowcast span,
-so §5's churn comparison could be stated for every year the model produces.
+Together these take the basis from 2017-2022 CO2 coverage toward the full
+2017-2024 nowcast span. NEI 2023 does not extend the CO2 series; #970 does.
+
+### NEI 2022 → 2023 continuity (measured on StEWI Option A)
+
+EPA's OAR 2023 point dump has pollutant types CAP / HAP / Other / PFAS only —
+no Carbon Dioxide rows in any region parquet, and none after Option A. Against
+2022 (where combustion SCCs are 76% of NEI CO2 after the #926 reclass):
+
+| | 2022 | 2023 |
+|---|---:|---:|
+| facilities | 87,683 | 99,186 |
+| six-digit NAICS share | 98.7% | 99.0% |
+| CO2 total (Mt) | 2,460 | **0** |
+| facilities with CO2 | 18,833 | **0** |
+
+Verdict: safe to use 2023 for roster / NAICS; **do not** raise `NEI_LAST_YEAR`
+or recompute D15 `fuel_class` weights from 2023. Continuity of the CO2 series
+stops at 2022; further years are #970.
 
 ### Method decisions
 
