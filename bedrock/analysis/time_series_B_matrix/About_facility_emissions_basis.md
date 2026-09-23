@@ -525,12 +525,17 @@ largest source of year-to-year movement in the emissions side of `B`, and it
 would do so without smoothing anything — by replacing a derived split with a
 reported one.
 
-⚠️ Two honest qualifications. Facility counts step from 14,292 to 22,139 between
-2019 and 2020 when NEI reclassified, so the facility series has a vintage seam of
-its own — though its churn is low on both sides of it, which is the opposite of
-what a seam-driven artefact looks like. And churn is measured on shares, so a
-stable double count would not show up here; section 2's deduplication defect has
-to be fixed before the levels are trusted.
+⚠️ Two honest qualifications. Two NEI vintage seams sit next to each other and
+are easy to confuse. **Facility counts** step between 2019 and 2020 (NEI CO2
+reporters 12,030 → 19,989; D15 union 12,827 → 15,743). The **SCC CO2
+reclassification** lands a year later, 2020 → 2021: combustion SCC share of
+on-site CO2 goes 2.9% → 75.5% with the national total flat (2,333 → 2,427 Mt).
+Share churn stays low on both sides of both seams (3.9–5.6 pp), which is the
+opposite of a seam-driven artefact — so §5's claim is not an inventory-coding
+story. `fuel_class` read from SCC digits is a different matter and is gated at
+2021 (tracker row 19 / [#926](https://github.com/cornerstone-data/bedrock/issues/926)).
+And churn is measured on shares, so a stable double count would not show up
+here; the FRS deduplication in §2.0 is what makes the *levels* trustworthy.
 
 ---
 
@@ -548,7 +553,10 @@ to be fixed before the levels are trusted.
   **144.9 Mt in 2022**. Fuel nobody sold is never a purchase, so no row of the
   Use table can represent it, and attributing it with one is a category error
   rather than an inaccuracy. Tracker row 17, and see §8 for where the other
-  two thirds of that mass came from.
+  two thirds of that mass came from. ⚠️ **NEI SCC and NEI-share routes start in
+  2021** (`NEI_FUEL_CLASS_FIRST_YEAR`); before that, NEI rows in the union stay
+  `unclassified` and only GHGRP subpart W / segment evidence fills the class
+  (tracker row 19).
 
 ---
 
@@ -568,7 +576,25 @@ depends on that one while the rest of project 34 feeds it.
 | | | why it blocks |
 |---|---|---|
 | ~~[#925](https://github.com/cornerstone-data/bedrock/issues/925)~~ **settled** | FRS deduplication between GHGRP and NEI | 209 Mt came out of the union — see §2.0. What remains is 41.9 Mt over six sectors with no cause on record, which `--check-facility-overshoot` fails on. ⚠️ Never touched §5 — churn is measured on shares, and a stable double count does not move a share |
-| [#926](https://github.com/cornerstone-data/bedrock/issues/926) | NEI's 2020/2021 SCC reclassification | Combustion SCCs go from 3.2% to 75.1% of NEI CO2 with the total flat. `fuel_class` is derived from the SCC, so it means something different either side of the break |
+| ~~[#926](https://github.com/cornerstone-data/bedrock/issues/926)~~ **settled** | NEI's 2020/2021 SCC reclassification | Combustion SCC share of on-site CO2 goes 2.9% → 75.5% with the total flat. `fuel_class` from SCC digits is defined from 2021 only (`NEI_FUEL_CLASS_FIRST_YEAR`); union levels on SCC branches 1-3 stay continuous. Tracker row 19 |
+
+### NEI SCC reclassification evidence (#926)
+
+On-site NEI CO2 (SCC branches 1-3), from `nei_scc_reclassification_summary`.
+Ungated `fuel_class_*` columns show what SCC digits *would* assign in every
+year; production `facility_combustion` does not use that assignment before 2021.
+
+| year | total Mt | SCC 1 | SCC 2 | SCC 3 | combustion % | NEI CO2 facilities | 6-digit NAICS % | D15 union facilities |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2017 | 2682.3 | 39.5 | 58.8 | 2584.0 | 3.7 | 11,714 | 75.3 | 12,556 |
+| 2018 | 2677.6 | 30.9 | 50.1 | 2596.5 | 3.0 | 11,872 | 75.6 | 12,842 |
+| 2019 | 2580.6 | 30.6 | 51.7 | 2498.3 | 3.2 | 12,030 | 76.3 | 12,827 |
+| 2020 | 2332.9 | 25.0 | 42.0 | 2265.9 | 2.9 | **19,989** | 60.9 | **15,743** |
+| 2021 | 2427.4 | **1178.0** | **655.6** | 593.8 | **75.5** | 17,786 | **99.5** | 13,963 |
+| 2022 | 2446.9 | 1158.3 | 711.9 | 576.7 | 76.4 | 18,230 | 99.5 | 14,290 |
+
+Facility-count step: **2019→2020**. SCC / `fuel_class` step: **2020→2021**.
+Six-digit NAICS completeness jumps with the SCC step, after a dip in 2020.
 
 ### Coverage — needed before the basis spans the model
 
