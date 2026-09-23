@@ -86,3 +86,7 @@ scratch/
 
 # Ignore analysis output
 bedrock/analysis/**/output/
+
+# git-lfs on Windows resolves ">/dev/null" as a literal relative path and
+# writes its hook stubs here; the real hooks live in .git/hooks
+dev/null/
