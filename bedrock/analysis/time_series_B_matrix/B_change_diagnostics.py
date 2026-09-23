@@ -2438,7 +2438,9 @@ def nei_scc_reclassification_summary(
                 else float('nan')
             ),
             'facilities_with_co2': int(by_facility.shape[0]),
-            'naics_6digit_%': float(six_digit.mean() * 100) if len(by_facility) else float('nan'),
+            'naics_6digit_%': (
+                float(six_digit.mean() * 100) if len(by_facility) else float('nan')
+            ),
             'fuel_class_purchased_Mt': float(
                 nei.loc[ungated == 'purchased', 'FlowAmount'].sum()
             )
@@ -2466,11 +2468,7 @@ def nei_scc_reclassification_summary(
             row['combustion_share_%'],
             row['facilities_with_co2'],
             row['naics_6digit_%'],
-            (
-                f', union {row["union_facilities"]} facilities'
-                if include_union
-                else ''
-            ),
+            (f', union {row["union_facilities"]} facilities' if include_union else ''),
         )
     return pd.DataFrame(rows).set_index('year')
 
