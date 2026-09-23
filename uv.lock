@@ -203,7 +203,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "python-pptx", specifier = ">=1.0.0,<2.0.0" },
     { name = "pyyaml", specifier = ">=6.0,<7.0.0" },
-    { name = "stewi", git = "https://github.com/cornerstone-data/standardizedinventories.git?rev=frs_matcher_update" },
+    { name = "stewi", git = "https://github.com/cornerstone-data/standardizedinventories.git" },
     { name = "tabula-py", specifier = "==2.10.0" },
     { name = "tenacity", specifier = ">=8.2.3,<9.0.0" },
     { name = "tqdm", specifier = ">=4.66.2,<5.0.0" },
@@ -2414,7 +2414,7 @@ wheels = [
 [[package]]
 name = "stewi"
 version = "1.2.2"
-source = { git = "https://github.com/cornerstone-data/standardizedinventories.git?rev=frs_matcher_update#4c07469db7b5c36aaa8b03182e092c3558904304" }
+source = { git = "https://github.com/cornerstone-data/standardizedinventories.git#6d0bbeeab0ca63e02c0469af9266e70d1e024629" }
 dependencies = [
     { name = "esupy" },
     { name = "numpy" },
