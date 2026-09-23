@@ -1984,6 +1984,75 @@ def under_attributed_sectors(
     return out.sort_values('gap_Mt_mean', ascending=False).reset_index(drop=True)
 
 
+# --- D17: the lease and plant fuel carve-out (#980) --------------------------
+
+
+def carveout_by_sector(years: tuple[int, ...]) -> pd.DataFrame:
+    """**D17.** Lease and plant fuel by BEA sector and year, Mt CO2e (#980).
+
+    The mass that has to come off the inventory's **Natural Gas Industrial**
+    total before the remainder is spread on the ``221200`` purchase row.
+    :func:`bedrock.transform.ghg.ghgrp_subpart_w.lease_and_plant_fuel` builds it
+    at the facility; this puts it on the model's sector axis and is where the
+    ``stewi`` dependency lives.
+
+    ⚠️ **Read the ``486000`` row before excluding it.** Gathering and boosting
+    and gas processing operators sometimes carry a pipeline-transportation
+    NAICS, and about a ninth of the carve-out lands there. It is still lease and
+    plant fuel, so it still belongs in the industrial total the carve-out comes
+    out of - only *transmission* pipeline fuel goes to transportation, and that
+    segment is excluded from both halves upstream. Dropping ``486000`` on the
+    strength of its NAICS deletes real carve-out mass.
+
+    ⚠️ **A year with no gas processing facilities is lease-only**, not small.
+    The subpart W facility view is unpublished for 2024, so unless
+    ``GHGRP_EF_VIEWS_ARCHIVE`` points at the export that year loses its whole
+    plant half silently. The log says so; this table cannot.
+    """
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    subpart_c = {}
+    for year in ghgrp_served_years(years):
+        flows = stewi.getInventory(
+            'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
+        )
+        combustion = flows[
+            (flows['Process'] == 'C') & flows['FlowName'].isin(GHGRP_FLOW_MAP)
+        ].copy()
+        combustion['CO2e'] = combustion['FlowAmount'] * combustion['FlowName'].map(
+            GHGRP_FLOW_MAP
+        ).map(gwp)
+        subpart_c[year] = combustion.groupby('FacilityID')['CO2e'].sum()
+
+    carved = ghgrp_subpart_w.lease_and_plant_fuel(tuple(years), subpart_c)
+    if carved.empty:
+        return pd.DataFrame()
+
+    placed = []
+    for year in sorted(set(carved['year'])):
+        rows = carved[carved['year'] == year].join(
+            _facility_sectors('GHGRP', int(year)), on='FacilityID'
+        )
+        # A subpart W reporter absent from stewi's facility file carries no
+        # state and no NAICS, so it can be placed in neither. Say that, rather
+        # than letting the geography gate report it as a territory.
+        unknown = rows['State'].isna()
+        if unknown.any():
+            logger.info(
+                'D17 %d: %.2f Mt over %d facilities absent from the stewi '
+                'facility file, so they carry no NAICS and no state.',
+                int(year),
+                rows.loc[unknown, 'CO2e'].sum() / 1e9,
+                int(rows.loc[unknown, 'FacilityID'].nunique()),
+            )
+        placed.append(_drop_outside_geography(rows[~unknown], 'CO2e', 'D17', int(year)))
+    out = pd.concat(placed, ignore_index=True).dropna(subset=['sector'])
+    # Electric power runs on eGRID here, not on table 3-11, so it takes no
+    # allocation the carve-out could come out of. A gas processor carrying a
+    # 221100 NAICS is a classification oddity, not a claim on that total.
+    out = out[~out['sector'].isin(NOT_FACILITY_COMPARABLE)]
+    return (out.groupby(['sector', 'year'])['CO2e'].sum() / 1e9).unstack('year')
+
+
 # --- D15: a facility-reported basis for stationary combustion ---------------
 
 #: SCC level 1: 1 is external combustion, 2 is internal combustion, 3 is an
@@ -3935,9 +4004,29 @@ if __name__ == '__main__':
             'reuses the cached span'
         ),
     )
+    parser.add_argument(
+        '--carveout',
+        action='store_true',
+        help=(
+            'run D17 alone and exit: the lease and plant fuel carve-out by BEA '
+            'sector and year (#980). Needs the GHGRP only, so it spans '
+            '2017-2024 and does not wait on NEI'
+        ),
+    )
     args = parser.parse_args()
 
     span_years = tuple(args.years)
+    if args.carveout:
+        carved = carveout_by_sector(span_years)
+        if carved.empty:
+            raise SystemExit('no carve-out rows - is the GHGRP cache populated?')
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        carved.to_csv(OUTPUT_DIR / 'carveout_by_sector.csv')
+        print('\nLease and plant fuel carve-out, Mt CO2e by sector and year')
+        latest = carved.columns[-1]
+        print(carved.round(2).sort_values(latest, ascending=False).head(12).to_string())
+        print(f'\ntotal: {carved.sum().round(1).to_dict()}')
+        raise SystemExit(0)
     if args.check_facility_overshoot:
         span = load_span(span_years)
         basis_year = min(min(max(span_years), GHGRP_LAST_YEAR), NEI_LAST_YEAR)
