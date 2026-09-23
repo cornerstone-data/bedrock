@@ -2701,6 +2701,47 @@ def facility_overshoot_guard(
     return out.sort_values('overshoot_Mt', ascending=False).reset_index(drop=True)
 
 
+def _report_coverage(bands: pd.DataFrame, year: int) -> None:
+    """Log D15d: which sectors clear the test, and what stops the rest."""
+    graded = bands[bands['verdict'] != 'no facility data']
+    vector = graded[graded['verdict'] == 'vector']
+    logger.info(
+        'D15d %d: %d of %d sectors may take the facility vector downward, '
+        '%.1f Mt of %.1f (%.0f%%). Everywhere else it is a floor (#928).',
+        year,
+        len(vector),
+        len(graded),
+        vector['total_Mt'].sum(),
+        graded['total_Mt'].sum(),
+        vector['total_Mt'].sum() / graded['total_Mt'].sum() * 100,
+    )
+    blocked = graded[graded['verdict'] == 'floor']
+    if not blocked.empty:
+        logger.info(
+            'D15d %d: coverage is %.3f at the median blocked sector and is '
+            'not what stops them - %s. NEI-only mass above the GHGRP '
+            'threshold is:\n%s',
+            year,
+            blocked['coverage'].median(),
+            blocked['blocked_by'].value_counts().to_dict(),
+            blocked[
+                ['sector', 'name', 'total_Mt', 'coverage', 'unresolved', 'blocked_by']
+            ]
+            .head(10)
+            .round(3)
+            .to_string(index=False),
+        )
+    absent = bands[bands['verdict'] == 'no facility data']
+    if not absent.empty:
+        logger.info(
+            'D15d %d: %d in-scope sectors have no facility data and keep the '
+            'current basis by name: %s',
+            year,
+            len(absent),
+            ', '.join(absent['sector'].astype(str)),
+        )
+
+
 def _report_overshoot(guard: pd.DataFrame, year: int) -> int:
     """Log D15c and return the number of sectors with no cause on record."""
     if guard.empty:
@@ -2729,6 +2770,156 @@ def _report_overshoot(guard: pd.DataFrame, year: int) -> int:
             .to_string(index=False),
         )
     return len(unexplained)
+
+
+#: The GHGRP reporting threshold, 25,000 t CO2e, in the kg StEWI reports.
+#: A facility above it is one the programme should have seen, so NEI-only mass
+#: above it cannot be explained by the threshold - see
+#: :func:`facility_coverage_bands`.
+GHGRP_THRESHOLD_KG = 25_000 * 1_000
+
+#: The fuel classes that are combustion. ``process`` is the calcining and
+#: chemistry half, which the GHGRP threshold has nothing to do with.
+COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
+
+
+def facility_coverage_bands(
+    union: pd.DataFrame,
+    floor: pd.Series,
+    basis: pd.DataFrame | None = None,
+    min_Mt: float = 0.5,
+    coverage_floor: float = 0.95,
+    unresolved_ceiling: float = 0.05,
+) -> pd.DataFrame:
+    """**D15d.** Which sectors may take the facility vector *downward*? (#928)
+
+    A facility union is a **lower bound** on a sector, so it is informative in
+    one direction only. Facility mass above the allocation means the sector is
+    under-allocated and no coverage argument touches it - that is D14 and D16.
+    Facility mass *below* the allocation could be over-allocation, or could be
+    emissions nobody reported, and the data cannot say which. So the default
+    rule is that facility data is a **floor**: it may raise a sector to what its
+    own facilities reported and may never lower it.
+
+    A sector escapes that restriction only where what the facilities report is
+    close to a census of the sector, and this table is the test. Two quantities,
+    both now measurable because #925 fixed the matching they rest on:
+
+    ``coverage``
+        ``ghgrp_Mt / (ghgrp_Mt + nei_below_Mt)`` - how much of the sector's
+        reported combustion comes from the mandatory programme, against what the
+        25,000 tCO2e threshold leaves to NEI alone.
+    ``unresolved``
+        NEI-only mass at facilities **above** that threshold, as a share of the
+        sector's facility total. Those facilities cannot be below the threshold,
+        so this is not coverage at all - it is a GHGRP twin the match list still
+        misses, or a facility that should report and does not. Either way the
+        sector's facility total is not a census while it is large.
+
+    ⚠️ **Coverage is not the binding constraint, and that is the finding.** In
+    2022 it is 0.976 at the median sector and 0.999 at the 90th percentile;
+    moving its gate from 0.90 to 0.98 changes the verdict for one sector.
+    ``unresolved`` is what decides: 0.091 at the median, 0.391 at the 90th
+    percentile, and **every large sector that fails the joint gate fails on it**
+    - oil and gas extraction at 0.120 with coverage 0.983, petrochemicals at
+    0.313 with coverage 1.000, wet corn milling at 0.363 with coverage 0.999.
+
+    ⚠️ **Imputing CO2 where NEI does not report it does not move this** (#967).
+    It was the obvious way to widen ``coverage``, and it fails twice over: on
+    the population it is used on - NEI facilities reporting no CO2 that have a
+    GHGRP twin to check against - a per-sector CO2-per-criteria-pollutant ratio
+    lands 67% out at the median sector and **+445% on the sub-threshold mass
+    that is the whole point**, because the non-reporting population is not the
+    reporting one at the same NOx. And it would not matter if it worked: taking
+    the imputation at face value against discounting its measured bias moves the
+    median sector's coverage by **0.019**.
+
+    ⚠️ **The GHGRP side is the combustion floor, not the union's GHGRP rows.**
+    ``facility_combustion`` labels a GHGRP facility's fuel from its own subpart
+    W report or, failing that, from the fuel mix of its matched NEI record - and
+    **24.7% of GHGRP mass in 2022 has neither**, so it stays ``unclassified``.
+    Taking only the classified part as the numerator would make coverage depend
+    on whether a facility matched into NEI, which is the very thing
+    ``unresolved`` exists to keep separate. :func:`ghgrp_combustion_floor` is
+    the definitional answer instead: subpart C is stationary combustion, plus
+    the subpart W fuel tables for the segments that report there (#927).
+
+    :param union: one year of :func:`facility_combustion`
+    :param floor: one year of :func:`ghgrp_combustion_floor`, a Series of Mt by
+        sector
+    :param basis: one year of :func:`facility_basis_comparison`, to name the
+        sectors with no facility data rather than let them fall through
+    ⚠️ *min_Mt* gates the **exception, not the use**. A sector with facility
+    data but too little of it to bear a ratio - 192 of them in 2022, 10.6 Mt
+    between them - stays a ``floor`` with ``blocked_by`` saying so, rather than
+    dropping out of the table. Facility data is used for every sector that has
+    any; what has to be tested for is permission to go *down*.
+
+    :param min_Mt: below this much facility combustion a sector cannot be
+        tested for the exception, and stays a floor
+    """
+    nei = union[
+        (union['source'] == 'NEI') & union['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
+    ]
+    per_facility = nei.groupby(['FacilityID', 'sector'])['CO2e'].sum().reset_index()
+    big = per_facility['CO2e'] > GHGRP_THRESHOLD_KG
+
+    out = pd.DataFrame(
+        {
+            'ghgrp_Mt': floor,
+            'nei_below_Mt': per_facility[~big].groupby('sector')['CO2e'].sum() / 1e9,
+            'nei_above_Mt': per_facility[big].groupby('sector')['CO2e'].sum() / 1e9,
+        }
+    ).fillna(0.0)
+    out['total_Mt'] = out.sum(axis=1)
+    out = out[out['total_Mt'] > 0]
+    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
+    out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
+    # A sector too small to bear a ratio is not thereby excluded from the
+    # facility data - it keeps the default, which is a floor. Only the
+    # exception needs enough mass to be tested for.
+    testable = out['total_Mt'] >= min_Mt
+    out['verdict'] = np.where(
+        testable
+        & (out['coverage'] >= coverage_floor)
+        & (out['unresolved'] <= unresolved_ceiling),
+        'vector',
+        'floor',
+    )
+    out['blocked_by'] = np.where(
+        out['verdict'] == 'vector',
+        '',
+        np.where(
+            ~testable,
+            'under the reporting floor',
+            np.where(
+                out['coverage'] < coverage_floor,
+                np.where(out['unresolved'] > unresolved_ceiling, 'both', 'coverage'),
+                'unresolved',
+            ),
+        ),
+    )
+    if basis is not None:
+        absent = basis[basis['basis'] == 'no facility data']
+        absent = absent[
+            absent['sector'].astype(str).str[:2].isin(FACILITY_SCOPE_PREFIXES)
+        ]
+        named = pd.DataFrame(
+            {
+                'ghgrp_Mt': 0.0,
+                'nei_below_Mt': 0.0,
+                'nei_above_Mt': 0.0,
+                'total_Mt': 0.0,
+                'coverage': np.nan,
+                'unresolved': np.nan,
+                'verdict': 'no facility data',
+                'blocked_by': '',
+            },
+            index=pd.Index(absent['sector'], name='sector'),
+        )
+        out = pd.concat([out, named[~named.index.isin(out.index)]])
+    out = _with_names(out.rename_axis('sector').reset_index())
+    return out.sort_values('total_Mt', ascending=False).reset_index(drop=True)
 
 
 def report(
@@ -3632,6 +3823,10 @@ def main(
             tables['facility_basis']
         )
         _report_overshoot(tables['facility_overshoot'], basis_year)
+        tables['facility_coverage'] = facility_coverage_bands(
+            facility, floor[basis_year], tables['facility_basis']
+        )
+        _report_coverage(tables['facility_coverage'], basis_year)
         logger.info(
             'D15: table 3-11 by the basis it could rest on:\n%s',
             tables['facility_basis']
