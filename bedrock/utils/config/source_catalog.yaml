@@ -452,6 +452,12 @@ EIA_MER:
   - Energy
   activity_schema: null
   sector_hierarchy: flat
+EIA_NG_LeasePlant:
+  data_format: FBA
+  class:
+  - Chemicals
+  activity_schema: null
+  sector_hierarchy: flat
 EIA_SEDS:
   data_format: FBA
   class:
