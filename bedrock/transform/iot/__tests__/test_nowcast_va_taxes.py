@@ -336,6 +336,15 @@ def test_the_block_stacks_all_six_value_added_rows(
     monkeypatch.setattr(nowcast.FlowBySector, 'generateFlowBySector', generate)
     monkeypatch.setattr(nowcast, '_resolve_both_sector_columns', lambda frame: frame)
     monkeypatch.setattr(nowcast, 'va_tax_rows', lambda year: taxes)
+    # ⚠️ **This test is about the stack, not the reconciliation.** Since #850
+    # `V00300` is the residual that puts each column on BEA's published
+    # `VAPRO`, so the real residual -- $17.67bn for this industry -- overwrites
+    # the 3.0 this test feeds in and the assertion below is about nothing. The
+    # test asserted the pre-#850 value for a year and went unnoticed because CI
+    # skipped the whole file for want of a published FBA (#995).
+    monkeypatch.setattr(
+        nowcast, '_reconcile_to_published_vapro', lambda block, year: block
+    )
     nowcast.derive_initial_value_added.cache_clear()
     request.addfinalizer(nowcast.derive_initial_value_added.cache_clear)
 
