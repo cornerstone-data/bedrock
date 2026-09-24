@@ -400,10 +400,15 @@ def facility_combustion_to_sector(
         keep_flowables=_str_tuple('keep_flowables'),
     )
 
-    # BEA sector is already on the union; keep fuel Flowable (do not run fedefl).
+    # Emit facility NAICS (not BEA). UMD inventory maps to NAICS; proportional
+    # attribution joins on PrimarySector, so BEA weights match nothing and zero
+    # the activity set. Prefix/exclude filters above still use BEA ``sector``.
     facility = (
-        union.rename(columns={'CO2e': 'FlowAmount', 'sector': 'SectorProducedBy'})
+        union.rename(columns={'CO2e': 'FlowAmount'})
         .assign(
+            SectorProducedBy=lambda d: d['NAICS']
+            .astype(str)
+            .str.replace(r'\.0$', '', regex=True),
             SectorConsumedBy=np.nan,
             ActivityConsumedBy=lambda d: d['fuel_class'],
             ActivityProducedBy=np.nan,
@@ -415,7 +420,7 @@ def facility_combustion_to_sector(
             Location='00000',
             LocationSystem='FIPS',
             MetaSources='GHGRP_NEI',
-            SectorSourceName='BEA_2017_Detail',
+            SectorSourceName=f'NAICS_{config.get("target_schema_year", 2017)}_Code',
         )
         .loc[
             :,
