@@ -715,6 +715,14 @@ def composed_seed_and_observed(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     observed = pd.DataFrame(False, index=base.index, columns=base.columns)
     # Ordered: within manufacturing, non-materials is written after materials and
     # so wins on the 23 rows they share.
+    #
+    # ⚠️ **That now includes the three fuel rows, deliberately.** Since #997
+    # added ``CSTFU``, ``nonmaterial_seed`` writes ``221200``, ``324110`` and
+    # ``212100`` and overwrites whatever ``materials_seed`` put there from the
+    # census mix. The survey bucket wins because it is annual and the census mix
+    # is a two-point interpolation between 2017 and 2022 -- and because the
+    # census material codes route manufacturers' gas to ``211000``, so they
+    # carry no ``221200`` signal at all to lose (jvendries, review of #1000).
     overlays: list[tuple[str, pd.DataFrame]] = [
         ('manufacturing', materials_seed(year)),
         ('manufacturing', nonmaterial_seed(year)),
@@ -775,22 +783,32 @@ def observed_cells(year: int) -> pd.DataFrame:
 
 
 def carried_column_shares(
-    year: int, theta: float | None = None, margins: bool = True
+    year: int, theta: float | pd.DataFrame | None = None, margins: bool = True
 ) -> pd.DataFrame:
     """:func:`carry_shares` on the 2017 benchmark and this year's deflator.
 
     ``theta`` defaults to :func:`default_theta` for the span, and ``margins``
     to the full purchaser deflator; ``theta=THETA_497, margins=False`` is #497
     as written.
+
+    ⚠️ **A ``commodity x industry`` theta is accepted here, not only a scalar**,
+    because the mask has to compose with it and a caller cannot apply both.  An
+    earlier version tested the exponent for truthiness and cast it with
+    ``float()``, so passing the DataFrame that :func:`carry_shares` advertises
+    raised *"The truth value of a DataFrame is ambiguous"* -- the hook was
+    documented and unusable (jvendries, review of #1000).  Building the frame
+    unconditionally costs one 402x402 allocation and makes theta ``0.0`` the
+    same computation it always was: ``factor ** 0`` is 1.
     """
-    exponent: float | pd.DataFrame = default_theta(year) if theta is None else theta
+    given: float | pd.DataFrame = default_theta(year) if theta is None else theta
     seed, observed = composed_seed_and_observed(year)
-    if exponent:
-        # ⚠️ A seeded cell is already nominal, so carrying it on price counts the
-        # same movement twice. Hold the carry off wherever a survey spoke (#997).
-        exponent = pd.DataFrame(
-            float(exponent), index=seed.index, columns=seed.columns
-        ).mask(observed, 0.0)
+    if isinstance(given, pd.DataFrame):
+        exponent = given.reindex(index=seed.index, columns=seed.columns).fillna(0.0)
+    else:
+        exponent = pd.DataFrame(float(given), index=seed.index, columns=seed.columns)
+    # ⚠️ A seeded cell is already nominal, so carrying it on price counts the
+    # same movement twice. Hold the carry off wherever a survey spoke (#997).
+    exponent = exponent.mask(observed, 0.0)
     return carry_shares(seed, commodity_deflator(year, margins=margins), exponent)
 
 
