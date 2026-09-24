@@ -2659,17 +2659,20 @@ def nei_combustion_process_backcast(
     4. else BEA-sector mean among those twins
     5. else ``split_basis='none'`` — total kept, combustion/process left null
 
-    Returns ``facility`` (one row per FacilityID x year) and ``by_year``
-    (national raw vs backcast combustion Mt and share).
+    Returns ``facility`` (one row per FacilityID x year), ``by_year``
+    (national raw vs backcast combustion Mt and share), and ``anchor_drift``.
 
-    TODO: if this split is adopted for B / D15 analysis, do **not** silently
-    replace :func:`facility_combustion` pre-2021 ``unclassified`` rows. Decide
-    explicitly whether (a) a parallel combustion/process series is enough, or
-    (b) pre-2021 ``fuel_class`` should be invented from backcast shares -- and
-    in case (b) how ``self_supplied`` (process-gas SCC level-3) is recovered
-    when those digits only exist on post-2021 combustion branches. Twin
-    coverage and 2021/2022 share drift are recorded on #926; a 2022->2021
-    holdout and large-sector spot checks belong in that follow-up, not here.
+    Under :func:`main`, the national ``by_year`` series (and companion facility
+    / anchor-drift tables) are always written next to the other B diagnostics
+    without changing :func:`facility_combustion`. Pre-2021 NEI rows in the D15
+    union stay ``unclassified``; this series is the place to quote combustion
+    vs process across the SCC reclassification seam (#926).
+
+    TODO: inventing pre-2021 ``fuel_class`` inside :func:`facility_combustion`
+    is a separate decision. That path needs a second twin rule for
+    ``self_supplied`` (process-gas SCC level-3) among combustion tonnes, because
+    those digits only exist on post-2021 combustion branches; a 2022->2021
+    holdout and large-sector spot checks belong there too.
     """
     years = years or tuple(y for y in YEARS if y <= NEI_LAST_YEAR)
     anchors = _nei_combustion_process_anchors(anchor_a, anchor_b)
@@ -4143,10 +4146,12 @@ def main(
 ) -> dict[str, pd.DataFrame]:
     """Build the span, decompose ``E`` against ``x``, write tables and plots.
 
-    *facility_data* adds D14 and D15, off by default because they are the only
-    diagnostics here that reach outside the repository: they download the GHGRP
-    and NEI inventories through ``stewi``, which takes minutes on a cold cache
-    and needs a network. Everything else runs from local artifacts.
+    Always writes the NEI combustion/process backcast
+    (``nei_combustion_process_backcast``) for years through
+    :data:`NEI_LAST_YEAR`; that path downloads NEI through ``stewi``.
+    *facility_data* adds D14 and D15, off by default because those also pull
+    GHGRP (and more NEI) through stewi and take minutes on a cold cache.
+    Everything else runs from local artifacts.
     """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -4201,6 +4206,28 @@ def main(
     )
     plot_elasticity(tables['output_elasticity'])
     logger.info('Wrote plots to %s', OUTPUT_DIR)
+
+    # Parallel combustion/process series: restates the SCC coding split for
+    # pre-2021 years from 2021/2022 facility twins. Does not touch
+    # facility_combustion or fuel_class (#926).
+    nei_years = tuple(y for y in years if y <= NEI_LAST_YEAR)
+    backcast = nei_combustion_process_backcast(nei_years)
+    tables['nei_combustion_process_backcast'] = backcast['by_year']
+    tables['nei_combustion_process_backcast_facility'] = backcast['facility']
+    tables['nei_combustion_process_anchor_drift'] = backcast['anchor_drift']
+    logger.info(
+        'NEI combustion/process backcast (raw -> restated combustion share):\n%s',
+        backcast['by_year'][
+            [
+                'total_Mt',
+                'raw_combustion_share_%',
+                'backcast_combustion_share_%',
+                'split_known_%_Mt',
+            ]
+        ]
+        .round(1)
+        .to_string(),
+    )
 
     if facility_data:
         # GHGRP now reaches the end of the span, but keep the bound explicit so
