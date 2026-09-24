@@ -677,6 +677,7 @@ def switching() -> pd.DataFrame:
             and float(price.get((naics, priced_as), 0.0) or 0.0) > 0.0
         )
 
+    withheld = set(unreliable_columns())
     matched: dict[str, list[str]] = {}
     for industry in man:
         digits = ''.join(ch for ch in str(industry) if ch.isdigit())
@@ -704,6 +705,8 @@ def switching() -> pd.DataFrame:
                 'bea_over_mecs': bea / float(early.sum()),
                 'mecs_tbtu': float(energy.get(naics, float('nan'))),
                 'rounded_carriers': rounded.get(naics, 0),
+                # ⚠️ True means the seed IGNORES this row's switch score.
+                'held': bool(set(columns) & withheld),
                 'switch': float((share_late - share_early).abs().to_numpy().sum())
                 / 2.0,
                 'gas_18': float(share_early['221200']),
@@ -804,7 +807,13 @@ def main() -> None:
         table = switching()
         moved = table[table['switch'] > 0.05].sort_values('switch', ascending=False)
         still = table[table['switch'] <= 0.02].sort_values('bea_$M', ascending=False)
-        print('\nSwitched carrier 2018 -> 2022 (switch > 0.05)\n')
+        print('\nSwitched carrier 2018 -> 2022 (switch > 0.05)')
+        print(
+            '  WHAT MECS SAYS, NOT WHAT THE SEED DID. held=True crosses'
+            '\n  WITHHELD_SHARE, so the seed pins that row at index 1.0 and its'
+            '\n  switch score never reaches the table -- beverages 3121 leads'
+            '\n  this list and moves nothing.\n'
+        )
         print(moved.round(3).to_string())
         print('\nHeld their mix (switch <= 0.02)\n')
         print(still.round(3).to_string())
