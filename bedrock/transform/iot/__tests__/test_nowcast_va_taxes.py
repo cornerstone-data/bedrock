@@ -336,6 +336,11 @@ def test_the_block_stacks_all_six_value_added_rows(
     monkeypatch.setattr(nowcast.FlowBySector, 'generateFlowBySector', generate)
     monkeypatch.setattr(nowcast, '_resolve_both_sector_columns', lambda frame: frame)
     monkeypatch.setattr(nowcast, 'va_tax_rows', lambda year: taxes)
+    # Stacking only — reconciliation to published VAPRO is covered elsewhere and
+    # would overwrite the mocked V00300 with a live residual (e.g. 1111A0).
+    monkeypatch.setattr(
+        nowcast, '_reconcile_to_published_vapro', lambda block, _year: block
+    )
     nowcast.derive_initial_value_added.cache_clear()
     request.addfinalizer(nowcast.derive_initial_value_added.cache_clear)
 
