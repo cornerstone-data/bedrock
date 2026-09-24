@@ -1161,14 +1161,14 @@ def test_t18_closer_814000_via_v00100_moves_column_sum() -> None:
     )
     restored = restore_fixed_blocks(out.blocks, frozen)
     t18_res = next(t for t in residual if t.name == 'T18')
-    assert float(t18_res.evaluate(out.blocks).loc['814000']) == pytest.approx(
-        14.0, abs=1e-6
+    assert float(np.asarray(t18_res.evaluate(out.blocks).loc['814000'])) == (
+        pytest.approx(14.0, abs=1e-6)
     )
-    assert float(restored['use'].loc['V00100', '814000']) == pytest.approx(
-        14.0, abs=1e-6
+    assert float(np.asarray(restored['use'].loc['V00100', '814000'])) == (
+        pytest.approx(14.0, abs=1e-6)
     )
-    assert float(restored['use'].loc['V00300', '814000']) == pytest.approx(
-        0.0, abs=1e-9
+    assert float(np.asarray(restored['use'].loc['V00300', '814000'])) == (
+        pytest.approx(0.0, abs=1e-9)
     )
     # Column sum moved by +4 (delta from 10 → 14 on V00100).
     assert float(restored['use']['814000'].sum()) == pytest.approx(
@@ -1209,6 +1209,6 @@ def test_t4_closer_treats_814000_v00100_as_accounting_frozen() -> None:
     )
     out = _apply_t4_closer(use, mask, t4, pd.Series({'g1': 40.0}))
     # Households V00100 unchanged (accounting freeze).
-    assert float(out.loc['V00100', '814000']) == pytest.approx(20.0)
+    assert float(np.asarray(out.loc['V00100', '814000'])) == pytest.approx(20.0)
     # Sibling scaled: frozen_sum=20, free_sum=10, factor=(40-20)/10=2 → sib 20.
-    assert float(out.loc['V00100', 'sib']) == pytest.approx(20.0)
+    assert float(np.asarray(out.loc['V00100', 'sib'])) == pytest.approx(20.0)
