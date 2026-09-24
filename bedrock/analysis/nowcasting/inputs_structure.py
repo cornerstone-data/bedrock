@@ -1367,6 +1367,171 @@ def _manufacturing_bea_industries() -> list[str]:
     return [code for code in use.columns if str(code)[:2] in MANUFACTURING]
 
 
+def _coarse_rows(
+    fba: pd.DataFrame,
+    naics: pd.Series,
+    *,
+    source: str,
+    year: int,
+    kinds: tuple[str, ...],
+) -> pd.DataFrame:
+    """The 3- to 5-digit NAICS lines, kept so a withheld child has a fallback.
+
+    ``expense_panel`` reads 6-digit rows only, which is right for placing cost
+    on a BEA column and wrong when Census withholds the children and publishes
+    the parent.  These rows are never summed into the panel -- they are only
+    consulted by :func:`_recover_from_published_parent`.
+    """
+    rows = fba[naics.str.match(r'^\d{3,5}$')].copy()
+    rows = rows[rows['ActivityConsumedBy'].astype(str).str[:2].isin(('31', '32', '33'))]
+    if source == 'Census_AIES_Expenses':
+        rename = {
+            aies: kind for kind, cells in SERVICE_TO_AIES.items() for aies in cells
+        }
+        rows['FlowName'] = rows['FlowName'].map(lambda name: rename.get(name, name))
+    rows = rows[rows['FlowName'].isin(kinds)]
+    return rows.assign(
+        FlowAmount=rows['FlowAmount'].astype(float) * 1_000.0,
+        year=year,
+        source=source,
+        kind=rows['FlowName'],
+        code=rows['ActivityConsumedBy'].astype(str),
+    )[['code', 'kind', 'year', 'source', 'FlowAmount']]
+
+
+def _recover_from_published_parent(
+    panel: pd.DataFrame, coarse: pd.DataFrame, covers: dict[str, set[str]]
+) -> pd.DataFrame:
+    """Fill a zeroed BEA column from the coarser NAICS line Census still published.
+
+    Census withholds a 6-digit cell by publishing it as ``0`` while leaving the
+    5- or 4-digit parent intact, so summing children alone discards a number
+    that is on the page. ``322120`` paper mills is the case that found this:
+    ``322121`` and ``322122`` both read 0 in 2021 and 2023 while ``32212``
+    carries $857.5m and $1,071.2m. In 2020, where the children are published,
+    they sum to the parent exactly -- which is what makes the parent a valid
+    substitute rather than a different measurement.
+
+    :param covers: ancestor NAICS code -> the BEA industries its 6-digit
+        descendants map to, so a parent is only used where its scope is known.
+
+    ⚠️ **A 1:many parent is split, not duplicated.** ``33311`` covers both
+    ``333111`` and ``333112``; the parent is shared on the nearest year in which
+    those columns were observed together, so the split is the survey's own and
+    no new assumption enters. Where no such year exists the parent is left
+    alone and :func:`_fill_interior_zeros` deals with the zero instead.
+    """
+    if panel.empty or coarse.empty:
+        return panel
+    published = coarse.groupby(['source', 'year', 'kind', 'code'])['FlowAmount'].sum()
+    filled = panel.copy()
+    observed = filled[filled['FlowAmount'] > 0]
+
+    for row in filled[filled['FlowAmount'] == 0].itertuples():
+        candidates = [
+            (code, covers.get(code, set()))
+            for code in _ancestors(str(row.bea_industry))
+            if (row.source, row.year, row.kind, code) in published.index
+        ]
+        for code, scope in candidates:
+            if row.bea_industry not in scope:
+                continue
+            total = float(published[(row.source, row.year, row.kind, code)])
+            if total <= 0:
+                continue
+            share = _sibling_share(
+                observed, str(row.kind), str(row.bea_industry), scope
+            )
+            if share is None:
+                continue
+            filled.loc[row.Index, 'FlowAmount'] = total * share
+            filled.loc[row.Index, 'source'] = f'{row.source} ({code} parent)'
+            break
+    return filled
+
+
+def _ancestors(bea_code: str) -> list[str]:
+    """Candidate NAICS ancestors for a BEA detail industry, most specific first."""
+    digits = ''.join(ch for ch in bea_code if ch.isdigit())
+    return [digits[:n] for n in (5, 4, 3) if len(digits) >= n]
+
+
+def _sibling_share(
+    observed: pd.DataFrame, kind: str, bea_industry: str, scope: set[str]
+) -> float | None:
+    """This column's share of its parent's scope, from the nearest observed year."""
+    if scope == {bea_industry}:
+        return 1.0
+    group = observed[observed['kind'] == kind]
+    group = group[group['bea_industry'].isin(scope)]
+    if group.empty:
+        return None
+    for year in sorted(group['year'].unique(), reverse=True):
+        rows = group[group['year'] == year]
+        if set(rows['bea_industry']) != scope:
+            continue
+        total = float(rows['FlowAmount'].sum())
+        if total <= 0:
+            continue
+        mine = rows.loc[rows['bea_industry'] == bea_industry, 'FlowAmount']
+        return float(mine.sum()) / total
+    return None
+
+
+def _fill_interior_zeros(panel: pd.DataFrame) -> pd.DataFrame:
+    """A zero between two observed years is withheld data, not a measurement.
+
+    Census suppression is published as ``0``, and :func:`nonmaterial_seed`
+    divides by the 2017 base, so a surviving zero drives the seeded cell to
+    **zero dollars** rather than holding BEA's structure. A firm that bought
+    electricity in 2020 and 2022 did not stop in 2021.
+
+    ⚠️ **Interpolated between the bracketing observations, not held at 2017.**
+    Setting the cell to ``NaN`` would reach :func:`nonmaterial_seed`'s
+    ``fillna(1.0)`` and revert it to the *benchmark*, discarding every year of
+    observed movement since -- ``335911`` would return to its 2017 level having
+    been observed falling by a third and recovering. Carrying the previous
+    observation is better, and interpolating is better still, because this guard
+    fires **only** where both neighbours are observed.
+
+    The form is :data:`SHIPPED_FORM`, geometric, which is not a fresh choice:
+    :func:`interior_form_holdout` scored it on the benchmark panel, where
+    interpolating beats freezing by 20.1% and geometric beats linear by 7.1%.
+    Neighbours are the nearest observed years either side, so a gap year that is
+    simply absent from a source does not break the bracket.
+
+    The cell stays flagged ``held`` -- it is an estimate, not an observation.
+
+    ⚠️ **Interior only.** A leading or trailing zero has no second observation
+    to establish that the series should be non-zero, so it is left for the
+    source to answer rather than assumed away.
+    """
+    if panel.empty:
+        return panel
+    out = panel.sort_values(['kind', 'bea_industry', 'year']).copy()
+    grouped = out.groupby(['kind', 'bea_industry'])['FlowAmount']
+    before, after = grouped.shift(1), grouped.shift(-1)
+    year_before = out.groupby(['kind', 'bea_industry'])['year'].shift(1)
+    year_after = out.groupby(['kind', 'bea_industry'])['year'].shift(-1)
+    interior = (out['FlowAmount'] == 0) & (before > 0) & (after > 0)
+    if not interior.any():
+        return out.reset_index(drop=True)
+
+    span = (year_after - year_before).where(interior)
+    step = (out['year'] - year_before).where(interior)
+    weight = (step / span.where(span > 0)).clip(0.0, 1.0)
+    filled = (
+        before.where(interior)
+        * (after.where(interior) / before.where(interior)) ** weight
+    )
+    out.loc[interior, 'FlowAmount'] = filled[interior]
+    out.loc[interior, 'held'] = True
+    out.loc[interior, 'source'] = (
+        out.loc[interior, 'source'].astype(str) + ' (interpolated)'
+    )
+    return out.reset_index(drop=True)
+
+
 def expense_panel() -> pd.DataFrame:
     """The non-materials expense cells, four sources on one set of names.
 
@@ -1384,10 +1549,15 @@ def expense_panel() -> pd.DataFrame:
     """
     kinds = tuple(EXPENSE_TO_BEA)
     frames = []
+    coarse_frames: list[pd.DataFrame] = []
+    covers: dict[str, set[str]] = {}
     for source, years in EXPENSE_SOURCES.items():
         for year in years:
             fba = getFlowByActivity(source, year)
             naics = fba['ActivityConsumedBy'].astype(str)
+            coarse_frames.append(
+                _coarse_rows(fba, naics, source=source, year=year, kinds=kinds)
+            )
             six = fba[naics.str.match(r'^\d{6}$')].copy()
             six = six[
                 six['ActivityConsumedBy'].astype(str).str[:2].isin(('31', '32', '33'))
@@ -1415,9 +1585,17 @@ def expense_panel() -> pd.DataFrame:
                 bea_industry=column,
                 kind=six['FlowName'],
             )
-            frames.append(six.dropna(subset=['bea_industry']))
+            placed = six.dropna(subset=['bea_industry'])
+            frames.append(placed)
+            for code, industry in zip(
+                placed['ActivityConsumedBy'].astype(str),
+                placed['bea_industry'].astype(str),
+                strict=False,
+            ):
+                for ancestor in _ancestors(code):
+                    covers.setdefault(ancestor, set()).add(industry)
 
-    panel = (
+    panel = pd.DataFrame(
         pd.concat(frames, ignore_index=True)
         .groupby(['bea_industry', 'kind', 'year', 'source'], as_index=False)[
             'FlowAmount'
@@ -1425,6 +1603,15 @@ def expense_panel() -> pd.DataFrame:
         .sum()
     )
     panel['held'] = False
+
+    # ⚠️ Suppression is published as a zero, so a column whose 6-digit children
+    # are all withheld reads as no purchase at all.  Recover from the coarser
+    # line Census still published, then hold what no parent can answer.
+    coarse = (
+        pd.concat(coarse_frames, ignore_index=True) if coarse_frames else pd.DataFrame()
+    )
+    panel = _recover_from_published_parent(panel, coarse, covers)
+    panel = _fill_interior_zeros(panel)
 
     # ⚠️ AIES publishes no telephony and no expensed software, so 2023 would read
     # as a total collapse for both. Carry the 2022 census -- the last observation
@@ -2075,6 +2262,11 @@ def main() -> None:
         help='columns whose within-column mix is not observed, and are held',
     )
     parser.add_argument(
+        '--zeros',
+        action='store_true',
+        help='expense cells recovered from a published parent, and those held',
+    )
+    parser.add_argument(
         '--services',
         action='store_true',
         help='the non-materials cells, and the seed they carry',
@@ -2096,6 +2288,7 @@ def main() -> None:
         or args.recovery
         or args.holdout
         or args.unobserved
+        or args.zeros
         or args.groups
         or args.vintage
         or args.annual
@@ -2120,6 +2313,25 @@ def main() -> None:
         print('\nScoring the suppression prior against masked truth')
         print('(recovered mass is exact by construction; this is allocation error)\n')
         print(holdout().round(3).to_string())
+    if args.all or args.zeros:
+        print('\nSuppressed expense cells: recovered from a published parent, or held')
+        print('(Census publishes a withheld cell as 0; a summed child is not a zero)\n')
+        panel = expense_panel()
+        source = panel['source'].astype(str)
+        recovered = panel[source.str.contains('parent')]
+        guarded = panel[source.str.contains('interpolated')]
+        print(f'  recovered from a published parent: {len(recovered)} cells')
+        print(f'  interpolated between neighbours:   {len(guarded)} cells')
+        if not recovered.empty:
+            print('\n  by kind, recovered:')
+            print(recovered['kind'].value_counts().to_string())
+        if not guarded.empty:
+            print('\n  interpolated:')
+            print(
+                guarded[['bea_industry', 'kind', 'year', 'FlowAmount']].to_string(
+                    index=False
+                )
+            )
     if args.all or args.unobserved:
         print('\nColumns with no observed within-column mix, held at the benchmark')
         print('(observed = unsuppressed rows, on the reconciled unit basis)\n')
