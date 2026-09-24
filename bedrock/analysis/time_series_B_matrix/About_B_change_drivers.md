@@ -1,9 +1,20 @@
 # What moves `B`, and how much of it is real
 
-Findings from `B_change_diagnostics.py`, run 2026-09-18 against FBS vintage
+Findings from `B_change_diagnostics.py`, run 2026-09-21 against FBS vintage
 `v0.3.0_99655e9` and nowcast MUT vintage `v0.3.0_4276083`, nowcast models
 2017-2024. The FBS is the one published build on GCS, and its hash is
 reachable from `origin/main`.
+
+⚠️ **Every `N`-derived figure was restated on 2026-09-21** ([#957](https://github.com/cornerstone-data/bedrock/issues/957)).
+`N_total` deflated `B` and left `L` at each year's own prices, which is
+neither a current-price nor a constant-price factor. `A` is a ratio of current
+dollars to current dollars, but it still moves with the *relative* price
+`p_i / p_j`, so leaving it alone did not leave it neutral. Both sides are now
+deflated together. The `B`-only columns — `pct_change_B`, `delta_B` and the
+own-loop `L[j, j]`, which is invariant under the deflation — are unchanged to
+the last bit; `N`, `own_direct_share_of_N` and `delta_B_pct_of_N` moved. What
+it cost, and the identity behind it, are in
+[`About_the_L_dollar_basis.md`](../nowcasting/About_the_L_dollar_basis.md).
 
 ⚠️ **Every figure here was restated on 2026-09-18.** The previous run resolved
 to `v0.3.0_796a6ca`, a local-only build off a branch that no ref reaches, and
@@ -42,9 +53,9 @@ delta_B_pct_of_N = pct_change_B * own_direct_share_of_N
                  = dB * L[j,j] / N
 ```
 
-`own_direct_share_of_N` is small for most commodities — **median 0.079**, so
+`own_direct_share_of_N` is small for most commodities — **median 0.082**, so
 for the typical commodity only 8% of its footprint is its own direct
-emissions. Tenth percentile 0.020, ninetieth 0.511, maximum 0.987.
+emissions. Tenth percentile 0.022, ninetieth 0.523, maximum 0.986.
 
 That is why an unweighted gate does not discriminate. Share of commodities a
 5% gate admits, real-dollar factors, `B_change_real.csv`:
@@ -53,14 +64,14 @@ That is why an unweighted gate does not discriminate. Share of commodities a
 |---|---:|---:|---:|---:|---:|
 | 2018 | 402 | 46.5% | **4.2%** | 4.6% | 0.32% |
 | 2019 | 402 | 49.3% | **4.2%** | 5.0% | 0.33% |
-| 2020 | 402 | 65.7% | **10.9%** | 7.7% | 0.61% |
-| 2021 | 402 | 81.8% | **18.4%** | 14.5% | 1.17% |
-| 2022 | 402 | 64.2% | **8.0%** | 7.2% | 0.55% |
-| 2023 | 402 | 64.9% | **9.5%** | 7.9% | 0.59% |
-| 2024 | 402 | 59.2% | **7.0%** | 7.0% | 0.58% |
+| 2020 | 402 | 65.7% | **10.9%** | 7.7% | 0.62% |
+| 2021 | 402 | 81.8% | **17.4%** | 14.5% | 1.13% |
+| 2022 | 402 | 64.2% | **8.7%** | 7.2% | 0.63% |
+| 2023 | 402 | 64.9% | **10.0%** | 7.9% | 0.68% |
+| 2024 | 402 | 59.2% | **7.0%** | 7.0% | 0.60% |
 
 The unweighted gate admits 47-82% of commodities; the weighted one admits
-4-18%, and 2021 is still visibly the worst year. The count is 402 in every
+4-17%, and 2021 is still visibly the worst year. The count is 402 in every
 year: of the 405 commodities, three carry no direct emissions in any year and
 are always absent — `4200ID`, `814000` and `S00402`.
 
@@ -68,22 +79,22 @@ The ranking also changes, not just the count. For 2022:
 
 | rank | on `abs_delta_B_pct_of_N` | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
 |---|---|---:|---:|---:|---:|
-| 1 | Iron, gold, silver, other metal ore mining | 0.76 | −40.8% | **−31.2%** | −30.6% |
-| 2 | Water transportation | 0.89 | −29.0% | **−25.8%** | −20.6% |
-| 3 | Automotive equipment rental and leasing | 0.15 | +144.2% | **+22.3%** | +31.6% |
-| 4 | Mineral wool manufacturing | 0.31 | +61.0% | **+18.7%** | +16.5% |
+| 1 | Iron, gold, silver, other metal ore mining | 0.73 | −40.8% | **−29.7%** | −31.3% |
+| 2 | Water transportation | 0.90 | −29.0% | **−26.0%** | −21.7% |
+| 3 | Automotive equipment rental and leasing | 0.17 | +144.2% | **+24.0%** | +25.8% |
+| 4 | Mineral wool manufacturing | 0.32 | +61.0% | **+19.6%** | +18.7% |
 
 against the unweighted ranking, whose top four across the whole span are
 motorcycle manufacturing, breweries, wineries and motorcycle manufacturing
-again — own shares 0.072, 0.075, 0.048 and 0.080. Not one of the high-own-share
+again — own shares 0.077, 0.076, 0.048 and 0.094. Not one of the high-own-share
 sectors that lead the weighted ranking appears in it. The sharpest case is
-internet publishing, whose +85% factor move in 2022 shifts its `N` by 0.34%,
-because its own direct emissions are 0.4% of its footprint.
+internet publishing, whose +85% factor move in 2022 shifts its `N` by 0.40%,
+because its own direct emissions are 0.5% of its footprint.
 
 Where the own share is high the weighted figure tracks the actual `N` move
 closely, which is the check that it is measuring the right thing. It will not
-always: motorcycle and bicycle manufacturing shows `delta_B_pct_of_N` of +15.0%
-against `pct_change_N` of +136.8% in 2022, because its supply chain moved far
+always: motorcycle and bicycle manufacturing shows `delta_B_pct_of_N` of +17.7%
+against `pct_change_N` of +119.3% in 2022, because its supply chain moved far
 more than its own factor did. `pct_change_N` is carried in the table for
 exactly that comparison.
 
@@ -95,36 +106,36 @@ gate metric; `pct_change_N` is what the commodity's total factor actually did.
 
 | year | commodity | name | own share | `pct_change_B` | `delta_B_pct_of_N` | `pct_change_N` |
 |---|---|---|---:|---:|---:|---:|
-| 2021 | `483000` | Water transportation | 0.78 | +111.4% | **+87.0%** | +85.9% |
-| 2021 | `114000` | Fishing, hunting and trapping | 0.63 | +103.0% | **+65.2%** | +108.6% |
-| 2019 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.07 | +519.8% | **+37.7%** | +163.9% |
-| 2021 | `111300` | Fruit and tree nut farming | 0.72 | -48.6% | **-35.2%** | -45.0% |
-| 2022 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.76 | -40.8% | **-31.2%** | -30.6% |
-| 2023 | `325310` | Fertilizer manufacturing | 0.89 | -32.0% | **-28.4%** | -30.8% |
-| 2021 | `315000` | Apparel manufacturing | 0.32 | -87.7% | **-27.9%** | -13.4% |
-| 2020 | `611100` | Elementary and secondary schools | 0.53 | +50.5% | **+26.7%** | +18.6% |
-| 2023 | `111400` | Greenhouse, nursery, and floriculture production | 0.86 | +30.3% | **+26.0%** | +25.6% |
-| 2022 | `483000` | Water transportation | 0.89 | -29.0% | **-25.8%** | -20.6% |
-| 2021 | `111400` | Greenhouse, nursery, and floriculture production | 0.87 | -28.6% | **-25.0%** | -31.8% |
-| 2021 | `325110` | Petrochemical manufacturing | 0.63 | +38.2% | **+24.1%** | +21.4% |
-| 2021 | `111200` | Vegetable and melon farming | 0.75 | -31.4% | **-23.6%** | -27.0% |
-| 2023 | `111300` | Fruit and tree nut farming | 0.70 | +32.4% | **+22.8%** | +28.8% |
-| 2024 | `111300` | Fruit and tree nut farming | 0.72 | +31.4% | **+22.7%** | +25.9% |
-| 2022 | `532100` | Automotive equipment rental and leasing | 0.15 | +144.2% | **+22.3%** | +31.6% |
-| 2019 | `114000` | Fishing, hunting and trapping | 0.62 | -34.9% | **-21.6%** | -35.7% |
-| 2023 | `611100` | Elementary and secondary schools | 0.57 | -36.6% | **-21.0%** | -29.1% |
-| 2021 | `325180` | Other basic inorganic chemical manufacturing | 0.73 | -28.6% | **-20.8%** | -17.4% |
-| 2021 | `332114` | Custom roll forming | 0.15 | +131.7% | **+20.4%** | +36.9% |
-| 2020 | `532100` | Automotive equipment rental and leasing | 0.29 | -69.2% | **-19.7%** | -35.4% |
-| 2021 | `325510` | Paint and coating manufacturing | 0.25 | +77.0% | **+19.6%** | +35.9% |
-| 2020 | `481000` | Air transportation | 0.80 | +24.4% | **+19.5%** | +13.0% |
-| 2021 | `325310` | Fertilizer manufacturing | 0.86 | +22.3% | **+19.1%** | +21.3% |
-| 2023 | `114000` | Fishing, hunting and trapping | 0.56 | -33.6% | **-18.9%** | -40.5% |
-| 2022 | `327993` | Mineral wool manufacturing | 0.31 | +61.0% | **+18.7%** | +16.5% |
-| 2021 | `322110` | Pulp mills | 0.47 | +39.2% | **+18.6%** | +24.6% |
-| 2021 | `312120` | Breweries | 0.07 | +248.5% | **+18.6%** | +36.9% |
-| 2020 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.75 | -24.7% | **-18.5%** | -22.9% |
-| 2022 | `111300` | Fruit and tree nut farming | 0.67 | -27.0% | **-18.1%** | -31.0% |
+| 2021 | `483000` | Water transportation | 0.76 | +111.4% | **+84.7%** | +79.3% |
+| 2021 | `114000` | Fishing, hunting and trapping | 0.61 | +103.0% | **+62.4%** | +98.2% |
+| 2019 | `336991` | Motorcycle, bicycle, and parts manufacturing | 0.08 | +519.8% | **+39.8%** | +174.9% |
+| 2021 | `111300` | Fruit and tree nut farming | 0.71 | -48.6% | **-34.5%** | -48.7% |
+| 2022 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.73 | -40.8% | **-29.7%** | -31.3% |
+| 2023 | `325310` | Fertilizer manufacturing | 0.86 | -32.0% | **-27.5%** | -32.3% |
+| 2021 | `315000` | Apparel manufacturing | 0.31 | -87.7% | **-26.8%** | -28.6% |
+| 2020 | `611100` | Elementary and secondary schools | 0.53 | +50.5% | **+26.6%** | +21.6% |
+| 2022 | `483000` | Water transportation | 0.90 | -29.0% | **-26.0%** | -21.7% |
+| 2023 | `111400` | Greenhouse, nursery, and floriculture production | 0.86 | +30.3% | **+25.9%** | +26.6% |
+| 2021 | `325110` | Petrochemical manufacturing | 0.66 | +38.2% | **+25.1%** | +32.8% |
+| 2021 | `111400` | Greenhouse, nursery, and floriculture production | 0.86 | -28.6% | **-24.7%** | -32.0% |
+| 2023 | `111300` | Fruit and tree nut farming | 0.76 | +32.4% | **+24.5%** | +34.3% |
+| 2022 | `532100` | Automotive equipment rental and leasing | 0.17 | +144.2% | **+24.0%** | +25.8% |
+| 2024 | `111300` | Fruit and tree nut farming | 0.75 | +31.4% | **+23.5%** | +31.9% |
+| 2021 | `111200` | Vegetable and melon farming | 0.73 | -31.4% | **-22.8%** | -32.7% |
+| 2023 | `611100` | Elementary and secondary schools | 0.62 | -36.6% | **-22.6%** | -26.1% |
+| 2019 | `114000` | Fishing, hunting and trapping | 0.63 | -34.9% | **-22.0%** | -34.0% |
+| 2021 | `332114` | Custom roll forming | 0.16 | +131.7% | **+21.2%** | +52.8% |
+| 2021 | `322110` | Pulp mills | 0.53 | +39.2% | **+20.8%** | +30.6% |
+| 2023 | `114000` | Fishing, hunting and trapping | 0.61 | -33.6% | **-20.5%** | -36.9% |
+| 2021 | `325180` | Other basic inorganic chemical manufacturing | 0.72 | -28.6% | **-20.5%** | -21.8% |
+| 2020 | `532100` | Automotive equipment rental and leasing | 0.28 | -69.2% | **-19.6%** | -32.9% |
+| 2022 | `327993` | Mineral wool manufacturing | 0.32 | +61.0% | **+19.6%** | +18.7% |
+| 2020 | `481000` | Air transportation | 0.79 | +24.4% | **+19.4%** | +13.4% |
+| 2021 | `325310` | Fertilizer manufacturing | 0.86 | +22.3% | **+19.1%** | +22.7% |
+| 2022 | `111300` | Fruit and tree nut farming | 0.71 | -27.0% | **-19.1%** | -32.4% |
+| 2021 | `312120` | Breweries | 0.08 | +248.5% | **+18.9%** | +10.4% |
+| 2021 | `331313` | Alumina refining and primary aluminum production | 0.71 | -26.4% | **-18.9%** | -9.1% |
+| 2020 | `2122A0` | Iron, gold, silver, and other metal ore mining | 0.74 | -24.7% | **-18.2%** | -19.0% |
 
 The list spans +87.0% down to 18.1% on the gate metric, and is led by
 commodities that **are** their own footprint. Water transportation, fishing,
@@ -282,25 +293,39 @@ movement between them, and the top 10 hold 39%, the top 25 hold 56%, the top
 
 ### `L` moves `N` more than the factors do, and is out of scope
 
-`N = B @ L`, and `L` comes from each year's own `A` at that year's prices —
-the nowcast configs set `apply_io_year_adjustments: False`, so nothing deflates
-it. Holding `L` at the prior year isolates the part of the `N` move that the
-emission factors explain; `pct_change_N_L_held` and `pct_change_N_L_effect`
-carry the split. Medians over commodities:
+`N = B @ L`. Holding `L` at the prior year isolates the part of the `N` move
+that the emission factors explain; `pct_change_N_L_held` and
+`pct_change_N_L_effect` carry the split. Both sides are in constant 2017
+dollars. Medians over commodities:
 
-| year | median \|Δ`N`\| | factors | `L` |
-|---|---:|---:|---:|
-| 2018 | 3.8% | 1.4% | 3.1% |
-| 2019 | 9.1% | 2.9% | 6.2% |
-| 2020 | 12.8% | 3.8% | 9.4% |
-| 2021 | 18.4% | 3.3% | **14.8%** |
-| 2022 | 5.3% | 3.6% | 5.0% |
-| 2023 | 15.9% | 5.2% | **10.3%** |
-| 2024 | 6.4% | 1.9% | 3.9% |
+| year | median \|Δ`N`\| | factors | `L` | `L` ÷ factors |
+|---|---:|---:|---:|---:|
+| 2018 | 3.4% | 1.4% | 2.7% | 1.9x |
+| 2019 | 7.0% | 2.9% | 4.5% | 1.6x |
+| 2020 | **9.4%** | 3.6% | **6.1%** | 1.7x |
+| 2021 | 8.1% | 3.2% | 5.9% | 1.8x |
+| 2022 | 6.3% | 3.6% | 4.4% | 1.2x |
+| 2023 | 8.9% | 4.6% | 5.1% | 1.1x |
+| 2024 | 6.9% | 1.7% | 5.2% | 3.0x |
 
-`L` accounts for two to four times what the factors do. Some of that is real
-structural change and some is relative prices; the two are not separated here
-because `A` is not deflated on this path.
+`L` accounts for **1.1 to 3.0 times** what the factors do.
+
+⚠️ **Restated on 2026-09-21** ([#957](https://github.com/cornerstone-data/bedrock/issues/957)).
+This table previously read 18.4% total and **14.8%** for `L` in 2021, and
+15.9%/10.3% in 2023, making `L` look two to four times the factors. Those
+figures came from a hybrid `N` — real `B` against a nominal `L` — and do not
+survive putting both sides on one basis. **The worst year moved from 2021 to
+2020**, and the panel is far flatter than it appeared: the old series ranged
+3.8% to 18.4% and this one 3.4% to 9.4%.
+
+The question of how much of what remains is relative prices is now answered
+and the answer is *none of it* — this table is already in constant dollars,
+and a consistent deflation cancels out of `N` entirely
+(`N_real[j] = N_nominal[j] / ρ_j`), so there is no further price term to
+remove. Deflating does not quieten `L` either: its gross year-on-year movement
+is within 9% of the nominal series every year but 2024, where the real `L`
+moves 64% *more*. See
+[`About_the_L_dollar_basis.md`](../nowcasting/About_the_L_dollar_basis.md).
 
 ⚠️ **`L` is out of scope for the smoothing project, by construction.**
 `B = (E/x) @ Vnorm` has exactly three inputs and `L` is not one of them — it
@@ -316,8 +341,8 @@ over.
 
 ⚠️ **What this means for the objective.** The stated intent is to reduce the
 `N` change to justifiable changes. With `L` out of scope, this project can
-deliver the factor-driven column above — 1.4% to 5.2% a year — and not the `L`
-column. A flat median factor change should not later be read as "`N` is now
+deliver the factor-driven column above — 1.4% to 4.6% a year — and not the `L`
+column, which runs 2.7% to 6.1%. A flat median factor change should not later be read as "`N` is now
 smooth".
 
 ⚠️ **A percentage ranking still does not answer "reduces cumulatively the
@@ -331,10 +356,13 @@ through row `j` of `L`, output-weighted.
 posts a large percentage off a rounding-scale numerator. Percentages are NaN
 rather than fabricated where the base is zero.
 
-⚠️ `L` comes from each year's own `A`, at that year's prices, while a real `B`
-is in constant first-year dollars. The ratios are unaffected because numerator
-and denominator share the `B` basis, but `N` as a level is mixed-basis and
-should not be compared across years as a level.
+⚠️ `N` is now built with `B` and `L` on the same basis, so it *is* comparable
+across years as a level. `delta_B_pct_of_N` is invariant to the choice of base
+year — the `ρ_j` cancels between `dB` and `N` — but it was **not** invariant to
+the 2026-09-21 hybrid-to-real switch, because its `N` denominator moved: by a
+median 0% to 15% depending on the year, with the ranking it drives holding at
+29 or 30 of the top 30. A level quoted from a run before that date will not
+reproduce.
 
 ## 2. `Vnorm`: a tenth of the movement by mass, a quarter unweighted
 

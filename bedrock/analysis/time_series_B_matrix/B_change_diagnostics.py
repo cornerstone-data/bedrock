@@ -106,6 +106,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import facilitymatcher
+import facilitymatcher.colocation as colocation
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -121,7 +122,10 @@ from bedrock.transform.ghg import ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
-from bedrock.utils.math.formulas import compute_L_matrix
+from bedrock.utils.math.formulas import (
+    compute_L_matrix,
+    rebase_coefficient_matrix,
+)
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
 logger = logging.getLogger(__name__)
@@ -137,8 +141,10 @@ GHGRP_LAST_YEAR = 2024
 #: locally (#931), so it is present or it is not - there is nothing to fetch.
 GHGRP_LOCAL_BUILD_YEARS: tuple[int, ...] = (2024,)
 
-#: Last year NEI point sources are published for, which trails GHGRP by a
-#: further year. D15 needs both inventories, so it is bounded by this one.
+#: Last year NEI point sources carry Carbon Dioxide. StEWI serves NEI 2023
+#: (roster / NAICS / criteria pollutants), but EPA omitted CO2 from that year
+#: (#932), so D15 mass and ``fuel_class`` weights cannot use it. Carry-forward
+#: for 2023+ is #970.
 NEI_LAST_YEAR = 2022
 
 #: One config per calendar year; each pins usa_base_io_data_year ==
@@ -1018,6 +1024,76 @@ def output_elasticity(detail: pd.DataFrame, by: str = 'attribution') -> pd.DataF
 # --- Step 6: B, as a by-product ---------------------------------------------
 
 
+def commodity_rho(span: Span, weight_year: int | None = None) -> pd.DataFrame:
+    """``rho`` on the **commodity** axis: ``PI[base] / PI[y]``, year by year.
+
+    ``rho`` is the house inflation adjustment factor — the Excel ``Rho`` panel,
+    ``get_rho_inflation_ratio``, and the ``rho_ty = PI_by / PI_ty`` of the US
+    methods paper. ⚠️ It is the **reciprocal** of the forward ratio
+    ``get_cornerstone_industry_price_ratio`` returns.
+
+    ``x_real / x`` recovers the industry-axis ``rho`` the span was built with,
+    so this cannot drift from the one :func:`deflate_x` already applies to
+    ``B``. ``A`` and ``L`` are commodity x commodity, so it has to be carried
+    across: each commodity takes the average of its supplying industries,
+    weighted by their base-year shares of its supply, the same form as
+    :func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_vnorm_adjusted_commodity_price_ratio`
+    but built from the span so no ``functools.cache`` can carry a stale config
+    across a year switch.
+
+    ⚠️ **The weighting is applied to the forward ratio and the result
+    inverted**, not to ``rho`` directly: a weighted mean of reciprocals is not
+    the reciprocal of a weighted mean, and the production helper averages the
+    forward ratio. The two differ by up to 0.04 percentage points on figures
+    built from this — a different estimator rather than noise.
+
+    Base-year weights fix the supplier mix, so it measures prices and not mix;
+    *weight_year* overrides that for sensitivity work and moves the answer by
+    under 0.02 percentage points.
+
+    ⚠️ This is the *commodity* axis; ``B_total(real=True)`` deflates on the
+    *industry* axis before mapping through ``V_norm``. The two coincide only
+    where industry prices are uniform within a commodity's supplying mix — a
+    gap under 0.14% at the median but reaching 36% at the tail. Sized per year
+    by ``L_deflator_axis_gap.csv`` in
+    :mod:`bedrock.analysis.nowcasting.L_dollar_basis`.
+    """
+    base = int(span.x.columns[0])
+    rho_ind = span.x_real / span.x
+    if not np.allclose(rho_ind[base].dropna(), 1.0):
+        raise ValueError(
+            f'x_real / x is not 1.0 in the base year {base} - x_real was '
+            f'deflated to a different base than the span starts at.'
+        )
+    Vnorm = span.Vnorm[weight_year or base]
+    supply = Vnorm.sum(axis=0)
+    weights = Vnorm.divide(supply.where(supply > 1e-9, 1.0), axis=1)
+    forward = pd.DataFrame(
+        {
+            year: (1.0 / rho_ind[year]).reindex(Vnorm.index).fillna(1.0) @ weights
+            for year in span.L
+        }
+    )
+    rho = 1.0 / forward
+    # A commodity no industry supplies would average over nothing and come back
+    # 0, which cannot divide. Neutral 1.0, as the production helper does.
+    return rho.where(supply.gt(1e-9), 1.0, axis=0)
+
+
+def L_real(span: Span) -> dict[int, pd.DataFrame]:
+    """Each year's Leontief inverse in constant base-year dollars.
+
+    ``rebase_coefficient_matrix`` is the same similarity transform that
+    deflates ``A``, and it carries through the inverse, so this needs no ``A``
+    and no re-solve.
+    """
+    rho = commodity_rho(span)
+    return {
+        year: rebase_coefficient_matrix(matrix=L, rho=rho[year])
+        for year, L in span.L.items()
+    }
+
+
 def B_total(span: Span, real: bool = False) -> pd.DataFrame:
     """Total-CO2e commodity intensity, ``(E / x) @ Vnorm``, commodity x year.
 
@@ -1044,16 +1120,38 @@ def N_total(span: Span, real: bool = False) -> pd.DataFrame:
     path's total-requirements form. This is the factor the smoothing project is
     ultimately trying to hold steady; ``B`` is only the direct part of it.
 
-    ⚠️ ``L`` comes from each year's own ``A``, which is at that year's prices,
-    while a *real* ``B`` is in constant first-year dollars. The ratios this
-    feeds - ``own_direct_share_of_N`` and ``delta_B_pct_of_N`` - are unaffected,
-    because numerator and denominator share the ``B`` basis. ``N`` itself is
-    a mixed-basis level and should not be compared across years as a level.
+    *real* moves **both** sides onto constant base-year dollars - ``B`` through
+    :func:`deflate_x` and ``L`` through :func:`L_real`. ⚠️ **Both or neither**
+    (#957). Until 2026-09-21 this deflated ``B`` and left ``L`` at each year's
+    own prices, which is neither a current-price nor a constant-price factor;
+    ``A`` is a ratio of current dollars to current dollars but it still moves
+    with the *relative* price ``p_i / p_j``, so leaving it alone does not leave
+    it neutral. The hybrid put median ``|dN|`` at 18.4% in 2021 against 8.1%
+    on a consistent basis and flipped the sign of the move for 531 of 2,835
+    commodity-years.
+
+    On a consistent basis the deflation cancels out of the level entirely -
+    ``N_real[j] = N_nominal[j] / rho_j``, because the ``rho_i`` in
+    ``B_real = B / rho`` meets its inverse in
+    ``L_real[i, j] = L[i, j] rho_i / rho_j``. So this is the
+    same factor the reporting path produces via
+    ``inflation_adjust_ef_denom_to_new_base_year``, and unlike the hybrid it
+    *is* comparable across years as a level.
+
+    ⚠️ It is not comparable across *bases*. ``delta_B_pct_of_N`` is invariant
+    to the choice of base year, since the ``rho_j`` cancels between ``dB`` and
+    ``N``, but it is **not** invariant to the hybrid-to-real switch: its
+    denominator moves, by a median 0% to 15% depending on the year. The
+    ranking it drives is stable - 29 or 30 of the top 30 survive in every year
+    - but a level quoted from a run before 2026-09-21 will not reproduce.
+
+    Method and measurements: ``bedrock/analysis/nowcasting/About_the_L_dollar_basis.md``.
     """
     B = B_total(span, real=real)
+    L_by_year = L_real(span) if real else span.L
     columns: dict[int, pd.Series] = {}
-    for year in span.L:
-        L = span.L[year]
+    for year in L_by_year:
+        L = L_by_year[year]
         columns[year] = B[year].reindex(L.index).fillna(0.0) @ L
     return pd.DataFrame(columns).rename_axis(index='commodity', columns='year')
 
@@ -1094,16 +1192,21 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
     against what ``N`` actually did. They will not match: ``N`` also moves when
     *other* commodities' factors move, or when ``L`` does.
 
-    ⚠️ **``L`` moves ``N`` two to four times as much as the factors do, and
-    ``L`` is not deflated.** The nowcast configs set
-    ``apply_io_year_adjustments: False``, so each year's ``A`` - and therefore
-    ``L`` - is at that year's prices. Median absolute ``N`` movement runs 4% to
-    18% a year, of which only 1% to 5% survives holding ``L`` at the prior
-    year. ``pct_change_N_L_held`` is the factor-driven part and
-    ``pct_change_N_L_effect`` the remainder, so a disagreement between
-    ``delta_B_pct_of_N`` and ``pct_change_N`` can be read rather than guessed
-    at. Everything the gate itself uses is deflated: ``dB`` is real, and the
-    weight is a ratio in which the dollar year cancels.
+    ⚠️ **``L`` moves ``N`` more than the factors do - by 1.1x to 3.0x.**
+    Holding ``L`` at the prior year isolates the part of the move the factors
+    explain: ``pct_change_N_L_held`` is that part and ``pct_change_N_L_effect``
+    the remainder, so a disagreement between ``delta_B_pct_of_N`` and
+    ``pct_change_N`` can be read rather than guessed at. On a real basis the
+    factor part runs 1.4% to 4.6% a year and the ``L`` part 2.7% to 6.1%.
+
+    ⚠️ **These three columns were restated on 2026-09-21** (#957). They were
+    computed against a hybrid ``N`` - real ``B``, nominal ``L`` - which put the
+    ``L`` effect at 14.8 points in 2021 where a consistent basis puts it at
+    6.0, and made ``L`` look 2x to 4x the factors rather than 1.1x to 3.0x. The
+    old figures are not comparable with these and the worst year moved from
+    2021 to 2020. ``delta_B_pct_of_N`` shifted too, by a median 0% to 15% a
+    year, because its ``N`` denominator moved; the ranking it drives held, 29
+    or 30 of the top 30 in every year.
 
     ⚠️ **``L`` is out of scope for the smoothing project.** ``B = (E/x) @
     Vnorm`` has exactly three inputs, and ``L`` is not one of them - it enters
@@ -1118,10 +1221,13 @@ def B_change(span: Span, real: bool = True) -> pd.DataFrame:
     """
     B = B_total(span, real=real)
     N = N_total(span, real=real)
+    # the same basis N was built on, or the L effect is measured against a
+    # denominator that does not share its dollar year
+    L_by_year = L_real(span) if real else span.L
     years = [int(y) for y in B.columns]
     frames = []
     for prior, current in zip(years, years[1:]):
-        L_prior = span.L[prior]
+        L_prior = L_by_year[prior]
         own_loop = pd.Series(np.diag(L_prior.to_numpy()), index=L_prior.index).reindex(
             B.index
         )
@@ -1889,6 +1995,15 @@ ONSITE_SCC_BRANCHES = ('1', '2', '3')
 #: The combustion half of that, where fuel burned is separable.
 COMBUSTION_SCC_BRANCHES = ('1', '2')
 
+#: Mobile and non-road source codes, which NEI files as point sources at the
+#: site that hosts them. Their first digit is ``2``, the same as stationary
+#: internal combustion, so the branch test alone lets them in - and 33.7 Mt of
+#: 2022 CO2 with them, 33.6 Mt of it aircraft at airports under ``2275``. The
+#: GHG inventory books all of it to mobile combustion, not to the airport
+#: operator, so a *stationary* basis that carries it exceeds the inventory by
+#: construction: ``48A000`` read 7.63x before this (#925).
+MOBILE_SCC_PREFIX = '22'
+
 #: Sectors the facility side never carries, so the inventory side must not
 #: either. ``221100`` runs on eGRID here and is filtered out of the facility
 #: union by construction; ``F01000`` is personal consumption, which has no gross
@@ -1974,6 +2089,82 @@ def _drop_outside_geography(
     return frame[keep]
 
 
+def _same_site_after_FRS(
+    ghgrp: pd.DataFrame, nei: pd.DataFrame, year: int
+) -> pd.Series:
+    """NEI facilities at a GHGRP site the FRS bridge did not link (#925).
+
+    ``FRS_ID`` is the only thing saying that a GHGRP report and an NEI report
+    describe one plant, and it says so only when FRS has filed both programmes
+    under one registry record. Where it has filed them under two, the site
+    enters the union twice: once at its GHGRP total and once at its NEI total.
+
+    :func:`facilitymatcher.colocation.canonical_registry_map` folds the
+    duplicate registry records that FRS's *own* facility attributes reveal, and
+    that is where the fix belongs - it is a property of FRS, not of this
+    analysis. It cannot reach the sites where FRS's attributes disagree but the
+    two programmes' do, so the same rule is applied a second time here, to the
+    addresses GHGRP and NEI report for themselves: same state, same normalised
+    street address, and either a shared name token or the same NAICS
+    three-digit prefix. The corroboration is what keeps a **tenant** at a host
+    site - a slag processor at a steel mill, an industrial gas plant at a
+    refinery - from being folded into its host and having its emissions
+    deleted rather than deduplicated.
+
+    :return: Series mapping an NEI ``FacilityID`` to the ``FRS_ID`` of the
+        GHGRP site it shares an address with
+    """
+
+    def keys(inventory: str, ids: pd.Series) -> pd.DataFrame:
+        facilities = stewi.getInventoryFacilities(
+            inventory, year, download_if_missing=True
+        )
+        out = pd.DataFrame(
+            {
+                'FacilityID': facilities['FacilityID'].astype(str),
+                'State': facilities['State'],
+                'address': colocation.normalize_address(facilities['Address']),
+                'tokens': colocation.normalize_name(facilities['FacilityName']).map(
+                    colocation.name_tokens
+                ),
+                'sector3': facilities['NAICS'].fillna('').astype(str).str[:3],
+            }
+        )
+        out = out[out['address'].str.match(r'^\d') & out['FacilityID'].isin(set(ids))]
+        return out
+
+    linked = set(nei['FRS_ID'].dropna())
+    left = ghgrp[ghgrp['FRS_ID'].notna() & ~ghgrp['FRS_ID'].isin(linked)]
+    covered = set(ghgrp['FRS_ID'].dropna())
+    right = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]
+    pairs = keys('GHGRP', left['FacilityID']).merge(
+        keys('NEI', right['FacilityID']),
+        on=['State', 'address'],
+        suffixes=('_g', '_n'),
+    )
+    if pairs.empty:
+        return pd.Series(dtype='object')
+    shares_token = [bool(a & b) for a, b in zip(pairs['tokens_g'], pairs['tokens_n'])]
+    pairs = pairs[
+        pd.Series(shares_token, index=pairs.index)
+        | ((pairs['sector3_g'] == pairs['sector3_n']) & (pairs['sector3_g'] != ''))
+    ]
+    frs_of_ghgrp = ghgrp.drop_duplicates('FacilityID').set_index('FacilityID')['FRS_ID']
+    pairs = pairs.assign(FRS_ID=pairs['FacilityID_g'].map(frs_of_ghgrp))
+    # An NEI record at an address two GHGRP facilities share belongs to that
+    # site whichever of them it is folded onto; pick the lowest so a rerun
+    # gives the same answer.
+    out = pairs.dropna(subset=['FRS_ID']).groupby('FacilityID_n')['FRS_ID'].min()
+    logger.info(
+        'D15 %d: %d NEI facilities sit at the address of a GHGRP facility the '
+        'FRS bridge did not link to them, over %d sites (#925)',
+        year,
+        len(out),
+        out.nunique(),
+    )
+    return out
+
+
 def facility_combustion(year: int) -> pd.DataFrame:
     """**D15.** Stationary combustion as reported by facilities, by sector.
 
@@ -2015,9 +2206,11 @@ def facility_combustion(year: int) -> pd.DataFrame:
     nei = stewi.getInventory(
         'NEI', year, stewiformat='flowbyprocess', download_if_missing=True
     )
+    process = nei['Process'].astype(str)
     nei = nei[
         (nei['FlowName'] == 'Carbon Dioxide')
-        & nei['Process'].astype(str).str[0].isin(ONSITE_SCC_BRANCHES)
+        & process.str[0].isin(ONSITE_SCC_BRANCHES)
+        & (process.str[:2] != MOBILE_SCC_PREFIX)
     ].copy()
     branch = nei['Process'].astype(str).str[0]
     nei['fuel_class'] = np.where(
@@ -2070,6 +2263,12 @@ def facility_combustion(year: int) -> pd.DataFrame:
 
     ghgrp['FRS_ID'] = ghgrp['FacilityID'].map(frs_of('GHGRP'))
     nei['FRS_ID'] = nei['FacilityID'].map(frs_of('NEI'))
+    # Where FRS registered one site twice, the bridge links neither report to
+    # the other and the site is counted twice. Recover those from the
+    # addresses the two programmes report for themselves (#925).
+    relabelled = _same_site_after_FRS(ghgrp, nei, year)
+    if not relabelled.empty:
+        nei['FRS_ID'] = nei['FacilityID'].map(relabelled).fillna(nei['FRS_ID'])
 
     # A facility that classified its own fuel does not need NEI's process-gas
     # share inferred onto it - it said what it burned, and for oil and gas NEI
@@ -2377,6 +2576,352 @@ def facility_scope_split(
         .sort_values(['in_scope', 'ghgrp_vs_inventory'], ascending=[False, False])
         .reset_index(drop=True)
     )
+
+
+#: NEI cannot separate the biomass carbon a mill's recovery furnace emits.
+_PAPER_BIOGENIC = (
+    'NEI publishes one Carbon Dioxide flow and does not separate the biogenic '
+    'part, while the GHGRP does and D15 excludes it. At a pulp or paper mill '
+    'the recovery furnace burning black liquor is most of the carbon dioxide: '
+    'NEI reports 93.8 Mt at NAICS 3221 facilities in 2022 against 35.4 Mt the '
+    'inventory assigns the three paper sectors together. The NEI side of this '
+    'sector therefore carries biomass carbon the inventory books outside the '
+    'fossil total, and no field in NEI separates it'
+)
+
+#: Overshoots D15 has a cause on record for. The key is the sector; the value
+#: is the counterpart sector the inventory books the mass to, or None, and what
+#: the difference is.
+#:
+#: A named cause has to be **checkable**, which is the whole point of the
+#: guard: where a counterpart is named, the excuse holds only if the two
+#: sectors *together* come in under the tolerance. Where none is named, the
+#: entry explains the overshoot without netting it out, and the sector is
+#: reported rather than excused.
+NAMED_BOUNDARY_DIFFERENCES: dict[str, tuple[str | None, str]] = {
+    '324110': (
+        '211000',
+        'the inventory books the refining segment of its petroleum systems '
+        'tables to extraction - 211000 takes 56.4 Mt of UMD_GHGIA_T_3_25 and '
+        'T_3_26 where 324110 takes 3.55 - so the facility side reads the two '
+        'sectors the way the plants are built and the inventory reads them the '
+        'way the tables are written',
+    ),
+    '21311A': (
+        '211000',
+        'gathering and boosting and gas processing report their own fuel and '
+        'fugitives under subpart W, and the inventory books natural gas '
+        'systems to extraction (#927)',
+    ),
+    '322110': (None, _PAPER_BIOGENIC),
+    '322120': (None, _PAPER_BIOGENIC),
+    '322130': (None, _PAPER_BIOGENIC),
+}
+
+
+def facility_overshoot_guard(
+    basis: pd.DataFrame, tolerance: float = 0.5, min_inventory_Mt: float = 1.0
+) -> pd.DataFrame:
+    """**D15c.** No sector may exceed its inventory total without a named cause.
+
+    The facility union is built by taking the GHGRP whole and adding the NEI
+    facilities it does not already cover, and ``FRS_ID`` is the only thing
+    saying which those are. Where the match list is wrong the same plant enters
+    twice, and the symptom is a sector whose facilities report more than the
+    whole inventory gives it. That is what this checks, and it is the check
+    that has to stay green for any level-based claim built on D15 (#925).
+
+    ⚠️ **An overshoot is not automatically an error.** The inventory and the
+    facility programs draw sector boundaries in different places, and where
+    they do, a sector *should* come out over. The guard's job is to make the
+    difference between "we have a reason" and "we do not" explicit, so:
+
+    ``within tolerance``
+        under ``1 + tolerance``. Nothing to answer.
+    ``reallocation``
+        :data:`NAMED_BOUNDARY_DIFFERENCES` names a counterpart sector the
+        inventory books the mass to, **and the two together come in under the
+        tolerance**. The excuse is tested, not asserted - if the pair is still
+        over, the verdict falls back to ``named, still over``.
+    ``named``
+        a boundary difference is on record with its evidence, but it cannot be
+        netted out against another sector. Reported, never excused.
+    ``unexplained``
+        nothing on record. **This is what the guard exists to surface**, and
+        what ``--check-facility-overshoot`` fails on.
+
+    *min_inventory_Mt* drops sectors too small to bear a ratio.
+    """
+    frame = basis.set_index('sector')
+    over = frame[
+        (frame['inventory_Mt'] > min_inventory_Mt) & (frame['coverage'] > 1 + tolerance)
+    ]
+    rows = []
+    for sector, row in over.iterrows():
+        counterpart, reason = NAMED_BOUNDARY_DIFFERENCES.get(str(sector), (None, ''))
+        pair_coverage = np.nan
+        if counterpart is not None and counterpart in frame.index:
+            pair = frame.loc[[sector, counterpart]]
+            pair_coverage = pair['facility_Mt'].sum() / pair['inventory_Mt'].sum()
+        if not reason:
+            verdict = 'unexplained'
+        elif counterpart is None:
+            verdict = 'named'
+        elif pair_coverage <= 1 + tolerance:
+            verdict = 'reallocation'
+        else:
+            verdict = 'named, still over'
+        rows.append(
+            {
+                'sector': sector,
+                'name': row['name'],
+                'inventory_Mt': row['inventory_Mt'],
+                'facility_Mt': row['facility_Mt'],
+                'coverage': row['coverage'],
+                'overshoot_Mt': row['facility_Mt'] - row['inventory_Mt'],
+                'counterpart': counterpart or '',
+                'pair_coverage': pair_coverage,
+                'verdict': verdict,
+                'reason': reason,
+            }
+        )
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            'sector',
+            'name',
+            'inventory_Mt',
+            'facility_Mt',
+            'coverage',
+            'overshoot_Mt',
+            'counterpart',
+            'pair_coverage',
+            'verdict',
+            'reason',
+        ],
+    )
+    return out.sort_values('overshoot_Mt', ascending=False).reset_index(drop=True)
+
+
+def _report_coverage(bands: pd.DataFrame, year: int) -> None:
+    """Log D15d: which sectors clear the test, and what stops the rest."""
+    graded = bands[bands['verdict'] != 'no facility data']
+    vector = graded[graded['verdict'] == 'vector']
+    logger.info(
+        'D15d %d: %d of %d sectors may take the facility vector downward, '
+        '%.1f Mt of %.1f (%.0f%%). Everywhere else it is a floor (#928).',
+        year,
+        len(vector),
+        len(graded),
+        vector['total_Mt'].sum(),
+        graded['total_Mt'].sum(),
+        vector['total_Mt'].sum() / graded['total_Mt'].sum() * 100,
+    )
+    blocked = graded[graded['verdict'] == 'floor']
+    if not blocked.empty:
+        logger.info(
+            'D15d %d: coverage is %.3f at the median blocked sector and is '
+            'not what stops them - %s. NEI-only mass above the GHGRP '
+            'threshold is:\n%s',
+            year,
+            blocked['coverage'].median(),
+            blocked['blocked_by'].value_counts().to_dict(),
+            blocked[
+                ['sector', 'name', 'total_Mt', 'coverage', 'unresolved', 'blocked_by']
+            ]
+            .head(10)
+            .round(3)
+            .to_string(index=False),
+        )
+    absent = bands[bands['verdict'] == 'no facility data']
+    if not absent.empty:
+        logger.info(
+            'D15d %d: %d in-scope sectors have no facility data and keep the '
+            'current basis by name: %s',
+            year,
+            len(absent),
+            ', '.join(absent['sector'].astype(str)),
+        )
+
+
+def _report_overshoot(guard: pd.DataFrame, year: int) -> int:
+    """Log D15c and return the number of sectors with no cause on record."""
+    if guard.empty:
+        logger.info('D15c %d: no sector exceeds its inventory total.', year)
+        return 0
+    by_verdict = guard.groupby('verdict')['overshoot_Mt'].agg(['size', 'sum'])
+    logger.info(
+        'D15c %d: %d sectors exceed their inventory total, %.1f Mt in ' 'all:\n%s',
+        year,
+        len(guard),
+        guard['overshoot_Mt'].sum(),
+        by_verdict.round(1).to_string(),
+    )
+    unexplained = guard[guard['verdict'] == 'unexplained']
+    if not unexplained.empty:
+        logger.warning(
+            'D15c %d: %d sectors exceed their inventory total with no cause '
+            'on record, %.1f Mt. A level-based claim on any of them is not '
+            'supported until one is named or the overshoot is removed '
+            '(#925):\n%s',
+            year,
+            len(unexplained),
+            unexplained['overshoot_Mt'].sum(),
+            unexplained[['sector', 'name', 'coverage', 'overshoot_Mt']]
+            .round(2)
+            .to_string(index=False),
+        )
+    return len(unexplained)
+
+
+#: The GHGRP reporting threshold, 25,000 t CO2e, in the kg StEWI reports.
+#: A facility above it is one the programme should have seen, so NEI-only mass
+#: above it cannot be explained by the threshold - see
+#: :func:`facility_coverage_bands`.
+GHGRP_THRESHOLD_KG = 25_000 * 1_000
+
+#: The fuel classes that are combustion. ``process`` is the calcining and
+#: chemistry half, which the GHGRP threshold has nothing to do with.
+COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
+
+
+def facility_coverage_bands(
+    union: pd.DataFrame,
+    floor: pd.Series,
+    basis: pd.DataFrame | None = None,
+    min_Mt: float = 0.5,
+    coverage_floor: float = 0.95,
+    unresolved_ceiling: float = 0.05,
+) -> pd.DataFrame:
+    """**D15d.** Which sectors may take the facility vector *downward*? (#928)
+
+    A facility union is a **lower bound** on a sector, so it is informative in
+    one direction only. Facility mass above the allocation means the sector is
+    under-allocated and no coverage argument touches it - that is D14 and D16.
+    Facility mass *below* the allocation could be over-allocation, or could be
+    emissions nobody reported, and the data cannot say which. So the default
+    rule is that facility data is a **floor**: it may raise a sector to what its
+    own facilities reported and may never lower it.
+
+    A sector escapes that restriction only where what the facilities report is
+    close to a census of the sector, and this table is the test. Two quantities,
+    both now measurable because #925 fixed the matching they rest on:
+
+    ``coverage``
+        ``ghgrp_Mt / (ghgrp_Mt + nei_below_Mt)`` - how much of the sector's
+        reported combustion comes from the mandatory programme, against what the
+        25,000 tCO2e threshold leaves to NEI alone.
+    ``unresolved``
+        NEI-only mass at facilities **above** that threshold, as a share of the
+        sector's facility total. Those facilities cannot be below the threshold,
+        so this is not coverage at all - it is a GHGRP twin the match list still
+        misses, or a facility that should report and does not. Either way the
+        sector's facility total is not a census while it is large.
+
+    ⚠️ **Coverage is not the binding constraint, and that is the finding.** In
+    2022 it is 0.976 at the median sector and 0.999 at the 90th percentile;
+    moving its gate from 0.90 to 0.98 changes the verdict for one sector.
+    ``unresolved`` is what decides: 0.091 at the median, 0.391 at the 90th
+    percentile, and **every large sector that fails the joint gate fails on it**
+    - oil and gas extraction at 0.120 with coverage 0.983, petrochemicals at
+    0.313 with coverage 1.000, wet corn milling at 0.363 with coverage 0.999.
+
+    ⚠️ **Imputing CO2 where NEI does not report it does not move this** (#967).
+    It was the obvious way to widen ``coverage``, and it fails twice over: on
+    the population it is used on - NEI facilities reporting no CO2 that have a
+    GHGRP twin to check against - a per-sector CO2-per-criteria-pollutant ratio
+    lands 67% out at the median sector and **+445% on the sub-threshold mass
+    that is the whole point**, because the non-reporting population is not the
+    reporting one at the same NOx. And it would not matter if it worked: taking
+    the imputation at face value against discounting its measured bias moves the
+    median sector's coverage by **0.019**.
+
+    ⚠️ **The GHGRP side is the combustion floor, not the union's GHGRP rows.**
+    ``facility_combustion`` labels a GHGRP facility's fuel from its own subpart
+    W report or, failing that, from the fuel mix of its matched NEI record - and
+    **24.7% of GHGRP mass in 2022 has neither**, so it stays ``unclassified``.
+    Taking only the classified part as the numerator would make coverage depend
+    on whether a facility matched into NEI, which is the very thing
+    ``unresolved`` exists to keep separate. :func:`ghgrp_combustion_floor` is
+    the definitional answer instead: subpart C is stationary combustion, plus
+    the subpart W fuel tables for the segments that report there (#927).
+
+    :param union: one year of :func:`facility_combustion`
+    :param floor: one year of :func:`ghgrp_combustion_floor`, a Series of Mt by
+        sector
+    :param basis: one year of :func:`facility_basis_comparison`, to name the
+        sectors with no facility data rather than let them fall through
+    ⚠️ *min_Mt* gates the **exception, not the use**. A sector with facility
+    data but too little of it to bear a ratio - 192 of them in 2022, 10.6 Mt
+    between them - stays a ``floor`` with ``blocked_by`` saying so, rather than
+    dropping out of the table. Facility data is used for every sector that has
+    any; what has to be tested for is permission to go *down*.
+
+    :param min_Mt: below this much facility combustion a sector cannot be
+        tested for the exception, and stays a floor
+    """
+    nei = union[
+        (union['source'] == 'NEI') & union['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
+    ]
+    per_facility = nei.groupby(['FacilityID', 'sector'])['CO2e'].sum().reset_index()
+    big = per_facility['CO2e'] > GHGRP_THRESHOLD_KG
+
+    out = pd.DataFrame(
+        {
+            'ghgrp_Mt': floor,
+            'nei_below_Mt': per_facility[~big].groupby('sector')['CO2e'].sum() / 1e9,
+            'nei_above_Mt': per_facility[big].groupby('sector')['CO2e'].sum() / 1e9,
+        }
+    ).fillna(0.0)
+    out['total_Mt'] = out.sum(axis=1)
+    out = out[out['total_Mt'] > 0]
+    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
+    out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
+    # A sector too small to bear a ratio is not thereby excluded from the
+    # facility data - it keeps the default, which is a floor. Only the
+    # exception needs enough mass to be tested for.
+    testable = out['total_Mt'] >= min_Mt
+    out['verdict'] = np.where(
+        testable
+        & (out['coverage'] >= coverage_floor)
+        & (out['unresolved'] <= unresolved_ceiling),
+        'vector',
+        'floor',
+    )
+    out['blocked_by'] = np.where(
+        out['verdict'] == 'vector',
+        '',
+        np.where(
+            ~testable,
+            'under the reporting floor',
+            np.where(
+                out['coverage'] < coverage_floor,
+                np.where(out['unresolved'] > unresolved_ceiling, 'both', 'coverage'),
+                'unresolved',
+            ),
+        ),
+    )
+    if basis is not None:
+        absent = basis[basis['basis'] == 'no facility data']
+        absent = absent[
+            absent['sector'].astype(str).str[:2].isin(FACILITY_SCOPE_PREFIXES)
+        ]
+        named = pd.DataFrame(
+            {
+                'ghgrp_Mt': 0.0,
+                'nei_below_Mt': 0.0,
+                'nei_above_Mt': 0.0,
+                'total_Mt': 0.0,
+                'coverage': np.nan,
+                'unresolved': np.nan,
+                'verdict': 'no facility data',
+                'blocked_by': '',
+            },
+            index=pd.Index(absent['sector'], name='sector'),
+        )
+        out = pd.concat([out, named[~named.index.isin(out.index)]])
+    out = _with_names(out.rename_axis('sector').reset_index())
+    return out.sort_values('total_Mt', ascending=False).reset_index(drop=True)
 
 
 def report(
@@ -3276,6 +3821,14 @@ def main(
             derived['CO2e'].sum() / 1e9,
             derived['CO2e'].sum() / facility['CO2e'].sum() * 100,
         )
+        tables['facility_overshoot'] = facility_overshoot_guard(
+            tables['facility_basis']
+        )
+        _report_overshoot(tables['facility_overshoot'], basis_year)
+        tables['facility_coverage'] = facility_coverage_bands(
+            facility, floor[basis_year], tables['facility_basis']
+        )
+        _report_coverage(tables['facility_coverage'], basis_year)
         logger.info(
             'D15: table 3-11 by the basis it could rest on:\n%s',
             tables['facility_basis']
@@ -3372,9 +3925,26 @@ if __name__ == '__main__':
             'cache'
         ),
     )
+    parser.add_argument(
+        '--check-facility-overshoot',
+        action='store_true',
+        help=(
+            'run D15 alone and exit non-zero if any sector exceeds its '
+            'inventory total with no cause on record in '
+            'NAMED_BOUNDARY_DIFFERENCES (#925). Implies --facility-data and '
+            'reuses the cached span'
+        ),
+    )
     args = parser.parse_args()
 
     span_years = tuple(args.years)
+    if args.check_facility_overshoot:
+        span = load_span(span_years)
+        basis_year = min(min(max(span_years), GHGRP_LAST_YEAR), NEI_LAST_YEAR)
+        guard = facility_overshoot_guard(
+            facility_basis_comparison(span, facility_combustion(basis_year))
+        )
+        raise SystemExit(1 if _report_overshoot(guard, basis_year) else 0)
     if args.list_vintages:
         for stem in (FBS_STEM, MUT_STEM):
             print(f'\n{stem.format(year="<year>")}')

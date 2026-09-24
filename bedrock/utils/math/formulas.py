@@ -111,6 +111,66 @@ def compute_L_matrix(*, A: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def rebase_coefficient_matrix(
+    *, matrix: pd.DataFrame, rho: pd.Series[float]
+) -> pd.DataFrame:
+    """Move a square coefficient matrix onto another dollar year.
+
+    Applies to ``A`` and to ``L`` in exactly the same form, because the two are
+    related by a transform that preserves it. Writing ``rho_hat`` for the
+    diagonalised vector, as the US methods paper does::
+
+        M_rebased = rho_hat M rho_hat^-1      M[i, j] * rho_i / rho_j
+
+    Deflate the input, re-inflate the output, and what is left is a coefficient
+    in constant dollars. This is the inverse of the paper's own A transform
+    ``A_ty = rho_hat^-1 A_sy rho_hat``, which inflates rather than deflates.
+
+    ``rho`` is the house inflation adjustment factor, ``PI[base] / PI[year]``
+    per sector — what ``derive_price_index_panel`` publishes as the Excel
+    ``Rho`` panel and ``get_rho_inflation_ratio`` returns. ⚠️ It is the
+    **reciprocal** of the forward ratio ``get_cornerstone_industry_price_ratio``
+    gives; passing that by mistake rebases the wrong way and the error is
+    silent, because the result is still a plausible matrix. Pass the ``rho`` of
+    the matrix's own year against the dollar year you want.
+
+    ⚠️ **A dollar-to-dollar ratio is not already price-neutral** —
+    ``a[i, j] = (p_i q_ij) / (p_j x_j)`` moves with the *relative* price
+    ``p_i / p_j``, and only uniform inflation cancels.
+
+    ⚠️ **Applied to ``L`` this needs no re-solve.** Since
+    ``I - A_rebased = rho_hat (I - A) rho_hat^-1`` and the identity survives
+    the same transform, the inverse carries through it: rebasing ``L`` directly
+    is exactly ``(I - A_rebased)^-1``. The diagonal is invariant —
+    ``rho_j / rho_j`` — which is the cheapest check that the transform was
+    applied correctly.
+
+    ``rho`` must be positive and cover every label.
+
+    Read :mod:`bedrock.analysis.nowcasting.L_dollar_basis` before using this on
+    one side of ``N = B @ L`` only: deflating ``B`` without ``L`` (or ``D``
+    without ``L``) leaves a level that is neither current-price nor
+    constant-price. See issues #937, #957 and #958.
+    """
+    if list(matrix.index) != list(matrix.columns):
+        raise ValueError('the matrix must be square with matching index and columns')
+    aligned = rho.reindex(matrix.index)
+    if aligned.isna().any():
+        missing = list(aligned[aligned.isna()].index[:5])
+        raise ValueError(
+            f'{int(aligned.isna().sum())} labels have no rho ({missing}...). '
+            f'Rebasing only some of the matrix would mix two dollar years.'
+        )
+    values = aligned.to_numpy(dtype=float)
+    if (values <= 0).any():
+        raise ValueError('a non-positive rho cannot rebase a coefficient matrix')
+    return pd.DataFrame(
+        matrix.to_numpy() * (values[:, None] / values[None, :]),
+        index=matrix.index,
+        columns=matrix.columns,
+    )
+
+
 def compute_B_ind_matrix(*, E: pd.DataFrame, x: pd.Series[float]) -> pd.DataFrame:
     return E.divide(x, axis=1).fillna(0)
 
