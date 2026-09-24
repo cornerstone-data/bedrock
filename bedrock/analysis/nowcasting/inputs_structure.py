@@ -1359,6 +1359,12 @@ NO_AIES_COUNTERPART = ('PCHCSVC', 'PCHEXSO')
 #: they leave is visible rather than silent.
 NOT_A_COMMODITY_PURCHASE = ('CSTCNT', 'CSTRSL', 'PCHOEXP')
 
+#: Whether ``CSTFU``'s three commodities divide on MECS rather than on BEA's
+#: frozen 2017 split; see :func:`_kind_base_cells`.  Named so the comparison can
+#: be run rather than argued about, and so the dependency on the MECS vintages
+#: is switchable in one place.
+SPLIT_FUEL_ON_MECS = True
+
 #: ``expense kind -> the BEA 2017 detail commodities it buys``.  A kind covering
 #: several commodities keeps BEA's own within-group split and moves the group
 #: together, which adds no assumption of its own.
@@ -1890,8 +1896,42 @@ def nonmaterial_seed(year: int) -> pd.DataFrame:
         base = wide[(kind, 2017)]
         index = (wide[(kind, year)] / base.where(base > 0)).reindex(man)
         index = index.replace([np.inf, -np.inf], np.nan).fillna(1.0)
-        seed.loc[rows, man] = use.loc[rows, man].mul(index, axis=1).to_numpy()
+        cells = _kind_base_cells(kind, rows, man, year)
+        seed.loc[rows, man] = cells.mul(index, axis=1).to_numpy()
     return seed.loc[(seed != 0).any(axis=1)]
+
+
+def _kind_base_cells(
+    kind: str, rows: list[str], man: list[str], year: int
+) -> pd.DataFrame:
+    """The 2017 cells a kind's survey index multiplies.
+
+    BEA's own benchmark cells for every kind but one.  ``CSTFU`` covers three
+    commodities, and holding BEA's 2017 split between them freezes a mix MECS
+    observes moving -- across manufacturing the fuel bill goes coal 17.8% ->
+    11.8% and gas 74.5% -> 81.6% between the 2018 and 2022 vintages.
+
+    :func:`~.manufacturing_fuel_mix.fuel_split_weights` reweights those three
+    cells on that movement and **preserves each column's group total exactly**,
+    so the survey index above still sets how much the bucket is worth and MECS
+    only sets how it divides.  The two cannot overwrite each other.
+
+    ⚠️ **Movement only, never the level.**  MECS and BEA disagree by a factor of
+    four on gas because BEA's ``324110`` manufacturing row is mostly feedstock
+    and asphalt, which ``CSTFU`` excludes; that gap is a scope difference and it
+    cancels in the ratio.  See :mod:`~.manufacturing_fuel_mix`.
+
+    ⚠️ **Imported inside the function.**  ``manufacturing_fuel_mix`` reads this
+    module for the Use table and the group mapping, so a module-level import is
+    circular.
+    """
+    if kind != 'CSTFU' or not SPLIT_FUEL_ON_MECS:
+        return _use_2017_detail().loc[rows, man]
+    from bedrock.analysis.nowcasting.manufacturing_fuel_mix import (  # noqa: PLC0415
+        fuel_split_weights,
+    )
+
+    return fuel_split_weights(year).reindex(index=rows, columns=man).fillna(0.0)
 
 
 def nonmaterial_movement() -> pd.DataFrame:
