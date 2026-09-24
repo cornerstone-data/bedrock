@@ -175,6 +175,21 @@ NATIONAL = '00000'
 _ZERO_SHARE = 1e-9
 INDEX_CAP = 5.0
 
+#: ⚠️ **A carrier that is a tenth of the bill in one vintage and *exactly* zero
+#: in the other is withheld, not abandoned.**  The price fallback in
+#: :func:`_published_price` cannot reach this case, because here it is the
+#: Table 3.2 *quantity* that is suppressed: beverages (``3121``) publish 50
+#: trillion Btu of natural gas in 2018 and 0 in 2022, which read as a complete
+#: switch off gas at a ``switch`` score of 0.928.
+#:
+#: ✅ **Those columns hold rather than move.**  Withholding and substitution are
+#: indistinguishable from the published cell, so the honest response is to carry
+#: no movement rather than to carry a fabricated one.  The threshold is
+#: deliberately not near zero: a carrier genuinely appearing or disappearing at
+#: the margin is ordinary, and :func:`unreliable_columns` reports what it caught
+#: so the cost is visible.
+WITHHELD_SHARE = 0.10
+
 
 @functools.cache
 def _mecs(year: int) -> pd.DataFrame:
@@ -206,6 +221,41 @@ def _cell(year: int, table: str) -> pd.Series:
     return frame[frame['table'] == table].set_index(['naics', 'carrier'])['FlowAmount']
 
 
+def _price_parents(naics: str) -> list[str]:
+    """Where to look for a withheld price, nearest first, ending at all of 31-33."""
+    return [naics[:n] for n in (4, 3) if len(naics) > n] + ['31-33']
+
+
+def _published_price(price: 'pd.Series[float]', naics: str, carrier: str) -> float:
+    """This industry's price for a carrier, or the nearest parent's if withheld.
+
+    ⚠️ **MECS publishes a withheld cell as ``0``, and a zero price silently
+    zeroes the whole carrier.**  322110 pulp mills is the case that found this:
+    its natural gas *quantity* rises from 40 to 55 trillion Btu between the two
+    vintages while its 2022 gas *price* cell is withheld, so pricing it as
+    published reported gas going to zero -- and the industry then read as having
+    switched completely off gas, at a ``switch`` score of 0.784.
+
+    ✅ **A positive quantity at a zero price is withholding, not a free fuel.**
+    Every carrier mapped in :data:`CARRIER_TO_BEA` is one a plant buys; MECS
+    books the genuinely self-produced fuels -- blast furnace gas, coke oven gas,
+    black liquor -- on Table 3.2's ``Other`` line, which is not mapped here and
+    so never reaches this function.
+
+    The fallback is the same device :func:`~.inputs_structure._recover_from_
+    published_parent` uses for suppressed census cells: take the nearest level
+    that did publish, rather than dropping the cell or inventing a number.
+    """
+    own = price.get((naics, carrier))
+    if own is not None and not pd.isna(own) and float(own) > 0.0:
+        return float(own)
+    for parent in _price_parents(naics):
+        up = price.get((parent, carrier))
+        if up is not None and not pd.isna(up) and float(up) > 0.0:
+            return float(up)
+    return 0.0
+
+
 def mecs_fuel_expenditure(year: int, nonfuel: bool = False) -> pd.DataFrame:
     """Expenditure by MECS industry and carrier, in million USD.
 
@@ -217,10 +267,9 @@ def mecs_fuel_expenditure(year: int, nonfuel: bool = False) -> pd.DataFrame:
     of the ``CSTFU`` bucket and exists here only so the validation can add the
     two halves back together.
 
-    ⚠️ **Carriers MECS prices at zero drop out**, which is the intended
-    behaviour rather than a gap: coke oven gas and blast furnace gas price at
-    0.00 because they are made on site, and a self-produced fuel is not a
-    purchase the Use table should carry.
+    ⚠️ **A withheld price is recovered from the nearest published parent**, not
+    read as a free fuel; see :func:`_published_price` for the pulp-mill case
+    that makes this necessary rather than tidy.
     """
     quantity = _cell(year, NONFUEL_QUANTITY if nonfuel else FUEL_QUANTITY)
     price = _cell(year, PRICE)
@@ -228,16 +277,16 @@ def mecs_fuel_expenditure(year: int, nonfuel: bool = False) -> pd.DataFrame:
     for key, amount in quantity.items():
         naics, carrier = str(key[0]), str(key[1])  # type: ignore[index]
         priced_as = TABLE_7_2_PRICE.get(carrier)
-        if priced_as is None:
+        if priced_as is None or pd.isna(amount) or float(amount) <= 0.0:
             continue
-        rate = price.get((naics, priced_as))
-        if rate is None or pd.isna(rate) or pd.isna(amount):
+        rate = _published_price(price, naics, priced_as)
+        if rate <= 0.0:
             continue
         records.append(
             {
                 'naics': naics,
                 'carrier': carrier,
-                'million_usd': float(amount) * float(rate),
+                'million_usd': float(amount) * rate,
             }
         )
     if not records:
@@ -378,7 +427,32 @@ def fuel_mix_index(year: int, form: str = SHIPPED_FORM) -> pd.DataFrame:
     moved = interpolate_shares(base, end, t, form=form)
 
     index = moved.div(base.where(base > _ZERO_SHARE))
-    return index.fillna(1.0).clip(upper=INDEX_CAP)
+    index = index.fillna(1.0).clip(upper=INDEX_CAP)
+    held = unreliable_columns(base, end)
+    index[held] = 1.0
+    return index
+
+
+def unreliable_columns(
+    base: pd.DataFrame | None = None, end: pd.DataFrame | None = None
+) -> list[str]:
+    """Columns where a carrier collapsed to or appeared from *exactly* zero.
+
+    See :data:`WITHHELD_SHARE`.  MECS suppression is published as ``0``, so a
+    carrier worth a tenth of the bill in one vintage and exactly nothing in the
+    other is a withheld cell far more often than a plant that re-piped, and the
+    two cannot be told apart from the published table.  Those columns carry no
+    movement at all rather than a fabricated one.
+    """
+    if base is None or end is None:
+        base = fuel_mix_shares(MECS_BASE)
+        end = fuel_mix_shares(MECS_VINTAGES[-1])
+        shared = [c for c in base.columns if c in end.columns]
+        base, end = base[shared], end[shared]
+    vanished = (base >= WITHHELD_SHARE) & (end <= _ZERO_SHARE)
+    appeared = (end >= WITHHELD_SHARE) & (base <= _ZERO_SHARE)
+    suspect = vanished | appeared
+    return [str(c) for c in suspect.columns[suspect.any(axis=0)]]
 
 
 def fuel_split_weights(year: int, form: str = SHIPPED_FORM) -> pd.DataFrame:
@@ -520,6 +594,90 @@ def aggregate_bill() -> pd.DataFrame:
     return table
 
 
+def switching() -> pd.DataFrame:
+    """Which industries switched carrier between 2018 and 2022, and which did not.
+
+    One row per **MECS industry**, not per BEA column, because a three-digit
+    MECS row is broadcast to every BEA column beneath it and those columns are
+    not independent observations.  BEA's group dollars are summed back onto the
+    MECS row that serves them, so ``bea_$M`` and the MECS fuel bill are
+    comparable on the same universe.
+
+    ``switch`` is half the summed absolute share change -- 0 for an industry
+    that burns the same mix in both vintages, 1 for one that changed carrier
+    completely.
+
+    ``bea_over_mecs`` is BEA's group dollars divided by MECS's fuel bill, and it
+    is the **non-energy tell**.  A ratio near 1 means BEA's three rows are
+    roughly the fuel this industry burns.  A large ratio means they are mostly
+    something else -- feedstock, asphalt, lubricants -- and the industry's
+    apparent stillness is a measurement fact about MECS's fuel universe rather
+    than evidence that it could not switch.
+
+    ⚠️ **Stillness has two quite different causes and this cannot separate them
+    by itself.**  An industry can hold its mix because it is locked into one
+    carrier by its equipment, or because the fuel it buys is not being burned at
+    all.  ``bea_over_mecs`` distinguishes the second; the first has to be read
+    off what the industry is.
+    """
+    use = _use_2017_detail()
+    rows = [c for c in FUEL_GROUP if c in use.index]
+    man = _manufacturing_bea_industries()
+    dollars = use.loc[rows, man].sum(axis=0)
+
+    spend = {year: mecs_fuel_expenditure(year) for year in MECS_VINTAGES}
+    routed = {
+        year: pd.DataFrame(
+            {
+                commodity: table[
+                    [c for c in table.columns if CARRIER_TO_BEA.get(c) == commodity]
+                ].sum(axis=1)
+                for commodity in FUEL_GROUP
+            }
+        )
+        for year, table in spend.items()
+    }
+    base_rows = routed[MECS_BASE]
+
+    matched: dict[str, list[str]] = {}
+    for industry in man:
+        digits = ''.join(ch for ch in str(industry) if ch.isdigit())
+        for length in (6, 5, 4, 3):
+            if digits[:length] in base_rows.index:
+                matched.setdefault(digits[:length], []).append(industry)
+                break
+
+    records = []
+    for naics, columns in matched.items():
+        early = base_rows.loc[naics]
+        late = routed[MECS_VINTAGES[-1]].reindex(index=[naics]).iloc[0].fillna(0.0)
+        if float(early.sum()) <= 0 or float(late.sum()) <= 0:
+            continue
+        share_early = early / float(early.sum())
+        share_late = late / float(late.sum())
+        bea = float(dollars.reindex(columns).sum())
+        records.append(
+            {
+                'mecs_naics': naics,
+                'depth': len(naics),
+                'bea_columns': len(columns),
+                'bea_$M': bea,
+                'mecs_fuel_$M': float(early.sum()),
+                'bea_over_mecs': bea / float(early.sum()),
+                'switch': float((share_late - share_early).abs().to_numpy().sum())
+                / 2.0,
+                'gas_18': float(share_early['221200']),
+                'gas_22': float(share_late['221200']),
+                'pet_18': float(share_early['324110']),
+                'pet_22': float(share_late['324110']),
+                'coal_18': float(share_early['212100']),
+                'coal_22': float(share_late['212100']),
+            }
+        )
+    table = pd.DataFrame(records).set_index('mecs_naics')
+    return table.sort_values('bea_$M', ascending=False)
+
+
 def invariants() -> pd.DataFrame:
     """The two properties the wiring depends on, asserted rather than described.
 
@@ -559,9 +717,17 @@ def main() -> None:
     parser.add_argument('--bill', action='store_true', help='aggregate fuel bill')
     parser.add_argument('--movement', action='store_true', help='what it moves')
     parser.add_argument('--check', action='store_true', help='assert the invariants')
+    parser.add_argument('--switching', action='store_true', help='who switched')
     parser.add_argument('--all', action='store_true')
     args = parser.parse_args()
-    chosen = args.validate or args.coverage or args.bill or args.movement or args.check
+    chosen = (
+        args.validate
+        or args.coverage
+        or args.bill
+        or args.movement
+        or args.check
+        or args.switching
+    )
 
     if args.all or args.validate or not chosen:
         print('\nDerived expenditure against Table 7.10, which it never reads\n')
@@ -593,6 +759,20 @@ def main() -> None:
             '\n  1.0 at 2017 and 2018 by construction: the index is taken'
             '\n  against the 2018 MECS base, so the benchmark cross-section is'
             '\n  untouched and the adjustment grows toward 2022.'
+        )
+    if args.all or args.switching or not chosen:
+        table = switching()
+        moved = table[table['switch'] > 0.05].sort_values('switch', ascending=False)
+        still = table[table['switch'] <= 0.02].sort_values('bea_$M', ascending=False)
+        print('\nSwitched carrier 2018 -> 2022 (switch > 0.05)\n')
+        print(moved.round(3).to_string())
+        print('\nHeld their mix (switch <= 0.02)\n')
+        print(still.round(3).to_string())
+        print(
+            '\n  bea_over_mecs is the non-energy tell: near 1 means BEA'
+            "\n  three rows are roughly what this industry burns, large means"
+            '\n  they are mostly feedstock, asphalt or lubricant and the'
+            '\n  stillness is about the measure, not about the equipment.'
         )
     if args.all or args.check or not chosen:
         print('\nInvariants the wiring depends on\n')
