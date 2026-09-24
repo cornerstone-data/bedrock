@@ -576,7 +576,9 @@ def intermediate_column_control(year: int) -> pd.Series:
     return control * MILLION_CURRENCY_TO_CURRENCY
 
 
-def carry_shares(seed: pd.DataFrame, factor: pd.Series, theta: float) -> pd.DataFrame:
+def carry_shares(
+    seed: pd.DataFrame, factor: pd.Series, theta: float | pd.DataFrame
+) -> pd.DataFrame:
     """A dollar block's column shares moved on ``factor ** theta``, renormalised.
 
     The whole of what this step estimates, with no data-loading in it, which is
@@ -606,9 +608,13 @@ def carry_shares(seed: pd.DataFrame, factor: pd.Series, theta: float) -> pd.Data
             f'renormalised into shares: {cancelling}'
         )
     live = populated
-    carried = (seed.loc[:, live] / totals[live]).mul(
-        factor.reindex(seed.index) ** theta, axis=0
-    )
+    aligned = factor.reindex(seed.index)
+    shares = seed.loc[:, live] / totals[live]
+    if isinstance(theta, pd.DataFrame):
+        exponent = theta.reindex(index=seed.index, columns=shares.columns).fillna(0.0)
+        carried = shares * np.power(aligned.to_numpy()[:, None], exponent.to_numpy())
+    else:
+        carried = shares.mul(aligned**theta, axis=0)
     renormalised = carried.sum(axis=0)
     degenerate = list(renormalised.index[renormalised.abs() < 1e-12])
     if degenerate:
@@ -623,8 +629,8 @@ def carry_shares(seed: pd.DataFrame, factor: pd.Series, theta: float) -> pd.Data
     return out
 
 
-def composed_seed(year: int) -> pd.DataFrame:
-    """The 2017 benchmark with each graded survey seed overlaid on its own cells.
+def composed_seed_and_observed(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The 2017 benchmark with each graded survey seed overlaid, and where they wrote.
 
     ``commodity x industry`` in USD, the same shape as
     :func:`benchmark_intermediate`, which is what this replaces as the thing
@@ -706,6 +712,7 @@ def composed_seed(year: int) -> pd.DataFrame:
     )
 
     base = benchmark_intermediate()
+    observed = pd.DataFrame(False, index=base.index, columns=base.columns)
     # Ordered: within manufacturing, non-materials is written after materials and
     # so wins on the 23 rows they share.
     overlays: list[tuple[str, pd.DataFrame]] = [
@@ -732,10 +739,39 @@ def composed_seed(year: int) -> pd.DataFrame:
         # The seeds are in $M and the benchmark in USD. Only column shares are
         # read downstream so the units would cancel, but a frame carrying two
         # units is a trap for the next reader.
-        base.loc[rows, columns] = (
-            overlay.loc[rows, columns].astype(float) * MILLION_CURRENCY_TO_CURRENCY
-        )
-    return base
+        # ⚠️ A seed rewrites a whole column, but most of those cells only moved
+        # because the column was renormalised. Mark a cell observed when its
+        # share *within the seeded rows* changed -- that is a cell-specific
+        # index, which is what the price carry would duplicate.
+        before = base.loc[rows, columns].astype(float)
+        after = overlay.loc[rows, columns].astype(float) * MILLION_CURRENCY_TO_CURRENCY
+        before_share = before.div(before.sum().replace(0.0, np.nan))
+        after_share = after.div(after.sum().replace(0.0, np.nan))
+        moved = (after_share - before_share).abs() > (1e-9 + 1e-6 * before_share.abs())
+        base.loc[rows, columns] = after
+        observed.loc[rows, columns] = moved.fillna(False)
+    return base, observed
+
+
+def composed_seed(year: int) -> pd.DataFrame:
+    """The composed seed alone; see :func:`composed_seed_and_observed`."""
+    return composed_seed_and_observed(year)[0]
+
+
+def observed_cells(year: int) -> pd.DataFrame:
+    """Boolean ``commodity x industry``: cells a survey wrote, not the benchmark.
+
+    Used to keep the price carry off cells a survey already answered. A seeded
+    cell is ``Use2017[c, i] * survey(t) / survey(2017)`` -- a **nominal** value,
+    so the price movement is already inside it. Multiplying by
+    ``factor ** theta`` on top counts the same price twice, which at
+    ``THETA_OFF_SURGE = 0.75`` is what happens to every seeded cell in 2018-2021.
+
+    ⚠️ This is *where a survey spoke*, not *where the answer is good*. A cell a
+    seed wrote from a recovered or held value is observed for this purpose,
+    because the seed still supplied the nominal level the carry would duplicate.
+    """
+    return composed_seed_and_observed(year)[1]
 
 
 def carried_column_shares(
@@ -747,10 +783,15 @@ def carried_column_shares(
     to the full purchaser deflator; ``theta=THETA_497, margins=False`` is #497
     as written.
     """
-    exponent = default_theta(year) if theta is None else theta
-    return carry_shares(
-        composed_seed(year), commodity_deflator(year, margins=margins), exponent
-    )
+    exponent: float | pd.DataFrame = default_theta(year) if theta is None else theta
+    seed, observed = composed_seed_and_observed(year)
+    if exponent:
+        # ⚠️ A seeded cell is already nominal, so carrying it on price counts the
+        # same movement twice. Hold the carry off wherever a survey spoke (#997).
+        exponent = pd.DataFrame(
+            float(exponent), index=seed.index, columns=seed.columns
+        ).mask(observed, 0.0)
+    return carry_shares(seed, commodity_deflator(year, margins=margins), exponent)
 
 
 def apply_column_control(shares: pd.DataFrame, control: pd.Series) -> pd.DataFrame:
