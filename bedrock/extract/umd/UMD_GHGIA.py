@@ -14,7 +14,12 @@ from typing import Any, List, cast
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.extract.epa.EPA_GHGI import allocate_industrial_combustion
+from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.transform.flowbyfunctions import (
+    assign_fips_location_system,
+    load_fba_w_standardized_units,
+)
 from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -877,3 +882,226 @@ def umd_ghgia_parse(
             cleaned_list.append(df)
 
     return cleaned_list
+
+
+def assign_lease_and_plant_natural_gas(
+    fba: FlowByActivity, clean_parameter: dict[str, Any]
+) -> FlowByActivity:
+    """Assign EIA lease/plant CO2e out of non-mfg Natural Gas Industrial (#980).
+
+    Loads ``lease_plant_fba`` with ``load_fba_w_standardized_units`` (MMCF →
+    MMT CO2e via ``unit_conversion.csv``), takes the ``Lease and Plant Fuel``
+    activity total for that year, and assigns that share out of
+    ``Natural Gas Industrial`` (the non-mfg remainder after
+    ``allocate_industrial_combustion``). Remainder stays for Use purchase.
+    """
+    year = int(clean_parameter['year'])
+    lease_plant_name = clean_parameter.get('lease_plant_fba')
+    if not lease_plant_name:
+        raise ValueError(
+            'assign_lease_and_plant_natural_gas requires clean_parameter.lease_plant_fba'
+        )
+    lease_plant_year = int(clean_parameter.get('lease_plant_year', year))
+
+    eia = load_fba_w_standardized_units(
+        datasource=str(lease_plant_name),
+        year=lease_plant_year,
+        download_FBA_if_missing=True,
+    )
+    carve_mmt = float(
+        eia.loc[
+            eia['ActivityProducedBy'].astype(str) == 'Lease and Plant Fuel',
+            'FlowAmount',
+        ].sum()
+    )
+    if carve_mmt <= 0:
+        log.warning(
+            f'No Lease and Plant Fuel in {lease_plant_name} {lease_plant_year}; '
+            f'skipping lease/plant carve'
+        )
+        return fba
+
+    parent_mask = fba['ActivityProducedBy'].astype(str) == 'Natural Gas Industrial'
+    parent_total = float(fba.loc[parent_mask, 'FlowAmount'].sum())
+    if parent_total <= 0:
+        log.warning(
+            f'No Natural Gas Industrial rows to carve lease/plant fuel from in {year}'
+        )
+        return fba
+
+    share = float(np.minimum(carve_mmt / parent_total, 1.0))
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+    carved = fba.loc[parent_mask].copy()
+    carved['FlowAmount'] = carved['FlowAmount'] * share
+    carved['ActivityProducedBy'] = 'Natural Gas Industrial - Lease and Plant'
+    remainder = fba.copy()
+    remainder.loc[parent_mask, 'FlowAmount'] = remainder.loc[
+        parent_mask, 'FlowAmount'
+    ] * (1.0 - share)
+    out = FlowByActivity(pd.concat([remainder, carved], ignore_index=True))
+    for attr, value in attributes_to_save.items():
+        setattr(out, attr, value)
+    log.info(
+        f'Carved Natural Gas Industrial - Lease and Plant: {carve_mmt:.1f} MMT '
+        f'from EIA ({100 * share:.1f}% of Natural Gas Industrial) for {year}'
+    )
+    return out
+
+
+def split_activity_by_annex_shares(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
+    """Replace one activity with annex-weighted ``{activity} - {fuel}`` rows.
+
+    ``clean_parameter`` must include:
+
+    - ``activity``: parent ActivityProducedBy to replace (e.g. Petroleum Industrial)
+    - ``annex_fba`` / ``annex_year``: annex source for CO2 fuel lines
+    - ``fuels``: list of fuel names; annex lines are ``{fuel} Industrial`` and
+      output activities are ``{activity} - {fuel}``
+
+    Blank or zero annex lines get no row. Parent rows are dropped after the
+    split (shares sum to 100% of the parent).
+    """
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError('clean_parameter is required in config')
+    activity = clean_parameter.get('activity')
+    annex_name = clean_parameter.get('annex_fba')
+    fuels = clean_parameter.get('fuels')
+    if not activity or not annex_name or not fuels:
+        log.warning(
+            'split_activity_by_annex_shares missing activity/annex_fba/fuels; '
+            'skipping'
+        )
+        return fba
+
+    fuel_list = [str(f) for f in fuels]
+    annex_to_suffix = {f'{fuel} Industrial': fuel for fuel in fuel_list}
+
+    annex_year = int(
+        clean_parameter.get(
+            'annex_year',
+            clean_parameter.get('year', fba['Year'].iloc[0]),
+        )
+    )
+    annex = load_fba_w_standardized_units(
+        datasource=str(annex_name),
+        year=annex_year,
+        download_FBA_if_missing=True,
+    )
+    fuel_co2 = annex.loc[
+        (annex['FlowName'].astype(str) == 'CO2')
+        & (annex['ActivityProducedBy'].astype(str).isin(annex_to_suffix))
+        & (annex['FlowAmount'] > 0)
+    ]
+    fuel_totals = fuel_co2.groupby('ActivityProducedBy')['FlowAmount'].sum()
+    if fuel_totals.empty or float(fuel_totals.sum()) <= 0:
+        log.warning(
+            f'No positive annex CO2 lines for {activity} in {annex_name} '
+            f'{annex_year}; leaving activity intact'
+        )
+        return fba
+
+    parent_mask = fba['ActivityProducedBy'].astype(str) == str(activity)
+    if not parent_mask.any():
+        return fba
+
+    parent = fba.loc[parent_mask]
+    rest = fba.loc[~parent_mask]
+    denom = float(fuel_totals.sum())
+
+    pieces: list[pd.DataFrame] = []
+    for annex_activity, amount in fuel_totals.items():
+        suffix = annex_to_suffix.get(str(annex_activity))
+        if suffix is None:
+            continue
+        block = parent.copy()
+        block['FlowAmount'] = block['FlowAmount'] * (float(amount) / denom)
+        block['ActivityProducedBy'] = f'{activity} - {suffix}'
+        pieces.append(block)
+
+    if not pieces:
+        return fba
+
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+    out = FlowByActivity(pd.concat([rest, *pieces], ignore_index=True))
+    for attr, value in attributes_to_save.items():
+        setattr(out, attr, value)
+    log.info(
+        f'Split {activity} into {len(pieces)} annex fuels '
+        f'({", ".join(p["ActivityProducedBy"].iloc[0] for p in pieces)})'
+    )
+    return out
+
+
+def prepare_facilities_industrial_combustion(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
+    """Facilities T_3_11 prep: mfg split, EIA lease/plant carve, petroleum annex.
+
+    clean_fba_before_activity_sets for ``GHG_national_Cornerstone_nowcast_facilities_*``.
+    YAML only pins years and FBA table names.
+
+    Data sources touched:
+
+    - GHGRP ∪ NEI facility combustion for manufacturing ratios
+    - EIA ``lease_plant_fba`` for #980 carve from non-mfg Natural Gas Industrial
+    - UMD annex A5.1 (``annex_fba`` / ``annex_year``) for petroleum fuel shares
+    - ``EPA_GHGI.allocate_industrial_combustion`` for the mfg/non-mfg rename
+
+    Required ``clean_parameter`` keys: ``year``, ``annex_fba``, ``lease_plant_fba``.
+    Optional: ``nei_year``, ``annex_year``, ``lease_plant_year`` (default ``year``).
+    """
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None:
+        raise ValueError('clean_parameter is required in config')
+    if 'year' not in clean_parameter:
+        raise ValueError(
+            'prepare_facilities_industrial_combustion requires clean_parameter.year'
+        )
+    if not clean_parameter.get('annex_fba'):
+        raise ValueError(
+            'prepare_facilities_industrial_combustion requires clean_parameter.annex_fba'
+        )
+    if not clean_parameter.get('lease_plant_fba'):
+        raise ValueError(
+            'prepare_facilities_industrial_combustion requires '
+            'clean_parameter.lease_plant_fba'
+        )
+
+    params = {
+        **dict(clean_parameter),
+        'ratio_source': 'facilities',
+        'sector_prefixes': ['21', '22', '31', '32', '33'],
+        'exclude_sectors': ['221100'],
+        'keep_flowables': ['Natural Gas', 'Coal'],
+        'activity': 'Petroleum Industrial',
+        'fuels': [
+            'Still Gas',
+            'Distillate Fuel Oil',
+            'Petroleum Coke',
+            'Motor Gasoline',
+            'HGL',
+            'Kerosene',
+        ],
+    }
+    if 'annex_year' not in params:
+        params['annex_year'] = params['year']
+    if 'lease_plant_year' not in params:
+        params['lease_plant_year'] = params['year']
+
+    def _with_params(frame: FlowByActivity) -> FlowByActivity:
+        frame.config = dict(getattr(frame, 'config', {}) or {})
+        frame.config['clean_parameter'] = params
+        return frame
+
+    fba = _with_params(fba)
+    fba = allocate_industrial_combustion(_with_params(fba))
+    fba = assign_lease_and_plant_natural_gas(_with_params(fba), params)
+    fba = split_activity_by_annex_shares(_with_params(fba))
+    return fba
