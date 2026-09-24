@@ -1,14 +1,17 @@
-"""Issue #990 / Phase 2T — one-shot attribution of the 2022–24 electricity target.
+"""Issue #990 / Phase 2T — attribute the electricity intermediate-row target.
 
-Disposable emitter for ``T016 − ΣY`` on commodity ``221100``. Do **not** add a
-standing mode to ``electricity_row_896``. Delete this module (and its tests)
-when #990 closes.
+Standalone reportable checker for ``T016 − ΣY`` on commodity ``221100``.
+Do **not** add a standing mode to ``electricity_row_896``. Not a CI gate —
+thresholds are fitted to the #990 question. Keep this module so marginal
+Attributed verdicts stay re-runnable when new years land.
 
 ::
 
     python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \\
-        --csv [--check]
+        [--years 2017-2024] --csv [--check]
 
+Default ``--years`` is all nowcast years currently available (see
+``NOWCAST_YEARS``); every consecutive YoY pair in that range is reported.
 Live extracts only (``download_sources_ok=True``). No MUT pin. Missing / NaN
 ``T016`` or ``F01000`` raises — never silently filled.
 """
@@ -30,10 +33,12 @@ from bedrock.analysis.electricity.current.eia_gtd.electricity_row_control import
     PCE_CODE,
     eia_epa_table_2_3_revenue_bn,
 )
+from bedrock.analysis.nowcasting.results._ef_smoke_lib import NOWCAST_YEARS
 
 logger = logging.getLogger(__name__)
 
-CRISIS_SPANS: tuple[tuple[int, int], ...] = ((2022, 2023), (2023, 2024))
+#: #990 focus spans (labeling / close-out); CLI default runs all consecutive pairs.
+FOCUS_SPANS: tuple[tuple[int, int], ...] = ((2022, 2023), (2023, 2024))
 COMPONENTS: tuple[str, ...] = (
     'T016',
     'Y_PCE',
@@ -57,7 +62,28 @@ _PUB_RTOL = 0.15
 _BN_TO_USD = 1e9
 _BEA_M_TO_USD = 1e6
 
-CSV_NAME = 'target_attribution_221100_2022_24.csv'
+
+def available_years() -> list[int]:
+    """Years with nowcast configs today; grows when ``NOWCAST_YEARS`` gains 2025+."""
+    return list(NOWCAST_YEARS)
+
+
+def consecutive_spans(years: list[int]) -> list[tuple[int, int]]:
+    """Every consecutive YoY pair in ``years`` (sorted ascending)."""
+    ordered = sorted(years)
+    if len(ordered) < 2:
+        raise ValueError(f'need at least two years for YoY spans, got {ordered}')
+    return list(zip(ordered[:-1], ordered[1:]))
+
+
+def _parse_years(spec: str) -> list[int]:
+    lo, _, hi = spec.partition('-')
+    return list(range(int(lo), int(hi or lo) + 1))
+
+
+def csv_name_for_years(years: list[int]) -> str:
+    ordered = sorted(years)
+    return f'target_attribution_221100_{ordered[0]}_{ordered[-1]}.csv'
 
 
 class TargetAttributionRow(ta.NamedTuple):
@@ -351,8 +377,8 @@ def decide_span(
             dominant_fraction=dom_frac,
             reason=(
                 f'published YoY band failed for {dom} vs {cite}: '
-                f'bedrock_Δ=${bedrock_d / 1e9:.2f}bn, '
-                f'published_Δ=${published_d / 1e9:.2f}bn'
+                f'bedrock_d=${bedrock_d / 1e9:.2f}bn, '
+                f'published_d=${published_d / 1e9:.2f}bn'
             ),
         )
 
@@ -365,14 +391,27 @@ def decide_span(
         reason=(
             f'{dom} majority (|fraction|={abs(dom_frac):.3f}); '
             f'published YoY tracks {cite} '
-            f'(bedrock_Δ=${bedrock_d / 1e9:.2f}bn, '
-            f'published_Δ=${published_d / 1e9:.2f}bn)'
+            f'(bedrock_d=${bedrock_d / 1e9:.2f}bn, '
+            f'published_d=${published_d / 1e9:.2f}bn)'
         ),
     )
 
 
-def overall_outcome(decisions: list[SpanDecision]) -> str:
-    """Overall #990 outcome: Attributed only if every crisis span is Attributed."""
+def overall_outcome(
+    decisions: list[SpanDecision],
+    *,
+    spans: ta.Iterable[tuple[int, int]] | None = None,
+) -> str:
+    """Attributed only if every selected span is Attributed.
+
+    Default: all decisions in the run. Pass ``spans=FOCUS_SPANS`` for the #990
+    close-out subset.
+    """
+    if spans is not None:
+        want = set(spans)
+        decisions = [d for d in decisions if (d.year_a, d.year_b) in want]
+    if not decisions:
+        return 'Fix'
     if all(d.outcome == 'Attributed' for d in decisions):
         return 'Attributed'
     return 'Fix'
@@ -383,10 +422,17 @@ def overall_outcome(decisions: list[SpanDecision]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def write_csv(rows: list[TargetAttributionRow], path: Path | None = None) -> Path:
-    out = path or (OUT_DIR / CSV_NAME)
+def write_csv(
+    rows: list[TargetAttributionRow],
+    path: Path | None = None,
+    *,
+    years: list[int] | None = None,
+) -> Path:
+    year_list = years or sorted({r.year_a for r in rows} | {r.year_b for r in rows})
+    out = path or (OUT_DIR / csv_name_for_years(year_list))
     header = (
         f'# target_attribution_221100 run_date={date.today().isoformat()} '
+        f'years={year_list[0]}-{year_list[-1]} '
         'live_extract=True interior_row_targets=download_sources_ok '
         '(not a pinned MUT / not frozen gate CSV)\n'
     )
@@ -400,18 +446,20 @@ def write_csv(rows: list[TargetAttributionRow], path: Path | None = None) -> Pat
 
 def run(
     *,
+    years: list[int] | None = None,
     write: bool = False,
     check: bool = False,
     derivation_defect: str | None = None,
 ) -> tuple[list[TargetAttributionRow], list[SpanDecision], list[YearLevels]]:
-    years = sorted({y for span in CRISIS_SPANS for y in span})
-    levels = {y: load_year_levels(y) for y in years}
+    year_list = sorted(years) if years is not None else available_years()
+    spans = consecutive_spans(year_list)
+    levels = {y: load_year_levels(y) for y in year_list}
 
     all_rows: list[TargetAttributionRow] = []
     decisions: list[SpanDecision] = []
     check_failures: list[str] = []
 
-    for a, b in CRISIS_SPANS:
+    for a, b in spans:
         rows = build_span_rows(levels[a], levels[b])
         all_rows.extend(rows)
         fails = check_span_identity(rows)
@@ -427,20 +475,32 @@ def run(
         raise SystemExit(1)
 
     if write:
-        write_csv(all_rows)
+        write_csv(all_rows, years=year_list)
 
-    return all_rows, decisions, [levels[y] for y in years]
+    return all_rows, decisions, [levels[y] for y in year_list]
 
 
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
+    default_years = available_years()
     parser = argparse.ArgumentParser(
-        description='Phase 2T / #990: attribute 2022–24 electricity interior target'
+        description=(
+            'Phase 2T / #990: attribute electricity interior target '
+            '(all consecutive YoY pairs by default)'
+        )
+    )
+    parser.add_argument(
+        '--years',
+        default=f'{default_years[0]}-{default_years[-1]}',
+        help=(
+            'Inclusive year range (default: all available nowcast years, '
+            f'currently {default_years[0]}-{default_years[-1]})'
+        ),
     )
     parser.add_argument(
         '--csv',
         action='store_true',
-        help=f'Write {CSV_NAME} under eia_gtd/',
+        help='Write target_attribution_221100_<lo>_<hi>.csv under eia_gtd/',
     )
     parser.add_argument(
         '--check',
@@ -453,8 +513,10 @@ def main(argv: list[str] | None = None) -> None:
         help='Optional named defect (module+symptom) forcing Fix on all spans',
     )
     args = parser.parse_args(argv)
+    year_list = _parse_years(args.years)
 
     rows, decisions, levels = run(
+        years=year_list,
         write=args.csv,
         check=args.check,
         derivation_defect=args.derivation_defect,
@@ -485,10 +547,16 @@ def main(argv: list[str] | None = None) -> None:
 
     print('\nSpan decisions:')
     for d in decisions:
+        mark = ' *#990-focus*' if (d.year_a, d.year_b) in FOCUS_SPANS else ''
         print(
-            f'  {d.year_a}->{d.year_b}: {d.outcome}  ' f'dom={d.dominant}  |{d.reason}'
+            f'  {d.year_a}->{d.year_b}: {d.outcome}  '
+            f'dom={d.dominant}  |{d.reason}{mark}'
         )
-    print(f'\nOverall (#990): {overall_outcome(decisions)}')
+    print(f'\nOverall (all spans in run): {overall_outcome(decisions)}')
+    print(
+        f'#990 focus {FOCUS_SPANS[0][0]}-{FOCUS_SPANS[-1][-1]}: '
+        f'{overall_outcome(decisions, spans=FOCUS_SPANS)}'
+    )
     if args.check:
         print('PASS  identity checks')
 

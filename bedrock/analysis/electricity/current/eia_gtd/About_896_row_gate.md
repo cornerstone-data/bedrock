@@ -96,22 +96,23 @@ CSV. Cell-level GRAS vs IPF is qualitative under warning; the hard gate remains
 
 ## Phase 2T / #990 target attribution
 
-One-shot dump (not a standing gate mode):
+Standing reportable checker (not a gate mode on `electricity_row_896`):
 
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
-    --csv [--check]
+    [--years 2017-2024] --csv [--check]
 ```
 
-Schemas / Fix-vs-Attributed decision:
+Default: all consecutive YoY pairs in available nowcast years. Schemas /
+Fix-vs-Attributed decision:
 [`About_990_target_attribution.md`](About_990_target_attribution.md).
 
 ## Unit tests
 
 ```bash
 uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_electricity_row_896.py
-uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_target_attribution_221100.py
 ```
 
 Pure fixtures: claim-map partition, `GateDecision` classification, `--anchor-span`
-parse; Phase 2T signed identity / Fix-vs-Attributed rules. No GCS / MUT I/O.
+parse. No GCS / MUT I/O. (No unit-test suite on the #990 attribution module —
+use `--check`.)

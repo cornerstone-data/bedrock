@@ -75,13 +75,14 @@ Does **not** change production MUT or the allocator. How to read the CSVs:
 
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
-    --csv --check
+    [--years 2017-2024] --csv --check
 ```
 
-One-shot dump of `T016` / `Y_PCE` / `Y_other` contributions to the 2022–24
-interior-row target move. Decides **Attributed** vs **Fix** against published
-BEA UGO305-A / EIA-861 residential. Disposable with #990 — not a standing gate
-mode. See `About_990_target_attribution.md`.
+Reportable checker of `T016` / `Y_PCE` / `Y_other` contributions to the
+interior-row target move (default: all consecutive YoY pairs in available
+nowcast years). Decides **Attributed** vs **Fix** against published BEA
+UGO305-A / EPA Table 2.3 residential. Not a standing gate mode on
+`electricity_row_896`. See `About_990_target_attribution.md`.
 
 ⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
 `annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`

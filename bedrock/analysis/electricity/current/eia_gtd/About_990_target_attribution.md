@@ -5,32 +5,40 @@ Diagnostic for
 (parent [#896](https://github.com/cornerstone-data/bedrock/issues/896)):
 attribute or fix the 2022–24 drop in the electricity intermediate-use target
 (`T016 − ΣY` for commodity `221100`). Seeds and the G/T/D allocator are out of
-scope. Window is **2022–24 only**.
+scope.
 
-This note is the schema / decision record. The emitter is disposable — delete
-`target_attribution_221100.py` (and its tests) when #990 closes. Do **not** add
-a standing mode to `electricity_row_896`.
+This note is the schema / decision record. The module is a **standing
+reportable checker** (not a CI gate, not a mode on `electricity_row_896`). Keep
+it so marginal Attributed verdicts stay re-runnable when new years land.
 
 ## Run
 
 ```bash
 python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
-    --csv [--check]
+    [--years 2017-2024] --csv [--check]
 ```
+
+Default `--years` is all available nowcast years (`NOWCAST_YEARS`); every
+**consecutive YoY pair** in that range is reported. When 2025 is added to
+nowcast years, it is included automatically. `--check` is the validation path
+(no unit-test suite on this analysis module).
 
 Live Supply / FD extracts only (`download_sources_ok=True`). No `--mut-vintage`.
 Missing / NaN `T016` or `F01000` raises — never silently filled. `--check`
 asserts parts identity and `|residual_unexplained| ≤ $0.05bn` per span; it does
 **not** sum all five component rows.
 
-CSV: `target_attribution_221100_2022_24.csv` (header notes run date + live
+CSV: `target_attribution_221100_<lo>_<hi>.csv` (header notes run date + live
 extract; not a pinned MUT / not a frozen gate CSV).
+
+**#990 focus:** spans `2022→23` and `2023→24` (marked `*#990-focus*` in CLI
+output). Close-out Attributed requires those two; other YoY pairs are context.
 
 ## Schema (`TargetAttributionRow`)
 
 | Field | Meaning |
 |---|---|
-| `year_a`, `year_b` | Crisis spans `(2022,2023)`, `(2023,2024)` |
+| `year_a`, `year_b` | Consecutive YoY span endpoints |
 | `component` | `T016` \| `Y_PCE` \| `Y_other` \| `interior_row_target` \| `residual_unexplained` |
 | `delta_usd` | Contribution to change in intermediate target (USD) |
 | `fraction_of_delta_target` | `delta / interior Δ`; `None` if `\|interior Δ\| < $5bn` |
@@ -58,13 +66,14 @@ Per span, `dom` = largest `|fraction|` among `{T016, Y_PCE, Y_other}`.
 here (module + symptom). Do not invent a non-observed `T016`/`Y` correction to
 flip the gate. Relative shrink / gate flip alone are not enough to claim Fix.
 
-Overall #990 outcome is **Attributed** only if **both** crisis spans are
-Attributed.
+**#990 outcome** is **Attributed** only if **both** focus spans (2022→23 and
+2023→24) are Attributed. The CLI also prints an all-spans overall for the year
+range that was run — reportable, not a gate.
 
-## Results (run 2026-09-23)
+## Results (run 2026-09-23; focus spans)
 
-**Overall decision: Attributed.** No production code change. #899 / #900 remain
-blocked only by process (comment + close path), not by an open Fix.
+**#990 focus decision: Attributed.** No production code change. #899 / #900
+remain blocked only by process (comment + close path), not by an open Fix.
 
 ### Year levels ($bn)
 
@@ -98,13 +107,3 @@ blocked only by process (comment + close path), not by an open Fix.
 
 No evidence of a bedrock derivation defect (NaN/auth, unsourced bridge, or
 invented non-EIA PCE) on this dump. GO-control was not opened — Fix path unused.
-
-## Unit tests
-
-```bash
-uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_target_attribution_221100.py
-```
-
-Pure fixtures: signed identity, residual atol, small-denominator `None`,
-`Y_other`-dominant → Fix, published-band fail → Fix, overall needs both spans.
-No live extract I/O.
