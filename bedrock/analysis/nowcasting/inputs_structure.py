@@ -663,11 +663,67 @@ def _naics_to_bea_industry() -> dict[str, str]:
     unique = crosswalk[
         crosswalk['NAICS_2017_Code'].isin(per_naics[per_naics == 1].index)
     ]
-    return (
+    placed = (
         unique.drop_duplicates('NAICS_2017_Code')
         .set_index('NAICS_2017_Code')['BEA_2017_Detail_Code']
         .to_dict()
     )
+    placed.update(_naics_2022_onto_bea(placed))
+    return placed
+
+
+def _naics_2022_onto_bea(placed: dict[str, str]) -> dict[str, str]:
+    """NAICS **2022** codes that resolve to exactly one BEA detail industry.
+
+    ⚠️ **The 2022 Economic Census is published on NAICS 2022 and the API offers
+    no alternative** -- ``2017/ecnbasic`` exposes ``NAICS2017`` and
+    ``2022/ecnbasic`` exposes ``NAICS2022``, nothing else.  The crosswalk this
+    module reads is on the 2017 basis, so every recoded child resolved to
+    ``None`` and ``expense_panel``'s ``dropna`` discarded it in silence:
+    **84 of 909 six-digit codes, 16.9% of the extract's dollars** (#988).
+
+    ✅ **Only the 1:1 recodes are added here.**  Where a 2022 code's 2017
+    predecessors all land on one BEA industry it is an observation and is placed
+    outright -- ``333248`` onto ``33329A``, ``333998`` onto ``33399A``,
+    ``335131`` and ``335132`` onto ``335120``, ``337126`` onto ``33712N``.
+
+    ❌ **A 1:many recode is deliberately left unplaced.**  ``335910`` spans
+    ``335911`` and ``335912``, ``336110`` spans ``336111`` and ``336112``, and
+    splitting them needs a weight this function does not have.
+    :func:`_recover_from_published_parent` already answers those from the coarse
+    line, and in NAICS 2022 that parent contains **exactly** the one child -- so
+    the dollars are identical and the split is the same sibling-share estimate
+    either way.  Adding them here would buy nothing and would replace a graded
+    device with an ungraded one.
+
+    ⚠️ **An existing 2017 code is never overwritten.**  A few codes exist in both
+    vintages with different meanings; the 2017 reading wins, because that is the
+    basis the BEA crosswalk is on.
+
+    ⚠️ **This does not rescue construction or trade.**  Construction's 23
+    unplaceable codes fail in *both* vintages -- BEA's detail is by type of
+    structure (``2334A0``, ``233210``) and Census's by trade contractor
+    (``238110``), which is an axis difference a recode cannot bridge.  And the
+    52 unplaceable retail, information and real-estate codes carry ``RCPTOT``
+    and nothing else, so placing them yields receipts, not an expense seed.
+    """
+    concordance = pd.read_csv(NAICS_YEAR_CONCORDANCE, dtype=str)[
+        ['NAICS_2017_Code', 'NAICS_2022_Code']
+    ].dropna()
+    predecessors: dict[str, set[str]] = {}
+    for old, new in concordance.drop_duplicates().itertuples(index=False):
+        old, new = str(old).strip(), str(new).strip()
+        if len(old) == 6 and len(new) == 6 and old.isdigit() and new.isdigit():
+            predecessors.setdefault(new, set()).add(old)
+
+    added: dict[str, str] = {}
+    for code, olds in predecessors.items():
+        if code in placed:
+            continue
+        targets = {placed[old] for old in olds if old in placed}
+        if len(targets) == 1:
+            added[code] = targets.pop()
+    return added
 
 
 def bea_industry(naics: str) -> str | None:
