@@ -302,6 +302,13 @@ BENCHMARK_PANEL_YEARS: tuple[BENCHMARK_YEAR, ...] = (2007, 2012, 2017)
 
 BILLION = 1e9
 
+#: A column needs at least this many **observed** (unsuppressed) material rows in
+#: **both** vintages before its census mix is read as a measurement.  Below it the
+#: within-column mix is not observed at all, so an index built from it carries no
+#: information -- see :func:`columns_without_observed_mix` for the measurement and
+#: why one row is the threshold rather than zero.
+MIN_OBSERVED_MATERIAL_ROWS = 2
+
 
 @functools.cache
 def _naics_to_bea() -> tuple[dict[str, str], set[str]]:
@@ -1860,6 +1867,46 @@ def census_mix_on_bea_industries(
     return grouped[0], grouped[1]
 
 
+def columns_without_observed_mix() -> pd.DataFrame:
+    """Columns whose within-column materials mix is not observed in some vintage.
+
+    ``index`` is the BEA detail industry; columns are the observed
+    (**unsuppressed**) material row count in each vintage and their minimum.
+    A column appears when that minimum is below
+    :data:`MIN_OBSERVED_MATERIAL_ROWS`.
+
+    ⚠️ **Why this is not the same as "suppressed".** Around 40% of columns carry
+    *some* recovered cell and are fine -- they still have real observed structure
+    for the fill to sit beside. The columns here have essentially **none**: with
+    one observed row a column's mix is 100% on that row by construction, so the
+    2017 -> 2022 "movement" is a comparison between two numbers that were never
+    measured.
+
+    ✅ Measured on the reconciled unit basis, five columns qualify -- ``311221``,
+    ``331313``, ``336414``, ``33641A`` and ``336991`` -- carrying **0.85%** of the
+    seeded columns' BEA intermediate mass. ⚠️ Counting on bare NAICS instead of
+    :func:`_unit` wrongly adds the NAICS-2022 merge pairs (``336111``/``336112``
+    and others), whose 2017-basis codes have no 2022 rows *because they merged*;
+    :func:`_common_industry_basis` reconciles that and they are not a gap.
+
+    Two of the five are the reason this exists: ``336414`` and ``33641A`` show
+    94.1 and 73.4 percentage points of mix churn with suppression recovery on,
+    and **exactly 0.0** with it off, so all of it is fill.
+    """
+    counts = {}
+    for year in VINTAGES:
+        frame = materials(year, recover=False)
+        frame = frame[frame['tier'].isin(('direct', 'group'))].copy()
+        frame['unit'] = [_unit(year, str(code)) for code in frame['industry']]
+        frame['bea_industry'] = [_unit_to_bea(unit) for unit in frame['unit']]
+        frame = frame[frame['bea_industry'].notna()]
+        observed = frame[frame['Suppressed'].isna()]
+        counts[f'observed_{year}'] = observed.groupby('bea_industry').size()
+    table = pd.DataFrame(counts).fillna(0).astype(int)
+    table['minimum'] = table.min(axis=1)
+    return table[table['minimum'] < MIN_OBSERVED_MATERIAL_ROWS].sort_values('minimum')
+
+
 def materials_seed(
     year: int, clean: bool = False, columns: list[str] | None = None
 ) -> pd.DataFrame:
@@ -1892,6 +1939,14 @@ def materials_seed(
     An absent cell is an absence of information about movement, which is what
     holding the benchmark means -- not a fall to zero.
 
+    ⚠️ **A column with no observed mix holds the whole benchmark column**, on the
+    same reasoning one step up: if a vintage publishes at most one unsuppressed
+    material row, there is no within-column mix to have moved, and the index
+    built from it is the suppression fill talking. See
+    :func:`columns_without_observed_mix` -- five columns, **0.85%** of the seeded
+    mass, two of which carry 94.1 and 73.4 percentage points of churn that is
+    **entirely** fill.
+
     ⚠️ **This is the materials half only.**  It covers the 79.4% of
     manufacturing's column that :data:`~bedrock.extract.census.Census_EC` places;
     :func:`nonmaterial_seed` is the 6.4% beside it.
@@ -1905,6 +1960,8 @@ def materials_seed(
     mix = interpolate_shares(base_mix, _shares(second), t)
 
     index = (mix / base_mix.where(base_mix > 0)).replace([np.inf, -np.inf], np.nan)
+    unobserved = [c for c in columns_without_observed_mix().index if c in index.columns]
+    index[unobserved] = np.nan
     use = _use_2017_detail()
     man = columns if columns is not None else _manufacturing_bea_industries()
     man = [c for c in man if c in use.columns]
@@ -1931,9 +1988,22 @@ def mining_seed(year: int, clean: bool = False) -> pd.DataFrame:
     column against manufacturing's 51.2%, while ``213111`` places **6.7%** and
     ``21311A`` **15.6%**.
 
-    ⚠️ **This ships ungraded, on the same rule that let the materials seed ship.**
-    The benchmark holdout runs 2012 -> 2017 and ``Census_EC_MatFuel`` has no 2012
-    vintage, so the gate cannot decide here. The alternative is not a better
+    ⚠️ **This ships ungraded, on the same rule that let the materials seed ship
+    -- but not for the reason previously recorded here.** This docstring used to
+    say ``Census_EC_MatFuel`` has no 2012 vintage. **It has one** (7,488 rows,
+    393 industries, $6,260bn); :data:`VINTAGES` simply does not include it, and
+    ``place_on_commodities(2012, recover=False)`` places it onto 252 BEA
+    commodities against 2017's 213.
+
+    The real obstacle is that **2012 and 2017 are different material
+    taxonomies**, so the span measures a recoding rather than the economy: only
+    **132 of 1,274** codes are shared (against 291 of 291 across 2017 -> 2022), a
+    leading-digit rollup of 2012 onto the 2017 list recovers just **26.7%** of
+    2012 mass with 700 codes matching nothing, and median column churn is
+    **30.4pp** on 2012 -> 2017 versus **11.2pp** on the operational span. Scored
+    on it, the census seed comes out 133% *worse* than a frozen mix -- which
+    grades the taxonomy break, not the seed. Unlocking the holdout needs a
+    2012 <-> 2017 material concordance that does not currently exist. The alternative is not a better
     source, it is the frozen 2017 mix -- which asserts nothing changed in eight
     years, a *stronger* claim than the data makes.
     """
@@ -2000,6 +2070,11 @@ def main() -> None:
         '--holdout', action='store_true', help='score the suppression prior'
     )
     parser.add_argument(
+        '--unobserved',
+        action='store_true',
+        help='columns whose within-column mix is not observed, and are held',
+    )
+    parser.add_argument(
         '--services',
         action='store_true',
         help='the non-materials cells, and the seed they carry',
@@ -2020,6 +2095,7 @@ def main() -> None:
         or args.where
         or args.recovery
         or args.holdout
+        or args.unobserved
         or args.groups
         or args.vintage
         or args.annual
@@ -2044,6 +2120,14 @@ def main() -> None:
         print('\nScoring the suppression prior against masked truth')
         print('(recovered mass is exact by construction; this is allocation error)\n')
         print(holdout().round(3).to_string())
+    if args.all or args.unobserved:
+        print('\nColumns with no observed within-column mix, held at the benchmark')
+        print('(observed = unsuppressed rows, on the reconciled unit basis)\n')
+        print(columns_without_observed_mix().to_string())
+        print(
+            f'\n  threshold: fewer than {MIN_OBSERVED_MATERIAL_ROWS} observed '
+            'rows in either vintage'
+        )
     if args.all or args.recovery:
         print('\nWhat suppression recovery changed\n')
         compare = pd.concat(
