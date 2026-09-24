@@ -107,3 +107,26 @@ remain blocked only by process (comment + close path), not by an open Fix.
 
 No evidence of a bedrock derivation defect (NaN/auth, unsourced bridge, or
 invented non-EIA PCE) on this dump. GO-control was not opened — Fix path unused.
+
+## Two quantities on 2023–24 (not a contradiction)
+
+**Short version:** published series explain the row total’s YoY target move
+(issue [#990](https://github.com/cornerstone-data/bedrock/issues/990),
+PR [#992](https://github.com/cornerstone-data/bedrock/pull/992)); they do **not**
+clear the within-row distribution problem
+(issue [#896](https://github.com/cornerstone-data/bedrock/issues/896),
+PR [#973](https://github.com/cornerstone-data/bedrock/pull/973);
+residual bill work issues [#899](https://github.com/cornerstone-data/bedrock/issues/899) /
+[#900](https://github.com/cornerstone-data/bedrock/issues/900)).
+
+Earlier #896 / `electricity_row_control` work says the **2021→22 Use-row
+excursion** tracked **BEA’s own gross output** (reproduced to ~0.37pp), and that
+what remains **ours** on **2023→24** is the **realized share of intermediate
+use** collapsing (column allocation / seeding — Phase 2A). This #990 note says
+the **2023→24 intermediate target** (`T016 − ΣY`) drop is mostly **published
+residential PCE** tracking EPA Table 2.3. Those claims are about **different
+quantities**: share = how the Use row is distributed across purchasers relative
+to all intermediate; target = the row’s allowed dollar total before that
+distribution. Attributing the target move to published PCE does **not** retire
+the share/allocation problem, and calling the share collapse “ours” does **not**
+require a bedrock defect in `T016`/`Y`.
