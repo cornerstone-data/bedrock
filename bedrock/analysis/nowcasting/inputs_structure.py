@@ -1669,9 +1669,22 @@ def expense_panel() -> pd.DataFrame:
     ⚠️ Aggregated to **BEA detail industry**, because that is the axis the Use
     table's columns are on; several NAICS-6 industries can land on one column.
 
-    ⚠️ ``held`` marks a cell carried rather than observed -- only
-    :data:`NO_AIES_COUNTERPART` in 2023.  Read it before quoting a 2023 total
-    for those two kinds.
+    ⚠️ ``held`` marks a cell **estimated rather than observed**, and it now has
+    four sources, not one (jvendries, review of #995).  Read it before quoting
+    any total as a survey reading:
+
+    ``held from 2022``
+        :data:`NO_AIES_COUNTERPART` -- the two kinds AIES does not publish.
+    ``(<code> parent)``
+        :func:`_recover_from_published_parent` -- a withheld child filled from
+        the coarser line Census did publish, split on sibling shares.
+    ``(interpolated)``
+        :func:`_fill_interior_zeros` -- withheld at both the child and every
+        parent, bracketed by two observed years.
+    the year's own source name
+        :func:`_materialise_absent_years` -- a year the source omitted
+        entirely, materialised so the two devices above can see it.  ⚠️ One that
+        neither could fill is dropped again rather than left at zero.
     """
     kinds = tuple(EXPENSE_TO_BEA)
     frames = []
