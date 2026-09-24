@@ -1,4 +1,4 @@
-"""GHGRP/NEI facility combustion as an FBS attribution source (#929).
+"""GHGRP/NEI facility combustion as an FBS attribution source.
 
 Combines stewi GHGRP and NEI (FRS prefer-GHGRP), classifies fuel via
 :mod:`bedrock.transform.ghg.ghgrp_subpart_w` and NEI SCCs, and assigns BEA
@@ -49,21 +49,24 @@ _FUEL_TYPE_TO_FLOWABLE = (
     ),
 )
 
-# NEI SCC characters 4-5 (1-based fuel level) → Flowable.
-_NEI_SCC_FUEL = {
-    '01': 'Coal',
-    '02': 'Coal',
-    '03': 'Coal',
-    '04': 'Petroleum',
-    '05': 'Petroleum',
-    '06': 'Petroleum',
-    '07': 'Petroleum',
-    '08': 'Petroleum',
-    '09': 'Petroleum',
-    '10': 'Petroleum',
-    '11': 'Natural Gas',
-    '12': 'Natural Gas',
-    '13': 'Natural Gas',
+# EPA SCC Level 3 (chars 4-6) → Flowable by major category (char 1).
+# Branch 3 (industrial processes) uses a different Level-3 space — leave Other.
+_NEI_SCC_FUEL_EXTERNAL = {
+    '001': 'Coal',
+    '002': 'Coal',
+    '003': 'Coal',
+    '004': 'Petroleum',
+    '005': 'Petroleum',
+    '006': 'Natural Gas',
+    '007': 'Natural Gas',  # process gas; fuel_class still self_supplied
+    '012': 'Petroleum',  # LPG
+}
+_NEI_SCC_FUEL_INTERNAL = {
+    '001': 'Petroleum',  # distillate / diesel
+    '002': 'Natural Gas',
+    '003': 'Petroleum',  # gasoline
+    '004': 'Petroleum',
+    '005': 'Petroleum',  # LPG
 }
 
 
@@ -114,7 +117,7 @@ def build_facility_combustion(
     """GHGRP ∪ NEI facility combustion with fuel_class and Flowable.
 
     *year* is the GHGRP year; *nei_year* defaults to *year* (use 2022 for
-    2023/2024 NEI hold, #932). Optional filters come from the FBS method YAML.
+    2023/2024 NEI hold). Optional filters come from the FBS method YAML.
     """
     year = int(year)
     nei_year = int(nei_year if nei_year is not None else year)
@@ -138,7 +141,7 @@ def build_facility_combustion(
         raise ValueError(
             f'stewi returned no GHGRP flowbyprocess for {year}. '
             f'Public stewi serves GHGRP through 2023; 2024 needs a local FOIA '
-            f'build under stewi local_path (#931).'
+            f'build under stewi local_path.'
         )
     nei = nei[
         (nei['FlowName'] == 'Carbon Dioxide')
@@ -155,7 +158,16 @@ def build_facility_combustion(
         ),
     )
     scc = nei['Process'].astype(str)
-    nei['Flowable'] = scc.str[3:5].map(_NEI_SCC_FUEL).fillna('Other')
+    level3 = scc.str[3:6]
+    nei['Flowable'] = 'Other'
+    external = branch == '1'
+    nei.loc[external, 'Flowable'] = (
+        level3.loc[external].map(_NEI_SCC_FUEL_EXTERNAL).fillna('Other')
+    )
+    internal = branch == '2'
+    nei.loc[internal, 'Flowable'] = (
+        level3.loc[internal].map(_NEI_SCC_FUEL_INTERNAL).fillna('Other')
+    )
     nei = (
         nei.groupby(['FacilityID', 'fuel_class', 'Flowable'])['FlowAmount']
         .sum()
