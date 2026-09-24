@@ -104,6 +104,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 import facilitymatcher
 import facilitymatcher.colocation as colocation
@@ -2542,7 +2543,7 @@ SPLIT_BASIS_NONE = 'none'
 def _nei_combustion_process_anchors(
     anchor_a: int = 2021,
     anchor_b: int = 2022,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Build 2021/2022 twin tables used to backcast combustion vs process shares.
 
     Returns ``fac_a``, ``fac_b``, ``both`` (inner join with drift columns),
@@ -2593,8 +2594,8 @@ def _nei_combustion_process_anchors(
 def _apply_combustion_process_share(
     prior: pd.DataFrame,
     *,
-    twin_both: set,
-    twin_anchor_a: set,
+    twin_both: set[Any],
+    twin_anchor_a: set[Any],
     facility_share: pd.Series,
     naics_share: pd.Series,
     sector_share: pd.Series,
@@ -2730,7 +2731,7 @@ def nei_combustion_process_backcast(
         SPLIT_BASIS_NONE,
     )
     by_year_rows: list[dict[str, object]] = []
-    for year, g in facility.groupby('year'):
+    for yr, g in facility.groupby('year'):
         total = float(g['total'].sum())
         raw_c = float(g['combustion'].sum())
         known = g['combustion_backcast'].notna()
@@ -2738,7 +2739,7 @@ def nei_combustion_process_backcast(
         known_total = float(g.loc[known, 'total'].sum())
         by_year_rows.append(
             {
-                'year': int(year),
+                'year': int(cast(Any, yr)),
                 'facilities': len(g),
                 'total_Mt': total / 1e9,
                 'raw_combustion_Mt': raw_c / 1e9,
