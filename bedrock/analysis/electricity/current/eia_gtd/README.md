@@ -86,13 +86,9 @@ UGO305-A / EPA Table 2.3 residential. Not a standing gate mode on
 
 ⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
 `annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
-(see `bedrock/extract/README.md`). `electricity_row_control` also needs the
-gitignored `bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv`;
-generate it once with:
-
-```bash
-python -m bedrock.utils.mapping.write_ec_alt_measures
-```
+(see `bedrock/extract/README.md`). `ec_go_adjustment` reads the committed
+`bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv` (refresh from
+Census with `python -m bedrock.utils.mapping.write_ec_alt_measures`).
 
 ## Why the flat generation price fails
 
