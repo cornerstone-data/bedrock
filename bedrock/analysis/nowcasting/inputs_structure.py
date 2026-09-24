@@ -1440,12 +1440,17 @@ def _recover_from_published_parent(
             if total <= 0:
                 continue
             share = _sibling_share(
-                observed, str(row.kind), str(row.bea_industry), scope
+                observed,
+                str(row.kind),
+                str(row.bea_industry),
+                scope,
+                int(str(row.year)),
             )
             if share is None:
                 continue
             filled.loc[row.Index, 'FlowAmount'] = total * share
             filled.loc[row.Index, 'source'] = f'{row.source} ({code} parent)'
+            filled.loc[row.Index, 'held'] = True
             break
     return filled
 
@@ -1457,17 +1462,25 @@ def _ancestors(bea_code: str) -> list[str]:
 
 
 def _sibling_share(
-    observed: pd.DataFrame, kind: str, bea_industry: str, scope: set[str]
+    observed: pd.DataFrame, kind: str, bea_industry: str, scope: set[str], year: int
 ) -> float | None:
-    """This column's share of its parent's scope, from the nearest observed year."""
+    """This column's share of its parent's scope, from the nearest observed year.
+
+    ⚠️ **Nearest to the year being filled, not the latest in the panel.**  An
+    earlier version took the most recent full-scope year for every fill, which
+    read a 2018 cell's split off 2024 -- six years of structural change applied
+    backwards.  Ties break to the later year, on the argument that a split
+    observed after the gap has seen more of the industry's current shape than
+    one observed the same distance before it (jvendries, review of #995).
+    """
     if scope == {bea_industry}:
         return 1.0
     group = observed[observed['kind'] == kind]
     group = group[group['bea_industry'].isin(scope)]
     if group.empty:
         return None
-    for year in sorted(group['year'].unique(), reverse=True):
-        rows = group[group['year'] == year]
+    for candidate in sorted(group['year'].unique(), key=lambda y: (abs(y - year), -y)):
+        rows = group[group['year'] == candidate]
         if set(rows['bea_industry']) != scope:
             continue
         total = float(rows['FlowAmount'].sum())
@@ -1497,8 +1510,13 @@ def _fill_interior_zeros(panel: pd.DataFrame) -> pd.DataFrame:
     The form is :data:`SHIPPED_FORM`, geometric, which is not a fresh choice:
     :func:`interior_form_holdout` scored it on the benchmark panel, where
     interpolating beats freezing by 20.1% and geometric beats linear by 7.1%.
-    Neighbours are the nearest observed years either side, so a gap year that is
-    simply absent from a source does not break the bracket.
+
+    ⚠️ **Neighbours are the nearest *positive* years either side, not the
+    adjacent rows.**  An earlier version shifted by one row, so two consecutive
+    withheld years bracketed each other and neither filled -- the second zero
+    was the first one's "neighbour" and failed the ``> 0`` test (jvendries,
+    review of #995).  Searching outward past the zeros fixes both years of a run
+    and lets a year simply absent from a source pass through as well.
 
     The cell stays flagged ``held`` -- it is an estimate, not an observation.
 
@@ -1509,10 +1527,17 @@ def _fill_interior_zeros(panel: pd.DataFrame) -> pd.DataFrame:
     if panel.empty:
         return panel
     out = panel.sort_values(['kind', 'bea_industry', 'year']).copy()
-    grouped = out.groupby(['kind', 'bea_industry'])['FlowAmount']
-    before, after = grouped.shift(1), grouped.shift(-1)
-    year_before = out.groupby(['kind', 'bea_industry'])['year'].shift(1)
-    year_after = out.groupby(['kind', 'bea_industry'])['year'].shift(-1)
+    keys = ['kind', 'bea_industry']
+    # ⚠️ Mask the withheld rows out *before* searching, so ``shift`` then
+    # ``ffill``/``bfill`` reaches the nearest positive observation rather than
+    # stopping at the adjacent zero.
+    seen = out['FlowAmount'].where(out['FlowAmount'] > 0)
+    seen_year = out['year'].where(out['FlowAmount'] > 0)
+    grouped = out.assign(_v=seen, _y=seen_year).groupby(keys)
+    before = grouped['_v'].transform(lambda s: s.shift(1).ffill())
+    after = grouped['_v'].transform(lambda s: s.shift(-1).bfill())
+    year_before = grouped['_y'].transform(lambda s: s.shift(1).ffill())
+    year_after = grouped['_y'].transform(lambda s: s.shift(-1).bfill())
     interior = (out['FlowAmount'] == 0) & (before > 0) & (after > 0)
     if not interior.any():
         return out.reset_index(drop=True)
