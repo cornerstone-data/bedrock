@@ -33,6 +33,7 @@ module does the classification, and nothing here reaches the network.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 
 import numpy as np
 import pandas as pd
@@ -311,3 +312,111 @@ def fuel_class(year: int, total: pd.Series, subpart_c: pd.Series) -> pd.DataFram
         (classified.groupby('fuel_class_basis')['CO2e'].sum() / 1e9).round(1).to_dict(),
     )
     return classified[['FacilityID', 'fuel_class', 'CO2e', 'fuel_class_basis']]
+
+
+#: Segments whose combustion is **lease fuel** in EIA's accounts: fuel an
+#: operation burns out of the stream it is producing or moving to a plant.
+#: Natural gas distribution is in the subpart W combustion tables too, but
+#: reports no self-supplied fuel at all - a distribution utility burns
+#: pipeline-quality gas it bought - so it contributes nothing and is not listed.
+LEASE_FUEL_SEGMENTS = (
+    'Onshore petroleum and natural gas production',
+    'Onshore petroleum and natural gas gathering and boosting',
+)
+
+
+def lease_and_plant_fuel(
+    years: tuple[int, ...], subpart_c: Mapping[int, pd.Series]
+) -> pd.DataFrame:
+    """Fuel an oil and gas operation burned out of its own stream (#980).
+
+    The carve-out that has to come off the GHG inventory's **Natural Gas
+    Industrial** total before the rest is spread on a purchase row. No row of
+    the Use table can carry it, because it was never bought: attributing it with
+    one is a category error rather than an inaccuracy (#927).
+
+    Two halves, from the two routes this module's docstring describes:
+
+    ``lease`` — :data:`LEASE_FUEL_SEGMENTS` report combustion under **subpart
+        W**, where the reporter names the fuel. Nothing is inferred.
+    ``plant`` — a gas processing plant reports under **subpart C**, where the
+        label is a Table C-1 default. What the facility *is* settles it instead.
+        An inference, and ``basis`` says so.
+
+    ⚠️ **Transmission compression is deliberately in neither.** A compressor
+    station burns gas out of the pipeline it is moving, which is a purchase
+    somewhere in the chain; EIA books it as pipeline fuel, and the GHG inventory
+    books pipeline fuel in **transportation** rather than in the industrial
+    total this carve-out comes out of. :data:`SELF_SUPPLYING_SEGMENTS` excludes
+    it for the same reason.
+
+    ⚠️ **The sector is the consumer's job, not this function's.** A facility's
+    NAICS lives in the ``stewi`` facility file, which this module does not read.
+    Roughly 11% of the carve-out sits at gathering and processing operators
+    carrying a *pipeline transportation* NAICS - and that mass still belongs in
+    the industrial total, because gathering and plant fuel are lease and plant
+    fuel whatever the operator is classified as. Which national total holds the
+    emissions and which sector receives them are separate questions, and reading
+    the NAICS as an answer to the first deletes about a ninth of the carve-out.
+
+    :param years: reporting years to build
+    :param subpart_c: per year, each facility's subpart C mass, indexed by
+        ``FacilityID`` and on the caller's scale. Supplied rather than fetched so
+        this module stays off ``stewi``, as :func:`fuel_class` does.
+    :return: one row per facility, year and half, with ``CO2e`` on the scale
+        *subpart_c* was given in and ``basis`` naming the route
+    """
+    burned = subpart_W_combustion(years)
+    rows = []
+
+    if not burned.empty:
+        lease = burned[
+            (burned['fuel_class'] == 'self_supplied')
+            & burned['segment'].isin(LEASE_FUEL_SEGMENTS)
+        ]
+        rows.append(
+            lease.groupby(['FacilityID', 'year', 'segment'], as_index=False)['CO2e']
+            .sum()
+            .assign(half='lease', basis='GHGRP subpart W fuel')
+        )
+
+    for year in years:
+        plants = self_supplying_facilities(year)
+        if not plants:
+            log.warning(
+                'GHGRP %d: no gas processing facilities resolved, so the PLANT '
+                'half of the carve-out is empty and the year is lease-only. The '
+                'subpart W facility view is unavailable - set '
+                'GHGRP_EF_VIEWS_ARCHIVE. Do not quote this year as a carve-out.',
+                year,
+            )
+            continue
+        fuel = subpart_c.get(year)
+        if fuel is None:
+            continue
+        plant = fuel.reindex(sorted(plants)).dropna()
+        rows.append(
+            plant.rename('CO2e')
+            .to_frame()
+            .reset_index()
+            .assign(
+                year=year,
+                segment='Onshore natural gas processing',
+                half='plant',
+                basis='GHGRP segment',
+            )
+        )
+
+    columns = ['FacilityID', 'year', 'segment', 'half', 'basis', 'CO2e']
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    out = pd.concat(rows, ignore_index=True)
+    out = out[out['CO2e'] > 0]
+    log.info(
+        'GHGRP lease and plant fuel by year, Mt CO2e: %s',
+        (out.groupby(['year', 'half'])['CO2e'].sum() / 1e9)
+        .round(1)
+        .unstack('half')
+        .to_dict('index'),
+    )
+    return out[columns]
