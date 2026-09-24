@@ -607,18 +607,42 @@ def switching() -> pd.DataFrame:
     that burns the same mix in both vintages, 1 for one that changed carrier
     completely.
 
-    ``bea_over_mecs`` is BEA's group dollars divided by MECS's fuel bill, and it
-    is the **non-energy tell**.  A ratio near 1 means BEA's three rows are
-    roughly the fuel this industry burns.  A large ratio means they are mostly
-    something else -- feedstock, asphalt, lubricants -- and the industry's
-    apparent stillness is a measurement fact about MECS's fuel universe rather
-    than evidence that it could not switch.
+    ``bea_over_mecs`` is BEA's group dollars divided by MECS's fuel bill.  A
+    ratio near 1 means BEA's three rows are roughly the fuel this industry
+    burns.  A large ratio means the two are measuring different things.
 
-    ⚠️ **Stillness has two quite different causes and this cannot separate them
-    by itself.**  An industry can hold its mix because it is locked into one
-    carrier by its equipment, or because the fuel it buys is not being burned at
-    all.  ``bea_over_mecs`` distinguishes the second; the first has to be read
-    off what the industry is.
+    ❌ **A large ratio does NOT by itself mean "BEA's rows are not fuel", and
+    reading it that way was wrong** (Wes, 2026-09-24).  It has at least three
+    causes and the numerator is only one of them:
+
+    * **BEA's rows carry non-fuel.**  ``324122`` asphalt shingle at 28.3 is the
+      real case -- asphalt bought as a material, which ``CSTFU`` excludes.
+    * **MECS's denominator is rounded away.**  ⚠️ See ``mecs_tbtu`` and
+      ``rounded_carriers``.
+    * **BEA allocates rather than observes** in a small industry.
+
+    ⚠️ **Table 3.2 publishes whole trillion Btu, and 100% of its positive
+    quantities are integers.**  Any carrier under 0.5 trillion Btu reads as 0.
+    Tobacco (``3122``) is the case that exposed this: its whole energy use is 7
+    trillion Btu, only gas and electricity survive rounding, and yet MECS
+    publishes 3122 *prices* for distillate, residual, HGL, kerosene and motor
+    gasoline -- a price exists only where there is a purchase to price.  So its
+    7.3 ratio is a rounded-down denominator, not a non-fuel numerator.  There is
+    no finer source: Table 3.1's physical units are whole numbers too.
+
+    ✅ **The exposure is small and it is measured, not assumed.**  Only 3 of 232
+    BEA columns sit on a MECS row under 10 trillion Btu, carrying $0.16B of the
+    group's $58.6B (**0.3%**), and all three score ``switch`` 0.000 so nothing
+    moves on them.  95.6% of the dollars sit above 50 trillion Btu, where half a
+    trillion Btu is under 1%.  ``WITHHELD_SHARE`` catches the damaging case
+    anyway -- a carrier rounding to zero out of a small total crosses 10% of the
+    bill and the column is held.
+
+    ⚠️ **Stillness has several causes and this cannot separate them alone.**  An
+    industry can hold its mix because its equipment takes one carrier, because
+    what it buys is not burned, or because MECS cannot resolve it.  Read
+    ``bea_over_mecs`` with ``mecs_tbtu`` and ``rounded_carriers``, and against
+    what the industry actually is.
     """
     use = _use_2017_detail()
     rows = [c for c in FUEL_GROUP if c in use.index]
@@ -638,6 +662,20 @@ def switching() -> pd.DataFrame:
         for year, table in spend.items()
     }
     base_rows = routed[MECS_BASE]
+    # ⚠️ Resolution, so a large ``bea_over_mecs`` can be read for its cause.
+    # ``Total`` is the industry's whole energy use; a carrier that MECS prices
+    # but reports at zero trillion Btu is a purchase rounded away, not absent.
+    quantity = _cell(MECS_BASE, FUEL_QUANTITY)
+    price = _cell(MECS_BASE, PRICE)
+    energy = quantity.xs('Total', level='carrier')
+    rounded: dict[str, int] = {}
+    for naics in energy.index:
+        rounded[str(naics)] = sum(
+            1
+            for carrier, priced_as in TABLE_7_2_PRICE.items()
+            if float(quantity.get((naics, carrier), 0.0) or 0.0) == 0.0
+            and float(price.get((naics, priced_as), 0.0) or 0.0) > 0.0
+        )
 
     matched: dict[str, list[str]] = {}
     for industry in man:
@@ -664,6 +702,8 @@ def switching() -> pd.DataFrame:
                 'bea_$M': bea,
                 'mecs_fuel_$M': float(early.sum()),
                 'bea_over_mecs': bea / float(early.sum()),
+                'mecs_tbtu': float(energy.get(naics, float('nan'))),
+                'rounded_carriers': rounded.get(naics, 0),
                 'switch': float((share_late - share_early).abs().to_numpy().sum())
                 / 2.0,
                 'gas_18': float(share_early['221200']),
@@ -769,10 +809,14 @@ def main() -> None:
         print('\nHeld their mix (switch <= 0.02)\n')
         print(still.round(3).to_string())
         print(
-            '\n  bea_over_mecs is the non-energy tell: near 1 means BEA'
-            "\n  three rows are roughly what this industry burns, large means"
-            '\n  they are mostly feedstock, asphalt or lubricant and the'
-            '\n  stillness is about the measure, not about the equipment.'
+            '\n  bea_over_mecs near 1 means BEA three rows are roughly what'
+            '\n  this industry burns. LARGE HAS THREE CAUSES, not one: BEA'
+            '\n  rows carrying non-fuel (324122 asphalt, 28.3), a denominator'
+            '\n  rounded away (3122 tobacco, 7 TBtu total), or BEA allocating'
+            '\n  rather than observing. Read it with mecs_tbtu and'
+            '\n  rounded_carriers -- Table 3.2 publishes whole trillion Btu,'
+            '\n  so a carrier under 0.5 reads as zero while MECS still'
+            '\n  prices it.'
         )
     if args.all or args.check or not chosen:
         print('\nInvariants the wiring depends on\n')
