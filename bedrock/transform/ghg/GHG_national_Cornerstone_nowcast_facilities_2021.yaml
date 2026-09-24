@@ -55,12 +55,40 @@
            - Kerosene
        fedefl_mapping: UMD_GHGIA_AR5_100
        activity_sets:
-         petroleum_facility:
+         # petroleum split into separate activities for visibility, can be collapsed
+         petroleum_still_gas:
            selection_fields:
              PrimaryActivity:
                - Petroleum Industrial - Still Gas
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_petroleum_coke:
+           selection_fields:
+             PrimaryActivity:
                - Petroleum Industrial - Petroleum Coke
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_hgl:
+           selection_fields:
+             PrimaryActivity:
                - Petroleum Industrial - HGL
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_kerosene:
+           selection_fields:
+             PrimaryActivity:
                - Petroleum Industrial - Kerosene
            attribution_method: proportional
            attribution_source:
@@ -68,10 +96,23 @@
                selection_fields:
                  Flowable: Petroleum
 
-         petroleum_use:
+         petroleum_distillate:
            selection_fields:
              PrimaryActivity:
                - Petroleum Industrial - Distillate Fuel Oil
+           attribution_method: proportional
+           attribution_source:
+             Nowcast_Detail_Use_AfterRedef:
+               year: 2021
+               activity_to_sector_mapping: Cornerstone_2025
+               selection_fields:
+                 ActivityProducedBy: {'324110': ''}
+               clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
+               attribution_method: equal
+
+         petroleum_motor_gasoline:
+           selection_fields:
+             PrimaryActivity:
                - Petroleum Industrial - Motor Gasoline
            attribution_method: proportional
            attribution_source:
