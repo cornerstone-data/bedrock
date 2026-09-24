@@ -25,10 +25,10 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.analysis.electricity.current.eia_gtd.electricity_row_control import (
-    EIA_861_REVENUE_BN,
     ELECTRICITY_ROW,
     OUT_DIR,
     PCE_CODE,
+    eia_epa_table_2_3_revenue_bn,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,9 +149,7 @@ def load_year_levels(year: int) -> YearLevels:
         raise ValueError(f'BEA UGO305-A missing for {ELECTRICITY_ROW} in {year}')
     bea_go_usd = bea_go_m * _BEA_M_TO_USD
 
-    if year not in EIA_861_REVENUE_BN:
-        raise ValueError(f'EIA_861_REVENUE_BN missing year {year}')
-    eia_res_usd = float(EIA_861_REVENUE_BN[year][0]) * _BN_TO_USD
+    eia_res_usd = float(eia_epa_table_2_3_revenue_bn(year)[0]) * _BN_TO_USD
 
     return YearLevels(
         year=year,
@@ -342,7 +340,7 @@ def decide_span(
     else:  # Y_PCE
         bedrock_d = yb.y_pce_usd - ya.y_pce_usd
         published_d = yb.eia_residential_usd - ya.eia_residential_usd
-        cite = 'EIA-861 residential revenue'
+        cite = 'EIA EPA Table 2.3 residential revenue'
 
     if not _published_band_ok(bedrock_d, published_d):
         return SpanDecision(

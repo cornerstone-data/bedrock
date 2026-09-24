@@ -51,7 +51,7 @@ Per span, `dom` = largest `|fraction|` among `{T016, Y_PCE, Y_other}`.
 | `dom` | Published counterpart |
 |---|---|
 | `T016` | BEA UGO305-A (`detail_gross_output_panel(ec_adjusted=False)`) |
-| `Y_PCE` | EIA-861 residential revenue (`EIA_861_REVENUE_BN`) |
+| `Y_PCE` | EIA EPA Table 2.3 residential revenue (`eia_epa_table_2_3_revenue_bn` via `EIA_ElectricPowerAnnual`) |
 | `Y_other` | Cannot Attribute without a named BEA FD residual — forces Fix |
 
 **Fix** only when Attributed fails and a named derivation defect is written
@@ -68,7 +68,7 @@ blocked only by process (comment + close path), not by an open Fix.
 
 ### Year levels ($bn)
 
-| Year | T016 | Y_PCE | Y_other | Interior target | BEA UGO305-A | EIA-861 residential |
+| Year | T016 | Y_PCE | Y_other | Interior target | BEA UGO305-A | EPA Table 2.3 residential |
 |---:|---:|---:|---:|---:|---:|---:|
 | 2022 | 652.7 | 232.2 | 0.8 | 419.6 | 556.6 | 227.0 |
 | 2023 | 596.6 | 236.8 | 1.4 | 358.3 | 507.5 | 232.0 |
@@ -86,14 +86,14 @@ blocked only by process (comment + close path), not by an open Fix.
 | Span | Outcome | Dominant | Published track |
 |---|---|---|---|
 | **2022→23** | **Attributed** | `T016` (\|frac\| 0.92) | BEA UGO305-A YoY −$49.1bn vs bedrock T016 −$56.1bn (within 15%) |
-| **2023→24** | **Attributed** | `Y_PCE` (\|frac\| 0.79) | EIA-861 residential YoY +$12.4bn vs bedrock PCE +$16.3bn (within $5bn) |
+| **2023→24** | **Attributed** | `Y_PCE` (\|frac\| 0.79) | EPA Table 2.3 residential YoY +$12.4bn vs bedrock PCE +$16.3bn (within $5bn) |
 
 **Plain sentences (one per span):**
 
 - **2022→23:** The intermediate-target drop is mostly a fall in Supply `T016`,
   tracking BEA published industry gross output UGO305-A.
 - **2023→24:** The intermediate-target drop is mostly a rise in residential PCE
-  (`F01000`), tracking EIA-861 residential revenue (higher final demand shrinks
+  (`F01000`), tracking EIA EPA Table 2.3 residential revenue (higher final demand shrinks
   `T016 − ΣY`).
 
 No evidence of a bedrock derivation defect (NaN/auth, unsourced bridge, or
