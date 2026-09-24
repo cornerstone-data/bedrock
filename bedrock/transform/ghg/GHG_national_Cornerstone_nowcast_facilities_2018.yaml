@@ -25,10 +25,13 @@
     UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
        year: 2018
        activity_to_sector_mapping: UMD_GHGIA
-       clean_fba_before_activity_sets: !script_function:EPA_GHGI allocate_industrial_combustion
+       clean_fba_before_activity_sets:
+         - !script_function:EPA_GHGI allocate_industrial_combustion
+         - !script_function:EPA_GHGI split_activity_by_annex_shares
        clean_parameter:
          ratio_source: facilities
          year: 2018
+         nei_year: 2018
          sector_prefixes:
            - '21'
            - '22'
@@ -40,17 +43,85 @@
          keep_flowables:
            - Natural Gas
            - Coal
+         activity: Petroleum Industrial
+         annex_fba: 'UMD_GHGIA_T_A5_1_S6'
+         annex_year: 2018
+         fuels:
+           - Still Gas
+           - Distillate Fuel Oil
+           - Petroleum Coke
+           - Motor Gasoline
+           - HGL
+           - Kerosene
        fedefl_mapping: UMD_GHGIA_AR5_100
        activity_sets:
-         petroleum_industrial:
+         petroleum_still_gas:
            selection_fields:
              PrimaryActivity:
-               - Petroleum Industrial
+               - Petroleum Industrial - Still Gas
            attribution_method: proportional
            attribution_source:
              GHGRP_NEI_Facilities:
                selection_fields:
                  Flowable: Petroleum
+
+         petroleum_petroleum_coke:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Petroleum Coke
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_hgl:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - HGL
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_kerosene:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Kerosene
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_distillate:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Distillate Fuel Oil
+           attribution_method: proportional
+           attribution_source:
+             Nowcast_Detail_Use_AfterRedef:
+               year: 2018
+               activity_to_sector_mapping: Cornerstone_2025
+               selection_fields:
+                 ActivityProducedBy: {'324110': ''}
+               clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
+               attribution_method: equal
+
+         petroleum_motor_gasoline:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Motor Gasoline
+           attribution_method: proportional
+           attribution_source:
+             Nowcast_Detail_Use_AfterRedef:
+               year: 2018
+               activity_to_sector_mapping: Cornerstone_2025
+               selection_fields:
+                 ActivityProducedBy: {'324110': ''}
+               clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
+               attribution_method: equal
 
          natural_gas_nonmanufacturing:
            selection_fields:
