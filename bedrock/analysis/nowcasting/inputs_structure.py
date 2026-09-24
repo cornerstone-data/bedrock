@@ -1557,6 +1557,51 @@ def _fill_interior_zeros(panel: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
+#: ``year -> the source that answers for it``, inverted from
+#: :data:`EXPENSE_SOURCES` so a materialised gap row carries the right source and
+#: :func:`_recover_from_published_parent` can find that source's parent line.
+SOURCE_FOR_YEAR = {
+    year: source for source, years in EXPENSE_SOURCES.items() for year in years
+}
+
+
+def _materialise_absent_years(panel: pd.DataFrame) -> pd.DataFrame:
+    """An omitted row is a withheld cell, exactly as a published ``0`` is.
+
+    ⚠️ **Census withholds in two different shapes and only one used to be
+    visible.**  Some vintages publish the withheld cell as ``0``; others **omit
+    the code entirely**.  ``_recover_from_published_parent`` and
+    ``_fill_interior_zeros`` both iterate rows of the panel, so an omitted code
+    never reached either -- the gap stayed a gap and nothing said so.
+
+    The two shapes are the same information state, and the extract decides which
+    one you get.  The 2023 AIES pull in August materialised ``335911`` as twenty
+    all-zero rows and the September pull omits it, which is the whole of the
+    "234 recovered / 16 interpolated" versus "182 / 0" disagreement on #995 --
+    **the same data, differently shaped, and the second shape silently skipped
+    the repair** (jvendries, 2026-09-24).
+
+    So every ``(kind, bea_industry)`` that is observed at least once is expanded
+    onto the full set of :func:`expense_years`, and a missing year becomes an
+    explicit ``0`` carrying its source.  From there the existing two devices see
+    it.  ⚠️ **Only interior years matter** and both devices already enforce that,
+    so a series that genuinely starts late is not back-filled with invention.
+    """
+    if panel.empty:
+        return panel
+    years = list(expense_years())
+    pairs = panel[['kind', 'bea_industry']].drop_duplicates()
+    grid = pairs.merge(pd.DataFrame({'year': years}), how='cross')
+    merged = grid.merge(panel, on=['kind', 'bea_industry', 'year'], how='left')
+    absent = merged['FlowAmount'].isna()
+    merged.loc[absent, 'FlowAmount'] = 0.0
+    merged.loc[absent, 'held'] = True
+    merged.loc[absent, 'source'] = merged.loc[absent, 'year'].map(SOURCE_FOR_YEAR)
+    merged['held'] = absent | merged['held'].eq(True)
+    merged['materialised'] = absent
+    return merged
+
+
 def expense_panel() -> pd.DataFrame:
     """The non-materials expense cells, four sources on one set of names.
 
@@ -1635,8 +1680,18 @@ def expense_panel() -> pd.DataFrame:
     coarse = (
         pd.concat(coarse_frames, ignore_index=True) if coarse_frames else pd.DataFrame()
     )
+    panel = _materialise_absent_years(panel)
     panel = _recover_from_published_parent(panel, coarse, covers)
     panel = _fill_interior_zeros(panel)
+    # ⚠️ **A materialised row that nothing filled has to go back to being
+    # absent.**  It stands for a year outside the series' observed span -- no
+    # interior bracket, no published parent -- and leaving it at 0 would hand
+    # :func:`nonmaterial_seed` an index of 0 and zero the seeded cell, which is
+    # the very defect this function exists to repair.  Absent reaches
+    # ``fillna(1.0)`` and holds the benchmark, which is the right answer for a
+    # year we know nothing about.
+    panel = panel[~(panel['materialised'] & (panel['FlowAmount'] == 0))]
+    panel = panel.drop(columns='materialised').reset_index(drop=True)
 
     # ⚠️ AIES publishes no telephony and no expensed software, so 2023 would read
     # as a total collapse for both. Carry the 2022 census -- the last observation
