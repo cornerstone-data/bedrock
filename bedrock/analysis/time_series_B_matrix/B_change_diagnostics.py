@@ -104,6 +104,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 import facilitymatcher
 import facilitymatcher.colocation as colocation
@@ -2471,6 +2472,303 @@ def nei_scc_reclassification_summary(
             (f', union {row["union_facilities"]} facilities' if include_union else ''),
         )
     return pd.DataFrame(rows).set_index('year')
+
+
+def _nei_onsite_combustion_process_by_facility(year: int) -> pd.DataFrame:
+    """NEI on-site CO2 per facility, split SCC combustion (1-2) vs process (3).
+
+    Mobile SCCs (``22…``) are dropped, matching :func:`facility_combustion`.
+    No GHGRP and no ``fuel_class`` — this is only the coding split (#926).
+    """
+    sectors = _facility_sectors('NEI', year)
+    nei = stewi.getInventory(
+        'NEI', year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    process = nei['Process'].astype(str)
+    nei = nei[
+        (nei['FlowName'] == 'Carbon Dioxide')
+        & process.str[0].isin(ONSITE_SCC_BRANCHES)
+        & (process.str[:2] != MOBILE_SCC_PREFIX)
+    ].copy()
+    branch = nei['Process'].astype(str).str[0]
+    nei['combustion'] = np.where(
+        branch.isin(COMBUSTION_SCC_BRANCHES), nei['FlowAmount'], 0.0
+    )
+    nei['process_co2'] = np.where(
+        ~branch.isin(COMBUSTION_SCC_BRANCHES), nei['FlowAmount'], 0.0
+    )
+    by_fac = (
+        nei.groupby('FacilityID')
+        .agg(
+            total=('FlowAmount', 'sum'),
+            combustion=('combustion', 'sum'),
+            process=('process_co2', 'sum'),
+        )
+        .join(sectors, how='left')
+    )
+    by_fac = by_fac[by_fac['total'] > 0].copy()
+    by_fac['combustion_share'] = by_fac['combustion'] / by_fac['total']
+    by_fac['year'] = year
+    naics = by_fac['NAICS'].astype(str).str.replace(r'\.0$', '', regex=True)
+    by_fac['naics6'] = naics.where(naics.str.fullmatch(r'\d{6}'), other=pd.NA)
+    return by_fac
+
+
+def _weighted_mean_share(
+    frame: pd.DataFrame,
+    group: str,
+    share_a: str,
+    share_b: str,
+    weight_a: str,
+    weight_b: str,
+) -> pd.Series:
+    """Mass-weighted mean of the two-year mean combustion share, by *group*."""
+    pieces = []
+    for key, g in frame.dropna(subset=[group]).groupby(group):
+        share = (g[share_a] + g[share_b]) / 2.0
+        weight = g[weight_a] + g[weight_b]
+        if weight.sum() <= 0:
+            continue
+        pieces.append((key, float(np.average(share, weights=weight))))
+    return pd.Series(dict(pieces), dtype=float)
+
+
+#: Labels :func:`nei_combustion_process_backcast` writes on ``split_basis``.
+SPLIT_BASIS_RAW_SCC = 'NEI SCC'
+SPLIT_BASIS_NAICS6 = 'naics6_twin_mean'
+SPLIT_BASIS_SECTOR = 'sector_twin_mean'
+SPLIT_BASIS_NONE = 'none'
+
+
+def _nei_combustion_process_anchors(
+    anchor_a: int = 2021,
+    anchor_b: int = 2022,
+) -> dict[str, Any]:
+    """Build 2021/2022 twin tables used to backcast combustion vs process shares.
+
+    Returns ``fac_a``, ``fac_b``, ``both`` (inner join with drift columns),
+    ``facility_share`` (FacilityID -> share, both-anchors mean then *anchor_a*
+    alone), plus NAICS-6 and sector means from the both-anchor set.
+    """
+    fac_a = _nei_onsite_combustion_process_by_facility(anchor_a)
+    fac_b = _nei_onsite_combustion_process_by_facility(anchor_b)
+    both = fac_a.join(
+        fac_b[['total', 'combustion', 'process', 'combustion_share']],
+        how='inner',
+        lsuffix=f'_{anchor_a}',
+        rsuffix=f'_{anchor_b}',
+    )
+    share_a = f'combustion_share_{anchor_a}'
+    share_b = f'combustion_share_{anchor_b}'
+    tot_a = f'total_{anchor_a}'
+    tot_b = f'total_{anchor_b}'
+    both['share_drift_pp'] = (both[share_b] - both[share_a]) * 100
+    both['abs_share_drift_pp'] = both['share_drift_pp'].abs()
+    both['weight_Mt'] = (both[tot_a] + both[tot_b]) / 2.0 / 1e9
+
+    mean_both = both[[share_a, share_b]].mean(axis=1)
+    # Prefer the two-year mean; fall back to anchor_a alone for 2021-only twins.
+    facility_share = fac_a['combustion_share'].copy()
+    facility_share.loc[mean_both.index] = mean_both
+
+    return {
+        'fac_a': fac_a,
+        'fac_b': fac_b,
+        'both': both,
+        'facility_share': facility_share,
+        'twin_both': set(both.index),
+        'twin_anchor_a': set(fac_a.index),
+        'naics_share': _weighted_mean_share(
+            both, 'naics6', share_a, share_b, tot_a, tot_b
+        ),
+        'sector_share': _weighted_mean_share(
+            both, 'sector', share_a, share_b, tot_a, tot_b
+        ),
+        'anchor_a': anchor_a,
+        'anchor_b': anchor_b,
+        'basis_mean_facility': f'mean_{anchor_a}_{anchor_b}_facility',
+        'basis_anchor_a_facility': f'{anchor_a}_facility',
+    }
+
+
+def _apply_combustion_process_share(
+    prior: pd.DataFrame,
+    *,
+    twin_both: set[Any],
+    twin_anchor_a: set[Any],
+    facility_share: pd.Series,
+    naics_share: pd.Series,
+    sector_share: pd.Series,
+    basis_mean_facility: str,
+    basis_anchor_a_facility: str,
+) -> pd.DataFrame:
+    """Attach ``backcast_share`` / ``split_basis`` using the twin cascade."""
+    out = prior.copy()
+    in_both = out.index.isin(twin_both)
+    in_a = out.index.isin(twin_anchor_a)
+    out['twin_class'] = np.where(
+        in_both,
+        'twin_both_anchors',
+        np.where(in_a, 'twin_2021_only', 'needs_sector_average'),
+    )
+    out['backcast_share'] = np.nan
+    out['split_basis'] = SPLIT_BASIS_NONE
+
+    out.loc[in_both, 'backcast_share'] = pd.Series(
+        out.index.map(facility_share), index=out.index
+    ).loc[in_both]
+    out.loc[in_both, 'split_basis'] = basis_mean_facility
+
+    only_a = in_a & ~in_both
+    out.loc[only_a, 'backcast_share'] = pd.Series(
+        out.index.map(facility_share), index=out.index
+    ).loc[only_a]
+    out.loc[only_a, 'split_basis'] = basis_anchor_a_facility
+
+    still = out['split_basis'] == SPLIT_BASIS_NONE
+    out.loc[still, 'backcast_share'] = out.loc[still, 'naics6'].map(naics_share)
+    filled = still & out['backcast_share'].notna()
+    out.loc[filled, 'split_basis'] = SPLIT_BASIS_NAICS6
+
+    still = out['split_basis'] == SPLIT_BASIS_NONE
+    out.loc[still, 'backcast_share'] = out.loc[still, 'sector'].map(sector_share)
+    filled = still & out['backcast_share'].notna()
+    out.loc[filled, 'split_basis'] = SPLIT_BASIS_SECTOR
+    return out
+
+
+def nei_combustion_process_backcast(
+    years: tuple[int, ...] | None = None,
+    anchor_a: int = 2021,
+    anchor_b: int = 2022,
+) -> dict[str, pd.DataFrame]:
+    """Backcast NEI combustion vs process coding using 2021/2022 SCC shares.
+
+    ⚠️ **Levels are never changed.** Each facility keeps its contemporaneous
+    on-site CO2 total (SCC branches 1-3). Only the *split* into combustion
+    (branches 1-2) and process (branch 3) is restated for years before
+    :data:`NEI_FUEL_CLASS_FIRST_YEAR`, where raw SCC coding parked almost all
+    mass on process.
+
+    For years from 2021 on, the split is the raw SCC assignment
+    (``split_basis='NEI SCC'``). For earlier years the cascade is:
+
+    1. mean combustion share of the same ``FacilityID`` in 2021 and 2022
+    2. else that facility's 2021 share alone
+    3. else NAICS-6 mean among 2021∩2022 twins
+    4. else BEA-sector mean among those twins
+    5. else ``split_basis='none'`` — total kept, combustion/process left null
+
+    Returns ``facility`` (one row per FacilityID x year) and ``by_year``
+    (national raw vs backcast combustion Mt and share).
+
+    TODO: if this split is adopted for B / D15 analysis, do **not** silently
+    replace :func:`facility_combustion` pre-2021 ``unclassified`` rows. Decide
+    explicitly whether (a) a parallel combustion/process series is enough, or
+    (b) pre-2021 ``fuel_class`` should be invented from backcast shares -- and
+    in case (b) how ``self_supplied`` (process-gas SCC level-3) is recovered
+    when those digits only exist on post-2021 combustion branches. Twin
+    coverage and 2021/2022 share drift are recorded on #926; a 2022->2021
+    holdout and large-sector spot checks belong in that follow-up, not here.
+    """
+    years = years or tuple(y for y in YEARS if y <= NEI_LAST_YEAR)
+    anchors = _nei_combustion_process_anchors(anchor_a, anchor_b)
+    pieces: list[pd.DataFrame] = []
+    for year in years:
+        raw = _nei_onsite_combustion_process_by_facility(year)
+        if year >= NEI_FUEL_CLASS_FIRST_YEAR:
+            out = raw.assign(
+                twin_class='anchor_year',
+                backcast_share=raw['combustion_share'],
+                split_basis=SPLIT_BASIS_RAW_SCC,
+                combustion_backcast=raw['combustion'],
+                process_backcast=raw['process'],
+            )
+        else:
+            out = _apply_combustion_process_share(
+                raw,
+                twin_both=anchors['twin_both'],
+                twin_anchor_a=anchors['twin_anchor_a'],
+                facility_share=anchors['facility_share'],
+                naics_share=anchors['naics_share'],
+                sector_share=anchors['sector_share'],
+                basis_mean_facility=anchors['basis_mean_facility'],
+                basis_anchor_a_facility=anchors['basis_anchor_a_facility'],
+            )
+            known = out['backcast_share'].notna()
+            out['combustion_backcast'] = np.where(
+                known, out['total'] * out['backcast_share'], np.nan
+            )
+            out['process_backcast'] = np.where(
+                known, out['total'] * (1.0 - out['backcast_share']), np.nan
+            )
+        out['year'] = year
+        pieces.append(out)
+        known_mt = out.loc[out['split_basis'] != SPLIT_BASIS_NONE, 'total'].sum() / 1e9
+        logger.info(
+            'NEI combustion/process backcast %d: %.1f Mt total, %.1f Mt with a '
+            'split (raw combustion share %.1f%%, backcast %.1f%% of known mass)',
+            year,
+            out['total'].sum() / 1e9,
+            known_mt,
+            out['combustion'].sum() / out['total'].sum() * 100,
+            (
+                out['combustion_backcast'].sum()
+                / out.loc[out['combustion_backcast'].notna(), 'total'].sum()
+                * 100
+                if out['combustion_backcast'].notna().any()
+                else float('nan')
+            ),
+        )
+
+    facility = pd.concat(pieces)
+    basis_labels = (
+        SPLIT_BASIS_RAW_SCC,
+        anchors['basis_mean_facility'],
+        anchors['basis_anchor_a_facility'],
+        SPLIT_BASIS_NAICS6,
+        SPLIT_BASIS_SECTOR,
+        SPLIT_BASIS_NONE,
+    )
+    by_year_rows: list[dict[str, object]] = []
+    for yr, g in facility.groupby('year'):
+        total = float(g['total'].sum())
+        raw_c = float(g['combustion'].sum())
+        known = g['combustion_backcast'].notna()
+        back_c = float(g.loc[known, 'combustion_backcast'].sum())
+        known_total = float(g.loc[known, 'total'].sum())
+        by_year_rows.append(
+            {
+                'year': int(cast(Any, yr)),
+                'facilities': len(g),
+                'total_Mt': total / 1e9,
+                'raw_combustion_Mt': raw_c / 1e9,
+                'raw_combustion_share_%': (
+                    raw_c / total * 100 if total else float('nan')
+                ),
+                'backcast_combustion_Mt': back_c / 1e9,
+                'backcast_combustion_share_%': (
+                    back_c / known_total * 100 if known_total else float('nan')
+                ),
+                'split_known_Mt': known_total / 1e9,
+                'split_known_%_Mt': (
+                    known_total / total * 100 if total else float('nan')
+                ),
+                **{
+                    f'basis_{b}_Mt': float(g.loc[g['split_basis'] == b, 'total'].sum())
+                    / 1e9
+                    for b in basis_labels
+                },
+            }
+        )
+    by_year = pd.DataFrame(by_year_rows).set_index('year')
+    return {
+        'facility': facility,
+        'by_year': by_year,
+        'anchor_drift': anchors['both'].sort_values(
+            'abs_share_drift_pp', ascending=False
+        ),
+    }
 
 
 def facility_basis_comparison(
