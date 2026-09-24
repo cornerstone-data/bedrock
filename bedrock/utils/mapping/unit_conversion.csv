@@ -30,3 +30,5 @@ employees,p,1
 Thousand USD,USD,1000
 Million USD,USD,1000000
 kg/employee,kg/p,1
+MMCF,MMT CO2e,5.444E-05
+MMcf,MMT CO2e,5.444E-05
