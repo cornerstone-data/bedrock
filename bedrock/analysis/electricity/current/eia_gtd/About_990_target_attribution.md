@@ -72,8 +72,10 @@ range that was run — reportable, not a gate.
 
 ## Results (run 2026-09-23; focus spans)
 
-**#990 focus decision: Attributed.** No production code change. #899 / #900
-remain blocked only by process (comment + close path), not by an open Fix.
+**#990 focus decision: Attributed.** No change to model `T016` / `Y` sources
+(the Fix path was unused). Review follow-up does replace the stale EIA revenue
+literal with live EPA Table 2.3 via `EIA_ElectricPowerAnnual`. Issues #899 /
+#900 remain the allocation track.
 
 ### Year levels ($bn)
 
@@ -130,3 +132,14 @@ to all intermediate; target = the row’s allowed dollar total before that
 distribution. Attributing the target move to published PCE does **not** retire
 the share/allocation problem, and calling the share collapse “ours” does **not**
 require a bedrock defect in `T016`/`Y`.
+
+## On closing issue #990
+
+This lands as a **validation**, not a model fix. Realized electricity share of
+intermediate use still falls **2.02% → 1.70% → 1.54%** on the same MUT; the
+model still produces those numbers. **Attributed** means the 2022–24
+intermediate-**target** YoY moves **track published series** (BEA UGO305-A /
+EPA Table 2.3 residential) within the locked bands — weaker than saying
+allocation / within-row distribution is right. That is a legitimate #990 exit
+and is what unblocks residual bill work (issues #899 / #900) on the 2017–24
+window. Do not read close of #990 as close of issue #896.

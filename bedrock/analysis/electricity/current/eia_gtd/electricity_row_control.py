@@ -99,7 +99,9 @@ _EIA_REVENUE_SECTORS = (
     'Industrial',
     'Transportation',
 )
-_TABLE_2_3_DESCRIPTION = 'Table 2.3 Revenue from sales of electricity to ultimate customers'
+_TABLE_2_3_DESCRIPTION = (
+    'Table 2.3 Revenue from sales of electricity to ultimate customers'
+)
 _TABLE_2_3_PROVIDER = 'Total Electric Industry'
 _USD_TO_BN = 1e-9
 
@@ -116,7 +118,11 @@ def eia_epa_table_2_3_revenue_bn(year: int) -> tuple[float, float, float, float]
     df = getFlowByActivity('EIA_ElectricPowerAnnual', year)
     mask = (
         (df['Year'] == year)
-        & (df['Description'].astype(str).str.startswith(_TABLE_2_3_DESCRIPTION, na=False))
+        & (
+            df['Description']
+            .astype(str)
+            .str.startswith(_TABLE_2_3_DESCRIPTION, na=False)
+        )
         & (df['ActivityProducedBy'] == _TABLE_2_3_PROVIDER)
     )
     subset = df.loc[mask]
@@ -130,6 +136,7 @@ def eia_epa_table_2_3_revenue_bn(year: int) -> tuple[float, float, float, float]
             )
         values.append(float(rows.iloc[0]) * _USD_TO_BN)
     return values[0], values[1], values[2], values[3]
+
 
 #: Tolerances for ``--check``.  The offset to BEA gross output is a level
 #: difference we expect and do not police; what must hold is that it is *flat*,
