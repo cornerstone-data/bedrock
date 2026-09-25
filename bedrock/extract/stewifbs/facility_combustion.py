@@ -7,20 +7,23 @@ detail sectors for method YAML selection on ``Flowable``.
 Rules documented for callers / method authors:
 
 - **Mobile SCCs dropped:** NEI ``Process`` codes whose first two digits are
-  ``22`` (aircraft at airports and other mobile point sources) are excluded
-  (#925). SCC is gone after aggregation, so this cannot be done in YAML
+  ``22`` (aircraft at airports and other mobile point sources) are excluded.
+  SCC is gone after aggregation, so this cannot be done in YAML
   ``exclusion_fields``.
 - **NEI ``fuel_class`` / Flowable from SCC only for 2021+**
   (``NEI_FUEL_CLASS_FIRST_YEAR``). Before 2021 the SCC coding parked almost
-  all on-site CO2 on process branches (#926); those years keep NEI levels as
+  all on-site CO2 on process branches; those years keep NEI levels as
   ``unclassified`` / ``Other`` and do not impute NEI shares onto GHGRP.
   GHGRP subpart W / plant-segment classification is unchanged in every year.
 - **Prefer GHGRP** on ``FRS_ID``; NEI-only facilities fill the residual.
-  Same-site address fallback (#925) recovers links FRS missed.
+  Same-site address fallback recovers links FRS missed.
 - **CO2e for weights:** GHGRP CO2/CH4/N2O collapsed with AR6 CEDA GWPs so
-  multi-gas facilities can share with NEI CO2. Output ``Flowable`` is a fuel
-  name (Petroleum / Natural Gas / Coal), not an elementary gas — FedEFL does
-  not re-characterize these attribution weights.
+  multi-gas facilities can share with NEI CO2. Prefer-GHGRP ``Flowable`` stays
+  the bare fuel name (``Petroleum``, ``Natural Gas``, ``Coal``).
+- **Share-weight rows:** GHGRP lease/plant natural gas is appended for YAML
+  selection only as ``Flowable: Natural Gas - lease and plant`` (FBS has no
+  ``Description`` field). Those tonnes are excluded from the logged prefer-GHGRP
+  total.
 """
 
 from __future__ import annotations
@@ -135,9 +138,7 @@ def _frs_map(matches: pd.DataFrame, source: str) -> pd.Series:
     return rows.set_index('FacilityID')['FRS_ID']
 
 
-def _same_site_frs(
-    ghgrp: pd.DataFrame, nei: pd.DataFrame, year: int
-) -> pd.Series:
+def _same_site_frs(ghgrp: pd.DataFrame, nei: pd.DataFrame, year: int) -> pd.Series:
     """NEI FacilityID → GHGRP FRS_ID for same-address sites FRS missed (#925)."""
 
     def keys(inventory: str, ids: pd.Series) -> pd.DataFrame:
@@ -156,7 +157,8 @@ def _same_site_frs(
             }
         )
         return out[
-            out['address'].str.match(r'^\d') & out['FacilityID'].isin(set(ids.astype(str)))
+            out['address'].str.match(r'^\d')
+            & out['FacilityID'].isin(set(ids.astype(str)))
         ]
 
     linked = set(nei['FRS_ID'].dropna())
@@ -174,9 +176,7 @@ def _same_site_frs(
     if pairs.empty:
         return pd.Series(dtype='object')
 
-    shares_token = [
-        bool(a & b) for a, b in zip(pairs['tokens_g'], pairs['tokens_n'])
-    ]
+    shares_token = [bool(a & b) for a, b in zip(pairs['tokens_g'], pairs['tokens_n'])]
     pairs = pairs[
         pd.Series(shares_token, index=pairs.index)
         | ((pairs['sector3_g'] == pairs['sector3_n']) & (pairs['sector3_g'] != ''))
@@ -186,7 +186,9 @@ def _same_site_frs(
     return pairs.dropna(subset=['FRS_ID']).groupby('FacilityID_n')['FRS_ID'].min()
 
 
-def _classify_nei(nei: pd.DataFrame, sectors: pd.DataFrame, *, use_scc: bool) -> pd.DataFrame:
+def _classify_nei(
+    nei: pd.DataFrame, sectors: pd.DataFrame, *, use_scc: bool
+) -> pd.DataFrame:
     """Aggregate on-site NEI CO2; SCC fuel labels only when *use_scc* (#926)."""
     if use_scc:
         process = nei['Process'].astype(str)
@@ -196,7 +198,9 @@ def _classify_nei(nei: pd.DataFrame, sectors: pd.DataFrame, *, use_scc: bool) ->
             fuel_class=np.where(
                 ~branch.isin(COMBUSTION_SCC_BRANCHES),
                 'process',
-                np.where(level3 == PROCESS_GAS_SCC_LEVEL3, 'self_supplied', 'purchased'),
+                np.where(
+                    level3 == PROCESS_GAS_SCC_LEVEL3, 'self_supplied', 'purchased'
+                ),
             ),
             Flowable='Other',
         )
@@ -234,9 +238,11 @@ def _ghgrp_with_flowable(
         burned = burned.assign(
             Flowable=burned['fuel_type'].map(_flowable_from_fuel_type)
         )
-        w_fuel = burned.groupby(['FacilityID', 'fuel_class', 'Flowable'], as_index=False)[
-            'CO2e'
-        ].sum()
+        w_fuel = (
+            burned.groupby(['FacilityID', 'fuel_class', 'Flowable'])['CO2e']
+            .sum()
+            .reset_index()
+        )
         rest = (
             per_facility.reindex(w_fuel['FacilityID'].unique()).fillna(0.0)
             - w_fuel.groupby('FacilityID')['CO2e'].sum()
@@ -303,6 +309,28 @@ def _apply_nei_shares(ghgrp: pd.DataFrame, nei: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([shared, unmatched], ignore_index=True)
 
 
+def lease_and_plant_total_mmt(year: int) -> float:
+    """GHGRP lease/plant fuel total in MMT CO2e for inventory carve levels."""
+    year = int(year)
+    flows = stewi.getInventory(
+        'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    if flows is None or getattr(flows, 'empty', True):
+        return 0.0
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    combustion = flows[
+        (flows['Process'] == 'C') & flows['FlowName'].isin(GHGRP_FLOW_MAP)
+    ].copy()
+    combustion['CO2e'] = combustion['FlowAmount'] * combustion['FlowName'].map(
+        GHGRP_FLOW_MAP
+    ).map(gwp)
+    subpart_c = combustion.groupby('FacilityID')['CO2e'].sum()
+    carved = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
+    if carved.empty:
+        return 0.0
+    return float(carved['CO2e'].sum()) / 1e9
+
+
 def build_facility_combustion(
     year: int,
     *,
@@ -314,8 +342,12 @@ def build_facility_combustion(
     """GHGRP ∪ NEI facility combustion with ``fuel_class`` and ``Flowable``.
 
     *year* is the GHGRP year; *nei_year* defaults to *year* (use 2022 for
-    2023/2024 NEI hold). See module docstring for mobile SCC, #926 gate, and
+    2023/2024 NEI hold). See module docstring for mobile SCC, fuel_class gate, and
     prefer-GHGRP rules. Optional filters come from the FBS method YAML.
+
+    Also appends GHGRP lease/plant **share-weight** rows for YAML as
+    ``Flowable: Natural Gas - lease and plant``. Those tonnes are not added into
+    the logged union total. Prefer-GHGRP rows keep bare fuel ``Flowable`` names.
     """
     year = int(year)
     nei_year = int(nei_year if nei_year is not None else year)
@@ -343,9 +375,7 @@ def build_facility_combustion(
         & process.str[0].isin(ONSITE_SCC_BRANCHES)
         & (process.str[:2] != MOBILE_SCC_PREFIX)
     ]
-    nei = _classify_nei(
-        nei_raw, _facility_sectors('NEI', nei_year), use_scc=use_scc
-    )
+    nei = _classify_nei(nei_raw, _facility_sectors('NEI', nei_year), use_scc=use_scc)
 
     gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
     flows = flows[
@@ -355,9 +385,10 @@ def build_facility_combustion(
     flows['CO2e'] = flows['FlowAmount'] * flows['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
     per_facility = flows.groupby('FacilityID')['CO2e'].sum()
     subpart_c = flows[flows['Process'] == 'C'].groupby('FacilityID')['CO2e'].sum()
+    ghgrp_sectors = _facility_sectors('GHGRP', year)
     ghgrp = (
         per_facility.reset_index()
-        .join(_facility_sectors('GHGRP', year), on='FacilityID')
+        .join(ghgrp_sectors, on='FacilityID')
         .assign(
             source='GHGRP',
             fuel_class='unclassified',
@@ -405,12 +436,41 @@ def build_facility_combustion(
     ).rename(columns={'FlowAmount': 'CO2e'})
     union = union[union['sector'].astype(str).str.strip().str[:2].isin(sector_prefixes)]
     if keep_flowables is not None:
-        union = union[union['Flowable'].astype(str).isin({str(f) for f in keep_flowables})]
+        union = union[
+            union['Flowable'].astype(str).isin({str(f) for f in keep_flowables})
+        ]
     union = union.assign(year=year)
+    union_mt = float(union['CO2e'].sum()) / 1e9
+
+    # Lease/plant share-weight rows only (not part of the prefer-GHGRP level total).
+    # Distinct Flowable so YAML can select them; FBS has no Description column.
+    lease = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
+    if not lease.empty:
+        weights = (
+            lease.groupby('FacilityID', as_index=False)['CO2e']
+            .sum()
+            .join(ghgrp_sectors, on='FacilityID')
+            .assign(
+                source='GHGRP',
+                fuel_class='lease and plant',
+                Flowable='Natural Gas - lease and plant',
+                year=year,
+            )
+        )
+        weights = weights[weights['CO2e'] > 0]
+        if exclude_sectors:
+            weights = weights[~weights['sector'].astype(str).isin(exclude_sectors)]
+        weights = weights[
+            weights['sector'].notna()
+            & weights['sector'].astype(str).str.strip().str[:2].isin(sector_prefixes)
+        ]
+        for col in set(union.columns) - set(weights.columns):
+            weights[col] = np.nan
+        union = pd.concat([union, weights[union.columns]], ignore_index=True)
+
+    n_facilities = int(union['FacilityID'].nunique())
     log.info(
-        'Facility combustion %d: %.1f Mt over %d facilities',
-        year,
-        union['CO2e'].sum() / 1e9,
-        union['FacilityID'].nunique(),
+        f'Facility combustion {year}: {union_mt:.1f} Mt prefer-GHGRP over '
+        f'{n_facilities} facilities (share-weight rows excluded from Mt)'
     )
     return union.reset_index(drop=True)

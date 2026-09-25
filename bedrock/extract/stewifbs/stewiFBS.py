@@ -362,6 +362,11 @@ def facility_combustion_to_sector(
     """
     Returns GHGRP/NEI facility combustion weights in FBS format for attribution.
 
+    Builds via :func:`~bedrock.extract.stewifbs.facility_combustion.build_facility_combustion`
+    (prefer-GHGRP ∪ NEI-only; drops mobile SCC ``22*``; NEI SCC fuel labels
+    only from 2021+). Prefer-GHGRP ``Flowable`` is the bare fuel name; lease/plant
+    share weights use ``Natural Gas - lease and plant``.
+
     :param config: may include:
         inventory_dict: GHGRP and optional NEI years (e.g. ``{'GHGRP':'2023',
             'NEI':'2022'}``)
@@ -371,8 +376,7 @@ def facility_combustion_to_sector(
         keep_flowables: optional Flowable labels to keep
     :param full_name: FBS name
     :param external_config_path: unused; accepted for FBS_datapull signature
-    :return: FlowBySector with fuel on Flowable and fuel_class on
-        ActivityConsumedBy
+    :return: FlowBySector with facility combustion weights
     """
     _ = (external_config_path, _kwargs)
     config = dict(config)
@@ -410,7 +414,7 @@ def facility_combustion_to_sector(
             .astype(str)
             .str.replace(r'\.0$', '', regex=True),
             SectorConsumedBy=np.nan,
-            ActivityConsumedBy=lambda d: d['fuel_class'],
+            ActivityConsumedBy=np.nan,
             ActivityProducedBy=np.nan,
             Class='Energy',
             Context='emission/air',
@@ -688,8 +692,6 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
                 'Plant primary fuel',
                 'PrimaryFuelCategory',
                 'fuel_class',
-                'fuel_class_basis',
-                'fuel_class_known',
                 'sector',
                 'source',
                 'year',
