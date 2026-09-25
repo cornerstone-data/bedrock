@@ -1,12 +1,14 @@
-"""Rebase utility gross output on EIA volume x published price (#1009).
+"""Rebase electric power gross output on EIA volume x published price (#1009).
 
 BEA's published gross output for electric power generation, transmission and
 distribution (``221100``, ``UGO305-A``) **falls 9.6%** from 2022 to 2024 while
 EIA's published retail revenue for the same industry **rises 6.0%**. That
 divergence is not a bedrock derivation defect -- the nowcast reproduces BEA
-faithfully -- but the row control is the ceiling on the whole electricity row,
-so the shape propagates into the intermediate block, into the purchaser split,
-and into the emission factor.
+faithfully -- but this series is a control on several things at once. ``T1``
+pins ``T005 + VAPRO = GO`` per industry, so it sets the electric power
+industry's intermediate purchases; and it sets the within-group shares of the
+Supply industry axis, from where it reaches commodity rows through the make
+mix.
 
 The test that isolates it is BEA's **implied price per kWh**: gross output
 divided by EIA Table 2.2 retail sales, against Table 2.4's published average
@@ -29,22 +31,23 @@ it. The published price rose smoothly (10.48 -> 12.94, +23.5%) on roughly flat
 volume (+6.8%), so BEA's series carries something in 2021-23 that is neither
 kWh nor price per kWh, and it unwinds by 2024.
 
-Two legs, not one index
------------------------
+Two components, not one index
+-----------------------------
 
 ⚠️ **Indexing the whole row on retail revenue is wrong**, and the way it fails
-is instructive. BEA's 2017 base already contains a wholesale wedge -- total
+is instructive. BEA's 2017 base already contains sales for resale -- total
 electric output (``221100`` plus government electric) exceeds EIA retail
-revenue by **$78bn in 2017** -- and a single retail index forces that wedge to
-grow at retail rates. Measured, that drives ``T005`` for the electric power
+revenue by **$78bn in 2017** -- and a single retail index forces that resale
+to grow at retail rates. Measured, that drives ``T005`` for the electric power
 industry to **$126.6bn in 2022**, *below* the **$129.5bn** that investor-owned
 utilities alone report spending on fuel and purchased power. An industry cannot
 buy less than one ownership class within it.
 
-So each controlled industry declares **two legs**:
+So the base-year dollars are split into two components, each moved on its
+own published index:
 
 ``retail``
-    What is sold to ultimate customers. Moves on EIA Table 2.3 revenue, which
+    Output sold to ultimate customers. Moves on EIA Table 2.3 revenue, which
     is Table 2.2 volume times Table 2.4 published price.
 ``wholesale``
     Sales for resale between utilities -- present in gross output, absent from
@@ -61,7 +64,7 @@ What it buys, measured
 ----------------------
 
 ===== ========== ============ ============ ==================
-year  BEA $bn    two-leg $bn  implied      EIA published
+year  BEA $bn    rebased $bn  implied      EIA published
                               c/kWh        c/kWh
 ===== ========== ============ ============ ==================
 2017  389.4      389.4        10.46        10.48
@@ -76,16 +79,31 @@ is the wholesale leg doing its job rather than an error. ``T005`` stays at
 **1.2-1.7x** investor-owned fuel-plus-purchased-power across the span and never
 goes below it.
 
-First-order emission-factor effect, emissions held flat and 2017 = 100:
+Effect on ``B``, the direct emissions intensity
+----------------------------------------------
+
+``B = (E / x) @ Vnorm``, so with emissions held flat the index of ``B`` for the
+electric power industry is the index of ``1 / x``. Gross output is that ``x``:
 
 ========= ===== ===== ===== ===== ===== ===== ===== =====
 basis     2017  2018  2019  2020  2021  2022  2023  2024
 ========= ===== ===== ===== ===== ===== ===== ===== =====
-BEA today 100   92.2  91.3  97.3  80.9  71.4  77.4  77.5
-two-leg   100   95.9  97.2  99.1  91.7  79.3  79.1  75.9
+BEA today 100   92.3  92.0  97.3  80.7  70.0  76.7  77.4
+rebased   100   95.4  97.2  98.8  90.0  76.4  78.1  76.0
 ========= ===== ===== ===== ===== ===== ===== ===== =====
 
-BEA's basis dips to 71.4 in 2022 and **rebounds**; the two-leg basis declines
+BEA's basis falls to 70.0 in 2022 and then **rises again**; the rebased basis
+falls monotonically after 2020. A reversal in emissions per dollar is what this
+removes.
+
+⚠️ **This is ``B`` and not ``N``.** ``N = B @ L``, and the effect on ``N``
+depends on the full Leontief inverse, which no calculation here produces. A
+single-sector approximation of the electricity self-loop -- ``1 / (1 - a_ee)``
+-- moves the answer by **under one index point** even when the intra-industry
+cell is raised fivefold, so it is not reported: the movement above is the
+denominator, not the multiplier. The ``N`` effect needs a model run.
+
+BEA's basis dips to 71.4 in 2022 and **rebounds**; the rebased basis declines
 monotonically after 2020. A rebound in emissions per dollar is the artefact
 this removes.
 
@@ -108,8 +126,8 @@ where the allocation rescale is the identity. So changing its gross output does
 not move its ``VAPRO`` at all, and the whole change lands on ``T005``, the
 industry's own intermediate purchases.
 
-✅ That is the correct destination. Resale churn inflates both the seller's
-output and the buyer's purchased-power expense; removing it from output and
+✅ That is the correct destination. Resale is recorded on both sides -- it raises the
+seller's output and the buyer's purchased-power expense; removing it from output and
 from ``T005`` together removes both sides of one transaction. Value added is
 untouched because resale adds no value.
 
@@ -150,8 +168,8 @@ over  +3.4%  +8.6%  +17.1% +17.6% +34.4%
 ===== ====== ====== ====== ====== ======
 
 ⚠️ **That is a trend, not an excursion**, and it never returns. Electricity's
-signature is a hump that unwinds -- +14.7% in 2022 back to -2.2% in 2024 -- which
-is what marks it as churn. Gas diverges monotonically, and the mechanism is
+signature is a rise that reverses -- +14.7% in 2022 back to -2.2% in 2024 -- which
+is what marks it as double-recorded resale. Gas diverges monotonically, and the mechanism is
 observable: the share of deliveries the utility sells rather than transports
 falls from **30.2% to 25.4%** across the span, so a growing part of its revenue
 is distribution service on gas it never owns. Revenue per Mcf *sold* rises
@@ -159,7 +177,7 @@ because the denominator is shrinking, while revenue per Mcf *delivered* moves
 only 2.81 -> 3.97 with the commodity price.
 
 ❌ There is also no base-year identity to validate a mapping against: gas starts
-at +3.4% where electricity starts at -0.2%. And the two-leg decomposition does
+at +3.4% where electricity starts at -0.2%. And the two-component split does
 not identify -- the residual after merchant revenue is **$2.3bn in 2017 rising
 to $30.2bn in 2024**, a 13x move, and $2.3bn over the transported volume is
 about **$0.13 per Mcf**, far below any real distribution tariff. A leg that
@@ -203,8 +221,8 @@ HELD_OUT = {
     '221200': (
         'tested and does not have the defect: the implied price runs +3.4% over '
         'published in 2017 rising monotonically to +34.4% in 2024, a trend '
-        'rather than the electricity hump-and-unwind, driven by the utility '
-        'sold share falling 30.2% -> 25.4%. The two-leg split also fails to '
+        'rather than the electricity rise-and-reversal, driven by the utility '
+        'sold share falling 30.2% -> 25.4%. The two-component split also fails to '
         'identify -- a $2.3bn 2017 residual is $0.13/Mcf transported.'
     ),
     'S00101': (
