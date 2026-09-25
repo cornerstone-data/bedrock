@@ -1332,6 +1332,7 @@ def expense_years() -> tuple[int, ...]:
 #: entry here and no 2017 base to index against.
 SERVICE_TO_AIES = {
     'CSTELEC': ('EXPS_ELEC_VAL',),
+    'CSTFU': ('EXPS_FUEL_VAL',),
     'PCHADVT': ('EXPS_ADVERT_VAL',),
     'PCHCMPQ': ('EXPS_COMPTR_OTHEQ_VAL',),
     'PCHDAPR': ('EXPS_DATAPROC_VAL',),
@@ -1366,6 +1367,21 @@ NOT_A_COMMODITY_PURCHASE = ('CSTCNT', 'CSTRSL', 'PCHOEXP')
 #: measures how far each survey cell sits from BEA's row and is the reason.
 EXPENSE_TO_BEA = {
     'CSTELEC': ('221100',),
+    #: ⚠️ **Fuels excluding electricity**, which ASM reports separately as
+    #: ``CSTELEC``.  The three commodities are the carriers a manufacturer can
+    #: buy and burn: gas from the distributor, refined petroleum, and coal.
+    #: Covering them as one kind is deliberate -- ASM observes the fuels
+    #: *bucket* annually and not the split inside it, so the group moves on the
+    #: survey while BEA's own 2017 split decides how it divides (#997).
+    #:
+    #: ⚠️ **Gas is ``221200``, not ``211000``.** BEA books industrial natural gas
+    #: as distribution: of the $329.2bn of ``211000`` manufacturing buys in 2017,
+    #: refineries alone are $322.2bn of crude feedstock and non-refinery
+    #: manufacturing only $7.0bn, while ``221200`` carries $8.8bn spread over the
+    #: chemical and paper industries that actually burn gas. The census material
+    #: codes route all of it to ``211000`` because they name the product rather
+    #: than the selling industry, which is why this kind exists.
+    'CSTFU': ('221200', '324110', '212100'),
     'PCHADVT': ('541800',),
     'PCHCSVC': ('517110', '517A00', '517210'),
     'PCHDAPR': ('518200',),

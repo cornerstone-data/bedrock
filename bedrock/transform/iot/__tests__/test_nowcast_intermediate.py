@@ -450,3 +450,49 @@ def test_the_columns_no_seed_reaches_hold_their_benchmark() -> None:
 
     for column in ('GSLGO', '441000', '230301', '213111'):
         assert later[column].equals(benchmark[column]), column
+
+
+@needs_census
+def test_the_observed_mask_is_empty_at_the_base_year() -> None:
+    """Nothing is observed at 2017, and that is what pins the mask's definition.
+
+    ⚠️ **The mask means "a survey moved this cell's share", not "a seed wrote
+    here".** Every seed is the identity at 2017, so a correct mask is empty
+    there. A first version marked whichever cells a seed *touched* and flagged
+    **76.2%** of the table, because ``materials_seed`` rewrites a whole column
+    and renormalisation moves every cell in it -- that would have switched the
+    price carry off almost everywhere.
+
+    This test is the cheapest thing that separates the two definitions
+    (jvendries, review of #1000).
+    """
+    observed = ni.observed_cells(2017)
+
+    assert not bool(observed.to_numpy().any()), (
+        f'{int(observed.to_numpy().sum())} of {observed.size} cells are marked '
+        'observed at the base year; the mask is counting seed reach, not survey '
+        'movement'
+    )
+
+
+@needs_census
+def test_a_per_cell_theta_reaches_carry_shares() -> None:
+    """A ``commodity x industry`` theta is a documented hook, so it must work.
+
+    ⚠️ ``carried_column_shares`` used to test the exponent for truthiness and
+    cast it with ``float()``, which raised *"The truth value of a DataFrame is
+    ambiguous"* on exactly the input :func:`carry_shares` advertises. The scalar
+    path hid it because production never passes a frame (jvendries, review of
+    #1000).
+
+    A theta of zero everywhere is the frozen structure, whether it arrives as a
+    scalar or as a frame -- which is the invariant worth asserting, because it
+    holds only if the frame is aligned and masked rather than ignored.
+    """
+    seed, _ = ni.composed_seed_and_observed(2022)
+    frame = pd.DataFrame(0.0, index=seed.index, columns=seed.columns)
+
+    scalar = ni.carried_column_shares(2022, theta=0.0)
+    per_cell = ni.carried_column_shares(2022, theta=frame)
+
+    pd.testing.assert_frame_equal(scalar, per_cell)
