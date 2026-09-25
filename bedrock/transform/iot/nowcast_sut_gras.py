@@ -73,8 +73,12 @@ V00300 = 'V00300'
 
 NAMED = ('T1', 'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17', 'T18')
 KNOWN_HARD = frozenset(NAMED)
-KNOWN_SOFT = frozenset({'T2', 'T4', 'T6', 'T7', 'T8', 'T9'})
+KNOWN_SOFT = frozenset({'T2', 'T4', 'T6', 'T7', 'T8', 'T9', 'T1008'})
 KNOWN_NAMES = KNOWN_HARD | KNOWN_SOFT
+
+#: #1008 PCE electricity cell labels (mirror nowcast_mask; avoid importing it).
+_PCE_ELEC_ROW = '221100'
+_PCE_ELEC_COL = 'F01000'
 REQUIRED = ('T1', 'T11')
 
 
@@ -259,6 +263,10 @@ def _check_soft_labels(
     t9 = imposed.get('T9')
     if t9 is not None:
         _require_subset(z_supply.columns, t9.values.index, 'T9')
+    t1008 = imposed.get('T1008')
+    if t1008 is not None:
+        _require_subset(z_use.index, t1008.values.index, 'T1008')
+        _require_label(z_use.columns, _PCE_ELEC_COL, 'T1008')
 
 
 def _cell(frame: pd.DataFrame, row: str, col: str) -> float:
@@ -433,6 +441,85 @@ def _apply_t4_closer(
     return z
 
 
+def _redistribute_pce_column(
+    z_use: pd.DataFrame,
+    mask: SutMask,
+    row: str,
+    new_val: float,
+) -> pd.DataFrame:
+    """Set ``z[row, F01000] = new_val``; offset other free F01000 cells.
+
+    Column-neutral. Raises if there are no free compensators (do not
+    silent-drop clipped mass).
+    """
+    col = _PCE_ELEC_COL
+    if row not in z_use.index or col not in z_use.columns:
+        raise ValueError(f'PCE closer needs cell ({row!r}, {col!r}) on Use')
+    free = mask.free
+    if not bool(free.loc[row, col]):
+        raise ValueError(f'PCE closer cell ({row!r}, {col!r}) is not free')
+    old = float(np.asarray(z_use.loc[row, col], dtype=np.float64))
+    d = float(new_val) - old
+    if d == 0.0:
+        return z_use
+    compensators: list[tuple[str, float]] = []
+    abs_sum = 0.0
+    for i in z_use.index:
+        ri = str(i)
+        if ri == row:
+            continue
+        if not bool(free.loc[ri, col]):
+            continue
+        cell = float(np.asarray(z_use.loc[ri, col], dtype=np.float64))
+        compensators.append((ri, cell))
+        abs_sum += abs(cell)
+    if not compensators or abs_sum == 0.0:
+        raise ValueError(
+            f'no free F01000 compensators to absorb d={d} from ({row!r}, {col!r})'
+        )
+    z = z_use.copy()
+    z.loc[row, col] = float(new_val)
+    for ri, cell in compensators:
+        z.loc[ri, col] = cell + (-d * abs(cell) / abs_sum)
+    return z
+
+
+def _apply_t1008_closer(
+    z_use: pd.DataFrame,
+    mask: SutMask,
+    desired: pd.Series,
+) -> pd.DataFrame:
+    """Blend ``221100 × F01000`` toward soft T1008; keep F01000 column total.
+
+    Closer-only (like T4): mid-pass GRAS may still move the free cell; this
+    re-asserts after each Use pass. ``desired`` is the entry-Z blend.
+    """
+    if _PCE_ELEC_ROW not in desired.index:
+        raise ValueError(f'T1008 desired missing {_PCE_ELEC_ROW!r}: {list(desired.index)}')
+    return _redistribute_pce_column(
+        z_use, mask, _PCE_ELEC_ROW, float(desired.loc[_PCE_ELEC_ROW])
+    )
+
+
+def _apply_eia_band_closer(
+    z_use: pd.DataFrame,
+    mask: SutMask,
+    lo_m: float,
+    hi_m: float,
+) -> pd.DataFrame:
+    """Clip ``221100 × F01000`` to ``[lo_m, hi_m]`` ($M); keep F01000 total."""
+    if hi_m < lo_m:
+        raise ValueError(f'eia band inverted: lo={lo_m}, hi={hi_m}')
+    current = float(np.asarray(z_use.loc[_PCE_ELEC_ROW, _PCE_ELEC_COL], dtype=np.float64))
+    if current < lo_m:
+        new = lo_m
+    elif current > hi_m:
+        new = hi_m
+    else:
+        return z_use
+    return _redistribute_pce_column(z_use, mask, _PCE_ELEC_ROW, new)
+
+
 def _apply_t18_closer(
     z_use: pd.DataFrame,
     mask: SutMask,
@@ -519,6 +606,8 @@ def engine(
     atol: float = 100.0,
     close_rows_on_last: bool = True,
     impose_soft: bool = True,
+    pce_constraint: str = 'none',
+    pce_eia_band_m: tuple[float, float] | None = None,
 ) -> SutBalanceResult:
     """Balance Use then Supply against a residual TargetSet.
 
@@ -526,7 +615,11 @@ def engine(
     passed to ``gras_balance``; kernel ``atol`` stays 0.0.
 
     Soft targets blend once from the entry ``Z``. ``impose_soft=False`` is
-    the hard-only protocol (T2/T4/T6–T9 skipped).
+    the hard-only protocol (T2/T4/T6–T9/T1008 skipped).
+
+    ``pce_constraint`` (#1008): ``'row_side_target'`` runs the T1008 closer;
+    ``'eia_band'`` clips to ``pce_eia_band_m`` ($M). Tier-1 fixed is handled
+    by the mask, not here. Closers run after T4 and before T18.
     """
     if max_outer < 1:
         raise ValueError(f'max_outer must be >= 1, got {max_outer}')
@@ -538,6 +631,10 @@ def engine(
         raise KeyError(
             f"engine requires blocks 'use' and 'supply' in masks; got {sorted(masks)}"
         )
+    if pce_constraint == 'eia_band' and pce_eia_band_m is None:
+        raise ValueError("pce_constraint='eia_band' requires pce_eia_band_m")
+    if pce_constraint not in ('none', 'tier1_fixed', 'row_side_target', 'eia_band'):
+        raise ValueError(f'unknown pce_constraint {pce_constraint!r}')
 
     seen, skipped, soft_deferred = _lookup(residual, impose_soft=impose_soft)
     blocks = {name: frame.copy() for name, frame in free.items()}
@@ -569,6 +666,13 @@ def engine(
         )
         if 'T4' in blends:
             z_use = _apply_t4_closer(z_use, masks['use'], seen['T4'], blends['T4'])
+        if pce_constraint == 'row_side_target' and 'T1008' in blends:
+            z_use = _apply_t1008_closer(z_use, masks['use'], blends['T1008'])
+        elif pce_constraint == 'eia_band':
+            assert pce_eia_band_m is not None
+            z_use = _apply_eia_band_closer(
+                z_use, masks['use'], pce_eia_band_m[0], pce_eia_band_m[1]
+            )
         t18 = _imposed(seen, 'T18')
         if t18 is not None:
             # After T4, never before: T4's closer sheds its compensation onto

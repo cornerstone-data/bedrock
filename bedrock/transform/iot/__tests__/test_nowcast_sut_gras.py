@@ -1104,3 +1104,73 @@ def test_t18_requires_restrict_to_naming_v00300() -> None:
     frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
     with pytest.raises(ValueError, match="must contain 'V00300'"):
         engine(free, offset_targets(targets, frozen), masks)
+
+
+def test_t1008_closer_moves_toward_target_and_preserves_column() -> None:
+    """#1008 Candidate B: T1008 closer is column-neutral on F01000."""
+    from bedrock.transform.iot.nowcast_sut_gras import (  # noqa: PLC0415
+        _apply_t1008_closer,
+    )
+
+    use = pd.DataFrame(
+        {
+            'i1': [10.0, 5.0, 1.0],
+            'F01000': [100.0, 40.0, 20.0],
+        },
+        index=['221100', 'c2', 'c3'],
+    )
+    mask = SutMask(
+        structural_zero=pd.DataFrame(False, index=use.index, columns=use.columns),
+        fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+        sign_lock=pd.DataFrame(0, index=use.index, columns=use.columns),
+    )
+    col_before = float(use['F01000'].sum())
+    desired = pd.Series({'221100': 80.0})
+    out = _apply_t1008_closer(use, mask, desired)
+    assert float(out.at['221100', 'F01000']) == pytest.approx(80.0)
+    assert float(out['F01000'].sum()) == pytest.approx(col_before)
+
+
+def test_eia_band_closer_clips_and_redistributes() -> None:
+    """#1008 Candidate C: clip outside band; preserve F01000 total."""
+    from bedrock.transform.iot.nowcast_sut_gras import (  # noqa: PLC0415
+        _apply_eia_band_closer,
+    )
+
+    use = pd.DataFrame(
+        {
+            'i1': [10.0, 5.0],
+            'F01000': [200.0, 50.0],
+        },
+        index=['221100', 'c2'],
+    )
+    mask = SutMask(
+        structural_zero=pd.DataFrame(False, index=use.index, columns=use.columns),
+        fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+        sign_lock=pd.DataFrame(0, index=use.index, columns=use.columns),
+    )
+    col_before = float(use['F01000'].sum())
+    out = _apply_eia_band_closer(use, mask, lo_m=90.0, hi_m=110.0)
+    assert float(out.at['221100', 'F01000']) == pytest.approx(110.0)
+    assert float(out['F01000'].sum()) == pytest.approx(col_before)
+    # Inside band: no-op
+    mid = use.copy()
+    mid.at['221100', 'F01000'] = 100.0
+    mid.at['c2', 'F01000'] = 50.0
+    same = _apply_eia_band_closer(mid, mask, lo_m=90.0, hi_m=110.0)
+    assert float(same.at['221100', 'F01000']) == pytest.approx(100.0)
+
+
+def test_pce_closer_raises_without_compensators() -> None:
+    from bedrock.transform.iot.nowcast_sut_gras import (  # noqa: PLC0415
+        _apply_eia_band_closer,
+    )
+
+    use = pd.DataFrame({'F01000': [200.0]}, index=['221100'])
+    mask = SutMask(
+        structural_zero=pd.DataFrame(False, index=use.index, columns=use.columns),
+        fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+        sign_lock=pd.DataFrame(0, index=use.index, columns=use.columns),
+    )
+    with pytest.raises(ValueError, match='no free F01000 compensators'):
+        _apply_eia_band_closer(use, mask, lo_m=90.0, hi_m=110.0)
