@@ -212,3 +212,82 @@ def test_skip_sentinel_fields() -> None:
     assert row.arm_status == 'skipped_flag_absent'
     assert row.t11_all_years_ok is False
     assert row.eia_all_spans_ok is False
+
+
+def test_check_grade_require_rebase_on_both_needs_exactly_one_selected() -> None:
+    """Phase 9b: require-rebase-on + both forbids False-arm n_selected==0."""
+    years = [2022, 2023]
+    summary = [
+        _ok_summary('tier1_fixed', rebase_eia=False, selected=False, eligible=False),
+        _ok_summary(
+            'row_side_target', rebase_eia=False, selected=False, eligible=False
+        ),
+        _ok_summary('eia_band', rebase_eia=False, selected=False, eligible=False),
+        _ok_summary('tier1_fixed', rebase_eia=True, selected=False, eligible=False),
+        _ok_summary('row_side_target', rebase_eia=True, selected=False, eligible=False),
+        _ok_summary('eia_band', rebase_eia=True, selected=False, eligible=False),
+    ]
+    t11 = [
+        PcePinT11Row(
+            candidate=c,
+            year=y,
+            t11_max_abs_residual=0.0,
+            skipped='-',
+            ok=True,
+            rebase_eia=rebase,
+            baseline_vintage='f709829',
+        )
+        for rebase in (False, True)
+        for c in CANDIDATES
+        for y in years
+    ]
+    eia = [
+        PcePinEiaBandRow(
+            candidate=c,
+            year_a=2022,
+            year_b=2023,
+            shipped_yoy_usd=1.0,
+            eia_residential_yoy_usd=1.0,
+            band_ok=True,
+            source_note='mut_from_balanced',
+            artifact_vintage='test',
+            rebase_eia=rebase,
+            baseline_vintage='f709829',
+        )
+        for rebase in (False, True)
+        for c in CANDIDATES
+    ]
+    with (
+        patch(
+            'bedrock.analysis.electricity.current.eia_gtd.pce_electricity_pin.'
+            '_rebase_eia_supported',
+            return_value=True,
+        ),
+        patch(
+            'bedrock.analysis.electricity.current.eia_gtd.pce_electricity_pin.'
+            'derive_initial_Y_pur',
+            return_value=_seed_frame(),
+        ),
+    ):
+        fail_require = check_grade(
+            years=years,
+            t11_rows=t11,
+            eia_rows=eia,
+            disp_rows=[],
+            sink_rows=[],
+            summary=summary,
+            rebase_eia_mode='both',
+            require_rebase_on=True,
+        )
+        ok_without = check_grade(
+            years=years,
+            t11_rows=t11,
+            eia_rows=eia,
+            disp_rows=[],
+            sink_rows=[],
+            summary=summary,
+            rebase_eia_mode='both',
+            require_rebase_on=False,
+        )
+    assert fail_require >= 1
+    assert ok_without == 0

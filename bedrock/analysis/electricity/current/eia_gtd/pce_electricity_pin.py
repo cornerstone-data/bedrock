@@ -89,6 +89,7 @@ ARM_SKIP_CANDIDATE = '__arm_skip__'
 DEFAULT_BASELINE_VINTAGE = 'f709829'
 CACHE_BEARING_MODULES: tuple[str, ...] = (
     'bedrock.transform.iot.derived_intermediate_and_value_added',
+    'bedrock.transform.iot.eia_utility_go_adjustment',
     'bedrock.transform.iot.nowcast_sut_assembly',
 )
 
@@ -964,7 +965,14 @@ def check_grade(
             )
             failures += 1
         n_selected = sum(1 for s in false_ok if s.selected)
-        if n_selected not in (0, 1):
+        if require_rebase_on and rebase_eia_mode == 'both':
+            if n_selected != 1:
+                print(
+                    f'FAIL  require-rebase-on + both: False-arm selected '
+                    f'must be exactly 1, got {n_selected}'
+                )
+                failures += 1
+        elif n_selected not in (0, 1):
             print(f'FAIL  False-arm selected count must be 0 or 1, got {n_selected}')
             failures += 1
         if n_selected == 0 and any(s.eligible for s in false_ok):

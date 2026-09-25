@@ -46,6 +46,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -79,6 +80,9 @@ KNOWN_NAMES = KNOWN_HARD | KNOWN_SOFT
 #: #1008 PCE electricity cell labels (mirror nowcast_mask; avoid importing it).
 _PCE_ELEC_ROW = '221100'
 _PCE_ELEC_COL = 'F01000'
+
+#: Local Literal — do not import ``PceConstraint`` from ``nowcast_mask``.
+PceConstraintLocal = Literal['none', 'tier1_fixed', 'row_side_target', 'eia_band']
 REQUIRED = ('T1', 'T11')
 
 
@@ -447,15 +451,17 @@ def _redistribute_pce_column(
     row: str,
     new_val: float,
 ) -> pd.DataFrame:
-    """Set ``z[row, F01000] = new_val``; offset other free F01000 cells.
+    """Set ``z[row, F01000] = new_val``; offset other free sign-flex F01000 cells.
 
-    Column-neutral. Raises if there are no free compensators (do not
-    silent-drop clipped mass).
+    Column-neutral. Compensators must be free **and** sign-unlocked (same as
+    T4). Raises if there are no eligible compensators (do not silent-drop
+    clipped mass).
     """
     col = _PCE_ELEC_COL
     if row not in z_use.index or col not in z_use.columns:
         raise ValueError(f'PCE closer needs cell ({row!r}, {col!r}) on Use')
     free = mask.free
+    sign_flex = mask.sign_lock.eq(0)
     if not bool(free.loc[row, col]):
         raise ValueError(f'PCE closer cell ({row!r}, {col!r}) is not free')
     old = float(np.asarray(z_use.loc[row, col], dtype=np.float64))
@@ -468,14 +474,15 @@ def _redistribute_pce_column(
         ri = str(i)
         if ri == row:
             continue
-        if not bool(free.loc[ri, col]):
+        if not (bool(free.loc[ri, col]) and bool(sign_flex.loc[ri, col])):
             continue
         cell = float(np.asarray(z_use.loc[ri, col], dtype=np.float64))
         compensators.append((ri, cell))
         abs_sum += abs(cell)
     if not compensators or abs_sum == 0.0:
         raise ValueError(
-            f'no free F01000 compensators to absorb d={d} from ({row!r}, {col!r})'
+            f'no free and sign-flex F01000 compensators to absorb d={d} '
+            f'from ({row!r}, {col!r})'
         )
     z = z_use.copy()
     z.loc[row, col] = float(new_val)
@@ -610,7 +617,7 @@ def engine(
     atol: float = 100.0,
     close_rows_on_last: bool = True,
     impose_soft: bool = True,
-    pce_constraint: str = 'none',
+    pce_constraint: PceConstraintLocal = 'none',
     pce_eia_band_m: tuple[float, float] | None = None,
 ) -> SutBalanceResult:
     """Balance Use then Supply against a residual TargetSet.

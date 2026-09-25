@@ -1172,5 +1172,67 @@ def test_pce_closer_raises_without_compensators() -> None:
         fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
         sign_lock=pd.DataFrame(0, index=use.index, columns=use.columns),
     )
-    with pytest.raises(ValueError, match='no free F01000 compensators'):
+    with pytest.raises(ValueError, match='no free and sign-flex F01000 compensators'):
         _apply_eia_band_closer(use, mask, lo_m=90.0, hi_m=110.0)
+
+
+def test_pce_closer_skips_sign_locked_compensators() -> None:
+    """#1008: sign-locked free cells are not used as compensators (like T4)."""
+    from bedrock.transform.iot.nowcast_sut_gras import (  # noqa: PLC0415
+        _apply_t1008_closer,
+    )
+
+    use = pd.DataFrame(
+        {
+            'i1': [1.0, 1.0, 1.0],
+            'F01000': [100.0, 40.0, 20.0],
+        },
+        index=['221100', 'locked', 'flex'],
+    )
+    sign_lock = pd.DataFrame(0, index=use.index, columns=use.columns)
+    sign_lock.at['locked', 'F01000'] = 1
+    mask = SutMask(
+        structural_zero=pd.DataFrame(False, index=use.index, columns=use.columns),
+        fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+        sign_lock=sign_lock,
+    )
+    out = _apply_t1008_closer(use, mask, pd.Series({'221100': 80.0}))
+    assert float(np.asarray(out.at['221100', 'F01000']).item()) == pytest.approx(80.0)
+    assert float(np.asarray(out.at['locked', 'F01000']).item()) == pytest.approx(40.0)
+    assert float(np.asarray(out.at['flex', 'F01000']).item()) == pytest.approx(40.0)
+    assert float(out['F01000'].sum()) == pytest.approx(float(use['F01000'].sum()))
+
+
+def test_pce_closer_raises_when_only_sign_locked_compensators() -> None:
+    from bedrock.transform.iot.nowcast_sut_gras import (  # noqa: PLC0415
+        _apply_eia_band_closer,
+    )
+
+    use = pd.DataFrame(
+        {'F01000': [200.0, 50.0]},
+        index=['221100', 'locked'],
+    )
+    sign_lock = pd.DataFrame(0, index=use.index, columns=use.columns)
+    sign_lock.at['locked', 'F01000'] = 1
+    mask = SutMask(
+        structural_zero=pd.DataFrame(False, index=use.index, columns=use.columns),
+        fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+        sign_lock=sign_lock,
+    )
+    with pytest.raises(ValueError, match='no free and sign-flex F01000 compensators'):
+        _apply_eia_band_closer(use, mask, lo_m=90.0, hi_m=110.0)
+
+
+def test_pce_elec_labels_match_nowcast_mask() -> None:
+    """Gras mirrors mask PCE labels without importing nowcast_mask at runtime."""
+    from bedrock.transform.iot.nowcast_mask import (  # noqa: PLC0415
+        PCE_ELECTRICITY_COL,
+        PCE_ELECTRICITY_ROW,
+    )
+    from bedrock.transform.iot.nowcast_sut_gras import (  # noqa: PLC0415
+        _PCE_ELEC_COL,
+        _PCE_ELEC_ROW,
+    )
+
+    assert _PCE_ELEC_ROW == PCE_ELECTRICITY_ROW
+    assert _PCE_ELEC_COL == PCE_ELECTRICITY_COL

@@ -59,8 +59,9 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
+import numpy as np
 import pandas as pd
 
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
@@ -495,7 +496,9 @@ def assemble_targets(
             f'{PCE_ELECTRICITY_ROW!r}×{PCE_ELECTRICITY_COL!r} missing from Use seed '
             f'{year}'
         )
-    cell = float(cast(Any, use_seed.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]))
+    cell = float(
+        np.asarray(use_seed.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]).item()
+    )
     return TargetSet((*base.targets, pce_electricity_cell_target(int(year), cell)))
 
 
