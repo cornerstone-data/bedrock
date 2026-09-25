@@ -153,8 +153,17 @@ def detail_gross_output_panel(ec_adjusted: bool = True) -> pd.DataFrame:
         from bedrock.transform.iot.ec_go_adjustment import (  # noqa: PLC0415
             apply_ec_adjustment,
         )
+        from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-        return apply_ec_adjustment(detail_gross_output_panel(ec_adjusted=False))
+        raw = detail_gross_output_panel(ec_adjusted=False)
+        panel = apply_ec_adjustment(raw)
+        if get_usa_config().chain_manufacturing_on_aies:
+            from bedrock.transform.iot.aies_go_chaining import (  # noqa: PLC0415
+                apply_aies_chaining,
+            )
+
+            panel = apply_aies_chaining(panel, raw)
+        return panel
     detail = map_detail_table(load_go_detail())
     if detail[SECTOR_CODE_COL].isna().any():
         unmapped = detail.loc[detail[SECTOR_CODE_COL].isna(), SECTOR_NAME_COL].tolist()
