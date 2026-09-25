@@ -28,8 +28,11 @@ tables:
 - Table3_2
 - table7_7
 # - table3_6
-# - table7_2
-# - table7_10
+# NOTE 7.2 and 7.10 are the manufacturing fuel EXPENDITURE tables -- the
+# within-energy cost shares a price or an elasticity has to be built on
+# (#895). They were configured here long before they were fetched.
+- table7_2
+- table7_10
 
 table_dict:
     '2010':
@@ -468,7 +471,7 @@ table_dict:
           Total United States: [ 10,49 ]
         data_type: 'fuel consumption'
       Table 7.2:
-        col_names:
+        col_names: &col_names_2018_72
           - NAICS Code
           - Subsector and Industry
           - TOTAL
@@ -622,6 +625,31 @@ table_dict:
         rse_regions:
           *rse_regions_2022_31
         data_type: 'fuel consumption'
+      Table 7.2:
+        col_names: *col_names_2018_72
+        # WARNING Derived for 2022, NOT copied from 2018. Same table number and
+        # the same 43 columns, but the workbook lost 2 rows per region block:
+        # headers move 15/100/185/270/355 -> 15/98/181/264/347 and the sheet
+        # goes 439 -> 429 rows. Reusing the 2018 ranges misreads every region
+        # below the first.
+        regions: &regions_2022_72
+          Total United States: [17,97]
+          Northeast Region: [100,180]
+          Midwest Region: [183,263]
+          South Region: [266,346]
+          West Region: [349,429]
+        rse_regions: &rse_regions_2022_72
+          Total United States : [14,94]
+          Northeast Region : [97,177]
+          Midwest Region : [180,260]
+          South Region : [263,343]
+          West Region : [346,426]
+        data_type: 'money'
+      Table 7.10:
+        col_names: *col_names_2010_710
+        regions: *regions_2022_72
+        rse_regions: *rse_regions_2022_72
+        data_type: 'money'
       Table 7.7:
         col_names: *col_names_table_7_7
         regions:

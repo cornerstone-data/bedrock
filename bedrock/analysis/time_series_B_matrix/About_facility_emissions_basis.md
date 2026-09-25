@@ -576,7 +576,7 @@ depends on that one while the rest of project 34 feeds it.
 | | | why it blocks |
 |---|---|---|
 | ~~[#925](https://github.com/cornerstone-data/bedrock/issues/925)~~ **settled** | FRS deduplication between GHGRP and NEI | 209 Mt came out of the union — see §2.0. What remains is 41.9 Mt over six sectors with no cause on record, which `--check-facility-overshoot` fails on. ⚠️ Never touched §5 — churn is measured on shares, and a stable double count does not move a share |
-| ~~[#926](https://github.com/cornerstone-data/bedrock/issues/926)~~ **settled** | NEI's 2020/2021 SCC reclassification | Combustion SCC share of on-site CO2 goes 2.9% → 75.5% with the total flat. `fuel_class` from SCC digits is defined from 2021 only (`NEI_FUEL_CLASS_FIRST_YEAR`); union levels on SCC branches 1-3 stay continuous. Tracker row 19 |
+| ~~[#926](https://github.com/cornerstone-data/bedrock/issues/926)~~ **settled** | NEI's 2020/2021 SCC reclassification | Combustion SCC share of on-site CO2 goes 2.9% → 75.5% with the total flat. `fuel_class` from SCC digits is defined from 2021 only (`NEI_FUEL_CLASS_FIRST_YEAR`); union levels on SCC branches 1-3 stay continuous. Tracker row 19. For a continuous combustion vs process *coding* series across that seam, `nei_combustion_process_backcast` is written on every `B_change_diagnostics.main` run — levels unchanged, `fuel_class` gating unchanged |
 
 ### NEI SCC reclassification evidence (#926)
 
@@ -595,6 +595,15 @@ year; production `facility_combustion` does not use that assignment before 2021.
 
 Facility-count step: **2019→2020**. SCC / `fuel_class` step: **2020→2021**.
 Six-digit NAICS completeness jumps with the SCC step, after a dip in 2020.
+
+`nei_combustion_process_backcast` (always written from
+`B_change_diagnostics.main` as `nei_combustion_process_backcast.csv`) restates
+only the combustion vs process coding for years before 2021 from 2021/2022
+FacilityID twins (then NAICS-6 / sector means). Contemporaneous SCC 1-3 totals
+are fixed; national backcast combustion share sits near the post-2021 raw share
+(~75%). It does not invent `purchased` / `self_supplied` and does not change
+`facility_combustion`. Twin coverage and 2021/2022 share drift are on
+[#926](https://github.com/cornerstone-data/bedrock/issues/926#issuecomment-5815291850).
 
 ### Coverage — needed before the basis spans the model
 
