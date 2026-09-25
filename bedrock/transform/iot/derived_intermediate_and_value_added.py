@@ -148,13 +148,30 @@ def detail_gross_output_panel(ec_adjusted: bool = True) -> pd.DataFrame:
     which is the point of adjusting here rather than any one of them.
     ``ec_adjusted=False`` is the raw published series; the adjustment module
     itself reads that arm, which is what makes the default arm well-founded.
+
+    ⚠️ **Electricity is additionally rebased on EIA when
+    ``rebase_utility_gross_output_on_eia`` is set** (#1009,
+    :mod:`~bedrock.transform.iot.eia_utility_go_adjustment`): ``221100`` takes a
+    two-leg index -- retail on EIA Table 2.3 revenue, wholesale on Table 8.3
+    purchased power -- because BEA's published series carries a 2021-24 hump
+    with no kWh and no price behind it. Off by default. It runs **after** the
+    census conditioning, which touches manufacturing only and so cannot
+    interact; unlike that adjustment it does **not** preserve the summary group
+    total, because the level is the thing that disagrees with EIA.
     """
     if ec_adjusted:
         from bedrock.transform.iot.ec_go_adjustment import (  # noqa: PLC0415
             apply_ec_adjustment,
         )
+        from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+            apply_eia_utility_adjustment,
+        )
+        from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-        return apply_ec_adjustment(detail_gross_output_panel(ec_adjusted=False))
+        panel = apply_ec_adjustment(detail_gross_output_panel(ec_adjusted=False))
+        if get_usa_config().rebase_utility_gross_output_on_eia:
+            panel = apply_eia_utility_adjustment(panel)
+        return panel
     detail = map_detail_table(load_go_detail())
     if detail[SECTOR_CODE_COL].isna().any():
         unmapped = detail.loc[detail[SECTOR_CODE_COL].isna(), SECTOR_NAME_COL].tolist()
