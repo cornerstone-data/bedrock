@@ -1127,7 +1127,7 @@ def test_t1008_closer_moves_toward_target_and_preserves_column() -> None:
     col_before = float(use['F01000'].sum())
     desired = pd.Series({'221100': 80.0})
     out = _apply_t1008_closer(use, mask, desired)
-    assert float(out.at['221100', 'F01000']) == pytest.approx(80.0)
+    assert float(np.asarray(out.at['221100', 'F01000']).item()) == pytest.approx(80.0)
     assert float(out['F01000'].sum()) == pytest.approx(col_before)
 
 
@@ -1151,14 +1151,14 @@ def test_eia_band_closer_clips_and_redistributes() -> None:
     )
     col_before = float(use['F01000'].sum())
     out = _apply_eia_band_closer(use, mask, lo_m=90.0, hi_m=110.0)
-    assert float(out.at['221100', 'F01000']) == pytest.approx(110.0)
+    assert float(np.asarray(out.at['221100', 'F01000']).item()) == pytest.approx(110.0)
     assert float(out['F01000'].sum()) == pytest.approx(col_before)
     # Inside band: no-op
     mid = use.copy()
     mid.at['221100', 'F01000'] = 100.0
     mid.at['c2', 'F01000'] = 50.0
     same = _apply_eia_band_closer(mid, mask, lo_m=90.0, hi_m=110.0)
-    assert float(same.at['221100', 'F01000']) == pytest.approx(100.0)
+    assert float(np.asarray(same.at['221100', 'F01000']).item()) == pytest.approx(100.0)
 
 
 def test_pce_closer_raises_without_compensators() -> None:

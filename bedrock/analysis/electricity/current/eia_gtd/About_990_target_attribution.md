@@ -164,3 +164,18 @@ into the cell (~26% of the electricity intermediate-block fall).
 
 Until #1008 grades the product path, treat the close-out above as true of the
 **target** only — not of the delivered `F01000` cell.
+
+## Product path (#1008) vs pre-balance Attributed (#990)
+
+| Path | What is graded | Module |
+|---|---|---|
+| **Target / pre-balance** | `derive_initial_Y_pur` PCE cell YoY vs EIA | this note / `target_attribution_221100` |
+| **Product / post-balance** | in-memory `mut_from_balanced` after Step 5 | [`About_1008_pce_electricity_pin.md`](About_1008_pce_electricity_pin.md) |
+
+#990 Attributed on the target does **not** imply the shipped MUT cell tracks
+EIA. #1008 pin candidates (`tier1_fixed` / `row_side_target` / `eia_band`) are
+gated behind `constrain_electricity_pce_cell` (default off). Full-span
+Acceptance grade (2017–2024) selected **`eia_band`** on the rebase-off arm
+(smoke 2022→23 had selected `row_side_target`); see About_1008 for the dual-arm
+matrix. Production flag stays off; set `electricity_pce_constraint_mode` to
+`eia_band` only when explicitly shipping the flag.

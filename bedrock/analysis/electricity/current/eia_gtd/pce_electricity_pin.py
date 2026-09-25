@@ -5,19 +5,15 @@ Ranks how much GRAS moves every ``F01000`` commodity cell (seed -> balanced
 T11, in-memory ``mut_from_balanced`` EIA residential YoY band, and displacement
 onto intermediate bands + other PCE sinks.
 
-Published-counterpart survey (Work #1): only ``221100`` currently has a
-cell-level annual series usable for PCE (EIA Form 861 / EPA Table 2.3
-residential). The survey table and count live in ``About_1008``; this module
-hardcodes the lookup via :func:`counterpart_survey`.
+Dual-arm ``--rebase-eia`` coordinates with #1009's
+``rebase_utility_gross_output_on_eia`` (soft-skips when the field is absent).
+Ship selection uses the rebase-off arm only.
 
 ::
 
     python -m bedrock.analysis.electricity.current.eia_gtd.pce_electricity_pin \\
-        measure|grade [--years 2017-2024] [--csv] [--check]
-
-``--check`` applies to ``grade``: schema coherence, exactly 0 or 1
-``selected``, and nonzero electricity PCE seed each year. Missing / NaN cells
-raise -- never silently filled with 0.
+        measure|grade [--years 2017-2024] [--csv] [--check] \\
+        [--rebase-eia both] [--baseline-vintage f709829] [--require-rebase-on]
 """
 
 from __future__ import annotations
@@ -27,6 +23,7 @@ import logging
 import math
 import subprocess
 import typing as ta
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 import pandas as pd
@@ -61,6 +58,8 @@ from bedrock.transform.iot.nowcast_sut_assembly import (
     YearBalance,
     balance_year,
 )
+from bedrock.utils.config.config_controllers import temp_usa_config
+from bedrock.utils.config.usa_config import CANONICAL_USA_CONFIG, USAConfig
 from bedrock.utils.economic.units import (
     BILLION_CURRENCY_TO_CURRENCY,
     MILLION_CURRENCY_TO_CURRENCY,
@@ -83,6 +82,16 @@ _TIE_BREAK: dict[str, int] = {
 _BN = BILLION_CURRENCY_TO_CURRENCY
 _M_TO_USD = MILLION_CURRENCY_TO_CURRENCY
 
+RebaseEiaMode = ta.Literal['false', 'true', 'both']
+ArmStatus = ta.Literal['ok', 'skipped_flag_absent']
+
+ARM_SKIP_CANDIDATE = '__arm_skip__'
+DEFAULT_BASELINE_VINTAGE = 'f709829'
+CACHE_BEARING_MODULES: tuple[str, ...] = (
+    'bedrock.transform.iot.derived_intermediate_and_value_added',
+    'bedrock.transform.iot.nowcast_sut_assembly',
+)
+
 #: Published annual cell-level PCE counterparts surveyed for #1008 Work #1.
 #: Recorded in About_1008; only electricity residential has a named series today.
 _COUNTERPART_SURVEY: dict[str, bool] = {
@@ -104,6 +113,8 @@ class PceBalanceMoveRow(ta.NamedTuple):
     has_annual_counterpart: bool
     mut_usd: float
     delta_vs_mut: float
+    rebase_eia: bool
+    baseline_vintage: str
 
 
 class PcePinT11Row(ta.NamedTuple):
@@ -112,6 +123,8 @@ class PcePinT11Row(ta.NamedTuple):
     t11_max_abs_residual: float
     skipped: str
     ok: bool
+    rebase_eia: bool
+    baseline_vintage: str
 
 
 class PcePinEiaBandRow(ta.NamedTuple):
@@ -123,6 +136,8 @@ class PcePinEiaBandRow(ta.NamedTuple):
     band_ok: bool
     source_note: str
     artifact_vintage: str
+    rebase_eia: bool
+    baseline_vintage: str
 
 
 class PcePinDisplacementRow(ta.NamedTuple):
@@ -133,6 +148,8 @@ class PcePinDisplacementRow(ta.NamedTuple):
     share_effect_baseline_bn: float
     share_effect_candidate_bn: float
     delta_share_effect_bn: float
+    rebase_eia: bool
+    baseline_vintage: str
 
 
 class PcePinPceSinkRow(ta.NamedTuple):
@@ -142,6 +159,8 @@ class PcePinPceSinkRow(ta.NamedTuple):
     commodity: str
     delta_vs_baseline_bn: float
     abs_delta_bn: float
+    rebase_eia: bool
+    baseline_vintage: str
 
 
 class PceCandidateSummaryRow(ta.NamedTuple):
@@ -151,6 +170,9 @@ class PceCandidateSummaryRow(ta.NamedTuple):
     displacement_note: str
     eligible: bool
     selected: bool
+    rebase_eia: bool
+    baseline_vintage: str
+    arm_status: ArmStatus
 
 
 # ---------------------------------------------------------------------------
@@ -206,13 +228,15 @@ def _artifact_vintage() -> str:
 
 
 def _require_finite(value: object, label: str) -> float:
-    number = float(pd.to_numeric(value, errors='coerce'))
+    number = float(pd.to_numeric(ta.cast(ta.Any, value), errors='coerce'))
     if math.isnan(number):
         raise ValueError(f'{label} is missing or NaN (not filled)')
     return number
 
 
-def _f01000_series_usd(frame: pd.DataFrame, *, scale: float, label: str) -> 'pd.Series[float]':
+def _f01000_series_usd(
+    frame: pd.DataFrame, *, scale: float, label: str
+) -> 'pd.Series[float]':
     if PCE_CODE not in frame.columns:
         raise ValueError(f'{PCE_CODE} missing from {label}')
     col = frame[PCE_CODE]
@@ -241,10 +265,10 @@ def panel_from_balanced(use_m: pd.DataFrame) -> YearPanel:
     industries = [c for c in balance_industries() if c in use_m.columns]
     if not industries:
         raise ValueError('no balance industries found in balanced Use columns')
-    elec_raw = use_m.loc[ELECTRICITY_ROW, industries]
-    if isinstance(elec_raw, pd.DataFrame):
+    row = use_m.loc[ELECTRICITY_ROW]
+    if isinstance(row, pd.DataFrame):
         raise ValueError(f'{ELECTRICITY_ROW!r} duplicated in balanced Use index')
-    elec = elec_raw.astype(float) * _M_TO_USD
+    elec = row.reindex(industries).astype(float) * _M_TO_USD
     elec.index = [str(i) for i in elec.index]
     coltot = use_m[industries].sum(axis=0).astype(float) * _M_TO_USD
     coltot.index = [str(i) for i in coltot.index]
@@ -283,21 +307,67 @@ def _pce_column_usd(yb: YearBalance) -> 'pd.Series[float]':
     )
 
 
+def _rebase_eia_supported() -> bool:
+    return 'rebase_utility_gross_output_on_eia' in USAConfig.model_fields
+
+
+def _arms_requested(mode: RebaseEiaMode) -> list[bool]:
+    if mode == 'false':
+        return [False]
+    if mode == 'true':
+        return [True]
+    return [False, True]
+
+
+@contextmanager
+def _arm_context(rebase_eia: bool) -> ta.Iterator[None]:
+    if not rebase_eia:
+        yield
+        return
+    with temp_usa_config(
+        CANONICAL_USA_CONFIG,
+        cache_bearing_modules=CACHE_BEARING_MODULES,
+        rebase_utility_gross_output_on_eia=True,
+    ):
+        yield
+
+
+def _skip_summary_row(baseline_vintage: str) -> PceCandidateSummaryRow:
+    return PceCandidateSummaryRow(
+        candidate=ARM_SKIP_CANDIDATE,
+        t11_all_years_ok=False,
+        eia_all_spans_ok=False,
+        displacement_note=(
+            'True arm skipped: rebase_utility_gross_output_on_eia absent'
+        ),
+        eligible=False,
+        selected=False,
+        rebase_eia=True,
+        baseline_vintage=baseline_vintage,
+        arm_status='skipped_flag_absent',
+    )
+
+
 # ---------------------------------------------------------------------------
 # Measure
 # ---------------------------------------------------------------------------
 
 
-def measure(years: list[int] | None = None) -> list[PceBalanceMoveRow]:
-    """Rank Step-5 F01000 moves (seed -> balanced ``'none'``) per year."""
-    year_list = sorted(years) if years is not None else available_years()
+def _measure_arm(
+    year_list: list[int],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
+) -> list[PceBalanceMoveRow]:
     commodities = [str(c) for c in balance_commodities()]
     survey = counterpart_survey(commodities)
     rows: list[PceBalanceMoveRow] = []
 
     for year in year_list:
         seed_y = derive_initial_Y_pur(year, download_sources_ok=True)
-        seed = _f01000_series_usd(seed_y, scale=1.0, label=f'derive_initial_Y_pur({year})')
+        seed = _f01000_series_usd(
+            seed_y, scale=1.0, label=f'derive_initial_Y_pur({year})'
+        )
 
         yb = balance_year(year, pce_constraint='none')
         balanced = _pce_column_usd(yb)
@@ -314,9 +384,10 @@ def measure(years: list[int] | None = None) -> list[PceBalanceMoveRow]:
             )
         except Exception as exc:  # noqa: BLE001 - side columns only; ranking continues
             logger.warning(
-                'mut_from_balanced failed for measure year=%s: %s; '
+                'mut_from_balanced failed for measure year=%s rebase_eia=%s: %s; '
                 'mut_usd/delta_vs_mut set to NaN',
                 year,
+                rebase_eia,
                 exc,
             )
 
@@ -357,6 +428,8 @@ def measure(years: list[int] | None = None) -> list[PceBalanceMoveRow]:
                     has_annual_counterpart=survey.get(commodity, False),
                     mut_usd=mut_usd,
                     delta_vs_mut=delta_vs_mut,
+                    rebase_eia=rebase_eia,
+                    baseline_vintage=baseline_vintage,
                 )
             )
 
@@ -364,16 +437,54 @@ def measure(years: list[int] | None = None) -> list[PceBalanceMoveRow]:
         for rank, row in enumerate(ordered, start=1):
             rows.append(row._replace(rank=rank))
 
-        elec = next((r for r in rows if r.year == year and r.commodity == ELECTRICITY_ROW), None)
+        elec = next(
+            (r for r in rows if r.year == year and r.commodity == ELECTRICITY_ROW),
+            None,
+        )
         if elec is None:
             raise ValueError(f'{ELECTRICITY_ROW} missing from measure rows for {year}')
         print(
-            f'{year}: {ELECTRICITY_ROW} rank={elec.rank} '
+            f'{year} rebase_eia={rebase_eia}: {ELECTRICITY_ROW} rank={elec.rank} '
             f'delta=${elec.delta_balance / _BN:+.3f}bn '
             f'(|delta|=${elec.abs_delta / _BN:.3f}bn) '
             f'counterpart={elec.has_annual_counterpart}'
         )
 
+    return rows
+
+
+def measure(
+    years: list[int] | None = None,
+    *,
+    rebase_eia_mode: RebaseEiaMode = 'both',
+    baseline_vintage: str = DEFAULT_BASELINE_VINTAGE,
+    require_rebase_on: bool = False,
+) -> list[PceBalanceMoveRow]:
+    """Rank Step-5 F01000 moves (seed -> balanced ``'none'``) per year × arm."""
+    year_list = sorted(years) if years is not None else available_years()
+    rows: list[PceBalanceMoveRow] = []
+    supported = _rebase_eia_supported()
+
+    for rebase in _arms_requested(rebase_eia_mode):
+        if rebase and not supported:
+            if require_rebase_on:
+                raise ValueError(
+                    '--require-rebase-on set but rebase_utility_gross_output_on_eia '
+                    'is absent from USAConfig'
+                )
+            logger.info(
+                'measure: soft-skip True arm (rebase_utility_gross_output_on_eia absent)'
+            )
+            continue
+        ctx = _arm_context(rebase) if rebase else nullcontext()
+        with ctx:
+            rows.extend(
+                _measure_arm(
+                    year_list,
+                    rebase_eia=rebase,
+                    baseline_vintage=baseline_vintage,
+                )
+            )
     return rows
 
 
@@ -401,6 +512,9 @@ def _t11_rows(
     cache: dict[tuple[str, int], YearBalance],
     candidates: ta.Iterable[str],
     years: list[int],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
 ) -> list[PcePinT11Row]:
     rows: list[PcePinT11Row] = []
     for candidate in candidates:
@@ -410,8 +524,6 @@ def _t11_rows(
                 raise ValueError(f'{candidate} {year}: missing SutBalanceResult')
             skipped = ','.join(yb.result.skipped) or '-'
             residual = float(yb.result.t11_max_abs_residual)
-            # Engine stops at atol=100 $M; acceptance wording is 0.0 after exact
-            # row-close. Treat residual within engine atol and empty skipped as ok.
             rows.append(
                 PcePinT11Row(
                     candidate=candidate,
@@ -419,6 +531,8 @@ def _t11_rows(
                     t11_max_abs_residual=residual,
                     skipped=skipped,
                     ok=residual <= 100.0 and skipped == '-',
+                    rebase_eia=rebase_eia,
+                    baseline_vintage=baseline_vintage,
                 )
             )
     return rows
@@ -428,6 +542,9 @@ def _eia_rows(
     cache: dict[tuple[str, int], YearBalance],
     candidates: ta.Iterable[str],
     years: list[int],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
 ) -> list[PcePinEiaBandRow]:
     vintage = _artifact_vintage()
     eia_usd = {
@@ -453,6 +570,8 @@ def _eia_rows(
                     band_ok=_published_band_ok(shipped_yoy, eia_yoy),
                     source_note='mut_from_balanced',
                     artifact_vintage=vintage,
+                    rebase_eia=rebase_eia,
+                    baseline_vintage=baseline_vintage,
                 )
             )
     return rows
@@ -476,16 +595,15 @@ def _displacement_rows(
     cache: dict[tuple[str, int], YearBalance],
     candidates: ta.Iterable[str],
     years: list[int],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
 ) -> list[PcePinDisplacementRow]:
     baseline_panel = _panel_by_year(cache, str(DEFAULT_PCE_CONSTRAINT), years)
-    sets = build_claim_sets(
-        [str(i) for i in baseline_panel[years[0]].elec.index]
-    )
+    sets = build_claim_sets([str(i) for i in baseline_panel[years[0]].elec.index])
     baseline_bands = {
         (r.year_a, r.year_b, r.band): r.share_effect_bn
-        for r in build_band_rows(
-            baseline_panel, years, 'balanced_none', sets
-        )
+        for r in build_band_rows(baseline_panel, years, 'balanced_none', sets)
     }
 
     rows: list[PcePinDisplacementRow] = []
@@ -507,6 +625,8 @@ def _displacement_rows(
                     share_effect_baseline_bn=base,
                     share_effect_candidate_bn=r.share_effect_bn,
                     delta_share_effect_bn=r.share_effect_bn - base,
+                    rebase_eia=rebase_eia,
+                    baseline_vintage=baseline_vintage,
                 )
             )
     return rows
@@ -516,21 +636,18 @@ def _pce_sink_rows(
     cache: dict[tuple[str, int], YearBalance],
     candidates: ta.Iterable[str],
     years: list[int],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
 ) -> list[PcePinPceSinkRow]:
     baseline_cols = {
         year: _pce_column_usd(cache[(str(DEFAULT_PCE_CONSTRAINT), year)])
         for year in years
     }
-    commodities = [
-        c
-        for c in balance_commodities()
-        if str(c) != PCE_ELECTRICITY_ROW
-    ]
+    commodities = [c for c in balance_commodities() if str(c) != PCE_ELECTRICITY_ROW]
     rows: list[PcePinPceSinkRow] = []
     for candidate in candidates:
-        cand_cols = {
-            year: _pce_column_usd(cache[(candidate, year)]) for year in years
-        }
+        cand_cols = {year: _pce_column_usd(cache[(candidate, year)]) for year in years}
         for year_a, year_b in consecutive_spans(years):
             for commodity in commodities:
                 code = str(commodity)
@@ -543,7 +660,9 @@ def _pce_sink_rows(
                             f'{code!r} missing from {label} F01000 '
                             f'({year_a}/{year_b})'
                         )
-                base_d = float(baseline_cols[year_b][code] - baseline_cols[year_a][code])
+                base_d = float(
+                    baseline_cols[year_b][code] - baseline_cols[year_a][code]
+                )
                 cand_d = float(cand_cols[year_b][code] - cand_cols[year_a][code])
                 delta_bn = (cand_d - base_d) / _BN
                 if abs(delta_bn) <= 0.0:
@@ -556,6 +675,8 @@ def _pce_sink_rows(
                         commodity=code,
                         delta_vs_baseline_bn=delta_bn,
                         abs_delta_bn=abs(delta_bn),
+                        rebase_eia=rebase_eia,
+                        baseline_vintage=baseline_vintage,
                     )
                 )
     return rows
@@ -577,20 +698,22 @@ def _displacement_note(
     sink_rows: list[PcePinPceSinkRow],
 ) -> str:
     by_band: dict[str, float] = {}
-    for r in disp_rows:
-        if r.candidate != candidate:
+    for disp in disp_rows:
+        if disp.candidate != candidate:
             continue
-        by_band[r.band] = by_band.get(r.band, 0.0) + abs(r.delta_share_effect_bn)
+        by_band[disp.band] = by_band.get(disp.band, 0.0) + abs(
+            disp.delta_share_effect_bn
+        )
     top_bands = sorted(by_band.items(), key=lambda kv: kv[1], reverse=True)[:3]
     band_txt = (
         ', '.join(f'{b}={v:+.3f}bn_abs' for b, v in top_bands) if top_bands else 'none'
     )
 
     by_comm: dict[str, float] = {}
-    for r in sink_rows:
-        if r.candidate != candidate:
+    for sink in sink_rows:
+        if sink.candidate != candidate:
             continue
-        by_comm[r.commodity] = by_comm.get(r.commodity, 0.0) + r.abs_delta_bn
+        by_comm[sink.commodity] = by_comm.get(sink.commodity, 0.0) + sink.abs_delta_bn
     top_sinks = sorted(by_comm.items(), key=lambda kv: kv[1], reverse=True)[:5]
     sink_txt = (
         ', '.join(f'{c}={v:+.3f}bn_abs' for c, v in top_sinks) if top_sinks else 'none'
@@ -604,6 +727,10 @@ def _summarize(
     eia_rows: list[PcePinEiaBandRow],
     disp_rows: list[PcePinDisplacementRow],
     sink_rows: list[PcePinPceSinkRow],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
+    allow_select: bool,
 ) -> list[PceCandidateSummaryRow]:
     drafts: list[PceCandidateSummaryRow] = []
     trade_abs: dict[str, float] = {}
@@ -612,22 +739,30 @@ def _summarize(
         eia_ok = all(r.band_ok for r in eia_rows if r.candidate == candidate)
         note = _displacement_note(candidate, disp_rows, sink_rows)
         trade_abs[candidate] = _trade_displacement_abs(disp_rows, candidate)
+        # True arm is advisory: never eligible / selected for ship.
+        eligible = bool(t11_ok and allow_select)
         drafts.append(
             PceCandidateSummaryRow(
                 candidate=candidate,
                 t11_all_years_ok=t11_ok,
                 eia_all_spans_ok=eia_ok,
                 displacement_note=note,
-                eligible=t11_ok,
+                eligible=eligible,
                 selected=False,
+                rebase_eia=rebase_eia,
+                baseline_vintage=baseline_vintage,
+                arm_status='ok',
             )
         )
 
-    eligible = [d for d in drafts if d.eligible]
-    if not eligible:
+    if not allow_select:
         return drafts
 
-    pool = [d for d in eligible if d.eia_all_spans_ok] or list(eligible)
+    eligible_rows = [d for d in drafts if d.eligible]
+    if not eligible_rows:
+        return drafts
+
+    pool = [d for d in eligible_rows if d.eia_all_spans_ok] or list(eligible_rows)
     best = min(trade_abs[d.candidate] for d in pool)
     pool = [d for d in pool if trade_abs[d.candidate] == best]
     pool.sort(key=lambda d: _TIE_BREAK.get(d.candidate, 99))
@@ -635,8 +770,67 @@ def _summarize(
     return [d._replace(selected=(d.candidate == winner)) for d in drafts]
 
 
+def _grade_arm(
+    year_list: list[int],
+    *,
+    rebase_eia: bool,
+    baseline_vintage: str,
+) -> tuple[
+    list[PcePinT11Row],
+    list[PcePinEiaBandRow],
+    list[PcePinDisplacementRow],
+    list[PcePinPceSinkRow],
+    list[PceCandidateSummaryRow],
+]:
+    candidates = [str(c) for c in CANDIDATES]
+    cache = _run_balances(year_list, GRADE_MODES)
+    t11_rows = _t11_rows(
+        cache,
+        candidates,
+        year_list,
+        rebase_eia=rebase_eia,
+        baseline_vintage=baseline_vintage,
+    )
+    eia_rows = _eia_rows(
+        cache,
+        candidates,
+        year_list,
+        rebase_eia=rebase_eia,
+        baseline_vintage=baseline_vintage,
+    )
+    disp_rows = _displacement_rows(
+        cache,
+        candidates,
+        year_list,
+        rebase_eia=rebase_eia,
+        baseline_vintage=baseline_vintage,
+    )
+    sink_rows = _pce_sink_rows(
+        cache,
+        candidates,
+        year_list,
+        rebase_eia=rebase_eia,
+        baseline_vintage=baseline_vintage,
+    )
+    summary = _summarize(
+        candidates,
+        t11_rows,
+        eia_rows,
+        disp_rows,
+        sink_rows,
+        rebase_eia=rebase_eia,
+        baseline_vintage=baseline_vintage,
+        allow_select=not rebase_eia,
+    )
+    return t11_rows, eia_rows, disp_rows, sink_rows, summary
+
+
 def grade(
     years: list[int] | None = None,
+    *,
+    rebase_eia_mode: RebaseEiaMode = 'both',
+    baseline_vintage: str = DEFAULT_BASELINE_VINTAGE,
+    require_rebase_on: bool = False,
 ) -> tuple[
     list[PcePinT11Row],
     list[PcePinEiaBandRow],
@@ -646,15 +840,39 @@ def grade(
 ]:
     """Grade each pin candidate vs unconstrained baseline on T11 / EIA / displacement."""
     year_list = sorted(years) if years is not None else available_years()
-    candidates = [str(c) for c in CANDIDATES]
-    cache = _run_balances(year_list, GRADE_MODES)
+    t11_all: list[PcePinT11Row] = []
+    eia_all: list[PcePinEiaBandRow] = []
+    disp_all: list[PcePinDisplacementRow] = []
+    sink_all: list[PcePinPceSinkRow] = []
+    summary_all: list[PceCandidateSummaryRow] = []
+    supported = _rebase_eia_supported()
 
-    t11_rows = _t11_rows(cache, candidates, year_list)
-    eia_rows = _eia_rows(cache, candidates, year_list)
-    disp_rows = _displacement_rows(cache, candidates, year_list)
-    sink_rows = _pce_sink_rows(cache, candidates, year_list)
-    summary = _summarize(candidates, t11_rows, eia_rows, disp_rows, sink_rows)
-    return t11_rows, eia_rows, disp_rows, sink_rows, summary
+    for rebase in _arms_requested(rebase_eia_mode):
+        if rebase and not supported:
+            if require_rebase_on:
+                raise ValueError(
+                    '--require-rebase-on set but rebase_utility_gross_output_on_eia '
+                    'is absent from USAConfig'
+                )
+            logger.info(
+                'grade: soft-skip True arm (rebase_utility_gross_output_on_eia absent)'
+            )
+            summary_all.append(_skip_summary_row(baseline_vintage))
+            continue
+        ctx = _arm_context(rebase) if rebase else nullcontext()
+        with ctx:
+            t11, eia, disp, sink, summary = _grade_arm(
+                year_list,
+                rebase_eia=rebase,
+                baseline_vintage=baseline_vintage,
+            )
+        t11_all.extend(t11)
+        eia_all.extend(eia)
+        disp_all.extend(disp)
+        sink_all.extend(sink)
+        summary_all.extend(summary)
+
+    return t11_all, eia_all, disp_all, sink_all, summary_all
 
 
 # ---------------------------------------------------------------------------
@@ -666,9 +884,7 @@ def _rows_to_frame(rows: ta.Sequence[ta.NamedTuple]) -> pd.DataFrame:
     return pd.DataFrame([r._asdict() for r in rows])
 
 
-def _write_csv(
-    name: str, rows: ta.Sequence[ta.NamedTuple], write: bool
-) -> Path | None:
+def _write_csv(name: str, rows: ta.Sequence[ta.NamedTuple], write: bool) -> Path | None:
     if not rows:
         print(f'(no rows for {name})')
         return None
@@ -695,49 +911,157 @@ def check_grade(
     disp_rows: list[PcePinDisplacementRow],
     sink_rows: list[PcePinPceSinkRow],
     summary: list[PceCandidateSummaryRow],
+    rebase_eia_mode: RebaseEiaMode = 'both',
+    require_rebase_on: bool = False,
 ) -> int:
     """Schema / selection / nonzero-seed checks. Returns failure count."""
     failures = 0
+    supported = _rebase_eia_supported()
+    true_skipped = any(
+        s.candidate == ARM_SKIP_CANDIDATE and s.arm_status == 'skipped_flag_absent'
+        for s in summary
+    )
 
-    expected_t11 = {
-        (c, y) for c in (str(x) for x in CANDIDATES) for y in years
-    }
-    have_t11 = {(r.candidate, r.year) for r in t11_rows}
-    if have_t11 != expected_t11:
-        print(f'FAIL  T11 schema: expected {len(expected_t11)} rows, got {len(t11_rows)}')
+    if require_rebase_on and true_skipped:
+        print('FAIL  --require-rebase-on but True arm soft-skipped')
         failures += 1
 
-    spans = consecutive_spans(years)
-    expected_eia = {
-        (c, a, b) for c in (str(x) for x in CANDIDATES) for a, b in spans
-    }
-    have_eia = {(r.candidate, r.year_a, r.year_b) for r in eia_rows}
-    if have_eia != expected_eia:
-        print(f'FAIL  EIA schema: expected {len(expected_eia)} rows, got {len(eia_rows)}')
+    # NamedTuple fields are always present; keep a cheap presence assert per table.
+    if t11_rows and (
+        t11_rows[0].rebase_eia is None or not t11_rows[0].baseline_vintage
+    ):
+        print('FAIL  T11 rows missing rebase_eia/baseline_vintage')
         failures += 1
+    if eia_rows and not eia_rows[0].baseline_vintage:
+        print('FAIL  EIA rows missing baseline_vintage')
+        failures += 1
+
+    if any(s.selected and s.rebase_eia for s in summary):
+        print('FAIL  selected=True on rebase_eia=True (True arm must never ship)')
+        failures += 1
+
+    candidates = [str(c) for c in CANDIDATES]
+    false_ok = [s for s in summary if s.rebase_eia is False and s.arm_status == 'ok']
+    true_ok = [
+        s
+        for s in summary
+        if s.rebase_eia is True
+        and s.arm_status == 'ok'
+        and s.candidate != ARM_SKIP_CANDIDATE
+    ]
+    skip_rows = [s for s in summary if s.candidate == ARM_SKIP_CANDIDATE]
+
+    expect_false = rebase_eia_mode in ('false', 'both')
+    # true-only + soft-skip: no False fallback
+    if rebase_eia_mode == 'true' and true_skipped:
+        expect_false = False
+
+    if expect_false:
+        if len(false_ok) != len(CANDIDATES):
+            print(
+                f'FAIL  False-arm ok summary: expected {len(CANDIDATES)}, '
+                f'got {len(false_ok)}'
+            )
+            failures += 1
+        n_selected = sum(1 for s in false_ok if s.selected)
+        if n_selected not in (0, 1):
+            print(f'FAIL  False-arm selected count must be 0 or 1, got {n_selected}')
+            failures += 1
+        if n_selected == 0 and any(s.eligible for s in false_ok):
+            print('FAIL  eligible False-arm candidate exists but none selected')
+            failures += 1
+        if n_selected == 1:
+            winner = next(s for s in false_ok if s.selected)
+            if not winner.eligible:
+                print(f'FAIL  selected {winner.candidate} is not eligible')
+                failures += 1
+
+    if rebase_eia_mode == 'true' and not true_skipped:
+        if len(true_ok) != len(CANDIDATES):
+            print(
+                f'FAIL  True-arm ok summary: expected {len(CANDIDATES)}, '
+                f'got {len(true_ok)}'
+            )
+            failures += 1
+        if any(s.selected or s.eligible for s in true_ok):
+            print('FAIL  True-arm rows must have eligible=selected=False')
+            failures += 1
+        if false_ok:
+            print('FAIL  True-only mode must not emit False-arm summary rows')
+            failures += 1
+
+    if rebase_eia_mode == 'true' and true_skipped:
+        if len(skip_rows) != 1 or false_ok or true_ok:
+            print('FAIL  true+soft-skip expects exactly 1 __arm_skip__ and no ok arms')
+            failures += 1
+        if t11_rows or eia_rows or disp_rows or sink_rows:
+            print('FAIL  true+soft-skip must have zero metric rows')
+            failures += 1
+
+    if rebase_eia_mode == 'both' and true_skipped:
+        if len(skip_rows) != 1:
+            print(f'FAIL  both+soft-skip expects 1 skip row, got {len(skip_rows)}')
+            failures += 1
+        if (
+            any(row.rebase_eia for row in t11_rows)
+            or any(row.rebase_eia for row in eia_rows)
+            or any(row.rebase_eia for row in disp_rows)
+            or any(row.rebase_eia for row in sink_rows)
+        ):
+            print('FAIL  both+soft-skip must have zero True-arm metric rows')
+            failures += 1
+
+    if rebase_eia_mode == 'both' and supported and not true_skipped:
+        if len(false_ok) != len(CANDIDATES) or len(true_ok) != len(CANDIDATES):
+            print(
+                f'FAIL  both-ok expects 6 summaries '
+                f'(false={len(false_ok)} true={len(true_ok)})'
+            )
+            failures += 1
+        if skip_rows:
+            print('FAIL  both-ok must not include __arm_skip__')
+            failures += 1
+
+    spans = consecutive_spans(years) if len(years) >= 2 else []
+    arms_with_metrics: set[bool] = set()
+    if false_ok:
+        arms_with_metrics.add(False)
+    if true_ok:
+        arms_with_metrics.add(True)
+    for rebase in arms_with_metrics:
+        expected_t11 = {(c, y) for c in candidates for y in years}
+        have_t11 = {(r.candidate, r.year) for r in t11_rows if r.rebase_eia is rebase}
+        if have_t11 != expected_t11:
+            print(
+                f'FAIL  T11 schema rebase_eia={rebase}: '
+                f'expected {len(expected_t11)}, got {len(have_t11)}'
+            )
+            failures += 1
+        if spans:
+            expected_eia = {(c, a, b) for c in candidates for a, b in spans}
+            have_eia = {
+                (r.candidate, r.year_a, r.year_b)
+                for r in eia_rows
+                if r.rebase_eia is rebase
+            }
+            if have_eia != expected_eia:
+                print(
+                    f'FAIL  EIA schema rebase_eia={rebase}: '
+                    f'expected {len(expected_eia)}, got {len(have_eia)}'
+                )
+                failures += 1
 
     for r in eia_rows:
         if r.source_note != 'mut_from_balanced':
-            print(f'FAIL  EIA source_note must be mut_from_balanced, got {r.source_note!r}')
-            failures += 1
-
-    if len(summary) != len(CANDIDATES):
-        print(f'FAIL  summary schema: expected {len(CANDIDATES)} rows, got {len(summary)}')
-        failures += 1
-    n_selected = sum(1 for s in summary if s.selected)
-    if n_selected not in (0, 1):
-        print(f'FAIL  selected count must be 0 or 1, got {n_selected}')
-        failures += 1
-    if n_selected == 0 and any(s.eligible for s in summary):
-        print('FAIL  eligible candidate exists but none selected')
-        failures += 1
-    if n_selected == 1:
-        winner = next(s for s in summary if s.selected)
-        if not winner.eligible:
-            print(f'FAIL  selected {winner.candidate} is not eligible')
+            print(
+                f'FAIL  EIA source_note must be mut_from_balanced, got {r.source_note!r}'
+            )
             failures += 1
 
     for year in years:
+        # Skip seed check when true-only soft-skip produced no work.
+        if rebase_eia_mode == 'true' and true_skipped:
+            break
         seed_y = derive_initial_Y_pur(year, download_sources_ok=True)
         seed = _cell_at(
             seed_y,
@@ -749,12 +1073,18 @@ def check_grade(
             print(f'FAIL  electricity PCE seed is zero in {year} (Tier-1 would no-op)')
             failures += 1
 
-    # Displacement / sink tables may be empty for freeze-only candidates; still
-    # require consistent candidate labels when rows exist.
-    known = {str(c) for c in CANDIDATES}
-    for r in (*disp_rows, *sink_rows):
-        if r.candidate not in known:
-            print(f'FAIL  unknown candidate label {r.candidate!r}')
+    known = set(candidates) | {ARM_SKIP_CANDIDATE}
+    for disp in disp_rows:
+        if disp.candidate not in known:
+            print(f'FAIL  unknown candidate label {disp.candidate!r}')
+            failures += 1
+    for sink in sink_rows:
+        if sink.candidate not in known:
+            print(f'FAIL  unknown candidate label {sink.candidate!r}')
+            failures += 1
+    for summ in summary:
+        if summ.candidate not in known:
+            print(f'FAIL  unknown candidate label {summ.candidate!r}')
             failures += 1
 
     print(f'check: {failures} failure(s)')
@@ -793,24 +1123,57 @@ def main(argv: list[str] | None = None) -> None:
         action='store_true',
         help='grade only: schema / selection / nonzero electricity PCE seed',
     )
+    parser.add_argument(
+        '--rebase-eia',
+        choices=('false', 'true', 'both'),
+        default='both',
+        help='Dual-arm #1009 coordination (default both; True soft-skips if absent)',
+    )
+    parser.add_argument(
+        '--baseline-vintage',
+        default=DEFAULT_BASELINE_VINTAGE,
+        help='Documentary CSV label for issue/#990 narrative (default f709829)',
+    )
+    parser.add_argument(
+        '--require-rebase-on',
+        action='store_true',
+        help='Fail when True arm soft-skips (absent #1009 field)',
+    )
     args = parser.parse_args(argv)
     year_list = _parse_years(args.years)
     stem = _csv_stem(year_list)
+    rebase_mode: RebaseEiaMode = args.rebase_eia
 
     if args.command == 'measure':
         if args.check:
             raise SystemExit('--check applies to grade only')
-        print(f'measure F01000 balance moves {year_list[0]}-{year_list[-1]}')
+        print(
+            f'measure F01000 balance moves {year_list[0]}-{year_list[-1]} '
+            f'rebase_eia={rebase_mode} vintage={args.baseline_vintage}'
+        )
         print(
             'counterpart survey notes: '
             + '; '.join(f'{k}: {v}' for k, v in _COUNTERPART_NOTES.items())
         )
-        rows = measure(year_list)
+        rows = measure(
+            year_list,
+            rebase_eia_mode=rebase_mode,
+            baseline_vintage=args.baseline_vintage,
+            require_rebase_on=args.require_rebase_on,
+        )
         _write_csv(f'pce_electricity_pin_measure_{stem}.csv', rows, args.csv)
         return
 
-    print(f'grade PCE pin candidates {year_list[0]}-{year_list[-1]}')
-    t11_rows, eia_rows, disp_rows, sink_rows, summary = grade(year_list)
+    print(
+        f'grade PCE pin candidates {year_list[0]}-{year_list[-1]} '
+        f'rebase_eia={rebase_mode} vintage={args.baseline_vintage}'
+    )
+    t11_rows, eia_rows, disp_rows, sink_rows, summary = grade(
+        year_list,
+        rebase_eia_mode=rebase_mode,
+        baseline_vintage=args.baseline_vintage,
+        require_rebase_on=args.require_rebase_on,
+    )
 
     print('\n=== T11 ===')
     _write_csv(f'pce_electricity_pin_t11_{stem}.csv', t11_rows, args.csv)
@@ -827,8 +1190,9 @@ def main(argv: list[str] | None = None) -> None:
     for s in summary:
         mark = ' SELECTED' if s.selected else ''
         print(
-            f'  {s.candidate}: eligible={s.eligible} '
-            f't11={s.t11_all_years_ok} eia={s.eia_all_spans_ok}{mark}'
+            f'  {s.candidate} rebase_eia={s.rebase_eia} arm={s.arm_status}: '
+            f'eligible={s.eligible} t11={s.t11_all_years_ok} '
+            f'eia={s.eia_all_spans_ok}{mark}'
         )
         print(f'    {s.displacement_note}')
 
@@ -842,6 +1206,8 @@ def main(argv: list[str] | None = None) -> None:
                 disp_rows=disp_rows,
                 sink_rows=sink_rows,
                 summary=summary,
+                rebase_eia_mode=rebase_mode,
+                require_rebase_on=args.require_rebase_on,
             )
             else 0
         )

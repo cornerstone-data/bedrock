@@ -495,7 +495,9 @@ def _apply_t1008_closer(
     re-asserts after each Use pass. ``desired`` is the entry-Z blend.
     """
     if _PCE_ELEC_ROW not in desired.index:
-        raise ValueError(f'T1008 desired missing {_PCE_ELEC_ROW!r}: {list(desired.index)}')
+        raise ValueError(
+            f'T1008 desired missing {_PCE_ELEC_ROW!r}: {list(desired.index)}'
+        )
     return _redistribute_pce_column(
         z_use, mask, _PCE_ELEC_ROW, float(desired.loc[_PCE_ELEC_ROW])
     )
@@ -510,7 +512,9 @@ def _apply_eia_band_closer(
     """Clip ``221100 × F01000`` to ``[lo_m, hi_m]`` ($M); keep F01000 total."""
     if hi_m < lo_m:
         raise ValueError(f'eia band inverted: lo={lo_m}, hi={hi_m}')
-    current = float(np.asarray(z_use.loc[_PCE_ELEC_ROW, _PCE_ELEC_COL], dtype=np.float64))
+    current = float(
+        np.asarray(z_use.loc[_PCE_ELEC_ROW, _PCE_ELEC_COL], dtype=np.float64)
+    )
     if current < lo_m:
         new = lo_m
     elif current > hi_m:

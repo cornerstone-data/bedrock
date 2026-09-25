@@ -59,7 +59,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
@@ -102,6 +102,7 @@ from bedrock.utils.config.settings import (
     GIT_HASH_LONG,
     PKG_VERSION_NUMBER,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.offset import (
     offset_targets,
@@ -114,6 +115,40 @@ from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 #: Sweep bound for mask-contradicting seed cells, in $M. BEA publishes no cell
 #: below 1 million, so a violation at or under this is rounding, not signal.
 DUST_USD_M = 1.0
+
+
+def resolve_pce_constraint(
+    pce_constraint: PceConstraint | None = None,
+    constrain_electricity_pce_cell: bool | None = None,
+) -> PceConstraint:
+    """Resolve USAConfig / kwargs into a concrete :data:`PceConstraint`.
+
+    Order (locked for #1008 analysis CLI):
+
+    1. Explicit ``pce_constraint`` always wins (grade passes each candidate).
+    2. Explicit ``constrain_electricity_pce_cell=False`` force-off → ``'none'``.
+    3. Production: both kwargs ``None`` → config flag + mode field.
+       Flag on with mode ``'none'`` raises (ship footgun).
+    """
+    if pce_constraint is not None:
+        return pce_constraint
+    if constrain_electricity_pce_cell is False:
+        return 'none'
+    flag = (
+        True
+        if constrain_electricity_pce_cell is True
+        else get_usa_config().constrain_electricity_pce_cell
+    )
+    if not flag:
+        return 'none'
+    mode = get_usa_config().electricity_pce_constraint_mode
+    if mode == 'none':
+        raise ValueError(
+            "constrain_electricity_pce_cell=True requires "
+            "electricity_pce_constraint_mode != 'none'"
+        )
+    return mode
+
 
 #: Sweep bound for **sign-lock** violations, in $M — deliberately looser than
 #: :data:`DUST_USD_M`.
@@ -460,7 +495,7 @@ def assemble_targets(
             f'{PCE_ELECTRICITY_ROW!r}×{PCE_ELECTRICITY_COL!r} missing from Use seed '
             f'{year}'
         )
-    cell = float(use_seed.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL])
+    cell = float(cast(Any, use_seed.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]))
     return TargetSet((*base.targets, pce_electricity_cell_target(int(year), cell)))
 
 
@@ -549,7 +584,8 @@ def assemble(
     year: int,
     *,
     fitted: bool = True,
-    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
+    pce_constraint: PceConstraint | None = None,
+    constrain_electricity_pce_cell: bool | None = None,
 ) -> YearBalance:
     """Seeds, masks, targets and the dust sweep for *year* - no balance run.
 
@@ -557,11 +593,12 @@ def assemble(
     seed's own value-added column sums, so sweeping afterwards would shift the
     seed under the injection by exactly the swept dust.
     """
+    mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     seeds = assemble_seeds(int(year), fitted=fitted)
-    masks = assemble_masks(int(year), pce_constraint=pce_constraint)
+    masks = assemble_masks(int(year), pce_constraint=mode)
     sweep = conform_seeds(seeds, masks)
     targets = assemble_targets(
-        int(year), seeds['use'], seeds['supply'], pce_constraint=pce_constraint
+        int(year), seeds['use'], seeds['supply'], pce_constraint=mode
     )
     return YearBalance(
         year=int(year),
@@ -580,20 +617,26 @@ def balance_year(
     fitted: bool = True,
     impose_soft: bool = True,
     max_outer: int = 20,
-    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
+    pce_constraint: PceConstraint | None = None,
+    constrain_electricity_pce_cell: bool | None = None,
 ) -> YearBalance:
     """Assemble and balance one year: split, offset, engine, restore."""
-    assembled = assemble(int(year), fitted=fitted, pce_constraint=pce_constraint)
+    mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
+    assembled = assemble(
+        int(year),
+        fitted=fitted,
+        pce_constraint=mode,
+    )
     frozen, free = split_fixed_blocks(assembled.seeds, assembled.masks)
     residual = offset_targets(assembled.targets, frozen)
-    band = _pce_eia_band_m(int(year)) if pce_constraint == 'eia_band' else None
+    band = _pce_eia_band_m(int(year)) if mode == 'eia_band' else None
     out = engine(
         free,
         residual,
         assembled.masks,
         impose_soft=impose_soft,
         max_outer=max_outer,
-        pce_constraint=pce_constraint,
+        pce_constraint=mode,
         pce_eia_band_m=band,
     )
     restored = restore_fixed_blocks(out.blocks, frozen)

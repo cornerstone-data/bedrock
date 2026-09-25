@@ -563,7 +563,10 @@ def fixed_value_mask(
             pce_constraint == 'tier1_fixed'
             and PCE_ELECTRICITY_ROW in values.index
             and PCE_ELECTRICITY_COL in values.columns
-            and float(values.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]) != 0.0
+            and float(
+                np.asarray(values.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]).item()
+            )
+            != 0.0
         ):
             flags.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL] = True
     return flags

@@ -104,6 +104,12 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
+    # Issue #1008 — pin 221100×F01000 in nowcast GRAS. Flag stays False until
+    # explicit ship; mode holds the graded winner string for when flag flips.
+    constrain_electricity_pce_cell: bool = False  # DRI: jorge.vendries
+    electricity_pce_constraint_mode: ta.Literal[
+        'none', 'tier1_fixed', 'row_side_target', 'eia_band'
+    ] = 'none'  # DRI: jorge.vendries
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
