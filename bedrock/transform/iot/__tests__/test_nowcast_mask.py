@@ -204,7 +204,7 @@ def test_t00osub_zeros_are_exempt_on_the_industry_columns_only() -> None:
 
 def test_only_nonzero_cells_of_the_one_to_one_columns_are_fixed() -> None:
     panel = _use_panel()
-    fixed = fixed_value_mask('use', 2017, panel)
+    fixed = fixed_value_mask('use', 2017, panel, trade_electricity_pin=False)
     assert fixed.loc['111130', 'F06C00']
     assert fixed.loc['111120', 'F06N00']
     # zero cells of a 1:1 column are pattern, not measurement
@@ -212,6 +212,30 @@ def test_only_nonzero_cells_of_the_one_to_one_columns_are_fixed() -> None:
     # and a Tier 2 column is never fixed, however well it reproduces its bridge
     assert not fixed['F01000'].any()
     assert int(fixed.to_numpy().sum()) == 2
+
+
+def test_trade_electricity_pin_flags_seed_set_cells() -> None:
+    """#899: trade×221100 nonzero cells are Tier-1 when pin is on."""
+    from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
+        ELECTRICITY_ROW,
+        trade_seed_set,
+    )
+
+    trade_j = sorted(trade_seed_set())[0]
+    rows = ['111120', ELECTRICITY_ROW, *VA_ROWS]
+    columns = ['1111A0', trade_j, 'F01000', 'F06C00']
+    panel = pd.DataFrame(0.0, index=rows, columns=columns)
+    panel.loc['111120', '1111A0'] = 10.0
+    panel.loc[ELECTRICITY_ROW, trade_j] = 5.0
+    panel.loc[ELECTRICITY_ROW, '1111A0'] = 1.0  # non-trade: must not flag
+    panel.loc['111120', 'F06C00'] = 2.0
+
+    on = fixed_value_mask('use', 2017, panel, trade_electricity_pin=True)
+    off = fixed_value_mask('use', 2017, panel, trade_electricity_pin=False)
+    assert bool(on.loc[ELECTRICITY_ROW, trade_j])
+    assert not bool(off.loc[ELECTRICITY_ROW, trade_j])
+    assert not bool(on.loc[ELECTRICITY_ROW, '1111A0'])
+    assert int(on.to_numpy().sum()) == int(off.to_numpy().sum()) + 1
 
 
 def test_the_supply_block_has_no_fixed_values() -> None:

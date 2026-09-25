@@ -244,13 +244,33 @@ def fit_interior(
     seed: pd.DataFrame | None = None,
     tolerance_usd: float = TOLERANCE_USD,
     max_iterations: int = MAX_ITERATIONS,
+    *,
+    trade_electricity_pin: bool = True,
 ) -> FitResult:
     """Fit the interior for *year* to both hard-identity margins.
 
     ``seed`` defaults to
-    :func:`~bedrock.transform.iot.nowcast.derive_initial_U_intermediate`;
-    passing one is for tests and for re-running on an upstream row rework
-    (#767) without rebuilding.
+    :func:`~bedrock.transform.iot.nowcast.derive_initial_U_intermediate`
+    with the same ``trade_electricity_pin``; passing an explicit seed is for
+    tests and for re-running on an upstream row rework (#767) without
+    rebuilding.
+
+    Cell holds come from
+    :func:`~bedrock.transform.iot.nowcast_mask.fixed_value_mask` (Tier-1),
+    including trade×``221100`` when ``trade_electricity_pin`` is on (#899).
+    Fixed cells stay at seed; free cells absorb. Free-axis targets are
+    ``target − frozen_seed_mass``. The wedge closes **free-active** row
+    residual total onto **free-active** column residual total (column /
+    observed-GO side still wins), with held whole-axes contributing only
+    non-fixed seed mass::
+
+        free_active_row_total = Σ row_targets[active] − Σ seed[fixed ∧ row_active]
+        free_active_col_total = Σ col_targets[active] − Σ seed[fixed ∧ col_active]
+        reachable_free_col_total = (
+            free_active_col_total
+            + held_col_seed_nonfixed − held_row_seed_nonfixed
+        )
+        wedge_usd = free_active_row_total − reachable_free_col_total
     """
     if int(year) not in FIT_YEARS:
         raise ValueError(
@@ -262,12 +282,32 @@ def fit_interior(
             derive_initial_U_intermediate,
         )
 
-        seed = derive_initial_U_intermediate(int(year))
+        seed = derive_initial_U_intermediate(
+            int(year), trade_electricity_pin=trade_electricity_pin
+        )
     commodities = pd.Index(USA_2017_COMMODITY_CODES, name='commodity')
     industries = pd.Index(USA_2017_INDUSTRY_CODES, name='industry')
     matrix = (
         seed.reindex(index=commodities, columns=industries).fillna(0.0).astype(float)
     )
+
+    if trade_electricity_pin:
+        from bedrock.transform.iot.nowcast_mask import (  # noqa: PLC0415
+            fixed_value_mask,
+        )
+
+        fixed = (
+            fixed_value_mask('use', int(year), trade_electricity_pin=True)
+            .reindex(index=commodities, columns=industries)
+            .to_numpy(dtype=bool, na_value=False)
+        )
+    else:
+        # Tier-1 on the interior is only the trade pin (1:1 FD is not intermediate).
+        fixed = np.zeros(matrix.shape, dtype=bool)
+    free = ~fixed
+    seed_np = matrix.to_numpy()
+    frozen_row = (seed_np * fixed).sum(axis=1)
+    frozen_col = (seed_np * fixed).sum(axis=0)
 
     row_targets = interior_row_targets(int(year))
     column_targets = interior_column_targets(int(year))
@@ -279,45 +319,88 @@ def fit_interior(
     relaxed_rows: dict[str, float] = {}
     relaxed_columns: dict[str, float] = {}
 
-    fitted = matrix.to_numpy(copy=True)
+    for i, code in enumerate(commodities):
+        if not bool(row_active.iloc[i]):
+            continue
+        mass = float(frozen_row[i])
+        target = float(base_row_targets.iloc[i])
+        if mass > abs(target) + tolerance_usd:
+            raise ValueError(
+                f'{year}: frozen seed mass {mass:,.0f} USD on row {code} '
+                f'exceeds |target| {abs(target):,.0f} USD'
+            )
+    for j, code in enumerate(industries):
+        if not bool(col_active.iloc[j]):
+            continue
+        mass = float(frozen_col[j])
+        target = float(column_targets.iloc[j])
+        if mass > abs(target) + tolerance_usd:
+            raise ValueError(
+                f'{year}: frozen seed mass {mass:,.0f} USD on column {code} '
+                f'exceeds |target| {abs(target):,.0f} USD'
+            )
+
+    fitted = seed_np.copy()
     iterations = 0
     residual = np.inf
     wedge = 0.0
+    r_free_scaled = base_row_targets.to_numpy() - frozen_row
+    c_free = column_targets.to_numpy() - frozen_col
     for _relaxation in range(RELAXATION_BUDGET + 1):
-        # The wedge: close the active row total onto the active column total —
-        # the observed-GO side wins (module docstring). Held and relaxed axes
-        # keep their seed mass, so the closure compares what the fit can reach.
-        row_targets = base_row_targets.copy()
-        active_row_total = float(row_targets[row_active].sum())
-        held_row_seed = float(matrix.loc[~row_active].to_numpy().sum())
-        held_col_seed = float(matrix.loc[:, ~col_active].to_numpy().sum())
-        reachable_col_total = (
-            float(column_targets[col_active].sum()) + held_col_seed - held_row_seed
-        )
-        wedge = active_row_total - reachable_col_total
-        if active_row_total == 0.0:
-            raise ValueError(f'{year}: no active rows to fit; the seed is empty.')
-        row_targets[row_active] *= reachable_col_total / active_row_total
-
-        fitted = matrix.to_numpy(copy=True)
-        r_t = row_targets.to_numpy()
-        c_t = column_targets.to_numpy()
+        # Free-active wedge: close free row residual onto free col residual —
+        # observed-GO / column side wins. Held whole-axes contribute only
+        # non-fixed seed mass so frozen cells are never double-counted.
         r_a = row_active.to_numpy()
         c_a = col_active.to_numpy()
+        frozen_on_active_rows = float((seed_np * fixed * r_a[:, None]).sum())
+        frozen_on_active_cols = float((seed_np * fixed * c_a[None, :]).sum())
+        free_active_row_total = (
+            float(base_row_targets.to_numpy()[r_a].sum()) - frozen_on_active_rows
+        )
+        free_active_col_total = (
+            float(column_targets.to_numpy()[c_a].sum()) - frozen_on_active_cols
+        )
+        held_row_seed_nonfixed = float(
+            (seed_np * free * np.logical_not(r_a)[:, None]).sum()
+        )
+        held_col_seed_nonfixed = float(
+            (seed_np * free * np.logical_not(c_a)[None, :]).sum()
+        )
+        reachable_free_col_total = (
+            free_active_col_total + held_col_seed_nonfixed - held_row_seed_nonfixed
+        )
+        wedge = free_active_row_total - reachable_free_col_total
+        if free_active_row_total == 0.0:
+            raise ValueError(f'{year}: no active rows to fit; the seed is empty.')
 
+        r_free_scaled = base_row_targets.to_numpy() - frozen_row
+        r_free_scaled[r_a] *= reachable_free_col_total / free_active_row_total
+        c_free = column_targets.to_numpy() - frozen_col
+
+        fitted = seed_np.copy()
         for iterations in range(1, max_iterations + 1):
-            row_sums = fitted.sum(axis=1)
+            free_row_sums = (fitted * free).sum(axis=1)
             with np.errstate(divide='ignore', invalid='ignore'):
-                row_factor = np.where(r_a & (row_sums != 0.0), r_t / row_sums, 1.0)
-            fitted *= row_factor[:, None]
+                row_factor = np.where(
+                    r_a & (free_row_sums != 0.0),
+                    r_free_scaled / free_row_sums,
+                    1.0,
+                )
+            fitted = np.where(free, fitted * row_factor[:, None], fitted)
 
-            col_sums = fitted.sum(axis=0)
+            free_col_sums = (fitted * free).sum(axis=0)
             with np.errstate(divide='ignore', invalid='ignore'):
-                col_factor = np.where(c_a & (col_sums != 0.0), c_t / col_sums, 1.0)
-            fitted *= col_factor[None, :]
+                col_factor = np.where(
+                    c_a & (free_col_sums != 0.0),
+                    c_free / free_col_sums,
+                    1.0,
+                )
+            fitted = np.where(free, fitted * col_factor[None, :], fitted)
 
-            row_miss = np.abs(fitted.sum(axis=1) - r_t)[r_a].max(initial=0.0)
-            col_miss = np.abs(fitted.sum(axis=0) - c_t)[c_a].max(initial=0.0)
+            free_row_sums = (fitted * free).sum(axis=1)
+            free_col_sums = (fitted * free).sum(axis=0)
+            row_miss = np.abs(free_row_sums - r_free_scaled)[r_a].max(initial=0.0)
+            col_miss = np.abs(free_col_sums - c_free)[c_a].max(initial=0.0)
             residual = float(max(row_miss, col_miss))
             if residual < tolerance_usd:
                 break
@@ -328,9 +411,11 @@ def fit_interior(
         # target cannot be reached on its nonzero cells without breaking the
         # axes it shares them with. Relax it (hold at seed, record the miss)
         # and refit; if many need this, the targets are wrong, not the support.
-        row_misses = pd.Series(np.abs(fitted.sum(axis=1) - r_t), index=commodities)
+        free_row_sums = (fitted * free).sum(axis=1)
+        free_col_sums = (fitted * free).sum(axis=0)
+        row_misses = pd.Series(np.abs(free_row_sums - r_free_scaled), index=commodities)
         row_misses[~row_active] = 0.0
-        col_misses = pd.Series(np.abs(fitted.sum(axis=0) - c_t), index=industries)
+        col_misses = pd.Series(np.abs(free_col_sums - c_free), index=industries)
         col_misses[~col_active] = 0.0
         if float(row_misses.max()) >= float(col_misses.max()):
             axis = str(row_misses.idxmax())
@@ -350,8 +435,12 @@ def fit_interior(
             f'targets are wrong, not the support - stop and diagnose.'
         )
 
+    # Report post-wedge full row targets (free residual + frozen mass).
+    row_targets = base_row_targets.copy()
+    row_targets[:] = r_free_scaled + frozen_row
+
     result = pd.DataFrame(fitted, index=commodities, columns=industries)
-    moved = float(np.abs(fitted - matrix.to_numpy()).sum()) / 2.0
+    moved = float(np.abs(fitted - seed_np).sum()) / 2.0
     return FitResult(
         interior=result,
         row_targets=row_targets,

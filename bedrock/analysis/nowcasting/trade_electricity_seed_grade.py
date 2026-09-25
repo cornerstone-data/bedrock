@@ -1,8 +1,9 @@
 """Grade trade electricity seed candidates for #899.
 
-Candidate A (``uniform_eia_commercial``) is the production path; Candidate B
-(``qcew_payroll``) is diagnostic / fallback. Slack bars and the choose/wire rule
-live in the #896 plan (§2A.3).
+Candidate A (``uniform_eia_commercial``) and B (``qcew_payroll``) are seed-index
+estimators. ``carry`` is the pre-pin baseline (``trade_electricity_pin=False``).
+``pinned_a2017`` is the true pin (default-on production path). Slack bars and
+the choose/wire rule live in the #896 plan (§2A.3 / §2A.3b).
 
 ::
 
@@ -35,6 +36,7 @@ from bedrock.analysis.nowcasting.trade_electricity_seed import (
 GRADE_YEAR_A = 2017
 GRADE_YEAR_B = 2024
 CV_YEARS = tuple(range(2018, 2023))  # 2018-22 inclusive
+CRISIS_YEARS = [2022, 2023, 2024]
 FLOOR_M = 10.0  # $M absolute floor for uniform_yoy_spread industries
 IDIO_PP = 25.0
 CV_MAX = 0.35
@@ -43,7 +45,20 @@ ANTI_CARRY_ATOL_M = 1e-6
 SANITY_SPREAD_PP = 0.01
 B_SPREAD_PP = 5.0
 
-CANDIDATES: tuple[Candidate, ...] = ('uniform_eia_commercial', 'qcew_payroll')
+SEED_CANDIDATES: tuple[Candidate, ...] = ('uniform_eia_commercial', 'qcew_payroll')
+GradeCandidate = ta.Literal[
+    'carry',
+    'uniform_eia_commercial',
+    'qcew_payroll',
+    'pinned_a2017',
+]
+ALL_GRADE_CANDIDATES: tuple[GradeCandidate, ...] = (
+    'carry',
+    'uniform_eia_commercial',
+    'qcew_payroll',
+    'pinned_a2017',
+)
+BASELINE_CANDIDATES: frozenset[str] = frozenset({'carry', 'pinned_a2017'})
 
 
 class TradeElectricityGradeSummary(ta.NamedTuple):
@@ -69,15 +84,42 @@ class TradeElectricityGradeSpan(ta.NamedTuple):
     mut_vintage: str
 
 
+class TradeElectricityDisplacementRow(ta.NamedTuple):
+    band: str
+    year_a: int
+    year_b: int
+    share_effect_bn_unpinned: float
+    share_effect_bn_pinned: float
+    delta_bn: float
+    mut_vintage: str
+
+
 def _industries() -> list[str]:
     return sorted(trade_seed_set())
 
 
-def _precontrol_panel(candidate: Candidate, years: list[int]) -> dict[int, pd.Series]:
+def _use2017_trade_row() -> 'pd.Series[float]':
+    from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
+        _use_2017_detail,
+    )
+
+    industries = _industries()
+    row = _use_2017_detail().loc[ELECTRICITY_ROW].reindex(industries).astype(float)
+    return pd.Series(row.to_numpy(), index=industries, dtype=float)
+
+
+def _precontrol_panel(
+    candidate: GradeCandidate, years: list[int]
+) -> dict[int, pd.Series]:
     """year -> Series of seed $M on 221100 × seed-set (pre column control)."""
+    if candidate in BASELINE_CANDIDATES:
+        # Identity Use2017 — status quo / pin coefficient (spread ~0 by construction).
+        base = _use2017_trade_row()
+        return {year: base.copy() for year in years}
+    seed_cand = ta.cast(Candidate, candidate)
     out: dict[int, pd.Series] = {}
     for year in years:
-        seed = trade_electricity_seed(year, candidate=candidate)
+        seed = trade_electricity_seed(year, candidate=seed_cand)
         row = seed.loc[ELECTRICITY_ROW]
         out[year] = pd.Series(row.astype(float), index=seed.columns, dtype=float)
     return out
@@ -130,7 +172,9 @@ def idiosyncratic_flag_count(panel: dict[int, pd.Series]) -> int:
     return sum(1 for g in growths.values() if abs(g - mean) > IDIO_PP)
 
 
-def _pass_spread(candidate: Candidate, spread: float) -> bool:
+def _pass_spread(candidate: GradeCandidate, spread: float) -> bool:
+    if candidate in BASELINE_CANDIDATES:
+        return (not math.isnan(spread)) and spread <= SANITY_SPREAD_PP
     if math.isnan(spread):
         return False
     limit = SANITY_SPREAD_PP if candidate == 'uniform_eia_commercial' else B_SPREAD_PP
@@ -142,16 +186,8 @@ def eia_level_gap_pct_2017() -> float:
     from bedrock.analysis.electricity.current.eia_gtd.electricity_row_control import (  # noqa: PLC0415
         eia_epa_table_2_3_revenue_bn,
     )
-    from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
-        _use_2017_detail,
-    )
 
-    use = _use_2017_detail()
-    industries = _industries()
-    use_bn = (
-        float(use.loc[ELECTRICITY_ROW].reindex(industries).astype(float).sum())
-        / 1_000.0
-    )
+    use_bn = float(_use2017_trade_row().sum()) / 1_000.0
     _, commercial_bn, _, _ = eia_epa_table_2_3_revenue_bn(GRADE_YEAR_A)
     if commercial_bn == 0.0 or math.isnan(commercial_bn):
         raise ValueError('EPA Table 2.3 commercial revenue is 0/NaN at 2017')
@@ -166,8 +202,10 @@ def _resolve_mut_vintage(mut_vintage: str | None) -> str:
     return mut_vintage or resolved_mut_vintage()
 
 
-def weighted_corr_mut(candidate: Candidate, mut_vintage: str) -> float:
+def weighted_corr_mut(candidate: GradeCandidate, mut_vintage: str) -> float:
     """Weighted Pearson corr of pre-control seed $M vs MUT elec $M, 2018–22."""
+    if candidate in BASELINE_CANDIDATES:
+        return float('nan')
     from bedrock.analysis.electricity.current.eia_gtd.electricity_row_control import (  # noqa: PLC0415
         load_year,
     )
@@ -176,22 +214,13 @@ def weighted_corr_mut(candidate: Candidate, mut_vintage: str) -> float:
     )
 
     industries = _industries()
-    from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
-        _use_2017_detail,
-    )
-
-    weights = (
-        _use_2017_detail()
-        .loc[ELECTRICITY_ROW]
-        .reindex(industries)
-        .astype(float)
-        .clip(lower=0.0)
-    )
+    weights = _use2017_trade_row().clip(lower=0.0)
+    seed_cand = ta.cast(Candidate, candidate)
     xs: list[float] = []
     ys: list[float] = []
     ws: list[float] = []
     for year in CV_YEARS:
-        seed = trade_electricity_seed(year, candidate=candidate).loc[ELECTRICITY_ROW]
+        seed = trade_electricity_seed(year, candidate=seed_cand).loc[ELECTRICITY_ROW]
         panel = load_year(year, mut_vintage)
         mut_m = (
             panel.elec.reindex(industries).astype(float) / MILLION_CURRENCY_TO_CURRENCY
@@ -255,12 +284,12 @@ def _injected_composed_seed(candidate: Candidate) -> ta.Iterator[None]:
         yield
 
 
-def physical_proxy_cv(candidate: Candidate) -> tuple[float, int]:
+def physical_proxy_cv(candidate: GradeCandidate) -> tuple[float, int]:
     """CV of (Step-3 dump electricity $M / QCEW payroll) pooled 2018–22.
 
-    Calls :func:`~bedrock.transform.iot.nowcast.derive_initial_U_intermediate`
-    under the composed_seed patch — post–column-control Step-3 dollars only
-    (no Y/VA assembly, no IPF). IPF would fold in row-target redistribution.
+    * ``carry`` — ``trade_electricity_pin=False`` (pre-pin status quo).
+    * ``pinned_a2017`` — pin on.
+    * A/B — seed overlay with pin off.
 
     Returns ``(cv, n_distinct_industries_with_payroll)``. Empty / thin panel →
     ``(nan, n)``.
@@ -281,10 +310,13 @@ def physical_proxy_cv(candidate: Candidate) -> tuple[float, int]:
         .astype(float)
         for year in CV_YEARS
     }
-    with _injected_composed_seed(candidate):
+
+    def _collect(pin: bool) -> None:
         for year in CV_YEARS:
             interior_m = (
-                derive_initial_U_intermediate(year).astype(float)
+                derive_initial_U_intermediate(year, trade_electricity_pin=pin).astype(
+                    float
+                )
                 / MILLION_CURRENCY_TO_CURRENCY
             )
             elec = pd.Series(
@@ -300,6 +332,18 @@ def physical_proxy_cv(candidate: Candidate) -> tuple[float, int]:
                     continue
                 ratios.append(e / p)
                 seen.add(industry)
+
+    if candidate == 'carry':
+        _collect(pin=False)
+    elif candidate == 'pinned_a2017':
+        _collect(pin=True)
+    elif candidate == 'uniform_eia_commercial':
+        with _injected_composed_seed('uniform_eia_commercial'):
+            _collect(pin=False)
+    else:
+        with _injected_composed_seed('qcew_payroll'):
+            _collect(pin=False)
+
     n = len(seen)
     if n < CV_MIN_INDUSTRIES or not ratios:
         return float('nan'), n
@@ -336,20 +380,92 @@ def anti_carry_ok(candidate: Candidate, year: int = 2022) -> bool:
 
 def identity_2017_ok(candidate: Candidate) -> bool:
     """Wired cells equal Use2017 at base_year (within atol)."""
-    from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
-        _use_2017_detail,
-    )
-
-    use = _use_2017_detail()
     seed = trade_electricity_seed(GRADE_YEAR_A, candidate=candidate)
     industries = list(seed.columns)
-    base = use.loc[ELECTRICITY_ROW].reindex(industries).astype(float)
+    base = _use2017_trade_row().reindex(industries).astype(float)
     got = seed.loc[ELECTRICITY_ROW].reindex(industries).astype(float)
     return bool((got - base).abs().max() <= ANTI_CARRY_ATOL_M)
 
 
+def year_panel_from_interior_usd(interior_usd: pd.DataFrame) -> ta.Any:
+    """Fitted intermediate interior (USD) → ``YearPanel`` for band share-effects."""
+    from bedrock.analysis.electricity.current.eia_gtd.electricity_row_control import (  # noqa: PLC0415
+        YearPanel,
+    )
+
+    if ELECTRICITY_ROW not in interior_usd.index:
+        raise ValueError('interior missing electricity row 221100')
+    industries = list(interior_usd.columns)
+    elec = pd.Series(
+        interior_usd.loc[ELECTRICITY_ROW].astype(float).to_numpy(),
+        index=industries,
+        dtype=float,
+    )
+    coltot = pd.Series(
+        interior_usd.astype(float).sum(axis=0).to_numpy(),
+        index=industries,
+        dtype=float,
+    )
+    zeros = pd.Series(0.0, index=industries, dtype=float)
+    return YearPanel(
+        make=zeros,
+        industry_output=0.0,
+        elec=elec,
+        coltot=coltot,
+        y=zeros,
+        all_intermediate=float(coltot.sum()),
+    )
+
+
+def displacement_rows(mut_vintage: str) -> list[TradeElectricityDisplacementRow]:
+    """Band share-effect Δ (pinned − unpinned) on fitted interiors for crisis spans.
+
+    Uses :func:`~bedrock.transform.iot.nowcast_interior_fit.fit_interior` directly
+    (intermediate only) — not full ``assemble_use_seed`` — so Y/VA assembly is not
+    paid twice per year.
+    """
+    from bedrock.analysis.electricity.current.eia_gtd.electricity_row_896 import (  # noqa: PLC0415
+        build_band_rows,
+        build_claim_sets,
+    )
+    from bedrock.transform.iot.nowcast_interior_fit import (  # noqa: PLC0415
+        fit_interior,
+    )
+
+    panels: dict[bool, dict[int, ta.Any]] = {False: {}, True: {}}
+    for pin in (False, True):
+        for year in CRISIS_YEARS:
+            interior = fit_interior(year, trade_electricity_pin=pin).interior.astype(
+                float
+            )
+            panels[pin][year] = year_panel_from_interior_usd(interior)
+
+    sets = build_claim_sets()
+    unpinned_rows = build_band_rows(panels[False], CRISIS_YEARS, mut_vintage, sets)
+    pinned_rows = build_band_rows(panels[True], CRISIS_YEARS, mut_vintage, sets)
+    pinned_by_key = {
+        (r.band, r.year_a, r.year_b): r.share_effect_bn for r in pinned_rows
+    }
+    out: list[TradeElectricityDisplacementRow] = []
+    for row in unpinned_rows:
+        pinned_bn = float(pinned_by_key[(row.band, row.year_a, row.year_b)])
+        unpinned_bn = float(row.share_effect_bn)
+        out.append(
+            TradeElectricityDisplacementRow(
+                band=row.band,
+                year_a=row.year_a,
+                year_b=row.year_b,
+                share_effect_bn_unpinned=unpinned_bn,
+                share_effect_bn_pinned=pinned_bn,
+                delta_bn=pinned_bn - unpinned_bn,
+                mut_vintage=mut_vintage,
+            )
+        )
+    return out
+
+
 def grade_candidate(
-    candidate: Candidate, mut_vintage: str
+    candidate: GradeCandidate, mut_vintage: str
 ) -> tuple[TradeElectricityGradeSummary, list[TradeElectricityGradeSpan]]:
     years = list(range(GRADE_YEAR_A, GRADE_YEAR_B + 1))
     panel = _precontrol_panel(candidate, years)
@@ -377,24 +493,25 @@ def grade_candidate(
     idio = idiosyncratic_flag_count(panel)
     held = (
         0
-        if candidate == 'uniform_eia_commercial'
+        if candidate != 'qcew_payroll'
         else max(held_missing_qcew_count(y) for y in years)
     )
     cv, cv_n = physical_proxy_cv(candidate)
     gap = eia_level_gap_pct_2017()
     corr = weighted_corr_mut(candidate, mut_vintage)
 
-    spread_ok = (not empty_floor) and all(s.pass_span_spread for s in spans)
-    cv_ok = (not math.isnan(cv)) and cv <= CV_MAX and cv_n >= CV_MIN_INDUSTRIES
-    idio_ok = idio == 0
-    held_ok = held == 0
-
-    if candidate == 'uniform_eia_commercial':
-        # A: sanity (spread + idio) + physical_proxy_cv
-        pass_bars = spread_ok and idio_ok and cv_ok
+    if candidate in BASELINE_CANDIDATES:
+        # Record-only: absolute Slack bars are not a choose/wire input.
+        pass_bars = False
     else:
-        # B: all three design cuts + no missing QCEW holds
-        pass_bars = spread_ok and idio_ok and cv_ok and held_ok
+        spread_ok = (not empty_floor) and all(s.pass_span_spread for s in spans)
+        cv_ok = (not math.isnan(cv)) and cv <= CV_MAX and cv_n >= CV_MIN_INDUSTRIES
+        idio_ok = idio == 0
+        held_ok = held == 0
+        if candidate == 'uniform_eia_commercial':
+            pass_bars = spread_ok and idio_ok and cv_ok
+        else:
+            pass_bars = spread_ok and idio_ok and cv_ok and held_ok
 
     summary = TradeElectricityGradeSummary(
         candidate=candidate,
@@ -415,8 +532,9 @@ def grade_candidate(
 def run_checks(
     summaries: list[TradeElectricityGradeSummary],
     spans: list[TradeElectricityGradeSpan],
+    displacements: list[TradeElectricityDisplacementRow] | None = None,
 ) -> int:
-    """Return failure count. Also enforces anti-carry + 2017 identity + empty floors."""
+    """Return failure count. Absolute Slack FAIL only for A/B; carry/pin record-only."""
     failures = 0
 
     if not trade_seed_set():
@@ -425,22 +543,26 @@ def run_checks(
         return failures
 
     for summary in summaries:
-        cand = ta.cast(Candidate, summary.candidate)
-        try:
-            if not identity_2017_ok(cand):
-                print(f'FAIL  {cand}: 2017 identity (seed != Use2017)')
-                failures += 1
-        except Exception as exc:  # noqa: BLE001 — CLI surface
-            print(f'FAIL  {cand}: 2017 identity raised: {exc}')
-            failures += 1
+        cand = summary.candidate
+        is_baseline = cand in BASELINE_CANDIDATES
 
-        try:
-            if not anti_carry_ok(cand):
-                print(f'FAIL  {cand}: anti-carry (injected equals carry at 2022)')
+        if not is_baseline:
+            seed_cand = ta.cast(Candidate, cand)
+            try:
+                if not identity_2017_ok(seed_cand):
+                    print(f'FAIL  {cand}: 2017 identity (seed != Use2017)')
+                    failures += 1
+            except Exception as exc:  # noqa: BLE001 — CLI surface
+                print(f'FAIL  {cand}: 2017 identity raised: {exc}')
                 failures += 1
-        except Exception as exc:  # noqa: BLE001
-            print(f'FAIL  {cand}: anti-carry raised: {exc}')
-            failures += 1
+
+            try:
+                if not anti_carry_ok(seed_cand):
+                    print(f'FAIL  {cand}: anti-carry (injected equals carry at 2022)')
+                    failures += 1
+            except Exception as exc:  # noqa: BLE001
+                print(f'FAIL  {cand}: anti-carry raised: {exc}')
+                failures += 1
 
         cand_spans = [s for s in spans if s.candidate == cand]
         if any(math.isnan(s.uniform_yoy_spread) for s in cand_spans):
@@ -453,12 +575,19 @@ def run_checks(
                 f'(need ≥{CV_MIN_INDUSTRIES} seed-set industries with payroll > 0)'
             )
             failures += 1
-        elif summary.physical_proxy_cv > CV_MAX:
+        elif (not is_baseline) and summary.physical_proxy_cv > CV_MAX:
             print(
                 f'FAIL  {cand}: physical_proxy_cv '
                 f'{summary.physical_proxy_cv:.4f} > {CV_MAX}'
             )
             failures += 1
+
+        if is_baseline:
+            print(
+                f'RECORD  {cand}: cv={summary.physical_proxy_cv:.4f} '
+                f'(absolute Slack not a wire gate)'
+            )
+            continue
 
         if cand == 'uniform_eia_commercial':
             if summary.max_uniform_yoy_spread > SANITY_SPREAD_PP:
@@ -499,6 +628,19 @@ def run_checks(
         else:
             print(f'PASS  {cand}: pass_slack_bars')
 
+    if displacements is not None:
+        if not displacements:
+            print('FAIL  displacement table is empty')
+            failures += 1
+        else:
+            spans_seen = {(r.year_a, r.year_b) for r in displacements}
+            expected = {(2022, 2023), (2023, 2024)}
+            if spans_seen != expected:
+                print(f'FAIL  displacement spans {spans_seen} != {expected}')
+                failures += 1
+            else:
+                print(f'PASS  displacement: {len(displacements)} band×span rows')
+
     print(f'check: {failures} failure(s) over {len(summaries)} candidates')
     return failures
 
@@ -508,6 +650,8 @@ def _write_csv(
     path_spans: str,
     summaries: list[TradeElectricityGradeSummary],
     spans: list[TradeElectricityGradeSpan],
+    path_displacement: str | None = None,
+    displacements: list[TradeElectricityDisplacementRow] | None = None,
 ) -> None:
     with open(path_summary, 'w', newline='', encoding='utf-8') as fh:
         writer = csv.DictWriter(
@@ -521,6 +665,14 @@ def _write_csv(
         writer.writeheader()
         for span_row in spans:
             writer.writerow(span_row._asdict())
+    if path_displacement is not None and displacements is not None:
+        with open(path_displacement, 'w', newline='', encoding='utf-8') as fh:
+            writer = csv.DictWriter(
+                fh, fieldnames=list(TradeElectricityDisplacementRow._fields)
+            )
+            writer.writeheader()
+            for row in displacements:
+                writer.writerow(row._asdict())
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -530,17 +682,22 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument('--mut-vintage', default=None)
     parser.add_argument(
         '--candidate',
-        choices=list(CANDIDATES) + ['both'],
-        default='both',
-        help='Grade one candidate or both (default).',
+        choices=list(ALL_GRADE_CANDIDATES) + ['all'],
+        default='all',
+        help='Grade one candidate or all four (default: carry+A+B+pin).',
+    )
+    parser.add_argument(
+        '--skip-displacement',
+        action='store_true',
+        help='Skip fitted pin-off vs pin-on band displacement (slow).',
     )
     args = parser.parse_args(argv)
 
     mut_vintage = _resolve_mut_vintage(args.mut_vintage)
-    chosen: tuple[Candidate, ...] = (
-        CANDIDATES
-        if args.candidate == 'both'
-        else (ta.cast(Candidate, args.candidate),)
+    chosen: tuple[GradeCandidate, ...] = (
+        ALL_GRADE_CANDIDATES
+        if args.candidate == 'all'
+        else (ta.cast(GradeCandidate, args.candidate),)
     )
 
     # Fail fast on EPA / empty seed-set / zero Use2017 before the heavy CV path.
@@ -570,27 +727,58 @@ def main(argv: list[str] | None = None) -> None:
             f'pass={summary.pass_slack_bars}'
         )
 
+    displacements: list[TradeElectricityDisplacementRow] | None = None
+    if not args.skip_displacement:
+        print('measuring residual displacement (fitted pin-off vs pin-on) …')
+        displacements = displacement_rows(mut_vintage)
+        for row in displacements:
+            if abs(row.delta_bn) >= 0.5:
+                print(
+                    f'  {row.band} {row.year_a}→{row.year_b}: '
+                    f'Δ={row.delta_bn:+.2f} bn '
+                    f'(pinned={row.share_effect_bn_pinned:+.2f}, '
+                    f'unpinned={row.share_effect_bn_unpinned:+.2f})'
+                )
+
     if args.csv:
         out_dir = Path(__file__).resolve().parent
         summary_path = str(out_dir / 'trade_electricity_grade_summary.csv')
         spans_path = str(out_dir / 'trade_electricity_grade_spans.csv')
-        _write_csv(summary_path, spans_path, summaries, spans)
+        disp_path = str(out_dir / 'trade_electricity_displacement.csv')
+        _write_csv(
+            summary_path,
+            spans_path,
+            summaries,
+            spans,
+            path_displacement=disp_path if displacements is not None else None,
+            displacements=displacements,
+        )
         print(f'wrote {summary_path}')
         print(f'wrote {spans_path}')
+        if displacements is not None:
+            print(f'wrote {disp_path}')
 
     # Prefer A if both pass (choose rule); print recommendation.
     by_name = {s.candidate: s for s in summaries}
     a = by_name.get('uniform_eia_commercial')
     b = by_name.get('qcew_payroll')
+    pin = by_name.get('pinned_a2017')
     if a is not None and a.pass_slack_bars:
         print('choose: wire uniform_eia_commercial (Candidate A)')
     elif b is not None and b.pass_slack_bars:
         print('choose: wire qcew_payroll (Candidate B; A failed)')
+    elif pin is not None:
+        print(
+            'choose: do not wire A/B; true pin (pinned_a2017) is the production '
+            'commercial path (default-on)'
+        )
     else:
         print('choose: do not wire; keep carry + failed-grade CSV')
 
     if args.check:
-        raise SystemExit(1 if run_checks(summaries, spans) else 0)
+        raise SystemExit(
+            1 if run_checks(summaries, spans, displacements=displacements) else 0
+        )
 
 
 if __name__ == '__main__':
