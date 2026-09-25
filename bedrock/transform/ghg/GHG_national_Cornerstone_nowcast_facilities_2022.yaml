@@ -31,6 +31,8 @@
          nei_year: 2022
          annex_fba: 'UMD_GHGIA_T_A5_1_S2'
          annex_year: 2022
+         exclude_sectors:
+           - '221100'
        fedefl_mapping: UMD_GHGIA_AR5_100
        activity_sets:
          petroleum_still_gas:

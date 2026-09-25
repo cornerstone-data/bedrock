@@ -850,55 +850,6 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     return pct_dict
 
 
-def get_manufacturing_facility_ratios(
-    parameter_dict: dict[str, Any],
-) -> dict[str, float]:
-    """Manufacturing share of facility combustion by fuel (31-33 / industrial scope).
-
-    Used when ``clean_parameter.ratio_source`` is ``facilities`` (#929). Optional
-    keys match ``facility_combustion_to_sector`` / facilities YAML:
-    ``year`` (GHGRP), ``nei_year``, ``sector_prefixes``, ``exclude_sectors``,
-    ``keep_flowables``.
-    """
-    year = int(parameter_dict['year'])
-    nei_raw = parameter_dict.get('nei_year')
-    nei_year = int(nei_raw) if nei_raw is not None else None
-
-    def _str_tuple(key: str) -> tuple[str, ...] | None:
-        raw = parameter_dict.get(key)
-        if raw is None:
-            return None
-        return tuple(str(x) for x in raw)
-
-    union = build_facility_combustion(
-        year,
-        nei_year=nei_year,
-        sector_prefixes=_str_tuple('sector_prefixes'),
-        exclude_sectors=_str_tuple('exclude_sectors'),
-        keep_flowables=_str_tuple('keep_flowables') or ('Natural Gas', 'Coal'),
-    )
-    mfg_prefixes = ('31', '32', '33')
-    pct_dict: dict[str, float] = {}
-    for fuel in ('Coal', 'Natural Gas'):
-        fuel_rows = union[union['Flowable'].astype(str) == fuel]
-        total = float(fuel_rows['CO2e'].sum())
-        if total <= 0:
-            log.warning(
-                f'No facility combustion for {fuel} in {year}; '
-                f'manufacturing ratio set to 0'
-            )
-            pct_dict[fuel] = 0.0
-            continue
-        mfg = float(
-            fuel_rows.loc[
-                fuel_rows['sector'].astype(str).str[:2].isin(mfg_prefixes),
-                'CO2e',
-            ].sum()
-        )
-        pct_dict[fuel] = float(np.minimum(mfg / total, 1.0))
-    return pct_dict
-
-
 def allocate_industrial_combustion(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
@@ -914,7 +865,45 @@ def allocate_industrial_combustion(
         raise ValueError('clean_parameter is required in config')
     ratio_source = clean_parameter.get('ratio_source', 'mecs')
     if ratio_source == 'facilities':
-        pct_dict = get_manufacturing_facility_ratios(clean_parameter)
+        year = int(clean_parameter['year'])
+        nei_raw = clean_parameter.get('nei_year')
+        nei_year = int(nei_raw) if nei_raw is not None else None
+        raw_prefixes = clean_parameter.get('sector_prefixes')
+        raw_exclude = clean_parameter.get('exclude_sectors')
+        raw_flowables = clean_parameter.get('keep_flowables')
+        union = build_facility_combustion(
+            year,
+            nei_year=nei_year,
+            sector_prefixes=(
+                None if raw_prefixes is None else tuple(str(x) for x in raw_prefixes)
+            ),
+            exclude_sectors=(
+                None if raw_exclude is None else tuple(str(x) for x in raw_exclude)
+            ),
+            keep_flowables=(
+                ('Natural Gas', 'Coal')
+                if raw_flowables is None
+                else tuple(str(x) for x in raw_flowables)
+            ),
+        )
+        pct_dict = {}
+        for fuel in ('Coal', 'Natural Gas'):
+            fuel_rows = union[union['Flowable'].astype(str) == fuel]
+            total = float(fuel_rows['CO2e'].sum())
+            if total <= 0:
+                log.warning(
+                    f'No facility combustion for {fuel} in {year}; '
+                    f'manufacturing ratio set to 0'
+                )
+                pct_dict[fuel] = 0.0
+                continue
+            mfg = float(
+                fuel_rows.loc[
+                    fuel_rows['sector'].astype(str).str[:2].isin(('31', '32', '33')),
+                    'CO2e',
+                ].sum()
+            )
+            pct_dict[fuel] = float(np.minimum(mfg / total, 1.0))
     else:
         pct_dict = get_manufacturing_energy_ratios(clean_parameter)
 

@@ -13,14 +13,17 @@ from typing import Any, List, cast
 
 import numpy as np
 import pandas as pd
+import stewi
 
 from bedrock.extract.epa.EPA_GHGI import allocate_industrial_combustion
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.extract.stewifbs.facility_combustion import lease_and_plant_total_mmt
+from bedrock.extract.stewifbs.facility_combustion import GHGRP_FLOW_MAP
 from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
 )
+from bedrock.transform.ghg import ghgrp_subpart_w
+from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -886,89 +889,82 @@ def umd_ghgia_parse(
 
 
 def assign_lease_and_plant_natural_gas(
-    fba: FlowByActivity, clean_parameter: dict[str, Any]
+    fba: FlowByActivity, params: dict[str, Any]
 ) -> FlowByActivity:
-    """Carve lease/plant CO2e out of non-mfg Natural Gas Industrial.
+    """Move GHGRP lease and plant natural gas out of Natural Gas Industrial."""
+    year = int(params['year'])
+    ghgrp_year = int(params['ghgrp_year'])
+    flows = stewi.getInventory(
+        'GHGRP', ghgrp_year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    lease_plant_mmt = 0.0
+    if flows is not None and not getattr(flows, 'empty', True):
+        gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+        combustion = flows[
+            (flows['Process'] == 'C') & flows['FlowName'].isin(GHGRP_FLOW_MAP)
+        ].copy()
+        combustion['CO2e'] = combustion['FlowAmount'] * combustion['FlowName'].map(
+            GHGRP_FLOW_MAP
+        ).map(gwp)
+        subpart_c = combustion.groupby('FacilityID')['CO2e'].sum()
+        lease_plant_fuel = ghgrp_subpart_w.lease_and_plant_fuel(
+            (ghgrp_year,), {ghgrp_year: subpart_c}
+        )
+        if not lease_plant_fuel.empty:
+            lease_plant_mmt = float(lease_plant_fuel['CO2e'].sum()) / 1e9
 
-    Level from :func:`~bedrock.extract.stewifbs.facility_combustion.lease_and_plant_total_mmt`
-    (GHGRP), capped by the parent total after ``allocate_industrial_combustion``.
-    Sector shares come later from the facility weight FBS.
-    """
-    year = int(clean_parameter['year'])
-    ghgrp_year = int(clean_parameter.get('ghgrp_year', year))
-    carve_mmt = lease_and_plant_total_mmt(ghgrp_year)
-    if carve_mmt <= 0:
+    ng_industrial = fba['ActivityProducedBy'].astype(str) == 'Natural Gas Industrial'
+    ng_industrial_total = float(fba.loc[ng_industrial, 'FlowAmount'].sum())
+    if lease_plant_mmt <= 0:
         log.warning(
-            f'No GHGRP lease/plant fuel for {ghgrp_year}; skipping lease/plant carve'
+            f'No GHGRP lease and plant natural gas for {ghgrp_year}; '
+            f'leaving Natural Gas Industrial intact'
+        )
+        return fba
+    if ng_industrial_total <= 0:
+        log.warning(
+            f'No Natural Gas Industrial rows to split lease and plant fuel from in {year}'
         )
         return fba
 
-    parent_mask = fba['ActivityProducedBy'].astype(str) == 'Natural Gas Industrial'
-    parent_total = float(fba.loc[parent_mask, 'FlowAmount'].sum())
-    if parent_total <= 0:
-        log.warning(
-            f'No Natural Gas Industrial rows to carve lease/plant fuel from in {year}'
-        )
-        return fba
-
-    share = float(np.minimum(carve_mmt / parent_total, 1.0))
+    lease_plant_share = float(np.minimum(lease_plant_mmt / ng_industrial_total, 1.0))
     attributes_to_save = {
         attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
     }
-    carved = fba.loc[parent_mask].copy()
-    carved['FlowAmount'] = carved['FlowAmount'] * share
-    carved['ActivityProducedBy'] = 'Natural Gas Industrial - Lease and Plant'
+    lease_plant = fba.loc[ng_industrial].copy()
+    lease_plant['FlowAmount'] = lease_plant['FlowAmount'] * lease_plant_share
+    lease_plant['ActivityProducedBy'] = 'Natural Gas Industrial - Lease and Plant'
     remainder = fba.copy()
-    remainder.loc[parent_mask, 'FlowAmount'] = remainder.loc[
-        parent_mask, 'FlowAmount'
-    ] * (1.0 - share)
-    out = FlowByActivity(pd.concat([remainder, carved], ignore_index=True))
+    remainder.loc[ng_industrial, 'FlowAmount'] = remainder.loc[
+        ng_industrial, 'FlowAmount'
+    ] * (1.0 - lease_plant_share)
+    fba = FlowByActivity(pd.concat([remainder, lease_plant], ignore_index=True))
     for attr, value in attributes_to_save.items():
-        setattr(out, attr, value)
+        setattr(fba, attr, value)
     log.info(
-        f'Carved Natural Gas Industrial - Lease and Plant: {carve_mmt:.1f} MMT '
-        f'from GHGRP ({100 * share:.1f}% of Natural Gas Industrial) for {year}'
+        f'Natural Gas Industrial - Lease and Plant: {lease_plant_mmt:.1f} MMT '
+        f'from GHGRP ({100 * lease_plant_share:.1f}% of Natural Gas Industrial) '
+        f'for {year}'
     )
-    return out
+    return fba
 
 
-def split_activity_by_annex_shares(
-    fba: FlowByActivity, **_kwargs: Any
-) -> FlowByActivity:
-    """Replace one activity with annex-weighted ``{activity} - {fuel}`` rows.
-
-    ``clean_parameter`` must include:
-
-    - ``activity``: parent ActivityProducedBy to replace (e.g. Petroleum Industrial)
-    - ``annex_fba`` / ``annex_year``: annex source for CO2 fuel lines
-    - ``fuels``: list of fuel names; annex lines are ``{fuel} Industrial`` and
-      output activities are ``{activity} - {fuel}``
-
-    Blank or zero annex lines get no row. Parent rows are dropped after the
-    split (shares sum to 100% of the parent).
-    """
-    clean_parameter = fba.config.get('clean_parameter')
-    if clean_parameter is None:
-        raise ValueError('clean_parameter is required in config')
-    activity = clean_parameter.get('activity')
-    annex_name = clean_parameter.get('annex_fba')
-    fuels = clean_parameter.get('fuels')
+def split_activity_by_annex_shares(fba: FlowByActivity) -> FlowByActivity:
+    """Split one activity into annex fuel rows using annex CO2 shares."""
+    params = fba.config.get('clean_parameter') or {}
+    activity = params.get('activity')
+    annex_name = params.get('annex_fba')
+    fuels = params.get('fuels')
     if not activity or not annex_name or not fuels:
         log.warning(
-            'split_activity_by_annex_shares missing activity/annex_fba/fuels; '
-            'skipping'
+            'prepare_facilities_industrial_combustion missing '
+            'activity/annex_fba/fuels; skipping petroleum split'
         )
         return fba
 
-    fuel_list = [str(f) for f in fuels]
+    fuel_list = [str(fuel) for fuel in fuels]
     annex_to_suffix = {f'{fuel} Industrial': fuel for fuel in fuel_list}
-
-    annex_year = int(
-        clean_parameter.get(
-            'annex_year',
-            clean_parameter.get('year', fba['Year'].iloc[0]),
-        )
-    )
+    annex_year = int(params.get('annex_year', params.get('year', fba['Year'].iloc[0])))
     annex = load_fba_w_standardized_units(
         datasource=str(annex_name),
         year=annex_year,
@@ -994,7 +990,6 @@ def split_activity_by_annex_shares(
     parent = fba.loc[parent_mask]
     rest = fba.loc[~parent_mask]
     denom = float(fuel_totals.sum())
-
     pieces: list[pd.DataFrame] = []
     for annex_activity, amount in fuel_totals.items():
         suffix = annex_to_suffix.get(str(annex_activity))
@@ -1004,40 +999,34 @@ def split_activity_by_annex_shares(
         block['FlowAmount'] = block['FlowAmount'] * (float(amount) / denom)
         block['ActivityProducedBy'] = f'{activity} - {suffix}'
         pieces.append(block)
-
     if not pieces:
         return fba
 
     attributes_to_save = {
         attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
     }
-    out = FlowByActivity(pd.concat([rest, *pieces], ignore_index=True))
+    fba = FlowByActivity(pd.concat([rest, *pieces], ignore_index=True))
     for attr, value in attributes_to_save.items():
-        setattr(out, attr, value)
+        setattr(fba, attr, value)
     log.info(
         f'Split {activity} into {len(pieces)} annex fuels '
         f'({", ".join(p["ActivityProducedBy"].iloc[0] for p in pieces)})'
     )
-    return out
+    return fba
 
 
 def prepare_facilities_industrial_combustion(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
-    """Facilities T_3_11 prep: mfg split, GHGRP lease/plant carve, petroleum annex.
+    """Facilities T_3_11 prep: mfg split, GHGRP lease and plant natural gas, petroleum annex.
 
-    clean_fba_before_activity_sets for ``GHG_national_Cornerstone_nowcast_facilities_*``.
-    YAML only pins years and FBA table names.
-
-    Data sources touched:
-
-    - GHGRP ∪ NEI facility combustion for manufacturing ratios
-    - GHGRP lease/plant fuel for carve from non-mfg Natural Gas Industrial
-    - UMD annex A5.1 (``annex_fba`` / ``annex_year``) for petroleum fuel shares
-    - ``EPA_GHGI.allocate_industrial_combustion`` for the mfg/non-mfg rename
+    clean_fba_before_activity_sets for the facilities nowcast methods.
+    ``exclude_sectors`` is read from ``clean_parameter``. Manufacturing ratios
+    use facility natural gas and coal. Petroleum is split on the annex fuel list.
 
     Required ``clean_parameter`` keys: ``year``, ``annex_fba``.
-    Optional: ``nei_year``, ``annex_year``, ``ghgrp_year`` (default ``year``).
+    Optional: ``nei_year``, ``annex_year``, ``ghgrp_year`` (default ``year``),
+    ``exclude_sectors``.
     """
     clean_parameter = fba.config.get('clean_parameter')
     if clean_parameter is None:
@@ -1055,7 +1044,6 @@ def prepare_facilities_industrial_combustion(
         **dict(clean_parameter),
         'ratio_source': 'facilities',
         'sector_prefixes': ['21', '22', '31', '32', '33'],
-        'exclude_sectors': ['221100'],
         'keep_flowables': ['Natural Gas', 'Coal'],
         'activity': 'Petroleum Industrial',
         'fuels': [
