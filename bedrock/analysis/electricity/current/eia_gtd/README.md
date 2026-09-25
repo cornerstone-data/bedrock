@@ -71,15 +71,24 @@ IPF/GRAS stages, seed/mask status, and the services AIES electricity seam.
 Does **not** change production MUT or the allocator. How to read the CSVs:
 `About_896_row_gate.md`. Plain-language results: `issue_896_electricity_row_shares.md`.
 
-⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
-`annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
-(see `bedrock/extract/README.md`). `electricity_row_control` also needs the
-gitignored `bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv`;
-generate it once with:
+## Issue #990 target attribution (Phase 2T)
 
 ```bash
-python -m bedrock.utils.mapping.write_ec_alt_measures
+python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
+    [--years 2017-2024] --csv --check
 ```
+
+Reportable checker of `T016` / `Y_PCE` / `Y_other` contributions to the
+interior-row target move (default: all consecutive YoY pairs in available
+nowcast years). Decides **Attributed** vs **Fix** against published BEA
+UGO305-A / EPA Table 2.3 residential. Not a standing gate mode on
+`electricity_row_896`. See `About_990_target_attribution.md`.
+
+⚠️ **Cold-machine deps for `--check`.** `electricity_row_control` and
+`annual_electricity_shares` need a project-root `.env` with `CENSUS_API_KEY`
+(see `bedrock/extract/README.md`). `ec_go_adjustment` reads the committed
+`bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv` (refresh from
+Census with `python -m bedrock.utils.mapping.write_ec_alt_measures`).
 
 ## Why the flat generation price fails
 

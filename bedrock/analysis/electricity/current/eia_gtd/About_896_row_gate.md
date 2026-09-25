@@ -94,6 +94,19 @@ MUT** Use cell. If the live assembly has drifted from the pin, the module prints
 CSV. Cell-level GRAS vs IPF is qualitative under warning; the hard gate remains
 `GateDecision` on target vs realized.
 
+## Phase 2T / #990 target attribution
+
+Standing reportable checker (not a gate mode on `electricity_row_896`):
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 \
+    [--years 2017-2024] --csv [--check]
+```
+
+Default: all consecutive YoY pairs in available nowcast years. Schemas /
+Fix-vs-Attributed decision:
+[`About_990_target_attribution.md`](About_990_target_attribution.md).
+
 ## Unit tests
 
 ```bash
@@ -101,4 +114,5 @@ uv run pytest bedrock/analysis/electricity/current/eia_gtd/__tests__/test_electr
 ```
 
 Pure fixtures: claim-map partition, `GateDecision` classification, `--anchor-span`
-parse. No GCS / MUT I/O.
+parse. No GCS / MUT I/O. (No unit-test suite on the #990 attribution module —
+use `--check`.)
