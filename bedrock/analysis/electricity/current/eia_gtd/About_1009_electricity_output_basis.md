@@ -105,6 +105,12 @@ the column, and no scaling assumption is needed to see it.
 
 ## 3. A second finding the sizing turned up
 
+⚠️ **Read §6 before acting on this section.** BEA consolidates generation and
+distribution into one `221100`, which nets the internal sale. FERC's purchased
+power is a transaction between entities BEA consolidates, so putting it in the
+intermediate column below overstates FERC's intermediate and the direction of the
+gap is not settled. The section is kept as measured; the interpretation is not.
+
 Splitting the same $263.26bn of investor-owned revenue both ways:
 
 | IOU share, 2017, $bn | BEA × 67.6% | FERC Form 1 | diff |
@@ -189,6 +195,12 @@ Result: worst implied-price deviation falls from **+14.7% to +5.0%**, every year
 off the base improves, and `T005` stays at 1.2-1.7x investor-owned
 fuel-plus-purchased-power across the span.
 
+⚠️ **The decomposition is an approximation, and §6 shows the exact one.** BEA
+publishes the industry's component structure, and it is **generation versus
+transmission and distribution**, not retail versus sales for resale. The measured
+improvement stands, but the better route replaces the generation deflator using
+BEA's own components rather than re-indexing the aggregate from outside.
+
 ⚠️ **Off by default** behind `rebase_utility_gross_output_on_eia`. Nothing shipped
 moves until a config sets it.
 
@@ -216,4 +228,104 @@ assemble_seeds(2017, fitted=True)['use']['221100']       # the column, T005 and 
 eia_table_8_3_line(2017, 'expenses: Purchased Power')    # and the other line items
 BLS_QCEW_2017_*.parquet, ActivityProducedBy == '2211'    # payroll, national, by ownership
 bedrock/analysis/nowcasting/bea_2017_benchmark_sources.md  # C1 line 14, C2 line 148
+```
+
+## 6. What BEA's detail electric power actually is
+
+Found after §§1-5 were written, and it supersedes parts of them.
+
+BEA's detail accounts do not carry `221100` as one industry. They carry **ten**:
+eight generation technologies, bulk power transmission and control, and
+distribution. `load_pi_detail()` and `load_go_detail()` in
+`bedrock/extract/iot/gdp.py` expose both the price index and the nominal series
+for each.
+
+### The eight generation technologies share one price index
+
+Price index, 2017 = 100:
+
+| | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|
+| Fossil fuel generation | 105.4 | 142.1 | **154.0** | 124.3 | **109.0** |
+| Nuclear generation | 105.4 | 141.7 | 153.3 | 124.2 | 109.2 |
+| Solar generation | 105.3 | 141.3 | **153.0** | 123.9 | **108.7** |
+| Hydroelectric generation | 105.4 | 141.9 | 153.6 | 124.2 | 109.0 |
+| Wind generation | 105.3 | 142.1 | 153.9 | 124.1 | 108.7 |
+| Geothermal generation | 105.3 | 143.0 | 154.9 | 124.2 | 108.5 |
+| Biomass generation | 105.3 | 142.8 | 154.6 | 124.2 | 108.5 |
+| Other generation | 105.7 | 142.9 | 154.8 | 124.9 | 109.4 |
+| **Bulk transmission** | 108.2 | 115.4 | 122.8 | 127.6 | **130.7** |
+| **Distribution** | 101.2 | 109.9 | 126.2 | 125.5 | **127.7** |
+
+⚠️ **Solar and hydroelectric output prices track fossil-fired generation to
+within one index point.** Hydro has no fuel, solar has no fuel, and nuclear fuel
+is contracted years ahead. **BEA is applying a single wholesale power price index
+to all eight generation technologies.**
+
+The real quantities agree from the other side. BEA has real solar output growing
+**8.5%** from 2017 to 2024 and real wind **7.2%**, while actual US solar
+generation roughly quadrupled and wind rose about 77%. Every one of the ten moves
+on the same real index to within a point or two.
+
+✅ **So the detail split is one aggregate divided on near-fixed 2017 shares**, not
+ten independent estimates. Solar is 0.565% of electric power output in 2017 and
+0.517% in 2024.
+
+### The 2022-24 fall is entirely generation
+
+Contribution to the −$53.7bn change in nominal output:
+
+| | $bn | share |
+|---|---:|---:|
+| Fossil fuel generation | **−38.9** | 72.5% |
+| Nuclear generation | **−15.0** | 27.9% |
+| other generation | −8.2 | 15.3% |
+| Bulk transmission | **+1.4** | — |
+| Distribution | **+6.9** | — |
+
+Transmission and distribution *rose* throughout. Distribution alone is **62%** of
+the industry ($241.2bn of $389.4bn in 2017) and its price index runs 100 → 127.7,
+close to EIA's published retail price path of +23.5%.
+
+✅ **BEA and EIA are both right about different things.** BEA's generation half
+carries the wholesale price collapse after the 2022 gas spike; EIA's retail
+revenue carries regulated retail rates, which kept climbing. The row control takes
+the consolidated aggregate, which mixes them.
+
+### This explains the netting by consolidation
+
+If BEA books $133.2bn of generation and $241.2bn of distribution as separate
+detail industries, distribution buys its power from generation — a flow of order
+$130bn. Consolidating the ten into one `221100` **nets that internal sale out**.
+Which is why, all at once:
+
+- output $389.4bn ≈ retail revenue $390.3bn — the consolidated industry sells to
+  outsiders
+- the diagonal is $9.38bn — only own consumption survives consolidation
+- `T005` of $131.0bn excludes purchased power — it is internal
+- FERC's $49.03bn of purchased power is a transaction *between* entities BEA
+  consolidates
+
+✅ §2's reading is confirmed and now has a mechanism rather than an inference.
+
+### Consequences
+
+1. ⚠️ **§3's surplus comparison has a broken premise.** It put FERC's purchased
+   power in the intermediate column. Under consolidation that is internal and
+   correctly absent from BEA's `T005`, which flips the sign of the intermediate
+   gap. The measurements stand; the conclusion does not.
+2. ⚠️ **§4's chosen treatment approximates the right fix.** The exact
+   decomposition is generation versus transmission and distribution, published by
+   BEA, and the defect is specifically the generation price index. Replacing that
+   deflator is better founded than re-indexing the aggregate from outside.
+3. ➡️ **Bigger than this issue for the GHG model**: the detail electricity
+   industries carry **no technology mix movement at all**. Anything reading
+   generation mix off the detail accounts is reading a frozen 2017 snapshot. That
+   is #902's territory.
+
+### Reproduce
+
+```
+from bedrock.extract.iot.gdp import load_pi_detail, load_go_detail
+rows 21-30 of each; 'sector_name' carries the industry, year columns are strings
 ```
