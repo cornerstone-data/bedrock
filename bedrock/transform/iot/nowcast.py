@@ -854,7 +854,10 @@ def derive_initial_supply_bridge(
 
 
 def derive_initial_U_intermediate(
-    year: int, theta: float | None = None
+    year: int,
+    theta: float | None = None,
+    *,
+    trade_electricity_pin: bool = True,
 ) -> pd.DataFrame:
     """Initial (pre-RAS-balanced) intermediate block of the Use table, USD.
 
@@ -869,5 +872,11 @@ def derive_initial_U_intermediate(
     0.75 off the 2021-22 price surge and 0.0 across it, not #497's 1.0 - and the
     column shares are carried on the full purchaser deflator, price times
     margin rate.
+
+    ``trade_electricity_pin`` forwards to
+    :func:`~bedrock.transform.iot.nowcast_intermediate.derive_intermediate_use`
+    (#899 / §2A.3b).
     """
-    return derive_intermediate_use(year, theta=theta)
+    return derive_intermediate_use(
+        year, theta=theta, trade_electricity_pin=trade_electricity_pin
+    )

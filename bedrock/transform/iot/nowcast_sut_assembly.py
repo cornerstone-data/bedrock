@@ -310,12 +310,17 @@ def _million(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.astype(float) / MILLION_CURRENCY_TO_CURRENCY
 
 
-def assemble_use_seed(year: int, *, fitted: bool = True) -> pd.DataFrame:
+def assemble_use_seed(
+    year: int, *, fitted: bool = True, trade_electricity_pin: bool = True
+) -> pd.DataFrame:
     """The Use block for *year* on the mask's labels, $M.
 
     ``fitted=True`` takes the two-margin fitted interior; ``False`` takes the
     raw Step-3 interior, which is what the fit itself starts from - useful for
     measuring what the fit bought.
+
+    ``trade_electricity_pin`` forwards to the Step-3 / fit path (#899 / §2A.3b).
+    Pass ``False`` for the pre-pin counterfactual (grade carry / displacement).
     """
     rows, columns = panel_labels('use')
     panel = pd.DataFrame(0.0, index=list(rows), columns=list(columns))
@@ -323,9 +328,11 @@ def assemble_use_seed(year: int, *, fitted: bool = True) -> pd.DataFrame:
     industries = list(balance_industries())
 
     interior = (
-        fit_interior(int(year)).interior
+        fit_interior(int(year), trade_electricity_pin=trade_electricity_pin).interior
         if fitted
-        else derive_initial_U_intermediate(int(year))
+        else derive_initial_U_intermediate(
+            int(year), trade_electricity_pin=trade_electricity_pin
+        )
     )
     panel.loc[commodities, industries] = _million(interior).loc[commodities, industries]
 

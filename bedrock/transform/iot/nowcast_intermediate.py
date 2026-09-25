@@ -837,11 +837,50 @@ def apply_column_control(shares: pd.DataFrame, control: pd.Series) -> pd.DataFra
     return block
 
 
+def pin_trade_electricity_a2017(
+    block: pd.DataFrame, control: pd.Series, year: int
+) -> pd.DataFrame:
+    """Freeze trade×``221100`` at ``a_2017 × column_control`` (USD).
+
+    ``share_2017[j] = Use2017[221100, j] / Use2017[:, j].sum()`` for ``j`` in
+    the trade seed set; write ``share_2017[j] * control[j]`` after column
+    control so θ-carry cannot move those cells (#899 / §2A.3b). At
+    ``year == 2017`` this is within publication rounding of the post-control
+    cell. ``year`` is accepted for call-site clarity; the coefficient is
+    always the 2017 benchmark.
+    """
+    del year
+    from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
+        ELECTRICITY_ROW,
+        trade_seed_set,
+    )
+
+    use2017 = benchmark_intermediate()
+    out = block.copy()
+    industries = [
+        j for j in trade_seed_set() if j in out.columns and j in use2017.columns
+    ]
+    if ELECTRICITY_ROW not in out.index or ELECTRICITY_ROW not in use2017.index:
+        return out
+    col_sums = use2017.sum(axis=0)
+    for industry in industries:
+        denom = float(col_sums.at[industry])
+        if denom == 0.0 or industry not in control.index:
+            continue
+        share = float(np.asarray(use2017.at[ELECTRICITY_ROW, industry]).item()) / denom
+        out.at[ELECTRICITY_ROW, industry] = share * float(
+            np.asarray(control.at[industry]).item()
+        )
+    return out
+
+
 def derive_intermediate_use(
     year: int,
     theta: float | None = None,
     column_control: pd.Series | None = None,
     margins: bool = True,
+    *,
+    trade_electricity_pin: bool = True,
 ) -> pd.DataFrame:
     """The Step 3 intermediate block, commodity x industry, USD, purchaser price.
 
@@ -854,6 +893,10 @@ def derive_intermediate_use(
     the column rescale, which reproduces the published interior to BEA's own
     publication rounding -- see :func:`reproduction_check` for exactly how much
     that is and why it is not zero.
+
+    When ``trade_electricity_pin`` (default on), trade×``221100`` is rewritten
+    to ``a_2017 × (GO−VAPRO)`` after column control and before the S00300
+    overlay (#899 / §2A.3b). Pass ``False`` for the pre-pin counterfactual.
     """
     _require_year(year)
     control = (
@@ -862,6 +905,8 @@ def derive_intermediate_use(
     block = apply_column_control(
         carried_column_shares(year, theta, margins=margins), control
     )
+    if trade_electricity_pin:
+        block = pin_trade_electricity_a2017(block, control, year)
     from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
         overlay_s00300_intermediate_block,
     )
@@ -916,6 +961,7 @@ __all__ = [
     'UNPRICED_COMMODITIES',
     'apply_column_control',
     'benchmark_intermediate',
+    'pin_trade_electricity_a2017',
     'carried_column_shares',
     'carry_shares',
     'commodity_deflator',

@@ -204,7 +204,7 @@ def test_t00osub_zeros_are_exempt_on_the_industry_columns_only() -> None:
 
 def test_only_nonzero_cells_of_the_one_to_one_columns_are_fixed() -> None:
     panel = _use_panel()
-    fixed = fixed_value_mask('use', 2017, panel)
+    fixed = fixed_value_mask('use', 2017, panel, trade_electricity_pin=False)
     assert fixed.loc['111130', 'F06C00']
     assert fixed.loc['111120', 'F06N00']
     # zero cells of a 1:1 column are pattern, not measurement

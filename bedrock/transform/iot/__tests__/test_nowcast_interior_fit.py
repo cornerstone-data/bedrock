@@ -48,7 +48,7 @@ def toy() -> fi.FitResult:
             'interior_column_targets',
             lambda year: col_t.rename('column_target'),
         )
-        return fi.fit_interior(2023, seed=seed)
+        return fi.fit_interior(2023, seed=seed, trade_electricity_pin=False)
 
 
 def test_both_margins_land_on_their_targets(toy: fi.FitResult) -> None:
@@ -102,7 +102,7 @@ def test_empty_axis_with_a_target_is_held_and_reported() -> None:
             'interior_column_targets',
             lambda year: col_t.rename('column_target'),
         )
-        result = fi.fit_interior(2023, seed=seed)
+        result = fi.fit_interior(2023, seed=seed, trade_electricity_pin=False)
 
     assert victim in result.held_rows.index
     assert (result.interior.loc[victim] == 0.0).all()
@@ -117,7 +117,9 @@ def test_years_outside_the_margin_span_are_refused() -> None:
     rather than a year that keeps being published.
     """
     with pytest.raises(ValueError, match='interior fit runs for'):
-        fi.fit_interior(max(fi.FIT_YEARS) + 1, seed=_seed())
+        fi.fit_interior(
+            max(fi.FIT_YEARS) + 1, seed=_seed(), trade_electricity_pin=False
+        )
 
 
 def test_2024_is_inside_the_fit_span() -> None:
@@ -158,4 +160,4 @@ def test_the_fit_refuses_a_negative_target_before_iterating() -> None:
             fi, 'interior_column_targets', lambda year: col_t.rename('column_target')
         )
         with pytest.raises(ValueError, match='negative intermediate-input target'):
-            fi.fit_interior(2023, seed=seed)
+            fi.fit_interior(2023, seed=seed, trade_electricity_pin=False)

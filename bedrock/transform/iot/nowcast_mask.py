@@ -522,15 +522,26 @@ def never_imported_violations(mcif: pd.Series) -> pd.Series:
 
 
 def fixed_value_mask(
-    block: Block, year: int = 2017, panel: pd.DataFrame | None = None
+    block: Block,
+    year: int = 2017,
+    panel: pd.DataFrame | None = None,
+    *,
+    trade_electricity_pin: bool = True,
 ) -> pd.DataFrame:
-    """Tier 1. Cells a source reports directly, held at their value.
+    """Tier 1. Cells held at their seeded value through IPF / GRAS.
 
-    The six 1:1 final-demand columns on the Use block, and **nothing on the
-    Supply block**: ``MCIF`` has a 2017 candidate and ``MDTY`` a sourced
-    method, but whether either is fixed rather than targeted is not yet decided.
-    An empty layer is the honest default - a
-    cell masked by accident cannot be corrected by the balance.
+    Two Use sources:
+
+    * The six 1:1 final-demand columns — cells a source reports directly.
+    * Trade×``221100`` under ``trade_electricity_pin`` (default on) — an
+      **assumed** 2017 intermediate electricity share × column control, not a
+      survey report (#899 / §2A.3b). Pass ``trade_electricity_pin=False`` for
+      the pre-pin counterfactual.
+
+    **Nothing on the Supply block**: ``MCIF`` has a 2017 candidate and ``MDTY``
+    a sourced method, but whether either is fixed rather than targeted is not
+    yet decided. An empty layer is the honest default - a cell masked by
+    accident cannot be corrected by the balance.
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
     """
@@ -540,6 +551,18 @@ def fixed_value_mask(
     if block == 'use':
         present = [c for c in ONE_TO_ONE_FD if c in values.columns]
         flags[present] = values[present] != 0
+        if trade_electricity_pin:
+            from bedrock.analysis.nowcasting.trade_electricity_seed import (  # noqa: PLC0415
+                ELECTRICITY_ROW,
+                trade_seed_set,
+            )
+
+            industries = [j for j in trade_seed_set() if j in values.columns]
+            if ELECTRICITY_ROW in values.index and industries:
+                for industry in industries:
+                    flags.at[ELECTRICITY_ROW, industry] = bool(
+                        values.at[ELECTRICITY_ROW, industry] != 0
+                    )
     return flags
 
 
