@@ -290,7 +290,7 @@ UMD_GHGIA,Natural Gas Industrial,BEA_2017_Code,23,,23,"UMD_GHGIA_T_3_11, UMD_GHG
 UMD_GHGIA,Natural Gas Industrial - Manufacturing,NAICS_2017_Code,31,,"31, 32, 33",EPA_GHGI_T_A_14
 UMD_GHGIA,Natural Gas Industrial - Manufacturing,NAICS_2017_Code,32,,,EPA_GHGI_T_A_14
 UMD_GHGIA,Natural Gas Industrial - Manufacturing,NAICS_2017_Code,33,,,EPA_GHGI_T_A_14
-UMD_GHGIA,Natural Gas Industrial - Lease and Plant,NAICS_2017_Code,211,,211,"UMD_GHGIA_T_3_11; Direct lease/plant to oil and gas extraction"
+UMD_GHGIA,Natural Gas Industrial - Lease and Plant,NAICS_2017_Code,211,,211,"UMD_GHGIA_T_3_11; lease/plant carved from industrial NG"
 UMD_GHGIA,Total Petroleum Industrial,NAICS_2017_Code,11,,"11, 21, 2212, 23, 31, 32, 33",EPA_GHGI_T_A_14
 UMD_GHGIA,Total Petroleum Industrial,NAICS_2017_Code,21,,,EPA_GHGI_T_A_14
 UMD_GHGIA,Total Petroleum Industrial,NAICS_2017_Code,2212,,,EPA_GHGI_T_A_14

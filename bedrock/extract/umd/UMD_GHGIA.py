@@ -16,6 +16,7 @@ import pandas as pd
 
 from bedrock.extract.epa.EPA_GHGI import allocate_industrial_combustion
 from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.extract.stewifbs.facility_combustion import lease_and_plant_total_mmt
 from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
@@ -887,37 +888,18 @@ def umd_ghgia_parse(
 def assign_lease_and_plant_natural_gas(
     fba: FlowByActivity, clean_parameter: dict[str, Any]
 ) -> FlowByActivity:
-    """Assign EIA lease/plant CO2e out of non-mfg Natural Gas Industrial (#980).
+    """Carve lease/plant CO2e out of non-mfg Natural Gas Industrial.
 
-    Loads ``lease_plant_fba`` with ``load_fba_w_standardized_units`` (MMCF →
-    MMT CO2e via ``unit_conversion.csv``), takes the ``Lease and Plant Fuel``
-    activity total for that year, and assigns that share out of
-    ``Natural Gas Industrial`` (the non-mfg remainder after
-    ``allocate_industrial_combustion``). Remainder stays for Use purchase.
+    Level from :func:`~bedrock.extract.stewifbs.facility_combustion.lease_and_plant_total_mmt`
+    (GHGRP), capped by the parent total after ``allocate_industrial_combustion``.
+    Sector shares come later from the facility weight FBS.
     """
     year = int(clean_parameter['year'])
-    lease_plant_name = clean_parameter.get('lease_plant_fba')
-    if not lease_plant_name:
-        raise ValueError(
-            'assign_lease_and_plant_natural_gas requires clean_parameter.lease_plant_fba'
-        )
-    lease_plant_year = int(clean_parameter.get('lease_plant_year', year))
-
-    eia = load_fba_w_standardized_units(
-        datasource=str(lease_plant_name),
-        year=lease_plant_year,
-        download_FBA_if_missing=True,
-    )
-    carve_mmt = float(
-        eia.loc[
-            eia['ActivityProducedBy'].astype(str) == 'Lease and Plant Fuel',
-            'FlowAmount',
-        ].sum()
-    )
+    ghgrp_year = int(clean_parameter.get('ghgrp_year', year))
+    carve_mmt = lease_and_plant_total_mmt(ghgrp_year)
     if carve_mmt <= 0:
         log.warning(
-            f'No Lease and Plant Fuel in {lease_plant_name} {lease_plant_year}; '
-            f'skipping lease/plant carve'
+            f'No GHGRP lease/plant fuel for {ghgrp_year}; skipping lease/plant carve'
         )
         return fba
 
@@ -945,7 +927,7 @@ def assign_lease_and_plant_natural_gas(
         setattr(out, attr, value)
     log.info(
         f'Carved Natural Gas Industrial - Lease and Plant: {carve_mmt:.1f} MMT '
-        f'from EIA ({100 * share:.1f}% of Natural Gas Industrial) for {year}'
+        f'from GHGRP ({100 * share:.1f}% of Natural Gas Industrial) for {year}'
     )
     return out
 
@@ -1042,7 +1024,7 @@ def split_activity_by_annex_shares(
 def prepare_facilities_industrial_combustion(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
-    """Facilities T_3_11 prep: mfg split, EIA lease/plant carve, petroleum annex.
+    """Facilities T_3_11 prep: mfg split, GHGRP lease/plant carve, petroleum annex.
 
     clean_fba_before_activity_sets for ``GHG_national_Cornerstone_nowcast_facilities_*``.
     YAML only pins years and FBA table names.
@@ -1050,12 +1032,12 @@ def prepare_facilities_industrial_combustion(
     Data sources touched:
 
     - GHGRP ∪ NEI facility combustion for manufacturing ratios
-    - EIA ``lease_plant_fba`` for #980 carve from non-mfg Natural Gas Industrial
+    - GHGRP lease/plant fuel for carve from non-mfg Natural Gas Industrial
     - UMD annex A5.1 (``annex_fba`` / ``annex_year``) for petroleum fuel shares
     - ``EPA_GHGI.allocate_industrial_combustion`` for the mfg/non-mfg rename
 
-    Required ``clean_parameter`` keys: ``year``, ``annex_fba``, ``lease_plant_fba``.
-    Optional: ``nei_year``, ``annex_year``, ``lease_plant_year`` (default ``year``).
+    Required ``clean_parameter`` keys: ``year``, ``annex_fba``.
+    Optional: ``nei_year``, ``annex_year``, ``ghgrp_year`` (default ``year``).
     """
     clean_parameter = fba.config.get('clean_parameter')
     if clean_parameter is None:
@@ -1067,11 +1049,6 @@ def prepare_facilities_industrial_combustion(
     if not clean_parameter.get('annex_fba'):
         raise ValueError(
             'prepare_facilities_industrial_combustion requires clean_parameter.annex_fba'
-        )
-    if not clean_parameter.get('lease_plant_fba'):
-        raise ValueError(
-            'prepare_facilities_industrial_combustion requires '
-            'clean_parameter.lease_plant_fba'
         )
 
     params = {
@@ -1092,8 +1069,8 @@ def prepare_facilities_industrial_combustion(
     }
     if 'annex_year' not in params:
         params['annex_year'] = params['year']
-    if 'lease_plant_year' not in params:
-        params['lease_plant_year'] = params['year']
+    if 'ghgrp_year' not in params:
+        params['ghgrp_year'] = params['year']
 
     def _with_params(frame: FlowByActivity) -> FlowByActivity:
         frame.config = dict(getattr(frame, 'config', {}) or {})
