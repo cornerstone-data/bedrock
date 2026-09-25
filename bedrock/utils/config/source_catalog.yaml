@@ -472,6 +472,14 @@ EPA_eGRID_electric:
     naics:
       year: 2017
       hierarchy: flat
+GHGRP_NEI_Facilities:
+  data_format: FBS_outside_flowsa
+  class:
+  - Energy
+  activity_schema:
+    naics:
+      year: 2017
+      hierarchy: flat
 EPA_FactsAndFigures:
   data_format: FBA
   class:
