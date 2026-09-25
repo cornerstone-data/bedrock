@@ -92,21 +92,51 @@ GOVERNMENT_MAKERS = {
     'S00101': 'Federal electric utilities (TVA, BPA, the PMAs)',
 }
 
-#: EIA-861 retail revenue, $bn, US total by customer class, from the EIA v2 API
-#: series ``electricity/retail-sales``.  Held as a literal because the repo has
-#: no EIA-861 extractor and this module is a diagnostic; the query that
-#: regenerates it is named in ``About_price_proposal.md``.
-EIA_861_REVENUE_BN = {
-    #  year: (residential, commercial, industrial, transportation)
-    2017: (177.72, 144.24, 67.69, 0.29),
-    2018: (189.03, 147.43, 69.22, 0.29),
-    2019: (187.41, 145.28, 68.28, 0.30),
-    2020: (192.71, 136.37, 63.96, 0.29),
-    2021: (200.79, 149.01, 71.83, 0.33),
-    2022: (227.02, 173.42, 84.90, 0.39),
-    2023: (232.00, 178.16, 81.23, 0.49),
-    2024: (244.37, 185.04, 84.09, 0.89),
-}
+#: Customer-class order for EPA Table 2.3 / former ``EIA_861_REVENUE_BN`` tuples.
+_EIA_REVENUE_SECTORS = (
+    'Residential',
+    'Commercial',
+    'Industrial',
+    'Transportation',
+)
+_TABLE_2_3_DESCRIPTION = (
+    'Table 2.3 Revenue from sales of electricity to ultimate customers'
+)
+_TABLE_2_3_PROVIDER = 'Total Electric Industry'
+_USD_TO_BN = 1e-9
+
+
+def eia_epa_table_2_3_revenue_bn(year: int) -> tuple[float, float, float, float]:
+    """Retail revenue by customer class ($bn) from ``EIA_ElectricPowerAnnual`` Table 2.3.
+
+    Reads the existing FBA (not a hand-transcribed literal). Provider is
+    ``Total Electric Industry``. Returns
+    ``(residential, commercial, industrial, transportation)``.
+    """
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    df = getFlowByActivity('EIA_ElectricPowerAnnual', year)
+    mask = (
+        (df['Year'] == year)
+        & (
+            df['Description']
+            .astype(str)
+            .str.startswith(_TABLE_2_3_DESCRIPTION, na=False)
+        )
+        & (df['ActivityProducedBy'] == _TABLE_2_3_PROVIDER)
+    )
+    subset = df.loc[mask]
+    values: list[float] = []
+    for sector in _EIA_REVENUE_SECTORS:
+        rows = subset.loc[subset['ActivityConsumedBy'] == sector, 'FlowAmount']
+        if rows.empty:
+            raise ValueError(
+                f'Table 2.3 missing sector {sector!r} for year {year}, '
+                f'provider {_TABLE_2_3_PROVIDER!r}'
+            )
+        values.append(float(rows.iloc[0]) * _USD_TO_BN)
+    return values[0], values[1], values[2], values[3]
+
 
 #: Tolerances for ``--check``.  The offset to BEA gross output is a level
 #: difference we expect and do not police; what must hold is that it is *flat*,
@@ -213,7 +243,9 @@ def row_control_table(panel: PanelByYear, years: list[int]) -> pd.DataFrame:
     for year in years:
         p = panel[year]
         make, elec, y_row = p.make, p.elec, p.y
-        residential, commercial, industrial, transportation = EIA_861_REVENUE_BN[year]
+        residential, commercial, industrial, transportation = (
+            eia_epa_table_2_3_revenue_bn(year)
+        )
         rows[year] = {
             'q_commodity': float(make.sum()) / 1e9,
             'go_industry': p.industry_output / 1e9,
