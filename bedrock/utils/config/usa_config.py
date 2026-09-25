@@ -100,6 +100,11 @@ class USAConfig(BaseModel):
         ),
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
+    # Waste weight vintage: 2017 = bundled CSVs (default/production);
+    # match_io = usa_base_io_data_year; int = explicit year (diagnostic OK).
+    waste_weights_year: ta.Literal['match_io'] | int | None = (
+        2017  # DRI: jorge.vendries
+    )
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries

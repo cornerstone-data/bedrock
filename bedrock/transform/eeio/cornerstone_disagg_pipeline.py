@@ -23,10 +23,13 @@ import pandera.typing as pt
 
 from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
+from bedrock.extract.disaggregation.waste_static_rules import NAICS_MAP_VERSION
 from bedrock.extract.disaggregation.waste_weight_config import (
     EEIOWasteDisaggConfig,
     effective_waste_disagg_config,
+    resolved_waste_weights_year,
 )
+from bedrock.extract.disaggregation.waste_weight_types import WeightDerivationProvenance
 from bedrock.extract.iot.detail_io import (
     load_detail_Uimp_usa,
     load_detail_Utot_usa,
@@ -100,20 +103,105 @@ def electricity_disaggregation_enabled() -> bool:
     return get_usa_config().implement_electricity_disaggregation
 
 
-@functools.cache
+_WASTE_WEIGHTS_CACHE: dict[tuple[Any, ...], DisaggWeights | None] = {}
+_WASTE_PROVENANCE_CACHE: dict[tuple[Any, ...], WeightDerivationProvenance | None] = {}
+
+
+def _waste_weights_cache_key(cfg: Any) -> tuple[Any, ...]:
+    """Hashable key — never cache on USAConfig instance identity."""
+    return (
+        bool(cfg.implement_waste_disaggregation),
+        (
+            resolved_waste_weights_year(cfg)
+            if cfg.implement_waste_disaggregation
+            else None
+        ),
+        cfg.iot_before_or_after_redefinition,
+        int(cfg.usa_base_io_data_year),
+    )
+
+
 def get_waste_disagg_weights() -> DisaggWeights | None:
-    """Return waste disaggregation weights if the feature is enabled, else None."""
+    """Return waste disaggregation weights if the feature is enabled, else None.
+
+    When ``waste_weights_year`` resolves to a year other than 2017 (and IO is
+    after-redefinition), derives weights in-memory. Before-redef always uses
+    USEEIOR v1.8 bundled path via ``effective_waste_disagg_config``.
+    """
     cfg = get_usa_config()
     if not cfg.implement_waste_disaggregation:
         return None
-    resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
-    return _disagg_weights.load_disagg_weights(
-        resolved_cfg,
-        original_code=_WASTE_ORIGINAL_CODE,
-        new_codes=_WASTE_NEW_CODES,
-        disagg_sectors=_WASTE_NEW_CODES,
-        va_row_codes=list(VALUE_ADDEDS),
-    )
+    key = _waste_weights_cache_key(cfg)
+    if key in _WASTE_WEIGHTS_CACHE:
+        return _WASTE_WEIGHTS_CACHE[key]
+
+    weights_year = resolved_waste_weights_year(cfg)
+    if cfg.iot_before_or_after_redefinition == "before":
+        # Forbid year-derived weights on before-redef path
+        resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
+        weights = _disagg_weights.load_disagg_weights(
+            resolved_cfg,
+            original_code=_WASTE_ORIGINAL_CODE,
+            new_codes=_WASTE_NEW_CODES,
+            disagg_sectors=_WASTE_NEW_CODES,
+            va_row_codes=list(VALUE_ADDEDS),
+        )
+        _WASTE_PROVENANCE_CACHE[key] = WeightDerivationProvenance(
+            target_year=2017,
+            rcra_source_year=2012,
+            ec_source_year=2017,
+            fallback_notes=["before-redef USEEIOR v1.8 weights"],
+            naics_map_version=NAICS_MAP_VERSION,
+        )
+    elif weights_year == 2017:
+        resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
+        weights = _disagg_weights.load_disagg_weights(
+            resolved_cfg,
+            original_code=_WASTE_ORIGINAL_CODE,
+            new_codes=_WASTE_NEW_CODES,
+            disagg_sectors=_WASTE_NEW_CODES,
+            va_row_codes=list(VALUE_ADDEDS),
+        )
+        _WASTE_PROVENANCE_CACHE[key] = WeightDerivationProvenance(
+            target_year=2017,
+            rcra_source_year=2012,
+            ec_source_year=2017,
+            fallback_notes=[
+                "bundled 2017 CSVs (intersection still embeds workbook 2012 RCRA)"
+            ],
+            naics_map_version=NAICS_MAP_VERSION,
+            mut_dollar_year=int(cfg.usa_base_io_data_year),
+        )
+    else:
+        from bedrock.extract.disaggregation.derive_waste_weights import (  # noqa: PLC0415
+            derive_waste_weights,
+        )
+
+        weights, prov = derive_waste_weights(
+            weights_year,
+            mut_dollar_year=int(cfg.usa_base_io_data_year),
+            ec_2022_wired=True,
+        )
+        _WASTE_PROVENANCE_CACHE[key] = prov
+
+    _WASTE_WEIGHTS_CACHE[key] = weights
+    return weights
+
+
+def get_waste_disagg_provenance() -> WeightDerivationProvenance | None:
+    """Return provenance for the last/cached ``get_waste_disagg_weights`` call."""
+    cfg = get_usa_config()
+    if not cfg.implement_waste_disaggregation:
+        return None
+    key = _waste_weights_cache_key(cfg)
+    if key not in _WASTE_PROVENANCE_CACHE:
+        get_waste_disagg_weights()
+    return _WASTE_PROVENANCE_CACHE.get(key)
+
+
+def clear_waste_disagg_weights_cache() -> None:
+    _WASTE_WEIGHTS_CACHE.clear()
+    _WASTE_PROVENANCE_CACHE.clear()
 
 
 @functools.cache

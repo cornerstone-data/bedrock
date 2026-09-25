@@ -12,6 +12,7 @@ from bedrock.extract.iot.io_2017 import (
 )
 from bedrock.publish.model_objects import clear_publish_caches
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    clear_waste_disagg_weights_cache,
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -19,7 +20,6 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_mixed_units_enabled,
     electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
-    get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
@@ -91,7 +91,6 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
     electricity_reaggregation_enabled,
-    get_waste_disagg_weights,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     derive_cornerstone_V,
@@ -191,6 +190,7 @@ def _clear_electricity_caches_if_loaded() -> None:
 
 def clear_all_publish_caches() -> None:
     clear_cornerstone_inflation_caches()
+    clear_waste_disagg_weights_cache()
     for fn in UPSTREAM_CACHED_DERIVES:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()

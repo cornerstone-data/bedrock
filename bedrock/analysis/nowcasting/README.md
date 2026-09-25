@@ -10,6 +10,7 @@ Use tables has got, measured cell by cell against the published 2017 detail SUT
 # every runnable block: writes output/<section>_<year>.png and prints its report
 uv run python -m bedrock.analysis.nowcasting.plots
 
+
 # one block, screen resolution
 uv run python -m bedrock.analysis.nowcasting.plots --section use_fd_detail_sut
 
@@ -285,6 +286,9 @@ local run.
 - [`progress_report.md`](progress_report.md) — where the build stands, with the
   figures embedded. Regenerated per milestone; its images are the one tracked
   thing under `images/`.
+- [`waste_disaggregation/`](waste_disaggregation/) — Phase 1 feasibility for
+  year-varying waste disaggregation weights on the nowcast EEIO path (report +
+  soft-gate implementation plan; no production code until approval).
 - [`About_table_match.md`](About_table_match.md) — what the first Step 1 run
   showed.
 - [`About_step5_preconditions.md`](About_step5_preconditions.md) — the standing

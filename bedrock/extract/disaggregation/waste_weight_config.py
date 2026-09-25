@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
+from bedrock.extract.disaggregation.waste_year_resolvers import resolve_weights_year
 from bedrock.utils.config.usa_config import USAConfig
 
 
@@ -36,12 +39,21 @@ def cornerstone_bundled_waste_disagg_config() -> EEIOWasteDisaggConfig:
     )
 
 
+def resolved_waste_weights_year(cfg: USAConfig) -> int:
+    """Resolve ``cfg.waste_weights_year`` to an integer year."""
+    raw: int | Literal["match_io"] | None = cfg.waste_weights_year
+    return resolve_weights_year(
+        2017 if raw is None else raw,
+        usa_base_io_data_year=int(cfg.usa_base_io_data_year),
+    )
+
+
 def effective_waste_disagg_config(cfg: USAConfig) -> EEIOWasteDisaggConfig:
     """Resolve waste weight files for *cfg*.
 
     Precedence:
-    1. before-redefinition IO → USEEIOR v1.8.0 (USEEIO parity)
-    2. else → bundled Cornerstone CSVs (after-redefinition default)
+    1. before-redefinition IO → USEEIOR v1.8.0 (USEEIO parity); year-derive forbidden
+    2. else → bundled Cornerstone CSVs (after-redefinition default / year==2017 path)
     """
     if cfg.iot_before_or_after_redefinition == "before":
         from bedrock.extract.disaggregation.useeior_waste_weights import (  # noqa: PLC0415
