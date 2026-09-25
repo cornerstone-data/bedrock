@@ -104,6 +104,13 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
+    # Rebase 221100 gross output on EIA volume x published price, two legs
+    # (retail on Table 2.3, wholesale on Table 8.3 purchased power). Fixes the
+    # 2021-24 hump in BEA's UGO305-A that carries no kWh and no price behind
+    # it: the implied price runs +14.7% over EIA's published average in 2022
+    # and -2.2% under it in 2024. See
+    # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
+    rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
