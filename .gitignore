@@ -36,6 +36,9 @@ __pycache__/
 # fails on a fresh clone (CI included) with FileNotFoundError.
 !bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv
 !bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv
+# EC GO alternative measures (#724): wholesale margin + services-81 two-part.
+# Required by ec_go_adjustment / CI; regenerate via write_ec_alt_measures.
+!bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv
 # Step 7 redefinition ratio contracts (2017-learned cellwise GO ratios).
 !bedrock/analysis/nowcasting/redefinition_ratios_2017_V.parquet
 !bedrock/analysis/nowcasting/redefinition_ratios_2017_U.parquet
