@@ -196,8 +196,12 @@ def test_a_released_group_does_not_hand_the_cut_to_its_siblings() -> None:
         sub, _TARGETS, _row_groups(), hold_summary_rows=False
     )
 
-    # The cut comes out of what i_elec produces...
-    assert float(fitted.at['c_elec', 'i_elec']) < float(sub.at['c_elec', 'i_elec'])
+    # The cut comes out of what i_elec produces...  ``.at`` on a frame is a
+    # union type, so go through numpy for the scalar.
+    def cell(frame: pd.DataFrame) -> float:
+        return float(np.asarray(frame.at['c_elec', 'i_elec']).item())
+
+    assert cell(fitted) < cell(sub)
     # ...and the siblings are untouched, cell by cell, not merely in total.
     for industry in ('i_gas', 'i_water'):
         pd.testing.assert_series_equal(
