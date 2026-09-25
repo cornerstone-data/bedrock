@@ -4,7 +4,7 @@ Combines stewi GHGRP and NEI (FRS prefer-GHGRP), classifies fuel via
 :mod:`bedrock.transform.ghg.ghgrp_subpart_w` and NEI SCCs, and assigns BEA
 detail sectors for method YAML selection on ``Flowable``.
 
-Rules documented for callers / method authors:
+This code includes:
 
 - **Mobile SCCs dropped:** NEI ``Process`` codes whose first two digits are
   ``22`` (aircraft at airports and other mobile point sources) are excluded.
@@ -24,6 +24,8 @@ Rules documented for callers / method authors:
   selection only as ``Flowable: Natural Gas - lease and plant`` (FBS has no
   ``Description`` field). Those tonnes are excluded from the logged prefer-GHGRP
   total.
+- **Electric power** is dropped in this module if ``exclude_sectors``
+  from the method YAML lists ``221100``.
 """
 
 from __future__ import annotations
@@ -97,104 +99,62 @@ _NEI_SCC_FUEL_INTERNAL = {
 }
 
 
-def _facility_sectors(inventory: str, year: int) -> pd.DataFrame:
-    pairs = (
+def facility_sectors(
+    nei_year: int, ghgrp_year: int
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """NAICS rolled up to one BEA detail code, for the NEI year and the GHGRP year."""
+    crosswalk = (
         load_crosswalk('NAICS_to_BEA_Crosswalk_2017')[
             ['NAICS_2017_Code', 'BEA_2017_Detail_Code']
         ]
         .dropna()
         .drop_duplicates()
     )
-    fanout = pairs.groupby('NAICS_2017_Code')['BEA_2017_Detail_Code'].nunique()
-    to_bea = pairs[pairs['NAICS_2017_Code'].isin(fanout[fanout == 1].index)].set_index(
-        'NAICS_2017_Code'
-    )['BEA_2017_Detail_Code']
-    lookup = set(to_bea.index)
+    fanout = crosswalk.groupby('NAICS_2017_Code')['BEA_2017_Detail_Code'].nunique()
+    to_bea = crosswalk[
+        crosswalk['NAICS_2017_Code'].isin(fanout[fanout == 1].index)
+    ].set_index('NAICS_2017_Code')['BEA_2017_Detail_Code']
+    naics_lookup = set(to_bea.index)
 
-    def bea_of(naics: object) -> str | None:
-        text = str(naics)
-        for length in (6, 5, 4, 3, 2):
-            if text[:length] in lookup:
-                return str(to_bea[text[:length]])
-        return None
-
-    facilities = stewi.getInventoryFacilities(
-        inventory, year, download_if_missing=True
-    )[['FacilityID', 'NAICS', 'State']]
-    facilities['sector'] = facilities['NAICS'].map(bea_of)
-    return facilities.set_index('FacilityID')
-
-
-def _flowable_from_fuel_type(label: object) -> str:
-    text = str(label)
-    for pattern, flowable in _FUEL_TYPE_TO_FLOWABLE:
-        if pattern.search(text):
-            return flowable
-    return 'Other'
-
-
-def _frs_map(matches: pd.DataFrame, source: str) -> pd.Series:
-    rows = matches[matches['Source'] == source].drop_duplicates('FacilityID')
-    return rows.set_index('FacilityID')['FRS_ID']
+    nei_facilities = stewi.getInventoryFacilities(
+        'NEI', nei_year, download_if_missing=True
+    )[['FacilityID', 'NAICS', 'State']].assign(inventory='NEI')
+    ghgrp_facilities = stewi.getInventoryFacilities(
+        'GHGRP', ghgrp_year, download_if_missing=True
+    )[['FacilityID', 'NAICS', 'State']].assign(inventory='GHGRP')
+    facilities = pd.concat([nei_facilities, ghgrp_facilities], ignore_index=True)
+    naics = facilities['NAICS'].astype(str)
+    sector = pd.Series(pd.NA, index=facilities.index, dtype='object')
+    for length in (6, 5, 4, 3, 2):
+        prefix = naics.str[:length]
+        # Longer prefixes are tried first, so a 6-digit hit is not overwritten.
+        hit = sector.isna() & prefix.isin(naics_lookup)
+        sector = sector.mask(hit, prefix.map(to_bea))
+    facilities['sector'] = sector
+    nei_sectors = facilities.loc[
+        facilities['inventory'] == 'NEI', ['FacilityID', 'NAICS', 'State', 'sector']
+    ].set_index('FacilityID')
+    ghgrp_sectors = facilities.loc[
+        facilities['inventory'] == 'GHGRP', ['FacilityID', 'NAICS', 'State', 'sector']
+    ].set_index('FacilityID')
+    return nei_sectors, ghgrp_sectors
 
 
-def _same_site_frs(ghgrp: pd.DataFrame, nei: pd.DataFrame, year: int) -> pd.Series:
-    """NEI FacilityID → GHGRP FRS_ID for same-address sites FRS missed (#925)."""
-
-    def keys(inventory: str, ids: pd.Series) -> pd.DataFrame:
-        facilities = stewi.getInventoryFacilities(
-            inventory, year, download_if_missing=True
-        )
-        out = pd.DataFrame(
-            {
-                'FacilityID': facilities['FacilityID'].astype(str),
-                'State': facilities['State'],
-                'address': colocation.normalize_address(facilities['Address']),
-                'tokens': colocation.normalize_name(facilities['FacilityName']).map(
-                    colocation.name_tokens
-                ),
-                'sector3': facilities['NAICS'].fillna('').astype(str).str[:3],
-            }
-        )
-        return out[
-            out['address'].str.match(r'^\d')
-            & out['FacilityID'].isin(set(ids.astype(str)))
-        ]
-
-    linked = set(nei['FRS_ID'].dropna())
-    left = ghgrp[ghgrp['FRS_ID'].notna() & ~ghgrp['FRS_ID'].isin(linked)]
-    covered = set(ghgrp['FRS_ID'].dropna())
-    right = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]
-    if left.empty or right.empty:
-        return pd.Series(dtype='object')
-
-    pairs = keys('GHGRP', left['FacilityID']).merge(
-        keys('NEI', right['FacilityID']),
-        on=['State', 'address'],
-        suffixes=('_g', '_n'),
-    )
-    if pairs.empty:
-        return pd.Series(dtype='object')
-
-    shares_token = [bool(a & b) for a, b in zip(pairs['tokens_g'], pairs['tokens_n'])]
-    pairs = pairs[
-        pd.Series(shares_token, index=pairs.index)
-        | ((pairs['sector3_g'] == pairs['sector3_n']) & (pairs['sector3_g'] != ''))
-    ]
-    frs_of_ghgrp = ghgrp.drop_duplicates('FacilityID').set_index('FacilityID')['FRS_ID']
-    pairs = pairs.assign(FRS_ID=pairs['FacilityID_g'].map(frs_of_ghgrp))
-    return pairs.dropna(subset=['FRS_ID']).groupby('FacilityID_n')['FRS_ID'].min()
-
-
-def _classify_nei(
-    nei: pd.DataFrame, sectors: pd.DataFrame, *, use_scc: bool
+def nei_onsite_co2(
+    nei_raw: pd.DataFrame, nei_sectors: pd.DataFrame, *, use_scc: bool
 ) -> pd.DataFrame:
-    """Aggregate on-site NEI CO2; SCC fuel labels only when *use_scc* (#926)."""
+    """On-site NEI CO2. SCC fuel labels only when *use_scc* (NEI year 2021+)."""
+    process = nei_raw['Process'].astype(str)
+    nei_raw = nei_raw[
+        (nei_raw['FlowName'] == 'Carbon Dioxide')
+        & process.str[0].isin(ONSITE_SCC_BRANCHES)
+        & (process.str[:2] != MOBILE_SCC_PREFIX)
+    ]
+    process = nei_raw['Process'].astype(str)
     if use_scc:
-        process = nei['Process'].astype(str)
         branch = process.str[0]
         level3 = process.str[3:6]
-        nei = nei.assign(
+        nei_raw = nei_raw.assign(
             fuel_class=np.where(
                 ~branch.isin(COMBUSTION_SCC_BRANCHES),
                 'process',
@@ -205,130 +165,128 @@ def _classify_nei(
             Flowable='Other',
         )
         external = branch == '1'
-        nei.loc[external, 'Flowable'] = (
+        nei_raw.loc[external, 'Flowable'] = (
             level3.loc[external].map(_NEI_SCC_FUEL_EXTERNAL).fillna('Other')
         )
         internal = branch == '2'
-        nei.loc[internal, 'Flowable'] = (
+        nei_raw.loc[internal, 'Flowable'] = (
             level3.loc[internal].map(_NEI_SCC_FUEL_INTERNAL).fillna('Other')
         )
-        keys = ['FacilityID', 'fuel_class', 'Flowable']
     else:
-        nei = nei.assign(fuel_class='unclassified', Flowable='Other')
-        keys = ['FacilityID', 'fuel_class', 'Flowable']
-
+        nei_raw = nei_raw.assign(fuel_class='unclassified', Flowable='Other')
     return (
-        nei.groupby(keys)['FlowAmount']
+        nei_raw.groupby(['FacilityID', 'fuel_class', 'Flowable'])['FlowAmount']
         .sum()
         .rename('CO2e')
         .reset_index()
-        .join(sectors, on='FacilityID')
+        .join(nei_sectors, on='FacilityID')
         .assign(source='NEI')
     )
 
 
-def _ghgrp_with_flowable(
-    year: int, per_facility: pd.Series, subpart_c: pd.Series
+def ghgrp_fuel_labels(
+    ghgrp: pd.DataFrame,
+    nei: pd.DataFrame,
+    per_facility: pd.Series,
+    subpart_c: pd.Series,
+    year: int,
+    *,
+    use_scc: bool,
 ) -> pd.DataFrame:
-    """Subpart W (fuel_type → Flowable) plus gas-processing plant self-supply."""
-    parts: list[pd.DataFrame] = []
+    """GHGRP rows with a fuel label: subpart W, self-supplied plants, then NEI shares."""
+    labeled_ghgrp_rows: list[pd.DataFrame] = []
     burned = ghgrp_subpart_w.subpart_W_combustion((year,))
-    classified: set[str] = set()
+    subpart_w_facilities: set[str] = set()
     if not burned.empty:
-        burned = burned.assign(
-            Flowable=burned['fuel_type'].map(_flowable_from_fuel_type)
-        )
-        w_fuel = (
+        text = burned['fuel_type'].astype(str)
+        flowable = pd.Series('Other', index=burned.index)
+        for pattern, name in _FUEL_TYPE_TO_FLOWABLE:
+            flowable = flowable.mask(
+                text.str.contains(pattern, na=False) & flowable.eq('Other'),
+                name,
+            )
+        burned = burned.assign(Flowable=flowable)
+        subpart_w = (
             burned.groupby(['FacilityID', 'fuel_class', 'Flowable'])['CO2e']
             .sum()
             .reset_index()
         )
-        rest = (
-            per_facility.reindex(w_fuel['FacilityID'].unique()).fillna(0.0)
-            - w_fuel.groupby('FacilityID')['CO2e'].sum()
+        other_co2e = (
+            per_facility.reindex(subpart_w['FacilityID'].unique()).fillna(0.0)
+            - subpart_w.groupby('FacilityID')['CO2e'].sum()
         ).clip(lower=0.0)
-        parts.append(w_fuel)
-        if (rest > 0).any():
-            parts.append(
-                rest[rest > 0]
+        labeled_ghgrp_rows.append(subpart_w)
+        if (other_co2e > 0).any():
+            labeled_ghgrp_rows.append(
+                other_co2e[other_co2e > 0]
                 .rename('CO2e')
                 .reset_index()
                 .assign(fuel_class='process', Flowable='Other')
             )
-        classified = set(w_fuel['FacilityID'])
+        subpart_w_facilities = set(subpart_w['FacilityID'])
 
-    plants = ghgrp_subpart_w.self_supplying_facilities(year) - classified
-    if plants:
-        plant_fuel = subpart_c.reindex(sorted(plants)).dropna()
-        rest = (per_facility.reindex(plant_fuel.index).fillna(0.0) - plant_fuel).clip(
-            lower=0.0
-        )
-        parts.append(
+    self_supplied_plants = (
+        ghgrp_subpart_w.self_supplying_facilities(year) - subpart_w_facilities
+    )
+    if self_supplied_plants:
+        plant_fuel = subpart_c.reindex(sorted(self_supplied_plants)).dropna()
+        other_co2e = (
+            per_facility.reindex(plant_fuel.index).fillna(0.0) - plant_fuel
+        ).clip(lower=0.0)
+        labeled_ghgrp_rows.append(
             plant_fuel.rename('CO2e')
             .reset_index()
             .assign(fuel_class='self_supplied', Flowable='Natural Gas')
         )
-        if (rest > 0).any():
-            parts.append(
-                rest[rest > 0]
+        if (other_co2e > 0).any():
+            labeled_ghgrp_rows.append(
+                other_co2e[other_co2e > 0]
                 .rename('CO2e')
                 .reset_index()
                 .assign(fuel_class='process', Flowable='Other')
             )
-
-    if not parts:
-        return pd.DataFrame(columns=['FacilityID', 'fuel_class', 'Flowable', 'CO2e'])
-    return pd.concat(parts, ignore_index=True)
-
-
-def _apply_nei_shares(ghgrp: pd.DataFrame, nei: pd.DataFrame) -> pd.DataFrame:
-    """Split remaining GHGRP totals by matched NEI fuel_class × Flowable shares."""
-    if ghgrp.empty:
-        return ghgrp
-    nei_by_frs = (
-        nei.dropna(subset=['FRS_ID'])
-        .groupby(['FRS_ID', 'fuel_class', 'Flowable'])['CO2e']
-        .sum()
-        .reset_index()
+    labeled_ghgrp = (
+        pd.concat(labeled_ghgrp_rows, ignore_index=True)
+        if labeled_ghgrp_rows
+        else pd.DataFrame(columns=['FacilityID', 'fuel_class', 'Flowable', 'CO2e'])
     )
-    if nei_by_frs.empty:
-        return ghgrp
-
-    totals = nei_by_frs.groupby('FRS_ID')['CO2e'].transform('sum')
-    shares = nei_by_frs.assign(share=nei_by_frs['CO2e'] / totals)[
-        ['FRS_ID', 'fuel_class', 'Flowable', 'share']
-    ]
-    merged = ghgrp.merge(shares, on='FRS_ID', how='inner', suffixes=('_old', ''))
-    if merged.empty:
-        return ghgrp
-
-    shared = merged.assign(CO2e=merged['CO2e'] * merged['share']).drop(
-        columns=['share', 'fuel_class_old', 'Flowable_old'], errors='ignore'
+    labeled_facilities = (
+        set(labeled_ghgrp['FacilityID']) if not labeled_ghgrp.empty else set()
     )
-    unmatched = ghgrp[~ghgrp['FRS_ID'].isin(set(merged['FRS_ID']))]
-    return pd.concat([shared, unmatched], ignore_index=True)
-
-
-def lease_and_plant_total_mmt(year: int) -> float:
-    """GHGRP lease/plant fuel total in MMT CO2e for inventory carve levels."""
-    year = int(year)
-    flows = stewi.getInventory(
-        'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
+    if not labeled_ghgrp.empty:
+        labeled_ghgrp = labeled_ghgrp.merge(
+            ghgrp.drop(columns=['CO2e', 'fuel_class', 'Flowable'], errors='ignore'),
+            on='FacilityID',
+            how='inner',
+        ).assign(source='GHGRP')
+    remainder = ghgrp[~ghgrp['FacilityID'].isin(labeled_facilities)]
+    if use_scc and not remainder.empty:
+        nei_by_frs = (
+            nei.dropna(subset=['FRS_ID'])
+            .groupby(['FRS_ID', 'fuel_class', 'Flowable'])['CO2e']
+            .sum()
+            .reset_index()
+        )
+        if not nei_by_frs.empty:
+            totals = nei_by_frs.groupby('FRS_ID')['CO2e'].transform('sum')
+            shares = nei_by_frs.assign(share=nei_by_frs['CO2e'] / totals)[
+                ['FRS_ID', 'fuel_class', 'Flowable', 'share']
+            ]
+            merged = remainder.merge(
+                shares, on='FRS_ID', how='inner', suffixes=('_old', '')
+            )
+            if not merged.empty:
+                shared = merged.assign(CO2e=merged['CO2e'] * merged['share']).drop(
+                    columns=['share', 'fuel_class_old', 'Flowable_old'],
+                    errors='ignore',
+                )
+                unmatched = remainder[~remainder['FRS_ID'].isin(set(merged['FRS_ID']))]
+                remainder = pd.concat([shared, unmatched], ignore_index=True)
+    ghgrp_out = pd.concat(
+        [p for p in (labeled_ghgrp, remainder) if p is not None and not p.empty],
+        ignore_index=True,
     )
-    if flows is None or getattr(flows, 'empty', True):
-        return 0.0
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
-    combustion = flows[
-        (flows['Process'] == 'C') & flows['FlowName'].isin(GHGRP_FLOW_MAP)
-    ].copy()
-    combustion['CO2e'] = combustion['FlowAmount'] * combustion['FlowName'].map(
-        GHGRP_FLOW_MAP
-    ).map(gwp)
-    subpart_c = combustion.groupby('FacilityID')['CO2e'].sum()
-    carved = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
-    if carved.empty:
-        return 0.0
-    return float(carved['CO2e'].sum()) / 1e9
+    return ghgrp_out[ghgrp_out['CO2e'] > 0]
 
 
 def build_facility_combustion(
@@ -343,7 +301,8 @@ def build_facility_combustion(
 
     *year* is the GHGRP year; *nei_year* defaults to *year* (use 2022 for
     2023/2024 NEI hold). See module docstring for mobile SCC, fuel_class gate, and
-    prefer-GHGRP rules. Optional filters come from the FBS method YAML.
+    prefer-GHGRP rules. ``exclude_sectors`` is applied only when passed (the
+    facilities YAML lists electric power).
 
     Also appends GHGRP lease/plant **share-weight** rows for YAML as
     ``Flowable: Natural Gas - lease and plant``. Those tonnes are not added into
@@ -354,10 +313,7 @@ def build_facility_combustion(
     use_scc = nei_year >= NEI_FUEL_CLASS_FIRST_YEAR
     if sector_prefixes is None:
         sector_prefixes = FACILITY_SCOPE_PREFIXES
-    if exclude_sectors is None:
-        exclude_sectors = ('221100',)
 
-    # --- load ---
     nei_raw = stewi.getInventory(
         'NEI', nei_year, stewiformat='flowbyprocess', download_if_missing=True
     )
@@ -369,13 +325,8 @@ def build_facility_combustion(
     if flows is None or getattr(flows, 'empty', True):
         raise ValueError(f'no GHGRP flowbyprocess for {year}')
 
-    process = nei_raw['Process'].astype(str)
-    nei_raw = nei_raw[
-        (nei_raw['FlowName'] == 'Carbon Dioxide')
-        & process.str[0].isin(ONSITE_SCC_BRANCHES)
-        & (process.str[:2] != MOBILE_SCC_PREFIX)
-    ]
-    nei = _classify_nei(nei_raw, _facility_sectors('NEI', nei_year), use_scc=use_scc)
+    nei_sectors, ghgrp_sectors = facility_sectors(nei_year, year)
+    nei = nei_onsite_co2(nei_raw, nei_sectors, use_scc=use_scc)
 
     gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
     flows = flows[
@@ -385,7 +336,6 @@ def build_facility_combustion(
     flows['CO2e'] = flows['FlowAmount'] * flows['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
     per_facility = flows.groupby('FacilityID')['CO2e'].sum()
     subpart_c = flows[flows['Process'] == 'C'].groupby('FacilityID')['CO2e'].sum()
-    ghgrp_sectors = _facility_sectors('GHGRP', year)
     ghgrp = (
         per_facility.reset_index()
         .join(ghgrp_sectors, on='FacilityID')
@@ -396,33 +346,83 @@ def build_facility_combustion(
         )
     )
 
-    # --- FRS match (+ same-site fallback) ---
     matches = facilitymatcher.get_matches_for_inventories(['NEI', 'GHGRP'])
-    ghgrp['FRS_ID'] = ghgrp['FacilityID'].map(_frs_map(matches, 'GHGRP'))
-    nei['FRS_ID'] = nei['FacilityID'].map(_frs_map(matches, 'NEI'))
-    relabelled = _same_site_frs(ghgrp, nei, year)
+    ghgrp_frs = (
+        matches[matches['Source'] == 'GHGRP']
+        .drop_duplicates('FacilityID')
+        .set_index('FacilityID')['FRS_ID']
+    )
+    nei_frs = (
+        matches[matches['Source'] == 'NEI']
+        .drop_duplicates('FacilityID')
+        .set_index('FacilityID')['FRS_ID']
+    )
+    ghgrp['FRS_ID'] = ghgrp['FacilityID'].map(ghgrp_frs)
+    nei['FRS_ID'] = nei['FacilityID'].map(nei_frs)
+
+    # Same-address sites the FRS match missed. Both inventories are read at the
+    # GHGRP year, matching the previous match step.
+    linked = set(nei['FRS_ID'].dropna())
+    left = ghgrp[ghgrp['FRS_ID'].notna() & ~ghgrp['FRS_ID'].isin(linked)]
+    covered_before = set(ghgrp['FRS_ID'].dropna())
+    right = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered_before)]
+    relabelled = pd.Series(dtype='object')
+    if not left.empty and not right.empty:
+        address_rows = []
+        for inventory, ids in (
+            ('GHGRP', left['FacilityID']),
+            ('NEI', right['FacilityID']),
+        ):
+            roster = stewi.getInventoryFacilities(
+                inventory, year, download_if_missing=True
+            )
+            out = pd.DataFrame(
+                {
+                    'FacilityID': roster['FacilityID'].astype(str),
+                    'State': roster['State'],
+                    'address': colocation.normalize_address(roster['Address']),
+                    'tokens': colocation.normalize_name(roster['FacilityName']).map(
+                        colocation.name_tokens
+                    ),
+                    'sector3': roster['NAICS'].fillna('').astype(str).str[:3],
+                }
+            )
+            address_rows.append(
+                out[
+                    out['address'].str.match(r'^\d')
+                    & out['FacilityID'].isin(set(ids.astype(str)))
+                ]
+            )
+        pairs = address_rows[0].merge(
+            address_rows[1],
+            on=['State', 'address'],
+            suffixes=('_g', '_n'),
+        )
+        if not pairs.empty:
+            shares_token = [
+                bool(a & b) for a, b in zip(pairs['tokens_g'], pairs['tokens_n'])
+            ]
+            pairs = pairs[
+                pd.Series(shares_token, index=pairs.index)
+                | (
+                    (pairs['sector3_g'] == pairs['sector3_n'])
+                    & (pairs['sector3_g'] != '')
+                )
+            ]
+            frs_of_ghgrp = ghgrp.drop_duplicates('FacilityID').set_index('FacilityID')[
+                'FRS_ID'
+            ]
+            pairs = pairs.assign(FRS_ID=pairs['FacilityID_g'].map(frs_of_ghgrp))
+            relabelled = (
+                pairs.dropna(subset=['FRS_ID']).groupby('FacilityID_n')['FRS_ID'].min()
+            )
     if not relabelled.empty:
         nei['FRS_ID'] = nei['FacilityID'].map(relabelled).fillna(nei['FRS_ID'])
 
-    # --- classify GHGRP; NEI shares on the remainder when SCC fuel is defined ---
-    said = _ghgrp_with_flowable(year, per_facility, subpart_c)
-    classified_ids = set(said['FacilityID']) if not said.empty else set()
-    if not said.empty:
-        said = said.merge(
-            ghgrp.drop(columns=['CO2e', 'fuel_class', 'Flowable'], errors='ignore'),
-            on='FacilityID',
-            how='inner',
-        ).assign(source='GHGRP')
-    remainder = ghgrp[~ghgrp['FacilityID'].isin(classified_ids)]
-    if use_scc:
-        remainder = _apply_nei_shares(remainder, nei)
-    ghgrp_out = pd.concat(
-        [p for p in (said, remainder) if p is not None and not p.empty],
-        ignore_index=True,
+    ghgrp_out = ghgrp_fuel_labels(
+        ghgrp, nei, per_facility, subpart_c, year, use_scc=use_scc
     )
-    ghgrp_out = ghgrp_out[ghgrp_out['CO2e'] > 0]
 
-    # --- prefer-GHGRP union ---
     covered = set(ghgrp_out['FRS_ID'].dropna())
     nei_only = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]
     union = pd.concat([ghgrp_out, nei_only], ignore_index=True)
@@ -442,12 +442,12 @@ def build_facility_combustion(
     union = union.assign(year=year)
     union_mt = float(union['CO2e'].sum()) / 1e9
 
-    # Lease/plant share-weight rows only (not part of the prefer-GHGRP level total).
-    # Distinct Flowable so YAML can select them; FBS has no Description column.
-    lease = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
-    if not lease.empty:
-        weights = (
-            lease.groupby('FacilityID', as_index=False)['CO2e']
+    # Lease and plant natural gas, for YAML selection only. Not part of the
+    # prefer-GHGRP level total. Distinct Flowable; FBS has no Description column.
+    lease_plant_fuel = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
+    if not lease_plant_fuel.empty:
+        lease_plant = (
+            lease_plant_fuel.groupby('FacilityID', as_index=False)['CO2e']
             .sum()
             .join(ghgrp_sectors, on='FacilityID')
             .assign(
@@ -457,16 +457,22 @@ def build_facility_combustion(
                 year=year,
             )
         )
-        weights = weights[weights['CO2e'] > 0]
+        lease_plant = lease_plant[lease_plant['CO2e'] > 0]
         if exclude_sectors:
-            weights = weights[~weights['sector'].astype(str).isin(exclude_sectors)]
-        weights = weights[
-            weights['sector'].notna()
-            & weights['sector'].astype(str).str.strip().str[:2].isin(sector_prefixes)
+            lease_plant = lease_plant[
+                ~lease_plant['sector'].astype(str).isin(exclude_sectors)
+            ]
+        lease_plant = lease_plant[
+            lease_plant['sector'].notna()
+            & lease_plant['sector']
+            .astype(str)
+            .str.strip()
+            .str[:2]
+            .isin(sector_prefixes)
         ]
-        for col in set(union.columns) - set(weights.columns):
-            weights[col] = np.nan
-        union = pd.concat([union, weights[union.columns]], ignore_index=True)
+        for col in set(union.columns) - set(lease_plant.columns):
+            lease_plant[col] = np.nan
+        union = pd.concat([union, lease_plant[union.columns]], ignore_index=True)
 
     n_facilities = int(union['FacilityID'].nunique())
     log.info(
