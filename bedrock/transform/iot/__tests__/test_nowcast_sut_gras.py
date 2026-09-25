@@ -6,7 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult, engine
+from bedrock.transform.iot.nowcast_sut_gras import (
+    SutBalanceResult,
+    _apply_t4_closer,
+    engine,
+)
 from bedrock.transform.iot.nowcast_targets import WEIGHTS
 from bedrock.utils.economic.balance import (
     Aggregator,
@@ -1104,3 +1108,107 @@ def test_t18_requires_restrict_to_naming_v00300() -> None:
     frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
     with pytest.raises(ValueError, match="must contain 'V00300'"):
         engine(free, offset_targets(targets, frozen), masks)
+
+
+def test_t18_closer_814000_via_v00100_moves_column_sum() -> None:
+    """#808 B1: households T18 hits V00100; column sum moves by delta."""
+    use_rows = ('c1', 'V00100', 'V00300')
+    use_cols = ('814000', 'i1')
+    # 814000: VA-only column (no free commodity offsets); V00300 structural zero.
+    use = pd.DataFrame(
+        [
+            [0.0, 8.0],
+            [10.0, 5.0],
+            [0.0, 1.0],
+        ],
+        index=list(use_rows),
+        columns=list(use_cols),
+    )
+    supply = pd.DataFrame([[0.0, 8.0]], index=['c1'], columns=list(use_cols))
+    # Freeze V00300×814000 and all commodity×814000 as structural zero.
+    structural = pd.DataFrame(False, index=use.index, columns=use.columns)
+    structural.loc['V00300', '814000'] = True
+    structural.loc['c1', '814000'] = True
+    masks = {
+        'use': SutMask(
+            structural_zero=structural,
+            fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+            sign_lock=pd.DataFrame(0, index=use.index, columns=use.columns, dtype=int),
+        ),
+        'supply': SutMask.from_pattern(supply),
+    }
+    va_rows = ('V00100', 'V00300')
+    t18 = Target.on_margin(
+        'use',
+        'column',
+        pd.Series({'814000': 14.0, 'i1': 6.0}),
+        'test',
+        restrict_to=va_rows,
+        name='T18',
+        hard=True,
+        allow_negative=True,
+    )
+    targets = TargetSet.of(
+        _t1(pd.Series({'814000': 10.0, 'i1': 14.0})),
+        t18,
+        _t11(pd.Series({'c1': 0.0})),
+    )
+    frozen, free = split_fixed_blocks({'use': use, 'supply': supply}, masks)
+    residual = offset_targets(targets, frozen)
+    col_before = float(use['814000'].sum())
+    out = engine(
+        free, residual, masks, close_rows_on_last=False, atol=1e-6, max_outer=2
+    )
+    restored = restore_fixed_blocks(out.blocks, frozen)
+    t18_res = next(t for t in residual if t.name == 'T18')
+    assert float(np.asarray(t18_res.evaluate(out.blocks).loc['814000'])) == (
+        pytest.approx(14.0, abs=1e-6)
+    )
+    assert float(np.asarray(restored['use'].loc['V00100', '814000'])) == (
+        pytest.approx(14.0, abs=1e-6)
+    )
+    assert float(np.asarray(restored['use'].loc['V00300', '814000'])) == (
+        pytest.approx(0.0, abs=1e-9)
+    )
+    # Column sum moved by +4 (delta from 10 → 14 on V00100).
+    assert float(restored['use']['814000'].sum()) == pytest.approx(
+        col_before + 4.0, abs=1e-6
+    )
+
+
+def test_t4_closer_treats_814000_v00100_as_accounting_frozen() -> None:
+    """#808: T4 must not scale V00100×814000; sibling still scales."""
+    use_rows = ('c1', 'V00100', 'V00300')
+    use_cols = ('814000', 'sib')
+    use = pd.DataFrame(
+        [
+            [0.0, 4.0],
+            [20.0, 10.0],
+            [0.0, 2.0],
+        ],
+        index=list(use_rows),
+        columns=list(use_cols),
+    )
+    mask = SutMask(
+        structural_zero=pd.DataFrame(
+            [[True, False], [False, False], [True, False]],
+            index=use.index,
+            columns=use.columns,
+        ),
+        fixed_value=pd.DataFrame(False, index=use.index, columns=use.columns),
+        sign_lock=pd.DataFrame(0, index=use.index, columns=use.columns, dtype=int),
+    )
+    aggregator = Aggregator.from_mapping({'g1': ['814000', 'sib']}, list(use_cols))
+    t4 = Target(
+        terms=(TargetTerm('use', 'column', 1.0, aggregator, restrict_to=('V00100',)),),
+        values=pd.Series({'g1': 40.0}),
+        source='test',
+        name='T4',
+        hard=False,
+        weight=1.0,
+    )
+    out = _apply_t4_closer(use, mask, t4, pd.Series({'g1': 40.0}))
+    # Households V00100 unchanged (accounting freeze).
+    assert float(np.asarray(out.loc['V00100', '814000'])) == pytest.approx(20.0)
+    # Sibling scaled: frozen_sum=20, free_sum=10, factor=(40-20)/10=2 → sib 20.
+    assert float(np.asarray(out.loc['V00100', 'sib'])) == pytest.approx(20.0)
