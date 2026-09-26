@@ -114,6 +114,20 @@ class USAConfig(BaseModel):
     # distribution and water. See
     # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
     rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
+    # Chain manufacturing detail gross output for 2023-24 on AIES receipts
+    # instead of BEA's own annual movement. BEA's detail stops tracking census
+    # after the 2022 Economic Census: measured against each industry's own 2017
+    # ratio to census, the median drift is 2.3% in 2022 but 7.9% in 2024, with
+    # $387bn of gross misallocation netting to only -$35bn. Aircraft grows 8.2%
+    # on BEA in the year Boeing's deliveries fell 528 -> 348, where census shows
+    # -8.8%. Holds the manufacturing TOTAL rather than each summary group,
+    # because $250bn of the $387bn sits between groups. See
+    # bedrock.transform.iot.aies_go_chaining (#1013).
+    # ON by default: 2024 is the release year, BEA's 2023-24 manufacturing
+    # detail carries $387bn of mix error, and BEA states it could not use AIES
+    # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
+    # believe rather than an option we are trialling, so it ships enabled.
+    chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

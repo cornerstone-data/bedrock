@@ -214,26 +214,44 @@ def released_groups() -> frozenset[str]:
     less, so for a group carrying a rebased industry the column target wins and
     the published summary commodity cells give way.
 
-    ⚠️ **The cost is real and is the point of the flag being off by default**:
-    for a released group the Supply block no longer reproduces BEA's published
-    summary Supply cells. The argument that it is the right trade is ``T17``:
-    ``supply.col + T00TOP + T00SUB = use.col`` is a **hard** target and
-    ``use.col`` is pinned to gross output by ``T1``, so Step 5 was always going
-    to force the Supply column onto ``GO - wedge``. Holding the summary row in
-    the seed does not prevent that; it only hands GRAS a correction to absorb
-    into the interior, which is the same argument this module already makes for
-    taking GO's within-group shares at all.
+    ✅ **Releasing is required by the framework, not a judgement call.**
+    Industry output and commodity output are two margins of one supply-use
+    table.  Once a conditioner moves an industry's output, the commodity rows it
+    produces **must** move with it; holding the published summary commodity cell
+    at the same time asserts two incompatible totals, and the fit resolves that
+    contradiction by handing the difference to the group's other industries.
+    That is not a smaller version of the right answer -- it is a different and
+    unsupported claim about who supplied what.
+
+    ``T17`` says the same thing from the balance's side:
+    ``supply.col + T00TOP + T00SUB = use.col`` is **hard** and ``use.col`` is
+    pinned to gross output by ``T1``, so Step 5 was always going to force the
+    Supply column onto the conditioned output.  Holding the summary row in the
+    seed does not prevent that; it only hands GRAS a correction to absorb into
+    the interior.
+
+    ⚠️ **What it does cost** is that a released group no longer reproduces BEA's
+    published summary Supply cells.  That is a real consequence to report, but
+    it is downstream of the conditioner's own claim -- the published figure is
+    the thing the conditioner says is wrong -- and not a reason to keep the
+    industry and commodity sides inconsistent.
     """
+    from bedrock.transform.iot.aies_go_chaining import (  # noqa: PLC0415
+        released_groups as aies_released,
+    )
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    if not get_usa_config().rebase_utility_gross_output_on_eia:
-        return frozenset()
-    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
-        CONTROLLED,
-    )
+    released: set[str] = set()
+    if get_usa_config().rebase_utility_gross_output_on_eia:
+        from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+            CONTROLLED,
+        )
 
-    parents = _industry_parent()
-    return frozenset(parents[code] for code in CONTROLLED if code in parents)
+        parents = _industry_parent()
+        released.update(parents[code] for code in CONTROLLED if code in parents)
+    # #1013 manufacturing, which releases only the groups its chain moves.
+    released.update(aies_released())
+    return frozenset(released)
 
 
 @functools.cache

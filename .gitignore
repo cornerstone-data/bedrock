@@ -93,3 +93,8 @@ bedrock/analysis/**/output/
 # git-lfs on Windows resolves ">/dev/null" as a literal relative path and
 # writes its hook stubs here; the real hooks live in .git/hooks
 dev/null/
+
+# Ignore run logs. An analysis run can emit tens of MB of them -- a full-span
+# grade wrote 19MB across two files -- and they are stale the moment the run
+# ends. Keep the findings in an About_*.md and the numbers in a CSV instead.
+*.log

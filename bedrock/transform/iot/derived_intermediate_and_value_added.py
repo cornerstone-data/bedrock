@@ -168,8 +168,18 @@ def detail_gross_output_panel(ec_adjusted: bool = True) -> pd.DataFrame:
         )
         from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-        panel = apply_ec_adjustment(detail_gross_output_panel(ec_adjusted=False))
-        if get_usa_config().rebase_utility_gross_output_on_eia:
+        raw = detail_gross_output_panel(ec_adjusted=False)
+        panel = apply_ec_adjustment(raw)
+        config = get_usa_config()
+        # Manufacturing first: the utility rebase reads the panel it produces,
+        # and the two touch disjoint industries either way.
+        if config.chain_manufacturing_on_aies:
+            from bedrock.transform.iot.aies_go_chaining import (  # noqa: PLC0415
+                apply_aies_chaining,
+            )
+
+            panel = apply_aies_chaining(panel, raw)
+        if config.rebase_utility_gross_output_on_eia:
             panel = apply_eia_utility_adjustment(panel)
         return panel
     detail = map_detail_table(load_go_detail())
