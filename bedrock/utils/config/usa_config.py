@@ -104,6 +104,16 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
+    # Rebase 221100 gross output on EIA volume x published price, splitting the
+    # 2017 base into output sold to ultimate customers (moved on EPA Table 2.3
+    # revenue) and sales for resale between utilities (moved on Table 8.3
+    # purchased power). BEA's UGO305-A implied price per kWh runs 14.7% over
+    # EIA's published average in 2022 and 2.2% under it in 2024, having agreed
+    # to 0.2% at the 2017 benchmark. Also releases the published summary Supply
+    # cell for summary group 22 so the reduction is not handed to gas
+    # distribution and water. See
+    # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
+    rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
     # Chain manufacturing detail gross output for 2023-24 on AIES receipts
     # instead of BEA's own annual movement. BEA's detail stops tracking census
     # after the 2022 Economic Census: measured against each industry's own 2017

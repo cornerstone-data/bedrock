@@ -402,3 +402,58 @@ def egrid_mwh_for_io_year(year: int, *, download_if_missing: bool = True) -> flo
             raise ValueError('EIA Table 3.1 2016 total is non-positive')
         return float(egrid_2016 * (t31_2017 / t31_2016))
     return us_total_net_generation_mwh(year, download_if_missing=download_if_missing)
+
+
+_TABLE_8_3_PROVIDER = 'Investor-owned electric utilities'
+
+
+@functools.cache
+def eia_table_8_3_line(year: int, flow_name: str) -> float:
+    """One EIA Table 8.3 line item for major investor-owned utilities, USD.
+
+    Table 8.3 is FERC Form 1 revenue and expense statistics. Its hierarchy is
+    carried on ``FlowName`` with a ``revenue: ``/``expenses: `` prefix -- the
+    line label is **not** on ``ActivityConsumedBy``, which the parser leaves
+    null for this layout. ``eia_purchased_power_usd`` is the caller that
+    matters; pass any other label verbatim, e.g. ``'expenses: Cost of Fuel'``.
+
+    ⚠️ **Investor-owned only.** Public power, cooperatives and independent
+    power producers are absent, so this is a lower bound on the industry and
+    must be used as an *index*, never as a level.
+    """
+    df = _epa_fba(year)
+    table = df.loc[_table_mask(df, year, 'Table 8.3')]
+    rows = table.loc[table['FlowName'] == flow_name]
+    if rows.empty:
+        available = sorted(table['FlowName'].astype(str).unique())
+        raise ValueError(
+            f'Table 8.3 has no line {flow_name!r} for {year}; saw {available}'
+        )
+    return float(rows['FlowAmount'].iloc[0])
+
+
+def eia_purchased_power_usd(year: int) -> float:
+    """Purchased power expense of major investor-owned electric utilities, USD.
+
+    The observed counterpart to the intra-industry electricity trade that BEA's
+    gross output implies but the benchmark Use table does not carry (#1009).
+    """
+    return eia_table_8_3_line(year, 'expenses: Purchased Power')
+
+
+def eia_retail_revenue_usd(year: int) -> float:
+    """EIA Table 2.3 total retail revenue to ultimate customers, USD.
+
+    ``Total Electric Industry`` across all four customer classes -- the
+    published product of Table 2.2 volume and Table 2.4 average price, and the
+    leg of the electricity row that is genuinely sold to end users.
+    """
+    df = _epa_fba(year)
+    table = df.loc[_table_mask(df, year, 'Table 2.3')]
+    rows = table.loc[
+        (table['ActivityProducedBy'] == 'Total Electric Industry')
+        & (table['ActivityConsumedBy'] == 'Total')
+    ]
+    if rows.empty:
+        raise ValueError(f'Table 2.3 has no Total Electric Industry total for {year}')
+    return float(rows['FlowAmount'].iloc[0])

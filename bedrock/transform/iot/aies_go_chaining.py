@@ -259,6 +259,85 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
     return out
 
 
+#: A group total this conditioner does not move is free to stay held, so the
+#: release is not blanket. In $M; the panel's own dust scale.
+RELEASE_DUST_USD_M = 1.0
+
+
+def released_groups() -> frozenset[str]:
+    """Summary groups whose published Supply row must give way, or empty.
+
+    ⚠️ **Why a release is needed at all.**
+    :func:`~bedrock.transform.iot.nowcast_supply_go_control.fit_block`
+    renormalises the gross-output target to each summary group's own block
+    total, so a change that moves mass *between* groups is divided out.
+    Measured on 2024 with this conditioner on: manufacturing gross output moves
+    **$792.1bn** in absolute terms but only **$624.5bn** reaches the commodity
+    rows, and the shortfall is not spread evenly -- pass-through tracks
+    inversely with an industry's share of its own group.
+
+    ==========  =========================  ==============
+    industry    share of its summary group  pass-through
+    ==========  =========================  ==============
+    ``324110``                      91.1%            0.07
+    ``331110``                      41.6%            0.57
+    ``336411``                      35.4%            0.70
+    ``321100``                      30.2%            1.04
+    ==========  =========================  ==============
+
+    ⚠️ **Petroleum refineries gets 7% of its correction.** At 91.1% of group
+    ``324`` it can only move against siblings worth 8.9%, so the cap is
+    structural -- and it lands on the industry that motivated #1013 and matters
+    most for the release year.
+
+    ✅ **The release is not a trade-off; it is required by the framework.**
+    Industry output and commodity output are two margins of one supply-use
+    table.  Moving an industry's output while pinning the published summary
+    commodity row asserts two incompatible totals, and the fit resolves the
+    contradiction by handing the difference to the group's other industries --
+    which is what the 0.07 above *is*.  There is no version of this where the
+    industry side moves and the commodity side does not.
+
+    ✅ **What is optional is only the scope.** The release covers exactly the
+    groups this conditioner moves: a group whose total is unchanged has no
+    contradiction to resolve, so its published cell is kept.  That is measured
+    per group rather than applied blanket to manufacturing.
+    """
+    from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415, E501
+        detail_gross_output_panel,
+    )
+    from bedrock.transform.iot.ec_go_adjustment import (  # noqa: PLC0415
+        _industry_parent,
+        apply_ec_adjustment,
+    )
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    if not get_usa_config().chain_manufacturing_on_aies:
+        return frozenset()
+
+    raw = detail_gross_output_panel(ec_adjusted=False)
+    held = apply_ec_adjustment(raw)
+    moved = apply_aies_chaining(held, raw)
+    parents = _industry_parent()
+    members = [
+        code
+        for code in raw.index.astype(str)
+        if str(code).startswith(PREFIXES) and str(code) in parents
+    ]
+    groups = pd.Series([parents[m] for m in members], index=members)
+
+    released: set[str] = set()
+    for year in CHAINED_YEARS:
+        if year not in raw.columns:
+            continue
+        delta = moved.loc[members, year].astype(float) - held.loc[members, year].astype(
+            float
+        )
+        by_group = delta.groupby(groups).sum().abs()
+        released.update(by_group[by_group > RELEASE_DUST_USD_M].index.astype(str))
+    return frozenset(released)
+
+
 def report() -> pd.DataFrame:
     """Per chained year: how far BEA and the chained panel sit from census."""
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415, E501
