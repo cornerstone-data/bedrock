@@ -18,24 +18,37 @@ dual-arm `rebase_utility_gross_output_on_eia`; baseline narrative **`f709829`**
 ## Run
 
 ```bash
+# 1) Warm FBSs for the current git hash (assemble only; jobs must be 1).
+#    Do not commit between warm and measure/grade — cache is hash-keyed.
+python -m bedrock.analysis.electricity.current.eia_gtd.pce_electricity_pin \
+    warm --years 2017-2024 --rebase-eia both --jobs 1
+
+# 2) Measure / grade — pass --jobs 8 explicitly for Acceptance (default is 1).
+#    Fallback --jobs 4 if memory-constrained.
 python -m bedrock.analysis.electricity.current.eia_gtd.pce_electricity_pin \
     measure|grade [--years 2017-2024] [--csv] [--check] \
-    [--rebase-eia both] [--baseline-vintage f709829] [--require-rebase-on]
+    [--rebase-eia both] [--baseline-vintage f709829] [--require-rebase-on] \
+    [--jobs 8]
 ```
 
+Confirm `bedrock/transform/output_data/*_{GIT_HASH}.parquet` covers 2017–2024
+before a dual-arm Acceptance grade. Mid-run commits invalidate later years
+(pathological multi-hour `assemble`); logs are hygiene only, not a speed lever.
+
+- **warm** — `assemble` only under each rebase arm (no GRAS). Rejects `--jobs > 1`.
 - **measure** — ranks every `F01000` commodity seed → `balance_year(..., 'none')`
   Δ (Step-5 isolation). Side columns `mut_usd` / `delta_vs_mut` from in-memory
   `mut_from_balanced` (not a ranking gate).
 - **grade** — runs `tier1_fixed` / `row_side_target` / `eia_band` vs `'none'`
-  baseline on T11, shipped MUT EIA YoY band (`_published_band_ok`), intermediate
-  bands + other `F01000` sinks. Winner rule in code / below.
+  baseline on T11, shipped MUT EIA YoY (reported `$5bn/15%` band), continuous
+  weighted EIA miss, intermediate bands + other `F01000` sinks. Winner rule below.
 - **`--rebase-eia`** — dual-arm with #1009. When
   `rebase_utility_gross_output_on_eia` is absent, the True arm soft-skips
   (`__arm_skip__` summary). Ship `selected` is always on the rebase-off arm.
 
 `--check` (grade only): schema, 0 or 1 `selected` on False-arm ok rows, never
 `selected` on True arm, nonzero electricity PCE seed. Full-span Acceptance run
-passed with `check: 0 failure(s)`.
+passed with `check: 0 failure(s)` (first-pass; see Winner rule).
 
 ## Production wiring (ship switch)
 
@@ -85,20 +98,32 @@ survey map with top-10 union. Fix stays **cell-specific** (do not freeze all of
 
 ## Winner rule
 
-1. Eligible = T11 residual ≤ engine atol ($100M) and `skipped` empty, all years
-   (False arm only for ship).
-2. Prefer `eia_all_spans_ok` among eligible.
-3. Prefer smaller \|Δ\| onto `trade` + `trade_unseeded` bands.
-4. Tie-break: `tier1_fixed`.
-5. None eligible → leave flag False / mode `'none'` (Acceptance-valid).
+**Authoritative (Phase 11):** among False-arm eligible candidates
+(`t11_all_years_ok`, `allow_select`):
+
+1. Minimize `eia_weighted_abs_miss` =
+   Σ wᵧ·|YoYᵧ − EIAᵧ| / Σ wᵧ with wᵧ = |Step-5 Δ| of `221100×F01000` on
+   mode `'none'` at span-end year **y** (USD; same helpers as measure).
+2. Tie-break: smaller \|Δ\| onto `trade` + `trade_unseeded` bands.
+3. Tie-break: `tier1_fixed`.
+4. None eligible → leave flag False / mode `'none'` (Acceptance-valid).
+
+The `$5bn / 15%` `_published_band_ok` gate remains a **reported** column
+(`eia_all_spans_ok`); it does **not** filter the selection pool.
+
+**Old rule (Phase 6 / first-pass 9b — non-shipping):** T11 → prefer binary
+`eia_all_spans_ok` → trade \|Δ\| → `tier1_fixed`. That collapsed gate picked
+`eia_band` on ~$63m trade noise after all candidates failed the band; held per
+[Wes review](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5324073406).
+Matrices below that say “Ship-intent: `eia_band`” are **provisional under the
+old rule** until a post–Phase-10+11 warm re-grade.
 
 Wes prefers a narrow hold or soft target over re-deriving upstream Y. Smoke
 (2022→23) selected B over A on displacement while C lost that span’s EIA —
-consistent with that preference on the short window. Full-span Acceptance
-disagrees (below); mode string follows Phase-6.
+consistent with that preference on the short window.
 
 `selected` only when `rebase_eia=False` and `arm_status=='ok'`. True arm is
-advisory for #1009 coordination.
+advisory (still computes `eia_weighted_abs_miss`; never `eligible`/`selected`).
 
 ## Measure findings
 
@@ -160,22 +185,23 @@ CSVs: `pce_electricity_pin_{t11,eia,displacement,pce_sink,summary}_2017_2024.csv
 | `row_side_target` | ok | fail | 0.230 |
 | `eia_band` | ok | fail | **0.034** |
 
-**Ship-intent: `eia_band`.** Same False-arm winner as pre-#1010 Phase-6. True-arm
-trade ranking also prefers C (lowest \|Δ\|). Keep Candidate C code (9c keep rule).
-No candidate has `eia_all_spans_ok` on either arm.
+**Ship-intent (old rule / non-shipping):** `eia_band`. Same False-arm winner as
+pre-#1010 Phase-6 under the collapsed binary gate. True-arm trade ranking also
+preferred C. Keep Candidate C code (9c keep rule). No candidate has
+`eia_all_spans_ok` on either arm. **Authoritative ship-intent awaits Phase 11
+selector + warm dual-arm re-grade (9b).**
 
-**Primary PCE sinks (False-arm winner):** hospitals (`622000`), tenant housing
+**Primary PCE sinks (False-arm old-rule winner):** hospitals (`622000`), tenant housing
 (`531HST`), pharma (`325412`), limited-service restaurants (`722211`), petroleum
 (`324110`).
 
 ## Production posture
 
 - `constrain_electricity_pce_cell` defaults **False** (not enabled on this PR).
-- Ship-intent mode string is **`eia_band`** (documented here; USAConfig field
-  default stays `'none'` so release YAML stays waterfall-bracket-clean).
-  When explicitly shipping, set both the flag **and**
-  `electricity_pce_constraint_mode: eia_band` together (atomic YAML or release
-  edit) — do not leave flag on with mode `'none'`.
+- Do **not** treat first-pass / Phase-6 `eia_band` as the mode to flip. After
+  Phase 11 + authoritative 9b, record the False-arm winner in About; set flag +
+  mode together only at explicit ship (atomic YAML) — do not leave flag on with
+  mode `'none'`.
 - Never co-enable with #1009/#1010 rebase in one unattributed rebuild.
 - Do **not** flip `DEFAULT_PCE_CONSTRAINT`.
 

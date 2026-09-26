@@ -7,13 +7,15 @@ onto intermediate bands + other PCE sinks.
 
 Dual-arm ``--rebase-eia`` coordinates with #1009's
 ``rebase_utility_gross_output_on_eia`` (soft-skips when the field is absent).
-Ship selection uses the rebase-off arm only.
+Ship selection uses the rebase-off arm only, via a continuous EIA miss weighted
+by ``|Step-5 delta|`` (band is reported only).
 
 ::
 
     python -m bedrock.analysis.electricity.current.eia_gtd.pce_electricity_pin \\
-        measure|grade [--years 2017-2024] [--csv] [--check] \\
-        [--rebase-eia both] [--baseline-vintage f709829] [--require-rebase-on]
+        warm|measure|grade [--years 2017-2024] [--csv] [--check] \\
+        [--rebase-eia both] [--baseline-vintage f709829] [--require-rebase-on] \\
+        [--jobs 1]
 """
 
 from __future__ import annotations
@@ -22,7 +24,9 @@ import argparse
 import logging
 import math
 import subprocess
+import time
 import typing as ta
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
@@ -56,6 +60,7 @@ from bedrock.transform.iot.nowcast_mut import mut_from_balanced
 from bedrock.transform.iot.nowcast_sut_assembly import (
     DEFAULT_PCE_CONSTRAINT,
     YearBalance,
+    assemble,
     balance_year,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
@@ -168,6 +173,7 @@ class PceCandidateSummaryRow(ta.NamedTuple):
     candidate: str
     t11_all_years_ok: bool
     eia_all_spans_ok: bool
+    eia_weighted_abs_miss: float
     displacement_note: str
     eligible: bool
     selected: bool
@@ -338,6 +344,7 @@ def _skip_summary_row(baseline_vintage: str) -> PceCandidateSummaryRow:
         candidate=ARM_SKIP_CANDIDATE,
         t11_all_years_ok=False,
         eia_all_spans_ok=False,
+        eia_weighted_abs_miss=math.inf,
         displacement_note=(
             'True arm skipped: rebase_utility_gross_output_on_eia absent'
         ),
@@ -347,6 +354,25 @@ def _skip_summary_row(baseline_vintage: str) -> PceCandidateSummaryRow:
         baseline_vintage=baseline_vintage,
         arm_status='skipped_flag_absent',
     )
+
+
+def warm_year_arm_pairs(
+    years: ta.Sequence[int],
+    rebase_eia_mode: RebaseEiaMode,
+    *,
+    skip_unsupported_true: bool = True,
+) -> list[tuple[int, bool]]:
+    """Expand ``(year, rebase_eia)`` pairs for ``warm`` / tests."""
+    pairs: list[tuple[int, bool]] = []
+    supported = _rebase_eia_supported()
+    for rebase in _arms_requested(rebase_eia_mode):
+        if rebase and not supported:
+            if skip_unsupported_true:
+                continue
+            raise ValueError('rebase_utility_gross_output_on_eia absent from USAConfig')
+        for year in sorted(years):
+            pairs.append((int(year), rebase))
+    return pairs
 
 
 # ---------------------------------------------------------------------------
@@ -359,18 +385,22 @@ def _measure_arm(
     *,
     rebase_eia: bool,
     baseline_vintage: str,
+    jobs: int = 1,
 ) -> list[PceBalanceMoveRow]:
     commodities = [str(c) for c in balance_commodities()]
     survey = counterpart_survey(commodities)
     rows: list[PceBalanceMoveRow] = []
+    cache = _run_balances(year_list, ('none',), rebase_eia=rebase_eia, jobs=jobs)
 
     for year in year_list:
-        seed_y = derive_initial_Y_pur(year, download_sources_ok=True)
+        yb = cache[('none', year)]
+        if yb.seeds is None or 'use' not in yb.seeds:
+            raise ValueError(f'year {year}: balance cache missing Use seed')
         seed = _f01000_series_usd(
-            seed_y, scale=1.0, label=f'derive_initial_Y_pur({year})'
+            yb.seeds['use'],
+            scale=_M_TO_USD,
+            label=f"seeds['use'] {year}",
         )
-
-        yb = balance_year(year, pce_constraint='none')
         balanced = _pce_column_usd(yb)
 
         mut_col: 'pd.Series[float]' | None = None
@@ -396,7 +426,7 @@ def _measure_arm(
         for commodity in commodities:
             if commodity not in seed.index:
                 raise ValueError(
-                    f'{commodity!r} missing from derive_initial_Y_pur({year}) F01000'
+                    f'{commodity!r} missing from Use seed F01000 for {year}'
                 )
             if commodity not in balanced.index:
                 raise ValueError(
@@ -460,6 +490,7 @@ def measure(
     rebase_eia_mode: RebaseEiaMode = 'both',
     baseline_vintage: str = DEFAULT_BASELINE_VINTAGE,
     require_rebase_on: bool = False,
+    jobs: int = 1,
 ) -> list[PceBalanceMoveRow]:
     """Rank Step-5 F01000 moves (seed -> balanced ``'none'``) per year × arm."""
     year_list = sorted(years) if years is not None else available_years()
@@ -484,6 +515,7 @@ def measure(
                     year_list,
                     rebase_eia=rebase,
                     baseline_vintage=baseline_vintage,
+                    jobs=jobs,
                 )
             )
     return rows
@@ -494,18 +526,67 @@ def measure(
 # ---------------------------------------------------------------------------
 
 
+def _balance_year_modes_worker(
+    year: int,
+    modes: tuple[str, ...],
+    rebase_eia: bool,
+) -> dict[str, YearBalance]:
+    """Run ``balance_year`` for each mode; apply rebase via ``_arm_context``."""
+    out: dict[str, YearBalance] = {}
+    ctx = _arm_context(rebase_eia) if rebase_eia else nullcontext()
+    with ctx:
+        for mode in modes:
+            logger.info(
+                'balance_year year=%s pce_constraint=%s rebase_eia=%s',
+                year,
+                mode,
+                rebase_eia,
+            )
+            out[mode] = balance_year(year, pce_constraint=ta.cast(PceConstraint, mode))
+    return out
+
+
 def _run_balances(
     years: list[int],
-    modes: ta.Iterable[PceConstraint],
+    modes: ta.Iterable[PceConstraint | str],
+    *,
+    rebase_eia: bool,
+    jobs: int = 1,
 ) -> dict[tuple[str, int], YearBalance]:
+    modes_t = tuple(str(m) for m in modes)
     cache: dict[tuple[str, int], YearBalance] = {}
-    for mode in modes:
+    if jobs <= 1:
+        # Parent owns ``_arm_context`` for True arm; do not nest in the worker.
         for year in years:
-            key = (str(mode), year)
-            if key in cache:
-                continue
-            logger.info('balance_year year=%s pce_constraint=%s', year, mode)
-            cache[key] = balance_year(year, pce_constraint=mode)
+            for mode in modes_t:
+                key = (mode, year)
+                if key in cache:
+                    continue
+                logger.info(
+                    'balance_year year=%s pce_constraint=%s rebase_eia=%s',
+                    year,
+                    mode,
+                    rebase_eia,
+                )
+                cache[key] = balance_year(
+                    year, pce_constraint=ta.cast(PceConstraint, mode)
+                )
+        return cache
+
+    with ProcessPoolExecutor(max_workers=jobs) as pool:
+        futures = {
+            pool.submit(_balance_year_modes_worker, year, modes_t, rebase_eia): year
+            for year in years
+        }
+        try:
+            for fut in as_completed(futures):
+                year = futures[fut]
+                result = fut.result()
+                for mode, yb in result.items():
+                    cache[(mode, year)] = yb
+        except Exception:
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
     return cache
 
 
@@ -722,6 +803,60 @@ def _displacement_note(
     return f'top_bands=[{band_txt}]; top_pce_sinks=[{sink_txt}]'
 
 
+def _none_abs_delta_usd(yb: YearBalance) -> float:
+    """``|balanced - seed|`` for ``221100×F01000`` in USD (measure-identical helpers)."""
+    if yb.seeds is None or 'use' not in yb.seeds:
+        raise ValueError(f'year {yb.year}: missing Use seed for Step-5 weight')
+    if yb.balanced is None or 'use' not in yb.balanced:
+        raise ValueError(f'year {yb.year}: missing balanced Use for Step-5 weight')
+    seed_usd = (
+        _cell_at(
+            yb.seeds['use'],
+            PCE_ELECTRICITY_ROW,
+            PCE_ELECTRICITY_COL,
+            f"seeds['use'] {yb.year}",
+        )
+        * _M_TO_USD
+    )
+    bal_usd = (
+        _cell_at(
+            yb.balanced['use'],
+            PCE_ELECTRICITY_ROW,
+            PCE_ELECTRICITY_COL,
+            f"balanced['use'] {yb.year}",
+        )
+        * _M_TO_USD
+    )
+    return abs(bal_usd - seed_usd)
+
+
+def _none_abs_delta_by_year(
+    cache: dict[tuple[str, int], YearBalance],
+    years: ta.Sequence[int],
+) -> dict[int, float]:
+    return {int(y): _none_abs_delta_usd(cache[('none', int(y))]) for y in years}
+
+
+def _eia_weighted_abs_miss(
+    candidate: str,
+    eia_rows: list[PcePinEiaBandRow],
+    weights_by_year: dict[int, float],
+) -> float:
+    """sum(w * |YoY - EIA|) / sum(w) with w_y = |Step-5 delta| at span-end year (USD)."""
+    num = 0.0
+    den = 0.0
+    for row in eia_rows:
+        if row.candidate != candidate:
+            continue
+        w = float(weights_by_year.get(int(row.year_b), 0.0))
+        miss = abs(float(row.shipped_yoy_usd) - float(row.eia_residential_yoy_usd))
+        num += w * miss
+        den += w
+    if den <= 0.0:
+        return math.inf
+    return num / den
+
+
 def _summarize(
     candidates: ta.Sequence[str],
     t11_rows: list[PcePinT11Row],
@@ -732,14 +867,19 @@ def _summarize(
     rebase_eia: bool,
     baseline_vintage: str,
     allow_select: bool,
+    none_abs_delta_by_year: dict[int, float],
 ) -> list[PceCandidateSummaryRow]:
     drafts: list[PceCandidateSummaryRow] = []
     trade_abs: dict[str, float] = {}
+    weighted: dict[str, float] = {}
     for candidate in candidates:
         t11_ok = all(r.ok for r in t11_rows if r.candidate == candidate)
         eia_ok = all(r.band_ok for r in eia_rows if r.candidate == candidate)
         note = _displacement_note(candidate, disp_rows, sink_rows)
         trade_abs[candidate] = _trade_displacement_abs(disp_rows, candidate)
+        weighted[candidate] = _eia_weighted_abs_miss(
+            candidate, eia_rows, none_abs_delta_by_year
+        )
         # True arm is advisory: never eligible / selected for ship.
         eligible = bool(t11_ok and allow_select)
         drafts.append(
@@ -747,6 +887,7 @@ def _summarize(
                 candidate=candidate,
                 t11_all_years_ok=t11_ok,
                 eia_all_spans_ok=eia_ok,
+                eia_weighted_abs_miss=weighted[candidate],
                 displacement_note=note,
                 eligible=eligible,
                 selected=False,
@@ -763,9 +904,10 @@ def _summarize(
     if not eligible_rows:
         return drafts
 
-    pool = [d for d in eligible_rows if d.eia_all_spans_ok] or list(eligible_rows)
-    best = min(trade_abs[d.candidate] for d in pool)
-    pool = [d for d in pool if trade_abs[d.candidate] == best]
+    best_w = min(weighted[d.candidate] for d in eligible_rows)
+    pool = [d for d in eligible_rows if weighted[d.candidate] == best_w]
+    best_trade = min(trade_abs[d.candidate] for d in pool)
+    pool = [d for d in pool if trade_abs[d.candidate] == best_trade]
     pool.sort(key=lambda d: _TIE_BREAK.get(d.candidate, 99))
     winner = pool[0].candidate
     return [d._replace(selected=(d.candidate == winner)) for d in drafts]
@@ -776,6 +918,7 @@ def _grade_arm(
     *,
     rebase_eia: bool,
     baseline_vintage: str,
+    jobs: int = 1,
 ) -> tuple[
     list[PcePinT11Row],
     list[PcePinEiaBandRow],
@@ -784,7 +927,7 @@ def _grade_arm(
     list[PceCandidateSummaryRow],
 ]:
     candidates = [str(c) for c in CANDIDATES]
-    cache = _run_balances(year_list, GRADE_MODES)
+    cache = _run_balances(year_list, GRADE_MODES, rebase_eia=rebase_eia, jobs=jobs)
     t11_rows = _t11_rows(
         cache,
         candidates,
@@ -822,6 +965,7 @@ def _grade_arm(
         rebase_eia=rebase_eia,
         baseline_vintage=baseline_vintage,
         allow_select=not rebase_eia,
+        none_abs_delta_by_year=_none_abs_delta_by_year(cache, year_list),
     )
     return t11_rows, eia_rows, disp_rows, sink_rows, summary
 
@@ -832,6 +976,7 @@ def grade(
     rebase_eia_mode: RebaseEiaMode = 'both',
     baseline_vintage: str = DEFAULT_BASELINE_VINTAGE,
     require_rebase_on: bool = False,
+    jobs: int = 1,
 ) -> tuple[
     list[PcePinT11Row],
     list[PcePinEiaBandRow],
@@ -866,6 +1011,7 @@ def grade(
                 year_list,
                 rebase_eia=rebase,
                 baseline_vintage=baseline_vintage,
+                jobs=jobs,
             )
         t11_all.extend(t11)
         eia_all.extend(eia)
@@ -874,6 +1020,47 @@ def grade(
         summary_all.extend(summary)
 
     return t11_all, eia_all, disp_all, sink_all, summary_all
+
+
+# ---------------------------------------------------------------------------
+# Warm (assemble-only FBS preheat)
+# ---------------------------------------------------------------------------
+
+
+def warm(
+    years: list[int] | None = None,
+    *,
+    rebase_eia_mode: RebaseEiaMode = 'both',
+    jobs: int = 1,
+    require_rebase_on: bool = False,
+) -> list[tuple[int, bool, float]]:
+    """Call ``assemble`` only for each year × arm (no GRAS). Default ``jobs=1``.
+
+    Rejects ``jobs > 1`` — cold FBS builds must stay serialized.
+    """
+    if jobs != 1:
+        raise ValueError('warm requires --jobs 1 (serialize cold FBS builds)')
+    year_list = sorted(years) if years is not None else available_years()
+    if require_rebase_on and not _rebase_eia_supported():
+        raise ValueError(
+            '--require-rebase-on set but rebase_utility_gross_output_on_eia '
+            'is absent from USAConfig'
+        )
+    pairs = warm_year_arm_pairs(
+        year_list,
+        rebase_eia_mode,
+        skip_unsupported_true=not require_rebase_on,
+    )
+    timings: list[tuple[int, bool, float]] = []
+    for year, rebase in pairs:
+        t0 = time.perf_counter()
+        ctx = _arm_context(rebase) if rebase else nullcontext()
+        with ctx:
+            assemble(year)
+        elapsed = time.perf_counter() - t0
+        timings.append((year, rebase, elapsed))
+        print(f'warm year={year} rebase_eia={rebase}: assemble {elapsed:.1f}s')
+    return timings
 
 
 # ---------------------------------------------------------------------------
@@ -1110,8 +1297,11 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         'command',
-        choices=('measure', 'grade'),
-        help='measure: rank F01000 Step-5 moves; grade: T11 / EIA / displacement',
+        choices=('warm', 'measure', 'grade'),
+        help=(
+            'warm: assemble-only FBS preheat; measure: rank F01000 Step-5 moves; '
+            'grade: T11 / EIA / displacement'
+        ),
     )
     parser.add_argument(
         '--years',
@@ -1124,7 +1314,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         '--csv',
         action='store_true',
-        help='Write CSVs under eia_gtd/',
+        help='Write CSVs under eia_gtd/ (measure/grade only)',
     )
     parser.add_argument(
         '--check',
@@ -1147,17 +1337,44 @@ def main(argv: list[str] | None = None) -> None:
         action='store_true',
         help='Fail when True arm soft-skips (absent #1009 field)',
     )
+    parser.add_argument(
+        '--jobs',
+        type=int,
+        default=1,
+        help=(
+            'Year-parallel workers for measure/grade (default 1). '
+            'warm requires 1. Acceptance should pass 8 explicitly.'
+        ),
+    )
     args = parser.parse_args(argv)
     year_list = _parse_years(args.years)
     stem = _csv_stem(year_list)
     rebase_mode: RebaseEiaMode = args.rebase_eia
+    jobs = int(args.jobs)
+    if jobs < 1:
+        raise SystemExit('--jobs must be >= 1')
+
+    if args.command == 'warm':
+        if args.csv or args.check:
+            raise SystemExit('warm does not accept --csv or --check')
+        print(
+            f'warm FBS assemble {year_list[0]}-{year_list[-1]} '
+            f'rebase_eia={rebase_mode} jobs={jobs}'
+        )
+        warm(
+            year_list,
+            rebase_eia_mode=rebase_mode,
+            jobs=jobs,
+            require_rebase_on=args.require_rebase_on,
+        )
+        return
 
     if args.command == 'measure':
         if args.check:
             raise SystemExit('--check applies to grade only')
         print(
             f'measure F01000 balance moves {year_list[0]}-{year_list[-1]} '
-            f'rebase_eia={rebase_mode} vintage={args.baseline_vintage}'
+            f'rebase_eia={rebase_mode} vintage={args.baseline_vintage} jobs={jobs}'
         )
         print(
             'counterpart survey notes: '
@@ -1168,19 +1385,21 @@ def main(argv: list[str] | None = None) -> None:
             rebase_eia_mode=rebase_mode,
             baseline_vintage=args.baseline_vintage,
             require_rebase_on=args.require_rebase_on,
+            jobs=jobs,
         )
         _write_csv(f'pce_electricity_pin_measure_{stem}.csv', rows, args.csv)
         return
 
     print(
         f'grade PCE pin candidates {year_list[0]}-{year_list[-1]} '
-        f'rebase_eia={rebase_mode} vintage={args.baseline_vintage}'
+        f'rebase_eia={rebase_mode} vintage={args.baseline_vintage} jobs={jobs}'
     )
     t11_rows, eia_rows, disp_rows, sink_rows, summary = grade(
         year_list,
         rebase_eia_mode=rebase_mode,
         baseline_vintage=args.baseline_vintage,
         require_rebase_on=args.require_rebase_on,
+        jobs=jobs,
     )
 
     print('\n=== T11 ===')
@@ -1197,10 +1416,12 @@ def main(argv: list[str] | None = None) -> None:
     print('\nselection:')
     for s in summary:
         mark = ' SELECTED' if s.selected else ''
+        wmiss = s.eia_weighted_abs_miss
+        wmiss_txt = 'inf' if not math.isfinite(wmiss) else f'{wmiss / _BN:.3f}bn'
         print(
             f'  {s.candidate} rebase_eia={s.rebase_eia} arm={s.arm_status}: '
             f'eligible={s.eligible} t11={s.t11_all_years_ok} '
-            f'eia={s.eia_all_spans_ok}{mark}'
+            f'eia_band={s.eia_all_spans_ok} eia_wmiss={wmiss_txt}{mark}'
         )
         print(f'    {s.displacement_note}')
 

@@ -97,11 +97,13 @@ def _ok_summary(
     selected: bool = False,
     eligible: bool = True,
     eia_ok: bool = True,
+    eia_weighted_abs_miss: float = 1.0,
 ) -> PceCandidateSummaryRow:
     return PceCandidateSummaryRow(
         candidate=candidate,
         t11_all_years_ok=True,
         eia_all_spans_ok=eia_ok,
+        eia_weighted_abs_miss=eia_weighted_abs_miss,
         displacement_note='test',
         eligible=eligible,
         selected=selected,
@@ -212,6 +214,7 @@ def test_skip_sentinel_fields() -> None:
     assert row.arm_status == 'skipped_flag_absent'
     assert row.t11_all_years_ok is False
     assert row.eia_all_spans_ok is False
+    assert row.eia_weighted_abs_miss == float('inf')
 
 
 def test_check_grade_require_rebase_on_both_needs_exactly_one_selected() -> None:
