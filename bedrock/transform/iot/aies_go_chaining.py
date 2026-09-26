@@ -47,7 +47,14 @@ industry    what happened in 2024       census     BEA
 ==========  ==========================  =========  =========
 
 ⚠️ BEA has aircraft **growing 8.2%** in the worst year Boeing has had since the
-MAX grounding.  Refineries carries a fourth, physical check: on BEA's 2024 level
+MAX grounding.
+
+⚠️ **The Boeing and steel figures are public record, not measurements from this
+repository**, and are used only to say which *direction* is right where BEA and
+census disagree on the sign.  The refineries case needs no outside knowledge and
+is the strongest of the three.  Provenance for every number, marked source by
+source, is in
+``bedrock/analysis/nowcasting/About_1013_census_divergence_evidence.md``.  Refineries carries a fourth, physical check: on BEA's 2024 level
 the implied margin over crude is $23.37/bbl against $31.02 in 2017 -- a 25%
 compression in a year when margins had come off the 2022 spike but stayed
 healthy.  On census's it is $34.14, slightly above 2017, which is what refiners
