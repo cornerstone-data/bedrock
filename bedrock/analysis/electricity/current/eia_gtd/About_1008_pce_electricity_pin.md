@@ -109,24 +109,23 @@ advisory for #1009 coordination.
 | 2022 | **12** | 232.24 | 219.90 | **−12.34** |
 | 2023 | **25** | 236.80 | 242.03 | **+5.23** |
 
-### Full span 2017–2024 (rebase-off; `baseline_vintage=f709829`)
+### Full span 2017–2024 (`baseline_vintage=f709829`; both arms)
 
-From `pce_electricity_pin_measure_2017_2024.csv`:
+From `pce_electricity_pin_measure_2017_2024.csv` after stacking on #1010:
 
-| year | `221100` rank | Step-5 Δ $bn |
-|---|---:|---:|
-| 2017 | 41 | +0.14 |
-| 2018 | 27 | +0.64 |
-| 2019 | 30 | +0.80 |
-| 2020 | 48 | +0.73 |
-| 2021 | 33 | −1.84 |
-| 2022 | **12** | **−12.34** |
-| 2023 | 25 | +5.23 |
-| 2024 | 23 | +6.19 |
+| year | rank (off) | Step-5 Δ $bn (off) | rank (on) | Step-5 Δ $bn (on) |
+|---|---:|---:|---:|---:|
+| 2017 | 41 | +0.14 | 41 | +0.14 |
+| 2018 | 27 | +0.64 | 56 | −0.23 |
+| 2019 | 30 | +0.80 | 37 | −0.60 |
+| 2020 | 48 | +0.73 | 91 | +0.31 |
+| 2021 | 33 | −1.84 | 16 | −4.95 |
+| 2022 | **12** | **−12.34** | **10** | **−15.44** |
+| 2023 | 25 | +5.23 | 29 | +4.53 |
+| 2024 | 23 | +6.19 | 20 | +6.95 |
 
-Largest Step-5 electricity PCE move is 2022 (−$12.3bn). True arm soft-skipped
-(`rebase_utility_gross_output_on_eia` absent). Documentary vintage label only —
-not a GCS checkout.
+Largest Step-5 electricity PCE move remains 2022; rebase-on increases that
+swing (−$15.4bn vs −$12.3bn). Documentary vintage label only — not a GCS checkout.
 
 ## Grade matrix
 
@@ -140,46 +139,46 @@ not a GCS checkout.
 
 **Smoke provisional winner: `row_side_target`.**
 
-### Full span 2017–2024 (Acceptance) — rebase-off
+### Full span 2017–2024 — dual-arm Acceptance (Phase 9b)
 
-CSVs: `pce_electricity_pin_{t11,eia,displacement,pce_sink,summary}_2017_2024.csv`.
-`--check` → 0 failures.
+CSVs: `pce_electricity_pin_{t11,eia,displacement,pce_sink,summary}_2017_2024.csv`
+(both `rebase_eia` values). `--check --require-rebase-on` → **0 failures**.
 
-| Candidate | T11 all years | EIA all spans | Trade \|Δ\| bn | Selected |
+**False arm (ship selector):**
+
+| Candidate | T11 | EIA all spans | Trade \|Δ\| bn | Selected |
 |---|---|---|---:|---|
-| `tier1_fixed` | ok | **fail** (2021→22: +$33.5bn vs EIA +$26.2bn) | 1.783 | no |
-| `row_side_target` | ok | **fail** (same 2021→22 miss) | 0.144 | no |
-| `eia_band` | ok | **fail** (2022→23: +$12.5bn vs EIA +$5.0bn) | **0.081** | **yes** |
+| `tier1_fixed` | ok | fail | 1.783 | no |
+| `row_side_target` | ok | fail | 0.144 | no |
+| `eia_band` | ok | fail | **0.081** | **yes** |
 
-**Acceptance winner: `eia_band`.** No candidate has `eia_all_spans_ok` on
-2017–2024 (A/B miss 2021→22; C misses the smoke span 2022→23). Among T11-eligible,
-smaller trade-band displacement selects C. Smoke’s `row_side_target` remains the
-correct short-window pick; full-span mode string follows C.
+**True arm (advisory; all `eligible=selected=False`):**
 
-**Primary PCE sinks (winner):** hospitals (`622000`), tenant housing (`531HST`),
-pharma (`325412`), limited-service restaurants (`722211`), petroleum (`324110`).
+| Candidate | T11 | EIA all spans | Trade \|Δ\| bn |
+|---|---|---|---:|
+| `tier1_fixed` | ok | fail | 3.216 |
+| `row_side_target` | ok | fail | 0.230 |
+| `eia_band` | ok | fail | **0.034** |
 
-### Dual-arm
+**Ship-intent: `eia_band`.** Same False-arm winner as pre-#1010 Phase-6. True-arm
+trade ranking also prefers C (lowest \|Δ\|). Keep Candidate C code (9c keep rule).
+No candidate has `eia_all_spans_ok` on either arm.
 
-| Arm | Status |
-|---|---|
-| `rebase_eia=False` | Full grade; sole ship selector |
-| `rebase_eia=True` | `__arm_skip__` / `skipped_flag_absent` until #1009 lands |
-
-When #1009 lands, re-run `--rebase-eia both`; rebase-on may shrink PCE sinks —
-advisory unless `--require-rebase-on`.
+**Primary PCE sinks (False-arm winner):** hospitals (`622000`), tenant housing
+(`531HST`), pharma (`325412`), limited-service restaurants (`722211`), petroleum
+(`324110`).
 
 ## Production posture
 
 - `constrain_electricity_pce_cell` defaults **False** (not enabled on this PR).
-- Graded winner string is **`eia_band`** (documented here; USAConfig field
+- Ship-intent mode string is **`eia_band`** (documented here; USAConfig field
   default stays `'none'` so release YAML stays waterfall-bracket-clean).
   When explicitly shipping, set both the flag **and**
   `electricity_pce_constraint_mode: eia_band` together (atomic YAML or release
   edit) — do not leave flag on with mode `'none'`.
-- Never co-enable with #1009 rebase in one unattributed rebuild.
+- Never co-enable with #1009/#1010 rebase in one unattributed rebuild.
 - Do **not** flip `DEFAULT_PCE_CONSTRAINT`.
 
 ## Out of scope
 
-#1009 (BEA vs EIA GO), #899/#1005 (trade pin), #902 (G/T/D allocator).
+Deleting Candidate C; #899/#1005; #902; re-deriving `derive_initial_Y_pur`.
