@@ -144,6 +144,55 @@ BEA's −1.6%.
 independent check would use AISI weekly raw steel production and a published HRC
 index.
 
+## 4b. Transport — tested and rejected 🟢
+
+#1013 work item 2 asked whether the break extends past manufacturing, since AIES
+replaced the Service Annual Survey and the trade surveys at the same time. Tested,
+and the answer is no for transport. ⚠️ **This reverses an earlier recommendation
+in this thread**, which was made on a band median before coverage was looked at.
+
+**The aggregate ratio is not stable, so there is no sector total to hold:**
+
+| BEA / census | 2017 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|
+| transport | 1.282 | 1.295 | 1.212 | **1.187** |
+| manufacturing | 1.046 | 1.040 | 1.035 | 1.042 |
+
+Manufacturing's flatness is what licensed holding BEA's sector total. Transport's
+drifts 8 points.
+
+**And census covers a different population.** Ratio to census, by industry:
+
+| code | 2017 | 2022 | 2023 | 2024 | |
+|---|---:|---:|---:|---:|---|
+| `493000` warehousing | 3.251 | 2.959 | 2.883 | 2.811 | census sees about a third |
+| `485000` transit | 1.778 | 2.342 | 2.587 | **2.750** | public transit is outside the frame |
+| `484000` truck | 1.264 | 1.364 | 1.299 | 1.308 | noisy, no break |
+| `483000` water | 1.278 | 1.280 | 1.196 | 1.163 | breaks at 2023 |
+| `481000` air | 1.132 | 1.069 | 1.016 | 0.983 | steady decline, no break |
+| `492000` couriers | 1.074 | 1.036 | 1.016 | 0.972 | steady decline, no break |
+| `48A000` other and support | 1.064 | 1.027 | **0.766** | **0.695** | breaks at 2023 |
+| `486000` pipeline | 1.019 | 1.027 | 1.023 | 1.009 | flat, nothing to fix |
+
+⚠️ **The band statistic that made transport look like manufacturing (median drift
+4.5% → 11.3%) was driven by industries where census sees a minority of the
+activity.** A growth rate measured on a shifting third of an industry is not a
+correction. Same lesson as the QCEW bridge coverage collapse: nearly-losing
+coverage is worse than losing it, because the number still looks usable.
+
+✅ Applying the manufacturing test -- flat through 2022, breaks at 2023 -- **two of
+eight pass**: `48A000` and `483000`. Two industries have no natural total to hold,
+so conditioning them needs a different invariant than the sector one. **Left
+alone** (Wes, 2026-09-25) rather than built on a weaker construction.
+
+⚠️ **Wholesale and retail cannot be tested this way at all.** BEA books trade
+output as a *margin* and census reports *sales*, so their 2017 ratio is already
+unstable (median drift 21.7% and 10.2% at 2022) and there is no baseline against
+which to detect a break. Any extension there has to go through
+`ec_go_adjustment.wholesale_margin_factors`, not through receipts. **Services show
+no break at all** -- 7.2% → 5.2% → 7.0% -- so their large standing deviation is
+disagreement, not an AIES event, and conditioning on it would import noise.
+
 ## 5. What the evidence does *not* establish
 
 Stated so the file is not read as more than it is.
