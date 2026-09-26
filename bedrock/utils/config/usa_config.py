@@ -123,7 +123,11 @@ class USAConfig(BaseModel):
     # -8.8%. Holds the manufacturing TOTAL rather than each summary group,
     # because $250bn of the $387bn sits between groups. See
     # bedrock.transform.iot.aies_go_chaining (#1013).
-    chain_manufacturing_on_aies: bool = False  # DRI: WesIngwersen
+    # ON by default: 2024 is the release year, BEA's 2023-24 manufacturing
+    # detail carries $387bn of mix error, and BEA states it could not use AIES
+    # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
+    # believe rather than an option we are trialling, so it ships enabled.
+    chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

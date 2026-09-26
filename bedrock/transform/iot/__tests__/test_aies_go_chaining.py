@@ -43,7 +43,15 @@ def _receipts(
     def fake(year: int) -> pd.Series:
         return pd.Series(table[year], dtype=float)
 
+    def fake_common(year: int, against: int) -> pd.Series:
+        """Both sides restricted to the industries present in both years."""
+        shared = set(table[ch.ANCHOR_YEAR]) & set(table[against])
+        return pd.Series(
+            {k: v for k, v in table[year].items() if k in shared}, dtype=float
+        )
+
     monkeypatch.setattr(ch, 'receipts_by_bea', fake)
+    monkeypatch.setattr(ch, 'receipts_on_common_basis', fake_common)
 
 
 #: Census says refineries fell and aircraft fell; BEA's panel has aircraft
@@ -182,8 +190,49 @@ def test_a_panel_with_no_manufacturing_is_returned_unchanged(
     pd.testing.assert_frame_equal(ch.apply_aies_chaining(raw, raw), raw)
 
 
-def test_the_flag_is_off_by_default() -> None:
-    """Nothing shipped moves until a config sets it."""
+def test_the_flag_is_on_by_default() -> None:
+    """⚠️ This one ships ENABLED, unlike its neighbours.
+
+    The convention for the flags around it is default-off and production sets
+    none, because they are options being trialled.  This is not one of those --
+    BEA states it could not incorporate AIES (SCB 2026-06 preview), the measured
+    mix error is $387bn in the release year, and leaving it off would ship the
+    error.  The test exists so the default cannot be changed silently in either
+    direction.
+    """
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    assert get_usa_config().chain_manufacturing_on_aies is False
+    assert get_usa_config().chain_manufacturing_on_aies is True
+
+
+def test_a_naics_missing_from_one_year_is_dropped_from_both_sides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: coverage shifts year to year and the ratio must not.
+
+    ⚠️ Census publishes a different set of six-digit codes each year (909 in
+    2022, 883 in 2023, 868 in 2024).  Dividing each year's full population by
+    the other's compares two different universes -- on the first build that put
+    ``33399A`` at +398% and ``315000`` at +197%, which were mapping artefacts.
+    """
+    base = (
+        ch._receipts_by_naics.__wrapped__
+        if hasattr(ch._receipts_by_naics, '__wrapped__')
+        else ch._receipts_by_naics
+    )
+
+    table = {
+        ch.ANCHOR_YEAR: pd.Series({'311111': 100.0, '324110': 800.0}),
+        2024: pd.Series({'324110': 700.0, '336411': 90.0}),
+    }
+    monkeypatch.setattr(ch, '_receipts_by_naics', lambda year: table[year])
+    ch._common_naics.cache_clear()
+    try:
+        common = ch._common_naics(2024)
+    finally:
+        ch._common_naics.cache_clear()
+
+    # the intersection is by CODE, not by value -- frozenset(series) would
+    # iterate the values and silently return an empty set
+    assert common == frozenset({'324110'})
+    assert base is not None

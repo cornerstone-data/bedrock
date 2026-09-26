@@ -196,15 +196,51 @@ def receipts_by_bea(year: int) -> pd.Series:
     return hit.groupby('bea')['value'].sum().sort_index()
 
 
+@functools.cache
+def _common_naics(year: int) -> frozenset[str]:
+    """NAICS codes the census publishes in BOTH the anchor year and *year*.
+
+    ⚠️ **Coverage is not stable across years** -- 909 six-digit codes in 2022,
+    883 in 2023, 868 in 2024 -- so a ratio built from each year's full
+    population divides two different universes.  It bites hardest on BEA's
+    pooled ``A``-group industries, which draw on many NAICS codes: on the first
+    build ``33399A`` came out at **+398%** and ``315000`` at **+197%**, which
+    are mapping artefacts and not corrections.
+    """
+    # ``.index``, not the Series: ``frozenset(series)`` iterates the VALUES and
+    # silently yields an empty intersection of floats.
+    return frozenset(_receipts_by_naics(ANCHOR_YEAR).index.astype(str)) & frozenset(
+        _receipts_by_naics(year).index.astype(str)
+    )
+
+
+@functools.cache
+def receipts_on_common_basis(year: int, against: int) -> pd.Series:
+    """Receipts by BEA industry, restricted to NAICS reporting in both years."""
+    from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
+        _allocation,
+    )
+
+    common = _common_naics(against if year == ANCHOR_YEAR else year)
+    receipts = _receipts_by_naics(year)
+    allocation = _allocation(PREFIXES)
+    hit = allocation[allocation['naics'].isin(common)].copy()
+    hit['value'] = hit['naics'].map(receipts).astype(float) * hit['share'].astype(float)
+    return hit.dropna(subset=['value']).groupby('bea')['value'].sum().sort_index()
+
+
 def chain_factors(year: int, members: list[str]) -> pd.Series:
     """Growth from :data:`ANCHOR_YEAR` to *year* on census receipts.
 
     Indexed by BEA detail industry over *members*.  ``NaN`` where the census
     does not observe the industry in **both** years -- the caller keeps BEA's
     own movement there rather than inventing one.
+
+    ✅ **Both sides are built on the NAICS codes common to the two years**, so
+    the ratio compares one population with itself.  See :func:`_common_naics`.
     """
-    base = receipts_by_bea(ANCHOR_YEAR)
-    later = receipts_by_bea(year)
+    base = receipts_on_common_basis(ANCHOR_YEAR, year)
+    later = receipts_on_common_basis(year, year)
     shared = [
         m
         for m in members
