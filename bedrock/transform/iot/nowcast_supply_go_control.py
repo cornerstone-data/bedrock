@@ -470,6 +470,8 @@ def fit_block(
                     'sweeps': 0,
                     'worst_miss_usd': np.nan,
                     'moved_usd': 0.0,
+                    'kept_seed': True,
+                    'released': group in released_groups(),
                     'note': skip,
                 }
             )
@@ -502,6 +504,8 @@ def fit_block(
                     'sweeps': sweeps,
                     'worst_miss_usd': worst,
                     'moved_usd': 0.0,
+                    'kept_seed': True,
+                    'released': not hold,
                     'note': (
                         f'infeasible: {worst / MILLION_CURRENCY_TO_CURRENCY:,.0f} $M '
                         f'left on a column target after {sweeps:,} sweeps; '
@@ -519,6 +523,8 @@ def fit_block(
                 'sweeps': sweeps,
                 'worst_miss_usd': worst,
                 'moved_usd': float((result - sub).abs().to_numpy().sum() / 2),
+                'kept_seed': False,
+                'released': not hold,
                 'note': (
                     ''
                     if hold
@@ -616,11 +622,9 @@ def report(years: ta.Iterable[int] = CONTROLLED_YEARS) -> pd.DataFrame:
                 )
                 / scale,
                 't17_residual_$M': float(residual.abs().sum()) / scale,
-                'groups_reverted': int(diagnostics['note'].astype(bool).sum()),
+                'groups_reverted': int(diagnostics['kept_seed'].sum()),
                 'reverted_$M': float(
-                    diagnostics.loc[
-                        diagnostics['note'].astype(bool), 'worst_miss_usd'
-                    ].sum()
+                    diagnostics.loc[diagnostics['kept_seed'], 'worst_miss_usd'].sum()
                 )
                 / scale,
                 'max_sweeps': int(diagnostics['sweeps'].max()),
@@ -651,7 +655,7 @@ def main() -> int:
                 .round(3)
                 .to_string()
             )
-            skipped = diagnostics[diagnostics['note'].astype(bool)]
+            skipped = diagnostics[diagnostics['kept_seed']]
             if not skipped.empty:
                 print(f'\n=== {year}: groups the control left alone ===')
                 print(skipped[['industries', 'note']].to_string())
