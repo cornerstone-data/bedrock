@@ -45,21 +45,28 @@ so at 2023-24 the frozen structure scores *better* when shares are moved
 **against** their own price movement. The detail benchmark span 2012->2017 still
 fits 1.00, so the disagreement is regime rather than code.
 
-✅ **Both halves of that are now decided**
-(`#699 <https://github.com/cornerstone-data/bedrock/issues/699>`_). ``theta``
-comes from :func:`default_theta`, a two-regime rule fitted on **78 non-nested
-summary spans** rather than on the seven this build runs, and the deflator is
-the full purchaser one -- the producer price ratio times
-:func:`margin_rate_factor`. #497's ``theta = 1`` survives as
-:data:`THETA_497`, and ``margins=False`` still gets the producer-only leg, so
-the two can be scored against each other rather than only argued about.
+⚠️ **The fitted regime was the default and is not any more (2026-09-26).**
+:func:`default_theta` now returns **1.0** -- #497 as written -- and the
+two-regime rule fitted on 78 non-nested summary spans is kept, runnable, as
+:func:`fitted_regime_theta` behind ``use_fitted_summary_regime_theta``. The
+deflator is unchanged: the full purchaser one, producer price ratio times
+:func:`margin_rate_factor`, with ``margins=False`` still available for the
+producer-only leg.
 
-⚠️ **The headline is that the carry barely matters in this regime.** On a
-span that crosses the 2021-22 price surge -- which every target year from 2022
-on does -- the median gain of the *best* theta over a frozen ``A`` is 0.59% of
-the score, against 5.44% off the surge. #497's 1.0 is not merely unfitted
-there, it costs 12.6% at 2024; a frozen structure gives that back and the
-fitted negative theta adds under one percent on top.
+Read :func:`default_theta` for the argument. In one line: the fit's headline
+predictor is **96.2% collinear** with "the target year's summary panel
+incorporates neither the 2022 Economic Census nor AIES", so R² 0.613 cannot tell
+substitution from a panel that stopped taking in source data -- and all 30
+surge-crossing spans end inside that region.
+
+⚠️ **The old headline was that the carry barely matters in this regime**, on the
+0.59% median gain of the *best* theta over a frozen ``A`` across the surge
+against 5.44% off it. That reads the wrong quantity. Across the surge the best
+theta **is** ~frozen, so the gain over frozen is small by construction; the
+*penalty* for moving away from it is not. theta = 1 costs **+0.49%** over
+2018-2021 and **+12.82%** over 2022-2024 -- and the 2022-2024 figure is
+disagreement with the years #1013 measured $387bn of mix error in, on a panel
+whose own drift against census doubles across exactly the same span.
 
 The price index is an *industry* index used on commodity rows
 -------------------------------------------------------------
@@ -366,13 +373,83 @@ PRICE_SURGE = (2021, 2022)
 
 #: theta on a span that does **not** cross the surge, and on one that does.
 #: Fitted on 78 non-nested summary spans (``--regime`` on the drift diagnostic),
-#: not on the seven the build runs. See :func:`default_theta`.
+#: not on the seven the build runs. ⚠️ **No longer the default** -- see
+#: :func:`default_theta` and :func:`fitted_regime_theta`.
 THETA_OFF_SURGE = 0.75
 THETA_ACROSS_SURGE = 0.0
 
 
 def default_theta(year: int, base: int = SEED_YEAR) -> float:
-    """The fitted exponent for a ``base -> year`` span.
+    """The build's exponent: **1.0**, unless the fitted regime is asked for.
+
+    ⚠️ **theta = 1 is not "allow more price movement" -- it is the setting that
+    holds the REAL input mix fixed.** ``theta = 0`` holds the *nominal* share
+    fixed, which asserts real quantities fell by the full amount the price rose.
+    Where that did not happen the model books the difference as structural
+    change, and the goal is to smooth structural change except where it is
+    justified. So 1.0 is the prior and a departure below it is a claim that a
+    buyer substituted, which needs evidence for that buyer.
+
+    It is also the continuity position: USEEIO effectively assumes 1.0 for the
+    whole table, bedrock v0.3 does the same for years it does not scale on the
+    summary panel, and it is #497 as originally written
+    (:data:`THETA_497`). The fitted regime was the newer thing.
+
+    Why the fit was retired
+    -----------------------
+
+    :func:`fitted_regime_theta` scores 0.613 R² on "does the span cross the
+    2021-22 surge". Three findings took it out of the default:
+
+    ⚠️ **1. The binary is 96.2% collinear with "the target year's panel is
+    stale".** Of 78 spans, **75 are classified identically** by "crosses the
+    surge" and by "ends at or after 2022" -- the only three that separate them
+    are 2022->23, 2022->24 and 2023->24. BEA's summary panel incorporates
+    neither the 2022 Economic Census nor AIES 2023/2024, so R² 0.613 supports
+    "buyers substitute across a price surge" and "the panel stopped
+    incorporating source data" **equally well**, and all 30 surge-crossing
+    spans end in the unreliable region.
+
+    ⚠️ **2. Prices reversed after 2022 and the fit did not.** The cumulative
+    price factor falls from 2022 to 2024 on three of the four energy rows --
+    petroleum 1.945 -> 1.431, electricity 1.368 -> 1.221, gas 1.520 -> 1.414 --
+    yet the penalty for theta = 1 nearly **doubles**, 7.57% -> 14.12%. Any
+    price-based mechanism predicts 2024 should look *more* like the off-surge
+    years than 2022 does. What does track the penalty is #1013's measured drift
+    of BEA detail against census: 2.3% / 6.1% / 7.9%, which also doubles.
+
+    ⚠️ **3. Its gradient runs off the end of the interpretable range.** The
+    seven target spans fit to **-0.50** -- nominal shares moving *against* their
+    own price, which is not a mechanism anyone has proposed. A monotone
+    preference pointing outside the interpretable range is not evidence inside
+    it either.
+
+    ✅ **And where the panel is sound, 1.0 is free.** Scored on the full grid,
+    theta = 1 costs **+0.49%** median over 2018-2021, where the panel rests on
+    the 2017 benchmark plus ASM. The +12.82% it costs over 2022-2024 is
+    disagreement with the years #1013 exists to correct.
+
+    ⚠️ **What this gives up, stated plainly.** On the summary harness no single
+    constant beats the two-regime splice (0.5262 against 0.5319 for the best
+    constant, 0.25), and 1.0 sums to 0.5610 -- **5.5% worse than the best
+    constant**. If the summary panel is taken as ground truth for 2022-2024 this
+    change is a regression. The case rests on it not being ground truth there.
+
+    Pass ``theta`` explicitly, or set ``use_fitted_summary_regime_theta``, to get
+    the old behaviour back for comparison.
+    """
+    if get_usa_config().use_fitted_summary_regime_theta:
+        return fitted_regime_theta(year, base)
+    _ = base  # the prior does not depend on the span
+    return THETA_497
+
+
+def fitted_regime_theta(year: int, base: int = SEED_YEAR) -> float:
+    """The two-regime rule fitted on the summary panel. ⚠️ **Retired as the default.**
+
+    Kept runnable so the choice can be scored rather than argued, and because the
+    fit's own findings are worth preserving -- read :func:`default_theta` for why
+    it is no longer what the build uses.
 
     ⚠️ **theta is not a constant and it is not a function of elapsed time.**
     Fitted on all 78 summary spans with a base of 2012 or later -- non-nested,
@@ -972,6 +1049,7 @@ __all__ = [
     'commodity_price_factor',
     'default_theta',
     'derive_intermediate_use',
+    'fitted_regime_theta',
     'detail_margin_rate',
     'intermediate_column_control',
     'margin_rate',

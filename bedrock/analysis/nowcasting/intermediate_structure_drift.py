@@ -816,7 +816,7 @@ def column_control(years: tuple[int, ...] = DRIFT_YEARS) -> pd.DataFrame:
 def seed(theta: float | None = None) -> pd.DataFrame:
     """The built Step 3 block, year by year, against a frozen 2017 level.
 
-    ``theta`` defaults to ``nowcast_intermediate.default_theta`` for the span,
+    ``theta`` defaults to ``nowcast_intermediate.default_theta``, now 1.0 (#891),
     which is what the build ships; pass ``THETA_497`` for #497 as written.
 
     ⚠️ **This is not a score.** Nothing observed exists at detail after 2017, so

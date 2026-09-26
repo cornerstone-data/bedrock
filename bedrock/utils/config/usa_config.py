@@ -133,11 +133,12 @@ class USAConfig(BaseModel):
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
     # 0 freezes the nominal share, which asserts a real quantity cut equal to
     # the price rise. For commodities an industry cannot do without that cut
-    # did not happen, and the model books it as structural change. The build
-    # currently applies theta = 0 to every span from 2022 on, so across the
-    # 2021-22 energy price surge it suppresses 69% of the rise in energy's
-    # share of the interior (+0.221pp reported against +0.715pp at a
-    # self-consistent theta). MECS 2018->2022 fits 0.976 and 1.091 by two
+    # did not happen, and the model books it as structural change. With the
+    # theta = 1 prior now the default this is a no-op in effect; it is kept as a
+    # GUARD, so that a future evidenced departure below 1.0 for some other
+    # commodity cannot silently drag these rows down with it. Against the
+    # retired two-regime rule it was worth +13.7% on these rows at 2022.
+    # MECS 2018->2022 fits 0.976 and 1.091 by two
     # independent routes on manufacturing, the most substitutable case, so 1.0
     # is a lower bound for the locked sectors this actually reaches. The
     # observed mask confines it to the $279.6bn no survey answered - 31%
@@ -149,6 +150,21 @@ class USAConfig(BaseModel):
     # score difference measured on BEA's published summary panel - which the
     # fitting harness reads instead of our seed, and so can never see this.
     carry_indispensable_commodities_in_full: bool = True  # DRI: WesIngwersen
+    # Restore the retired two-regime theta fitted on BEA's published summary
+    # panel (0.75 off the 2021-22 price surge, 0.0 across it) instead of the
+    # theta = 1 prior the build now uses. OFF by default: the fit's headline
+    # predictor is 96.2% collinear with "the target year's panel incorporates
+    # neither the 2022 Economic Census nor AIES 2023/24" - 75 of 78 spans are
+    # classified identically - so its R2 0.613 cannot separate substitution from
+    # a panel that stopped taking in source data, and all 30 surge-crossing
+    # spans end inside that region. Energy prices also reversed after 2022
+    # (petroleum 1.945 -> 1.431 against 2017) while the penalty for theta = 1
+    # doubled, which no price mechanism predicts but BEA's own drift against
+    # census does (2.3/6.1/7.9%, #1013). Keep it available: on the summary panel
+    # taken at face value the retired rule scores better, so the choice should
+    # be re-runnable rather than only argued. See
+    # bedrock.transform.iot.nowcast_intermediate.default_theta (#699, #891, #997).
+    use_fitted_summary_regime_theta: bool = False  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

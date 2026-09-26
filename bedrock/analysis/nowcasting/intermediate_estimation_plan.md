@@ -2681,7 +2681,14 @@ the *best* θ over a frozen `A` is **5.44%** of the score off the surge and
 set.** What #497's θ = 1 cost was not a missed 0.6%, it was the 12.6% it gave
 away by pointing the wrong way.
 
-✅ **What ships** (`nowcast_intermediate.default_theta`): **θ = 0.75 off the
+⚠️ **Superseded 2026-09-26 (#891): what ships is θ = 1.0 for every span.** The
+rule below is retired to `fitted_regime_theta`; its headline predictor turned out
+to be 96.2% collinear with "the target year's panel has neither EC 2022 nor
+AIES". Read `nowcast_intermediate.default_theta` and
+[`About_the_price_carry.md`](About_the_price_carry.md) — **not this section** —
+for what runs.
+
+~~**What ships**~~ (`nowcast_intermediate.fitted_regime_theta`): **θ = 0.75 off the
 surge, θ = 0.0 across it** — fitted 0.755 and 0.141 on the 78 spans, and rounded
 rather than carried to three digits. Rounding *up* to zero rather than to the
 target spans' own −0.25/−0.50 is deliberate: a negative θ says nominal shares
