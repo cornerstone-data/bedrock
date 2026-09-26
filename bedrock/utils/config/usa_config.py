@@ -128,6 +128,27 @@ class USAConfig(BaseModel):
     # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
     # believe rather than an option we are trialling, so it ships enabled.
     chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
+    # Hold electricity, utility gas, refined petroleum, coal and oil and gas
+    # extraction at theta = 1 in the Step 3 price carry instead of at the
+    # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
+    # 0 freezes the nominal share, which asserts a real quantity cut equal to
+    # the price rise. For commodities an industry cannot do without that cut
+    # did not happen, and the model books it as structural change. The build
+    # currently applies theta = 0 to every span from 2022 on, so across the
+    # 2021-22 energy price surge it suppresses 69% of the rise in energy's
+    # share of the interior (+0.221pp reported against +0.715pp at a
+    # self-consistent theta). MECS 2018->2022 fits 0.976 and 1.091 by two
+    # independent routes on manufacturing, the most substitutable case, so 1.0
+    # is a lower bound for the locked sectors this actually reaches. The
+    # observed mask confines it to the $279.6bn no survey answered - 31%
+    # government, 15% construction, 5% transport. See
+    # bedrock.transform.iot.nowcast_intermediate.INDISPENSABLE_COMMODITIES
+    # (#891, #997).
+    # ON by default: the alternative is not a neutral prior but the single
+    # setting that most manufactures structural change, chosen on a 0.587%
+    # score difference measured on BEA's published summary panel - which the
+    # fitting harness reads instead of our seed, and so can never see this.
+    carry_indispensable_commodities_in_full: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

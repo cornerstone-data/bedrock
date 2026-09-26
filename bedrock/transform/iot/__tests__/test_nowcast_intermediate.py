@@ -39,6 +39,7 @@ from bedrock.analysis.nowcasting.services_transport_expense_seed import (
 from bedrock.analysis.nowcasting.utilities_expense_seed import ELECTRIC
 from bedrock.transform.iot import nowcast_intermediate as ni
 from bedrock.transform.iot.nowcast_intermediate import (
+    INDISPENSABLE_COMMODITIES,
     INTERMEDIATE_YEARS,
     MARGIN_YEARS,
     MILLION_CURRENCY_TO_CURRENCY,
@@ -58,6 +59,7 @@ from bedrock.transform.iot.nowcast_intermediate import (
     margin_rate,
 )
 from bedrock.utils.config.common import load_env_file_key
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -496,3 +498,89 @@ def test_a_per_cell_theta_reaches_carry_shares() -> None:
     per_cell = ni.carried_column_shares(2022, theta=frame)
 
     pd.testing.assert_frame_equal(scalar, per_cell)
+
+
+def test_the_indispensable_rows_are_energy_and_exclude_mixed_use_products() -> None:
+    """The set is combustion and electricity, and ``324199`` is kept out.
+
+    ⚠️ ``324199`` other petroleum and coal products is the tempting sixth
+    member -- MECS fits coal coke at 1.087 -- but the BEA row also carries
+    asphalt, lubricants and waxes, which are not burned and do substitute.
+    Adding it would pin a mixed-use row on evidence measured for one component.
+    """
+    assert set(INDISPENSABLE_COMMODITIES) == {
+        '211000',
+        '212100',
+        '221100',
+        '221200',
+        '324110',
+    }
+    assert '324199' not in INDISPENSABLE_COMMODITIES
+    assert set(INDISPENSABLE_COMMODITIES) <= set(USA_2017_COMMODITY_CODES)
+    # They are priced rows, so the pin has a factor to act on.
+    assert not set(INDISPENSABLE_COMMODITIES) & set(UNPRICED_COMMODITIES)
+
+
+def test_the_pin_ships_on() -> None:
+    """Asserted in both directions, because the default is the whole change.
+
+    ⚠️ The alternative is not a neutral prior. ``theta = 0`` across the surge
+    freezes the *nominal* share, which asserts a real quantity cut equal to the
+    price rise -- on commodities an industry cannot do without, that cut did
+    not happen and the model reads it as structural change.
+    """
+    assert get_usa_config().carry_indispensable_commodities_in_full is True
+    assert THETA_497 == 1.0
+    # The pin only bites where the default disagrees with it.
+    assert default_theta(2022) != THETA_497
+
+
+@needs_census
+def test_the_pin_reaches_the_energy_rows_and_leaves_the_rest_alone() -> None:
+    """Energy shares rise against the default; a non-energy row does not move.
+
+    2022 is the year that matters: ``default_theta`` is 0.0 there, so the pin
+    is the difference between a frozen nominal share and a frozen real mix.
+    """
+    config = get_usa_config()
+    assert config.carry_indispensable_commodities_in_full
+
+    pinned = ni.carried_column_shares(2022)
+    plain = ni.carried_column_shares(2022, theta=default_theta(2022))
+
+    rows = [c for c in INDISPENSABLE_COMMODITIES if c in pinned.index]
+    assert float(pinned.loc[rows].to_numpy().sum()) > float(
+        plain.loc[rows].to_numpy().sum()
+    ), 'the pin must raise the energy rows against a frozen nominal share'
+
+    # Passing theta explicitly is the caller's own experiment: no pin.
+    pd.testing.assert_frame_equal(
+        plain, ni.carried_column_shares(2022, theta=float(default_theta(2022)))
+    )
+
+
+@needs_census
+def test_the_pin_never_carries_a_cell_a_survey_already_answered() -> None:
+    """Order matters: the observed mask runs after the pin, not before it.
+
+    ⚠️ A seeded energy cell is already nominal, so pinning it at 1.0 and then
+    carrying it would double-count the same price movement -- the #997 defect,
+    reintroduced through the back door. On these rows 59-84% of the mass is
+    survey-answered, so getting this order wrong would be expensive and silent.
+    """
+    seed, observed = ni.composed_seed_and_observed(2022)
+    rows = [c for c in INDISPENSABLE_COMMODITIES if c in seed.index]
+    assert bool(observed.loc[rows].to_numpy().any()), 'no observed energy cells'
+
+    frozen = ni.carried_column_shares(2022, theta=0.0)
+    pinned = ni.carried_column_shares(2022)
+
+    # Renormalisation moves every cell in a column that contains a carried one,
+    # so compare only columns where no indispensable cell is carried at all.
+    untouched = [
+        column for column in seed.columns if bool(observed.loc[rows, column].all())
+    ]
+    assert untouched, 'no column has all its energy cells observed'
+    pd.testing.assert_frame_equal(
+        frozen.loc[rows, untouched], pinned.loc[rows, untouched]
+    )
