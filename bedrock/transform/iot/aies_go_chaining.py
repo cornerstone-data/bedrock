@@ -89,10 +89,11 @@ from __future__ import annotations
 
 import argparse
 import functools
-import glob
 
 import numpy as np
 import pandas as pd
+
+from bedrock.extract.flowbyactivity import getFlowByActivity
 
 #: The observation year the chain starts from: the most recent Economic Census,
 #: where ``apply_ec_adjustment`` has already conditioned manufacturing and where
@@ -111,8 +112,10 @@ PREFIXES = ('31', '32', '33')
 _EC_FLOW = 'RCPTOT'
 _AIES_FLOW = 'RCPT_TOT_VAL'
 
-_EC_GLOB = 'bedrock/extract/output_data/Census_EC_Expenses_{year}_*.parquet'
-_AIES_GLOB = 'bedrock/extract/output_data/Census_AIES_Expenses_{year}_*.parquet'
+#: The FBA source each year's receipts come from. Read through
+#: :func:`getFlowByActivity`, never a parquet glob -- see :func:`_receipts_by_naics`.
+_EC_SOURCE = 'Census_EC_Expenses'
+_AIES_SOURCE = 'Census_AIES_Expenses'
 
 
 def _f(value: object) -> float:
@@ -127,52 +130,52 @@ def _f(value: object) -> float:
 def _receipts_by_naics(year: int) -> pd.Series:
     """Six-digit NAICS -> total receipts, $M, for one year.
 
-    ⚠️ The code sits on ``ActivityConsumedBy`` in both surveys, and several
-    vintages of the same year sit in ``output_data``.  They agree on this flow
-    -- asserted rather than assumed, because silently taking whichever file
-    globs first is how a vintage trap starts.
+    ⚠️ **Read through :func:`getFlowByActivity`, not a parquet glob.** An earlier
+    version globbed ``extract/output_data`` directly and raised
+    ``FileNotFoundError`` when the local cache was cold. That broke CI the moment
+    this conditioner started shipping enabled, because CI has the Census API key
+    but not the parquets: the glob bypassed both the **GCS fallback** and this
+    directory's ``conftest`` guard, which turns a missing artifact into a skip
+    that names it instead of an error that does not. Every other census reader in
+    the repo already went through the loader -- see
+    ``ec_manufacturing_output_check._rcptot``, whose docstring says so.
+
+    The code sits on ``ActivityConsumedBy`` in both surveys, and the two spell
+    the measure differently (:data:`_EC_FLOW` / :data:`_AIES_FLOW`).
     """
+    # Local import: this module is imported from the GO panel that
+    # ``ec_manufacturing_output_check`` itself reads, so a module-level import
+    # would run the circle at import time.
+    from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
+        THOUSAND_TO_MILLION,
+    )
+
     is_ec = year <= ANCHOR_YEAR
-    pattern = (_EC_GLOB if is_ec else _AIES_GLOB).format(year=year)
+    source = _EC_SOURCE if is_ec else _AIES_SOURCE
     flow = _EC_FLOW if is_ec else _AIES_FLOW
-    paths = sorted(glob.glob(pattern))
-    if not paths:
-        raise FileNotFoundError(f'no census receipts parquet for {year}: {pattern}')
+    frame = pd.DataFrame(
+        getFlowByActivity(source, int(year), download_FBA_if_missing=True)
+    )
+    if 'ActivityConsumedBy' not in frame.columns:
+        raise ValueError(f'{source} {year} carries no ActivityConsumedBy column')
 
-    seen: dict[str, pd.Series] = {}
-    for path in paths:
-        frame = pd.read_parquet(path)
-        if 'ActivityConsumedBy' not in frame.columns:
-            continue
-        rows = frame[frame['FlowName'].astype(str) == flow]
-        if rows.empty:
-            continue
-        codes = rows['ActivityConsumedBy'].astype(str)
-        keep = codes.str.fullmatch(r'\d{6}') & codes.str.startswith(PREFIXES)
-        series = (
-            pd.Series(
-                rows['FlowAmount'].astype(float).to_numpy() / 1e3,  # k$ -> $M
-                index=codes.to_numpy(),
-            )[keep.to_numpy()]
-            .groupby(level=0)
-            .sum()
-        )
-        if not series.empty:
-            seen[path] = series
+    rows = frame[frame['FlowName'].astype(str) == flow]
+    if rows.empty:
+        raise ValueError(f'{flow!r} not found in {source} {year}')
 
-    if not seen:
-        raise ValueError(f'{flow!r} not found for {year} in {paths}')
-    reference = next(iter(seen.values()))
-    for path, series in seen.items():
-        aligned = series.reindex(reference.index)
-        if not np.allclose(
-            aligned.fillna(-1.0).to_numpy(), reference.fillna(-1.0).to_numpy()
-        ):
-            raise ValueError(
-                f'census receipt vintages disagree for {year}: {path} differs '
-                f'from {next(iter(seen))}. Resolve the vintage before chaining.'
-            )
-    return reference.sort_index()
+    codes = rows['ActivityConsumedBy'].astype(str)
+    keep = codes.str.fullmatch(r'\d{6}') & codes.str.startswith(PREFIXES)
+    series = (
+        pd.Series(
+            rows['FlowAmount'].astype(float).to_numpy() * THOUSAND_TO_MILLION,
+            index=codes.to_numpy(),
+        )[keep.to_numpy()]
+        .groupby(level=0)
+        .sum()
+    )
+    if series.empty:
+        raise ValueError(f'no six-digit manufacturing {flow!r} in {source} {year}')
+    return series.sort_index()
 
 
 @functools.cache
