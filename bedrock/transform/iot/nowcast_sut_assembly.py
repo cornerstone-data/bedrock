@@ -61,6 +61,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+import numpy as np
 import pandas as pd
 
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
@@ -74,9 +75,13 @@ from bedrock.transform.iot.nowcast import (
 from bedrock.transform.iot.nowcast_interior_fit import FIT_YEARS, fit_interior
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
+    DEFAULT_PCE_CONSTRAINT,
     INVENTORY_CHANGE_COLUMN,
+    PCE_ELECTRICITY_COL,
+    PCE_ELECTRICITY_ROW,
     SUPPLY_BRIDGE_COLUMNS,
     VA_ROWS,
+    PceConstraint,
     balance_commodities,
     balance_industries,
     build_sut_mask,
@@ -89,6 +94,7 @@ from bedrock.transform.iot.nowcast_targets import (
     FD_TARGET_COLUMNS,
     build_target_set,
     industry_group_aggregator,
+    pce_electricity_cell_target,
 )
 from bedrock.utils.config.settings import (
     FBS_DIR,
@@ -97,6 +103,7 @@ from bedrock.utils.config.settings import (
     GIT_HASH_LONG,
     PKG_VERSION_NUMBER,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.balance.mask import SutMask
 from bedrock.utils.economic.balance.offset import (
     offset_targets,
@@ -109,6 +116,40 @@ from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 #: Sweep bound for mask-contradicting seed cells, in $M. BEA publishes no cell
 #: below 1 million, so a violation at or under this is rounding, not signal.
 DUST_USD_M = 1.0
+
+
+def resolve_pce_constraint(
+    pce_constraint: PceConstraint | None = None,
+    constrain_electricity_pce_cell: bool | None = None,
+) -> PceConstraint:
+    """Resolve USAConfig / kwargs into a concrete :data:`PceConstraint`.
+
+    Order (locked for #1008 analysis CLI):
+
+    1. Explicit ``pce_constraint`` always wins (grade passes each candidate).
+    2. Explicit ``constrain_electricity_pce_cell=False`` force-off → ``'none'``.
+    3. Production: both kwargs ``None`` → config flag + mode field.
+       Flag on with mode ``'none'`` raises (ship footgun).
+    """
+    if pce_constraint is not None:
+        return pce_constraint
+    if constrain_electricity_pce_cell is False:
+        return 'none'
+    flag = (
+        True
+        if constrain_electricity_pce_cell is True
+        else get_usa_config().constrain_electricity_pce_cell
+    )
+    if not flag:
+        return 'none'
+    mode = get_usa_config().electricity_pce_constraint_mode
+    if mode == 'none':
+        raise ValueError(
+            "constrain_electricity_pce_cell=True requires "
+            "electricity_pce_constraint_mode != 'none'"
+        )
+    return mode
+
 
 #: Sweep bound for **sign-lock** violations, in $M — deliberately looser than
 #: :data:`DUST_USD_M`.
@@ -367,14 +408,25 @@ def assemble_seeds(year: int, *, fitted: bool = True) -> dict[str, pd.DataFrame]
     }
 
 
-def assemble_masks(year: int) -> dict[str, SutMask]:
+def assemble_masks(
+    year: int,
+    *,
+    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
+) -> dict[str, SutMask]:
     """The 2017-pattern masks, one per block. The pattern is deliberately
     2017's - see the mask module - so the same masks serve every year."""
-    return {block: build_sut_mask(block, int(year)) for block in BLOCKS}
+    return {
+        block: build_sut_mask(block, int(year), pce_constraint=pce_constraint)
+        for block in BLOCKS
+    }
 
 
 def assemble_targets(
-    year: int, use_seed: pd.DataFrame, supply_seed: pd.DataFrame
+    year: int,
+    use_seed: pd.DataFrame,
+    supply_seed: pd.DataFrame,
+    *,
+    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
 ) -> TargetSet:
     """The target set with hard and soft values injected from the seeds.
 
@@ -394,6 +446,9 @@ def assemble_targets(
     2017 placeholder. T6/T8/T9 still whole-name defer to the hard identities
     T12-T14 inside the engine; their values are injected anyway so the set
     never carries a placeholder into a real run.
+
+    When ``pce_constraint='row_side_target'``, append soft T1008 for the
+    ``221100 × F01000`` seed cell (#1008 Candidate B).
     """
     industries = list(balance_industries())
     go = (
@@ -422,7 +477,7 @@ def assemble_targets(
     supply_totals = (
         supply_seed[['MCIF', 'MDTY', 'TOP', 'SUB']].sum(axis=0).astype(float)
     )
-    return build_target_set(
+    base = build_target_set(
         int(year),
         gross_output=go,
         value_added=vapro,
@@ -431,6 +486,35 @@ def assemble_targets(
         tax_totals=tax_totals,
         supply_totals=supply_totals,
     )
+    if pce_constraint != 'row_side_target':
+        return base
+    if (
+        PCE_ELECTRICITY_ROW not in use_seed.index
+        or PCE_ELECTRICITY_COL not in use_seed.columns
+    ):
+        raise ValueError(
+            f'{PCE_ELECTRICITY_ROW!r}×{PCE_ELECTRICITY_COL!r} missing from Use seed '
+            f'{year}'
+        )
+    cell = float(
+        np.asarray(use_seed.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]).item()
+    )
+    return TargetSet((*base.targets, pce_electricity_cell_target(int(year), cell)))
+
+
+#: #990 absolute published band half-width in $M ($5bn).
+_PCE_EIA_BAND_HALF_M = 5_000.0
+
+
+def _pce_eia_band_m(year: int) -> tuple[float, float]:
+    """Level collar around EIA residential revenue for the eia_band closer ($M)."""
+    from bedrock.analysis.electricity.current.eia_gtd.electricity_row_control import (  # noqa: PLC0415
+        eia_epa_table_2_3_revenue_bn,
+    )
+
+    res_bn = float(eia_epa_table_2_3_revenue_bn(int(year))[0])
+    center_m = res_bn * 1e3  # $bn → $M
+    return (center_m - _PCE_EIA_BAND_HALF_M, center_m + _PCE_EIA_BAND_HALF_M)
 
 
 def conform_seeds(
@@ -499,17 +583,26 @@ class YearBalance:
     balanced: dict[str, pd.DataFrame] | None
 
 
-def assemble(year: int, *, fitted: bool = True) -> YearBalance:
+def assemble(
+    year: int,
+    *,
+    fitted: bool = True,
+    pce_constraint: PceConstraint | None = None,
+    constrain_electricity_pce_cell: bool | None = None,
+) -> YearBalance:
     """Seeds, masks, targets and the dust sweep for *year* - no balance run.
 
     The sweep runs **before** the target injection: T18 is injected from the
     seed's own value-added column sums, so sweeping afterwards would shift the
     seed under the injection by exactly the swept dust.
     """
+    mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     seeds = assemble_seeds(int(year), fitted=fitted)
-    masks = assemble_masks(int(year))
+    masks = assemble_masks(int(year), pce_constraint=mode)
     sweep = conform_seeds(seeds, masks)
-    targets = assemble_targets(int(year), seeds['use'], seeds['supply'])
+    targets = assemble_targets(
+        int(year), seeds['use'], seeds['supply'], pce_constraint=mode
+    )
     return YearBalance(
         year=int(year),
         seeds=seeds,
@@ -527,17 +620,27 @@ def balance_year(
     fitted: bool = True,
     impose_soft: bool = True,
     max_outer: int = 20,
+    pce_constraint: PceConstraint | None = None,
+    constrain_electricity_pce_cell: bool | None = None,
 ) -> YearBalance:
     """Assemble and balance one year: split, offset, engine, restore."""
-    assembled = assemble(int(year), fitted=fitted)
+    mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
+    assembled = assemble(
+        int(year),
+        fitted=fitted,
+        pce_constraint=mode,
+    )
     frozen, free = split_fixed_blocks(assembled.seeds, assembled.masks)
     residual = offset_targets(assembled.targets, frozen)
+    band = _pce_eia_band_m(int(year)) if mode == 'eia_band' else None
     out = engine(
         free,
         residual,
         assembled.masks,
         impose_soft=impose_soft,
         max_outer=max_outer,
+        pce_constraint=mode,
+        pce_eia_band_m=band,
     )
     restored = restore_fixed_blocks(out.blocks, frozen)
     assert_post_balance_hygiene(assembled.year, restored, assembled.masks)

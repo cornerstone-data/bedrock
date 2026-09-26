@@ -143,3 +143,39 @@ EPA Table 2.3 residential) within the locked bands — weaker than saying
 allocation / within-row distribution is right. That is a legitimate #990 exit
 and is what unblocks residual bill work (issues #899 / #900) on the 2017–24
 window. Do not read close of #990 as close of issue #896.
+
+## Reopen (2026-09-25) — product path vs target path
+
+WesIngwersen reopened #990: the Attributed verdict above grades
+**pre-balance** `Y_PCE` from `derive_initial_Y_pur`. `F01000` is Tier 2, so
+GRAS moves `221100 × F01000`. Shipped MUT PCE ran **+10.06%** YoY 2022→23 vs
+EIA residential **+2.20%** and Step-3 **+1.96%** — about a **$17.6bn** swing
+into the cell (~26% of the electricity intermediate-block fall).
+
+**Sibling issues:**
+
+- [#1008](https://github.com/cornerstone-data/bedrock/issues/1008) — constrain
+  `221100 × F01000` (or demonstrate the move is warranted). See
+  [`About_1008_pce_electricity_pin.md`](About_1008_pce_electricity_pin.md) and
+  `pce_electricity_pin.py` (measure + grade on **shipped** MUT via in-memory
+  `mut_from_balanced`).
+- [#1009](https://github.com/cornerstone-data/bedrock/issues/1009) — BEA GO vs
+  EIA-861 on the **row total** (larger effect; out of scope for #1008).
+
+Until #1008 grades the product path, treat the close-out above as true of the
+**target** only — not of the delivered `F01000` cell.
+
+## Product path (#1008) vs pre-balance Attributed (#990)
+
+| Path | What is graded | Module |
+|---|---|---|
+| **Target / pre-balance** | `derive_initial_Y_pur` PCE cell YoY vs EIA | this note / `target_attribution_221100` |
+| **Product / post-balance** | in-memory `mut_from_balanced` after Step 5 | [`About_1008_pce_electricity_pin.md`](About_1008_pce_electricity_pin.md) |
+
+#990 Attributed on the target does **not** imply the shipped MUT cell tracks
+EIA. #1008 pin candidates (`tier1_fixed` / `row_side_target` / `eia_band`) are
+gated behind `constrain_electricity_pce_cell` (default off). Full-span
+Acceptance grade (2017–2024) selected **`eia_band`** on the rebase-off arm
+(smoke 2022→23 had selected `row_side_target`); see About_1008 for the dual-arm
+matrix. Production flag stays off; set `electricity_pce_constraint_mode` to
+`eia_band` only when explicitly shipping the flag.
