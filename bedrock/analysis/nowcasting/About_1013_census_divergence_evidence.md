@@ -51,6 +51,30 @@ mismatch. `336412` sits 20% above Census even in 2017 — a standing wedge that 
 correctly *preserved* by anchoring each industry on its own base-year ratio
 rather than forcing the ratio to 1.
 
+## 1b. BEA could not have used AIES 2024 — the strongest argument, and an a priori one
+
+⚠️ **BEA extended its gross output series to 2024 before AIES 2024 existed.**
+(Wes, 2026-09-25.)  Census's 2024 AIES release post-dates BEA's 2024 annual
+update, so whatever BEA used for 2024 manufacturing detail, **it was not this
+survey** — it could not have been.
+
+✅ That converts mechanism (1) from an inference into near-certainty, and it does
+so *without* relying on any of the industry evidence below.  The industry cases
+answer "which series is closer to the truth"; this one answers the prior
+question of "is there any reason to expect BEA's 2024 detail to incorporate
+AIES", and the answer is no.
+
+➡️ **It also makes a testable prediction**: BEA should revise its 2023-24 detail
+*toward* AIES at the next annual update.  If a future vintage of `UGO305-A`
+moves the 59 drifting industries back toward census, that is this module's
+finding confirmed by BEA itself — and the module should then be retired rather
+than kept.  ⚠️ Worth re-running the drift table against each new BEA vintage for
+exactly that reason.
+
+⚠️ **Verify the two dates before quoting this externally.**  The reasoning is
+sound but the release calendar is not reproduced here: check BEA's GDP-by-Industry
+release date for the 2024 annual update against Census's AIES 2024 release date.
+
 ## 2. Refineries — the case that needs no outside knowledge
 
 🟡 **measured from EIA v2 this session.** Two series, annual, US total:
