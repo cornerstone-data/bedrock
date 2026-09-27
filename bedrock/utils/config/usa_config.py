@@ -120,6 +120,13 @@ class USAConfig(BaseModel):
     # distribution and water. See
     # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
     rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
+    # Exponent on the census materials index in the Step 3 materials and mining
+    # seeds: seed = Use2017 * (census_mix_t / census_mix_2017) ** alpha. 1.0 is
+    # the full census movement; below 1 pulls the mix toward BEA's benchmark.
+    # On the 2012 -> 2017 benchmark holdout the full index scores -66% against
+    # a frozen mix and alpha 0.1 is a wash (+0.5%), because BEA's own benchmark
+    # moves 0.04x as far as the census (#988, ec2012_matfuel_concordance).
+    census_materials_index_alpha: float = 1.0  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
