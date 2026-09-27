@@ -13,6 +13,7 @@ __pycache__/
 *.ipynb
 
 # Ignore files we don't want to commit
+*.log
 *.parquet
 *.eps
 *.pdf

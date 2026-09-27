@@ -104,6 +104,19 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
+    # Issue #1008 — constrain 221100×F01000 in nowcast GRAS. F01000 is Tier 2,
+    # so without this the balance uses residential electricity as a residual
+    # sink: -$12.3bn in 2022 and +$5.2bn in 2023 against EIA's published
+    # residential revenue. `eia_band` collars the level to EIA and wins the
+    # full-span 2017-2024 grade on the ship arm (Step-5-weighted EIA miss
+    # $2.18bn against $4.41bn for the other two modes; trade displacement
+    # $0.08bn); see About_1008_pce_electricity_pin.md.
+    # ON by default: graded with rebase_utility_gross_output_on_eia OFF, which
+    # is how production ships, so the two are not co-enabled unattributed.
+    constrain_electricity_pce_cell: bool = True  # DRI: jorge.vendries
+    electricity_pce_constraint_mode: ta.Literal[
+        'none', 'tier1_fixed', 'row_side_target', 'eia_band'
+    ] = 'eia_band'  # DRI: jorge.vendries
     # Rebase 221100 gross output on EIA volume x published price, splitting the
     # 2017 base into output sold to ultimate customers (moved on EPA Table 2.3
     # revenue) and sales for resale between utilities (moved on Table 8.3

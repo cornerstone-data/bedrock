@@ -214,6 +214,28 @@ def test_only_nonzero_cells_of_the_one_to_one_columns_are_fixed() -> None:
     assert int(fixed.to_numpy().sum()) == 2
 
 
+def test_pce_electricity_tier1_fixed_only_when_constraint_on() -> None:
+    """#1008 Candidate A: 221100×F01000 fixed under tier1_fixed, free under none."""
+    from bedrock.transform.iot.nowcast_mask import (  # noqa: PLC0415
+        PCE_ELECTRICITY_COL,
+        PCE_ELECTRICITY_ROW,
+    )
+
+    panel = _use_panel()
+    # Put a nonzero electricity PCE cell on the toy panel.
+    if PCE_ELECTRICITY_ROW not in panel.index:
+        panel.loc[PCE_ELECTRICITY_ROW] = 0.0
+    panel.loc[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL] = 50.0
+
+    free = fixed_value_mask('use', 2017, panel, pce_constraint='none')
+    assert not free.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]
+
+    pinned = fixed_value_mask('use', 2017, panel, pce_constraint='tier1_fixed')
+    assert pinned.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]
+    # Other F01000 commodities stay free.
+    assert not pinned.loc['111120', PCE_ELECTRICITY_COL]
+
+
 def test_the_supply_block_has_no_fixed_values() -> None:
     """An empty layer is the honest default while the Supply fixed-value layer is open.
 
