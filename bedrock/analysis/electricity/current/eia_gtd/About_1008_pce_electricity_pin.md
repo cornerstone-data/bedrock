@@ -11,9 +11,13 @@ graded pre-balance `derive_initial_Y_pur` (+1.96% YoY 2022→23 vs EIA +2.20%);
 shipped product ran +10.06%. Attributed was true of the **target**, not the
 **product**.
 
-**Wes coord** ([comment](https://github.com/cornerstone-data/bedrock/issues/1008#issuecomment-5835477936)):
-dual-arm `rebase_utility_gross_output_on_eia`; baseline narrative **`f709829`**
-(not `4276083`); flag-gate default off; name other-`F01000` sinks.
+**Wes coord** ([issue](https://github.com/cornerstone-data/bedrock/issues/1008#issuecomment-5835477936);
+[design review](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5322512131);
+[selection review](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5324073406);
+[runtime](https://github.com/cornerstone-data/bedrock/pull/1011#issuecomment-5845859763)):
+dual-arm `rebase_utility_gross_output_on_eia`; baseline narrative **`f709829`**;
+flag-gate default off; name other-`F01000` sinks; weighted EIA selector; warm
+then year-parallel before Acceptance.
 
 ## Run
 
@@ -46,9 +50,10 @@ before a dual-arm Acceptance grade. Mid-run commits invalidate later years
   `rebase_utility_gross_output_on_eia` is absent, the True arm soft-skips
   (`__arm_skip__` summary). Ship `selected` is always on the rebase-off arm.
 
-`--check` (grade only): schema, 0 or 1 `selected` on False-arm ok rows, never
-`selected` on True arm, nonzero electricity PCE seed. Full-span Acceptance run
-passed with `check: 0 failure(s)` (first-pass; see Winner rule).
+`--check` (grade only): schema, exactly 1 `selected` on False-arm when
+`--require-rebase-on --rebase-eia both`, never `selected` on True arm, nonzero
+electricity PCE seed. Authoritative full-span run (hash `314bc2d4`):
+`check: 0 failure(s)`.
 
 ## Production wiring (ship switch)
 
@@ -98,29 +103,33 @@ survey map with top-10 union. Fix stays **cell-specific** (do not freeze all of
 
 ## Winner rule
 
-**Authoritative (Phase 11):** among False-arm eligible candidates
-(`t11_all_years_ok`, `allow_select`):
+Two selection rules appear in this write-up:
 
-1. Minimize `eia_weighted_abs_miss` =
-   Σ wᵧ·|YoYᵧ − EIAᵧ| / Σ wᵧ with wᵧ = |Step-5 Δ| of `221100×F01000` on
-   mode `'none'` at span-end year **y** (USD; same helpers as measure).
-2. Tie-break: smaller \|Δ\| onto `trade` + `trade_unseeded` bands.
-3. Tie-break: `tier1_fixed`.
-4. None eligible → leave flag False / mode `'none'` (Acceptance-valid).
+- **Initial rule** — binary EIA / trade sequence: among T11-eligible candidates,
+  prefer those with `eia_all_spans_ok`, then smaller trade \|Δ\|
+  (`trade` + `trade_unseeded`), then `tier1_fixed`. Once every candidate failed
+  the `$5bn/15%` band, ranking collapsed to trade \|Δ\| and picked `eia_band` on
+  ~$63m of noise. See [Wes selection
+  review](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5324073406).
+- **Updated rule** — weighted EIA miss (ship selector on the False arm): among
+  eligible candidates (`t11_all_years_ok`, `allow_select`):
+  1. Minimize `eia_weighted_abs_miss` =
+     Σ wᵧ·|YoYᵧ − EIAᵧ| / Σ wᵧ with wᵧ = |Step-5 Δ| of `221100×F01000` on
+     mode `'none'` at span-end year **y** (USD; same helpers as measure).
+  2. Tie-break: smaller \|Δ\| onto `trade` + `trade_unseeded` bands.
+  3. Tie-break: `tier1_fixed`.
+  4. None eligible → leave flag False / mode `'none'` (Acceptance-valid).
 
-The `$5bn / 15%` `_published_band_ok` gate remains a **reported** column
-(`eia_all_spans_ok`); it does **not** filter the selection pool.
+  The `$5bn / 15%` `_published_band_ok` gate remains a **reported** column
+  (`eia_all_spans_ok`); it does **not** filter the selection pool.
 
-**Old rule (Phase 6 / first-pass 9b — non-shipping):** T11 → prefer binary
-`eia_all_spans_ok` → trade \|Δ\| → `tier1_fixed`. That collapsed gate picked
-`eia_band` on ~$63m trade noise after all candidates failed the band; held per
-[Wes review](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5324073406).
-Matrices below that say “Ship-intent: `eia_band`” are **provisional under the
-old rule** until a post–Phase-10+11 warm re-grade.
+Ship-intent below uses the **updated rule** on the warm dual-arm re-grade. The
+initial rule is retained only as historical contrast.
 
 Wes prefers a narrow hold or soft target over re-deriving upstream Y. Smoke
-(2022→23) selected B over A on displacement while C lost that span’s EIA —
-consistent with that preference on the short window.
+(2022→23) still selects B under the updated rule (C’s single-span miss
+dominates that window). Full-span updated-rule selection picks **C** — see
+Acceptance decision.
 
 `selected` only when `rebase_eia=False` and `arm_status=='ok'`. True arm is
 advisory (still computes `eia_weighted_abs_miss`; never `eligible`/`selected`).
@@ -136,75 +145,194 @@ advisory (still computes `eia_weighted_abs_miss`; never `eligible`/`selected`).
 
 ### Full span 2017–2024 (`baseline_vintage=f709829`; both arms)
 
-From `pce_electricity_pin_measure_2017_2024.csv` after stacking on #1010:
+From `pce_electricity_pin_measure_2017_2024.csv` after authoritative warm grade
+on hash `314bc2d4` (stacked on #1010):
 
 | year | rank (off) | Step-5 Δ $bn (off) | rank (on) | Step-5 Δ $bn (on) |
 |---|---:|---:|---:|---:|
 | 2017 | 41 | +0.14 | 41 | +0.14 |
-| 2018 | 27 | +0.64 | 56 | −0.23 |
-| 2019 | 30 | +0.80 | 37 | −0.60 |
-| 2020 | 48 | +0.73 | 91 | +0.31 |
-| 2021 | 33 | −1.84 | 16 | −4.95 |
-| 2022 | **12** | **−12.34** | **10** | **−15.44** |
-| 2023 | 25 | +5.23 | 29 | +4.53 |
-| 2024 | 23 | +6.19 | 20 | +6.95 |
+| 2018 | 27 | +0.64 | 29 | +0.50 |
+| 2019 | 30 | +0.80 | 29 | +0.92 |
+| 2020 | 48 | +0.73 | 45 | +0.74 |
+| 2021 | 33 | −1.84 | 36 | −1.66 |
+| 2022 | **12** | **−12.34** | **17** | **−9.10** |
+| 2023 | 25 | +5.23 | 26 | +5.20 |
+| 2024 | 23 | +6.19 | 22 | +5.68 |
 
-Largest Step-5 electricity PCE move remains 2022; rebase-on increases that
-swing (−$15.4bn vs −$12.3bn). Documentary vintage label only — not a GCS checkout.
+Largest Step-5 electricity PCE move remains **2022** on both arms. Rebase-on
+**shrinks** that swing here (−$9.1bn vs −$12.3bn off) — earlier first-pass
+docs that showed a larger on-arm 2022 swing are superseded by this hash’s
+measure CSV. Documentary vintage label only — not a GCS checkout.
 
 ## Grade matrix
 
-### Smoke 2022→2023 (provisional)
+### Smoke 2022→2023 (updated rule; timing probe)
 
-| Candidate | T11 | EIA band | Trade \|Δ\| bn | Selected |
-|---|---|---|---:|---|
-| `tier1_fixed` | ok | **ok** (+$4.56bn vs EIA +$5.00bn) | 0.830 | no |
-| `row_side_target` | ok | **ok** (+$4.56bn vs EIA +$5.00bn) | **0.072** | **yes** |
-| `eia_band` | ok | **fail** (+$12.50bn vs +$5.00bn) | 0.028 | no |
+| Candidate | T11 | EIA band | Weighted miss $bn | Trade \|Δ\| bn | Selected |
+|---|---|---|---:|---:|---|
+| `tier1_fixed` | ok | **ok** | 0.443 | (higher) | no |
+| `row_side_target` | ok | **ok** | **0.443** | (lower) | **yes** |
+| `eia_band` | ok | **fail** | 7.494 | (lowest) | no |
 
-**Smoke provisional winner: `row_side_target`.**
+**Smoke winner under the updated rule: `row_side_target`.** A/B tie on
+weighted miss; trade \|Δ\| picks B. C loses this one-span window hard
+(+$12.5bn YoY vs EIA +$5.0bn).
 
-### Full span 2017–2024 — dual-arm Acceptance (Phase 9b)
+### Full span 2017–2024 — dual-arm Acceptance
 
-CSVs: `pce_electricity_pin_{t11,eia,displacement,pce_sink,summary}_2017_2024.csv`
-(both `rebase_eia` values). `--check --require-rebase-on` → **0 failures**.
+**What was run** (hash `314bc2d4`; **no commits** from warm through grade):
 
-**False arm (ship selector):**
+```bash
+python -m ...pce_electricity_pin warm --years 2017-2024 --rebase-eia both --jobs 1 --require-rebase-on
+python -m ...pce_electricity_pin measure --years 2017-2024 --csv --rebase-eia both \
+  --baseline-vintage f709829 --require-rebase-on --jobs 8
+python -m ...pce_electricity_pin grade --years 2017-2024 --csv --check --rebase-eia both \
+  --baseline-vintage f709829 --require-rebase-on --jobs 8
+```
 
-| Candidate | T11 | EIA all spans | Trade \|Δ\| bn | Selected |
-|---|---|---|---:|---|
-| `tier1_fixed` | ok | fail | 1.783 | no |
-| `row_side_target` | ok | fail | 0.144 | no |
-| `eia_band` | ok | fail | **0.081** | **yes** |
+| Step | Wall |
+|---|---:|
+| Warm (16 year×arm assembles, jobs=1) | **~1 h 11 min** |
+| Measure (both arms, jobs=8) | **~33 min** |
+| Grade (both arms, jobs=8) | **~1 h 0 min** |
+| **Total** | **~2 h 44 min** |
+
+CSVs: `pce_electricity_pin_{measure,t11,eia,displacement,pce_sink,summary}_2017_2024.csv`.
+`--check --require-rebase-on` → **0 failures**. Both arms `arm_status=ok`
+(no `__arm_skip__`).
+
+**False arm (ship selector, updated rule):**
+
+| Candidate | T11 | EIA all spans (reported) | Weighted miss $bn | Trade \|Δ\| bn | Selected |
+|---|---|---|---:|---:|---|
+| `tier1_fixed` | ok | fail | 4.412 | 1.783 | no |
+| `row_side_target` | ok | fail | 4.412 | 0.144 | no |
+| `eia_band` | ok | fail | **2.184** | **0.081** | **yes** |
 
 **True arm (advisory; all `eligible=selected=False`):**
 
-| Candidate | T11 | EIA all spans | Trade \|Δ\| bn |
-|---|---|---|---:|
-| `tier1_fixed` | ok | fail | 3.216 |
-| `row_side_target` | ok | fail | 0.230 |
-| `eia_band` | ok | fail | **0.034** |
+| Candidate | T11 | EIA all spans (reported) | Weighted miss $bn | Trade \|Δ\| bn |
+|---|---|---|---:|---:|
+| `tier1_fixed` | ok | fail | 4.056 | 1.622 |
+| `row_side_target` | ok | fail | 4.056 | 0.095 |
+| `eia_band` | ok | fail | **2.524** | **0.093** |
 
-**Ship-intent (old rule / non-shipping):** `eia_band`. Same False-arm winner as
-pre-#1010 Phase-6 under the collapsed binary gate. True-arm trade ranking also
-preferred C. Keep Candidate C code (9c keep rule). No candidate has
-`eia_all_spans_ok` on either arm. **Authoritative ship-intent awaits Phase 11
-selector + warm dual-arm re-grade (9b).**
+**Ship-intent mode string: `eia_band`.** Production flag stays
+**False** on this PR. True-arm ranking under the updated rule also prefers C
+(advisory only).
 
-**Primary PCE sinks (False-arm old-rule winner):** hospitals (`622000`), tenant housing
+**Primary PCE sinks (False-arm winner C):** hospitals (`622000`), tenant housing
 (`531HST`), pharma (`325412`), limited-service restaurants (`722211`), petroleum
 (`324110`).
+
+## Acceptance decision — why the updated rule selects C (and how reviews are answered)
+
+### Selection review
+([#5324073406](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5324073406))
+
+Wes rejected shipping `eia_band` on the **initial rule**: once every candidate
+failed the binary `$5bn/15%` gate, ranking fell to trade \|Δ\| and C won by
+**$63m** — noise on a $30tn+ table. He asked for a continuous EIA score weighted
+by `|Step-5 Δ|`, with the band as a **reported** gate only, and held the
+mode-string flip until dual-arm + that score existed. He expected **B**, and
+wrote he was happy to be wrong if the weighted score still returned C.
+
+**This Acceptance grades under the updated rule and returns C.** Reasons, in
+order:
+
+1. **Binary gate still fails everyone** — no candidate has `eia_all_spans_ok`.
+   Under the updated rule that no longer decides anything; it is only reported.
+2. **Weighted miss (False arm):** A=B **4.412 bn**, C **2.184 bn**. C wins
+   without needing the trade tie-break.
+3. **Where the mass sits:** span-end weight `w_2022 = $12.34bn` (largest Step-5
+   year). On **2021→22** A/B miss **+$7.38bn (~28%)** while C misses only
+   **+$1.02bn** (level collar tracks EIA through the crisis year). On
+   **2022→23** C misses **+$7.49bn (~150%)** while A/B miss **+$0.44bn** — but
+   that span’s weight is only `$5.23bn`. Absolute miss × Step-5 weight therefore
+   prefers C: A/B’s crisis-year miss dominates the numerator; C’s relative
+   disaster is on a lighter-weight span.
+4. **Smoke vs full span:** the 2022→23-only probe selects B (C’s single miss
+   is the whole window). Full span includes the heavy 2021→22 weight where C
+   is better. Recording both is intentional — same honesty Wes called out for
+   smoke vs initial-rule full-span disagreement.
+5. **Relative vs absolute:** Wes’s table correctly shows A/B five times better
+   on *relative* miss for their failing span. The updated rule uses
+   **absolute** `|YoY−EIA|` × `|Step-5 Δ|`. That is what returns C. If a future
+   review wants relative miss in the score, that is a separate rule change —
+   not how this Acceptance was graded.
+6. **2021→22 and #1009:** Wes hypothesized A/B’s 2021→22 miss might shrink once
+   the row is rebased. **True-arm measure** still shows a large 2022 Step-5 move
+   (−$9.1bn); True-arm scores under the updated rule still rank C best
+   (2.52 vs A/B 4.06). Rebase does **not** hand the updated-rule decision to B.
+7. **Trade \|Δ\|** still ranks C lowest (0.081 False / 0.093 True) but is
+   **not** the decider here — the updated rule’s weighted EIA miss already
+   separates C.
+
+**Candidate C disposition:** False-arm ship-intent is `eia_band` **and** True-arm
+lowest weighted miss is `eia_band` → **keep** the `eia_band` code path.
+Demotion / deletion does not apply on this result.
+
+### Runtime review
+([#5845859763](https://github.com/cornerstone-data/bedrock/pull/1011#issuecomment-5845859763))
+
+Wes timed cold `assemble(2023)` at **~9 h** vs warm `assemble(2022)` at **~9 s**,
+attributed to **FBS git-hash cache invalidation** from mid-run commits — not
+GRAS and not log I/O. Advice: warm every year before grade; do not commit during
+a span; then year-parallel; logs are hygiene; N-candidate re-`assemble` (~27 s/yr
+warm) is deferrable cleanliness.
+
+**This Acceptance followed that discipline:**
+
+| Wes point | What we did |
+|---|---|
+| Cost is FBS regen, not logs | `*.log` already gitignored / untracked; not treated as a speed fix |
+| Warm all years for current hash | `warm --years 2017-2024 --rebase-eia both --jobs 1` before measure/grade |
+| Never commit mid-span | Hash `314bc2d4` held from warm through `--check` |
+| Then parallelize years | `measure` / `grade` with **`--jobs 8`** (CLI default remains 1) |
+| Reject parallel warm | `warm` errors if `jobs != 1` |
+| Arms sequential | False then True; each arm years parallel |
+| Seed reuse across candidates | Still deferred (~27 s/yr); not attempted |
+
+Wall times above (~2 h 45 min warm+measure+grade) match the “warm then ~15–20
+min/arm × 2 at 8-way” order of magnitude once FBSs are hot; the warm leg still
+dominates when many year×arm pairs miss the hash cache.
+
+### Earlier design / sequencing review
+([#5322512131](https://github.com/cornerstone-data/bedrock/pull/1011#pullrequestreview-5322512131))
+
+Addressed on the stack before this Acceptance: `sign_flex` on the PCE
+redistributor; CI black/mypy sites; PR stacked on `#1010` by **merge** (not
+rebase onto `main`); dual-arm grade with rebase off/on; `DEFAULT_PCE_CONSTRAINT`
+remains `'none'`; production flag off until explicit ship.
 
 ## Production posture
 
 - `constrain_electricity_pce_cell` defaults **False** (not enabled on this PR).
-- Do **not** treat first-pass / Phase-6 `eia_band` as the mode to flip. After
-  Phase 11 + authoritative 9b, record the False-arm winner in About; set flag +
-  mode together only at explicit ship (atomic YAML) — do not leave flag on with
-  mode `'none'`.
+- **Ship-intent mode string is `eia_band`** (False-arm `selected` on this
+  Acceptance under the updated rule). USAConfig field default stays `'none'`
+  so release YAML stays waterfall-bracket-clean. When explicitly shipping, set
+  **both** the flag and `electricity_pce_constraint_mode: eia_band` together
+  (atomic YAML) — do not leave flag on with mode `'none'`.
 - Never co-enable with #1009/#1010 rebase in one unattributed rebuild.
 - Do **not** flip `DEFAULT_PCE_CONSTRAINT`.
 
+## Next steps
+
+1. **PR / issue comments** — post this Acceptance (False/True matrices, weighted
+   scores, timings, why C wins under the updated rule) on #1011 / #1008 / #1010.
+2. **Reviewer confirm** — especially that absolute×Step-5 weighting (not
+   relative miss) is the accepted ship rule, given it returned C contrary to
+   the pre-score expectation of B.
+3. **Explicit ship (separate edit)** — only after review sign-off: atomic
+   `constrain_electricity_pce_cell: true` + `electricity_pce_constraint_mode:
+   eia_band` on the intended release config; do not combine with the GO rebase
+   flag in one unattributed rebuild.
+4. **Optional follow-ups (out of this Acceptance):** in-process seed reuse
+   across candidates (~27 s/yr); relative-miss variant of the score if product
+   owners want it; delete Candidate C only in a later PR if demotion criteria
+   ever apply (they do not now).
+
 ## Out of scope
 
-Deleting Candidate C; #899/#1005; #902; re-deriving `derive_initial_Y_pur`.
+Deleting Candidate C; #899/#1005; #902; re-deriving `derive_initial_Y_pur`;
+FBS git-hash redesign; candidate-level assemble seed cache.
