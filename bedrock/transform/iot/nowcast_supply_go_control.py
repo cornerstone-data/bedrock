@@ -191,6 +191,52 @@ def _commodity_parent() -> dict[str, str]:
 
 
 @functools.cache
+def released_groups() -> frozenset[str]:
+    """Summary industry groups whose published summary Supply cell is **not** held.
+
+    Empty unless ``rebase_utility_gross_output_on_eia`` is set, in which case it
+    is the summary parent of every industry in
+    :data:`~bedrock.transform.iot.eia_utility_go_adjustment.CONTROLLED`.
+
+    ⚠️ **Why a level change has to release the row, and not only the share.**
+    :func:`fit_block` normally renormalises the GO target to the group's own
+    block total (``want * total / want.sum()``), so only *shares within* the
+    group survive and any level change is divided out. Measured on 2022 with
+    electricity rebased: the electric power industry's gross output falls
+    47.08 billion USD, but the electricity commodity row falls only **9.67
+    billion** while gas distribution *gains* **8.45 billion** and water **1.23
+    billion**. The utilities group row total and the block total both move
+    **0.0** -- the reduction never leaves the group, it is handed to the
+    non-electric utilities.
+
+    ✅ That reallocation has no source behind it. Nothing observed says gas
+    distribution supplied more because the electric power industry supplied
+    less, so for a group carrying a rebased industry the column target wins and
+    the published summary commodity cells give way.
+
+    ⚠️ **The cost is real and is the point of the flag being off by default**:
+    for a released group the Supply block no longer reproduces BEA's published
+    summary Supply cells. The argument that it is the right trade is ``T17``:
+    ``supply.col + T00TOP + T00SUB = use.col`` is a **hard** target and
+    ``use.col`` is pinned to gross output by ``T1``, so Step 5 was always going
+    to force the Supply column onto ``GO - wedge``. Holding the summary row in
+    the seed does not prevent that; it only hands GRAS a correction to absorb
+    into the interior, which is the same argument this module already makes for
+    taking GO's within-group shares at all.
+    """
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    if not get_usa_config().rebase_utility_gross_output_on_eia:
+        return frozenset()
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        CONTROLLED,
+    )
+
+    parents = _industry_parent()
+    return frozenset(parents[code] for code in CONTROLLED if code in parents)
+
+
+@functools.cache
 def raw_supply_block(year: int, download_sources_ok: bool = False) -> pd.DataFrame:
     """The uncontrolled ``Detail_Supply_Mix_<year>`` block, commodity x industry, USD.
 
@@ -275,6 +321,8 @@ def fit_group(
     sub_block: pd.DataFrame,
     column_targets: 'pd.Series[float]',
     row_groups: 'pd.Series[str]',
+    *,
+    hold_summary_rows: bool = True,
 ) -> tuple[pd.DataFrame, int, float]:
     """Biproportional fit of one summary industry group's sub-block.
 
@@ -300,6 +348,21 @@ def fit_group(
     """
     values = sub_block.to_numpy(dtype=float).copy()
     targets = column_targets.reindex(sub_block.columns).to_numpy(dtype=float)
+
+    if not hold_summary_rows:
+        # One column scaling and nothing else: each industry takes its own
+        # absolute GO-at-basic target, and the commodity rows land wherever that
+        # puts them. There is no second constraint to iterate against, so this
+        # converges in one sweep by construction. See :func:`released_groups`
+        # for why the summary cells are given up here.
+        columns = values.sum(axis=0)
+        scale = np.divide(
+            targets, columns, out=np.ones_like(targets), where=np.abs(columns) > 0
+        )
+        values *= scale
+        worst = float(np.max(np.abs(values.sum(axis=0) - targets)))
+        return pd.DataFrame(values, sub_block.index, sub_block.columns), 1, worst
+
     codes, group_index = np.unique(
         row_groups.reindex(sub_block.index).to_numpy(), return_inverse=True
     )
@@ -398,8 +461,14 @@ def fit_block(
         # normalised target is that total and the fit is the identity.  Nothing
         # special is needed for it beyond not dividing by a zero ``want``, which
         # the skip above has already ruled out.
-        column_targets = want * (total / float(want.sum()))
-        result, sweeps, worst = fit_group(sub, column_targets, commodity_parent)
+        # A released group takes the absolute GO-at-basic level; a held group
+        # takes only its within-group shares, because renormalising to the
+        # block total divides the level change out.
+        hold = group not in released_groups()
+        column_targets = want if not hold else want * (total / float(want.sum()))
+        result, sweeps, worst = fit_group(
+            sub, column_targets, commodity_parent, hold_summary_rows=hold
+        )
 
         # ⚠️ All or nothing per group. A group that exhausts MAX_ITERATIONS has a
         # zero pattern the two constraints cannot both satisfy, and the sweep
@@ -432,7 +501,15 @@ def fit_block(
                 'sweeps': sweeps,
                 'worst_miss_usd': worst,
                 'moved_usd': float((result - sub).abs().to_numpy().sum() / 2),
-                'note': '',
+                'note': (
+                    ''
+                    if hold
+                    else (
+                        'summary Supply cells released; column target is the '
+                        f'absolute GO-at-basic level, group total moved '
+                        f'{(float(result.to_numpy().sum()) - total) / MILLION_CURRENCY_TO_CURRENCY:,.0f} $M'
+                    )
+                ),
             }
         )
     return fitted, pd.DataFrame(rows).set_index('group')
