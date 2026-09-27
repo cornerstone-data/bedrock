@@ -3551,9 +3551,9 @@ def _simulate_residual_allocation(
     mode: dict[str, str] = {}
     for sector in sectors:
         if sector in band_idx.index:
-            coverage = float(band_idx.at[sector, 'coverage'])
+            coverage = float(cast(Any, band_idx.at[sector, 'coverage']))
             verdict = str(band_idx.at[sector, 'verdict'])
-            unresolved = float(band_idx.at[sector, 'unresolved'])
+            unresolved = float(cast(Any, band_idx.at[sector, 'unresolved']))
         else:
             coverage = float('nan')
             verdict = 'no facility data'
@@ -3566,8 +3566,8 @@ def _simulate_residual_allocation(
                 'unresolved': unresolved,
                 'd15d_verdict': verdict,
                 'mode': mode[sector],
-                'prior_Mt': float(prior.get(sector, 0.0)),
-                'facility_Mt': float(facility_Mt.get(sector, 0.0)),
+                'prior_Mt': float(prior.get(sector, 0.0) or 0.0),
+                'facility_Mt': float(facility_Mt.get(sector, 0.0) or 0.0),
             }
         )
     detail = pd.DataFrame(rows).set_index('sector')
@@ -3594,19 +3594,22 @@ def _simulate_residual_allocation(
     for sector in gated:
         if mode[sector] != 'facility_floor':
             continue
-        floor_target = min(
-            detail.at[sector, 'facility_Mt'], detail.at[sector, 'prior_Mt']
-        )
-        if allocated[sector] >= floor_target - 1e-12:
+        facility_level = float(cast(Any, detail.at[sector, 'facility_Mt']))
+        prior_level = float(cast(Any, detail.at[sector, 'prior_Mt']))
+        floor_target = min(facility_level, prior_level)
+        allocated_level = float(cast(Any, allocated[sector]))
+        if allocated_level >= floor_target - 1e-12:
             continue
-        need = floor_target - allocated[sector]
-        donors = [s for s in ungated if allocated[s] > 0]
-        donor_mass = float(allocated[donors].sum()) if donors else 0.0
+        need = floor_target - allocated_level
+        donors = [s for s in ungated if float(cast(Any, allocated[s])) > 0]
+        donor_mass = float(allocated.loc[donors].sum()) if donors else 0.0
         take = min(need, donor_mass)
         if take <= 0:
             continue
-        allocated.loc[donors] *= (donor_mass - take) / donor_mass
-        allocated[sector] += take
+        allocated.loc[donors] = allocated.loc[donors] * (
+            (donor_mass - take) / donor_mass
+        )
+        allocated[sector] = allocated_level + take
 
     drift = national - float(allocated.sum())
     if abs(drift) > 1e-6 and ungated:
