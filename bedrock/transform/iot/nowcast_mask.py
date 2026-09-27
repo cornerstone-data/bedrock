@@ -521,8 +521,22 @@ def never_imported_violations(mcif: pd.Series) -> pd.Series:
     return offending.reindex(offending.abs().sort_values(ascending=False).index)
 
 
+#: Issue #1008 — constrain ``221100 × F01000`` so GRAS cannot use residential
+#: PCE as a residual sink. Shared default; flip after grade (About_1008).
+PceConstraint = Literal['none', 'tier1_fixed', 'row_side_target', 'eia_band']
+DEFAULT_PCE_CONSTRAINT: PceConstraint = 'none'
+
+#: Electricity commodity × personal consumption (residential PCE) cell.
+PCE_ELECTRICITY_ROW = '221100'
+PCE_ELECTRICITY_COL = 'F01000'
+
+
 def fixed_value_mask(
-    block: Block, year: int = 2017, panel: pd.DataFrame | None = None
+    block: Block,
+    year: int = 2017,
+    panel: pd.DataFrame | None = None,
+    *,
+    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
 ) -> pd.DataFrame:
     """Tier 1. Cells a source reports directly, held at their value.
 
@@ -533,6 +547,11 @@ def fixed_value_mask(
     cell masked by accident cannot be corrected by the balance.
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
+
+    When ``pce_constraint='tier1_fixed'``, also holds the nonzero
+    ``221100 × F01000`` cell at its seed (#1008). That is a published-annual-
+    counterpart / seed hold, **not** :data:`ONE_TO_ONE_FD` doctrine: EIA Form
+    861 reports residential class revenue, not the BEA IO cell itself.
     """
     del year  # the pattern is 2017-derived for every year; see the module note
     values = _panel_or_default(block, panel)
@@ -540,6 +559,16 @@ def fixed_value_mask(
     if block == 'use':
         present = [c for c in ONE_TO_ONE_FD if c in values.columns]
         flags[present] = values[present] != 0
+        if (
+            pce_constraint == 'tier1_fixed'
+            and PCE_ELECTRICITY_ROW in values.index
+            and PCE_ELECTRICITY_COL in values.columns
+            and float(
+                np.asarray(values.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL]).item()
+            )
+            != 0.0
+        ):
+            flags.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL] = True
     return flags
 
 
@@ -574,7 +603,11 @@ def sign_lock_mask(block: Block, panel: pd.DataFrame | None = None) -> pd.DataFr
 
 
 def build_sut_mask(
-    block: Block, year: int = 2017, panel: pd.DataFrame | None = None
+    block: Block,
+    year: int = 2017,
+    panel: pd.DataFrame | None = None,
+    *,
+    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
 ) -> SutMask:
     """Assemble the three layers for one block.
 
@@ -582,10 +615,10 @@ def build_sut_mask(
     its own seed fails here rather than inside the balance.
     """
     values = _panel_or_default(block, panel)
+    fixed = fixed_value_mask(block, year, values, pce_constraint=pce_constraint)
     mask = SutMask(
-        structural_zero=structural_zero_mask(block, values)
-        & ~fixed_value_mask(block, year, values),
-        fixed_value=fixed_value_mask(block, year, values),
+        structural_zero=structural_zero_mask(block, values) & ~fixed,
+        fixed_value=fixed,
         sign_lock=sign_lock_mask(block, values),
     )
     mask.validate_against(values)
@@ -596,9 +629,16 @@ def build_sut_mask(
 BLOCKS: tuple[Block, ...] = ('use', 'supply')
 
 
-def build_sut_masks(year: int = 2017) -> dict[Block, SutMask]:
+def build_sut_masks(
+    year: int = 2017,
+    *,
+    pce_constraint: PceConstraint = DEFAULT_PCE_CONSTRAINT,
+) -> dict[Block, SutMask]:
     """Both blocks, keyed by block name."""
-    return {block: build_sut_mask(block, year) for block in BLOCKS}
+    return {
+        block: build_sut_mask(block, year, pce_constraint=pce_constraint)
+        for block in BLOCKS
+    }
 
 
 def mask_summary(year: int = 2017) -> pd.DataFrame:

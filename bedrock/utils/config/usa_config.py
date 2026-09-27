@@ -104,6 +104,12 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
+    # Issue #1008 — pin 221100×F01000 in nowcast GRAS. Flag stays False until
+    # explicit ship; mode holds the graded winner string for when flag flips.
+    constrain_electricity_pce_cell: bool = False  # DRI: jorge.vendries
+    electricity_pce_constraint_mode: ta.Literal[
+        'none', 'tier1_fixed', 'row_side_target', 'eia_band'
+    ] = 'none'  # DRI: jorge.vendries
     # Rebase 221100 gross output on EIA volume x published price, splitting the
     # 2017 base into output sold to ultimate customers (moved on EPA Table 2.3
     # revenue) and sales for resale between utilities (moved on Table 8.3
