@@ -3481,6 +3481,321 @@ def facility_coverage_bands(
     return out.sort_values('total_Mt', ascending=False).reset_index(drop=True)
 
 
+#: Attribution-coverage thresholds under discussion for #928. Distinct from
+#: D15d's downward gate (``coverage_floor=0.95`` + ``unresolved_ceiling``).
+ATTRIBUTION_COVERAGE_THRESHOLDS: tuple[float, ...] = (0.5, 0.8, 0.95)
+
+
+def table_3_11_by_sector(year: int, fbs_vintage: str) -> pd.Series:
+    """Table 3-11 Mt CO2e by sector from the local nowcast FBS.
+
+    The prior the residual rule renormalises against. Loaded without building
+    the full E-versus-x span - only the GHG FBS for *year* is required.
+    """
+    with temp_usa_config(CONFIG_TEMPLATE.format(year=year)):
+        emissions = stratified_E(year, fbs_vintage)
+    combustion = emissions[
+        emissions['MetaSources']
+        .astype(str)
+        .str.contains(COMBUSTION_METASOURCE, na=False)
+    ]
+    prior = combustion.groupby('sector')['CO2e'].sum() / 1e9
+    prior.name = 'prior_Mt'
+    return prior
+
+
+def _attribution_mode(
+    sector: str,
+    coverage: float,
+    verdict: str,
+    threshold: float,
+) -> str:
+    """Classify a sector under the #928 residual rule at one attribution gate."""
+    if str(sector)[:2] not in FACILITY_SCOPE_PREFIXES:
+        return 'keep_prior'
+    if verdict == 'no facility data' or not np.isfinite(coverage):
+        return 'keep_prior'
+    if coverage < threshold:
+        return 'keep_prior'
+    if verdict == 'vector':
+        return 'facility_vector'
+    return 'facility_floor'
+
+
+def _simulate_residual_allocation(
+    prior: pd.Series,
+    facility_Mt: pd.Series,
+    bands: pd.DataFrame,
+    threshold: float,
+) -> pd.DataFrame:
+    """Apply floor / vector / keep-prior at one coverage gate, then close the total.
+
+    Mirrors a hybrid #965 path: national table 3-11 is fixed; gated sectors take
+    **facility shares** of the gated pool (not absolute facility Mt - the union
+    includes process mass that is not table 3-11); ungated sectors keep prior
+    shares of the ungated pool. Vector sectors may fall below their prior share.
+    Floor sectors are raised toward facility mass only up to their own prior, so
+    process-inflated facility totals cannot invent combustion tonnes.
+
+    Filtering the facility FBS and letting FlowSA renormalise is not this: that
+    dumps ungated mass onto high-coverage sectors.
+    """
+    band_idx = bands.set_index('sector')
+    sectors = sorted(
+        set(prior.index.astype(str))
+        | set(facility_Mt.index.astype(str))
+        | set(band_idx.index.astype(str))
+    )
+    national = float(prior.sum())
+    rows: list[dict[str, Any]] = []
+    mode: dict[str, str] = {}
+    for sector in sectors:
+        if sector in band_idx.index:
+            coverage = float(band_idx.at[sector, 'coverage'])
+            verdict = str(band_idx.at[sector, 'verdict'])
+            unresolved = float(band_idx.at[sector, 'unresolved'])
+        else:
+            coverage = float('nan')
+            verdict = 'no facility data'
+            unresolved = float('nan')
+        mode[sector] = _attribution_mode(sector, coverage, verdict, threshold)
+        rows.append(
+            {
+                'sector': sector,
+                'coverage': coverage,
+                'unresolved': unresolved,
+                'd15d_verdict': verdict,
+                'mode': mode[sector],
+                'prior_Mt': float(prior.get(sector, 0.0)),
+                'facility_Mt': float(facility_Mt.get(sector, 0.0)),
+            }
+        )
+    detail = pd.DataFrame(rows).set_index('sector')
+
+    gated = [s for s, m in mode.items() if m in ('facility_vector', 'facility_floor')]
+    ungated = [s for s, m in mode.items() if m == 'keep_prior']
+    gated_prior = float(detail.loc[gated, 'prior_Mt'].sum()) if gated else 0.0
+    ungated_prior = float(detail.loc[ungated, 'prior_Mt'].sum()) if ungated else 0.0
+
+    allocated = pd.Series(0.0, index=sectors, dtype=float)
+    fac_gated = detail.loc[gated, 'facility_Mt'] if gated else pd.Series(dtype=float)
+    if gated and float(fac_gated.sum()) > 0 and gated_prior > 0:
+        allocated.loc[gated] = fac_gated / fac_gated.sum() * gated_prior
+    elif gated and gated_prior > 0:
+        allocated.loc[gated] = detail.loc[gated, 'prior_Mt']
+
+    prior_ungated = (
+        detail.loc[ungated, 'prior_Mt'] if ungated else pd.Series(dtype=float)
+    )
+    if ungated and float(prior_ungated.sum()) > 0:
+        allocated.loc[ungated] = prior_ungated / prior_ungated.sum() * ungated_prior
+
+    # Floor raise capped at prior_Mt (process-inflated facility totals).
+    for sector in gated:
+        if mode[sector] != 'facility_floor':
+            continue
+        floor_target = min(
+            detail.at[sector, 'facility_Mt'], detail.at[sector, 'prior_Mt']
+        )
+        if allocated[sector] >= floor_target - 1e-12:
+            continue
+        need = floor_target - allocated[sector]
+        donors = [s for s in ungated if allocated[s] > 0]
+        donor_mass = float(allocated[donors].sum()) if donors else 0.0
+        take = min(need, donor_mass)
+        if take <= 0:
+            continue
+        allocated.loc[donors] *= (donor_mass - take) / donor_mass
+        allocated[sector] += take
+
+    drift = national - float(allocated.sum())
+    if abs(drift) > 1e-6 and ungated:
+        soft = allocated[ungated]
+        if float(soft.sum()) > 0:
+            allocated.loc[ungated] = soft / soft.sum() * (float(soft.sum()) + drift)
+
+    detail['simulated_Mt'] = allocated
+    detail['delta_Mt'] = detail['simulated_Mt'] - detail['prior_Mt']
+    detail['threshold'] = threshold
+    return detail.reset_index()
+
+
+def attribution_threshold_sensitivity(
+    year: int = NEI_LAST_YEAR,
+    thresholds: tuple[float, ...] = ATTRIBUTION_COVERAGE_THRESHOLDS,
+    fbs_vintage: str | None = None,
+) -> dict[str, pd.DataFrame]:
+    """**#928.** Compare attribution coverage gates 50% / 80% / 95% for one year.
+
+    Rebuilds D15d bands once, then for each gate simulates the residual rule
+    (facility vector / facility floor / keep prior) against table 3-11. The
+    direction gate stays at D15d's shipped cutoffs; only the attribution gate
+    moves.
+
+    Returns ``sectors`` (long, every threshold), ``summary`` (one row per
+    threshold), and ``flippers`` (sectors whose mode changes across the gates).
+    """
+    if year > NEI_LAST_YEAR:
+        raise ValueError(
+            f'Attribution-threshold sensitivity needs NEI CO2, last available '
+            f'in {NEI_LAST_YEAR}; {year} is past that (#932).'
+        )
+    vintage = fbs_vintage or resolve_span_vintage(FBS_STEM, (year,))
+    prior = table_3_11_by_sector(year, vintage)
+    facility = facility_combustion(year)
+    facility_Mt = facility.groupby('sector')['CO2e'].sum() / 1e9
+    floor = ghgrp_combustion_floor((year,))[year]
+    # Minimal basis so D15d can name in-scope sectors with no facility data.
+    basis = pd.DataFrame(
+        {
+            'sector': prior.index.astype(str),
+            'facility_Mt': prior.index.astype(str).map(
+                lambda s: float(facility_Mt.get(s, 0.0))
+            ),
+            'allocated_Mt': prior.values,
+        }
+    )
+    basis['coverage'] = basis['facility_Mt'] / basis['allocated_Mt'].replace(0, np.nan)
+    basis['basis'] = np.where(
+        basis['coverage'].fillna(0.0) < 0.05, 'no facility data', 'facility'
+    )
+    bands = facility_coverage_bands(facility, floor, basis)
+
+    pieces = [
+        _simulate_residual_allocation(prior, facility_Mt, bands, threshold)
+        for threshold in thresholds
+    ]
+    sectors = pd.concat(pieces, ignore_index=True)
+    sectors = _with_names(sectors)
+    sectors['year'] = year
+    sectors['fbs_vintage'] = vintage
+
+    in_scope_prior = float(
+        prior[prior.index.astype(str).str[:2].isin(FACILITY_SCOPE_PREFIXES)].sum()
+    )
+    summary_rows: list[dict[str, Any]] = []
+    for threshold in thresholds:
+        slice_ = sectors[sectors['threshold'] == threshold]
+        gated = slice_[slice_['mode'].isin(('facility_vector', 'facility_floor'))]
+        summary_rows.append(
+            {
+                'year': year,
+                'threshold': threshold,
+                'sectors_facility_attributed': int(len(gated)),
+                'sectors_vector': int((slice_['mode'] == 'facility_vector').sum()),
+                'sectors_floor': int((slice_['mode'] == 'facility_floor').sum()),
+                'sectors_keep_prior': int((slice_['mode'] == 'keep_prior').sum()),
+                'prior_Mt_facility_attributed': float(gated['prior_Mt'].sum()),
+                'prior_Mt_in_scope': in_scope_prior,
+                'share_of_in_scope_prior': (
+                    float(gated['prior_Mt'].sum()) / in_scope_prior
+                    if in_scope_prior
+                    else float('nan')
+                ),
+                'simulated_Mt_total': float(slice_['simulated_Mt'].sum()),
+                'prior_Mt_total': float(slice_['prior_Mt'].sum()),
+                'abs_delta_Mt': float(slice_['delta_Mt'].abs().sum()) / 2.0,
+            }
+        )
+    summary = pd.DataFrame(summary_rows)
+
+    mode_wide = sectors.pivot_table(
+        index='sector', columns='threshold', values='mode', aggfunc='first'
+    ).rename(columns={t: f'mode_{t:g}' for t in thresholds})
+    flip_mask = mode_wide.nunique(axis=1) > 1
+    # One row per flipping sector with modes side by side for the decision table.
+    flipper_roster = _with_names(
+        mode_wide.loc[flip_mask]
+        .join(prior.rename('prior_Mt'))
+        .join(facility_Mt.rename('facility_Mt'))
+        .join(bands.set_index('sector')[['coverage', 'unresolved', 'verdict']])
+        .reset_index()
+        .sort_values('prior_Mt', ascending=False)
+        .reset_index(drop=True)
+    )
+
+    return {
+        'attribution_threshold_sectors': sectors,
+        'attribution_threshold_summary': summary,
+        'attribution_threshold_flippers': flipper_roster,
+    }
+
+
+def _report_attribution_threshold_sensitivity(
+    tables: dict[str, pd.DataFrame], year: int
+) -> None:
+    """Log the #928 gate comparison in the shape of Wes's decision table."""
+    summary = tables['attribution_threshold_summary']
+    logger.info(
+        'Attribution coverage gates for table 3-11 in %d (#928). '
+        'Direction gate unchanged (D15d: coverage>=0.95 and unresolved<=0.05). '
+        'Mt is prior table 3-11 mass of sectors that clear the attribution gate:\n%s',
+        year,
+        summary[
+            [
+                'threshold',
+                'sectors_facility_attributed',
+                'prior_Mt_facility_attributed',
+                'share_of_in_scope_prior',
+                'sectors_vector',
+                'sectors_floor',
+                'abs_delta_Mt',
+            ]
+        ]
+        .assign(
+            share_of_in_scope_prior=lambda d: (
+                d['share_of_in_scope_prior'] * 100
+            ).round(1)
+        )
+        .rename(
+            columns={
+                'sectors_facility_attributed': 'sectors',
+                'prior_Mt_facility_attributed': 'Mt',
+                'share_of_in_scope_prior': 'share_%',
+                'abs_delta_Mt': 'half_L1_vs_prior_Mt',
+            }
+        )
+        .to_string(index=False),
+    )
+    flippers = tables['attribution_threshold_flippers']
+    if flippers.empty:
+        logger.info('No sectors change mode across the three gates.')
+        return
+    logger.info(
+        '%d sectors flip mode across 50/80/95; largest prior_Mt first:\n%s',
+        len(flippers),
+        flippers.head(20)
+        .round({'prior_Mt': 2, 'facility_Mt': 2, 'coverage': 3, 'unresolved': 3})
+        .to_string(index=False),
+    )
+    sectors = tables['attribution_threshold_sectors']
+    for threshold in summary['threshold']:
+        movers = (
+            sectors[sectors['threshold'] == threshold]
+            .assign(abs_delta=lambda d: d['delta_Mt'].abs())
+            .sort_values('abs_delta', ascending=False)
+            .head(8)
+        )
+        logger.info(
+            'Top |delta| vs prior at threshold %.2f:\n%s',
+            threshold,
+            movers[
+                [
+                    'sector',
+                    'name',
+                    'mode',
+                    'prior_Mt',
+                    'facility_Mt',
+                    'simulated_Mt',
+                    'delta_Mt',
+                    'coverage',
+                ]
+            ]
+            .round(2)
+            .to_string(index=False),
+        )
+
+
 def report(
     span: Span, detail: pd.DataFrame, detail_real: pd.DataFrame
 ) -> dict[str, pd.DataFrame]:
@@ -4533,6 +4848,16 @@ if __name__ == '__main__':
             'on NEI'
         ),
     )
+    parser.add_argument(
+        '--attribution-threshold-sensitivity',
+        action='store_true',
+        help=(
+            'run the #928 attribution-coverage comparison alone and exit: '
+            'simulate the residual rule at coverage gates 50%%, 80%% and 95%% '
+            'for one year (default 2022, the last NEI CO2 year). Needs GHGRP '
+            'and NEI through stewi, plus a local nowcast GHG FBS for that year'
+        ),
+    )
     args = parser.parse_args()
 
     span_years = tuple(args.years)
@@ -4552,6 +4877,17 @@ if __name__ == '__main__':
         latest = carved.columns[-1]
         print(carved.round(2).sort_values(latest, ascending=False).head(12).to_string())
         print(f'\ntotal: {carved.sum().round(1).to_dict()}')
+        raise SystemExit(0)
+    if args.attribution_threshold_sensitivity:
+        year = min(max(span_years), NEI_LAST_YEAR)
+        tables = attribution_threshold_sensitivity(
+            year=year, fbs_vintage=args.fbs_vintage
+        )
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        for name, frame in tables.items():
+            frame.to_csv(OUTPUT_DIR / f'{name}.csv', index=False)
+        _report_attribution_threshold_sensitivity(tables, year)
+        print(f'\nWrote {", ".join(tables)} to {OUTPUT_DIR}')
         raise SystemExit(0)
     if args.check_facility_overshoot:
         span = load_span(span_years)
