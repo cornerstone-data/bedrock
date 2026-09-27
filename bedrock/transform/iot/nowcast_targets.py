@@ -98,6 +98,7 @@ from __future__ import annotations
 
 import functools
 import glob
+import math
 from typing import cast
 
 import pandas as pd
@@ -110,6 +111,8 @@ from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
     EXCLUDED_COMMODITIES,
     ONE_TO_ONE_FD,
+    PCE_ELECTRICITY_COL,
+    PCE_ELECTRICITY_ROW,
     SUPPLY_BRIDGE_COLUMNS,
     VA_ROWS,
     balance_commodities,
@@ -559,6 +562,30 @@ def fd_column_targets(year: int, totals: pd.Series | None = None) -> Target:
     )
 
 
+def pce_electricity_cell_target(year: int, value_usd_m: float) -> Target:
+    """T1008. Soft single-cell target for ``221100 × F01000`` (#1008 Candidate B).
+
+    Closer-only in the engine (like T4): not imposed via ``_use_vectors``.
+    Weight peers T2. ``value_usd_m`` is the Step-1 seed cell in $M.
+    """
+    if not math.isfinite(value_usd_m) or value_usd_m == 0.0:
+        raise ValueError(
+            f'T1008 seed for {year} must be finite and nonzero; got {value_usd_m!r}'
+        )
+    values = pd.Series({PCE_ELECTRICITY_ROW: float(value_usd_m)}, dtype=float)
+    values.index.name = 'commodity'
+    return Target.on_margin(
+        'use',
+        'row',
+        values,
+        source=f'Step-1 Y_PCE electricity cell seed, {year}',
+        name='T1008',
+        weight=WEIGHTS['T2'],
+        restrict_to=(PCE_ELECTRICITY_COL,),
+        hard=False,
+    )
+
+
 @functools.cache
 def industry_group_aggregator() -> Aggregator:
     """Detail industries to BEA summary groups, for T4.
@@ -810,6 +837,7 @@ __all__ = [
     'REST_OF_WORLD_ADJUSTMENT',
     'industry_output_target',
     'industry_value_added_target',
+    'pce_electricity_cell_target',
     'published_gross_output',
     'published_value_added',
     'rest_of_world_adjustment_supply_make',
