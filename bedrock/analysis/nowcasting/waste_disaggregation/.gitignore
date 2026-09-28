@@ -1,0 +1,3 @@
+# Local analysis caches (may contain large intermediates)
+cache/
+*.parquet
