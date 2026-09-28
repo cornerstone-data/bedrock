@@ -178,13 +178,15 @@ class USAConfig(BaseModel):
     # be re-runnable rather than only argued. See
     # bedrock.transform.iot.nowcast_intermediate.default_theta (#699, #891, #997).
     use_fitted_summary_regime_theta: bool = False  # DRI: WesIngwersen
-    # Move the census-held scrap cells (S00401) of the steel and aluminum
-    # buyers from 2022 on the BLS scrap PPIs (WPU1012 iron and steel,
-    # WPU102302 aluminum base) for years after the 2022 Economic Census. The
-    # census seed holds 2022 dollars past 2022, and 2022 was the scrap price
-    # peak (steel scrap 0.906 of it in 2023, 0.844 in 2024), so without this
-    # the scrap share of steel mills' inputs stays at the peak. No effect
-    # through 2022. See bedrock.transform.iot.nowcast_intermediate
+    # Move the census-held scrap cells (S00401) of the steel, aluminum and
+    # paper buyers from 2022 on the BLS PPIs (WPU1012 iron and steel scrap,
+    # WPU102302 aluminum base scrap, WPU0912 recyclable paper) for years after
+    # the 2022 Economic Census. The census seed holds 2022 dollars past 2022,
+    # near the scrap price peak (steel scrap 0.844 of 2022 by 2024, recyclable
+    # paper 0.575 in 2023), so without this the scrap share of these buyers'
+    # inputs stays at the peak. Because the column total is fixed, the other
+    # inputs' shares rise instead, which raises these buyers' indirect EF. No
+    # effect through 2022. See bedrock.transform.iot.nowcast_intermediate
     # SCRAP_PPI_BY_BUYER (#768).
     carry_held_scrap_on_ppi: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li

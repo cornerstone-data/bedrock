@@ -693,9 +693,12 @@ def test_scrap_factor_is_the_ppi_relative_to_2022() -> None:
     assert f2023['331110'] == pytest.approx(583.069 / 643.302)
     assert f2024['331110'] == pytest.approx(542.943 / 643.302)
     assert f2024['331314'] == pytest.approx(296.144 / 282.917)
-    # One index per metal: the buyers of the same metal move together.
+    assert f2023['322130'] == pytest.approx(230.048 / 399.99)
+    # One index per material: the buyers of the same scrap move together.
     assert f2024['331110'] == f2024['331200'] == f2024['331510']
     assert f2024['331314'] == f2024['33131B']
+    paper = ['322110', '322120', '322130', '322230', '322299']
+    assert f2023[paper].nunique() == 1
 
 
 def test_carry_held_scrap_moves_only_observed_buyer_cells() -> None:
@@ -720,7 +723,7 @@ def test_carry_held_scrap_moves_only_observed_buyer_cells() -> None:
     assert out.at[SCRAP_COMMODITY, '331110'] == pytest.approx(50.0 * factor)
     # 331314 is a scrap buyer but its cell is not observed.
     assert out.at[SCRAP_COMMODITY, '331314'] == 60.0
-    # 'other' is observed but not a metal-scrap buyer.
+    # 'other' is observed but not a priced scrap buyer.
     assert out.at[SCRAP_COMMODITY, 'other'] == 10.0
     pd.testing.assert_frame_equal(out.loc[['c2']], seed.loc[['c2']])
     # The input is not mutated.
@@ -732,8 +735,8 @@ def test_carry_held_scrap_moves_only_observed_buyer_cells() -> None:
 
 
 @needs_census
-def test_held_scrap_carry_reaches_the_steel_mills_and_nothing_else() -> None:
-    """2024: steel mills' scrap share falls with the price; others are untouched.
+def test_held_scrap_carry_reaches_the_scrap_buyers_and_nothing_else() -> None:
+    """2024: steel and paper scrap shares fall with price; others are untouched.
 
     An explicit ``theta`` switches this step off, and at theta = 1.0 it is
     otherwise the same computation as the default, so the difference between
@@ -752,5 +755,7 @@ def test_held_scrap_carry_reaches_the_steel_mills_and_nothing_else() -> None:
 
     # Steel scrap fell to 0.844 of its 2022 level ...
     assert scrap_share(default, '331110') < scrap_share(explicit, '331110')
-    # ... and aluminum scrap rose to 1.047 of it.
+    # ... aluminum scrap rose to 1.047 of it ...
     assert scrap_share(default, '331314') > scrap_share(explicit, '331314')
+    # ... and recyclable paper was at 0.920 of it.
+    assert scrap_share(default, '322130') < scrap_share(explicit, '322130')

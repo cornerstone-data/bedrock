@@ -280,22 +280,28 @@ SCRAP_COMMODITY = 'S00401'
 #: census mix at this year's dollars.
 LAST_MATERIALS_CENSUS = 2022
 
-#: The metal-scrap buyers and the BLS PPI that prices what each one buys (#768).
+#: The scrap buyers and the BLS PPI that prices what each one buys (#768).
 #:
 #: ⚠️ **The census seeds the scrap row and then holds it.** ``materials_seed``
 #: puts 98.9% of ``S00401`` on observed cells, and after
 #: :data:`LAST_MATERIALS_CENSUS` it holds the 2022 dollars flat. Because the
 #: cells are observed, the price carry is off, and scrap has no BEA price index
-#: to carry on in any case. 2022 was the scrap price peak: iron and steel scrap
-#: fell to 0.906 of it in 2023 and 0.844 in 2024.
+#: to carry on in any case. Against 2022, iron and steel scrap is at 0.906 in
+#: 2023 and 0.844 in 2024; recyclable paper at 0.575 and 0.920.
 #:
-#: These five columns buy **86.4%** of the 2022 row -- steel 77.0%, aluminum
-#: 9.5%. The rest is deliberately left held:
+#: These ten columns buy **93.7%** of the 2022 row: steel 77.0%, aluminum 9.5%,
+#: paper 7.3%. The rest is deliberately left held. ``3314xx`` and ``331520``
+#: buy copper or mixed nonferrous scrap, and copper base scrap (``WPU102301``)
+#: barely moved (0.988, 1.062), so pricing it changes no column by 0.5%.
 #:
-#: - ``322xxx`` paper mills (about 7.5%) buy **wastepaper**, which neither metal
-#:   index prices.
-#: - ``3314xx`` buy copper scrap, and ``331520`` nonferrous foundries buy mixed
-#:   metals, which neither index prices cleanly.
+#: ⚠️ **What this does to the other inputs, and so to the EF.** The column
+#: total is set by the gross-output control, so a smaller scrap share raises
+#: every other input's share of the column: steel mills' by x1.084 in 2024,
+#: paperboard mills' by x1.045 in 2023. Scrap is not a Cornerstone commodity,
+#: so this moves dollars from a zero-emission input to priced ones and raises
+#: the buyer's indirect EF by about those factors. It assumes the fixed total is
+#: right: a cheaper input should partly show up as wider value added instead,
+#: which only holds if BEA's value added for the year captured it.
 #:
 #: ❌ ``WPU10230103`` is yellow brass scrap, not aluminum, and ``WPU1017`` is
 #: steel mill products, not scrap. Both are easy to mistake for these.
@@ -305,12 +311,18 @@ SCRAP_PPI_BY_BUYER = {
     '331510': 'WPU1012',  # ferrous metal foundries
     '331314': 'WPU102302',  # secondary smelting and alloying of aluminum
     '33131B': 'WPU102302',  # aluminum products from purchased aluminum
+    '322110': 'WPU0912',  # pulp mills
+    '322120': 'WPU0912',  # paper mills
+    '322130': 'WPU0912',  # paperboard mills
+    '322230': 'WPU0912',  # stationery product manufacturing
+    '322299': 'WPU0912',  # all other converted paper products
 }
 
-#: Annual averages of the two scrap PPIs, from the BLS public API v2 (period
-#: ``M13``), retrieved 2026-09-28 and checked against the published series on
-#: data.bls.gov. Sourced as a small CSV, not an extractor: two series, eight
-#: years.
+#: Annual averages of the three scrap PPIs, from the BLS public API v2 (period
+#: ``M13``), retrieved 2026-09-28. Titles checked against the BLS ``wp.item``
+#: list: ``10 12`` iron and steel scrap, ``10 2302`` aluminum base scrap,
+#: ``09 12`` recyclable paper. Sourced as a small CSV, not an extractor: three
+#: series, eight years.
 SCRAP_PPI_CSV = (
     Path(__file__).resolve().parents[2]
     / 'extract'
