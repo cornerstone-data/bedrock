@@ -109,12 +109,19 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
-    # Issue #1008 — pin 221100×F01000 in nowcast GRAS. Flag stays False until
-    # explicit ship; mode holds the graded winner string for when flag flips.
-    constrain_electricity_pce_cell: bool = False  # DRI: jorge.vendries
+    # Issue #1008 — constrain 221100×F01000 in nowcast GRAS. F01000 is Tier 2,
+    # so without this the balance uses residential electricity as a residual
+    # sink: -$12.3bn in 2022 and +$5.2bn in 2023 against EIA's published
+    # residential revenue. `eia_band` collars the level to EIA and wins the
+    # full-span 2017-2024 grade on the ship arm (Step-5-weighted EIA miss
+    # $2.18bn against $4.41bn for the other two modes; trade displacement
+    # $0.08bn); see About_1008_pce_electricity_pin.md.
+    # ON by default: graded with rebase_utility_gross_output_on_eia OFF, which
+    # is how production ships, so the two are not co-enabled unattributed.
+    constrain_electricity_pce_cell: bool = True  # DRI: jorge.vendries
     electricity_pce_constraint_mode: ta.Literal[
         'none', 'tier1_fixed', 'row_side_target', 'eia_band'
-    ] = 'none'  # DRI: jorge.vendries
+    ] = 'eia_band'  # DRI: jorge.vendries
     # Rebase 221100 gross output on EIA volume x published price, splitting the
     # 2017 base into output sold to ultimate customers (moved on EPA Table 2.3
     # revenue) and sales for resale between utilities (moved on Table 8.3
@@ -125,6 +132,57 @@ class USAConfig(BaseModel):
     # distribution and water. See
     # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
     rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
+    # Chain manufacturing detail gross output for 2023-24 on AIES receipts
+    # instead of BEA's own annual movement. BEA's detail stops tracking census
+    # after the 2022 Economic Census: measured against each industry's own 2017
+    # ratio to census, the median drift is 2.3% in 2022 but 7.9% in 2024, with
+    # $387bn of gross misallocation netting to only -$35bn. Aircraft grows 8.2%
+    # on BEA in the year Boeing's deliveries fell 528 -> 348, where census shows
+    # -8.8%. Holds the manufacturing TOTAL rather than each summary group,
+    # because $250bn of the $387bn sits between groups. See
+    # bedrock.transform.iot.aies_go_chaining (#1013).
+    # ON by default: 2024 is the release year, BEA's 2023-24 manufacturing
+    # detail carries $387bn of mix error, and BEA states it could not use AIES
+    # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
+    # believe rather than an option we are trialling, so it ships enabled.
+    chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
+    # Hold electricity, utility gas, refined petroleum, coal and oil and gas
+    # extraction at theta = 1 in the Step 3 price carry instead of at the
+    # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
+    # 0 freezes the nominal share, which asserts a real quantity cut equal to
+    # the price rise. For commodities an industry cannot do without that cut
+    # did not happen, and the model books it as structural change. With the
+    # theta = 1 prior now the default this is a no-op in effect; it is kept as a
+    # GUARD, so that a future evidenced departure below 1.0 for some other
+    # commodity cannot silently drag these rows down with it. Against the
+    # retired two-regime rule it was worth +13.7% on these rows at 2022.
+    # MECS 2018->2022 fits 0.976 and 1.091 by two
+    # independent routes on manufacturing, the most substitutable case, so 1.0
+    # is a lower bound for the locked sectors this actually reaches. The
+    # observed mask confines it to the $279.6bn no survey answered - 31%
+    # government, 15% construction, 5% transport. See
+    # bedrock.transform.iot.nowcast_intermediate.INDISPENSABLE_COMMODITIES
+    # (#891, #997).
+    # ON by default: the alternative is not a neutral prior but the single
+    # setting that most manufactures structural change, chosen on a 0.587%
+    # score difference measured on BEA's published summary panel - which the
+    # fitting harness reads instead of our seed, and so can never see this.
+    carry_indispensable_commodities_in_full: bool = True  # DRI: WesIngwersen
+    # Restore the retired two-regime theta fitted on BEA's published summary
+    # panel (0.75 off the 2021-22 price surge, 0.0 across it) instead of the
+    # theta = 1 prior the build now uses. OFF by default: the fit's headline
+    # predictor is 96.2% collinear with "the target year's panel incorporates
+    # neither the 2022 Economic Census nor AIES 2023/24" - 75 of 78 spans are
+    # classified identically - so its R2 0.613 cannot separate substitution from
+    # a panel that stopped taking in source data, and all 30 surge-crossing
+    # spans end inside that region. Energy prices also reversed after 2022
+    # (petroleum 1.945 -> 1.431 against 2017) while the penalty for theta = 1
+    # doubled, which no price mechanism predicts but BEA's own drift against
+    # census does (2.3/6.1/7.9%, #1013). Keep it available: on the summary panel
+    # taken at face value the retired rule scores better, so the choice should
+    # be re-runnable rather than only argued. See
+    # bedrock.transform.iot.nowcast_intermediate.default_theta (#699, #891, #997).
+    use_fitted_summary_regime_theta: bool = False  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

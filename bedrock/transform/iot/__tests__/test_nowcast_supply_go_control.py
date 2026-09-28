@@ -6,14 +6,20 @@ not touched.  One year of the controlled span is enough to exercise every code
 path -- the fits are cached and expensive, so the parametrised span lives in
 ``control_residuals --check``, not here.
 
-⚠️ **Two of those invariants are conditional on no group being released** (#1009,
-:func:`~bedrock.transform.iot.nowcast_supply_go_control.released_groups`).  A
-released group gives up its published summary Supply cell on purpose, so
-:func:`test_every_summary_cell_is_preserved` and
-:func:`test_the_block_total_is_unchanged` hold because
-``rebase_utility_gross_output_on_eia`` is off by default rather than
-unconditionally.  That precondition is asserted rather than assumed, and the
-released behaviour is tested directly on a synthetic sub-block.
+⚠️ **Groups ARE released by default now** (#1013), so these invariants are
+scoped rather than global.  ``chain_manufacturing_on_aies`` ships enabled and
+releases all 19 manufacturing summary groups, because the AIES chain moves
+$229bn of commodity output *between* those groups and a held summary cell would
+hand the difference to siblings.  So the preserved-cell test holds on the
+**held** groups only, and the block-total test allows the fit's own tolerance
+instead of exact equality.
+
+⚠️ **Do not read ``note`` as a boolean.**  It carries an *informational* note for
+a released group as well as a failure note for a skipped or reverted one, so
+``diagnostics['note'].astype(bool)`` classified 19 converged manufacturing fits
+as reverted -- which made ``test_converged_columns_land_on_their_go_share`` stop
+checking manufacturing at all **while still passing**.  ``kept_seed`` and
+``released`` are explicit booleans for exactly that reason; select on those.
 """
 
 from __future__ import annotations
@@ -23,6 +29,8 @@ import pandas as pd
 import pytest
 
 import bedrock.transform.iot.nowcast_supply_go_control as gc
+from bedrock.transform.iot.aies_go_chaining import released_groups as aies_released
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 
 MILLION = MILLION_CURRENCY_TO_CURRENCY
@@ -57,28 +65,78 @@ def test_2017_passes_through_untouched() -> None:
     pd.testing.assert_frame_equal(out, raw)
 
 
-def test_every_summary_cell_is_preserved(
+def test_a_summary_cell_moves_only_inside_a_released_INDUSTRY_column(
     seed: pd.DataFrame, controlled: pd.DataFrame
 ) -> None:
-    """Constraint 1: the published summary control must not be given up."""
+    """Constraint 1, restated for #1013. The invariant is on the column.
+
+    ⚠️ **Not on the commodity row, which is what I assumed first.** The fit runs
+    per industry group: a released group's columns take an absolute GO-at-basic
+    target, so *everything in those columns* may move -- including a manufacturing
+    industry's secondary production of a **held** commodity. A held column moves
+    nothing at all.
+
+    Measured at 2023, max |gap| by class, in $M::
+
+        row released  column released   cells      max
+        False         False              2808     0.00
+        True          False               988     0.00
+        False         True               1026 6,209.56
+        True          True                361 40,214.58
+
+    ⚠️ So releasing manufacturing also moves **$23.1bn of non-manufacturing
+    commodity output** made by manufacturing industries as secondary product --
+    ``5412OP`` management consulting alone is $6.2bn. That is a real consequence
+    of the release and it is what this test bounds: zero outside released
+    columns, unconstrained within them.
+    """
+    released = gc.released_groups()
     gap = (_summary_cells(controlled) - _summary_cells(seed)).abs()
+    held_columns = [group for group in gap.columns if group not in released]
+    assert held_columns, 'every column released; this test would assert nothing'
 
-    assert float(gap.to_numpy().max()) < 1.0 * MILLION
+    worst = float(gap[held_columns].to_numpy().max())
+    assert worst < 1.0 * MILLION, worst
 
 
-def test_the_block_total_is_unchanged(
+def test_the_block_total_is_unchanged_to_the_fits_own_tolerance(
     seed: pd.DataFrame, controlled: pd.DataFrame
 ) -> None:
-    """The control redistributes; it must not reprice the economy."""
-    assert float(controlled.to_numpy().sum()) == pytest.approx(
-        float(seed.to_numpy().sum()), rel=1e-12
-    )
+    """The control redistributes; it must not reprice the economy.
+
+    ⚠️ **Not exact any more, and it cannot be.** A held group is renormalised to
+    its own total, so it preserves the block sum by construction. A released
+    group is fitted to an *absolute* column target instead, so the grand total is
+    no longer pinned: it accumulates the fit's per-column residual, which
+    :data:`~bedrock.transform.iot.nowcast_supply_go_control.TOLERANCE_USD` bounds
+    at 1 million USD each.
+
+    Measured at 2023 with all 19 manufacturing groups released, the block moves
+    **+0.45bn on 47,566bn (+0.0010%)** against **$229bn** of gross reallocation
+    between summary groups. The bound below is therefore the fit's own tolerance
+    times the column count rather than a number chosen to pass.
+    """
+    total = float(seed.to_numpy().sum())
+    moved = abs(float(controlled.to_numpy().sum()) - total)
+
+    # ⚠️ Relative, deliberately. The accumulation is not bounded by
+    # columns x TOLERANCE_USD -- measured 0.45bn against that product's 0.40bn --
+    # so an absolute bound here would be a number picked to pass. What is
+    # meaningful is that the control does not reprice the economy: 9.5e-6 of the
+    # block, against 229bn of gross reallocation between summary groups.
+    assert moved / total < 1e-4, (moved, moved / total)
 
 
 def test_converged_columns_land_on_their_go_share(controlled: pd.DataFrame) -> None:
     """Constraint 2, on every group the fit did not skip or revert."""
     diagnostics = gc.group_diagnostics(YEAR, download_sources_ok=True)
-    fitted_groups = set(diagnostics.index[~diagnostics['note'].astype(bool)])
+    # ⚠️ ``kept_seed``, not ``note``: a released group carries an informational
+    # note, so selecting on the note excluded all 19 manufacturing groups and
+    # left this test passing while checking none of them.
+    fitted_groups = set(diagnostics.index[~diagnostics['kept_seed']])
+    assert (
+        fitted_groups & gc.released_groups()
+    ), 'no released group reached the GO-share check; the selector is wrong again'
     wedge = gc._wedge(YEAR, controlled)
     target = gc.gross_output_at_basic(YEAR, wedge)
 
@@ -100,7 +158,7 @@ def test_reverted_groups_keep_the_seed_exactly(
 ) -> None:
     """All or nothing per group: a failed fit must not ship a half-fit."""
     diagnostics = gc.group_diagnostics(YEAR, download_sources_ok=True)
-    reverted = diagnostics.index[diagnostics['note'].astype(bool)]
+    reverted = diagnostics.index[diagnostics['kept_seed']]
     parents = pd.Series({code: gc._industry_parent()[code] for code in seed.columns})
     for group in reverted:
         members = list(parents.index[parents == group])
@@ -166,9 +224,32 @@ def _row_groups() -> 'pd.Series[str]':
 _TARGETS = pd.Series({'i_elec': 82.0, 'i_gas': 49.0, 'i_water': 18.0}) * BILLION
 
 
-def test_no_group_is_released_by_default() -> None:
-    """The precondition the two invariant tests above depend on."""
-    assert gc.released_groups() == frozenset()
+def test_released_groups_is_the_union_over_every_conditioner() -> None:
+    """What ships released, and which conditioner claims it.
+
+    ⚠️ This used to assert the set was **empty**. It is not: #1013 releases all
+    19 manufacturing summary groups by default, because the AIES chain moves
+    $229bn of commodity output between them and a held summary cell would hand
+    the difference to siblings. Releasing is required by the supply-use framework
+    once industry output moves; it is not a trade-off.
+
+    The electricity conditioner (#1009) contributes nothing while
+    ``rebase_utility_gross_output_on_eia`` is off, asserted here so flipping that
+    flag surfaces as a change in this test rather than silently.
+    """
+    config = get_usa_config()
+    released = gc.released_groups()
+
+    assert config.chain_manufacturing_on_aies
+    assert (
+        released == aies_released()
+    ), 'the union picked up a group no conditioner claims'
+    assert not config.rebase_utility_gross_output_on_eia
+    assert all(group not in released for group in ('22', '2211', '221100'))
+    # the only conditioner on is manufacturing, so that is all that may appear
+    assert released and all(group.startswith('3') for group in released), sorted(
+        released
+    )
 
 
 def test_a_released_group_lands_on_the_absolute_column_target() -> None:
