@@ -10,7 +10,7 @@ is a **follow-up decision**, not required for this temporary diagnostics path.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -117,12 +117,11 @@ def ensure_br_reporting_csv(rcra_year: int) -> Path:
     frames: list[pd.DataFrame] = []
     for filepath in files:
         log.info("Reading BR extract %s", filepath)
-        df = pd.read_csv(
+        df = _read_br_csv(
             filepath,
             header=0,
             usecols=list(range(0, len(fields))),
             names=fields,
-            low_memory=False,
             encoding="utf-8",
         )
         if "Report Cycle" in df.columns:
@@ -251,6 +250,25 @@ def build_intersection_mass_from_br(
     return mat, stats
 
 
+def _read_br_csv(path: Path, **kwargs: Any) -> pd.DataFrame:
+    """Read a BR CSV; fall back to the python engine on C-parser buffer errors.
+
+    Consolidated BR files can trip pandas' C tokenizer (``Buffer overflow`` /
+    malformed input) on some environments even when the same file parses
+    locally. The python engine is slower but tolerates those rows.
+    """
+    try:
+        return pd.read_csv(path, low_memory=False, **kwargs)
+    except pd.errors.ParserError as exc:
+        log.warning(
+            "C-engine BR parse failed for %s (%s); retrying with python engine",
+            path,
+            exc,
+        )
+        kw = {k: v for k, v in kwargs.items() if k != "low_memory"}
+        return pd.read_csv(path, engine="python", **kw)
+
+
 def load_br_reporting(rcra_year: int) -> pd.DataFrame:
     """Load consolidated BR reporting CSV for *rcra_year* (download if needed)."""
     path = ensure_br_reporting_csv(rcra_year)
@@ -269,7 +287,7 @@ def load_br_reporting(rcra_year: int) -> pd.DataFrame:
             f"BR reporting {rcra_year} missing both Received Tons and Shipped Tons"
         )
     log.info("Reading BR reporting %s from %s (cols=%s)", rcra_year, path, usecols)
-    return pd.read_csv(path, usecols=usecols, low_memory=False)
+    return _read_br_csv(path, usecols=usecols)
 
 
 def load_rcra_intersection_shares(rcra_year: int) -> tuple[pd.DataFrame, list[str]]:
