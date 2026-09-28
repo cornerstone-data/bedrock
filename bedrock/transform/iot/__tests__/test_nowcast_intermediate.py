@@ -825,3 +825,30 @@ def test_held_scrap_carry_reaches_the_metal_buyers_and_nothing_else() -> None:
     assert scrap_share(default, '331110') < scrap_share(explicit, '331110')
     # ... and aluminum scrap rose to 1.047 of it.
     assert scrap_share(default, '331314') > scrap_share(explicit, '331314')
+
+
+# --- services seed chained across SAS -> AIES --------------------------------
+
+
+@needs_census
+def test_services_seed_chains_across_the_survey_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2023 takes 2022's SAS index; indexing AIES against SAS is the old path.
+
+    ⚠️ Under the old path 2023 is not 2022: management consulting's electricity
+    triples at an 11% CV. The chain removes that seam; 2024 then moves only on
+    AIES's own 2024/2023 ratios.
+    """
+    from bedrock.analysis.nowcasting import (  # noqa: PLC0415
+        services_transport_expense_seed as st,
+    )
+
+    assert get_usa_config().chain_services_seed_across_aies is True
+    chained_2022 = st.services_transport_seed(2022)
+    chained_2023 = st.services_transport_seed(2023)
+    pd.testing.assert_frame_equal(chained_2023, chained_2022)
+
+    monkeypatch.setattr(st, '_chain_across_aies', lambda: False)
+    indexed_2023 = st.services_transport_seed(2023)
+    assert float((indexed_2023 - chained_2022).abs().to_numpy().max()) > 0.0

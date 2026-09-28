@@ -273,6 +273,10 @@ THETA_497 = 1.0
 #: substitutable, and MECS's 1.087 for it is measured on coal coke alone.
 INDISPENSABLE_COMMODITIES = ('211000', '212100', '221100', '221200', '324110')
 
+#: The electricity row, priced on EIA when its output is rebased on EIA; see
+#: :func:`commodity_price_factor`.
+ELECTRICITY_COMMODITY = '221100'
+
 #: The scrap row, which :data:`UNPRICED_COMMODITIES` leaves at a factor of 1.0.
 SCRAP_COMMODITY = 'S00401'
 
@@ -421,6 +425,16 @@ def commodity_price_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
 
     The industry price index read commodity-for-commodity; see the module
     docstring. :data:`UNPRICED_COMMODITIES` come back as exactly 1.0.
+
+    ⚠️ **Electricity follows EIA when its output does.** With
+    ``rebase_utility_gross_output_on_eia`` on, ``221100``'s output moves on EIA
+    volume x published price, so its carry takes the same price: EIA's average
+    retail price (:func:`~.eia_utility_go_adjustment.retail_price_index`).
+    BEA's index runs 16% above it in 2021-22 and falls 8.5% into 2023 while
+    EIA's rises 2.6%; carrying the unseeded electricity cells (trade, most
+    services, government) on BEA's index while the row's supply follows EIA
+    pulled them down 11 points in 2023 against the price the row is built on.
+    Outside the EIA span the BEA index stays.
     """
     price_index = derive_industry_price_index()
     price_index.index = price_index.index.astype(str)
@@ -439,6 +453,18 @@ def commodity_price_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
     ]
     if unexpected:
         raise KeyError(f'no price index for priced commodities: {unexpected}')
+    if get_usa_config().rebase_utility_gross_output_on_eia:
+        from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+            CONTROLLED_YEARS as EIA_YEARS,
+        )
+        from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+            retail_price_index,
+        )
+
+        if year in EIA_YEARS and base in EIA_YEARS:
+            factor[ELECTRICITY_COMMODITY] = retail_price_index(
+                year
+            ) / retail_price_index(base)
     factor.index.name = 'commodity'
     return factor.astype(float)
 
