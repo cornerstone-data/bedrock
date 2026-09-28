@@ -17,6 +17,9 @@
         - '33'
       exclude_sectors:
         - '221100'
+      # Facility sector-weight Flowables (Petroleum / Natural Gas / Coal).
+      # Lease/plant NG is added later from GHGRP subpart W as its own Flowable
+      # ("Natural Gas - lease and plant").
       keep_flowables:
         - Petroleum
         - Natural Gas
