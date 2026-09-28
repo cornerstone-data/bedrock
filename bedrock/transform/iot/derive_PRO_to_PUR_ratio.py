@@ -304,8 +304,8 @@ def derive_margin_sectors_cornerstone_usa_at_year(
         # they still sum to exactly the flipped total; taking each cell's
         # absolute value would not, wherever a row mixes signs.
         types = _apply_margins_filter(load_detail_margins_usa(), filters)
-        family = {
-            code: margin_type
+        family: dict[str, str] = {
+            str(code): margin_type
             for margin_type, codes in load_margin_type_to_cornerstone_commodity().items()
             for code in codes
         }
