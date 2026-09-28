@@ -8,6 +8,18 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
+# Analysis-only Phase 3 waste-weight A/B YAMLs (not production registry)
+WASTE_DISAGG_ANALYSIS_CONFIG_DIR = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__),
+        '..',
+        '..',
+        'analysis',
+        'nowcasting',
+        'waste_disaggregation',
+        'configs',
+    )
+)
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
 CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_4'
 
@@ -460,7 +472,9 @@ def _normalize_usa_config_file_name(config_file_name: str) -> str:
 
 
 def _raise_if_retired_usa_config(config_file_name: str) -> None:
-    stem = _normalize_usa_config_file_name(config_file_name).removesuffix('.yaml')
+    stem = os.path.basename(
+        _normalize_usa_config_file_name(config_file_name)
+    ).removesuffix('.yaml')
     if stem in RETIRED_USA_CONFIG_STEMS:
         raise ValueError(
             f'USA config {stem!r} is retired and cannot be loaded. '
@@ -469,10 +483,31 @@ def _raise_if_retired_usa_config(config_file_name: str) -> None:
         )
 
 
+def _resolve_usa_config_path(config_file_name: str) -> str:
+    """Resolve a USA config YAML path.
+
+    Accepts a stem/filename (searched under ``CONFIG_DIR`` then the waste-
+    disaggregation analysis ``configs/`` tree) or an existing filesystem path.
+    """
+    name = _normalize_usa_config_file_name(config_file_name)
+    if os.path.isfile(name):
+        return os.path.abspath(name)
+    if os.path.isabs(name) or os.sep in name or (os.altsep and os.altsep in name):
+        raise FileNotFoundError(f'USA config not found: {name}')
+    for directory in (CONFIG_DIR, WASTE_DISAGG_ANALYSIS_CONFIG_DIR):
+        candidate = os.path.join(directory, name)
+        if os.path.isfile(candidate):
+            return candidate
+    raise FileNotFoundError(
+        f'USA config {name!r} not found under {CONFIG_DIR!r} or '
+        f'{WASTE_DISAGG_ANALYSIS_CONFIG_DIR!r}'
+    )
+
+
 def _load_usa_config_from_file_name(config_file_name: str) -> USAConfig:
     assert config_file_name.endswith('.yaml'), 'config file name must end with .yaml'
     _raise_if_retired_usa_config(config_file_name)
-    with open(os.path.join(CONFIG_DIR, config_file_name)) as f:
+    with open(_resolve_usa_config_path(config_file_name)) as f:
         data = yaml.safe_load(f)
     config = USAConfig.model_validate(data, strict=True)
     return config

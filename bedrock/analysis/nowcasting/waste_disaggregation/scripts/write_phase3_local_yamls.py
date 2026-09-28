@@ -11,9 +11,12 @@ import argparse
 import json
 from pathlib import Path
 
-from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import PHASE3_YEARS
+from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+    ANALYSIS_CONFIG_DIR,
+    PHASE3_YEARS,
+)
 
-CONFIG_DIR = Path(__file__).resolve().parents[5] / "utils" / "config" / "configs"
+CONFIG_DIR = ANALYSIS_CONFIG_DIR
 REBUILD = (
     Path(__file__).resolve().parents[1] / "cache" / "phase3_local_mut_rebuild.json"
 )

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+    ANALYSIS_CONFIG_DIR,
     GCS_MUT_VINTAGE,
     PHASE3_YEARS,
     control_config_name,
@@ -17,7 +16,7 @@ from bedrock.analysis.nowcasting.waste_disaggregation.scripts.run_waste_weight_i
 )
 from bedrock.utils.config.usa_config import _load_usa_config_from_file_name
 
-CONFIG_DIR = Path(__file__).resolve().parents[4] / "utils" / "config" / "configs"
+CONFIG_DIR = ANALYSIS_CONFIG_DIR
 
 
 @pytest.mark.parametrize("year", list(PHASE3_YEARS))

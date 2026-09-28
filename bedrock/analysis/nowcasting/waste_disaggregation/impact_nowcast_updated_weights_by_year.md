@@ -31,7 +31,7 @@ Results below come from a paired A/B for every year: same MUT within a track, sa
 | **Control** | Bundled **2017** CSVs (production default) | Same pin as treatment within the track | Off |
 | **Treatment** | Derived for year **Y** (`waste_weights_year: match_io`) | **Same** pin | Off |
 
-**Track A (GCS)** configs:
+**Track A (GCS)** configs (under [`configs/`](configs/)):
 
 - `2025_usa_cornerstone_v0_4_nowcast_{Y}_waste_weights_control.yaml`
 - `2025_usa_cornerstone_v0_4_nowcast_{Y}_waste_weights_match_io.yaml`

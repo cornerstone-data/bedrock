@@ -7,8 +7,13 @@ this string comes from the GCS probe only.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 GCS_MUT_VINTAGE = "v0.3.0_f709829"
 PHASE3_YEARS = tuple(range(2018, 2025))
+
+# Analysis-only YAMLs (Track A GCS + Track C local); not under utils/config/configs.
+ANALYSIS_CONFIG_DIR = Path(__file__).resolve().parent / "configs"
 
 CONTROL_CONFIG_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_control"
 TREATMENT_CONFIG_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_match_io"

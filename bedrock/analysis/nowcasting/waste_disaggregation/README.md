@@ -17,6 +17,7 @@ Year-varying waste disaggregation weights on the nowcast EEIO path.
 | [`impact_nowcast_updated_weights_by_year.md`](impact_nowcast_updated_weights_by_year.md) | Phase 3.3 by-year GCS (+ Track C) |
 | [`phase3_production_gate.md`](phase3_production_gate.md) | Phase 3.4 hold vs flip |
 | [`phase3_pins.py`](phase3_pins.py) | Locked GCS MUT vintage + config name helpers |
+| [`configs/`](configs/) | Analysis-only control/treatment YAMLs (Track A + Track C local) |
 | `scripts/` | Probe, impact runner, Track A/B drivers |
 | `figures/` | Impact / preview charts |
 | `cache/` | Probe JSON, year×vintage impact dirs |
