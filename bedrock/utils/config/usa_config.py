@@ -209,6 +209,16 @@ class USAConfig(BaseModel):
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    # Build the margin-impact matrix (A_margin, behind M_margin and N_margin)
+    # from the margin commodity each transaction actually paid, read from the
+    # nowcast Margins table's per-margin-commodity columns, instead of spreading
+    # each margin type (transport, wholesale, retail) over its margin
+    # commodities by their share of total output (useeior's table average).
+    # Totals per margin type are unchanged; only the split within a type moves.
+    # No effect with usa_detail_io_source 'bea_published', whose Margins table
+    # has the three type columns only. Uses the same margin filters as
+    # cornerstone_industry_avg_margins / useeio_margins select (#836).
+    margin_impacts_from_transaction_sectors: bool = True  # DRI: WesIngwersen
     # Exponent on the census materials index in the Step 3 materials and mining
     # seeds: seed = Use2017 * (census_mix_t / census_mix_2017) ** alpha. 1.0 is
     # the full census movement; below 1 pulls the mix toward BEA's benchmark.

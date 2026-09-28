@@ -300,6 +300,22 @@ def load_nowcast_detail_margins_usa() -> pd.DataFrame:
     return _as_margins_view(_stored('Margins'))
 
 
+def load_nowcast_detail_margins_by_sector_usa() -> pd.DataFrame:
+    """The stored per-margin-commodity columns: margin dollars paid to each.
+
+    One column per margin commodity (the wholesale, retail and transport codes),
+    on the same (industry, commodity) rows as the published view. Within each
+    family the columns sum to that family's published column (``Wholesale``,
+    ``Retail``, ``Transportation``), because Step 6 builds those columns as the
+    family sums (#836).
+    """
+    margins = _stored('Margins')
+    sectors = [c for c in margins.columns if c not in MARGINS_VALUE_COLUMNS]
+    if not sectors:
+        raise ValueError('stored Margins table has no per-margin-commodity columns')
+    return margins[sectors].astype(float)
+
+
 def load_nowcast_detail_Ytot_usa() -> pd.DataFrame:
     return _as_ytot_view(_stored('Use'))
 
