@@ -12,9 +12,10 @@ This code includes:
   ``exclusion_fields``.
 - **NEI ``fuel_class`` / Flowable from SCC only for 2021+**
   (``NEI_FUEL_CLASS_FIRST_YEAR``). Before 2021 the SCC coding parked almost
-  all on-site CO2 on process branches; those years keep NEI levels as
-  ``unclassified`` / ``Other`` and do not impute NEI shares onto GHGRP.
-  GHGRP subpart W / plant-segment classification is unchanged in every year.
+  all on-site CO2 on process branches, so those digits are not read for fuel.
+  Pre-2021 method years keep **that year's NEI/GHGRP levels** and assign
+  ``Flowable`` from **2021/2022 twin shares** (same idea as the diagnostics
+  combustion/process backcast: FacilityID mean, else NAICS-6, else sector).
 - **Prefer GHGRP** on ``FRS_ID``; NEI-only facilities fill the residual.
   Same-site address fallback recovers links FRS missed.
 - **CO2e for weights:** GHGRP CO2/CH4/N2O collapsed with AR6 CEDA GWPs so
@@ -31,6 +32,7 @@ This code includes:
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 import facilitymatcher
 import numpy as np
@@ -51,6 +53,7 @@ GHGRP_EXCLUDED_SUBPARTS = frozenset({'D'})
 PROCESS_GAS_SCC_LEVEL3 = '007'
 FACILITY_SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
 NEI_FUEL_CLASS_FIRST_YEAR = 2021
+_FUEL_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum', 'Other')
 
 GHGRP_FLOW_MAP = {
     'Carbon Dioxide': 'CO2',
@@ -184,6 +187,199 @@ def nei_onsite_co2(
     )
 
 
+def _flowable_share_frame(labeled: pd.DataFrame) -> pd.DataFrame:
+    """FacilityID × Flowable shares (rows sum to 1)."""
+    wide = (
+        labeled.groupby(['FacilityID', 'Flowable'])['CO2e']
+        .sum()
+        .unstack(fill_value=0.0)
+        .reindex(columns=list(_FUEL_FLOWABLES), fill_value=0.0)
+    )
+    return wide.div(wide.sum(axis=1).replace(0.0, np.nan), axis=0).fillna(0.0)
+
+
+def _group_mean_shares(
+    facility_shares: pd.DataFrame, weight: pd.Series, group: pd.Series
+) -> pd.DataFrame:
+    """Mass-weighted mean Flowable shares by group key."""
+    frame = facility_shares.join(weight.rename('_w'), how='inner').join(
+        group.rename('_g'), how='inner'
+    )
+    frame = frame[frame['_g'].notna() & (frame['_w'] > 0)]
+    if frame.empty:
+        return pd.DataFrame(columns=list(_FUEL_FLOWABLES))
+    num = (
+        frame[list(_FUEL_FLOWABLES)]
+        .multiply(frame['_w'], axis=0)
+        .groupby(frame['_g'])
+        .sum()
+    )
+    den = frame.groupby('_g')['_w'].sum().replace(0.0, np.nan)
+    return num.div(den, axis=0).fillna(0.0)
+
+
+def _scc_labeled_nei(year: int) -> pd.DataFrame:
+    """NEI on-site CO2 with SCC Flowable labels for one twin anchor year."""
+    raw = stewi.getInventory(
+        'NEI', year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    if raw is None or getattr(raw, 'empty', True):
+        raise ValueError(f'no NEI flowbyprocess for twin year {year}')
+    sectors, _ = facility_sectors(year, year)
+    return nei_onsite_co2(raw, sectors, use_scc=True)
+
+
+@lru_cache(maxsize=1)
+def _fuel_flowable_share_tables() -> dict:
+    """2021/2022 Flowable twin tables (same anchors / cascade as the diagnostics
+    combustion/process backcast).
+
+    Levels are never taken from these tables — only shares. Facility shares are
+    the mean of 2021 and 2022 where both exist, else 2021 alone; NAICS-6 and
+    sector means are over the both-anchor set.
+    """
+    rows_a = _scc_labeled_nei(2021)
+    rows_b = _scc_labeled_nei(2022)
+    shares_a = _flowable_share_frame(rows_a)
+    shares_b = _flowable_share_frame(rows_b)
+    both_ids = shares_a.index.intersection(shares_b.index)
+    facility = shares_a.copy()
+    if len(both_ids):
+        facility.loc[both_ids] = (shares_a.loc[both_ids] + shares_b.loc[both_ids]) / 2.0
+
+    meta_a = rows_a.drop_duplicates('FacilityID').set_index('FacilityID')[
+        ['NAICS', 'sector']
+    ]
+    totals_a = rows_a.groupby('FacilityID')['CO2e'].sum()
+    totals_b = rows_b.groupby('FacilityID')['CO2e'].sum()
+    both_meta = meta_a.reindex(both_ids)
+    both_shares = facility.reindex(both_ids)
+    both_weight = (
+        totals_a.reindex(both_ids).fillna(0.0) + totals_b.reindex(both_ids).fillna(0.0)
+    ) / 2.0
+    return {
+        'facility': facility,
+        'twin_both': set(both_ids),
+        'twin_anchor_a': set(shares_a.index),
+        'naics': _group_mean_shares(
+            both_shares, both_weight, both_meta['NAICS'].astype(str).str[:6]
+        ),
+        'sector': _group_mean_shares(both_shares, both_weight, both_meta['sector']),
+    }
+
+
+def _lookup_flowable_share_row(
+    facility_id,
+    naics,
+    sector,
+    tables: dict,
+) -> pd.Series | None:
+    """FacilityID → NAICS-6 → sector cascade (test / simple path)."""
+    fac = tables['facility']
+    if facility_id in fac.index:
+        return fac.loc[facility_id]
+    n6 = str(naics)[:6] if pd.notna(naics) else ''
+    if n6 and n6 in tables['naics'].index:
+        return tables['naics'].loc[n6]
+    if pd.notna(sector) and sector in tables['sector'].index:
+        return tables['sector'].loc[sector]
+    return None
+
+
+def apply_pre2021_fuel_flowable_shares(
+    rows: pd.DataFrame,
+    tables: dict | None = None,
+) -> pd.DataFrame:
+    """Split ``Flowable='Other'`` using 2021/2022 twin shares; keep levels.
+
+    Reuses :func:`bedrock.analysis.time_series_B_matrix.B_change_diagnostics._apply_combustion_process_share`
+    for the FacilityID → NAICS-6 → sector cascade when full twin tables are
+    present. Does not touch lease/plant or already-labeled fuels.
+    """
+    if rows.empty or not (rows['Flowable'].astype(str) == 'Other').any():
+        return rows
+    tables = tables or _fuel_flowable_share_tables()
+    kept = rows.loc[rows['Flowable'].astype(str) != 'Other']
+    other = rows.loc[rows['Flowable'].astype(str) == 'Other']
+
+    # Production tables include twin membership sets; unit tests pass bare frames.
+    if 'twin_both' in tables:
+        from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
+            SPLIT_BASIS_NAICS6,
+            SPLIT_BASIS_NONE,
+            SPLIT_BASIS_SECTOR,
+            _apply_combustion_process_share,
+        )
+
+        keys = other.drop_duplicates('FacilityID').set_index('FacilityID')
+        prior = pd.DataFrame(
+            {
+                'naics6': keys['NAICS'].map(
+                    lambda v: str(v)[:6] if pd.notna(v) else pd.NA
+                ),
+                'sector': keys['sector'],
+            },
+            index=keys.index,
+        )
+        graded = _apply_combustion_process_share(
+            prior,
+            twin_both=tables['twin_both'],
+            twin_anchor_a=tables['twin_anchor_a'],
+            facility_share=pd.Series(1.0, index=tables['facility'].index),
+            naics_share=pd.Series(1.0, index=tables['naics'].index),
+            sector_share=pd.Series(1.0, index=tables['sector'].index),
+            basis_mean_facility='facility',
+            basis_anchor_a_facility='facility',
+        )
+        share_rows = []
+        for fid, basis in graded['split_basis'].items():
+            if basis == 'facility' and fid in tables['facility'].index:
+                share_rows.append(tables['facility'].loc[fid].rename(fid))
+            elif basis == SPLIT_BASIS_NAICS6:
+                n6 = graded.loc[fid, 'naics6']
+                if pd.notna(n6) and n6 in tables['naics'].index:
+                    share_rows.append(tables['naics'].loc[n6].rename(fid))
+            elif basis == SPLIT_BASIS_SECTOR:
+                sec = graded.loc[fid, 'sector']
+                if pd.notna(sec) and sec in tables['sector'].index:
+                    share_rows.append(tables['sector'].loc[sec].rename(fid))
+            elif basis == SPLIT_BASIS_NONE:
+                continue
+        by_fac = (
+            pd.DataFrame(share_rows)
+            if share_rows
+            else pd.DataFrame(columns=list(_FUEL_FLOWABLES))
+        )
+    else:
+        by_fac = pd.DataFrame(columns=list(_FUEL_FLOWABLES))
+
+    records: list[dict] = []
+    for row in other.to_dict('records'):
+        fid = row['FacilityID']
+        if fid in by_fac.index:
+            shares = by_fac.loc[fid]
+        else:
+            shares = _lookup_flowable_share_row(
+                fid, row.get('NAICS'), row.get('sector'), tables
+            )
+        if shares is None:
+            records.append(row)
+            continue
+        co2e = float(row['CO2e'])
+        for fuel in _FUEL_FLOWABLES:
+            w = float(shares[fuel])
+            if w <= 0:
+                continue
+            piece = {**row, 'Flowable': fuel, 'CO2e': co2e * w}
+            if fuel != 'Other':
+                piece['fuel_class'] = 'purchased'
+            records.append(piece)
+    parts = [kept] if not kept.empty else []
+    if records:
+        parts.append(pd.DataFrame(records))
+    return pd.concat(parts, ignore_index=True) if parts else rows.iloc[0:0].copy()
+
+
 def ghgrp_fuel_labels(
     ghgrp: pd.DataFrame,
     nei: pd.DataFrame,
@@ -260,7 +456,9 @@ def ghgrp_fuel_labels(
             how='inner',
         ).assign(source='GHGRP')
     remainder = ghgrp[~ghgrp['FacilityID'].isin(labeled_facilities)]
-    if use_scc and not remainder.empty:
+    # SCC years, or pre-2021 after twin Flowables were applied to *nei*.
+    nei_has_fuels = not nei.empty and (nei['Flowable'].astype(str) != 'Other').any()
+    if (use_scc or nei_has_fuels) and not remainder.empty:
         nei_by_frs = (
             nei.dropna(subset=['FRS_ID'])
             .groupby(['FRS_ID', 'fuel_class', 'Flowable'])['CO2e']
@@ -327,6 +525,9 @@ def build_facility_combustion(
 
     nei_sectors, ghgrp_sectors = facility_sectors(nei_year, year)
     nei = nei_onsite_co2(nei_raw, nei_sectors, use_scc=use_scc)
+    if not use_scc:
+        # Same-year levels; Flowable from 2021/2022 twin shares.
+        nei = apply_pre2021_fuel_flowable_shares(nei)
 
     gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
     flows = flows[
@@ -422,6 +623,8 @@ def build_facility_combustion(
     ghgrp_out = ghgrp_fuel_labels(
         ghgrp, nei, per_facility, subpart_c, year, use_scc=use_scc
     )
+    if not use_scc:
+        ghgrp_out = apply_pre2021_fuel_flowable_shares(ghgrp_out)
 
     covered = set(ghgrp_out['FRS_ID'].dropna())
     nei_only = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]
