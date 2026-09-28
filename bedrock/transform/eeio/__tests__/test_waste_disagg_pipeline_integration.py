@@ -21,6 +21,7 @@ from bedrock.transform.eeio import (
 )
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     _WASTE_NEW_CODES,
+    clear_waste_disagg_weights_cache,
     cornerstone_sector_disagg_active,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -62,7 +63,6 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
-    get_waste_disagg_weights,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     derive_cornerstone_V,
@@ -82,6 +82,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
 
 
 def _clear_all_caches() -> None:
+    clear_waste_disagg_weights_cache()
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()

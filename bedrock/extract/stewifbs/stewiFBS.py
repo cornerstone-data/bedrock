@@ -555,6 +555,10 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
     if 'year' not in config:
         config['year'] = df_load['Year'][0]
 
+    # Alias legacy stewi key so CRHW (and peers) using target_naics_year still load.
+    if 'target_schema_year' not in config and 'target_naics_year' in config:
+        config['target_schema_year'] = config['target_naics_year']
+
     activity_schema = f"NAICS_{config['activity_schema']['naics']['year']}_Code"
 
     fbs = FlowByActivity(

@@ -815,3 +815,57 @@ def census_aies_expenses_parse(
         withheld,
     )
     return long
+
+
+def census_aies_waste_child_expenses_url_helper(
+    *, build_url: str, year: str | int, **_: Any
+) -> list[str]:
+    """2023 → aiesexp01 (EXP01); 2024+ → aiesbasic (EXP01 folded into BASIC)."""
+    year_i = int(year)
+    dataset = 'aiesexp01' if year_i == 2023 else 'aiesbasic'
+    # Replace whatever dataset slug is in the YAML template.
+    url = re.sub(r'/aies[a-z0-9]+(\?)', f'/{dataset}\\1', build_url, count=1)
+    if dataset not in url:
+        raise ValueError(f'could not set AIES dataset {dataset!r} in {build_url!r}')
+    log.info('AIES waste-child expenses %s using dataset %s', year_i, dataset)
+    return [url]
+
+
+def census_aies_waste_child_expenses_parse(
+    *, df_list: list[pd.DataFrame], year: int, **_: Any
+) -> pd.DataFrame:
+    """Long FBA of EXPS_TOT_DVAL for 6-digit waste NAICS (562*) only."""
+    df = pd.concat(df_list, sort=False)
+    if df.empty:
+        return df
+    if 'NAICS' not in df.columns and 'NAICS2017' in df.columns:
+        df = _normalise_aies_columns(df)
+    if 'EXPS_TOT_DVAL' not in df.columns:
+        raise KeyError('EXPS_TOT_DVAL missing from AIES waste-child pull')
+    df = df.copy()
+    df['NAICS'] = df['NAICS'].astype(str)
+    # Keep pure 6-digit 562* only (reject aggregate 562 / EXP02-shaped pulls).
+    mask = df['NAICS'].str.fullmatch(r'562\d{3}')
+    df = df.loc[mask, ['NAICS', 'EXPS_TOT_DVAL']].copy()
+    df['FlowAmount'] = pd.to_numeric(df['EXPS_TOT_DVAL'], errors='coerce')
+    df = df[df['FlowAmount'].notna()].copy()
+    df = df.rename(columns={'NAICS': 'ActivityConsumedBy'})
+    df['FlowName'] = 'EXPS_TOT_DVAL'
+    df['Description'] = 'Total expenses (AIES waste child industry mix)'
+    df['ActivityProducedBy'] = None
+    df['Year'] = year
+    df['Location'] = US_FIPS
+    df['Unit'] = 'Thousand USD'
+    df['Class'] = 'Money'
+    df['FlowType'] = 'TECHNOSPHERE_FLOW'
+    df = assign_fips_location_system(df, year)
+    df['SourceName'] = 'Census_AIES_Waste_Child_Expenses'
+    df['DataReliability'] = 5
+    df['DataCollection'] = 5
+    df['Compartment'] = None
+    log.info(
+        'Census_AIES_Waste_Child_Expenses %s: %s six-digit 562* rows',
+        year,
+        len(df),
+    )
+    return df.drop(columns=['EXPS_TOT_DVAL'], errors='ignore')
