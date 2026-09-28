@@ -15,6 +15,7 @@ import pandas as pd
 from bedrock.extract.allocation.epa_constants import TBL_NUMBERS
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
+from bedrock.extract.stewifbs.facility_combustion import build_facility_combustion
 from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
@@ -849,6 +850,52 @@ def get_manufacturing_energy_ratios(parameter_dict: dict[str, Any]) -> dict[str,
     return pct_dict
 
 
+def get_manufacturing_energy_ratios_facilities(
+    parameter_dict: dict[str, Any],
+) -> dict[str, float]:
+    """Manufacturing share of facility coal / NG CO2e (GHGRP∪NEI), by fuel."""
+    year = int(parameter_dict['year'])
+    nei_raw = parameter_dict.get('nei_year')
+    nei_year = int(nei_raw) if nei_raw is not None else None
+    raw_prefixes = parameter_dict.get('sector_prefixes')
+    raw_exclude = parameter_dict.get('exclude_sectors')
+    raw_flowables = parameter_dict.get('keep_flowables')
+    union = build_facility_combustion(
+        year,
+        nei_year=nei_year,
+        sector_prefixes=(
+            None if raw_prefixes is None else tuple(str(x) for x in raw_prefixes)
+        ),
+        exclude_sectors=(
+            None if raw_exclude is None else tuple(str(x) for x in raw_exclude)
+        ),
+        keep_flowables=(
+            ('Natural Gas', 'Coal')
+            if raw_flowables is None
+            else tuple(str(x) for x in raw_flowables)
+        ),
+    )
+    pct_dict: dict[str, float] = {}
+    for fuel in ('Coal', 'Natural Gas'):
+        fuel_rows = union[union['Flowable'].astype(str) == fuel]
+        total = float(fuel_rows['CO2e'].sum())
+        if total <= 0:
+            log.warning(
+                f'No facility combustion for {fuel} in {year}; '
+                f'manufacturing ratio set to 0'
+            )
+            pct_dict[fuel] = 0.0
+            continue
+        mfg = float(
+            fuel_rows.loc[
+                fuel_rows['sector'].astype(str).str[:2].isin(('31', '32', '33')),
+                'CO2e',
+            ].sum()
+        )
+        pct_dict[fuel] = float(np.minimum(mfg / total, 1.0))
+    return pct_dict
+
+
 def allocate_industrial_combustion(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
@@ -856,13 +903,17 @@ def allocate_industrial_combustion(
     Split industrial combustion emissions into two buckets to be further allocated.
 
     clean_fba_before_activity_sets. Calculate the percentage of fuel consumption captured in
-    EIA MECS relative to EPA GHGI. Create new activities to distinguish those
-    which use EIA MECS as allocation source and those that use alternate source.
+    an FBA relative to EPA GHGI. Create new activities to distinguish those
+    manufacturing from non manufacturing.
     """
     clean_parameter = fba.config.get('clean_parameter')
     if clean_parameter is None:
         raise ValueError('clean_parameter is required in config')
-    pct_dict = get_manufacturing_energy_ratios(clean_parameter)
+    ratio_source = clean_parameter.get('ratio_source', 'mecs')
+    if ratio_source == 'facilities':
+        pct_dict = get_manufacturing_energy_ratios_facilities(clean_parameter)
+    else:
+        pct_dict = get_manufacturing_energy_ratios(clean_parameter)
 
     # activities reflect flows in A_14 and 3_8 and 3_9
     activities_to_split = {
