@@ -284,6 +284,7 @@ from bedrock.transform.iot.nowcast_intermediate import (
     carry_shares,
     commodity_price_factor,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 
 #: Same file :mod:`~.pxi_mix_test` reads, and by the same repo-relative path.
 NAICS_TO_BEA = 'bedrock/utils/mapping/naics/NAICS_to_BEA_Crosswalk_2017.csv'
@@ -2300,7 +2301,10 @@ def columns_without_observed_mix() -> pd.DataFrame:
 
 
 def materials_seed(
-    year: int, clean: bool = False, columns: list[str] | None = None
+    year: int,
+    clean: bool = False,
+    columns: list[str] | None = None,
+    alpha: float | None = None,
 ) -> pd.DataFrame:
     """The S3 seed: BEA's 2017 materials cells, moved on the census mix.
 
@@ -2339,6 +2343,9 @@ def materials_seed(
     mass, two of which carry 94.1 and 73.4 percentage points of churn that is
     **entirely** fill.
 
+    ``alpha`` damps the index toward the benchmark (``index ** alpha``); ``None``
+    reads ``USAConfig.census_materials_index_alpha``, which defaults to 1.0.
+
     ⚠️ **This is the materials half only.**  It covers the 79.4% of
     manufacturing's column that :data:`~bedrock.extract.census.Census_EC` places;
     :func:`nonmaterial_seed` is the 6.4% beside it.
@@ -2352,6 +2359,10 @@ def materials_seed(
     mix = interpolate_shares(base_mix, _shares(second), t)
 
     index = (mix / base_mix.where(base_mix > 0)).replace([np.inf, -np.inf], np.nan)
+    # Damp the census movement toward BEA's benchmark; 1.0 leaves it whole.
+    index = index ** (
+        get_usa_config().census_materials_index_alpha if alpha is None else alpha
+    )
     unobserved = [c for c in columns_without_observed_mix().index if c in index.columns]
     index[unobserved] = np.nan
     use = _use_2017_detail()
@@ -2364,7 +2375,9 @@ def materials_seed(
     return seed.loc[(seed != 0).any(axis=1)]
 
 
-def mining_seed(year: int, clean: bool = False) -> pd.DataFrame:
+def mining_seed(
+    year: int, clean: bool = False, alpha: float | None = None
+) -> pd.DataFrame:
     """The mining materials seed: BEA's 2017 mining columns on the census mix.
 
     ``commodity x BEA detail industry`` in $M on the benchmark Use axes, for
@@ -2399,7 +2412,7 @@ def mining_seed(year: int, clean: bool = False) -> pd.DataFrame:
     source, it is the frozen 2017 mix -- which asserts nothing changed in eight
     years, a *stronger* claim than the data makes.
     """
-    return materials_seed(year, clean=clean, columns=list(MINING_SEEDED))
+    return materials_seed(year, clean=clean, columns=list(MINING_SEEDED), alpha=alpha)
 
 
 def _unit_to_bea(unit: str) -> str | None:

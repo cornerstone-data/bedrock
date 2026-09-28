@@ -209,6 +209,19 @@ class USAConfig(BaseModel):
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
     useeio_margins: bool = False  # DRI: WesIngwersen
     cornerstone_industry_avg_margins: bool = False  # DRI: WesIngwersen
+    # Exponent on the census materials index in the Step 3 materials and mining
+    # seeds: seed = Use2017 * (census_mix_t / census_mix_2017) ** alpha. 1.0 is
+    # the full census movement; below 1 pulls the mix toward BEA's benchmark.
+    # On the 2012 -> 2017 benchmark holdout (manufacturing, common support,
+    # impact-weighted) the full index is 66.4% worse than a frozen 2012 mix,
+    # 0.75 is 28.5% worse and 0.5 is 10.6% worse; only 0.1 breaks even
+    # (+0.5%). BEA's own cell movement runs 0.04x the census's (#988). These
+    # are the figures `python -m
+    # bedrock.analysis.nowcasting.ec2012_matfuel_concordance --check` prints
+    # and asserts. Ships at 1.0, so this week's builds are unchanged; 0.8 is
+    # an evaluation build only, see
+    # configs/2025_usa_cornerstone_v0_4_materials_alpha_0_8.yaml.
+    census_materials_index_alpha: float = 1.0  # DRI: WesIngwersen
     ### GHG Methodology selection
     # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
     # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
