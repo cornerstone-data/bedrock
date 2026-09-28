@@ -33,15 +33,16 @@ the fuel classification, the sector axis and the emissions scale all live in
 Years
 -----
 
-2017 and 2018 come from the live API. 2019-2024 come from the FOIA'd Envirofacts
-export named by ``GHGRP_EF_VIEWS_ARCHIVE``, the same variable ``stewi`` takes its
-``-A`` argument from (#931): EPA stopped publishing after 2023 so 2024 exists
-nowhere else, and taking the whole block from one export keeps a single vintage
-across those years. A machine without the export falls back to the API for every
-year it can, and says so.
+2017 and 2018 come from the live API (or from GCS once cached there). 2019-2024
+prefer year-sliced CSVs under ``gs://cornerstone-default/extract/input-data/GHGRP/``
+when present locally or downloadable; otherwise the FOIA'd Envirofacts export
+named by ``GHGRP_EF_VIEWS_ARCHIVE`` (the same variable ``stewi`` takes its
+``-A`` argument from, #931). EPA stopped publishing after 2023 so 2024 exists
+nowhere on the public API. A machine without GCS access and without the export
+falls back to the API for every year it can, and says so.
 
-Both paths cache to ``extract/input_data/GHGRP/<year>/<VIEW>.csv``, so a run
-after the first makes no request at all.
+Both GCS and archive/API paths cache to ``extract/input_data/GHGRP/<year>/<VIEW>.csv``,
+so a run after the first makes no request at all.
 """
 
 from __future__ import annotations
@@ -54,6 +55,8 @@ from pathlib import Path, PurePosixPath
 import pandas as pd
 from esupy.remote import make_url_request
 
+from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
+from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.logging.flowsa_log import log
 
@@ -149,33 +152,48 @@ def _view_from_api(view: str, year: int) -> pd.DataFrame:
     return frame
 
 
+def _read_cached_view(cached: Path) -> pd.DataFrame:
+    served = pd.read_csv(cached, low_memory=False, encoding_errors='replace')
+    served.columns = served.columns.str.upper()
+    return served
+
+
 def ghgrp_view(view: str, year: int) -> pd.DataFrame | None:
     """An Envirofacts GHGRP view for one reporting year, cached locally.
 
     Resolution order, and why:
 
     1. ``extract/input_data/GHGRP/<year>/<VIEW>.csv`` - already fetched.
-    2. the FOIA'd export, for :data:`ARCHIVE_YEARS`.
-    3. the live API, which still serves these views through 2023.
+    2. the same object on ``gs://cornerstone-default/extract/input-data/GHGRP/``
+       (year-sliced CSVs uploaded alongside other extract inputs).
+    3. the FOIA'd export, for :data:`ARCHIVE_YEARS`.
+    4. the live API, which still serves these views through 2023.
 
-    Returns ``None`` when a year can be reached no way at all - 2024 on a machine
-    without the export - so that a span degrades to the years it has rather than
-    failing.
+    Returns ``None`` when a year can be reached no way at all - 2024 with neither
+    GCS nor the FOIA export - so that a span degrades to the years it has rather
+    than failing.
     """
-    cached = Path(local_extract_input_dir('GHGRP', year)) / f'{view.upper()}.csv'
+    object_name = f'{view.upper()}.csv'
+    cached = Path(local_extract_input_dir('GHGRP', year)) / object_name
     if cached.is_file():
-        served = pd.read_csv(cached, low_memory=False, encoding_errors='replace')
-        served.columns = served.columns.str.upper()
-        return served
+        return _read_cached_view(cached)
+
+    download_gcs_file_if_not_exists(
+        name=object_name,
+        sub_bucket=gcs_extract_input_path('GHGRP', year),
+        pth=str(cached),
+    )
+    if cached.is_file():
+        return _read_cached_view(cached)
 
     frame: pd.DataFrame | None = None
     if year in ARCHIVE_YEARS:
         frame = _view_from_archive(view, year)
         if frame is None:
             log.info(
-                'GHGRP %d: no FOIA export on this machine, so %s comes from the '
-                'API instead. Set %s to the EF_Views zip to read it from the '
-                'export, which is the only source for years EPA never published.',
+                'GHGRP %d: %s not on GCS and no FOIA export on this machine, so '
+                'falling through to the API. Set %s to the EF_Views zip, or '
+                'upload year-sliced CSVs under extract/input-data/GHGRP/.',
                 year,
                 view,
                 ARCHIVE_ENV,
@@ -183,10 +201,12 @@ def ghgrp_view(view: str, year: int) -> pd.DataFrame | None:
     if frame is None:
         if year in UNPUBLISHED_YEARS:
             log.warning(
-                'GHGRP %d skipped for %s: EPA never published it, and this '
-                'machine has no FOIA export to read it from. Set %s.',
+                'GHGRP %d skipped for %s: EPA never published it, and neither '
+                'GCS extract/input-data/GHGRP/%d nor a FOIA export '
+                '(%s) is available.',
                 year,
                 view,
+                year,
                 ARCHIVE_ENV,
             )
             return None
