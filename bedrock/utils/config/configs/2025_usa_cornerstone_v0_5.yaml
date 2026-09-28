@@ -8,16 +8,19 @@
 #     residential electricity constraint (#1011), the Step 5 closers (#950),
 #     the scrap price path (#1026) and the census materials switch at 1.0 (#1020).
 #                                        -> usa_detail_io_source: nowcast, usa_base_io_data_year: 2024
-#   - Everything else as v0.4: UMD GHG + MECS on the nowcast Use, waste
-#     disaggregation, industry-average margins, no IO year adjustments.
+#   - Facility GHG attribution on the nowcast Use
+#                                        -> use_facility_ghg_attribution: True
+#     selects GHG_national_Cornerstone_nowcast_facilities_{year}.
+#     Waste disaggregation, industry-average margins,
+#     and no IO year adjustments as in v0.4.
 #
-# ⚠️ The GHG FBS is NOT pinned here. use_cornerstone_ghg_model with a nowcast
-# source loads the newest GCS parquet for GHG_national_Cornerstone_nowcast_2024.
-# Until the v0.5 GHG FBS is built on this MUT (plan task T15, with the facility
-# attribution of #965/#1023 and #1007's biogenic CH4), the newest is v0.4's
-# v0.3.0_99655e9, attributed on the v0.4 Use table. The GHG FBS is inspected
-# directly, so record the exact parquet (filename and sha256) T15 produces, here
-# and in the release notes, before the v0.5 snapshot is cut.
+# ⚠️ The GHG FBS is NOT pinned here. use_cornerstone_ghg_model with nowcast +
+# use_facility_ghg_attribution loads the newest GCS parquet for
+# GHG_national_Cornerstone_nowcast_facilities_2024. Until plan task T15 builds
+# that stem on this MUT (facility attribution + biogenic CH4), that upload may
+# be missing and the model cannot load E. The GHG FBS is inspected directly, so
+# record the exact parquet (filename and sha256) T15 produces, here and in the
+# release notes, before the v0.5 snapshot is cut.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
 # reproducible even after newer nowcast builds are uploaded; move the pin only
@@ -41,6 +44,7 @@ usa_ghg_data_year: 2024
 # Methodology selection
 #####
 use_cornerstone_ghg_model: True
+use_facility_ghg_attribution: True
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 cornerstone_industry_avg_margins: True
