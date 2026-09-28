@@ -865,8 +865,9 @@ def derive_initial_U_intermediate(
     Step 3 (#497, #699). The sourcing, the carry, the column control and every
     caveat live in :mod:`bedrock.transform.iot.nowcast_intermediate`; read that
     module docstring before using this for anything but the section diagnostic.
-    ``theta`` defaults to ``nowcast_intermediate.default_theta`` for the span --
-    0.75 off the 2021-22 price surge and 0.0 across it, not #497's 1.0 - and the
+    ``theta`` defaults to ``nowcast_intermediate.default_theta``, which is #497's
+    **1.0** again since #891 -- the fitted two-regime rule is retired to
+    ``fitted_regime_theta`` -- and the
     column shares are carried on the full purchaser deflator, price times
     margin rate.
     """

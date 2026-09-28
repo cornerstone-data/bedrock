@@ -56,6 +56,7 @@ from bedrock.transform.iot.nowcast_intermediate import (
     commodity_deflator,
     default_theta,
     derive_intermediate_use,
+    fitted_regime_theta,
     margin_rate,
 )
 from bedrock.utils.config.common import load_env_file_key
@@ -250,11 +251,19 @@ def test_the_unpriced_commodities_are_the_four_with_no_industry_code() -> None:
     assert set(UNPRICED_COMMODITIES) == commodities - industries
 
 
-def test_497s_theta_is_kept_under_its_own_name() -> None:
-    """``theta = 1`` is what #497 specified; it is no longer what runs."""
+def test_497s_theta_is_what_runs_again() -> None:
+    """#497 specified ``theta = 1``; after #891 that is the default once more.
+
+    ⚠️ The fitted two-regime rule held the default from #699 until 2026-09-26.
+    It was retired because its headline predictor is 96.2% collinear with "the
+    target year's summary panel has neither the 2022 Economic Census nor AIES" --
+    75 of 78 spans classified identically -- so it cannot separate substitution
+    from a panel that stopped incorporating source data.
+    """
     assert THETA_497 == 1.0
     assert SEED_YEAR == 2017
-    assert default_theta(2024) != THETA_497
+    assert default_theta(2024) == THETA_497
+    assert default_theta(2019) == THETA_497
 
 
 def test_theta_splits_on_the_price_surge_and_not_on_span_length() -> None:
@@ -264,15 +273,15 @@ def test_theta_splits_on_the_price_surge_and_not_on_span_length() -> None:
     and does. If this ever starts keying off ``year - base`` the R^2 0.14
     elapsed-years model has quietly replaced the R^2 0.61 regime one.
     """
-    assert default_theta(2021, base=2017) == THETA_OFF_SURGE
-    assert default_theta(2022, base=2020) == THETA_ACROSS_SURGE
-    assert default_theta(2019, base=2018) == THETA_OFF_SURGE
+    assert fitted_regime_theta(2021, base=2017) == THETA_OFF_SURGE
+    assert fitted_regime_theta(2022, base=2020) == THETA_ACROSS_SURGE
+    assert fitted_regime_theta(2019, base=2018) == THETA_OFF_SURGE
     assert PRICE_SURGE == (2021, 2022)
 
 
 def test_every_target_year_from_2022_crosses_the_surge() -> None:
     """The build seeds from 2017, so 2022 on is the frozen-A regime."""
-    fitted = {year: default_theta(year) for year in INTERMEDIATE_YEARS}
+    fitted = {year: fitted_regime_theta(year) for year in INTERMEDIATE_YEARS}
     assert set(list(fitted.values())[:5]) == {THETA_OFF_SURGE}
     assert set(list(fitted.values())[5:]) == {THETA_ACROSS_SURGE}
 
@@ -531,8 +540,11 @@ def test_the_pin_ships_on() -> None:
     """
     assert get_usa_config().carry_indispensable_commodities_in_full is True
     assert THETA_497 == 1.0
-    # The pin only bites where the default disagrees with it.
-    assert default_theta(2022) != THETA_497
+    # ⚠️ With the theta = 1 prior the default, the pin is a no-op in effect and
+    # a GUARD in intent: it must still bind against a lower default, which is
+    # exactly what a future evidenced departure elsewhere would introduce.
+    assert default_theta(2022) == THETA_497
+    assert fitted_regime_theta(2022) != THETA_497
 
 
 @needs_census
@@ -545,18 +557,15 @@ def test_the_pin_reaches_the_energy_rows_and_leaves_the_rest_alone() -> None:
     config = get_usa_config()
     assert config.carry_indispensable_commodities_in_full
 
+    # Scored against the RETIRED regime value, not against the live default:
+    # the prior and the pin now agree, so the default cannot show the pin works.
     pinned = ni.carried_column_shares(2022)
-    plain = ni.carried_column_shares(2022, theta=default_theta(2022))
+    plain = ni.carried_column_shares(2022, theta=float(fitted_regime_theta(2022)))
 
     rows = [c for c in INDISPENSABLE_COMMODITIES if c in pinned.index]
     assert float(pinned.loc[rows].to_numpy().sum()) > float(
         plain.loc[rows].to_numpy().sum()
     ), 'the pin must raise the energy rows against a frozen nominal share'
-
-    # Passing theta explicitly is the caller's own experiment: no pin.
-    pd.testing.assert_frame_equal(
-        plain, ni.carried_column_shares(2022, theta=float(default_theta(2022)))
-    )
 
 
 @needs_census
@@ -584,3 +593,66 @@ def test_the_pin_never_carries_a_cell_a_survey_already_answered() -> None:
     pd.testing.assert_frame_equal(
         frozen.loc[rows, untouched], pinned.loc[rows, untouched]
     )
+
+
+def test_the_prior_does_not_depend_on_the_span() -> None:
+    """theta = 1 is a prior about substitution, not a function of the calendar.
+
+    ⚠️ The retired rule keyed off the span; the prior does not. If this starts
+    varying by year again, something has reintroduced a fit without saying so.
+    """
+    values = {
+        default_theta(year, base=base)
+        for year in range(2018, 2025)
+        for base in (2012, 2017, 2020, 2022)
+    }
+    assert values == {THETA_497}
+
+
+def test_the_retired_regime_is_still_reachable_and_still_disagrees() -> None:
+    """Kept runnable so the choice can be scored rather than argued.
+
+    ⚠️ On the summary panel taken at face value the retired rule scores *better*
+    -- no single constant beats its splice (0.5262 against 0.5319 for the best
+    constant, 0.25) and theta = 1 sums to 0.5610. The case for retiring it is
+    that the panel is not ground truth for 2022-2024, not that it fit worse. So
+    it has to stay reachable.
+    """
+    assert fitted_regime_theta(2024) == THETA_ACROSS_SURGE
+    assert fitted_regime_theta(2019) == THETA_OFF_SURGE
+    assert fitted_regime_theta(2024) != default_theta(2024)
+
+
+def test_the_regime_binary_cannot_be_told_from_a_stale_panel() -> None:
+    """The measurement that retired the fit, pinned so it cannot be forgotten.
+
+    ⚠️ "Crosses the 2021-22 surge" and "the target year's panel has neither the
+    2022 Economic Census nor AIES 2023/24" classify **75 of 78** spans
+    identically. So the fit's R² 0.613 supports either reading, and the three
+    spans that separate them are all post-2022. Every surge-crossing span ends
+    inside the region where BEA stopped incorporating source data.
+
+    This is a property of the span inventory, so it needs no data to check.
+    """
+    spans = [
+        (base, target)
+        for base in range(2012, 2025)
+        for target in range(2012, 2025)
+        if base < target
+    ]
+    assert len(spans) == 78
+
+    def crosses(base: int, target: int) -> bool:
+        return base <= PRICE_SURGE[0] and target >= PRICE_SURGE[1]
+
+    def stale_panel(base: int, target: int) -> bool:
+        _ = base
+        return target >= PRICE_SURGE[1]
+
+    disagree = [s for s in spans if crosses(*s) != stale_panel(*s)]
+    assert len(disagree) == 3
+    assert set(disagree) == {(2022, 2023), (2022, 2024), (2023, 2024)}
+    # and every surge-crossing span sits inside the unreliable region
+    crossing = [s for s in spans if crosses(*s)]
+    assert len(crossing) == 30
+    assert all(target >= 2022 for _, target in crossing)

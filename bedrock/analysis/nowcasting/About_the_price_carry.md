@@ -103,7 +103,40 @@ column receives the same row-wise factor and is then renormalised.
 
 ## Values in use
 
-`default_theta(year, base=2017)` returns `THETA_OFF_SURGE` unless the span
+⚠️ **Superseded 2026-09-26 (#891).** `default_theta` returns **1.0** for every
+span. The two-regime rule below is kept, runnable, as `fitted_regime_theta`
+behind `use_fitted_summary_regime_theta`; read `default_theta`'s docstring for
+the argument.
+
+**Why 1.0 is the prior.** `theta = 1` holds the **real** input mix fixed and lets
+nominal shares move with price; `theta = 0` holds the **nominal** share fixed,
+which asserts real quantities fell by the full amount the price rose. Where that
+did not happen the model books the difference as structural change, and the goal
+is to smooth structural change except where justified. So a departure below 1.0
+is a claim that a buyer substituted and needs evidence for that buyer. It is also
+the continuity position — USEEIO effectively assumes 1.0 for the whole table, and
+bedrock v0.3 does the same for years it does not scale on the summary panel.
+
+**Why the fit was retired.** Its headline predictor — does the span cross the
+2021-22 surge, R² 0.613 — is **96.2% collinear** with "the target year's summary
+panel incorporates neither the 2022 Economic Census nor AIES 2023/24": 75 of 78
+spans are classified identically, and the only three that separate them are
+2022→23, 2022→24 and 2023→24. All 30 surge-crossing spans end inside that region.
+Two further checks point the same way: energy prices *reversed* after 2022
+(petroleum 1.945 → 1.431 against 2017) while the penalty for theta = 1 doubled
+(7.57% → 14.12%), which no price mechanism predicts but BEA's own drift against
+census does (2.3 / 6.1 / 7.9%, #1013); and the fit's gradient runs to **−0.50**,
+nominal shares moving against their own price, which is not a mechanism.
+
+⚠️ **What this gives up.** Scored on the summary panel, theta = 1 costs **+0.49%**
+over 2018-2021 — free — but **+12.82%** over 2022-2024, and *no single constant
+beats the retired splice* (0.5262 against 0.5319 for the best constant, 0.25;
+theta = 1 sums to 0.5610). If the summary panel is ground truth for 2022-2024
+this is a regression. The case rests on it not being ground truth there.
+
+### The retired rule, for reference
+
+`fitted_regime_theta(year, base=2017)` returns `THETA_OFF_SURGE` unless the span
 crosses the 2021-22 price surge, in which case it returns
 `THETA_ACROSS_SURGE`. A span crosses if `base <= 2021 and year >= 2022`. For the
 build's seven target years that is 0.75 for 2018-2021 and 0.0 for 2022-2024.
@@ -112,6 +145,16 @@ The two values are fitted on 78 non-nested summary spans with a base of 2012 or
 later, not on the seven the build runs. Fitted 0.755 and 0.141, rounded. The
 choice of rule and the reasons for rounding 0.141 up to zero are in
 [`intermediate_estimation_plan.md`](intermediate_estimation_plan.md) §S2.
+
+### Commodity-specific theta
+
+⚠️ The statement above that "no industry-specific `theta` exists" is still true,
+but a **commodity**-specific one now does:
+`nowcast_intermediate.INDISPENSABLE_COMMODITIES` pins electricity, utility gas,
+refined petroleum, coal and oil and gas extraction at 1.0 regardless of the
+default, so a future evidenced departure below 1.0 elsewhere cannot drag them
+down. MECS 2018→2022 fits those rows at 0.976 and 1.091 by two independent
+routes.
 
 ## Approximations and limits
 
