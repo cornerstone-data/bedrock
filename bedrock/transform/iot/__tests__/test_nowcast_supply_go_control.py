@@ -116,8 +116,13 @@ def test_the_block_total_is_unchanged_to_the_fits_own_tolerance(
     between summary groups. The bound below is therefore the fit's own tolerance
     times the column count rather than a number chosen to pass.
     """
-    total = float(seed.to_numpy().sum())
-    moved = abs(float(controlled.to_numpy().sum()) - total)
+    # ⚠️ The electricity rebase (#1009, on since v0.5) changes utilities'
+    # *level*, not only its mix -- -$8.8bn at 2023 -- so group 22 is expected
+    # to move the total and is left out. What this guards is that the fit does
+    # not reprice everything else.
+    columns = [c for c in seed.columns if gc._industry_parent().get(c) != '22']
+    total = float(seed[columns].to_numpy().sum())
+    moved = abs(float(controlled[columns].to_numpy().sum()) - total)
 
     # ⚠️ Relative, deliberately. The accumulation is not bounded by
     # columns x TOLERANCE_USD -- measured 0.45bn against that product's 0.40bn --
@@ -233,21 +238,20 @@ def test_released_groups_is_the_union_over_every_conditioner() -> None:
     the difference to siblings. Releasing is required by the supply-use framework
     once industry output moves; it is not a trade-off.
 
-    The electricity conditioner (#1009) contributes nothing while
-    ``rebase_utility_gross_output_on_eia`` is off, asserted here so flipping that
-    flag surfaces as a change in this test rather than silently.
+    The electricity conditioner (#1009) is on by default since v0.5 and releases
+    utilities (``22``); asserted here so flipping that flag surfaces as a change
+    in this test rather than silently.
     """
     config = get_usa_config()
     released = gc.released_groups()
 
     assert config.chain_manufacturing_on_aies
-    assert (
-        released == aies_released()
-    ), 'the union picked up a group no conditioner claims'
-    assert not config.rebase_utility_gross_output_on_eia
-    assert all(group not in released for group in ('22', '2211', '221100'))
-    # the only conditioner on is manufacturing, so that is all that may appear
-    assert released and all(group.startswith('3') for group in released), sorted(
+    assert config.rebase_utility_gross_output_on_eia
+    assert released == aies_released() | {
+        '22'
+    }, 'the union picked up a group no conditioner claims'
+    # manufacturing's groups plus utilities, and nothing else
+    assert all(group.startswith('3') or group == '22' for group in released), sorted(
         released
     )
 

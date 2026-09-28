@@ -1134,6 +1134,57 @@ def _panel_for(year: int) -> pd.DataFrame:
 #: than a 2020-2022 one -- but weaker is not unusable.
 SURVEY_CHANGE_YEARS = AIES_OBSERVED_YEARS
 
+#: The last SAS year, which the AIES years chain from.
+LAST_SAS_YEAR = 2022
+
+#: ⚠️ **Revisited 2026-09-28 (Wes): chain across the seam, do not index across
+#: it.** The reasoning above held on the aggregate residual; on the rows the
+#: model weights most it does not.
+#:
+#: - **Item levels break beyond their sampling error.** Purchased electricity,
+#:   SAS 2022 -> AIES 2023: management consulting x3.1 at an 11.3% CV (and AIES's
+#:   own 2024 is 19% lower), outpatient care x1.65 at 14.3%, trucking x1.52.
+#:   Restaurants, at a 0.7% CV, are flat.
+#: - **The denominator changes composition.** AIES publishes none of SAS's
+#:   largest intermediate item, ``All other operating expenses`` ($120bn for real
+#:   estate), and its own ``Other operating expenses`` is a different bundle:
+#:   mapping one onto the other turns restaurants' electricity from x1.07 to
+#:   x0.69. So :func:`relative_index` divides by a different bill each side.
+#: - **What it did downstream.** Services' electricity rose $44.6bn (+29%) in the
+#:   2023 Step 3 block against a falling supply-side target; the interior fit
+#:   then cut every buyer of electricity by ~16%, so trade fell 24% in a year
+#:   its own seed fell 8.5%.
+#:
+#: So an AIES year takes :data:`LAST_SAS_YEAR`'s index, moved only by AIES's
+#: own year-on-year relative index (:func:`_chained_index`): every ratio is
+#: inside one survey. What is given up is any genuine 2023 level reset, which
+#: this survey change cannot separate from the instrument's own. Switch:
+#: ``chain_services_seed_across_aies`` (on).
+
+
+def _chain_across_aies() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().chain_services_seed_across_aies
+
+
+def _chained_index(naics: str, year: int, base_year: int) -> pd.Series:
+    """:data:`LAST_SAS_YEAR`'s SAS index, moved on AIES's own ratios to *year*.
+
+    ``index(2022 vs base)`` on the SAS panel, times ``index(year vs 2023)`` on
+    the AIES panel. A commodity only one side reaches keeps that side's index
+    (the other contributes 1.0, no movement).
+    """
+    sas = relative_index(
+        naics, LAST_SAS_YEAR, base_year=base_year, panel=_panel_for(LAST_SAS_YEAR)
+    )
+    first = AIES_OBSERVED_YEARS[0]
+    if year == first:
+        return sas
+    aies = relative_index(naics, year, base_year=first, panel=_panel_for(year))
+    codes = sas.index.union(aies.index)
+    return sas.reindex(codes, fill_value=1.0) * aies.reindex(codes, fill_value=1.0)
+
 
 def services_transport_seed(
     year: int, base_year: int = 2017, allow_survey_change: bool = True
@@ -1158,10 +1209,14 @@ def services_transport_seed(
     ``GO - VAPRO``; this supplies shape only, so the column is renormalised back
     to its 2017 total after the index is applied.
 
-    ⚠️ **2023 crosses a survey change as well as a rebenchmark.**  It is read
-    from AIES against a SAS 2017 base -- the names are aligned
-    (:data:`AIES_TO_SAS_ITEM`) but the instrument is not the same one.  Treat a
-    2023 movement as weaker evidence than a 2020-2022 one.
+    ✅ **The AIES years chain across the survey change** (the default,
+    ``chain_services_seed_across_aies``): 2023 takes :data:`LAST_SAS_YEAR`'s SAS
+    index versus ``base_year`` and nothing from AIES, and 2024 moves that index by
+    AIES's own 2024/2023 relative index (:func:`_chained_index`), so every ratio
+    stays inside one survey.  See the note at :data:`LAST_SAS_YEAR` for why the
+    2026-08-25 method -- AIES indexed directly against a SAS base -- was
+    reversed.  With the flag off that older method runs, and a 2023 movement
+    then crosses both the survey change and the rebenchmark.
 
     ✅ **2018 and 2019 build through the cut-list bridge** (#770): the
     published ``All other operating expenses`` aggregate constrains its twelve
@@ -1187,11 +1242,15 @@ def services_transport_seed(
     use = _use_2017_detail()
     columns = services_transport_industries()
     seed = use[columns].astype(float).copy()
-    panel = _panel_for(year)
+    chained = year in AIES_OBSERVED_YEARS and _chain_across_aies()
+    panel = _panel_for(LAST_SAS_YEAR if chained else year)
 
     for industry in columns:
         naics = _bea_to_survey_industry()[industry]
-        index = relative_index(naics, year, base_year=base_year, panel=panel)
+        if chained:
+            index = _chained_index(naics, year, base_year)
+        else:
+            index = relative_index(naics, year, base_year=base_year, panel=panel)
         if index.empty:
             continue
         touched = [code for code in index.index if code in seed.index]

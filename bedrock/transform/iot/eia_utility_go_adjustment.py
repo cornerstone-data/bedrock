@@ -362,6 +362,17 @@ def apply_eia_utility_adjustment(raw: pd.DataFrame) -> pd.DataFrame:
 RETAIL_SALES_CLASSES = ('Residential', 'Commercial', 'Industrial', 'Transportation')
 
 
+def retail_price_index(year: int) -> float:
+    """EIA average retail price relative to :data:`BASE_YEAR`.
+
+    Table 2.3 revenue over Table 2.2 sales to ultimate customers, each relative
+    to the base year. It is the price this module's gross output moves on, so
+    it is also the price the Step 3 carry uses for commodity ``221100`` when
+    the rebase is on (:func:`~.nowcast_intermediate.commodity_price_factor`).
+    """
+    return retail_index(year) / (retail_sales_mwh(year) / retail_sales_mwh(BASE_YEAR))
+
+
 def retail_sales_mwh(year: int) -> float:
     """EIA Table 2.2 sales to ultimate customers, MWh, excluding direct use."""
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
