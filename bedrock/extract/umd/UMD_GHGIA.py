@@ -3,7 +3,10 @@
 # coding=utf-8
 """
 Greenhouse Gas Inventory and Analysis (GHGIA) for the U.S.
-https://ghgi.cgs.umd.edu/data.html
+
+UMD GHGIA emissions are reported on IPCC AR5 100-year GWPs
+(https://ghgi.cgs.umd.edu/Web%20Content/Chapters/GHGIA_FullReport_2026.pdf).
+Data: https://ghgi.cgs.umd.edu/data.html
 """
 
 import os
@@ -23,7 +26,7 @@ from bedrock.transform.flowbyfunctions import (
     load_fba_w_standardized_units,
 )
 from bedrock.transform.ghg import ghgrp_subpart_w
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR5
 from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -891,7 +894,17 @@ def umd_ghgia_parse(
 def assign_lease_and_plant_natural_gas(
     fba: FlowByActivity, params: dict[str, Any]
 ) -> FlowByActivity:
-    """Move GHGRP lease and plant natural gas out of Natural Gas Industrial."""
+    """Separate GHGRP lease/plant NG from the remainder of Natural Gas Industrial.
+
+    Reads GHGRP subpart W lease-and-plant fuel CO2e for ``ghgrp_year``, takes
+    that amount as a share of table 3-11 ``Natural Gas Industrial``, and splits
+    it into activity ``Natural Gas Industrial - Lease and Plant``. The remainder
+    stays on ``Natural Gas Industrial``.
+
+    GHGRP are converted to CO2e with IPCC AR5 100-year GWPs to
+    match UMD GHGIA reporting
+    (https://ghgi.cgs.umd.edu/Web%20Content/Chapters/GHGIA_FullReport_2026.pdf).
+    """
     year = int(params['year'])
     ghgrp_year = int(params['ghgrp_year'])
     flows = stewi.getInventory(
@@ -899,7 +912,7 @@ def assign_lease_and_plant_natural_gas(
     )
     lease_plant_mmt = 0.0
     if flows is not None and not getattr(flows, 'empty', True):
-        gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+        gwp = {str(k): float(v) for k, v in GWP100_AR5.items()}
         combustion = flows[
             (flows['Process'] == 'C') & flows['FlowName'].isin(GHGRP_FLOW_MAP)
         ].copy()
