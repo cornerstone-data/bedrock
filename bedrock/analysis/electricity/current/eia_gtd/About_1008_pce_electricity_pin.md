@@ -57,9 +57,16 @@ electricity PCE seed. Authoritative full-span run (hash `314bc2d4`):
 
 ## Production wiring (ship switch)
 
-**Ship switch** = USAConfig `constrain_electricity_pce_cell` (default **False**)
-+ `electricity_pce_constraint_mode` (winner string; flag stays False until
-explicit ship).
+**Ship switch** = USAConfig `constrain_electricity_pce_cell` +
+`electricity_pce_constraint_mode`.
+
+✅ **SHIPPED ON, 2026-09-27, mode `eia_band`** (commit `84ab43a1`, landed on
+`main` through PR #1024 with #1014/#1016/#1018). This is the explicit ship the
+section below held back: the winner of the False-arm grade under the updated
+rule (weighted EIA miss $2.18bn against $4.41bn for `tier1_fixed` and
+`row_side_target`). It changes Step 5 for every nowcast year. The EIA
+gross-output rebase (`rebase_utility_gross_output_on_eia`) stays **off**, which
+is the arm this mode was graded on.
 
 `DEFAULT_PCE_CONSTRAINT` in `nowcast_mask.py` stays **`'none'` forever** — it is
 the Python unconstrained sentinel / analysis baseline, **not** the production
@@ -217,8 +224,8 @@ CSVs: `pce_electricity_pin_{measure,t11,eia,displacement,pce_sink,summary}_2017_
 | `row_side_target` | ok | fail | 4.056 | 0.095 |
 | `eia_band` | ok | fail | **2.524** | **0.093** |
 
-**Ship-intent mode string: `eia_band`.** Production flag stays
-**False** on this PR. True-arm ranking under the updated rule also prefers C
+**Ship-intent mode string: `eia_band`.** Production flag stayed
+**False** on #1011 and was turned on afterwards; see *Production wiring* above. True-arm ranking under the updated rule also prefers C
 (advisory only).
 
 **Primary PCE sinks (False-arm winner C):** hospitals (`622000`), tenant housing
