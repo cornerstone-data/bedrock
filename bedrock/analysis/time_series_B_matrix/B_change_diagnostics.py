@@ -122,6 +122,7 @@ from bedrock.transform.eeio.derived_cornerstone import (
 from bedrock.transform.ghg import ghgrp_self_supplied, ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
+from bedrock.utils.emissions.ch4_classification import apply_ch4_non_fossil_flowable
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.math.formulas import (
     compute_L_matrix,
@@ -521,16 +522,7 @@ def fbs_to_co2e(fbs: pd.DataFrame) -> pd.DataFrame:
     """
     mapped = map_fbs_sectors_to_model_schema(fbs)
     mapped['Flowable'] = mapped['Flowable'].map(GAS_MAP).fillna(mapped['Flowable'])
-
-    meta = mapped['MetaSources'].astype(str)
-    sector = mapped['SectorProducedBy'].astype(str)
-    ch4_non_fossil = meta.str.contains('_5_', regex=False, na=False) | (
-        meta.str.contains('2_1', regex=False, na=False)
-        & sector.str.match(r'^(1|562|2213)', na=False)
-    )
-    mapped.loc[ch4_non_fossil & (mapped['Flowable'] == 'CH4_fossil'), 'Flowable'] = (
-        'CH4_non_fossil'
-    )
+    apply_ch4_non_fossil_flowable(mapped)
 
     # Widened to plain str keys: GWP100_AR6_CEDA is typed on a Literal of the
     # gas names it knows, and the two basket rows below are not among them.

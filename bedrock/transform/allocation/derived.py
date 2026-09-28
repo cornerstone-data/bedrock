@@ -8,6 +8,7 @@ from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.emissions.ch4_classification import apply_ch4_non_fossil_flowable
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import (
@@ -389,17 +390,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     }
     fbs['Flowable'] = fbs['Flowable'].map(gas_map).fillna(fbs['Flowable'])
 
-    # CH4: use CH4_non_fossil when meta source is table 5_* or when in 2_1 and sector starts with 1 or 562 or 2213
-    # to align with CH4_NON_FOSSIL defined in extract/allocation/epa.py
-    meta = fbs['MetaSources'].astype(str)
-    sector = fbs['SectorProducedBy'].astype(str)
-    ch4_non_fossil_mask = meta.str.contains('_5_', regex=False, na=False) | (
-        meta.str.contains('2_1', regex=False, na=False)
-        & sector.str.match(r'^(1|562|2213)', na=False)
-    )
-    fbs.loc[ch4_non_fossil_mask & (fbs['Flowable'] == 'CH4_fossil'), 'Flowable'] = (
-        'CH4_non_fossil'
-    )
+    # Biogenic CH4 → CH4_non_fossil (AR6 27.0) via table family + sector.
+    apply_ch4_non_fossil_flowable(fbs)
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
