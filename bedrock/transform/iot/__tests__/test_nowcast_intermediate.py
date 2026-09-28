@@ -39,11 +39,15 @@ from bedrock.analysis.nowcasting.services_transport_expense_seed import (
 from bedrock.analysis.nowcasting.utilities_expense_seed import ELECTRIC
 from bedrock.transform.iot import nowcast_intermediate as ni
 from bedrock.transform.iot.nowcast_intermediate import (
+    BENCHMARK_SCRAP_PPI_BY_BUYER,
     INDISPENSABLE_COMMODITIES,
     INTERMEDIATE_YEARS,
+    LAST_MATERIALS_CENSUS,
     MARGIN_YEARS,
     MILLION_CURRENCY_TO_CURRENCY,
     PRICE_SURGE,
+    SCRAP_COMMODITY,
+    SCRAP_PPI_BY_BUYER,
     SEED_YEAR,
     SUPPLY_VALUATION_COLUMNS,
     THETA_497,
@@ -52,12 +56,16 @@ from bedrock.transform.iot.nowcast_intermediate import (
     UNPRICED_COMMODITIES,
     _require_margin_year,
     apply_column_control,
+    benchmark_scrap_value_factor,
     carry_shares,
     commodity_deflator,
     default_theta,
     derive_intermediate_use,
     fitted_regime_theta,
+    held_scrap_price_factor,
     margin_rate,
+    recovered_paper_consumption,
+    scrap_ppi,
 )
 from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.config.usa_config import get_usa_config
@@ -656,3 +664,164 @@ def test_the_regime_binary_cannot_be_told_from_a_stale_panel() -> None:
     crossing = [s for s in spans if crosses(*s)]
     assert len(crossing) == 30
     assert all(target >= 2022 for _, target in crossing)
+
+
+# --- held scrap on the BLS PPIs (#768) ---------------------------------------
+
+
+def test_scrap_ppi_covers_the_span_for_every_series() -> None:
+    ppi = scrap_ppi()
+    assert set(ppi.columns) == set(SCRAP_PPI_BY_BUYER.values()) | set(
+        BENCHMARK_SCRAP_PPI_BY_BUYER.values()
+    )
+    assert set(INTERMEDIATE_YEARS) <= set(ppi.index)
+    assert bool(ppi.notna().to_numpy().all())
+    assert bool((ppi > 0).to_numpy().all())
+
+
+def test_scrap_buyers_are_detail_industries_and_scrap_is_unpriced() -> None:
+    assert set(SCRAP_PPI_BY_BUYER) <= set(USA_2017_INDUSTRY_CODES)
+    assert set(BENCHMARK_SCRAP_PPI_BY_BUYER) <= set(USA_2017_INDUSTRY_CODES)
+    # A buyer is census-measured or carried from the benchmark, never both:
+    # both would move the same cell twice.
+    assert not set(SCRAP_PPI_BY_BUYER) & set(BENCHMARK_SCRAP_PPI_BY_BUYER)
+    # The row has no BEA price index, which is why it needs its own.
+    assert SCRAP_COMMODITY in UNPRICED_COMMODITIES
+    assert get_usa_config().carry_held_scrap_on_ppi is True
+    assert get_usa_config().set_paper_scrap_from_recovered_paper is True
+
+
+def test_scrap_factor_is_one_through_the_last_census() -> None:
+    for year in range(SEED_YEAR, LAST_MATERIALS_CENSUS + 1):
+        assert bool((held_scrap_price_factor(year) == 1.0).all()), year
+
+
+def test_scrap_factor_is_the_ppi_relative_to_2022() -> None:
+    """Values checked against data.bls.gov annual averages, 2022 = 1."""
+    f2023 = held_scrap_price_factor(2023)
+    f2024 = held_scrap_price_factor(2024)
+    assert f2023['331110'] == pytest.approx(583.069 / 643.302)
+    assert f2024['331110'] == pytest.approx(542.943 / 643.302)
+    assert f2024['331314'] == pytest.approx(296.144 / 282.917)
+    # One index per metal: the buyers of the same scrap move together.
+    assert f2024['331110'] == f2024['331200'] == f2024['331510']
+    assert f2024['331314'] == f2024['33131B']
+
+
+def test_recovered_paper_is_apparent_consumption_over_the_span() -> None:
+    consumed = recovered_paper_consumption()
+    assert set(INTERMEDIATE_YEARS) <= set(consumed.index)
+    # FAOSTAT 2017: 47,626,950 produced + 897,000 imported - 18,289,000 exported.
+    assert consumed[2017] == pytest.approx(30_234_950)
+    # Mills' use stays within a few percent of 2017 while the price swings.
+    ratio = consumed.loc[list(INTERMEDIATE_YEARS)] / consumed[2017]
+    assert bool(((ratio > 0.9) & (ratio < 1.05)).all())
+
+
+def test_benchmark_scrap_value_factor_is_quantity_times_price() -> None:
+    """Both relative to 2017, because the cells hold BEA's 2017 dollars."""
+    assert bool((benchmark_scrap_value_factor(SEED_YEAR) == 1.0).all())
+    consumed = recovered_paper_consumption()
+    f2019 = benchmark_scrap_value_factor(2019)
+    assert f2019['322130'] == pytest.approx(
+        (181.2 / 399.9) * (consumed[2019] / consumed[2017])
+    )
+    assert f2019.nunique() == 1
+
+
+def test_set_benchmark_scrap_shares_hits_the_target_and_keeps_the_sum(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The scrap share becomes 2017 dollars x factor / total; the column sums to 1."""
+    shares = pd.DataFrame(
+        {'322130': [0.10, 0.90], 'other': [0.05, 0.95]},
+        index=[SCRAP_COMMODITY, 'c2'],
+    )
+    bench = pd.DataFrame(
+        {'322130': [2.4e9, 21.6e9], 'other': [0.1e9, 0.9e9]},
+        index=[SCRAP_COMMODITY, 'c2'],
+    )
+    monkeypatch.setattr(ni, 'benchmark_intermediate', lambda: bench)
+    control = pd.Series({'322130': 30e9, 'other': 1e9})
+    out = ni.set_benchmark_scrap_shares(shares, control, 2019)
+
+    target = 2.4e9 * benchmark_scrap_value_factor(2019)['322130'] / 30e9
+    assert out.at[SCRAP_COMMODITY, '322130'] == pytest.approx(target)
+    assert float(out['322130'].sum()) == pytest.approx(1.0)
+    # A column that is not a paper buyer is untouched, and so is the input.
+    pd.testing.assert_series_equal(out['other'], shares['other'])
+    assert shares.at[SCRAP_COMMODITY, '322130'] == 0.10
+    # The identity at the seed year.
+    pd.testing.assert_frame_equal(
+        ni.set_benchmark_scrap_shares(shares, control, SEED_YEAR), shares
+    )
+
+
+@needs_census
+def test_paper_scrap_is_not_census_observed() -> None:
+    """The census measures metal scrap only; paper's cells are BEA 2017 values."""
+    for year in (2018, 2022, 2024):
+        _, observed = ni.composed_seed_and_observed(year)
+        scrap = observed.loc[[SCRAP_COMMODITY]]
+        paper = list(BENCHMARK_SCRAP_PPI_BY_BUYER)
+        assert not bool(scrap[paper].to_numpy().any()), year
+        # The metal buyers are still census-measured.
+        assert bool(scrap[list(SCRAP_PPI_BY_BUYER)].to_numpy().all()), year
+
+
+def test_carry_held_scrap_moves_only_observed_buyer_cells() -> None:
+    """A held (observed) scrap cell moves; an unobserved one and other rows do not.
+
+    ⚠️ The mask decides. Past 2022 an observed cell holds 2022 dollars and has
+    no price movement in it yet; an unobserved cell is priced by the ordinary
+    carry, so moving it here would be the double count #997 removed.
+    """
+    rows = [SCRAP_COMMODITY, 'c2']
+    seed = pd.DataFrame(
+        {'331110': [50.0, 50.0], '331314': [60.0, 40.0], 'other': [10.0, 90.0]},
+        index=rows,
+    )
+    observed = pd.DataFrame(False, index=rows, columns=seed.columns)
+    observed.at[SCRAP_COMMODITY, '331110'] = True
+    observed.at[SCRAP_COMMODITY, 'other'] = True
+
+    out = ni._carry_held_scrap(seed, observed, 2024)
+
+    factor = held_scrap_price_factor(2024)['331110'] ** default_theta(2024)
+    assert out.at[SCRAP_COMMODITY, '331110'] == pytest.approx(50.0 * factor)
+    # 331314 is a scrap buyer but its cell is not observed.
+    assert out.at[SCRAP_COMMODITY, '331314'] == 60.0
+    # 'other' is observed but not a priced scrap buyer.
+    assert out.at[SCRAP_COMMODITY, 'other'] == 10.0
+    pd.testing.assert_frame_equal(out.loc[['c2']], seed.loc[['c2']])
+    # The input is not mutated.
+    assert seed.at[SCRAP_COMMODITY, '331110'] == 50.0
+    # And nothing moves through the last census year.
+    pd.testing.assert_frame_equal(
+        ni._carry_held_scrap(seed, observed, LAST_MATERIALS_CENSUS), seed
+    )
+
+
+@needs_census
+def test_held_scrap_carry_reaches_the_metal_buyers_and_nothing_else() -> None:
+    """2024: steel scrap shares fall with price, aluminum's rise; others untouched.
+
+    An explicit ``theta`` switches this step off, and at theta = 1.0 it is
+    otherwise the same computation as the default, so the difference between
+    the two is this step alone.
+    """
+    default = ni.carried_column_shares(2024)
+    explicit = ni.carried_column_shares(2024, theta=float(default_theta(2024)))
+
+    buyers = list(SCRAP_PPI_BY_BUYER)
+    pd.testing.assert_frame_equal(
+        default.drop(columns=buyers), explicit.drop(columns=buyers)
+    )
+
+    def scrap_share(shares: pd.DataFrame, buyer: str) -> float:
+        return float(np.asarray(shares.at[SCRAP_COMMODITY, buyer]).item())
+
+    # Steel scrap fell to 0.844 of its 2022 level ...
+    assert scrap_share(default, '331110') < scrap_share(explicit, '331110')
+    # ... and aluminum scrap rose to 1.047 of it.
+    assert scrap_share(default, '331314') > scrap_share(explicit, '331314')
