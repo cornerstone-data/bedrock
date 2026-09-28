@@ -107,6 +107,11 @@ def census_EC_URL_helper(*, build_url, year, config, **_):
                 url += '&for=us:*'
                 urls_census.append(url)
                 urls_census.append(url.replace('&for=us:*', '&for=state:*'))
+            elif year == '2022' and 'for=' not in url:
+                # 2022 returns HTTP 400 without an explicit geography (same as
+                # Census_EC_MatFuel). National only is enough for waste who-buys.
+                url += '&for=us:*'
+                urls_census.append(url)
             else:
                 urls_census.append(url)
 
@@ -140,7 +145,9 @@ def census_EC_parse(*, df_list, year, **_):
     # concat dataframes
     df = pd.concat(df_list, sort=False)
 
-    if year == '2017':
+    # 2017 and 2022 share CLASSCUST_LABEL + TAXSTAT/TYPOP filters; 2012 uses
+    # CLASSCUST_TTL without those dimensions.
+    if str(year) in ('2017', '2022'):
         df = df.query('TAXSTAT_LABEL == "All establishments"').query(
             'TYPOP_LABEL == "All establishments"'
         )
@@ -148,10 +155,11 @@ def census_EC_parse(*, df_list, year, **_):
     else:
         class_label = 'CLASSCUST_TTL'
 
+    naics_col = f'NAICS{year}'
     df = (
         df.filter(
             [
-                f'NAICS{year}',
+                naics_col,
                 class_label,
                 'ESTAB',
                 'RCPTOT',
@@ -164,8 +172,8 @@ def census_EC_parse(*, df_list, year, **_):
         )
         .rename(
             columns={
-                f'NAICS{year}': 'ActivityProducedBy',
-                f'{class_label}': 'ActivityConsumedBy',
+                naics_col: 'ActivityProducedBy',
+                class_label: 'ActivityConsumedBy',
                 'ESTAB': 'Number of establishments',
                 'RCPTOT': 'Sales, value of shipments, or revenue',
                 'RCPTOT_DIST': 'Distribution of sales, value of shipments, or revenue',
@@ -205,8 +213,9 @@ def census_EC_parse(*, df_list, year, **_):
         df['FlowName'] == 'Sales, value of shipments, or revenue',
         df['FlowName'] == 'Distribution of sales, value of shipments, or revenue',
     ]
-    df['Unit'] = np.select(conditions, ['p', 'USD', 'Percent'])
-    df['Class'] = np.select(conditions, ['Other', 'Money', 'Money'])
+    # default='' keeps string dtypes under NumPy ≥2 (int default 0 no longer promotes)
+    df['Unit'] = np.select(conditions, ['p', 'USD', 'Percent'], default='')
+    df['Class'] = np.select(conditions, ['Other', 'Money', 'Money'], default='')
     df['FlowAmount'] = np.where(
         df['FlowName'] == 'Sales, value of shipments, or revenue',
         df['FlowAmount'] * 1000,

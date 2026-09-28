@@ -100,10 +100,31 @@ class USAConfig(BaseModel):
         ),
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
+    # Waste weight vintage: 2017 = bundled CSVs (default/production);
+    # match_io = usa_base_io_data_year; int = explicit year (diagnostic OK).
+    waste_weights_year: ta.Literal['match_io'] | int | None = (
+        2017  # DRI: jorge.vendries
+    )
     implement_electricity_reallocation: bool = False  # DRI: jorge.vendries
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
+    # Issue #1008 — pin 221100×F01000 in nowcast GRAS. Flag stays False until
+    # explicit ship; mode holds the graded winner string for when flag flips.
+    constrain_electricity_pce_cell: bool = False  # DRI: jorge.vendries
+    electricity_pce_constraint_mode: ta.Literal[
+        'none', 'tier1_fixed', 'row_side_target', 'eia_band'
+    ] = 'none'  # DRI: jorge.vendries
+    # Rebase 221100 gross output on EIA volume x published price, splitting the
+    # 2017 base into output sold to ultimate customers (moved on EPA Table 2.3
+    # revenue) and sales for resale between utilities (moved on Table 8.3
+    # purchased power). BEA's UGO305-A implied price per kWh runs 14.7% over
+    # EIA's published average in 2022 and 2.2% under it in 2024, having agreed
+    # to 0.2% at the 2017 benchmark. Also releases the published summary Supply
+    # cell for summary group 22 so the reduction is not handed to gas
+    # distribution and water. See
+    # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
+    rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
