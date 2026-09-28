@@ -60,6 +60,8 @@ __pycache__/
 !bedrock/extract/external_data/*.csv
 # Census HS 2716 electricity unit values for Trade (#668)
 !bedrock/extract/census/data/hs2716_electricity_unit_value.csv
+# BLS scrap PPIs for the held scrap cells in Step 3 (#768)
+!bedrock/extract/bls/data/bls_ppi_scrap_annual.csv
 # Waste disaggregation weight fixtures (small; required for CI tests)
 !bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
 # Electricity disagg diagnostics local Excel exports (download from Sheets; keep dir via .gitkeep)

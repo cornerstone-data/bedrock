@@ -179,6 +179,7 @@ control rescales a column without moving one share within it.
 from __future__ import annotations
 
 import functools
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -271,6 +272,52 @@ THETA_497 = 1.0
 #: it carries asphalt, lubricants and waxes, which are not combusted and are
 #: substitutable, and MECS's 1.087 for it is measured on coal coke alone.
 INDISPENSABLE_COMMODITIES = ('211000', '212100', '221100', '221200', '324110')
+
+#: The scrap row, which :data:`UNPRICED_COMMODITIES` leaves at a factor of 1.0.
+SCRAP_COMMODITY = 'S00401'
+
+#: The last Economic Census the materials seed reads. Past it the seed holds the
+#: census mix at this year's dollars.
+LAST_MATERIALS_CENSUS = 2022
+
+#: The metal-scrap buyers and the BLS PPI that prices what each one buys (#768).
+#:
+#: ⚠️ **The census seeds the scrap row and then holds it.** ``materials_seed``
+#: puts 98.9% of ``S00401`` on observed cells, and after
+#: :data:`LAST_MATERIALS_CENSUS` it holds the 2022 dollars flat. Because the
+#: cells are observed, the price carry is off, and scrap has no BEA price index
+#: to carry on in any case. 2022 was the scrap price peak: iron and steel scrap
+#: fell to 0.906 of it in 2023 and 0.844 in 2024.
+#:
+#: These five columns buy **86.4%** of the 2022 row -- steel 77.0%, aluminum
+#: 9.5%. The rest is deliberately left held:
+#:
+#: - ``322xxx`` paper mills (about 7.5%) buy **wastepaper**, which neither metal
+#:   index prices.
+#: - ``3314xx`` buy copper scrap, and ``331520`` nonferrous foundries buy mixed
+#:   metals, which neither index prices cleanly.
+#:
+#: ❌ ``WPU10230103`` is yellow brass scrap, not aluminum, and ``WPU1017`` is
+#: steel mill products, not scrap. Both are easy to mistake for these.
+SCRAP_PPI_BY_BUYER = {
+    '331110': 'WPU1012',  # iron and steel mills and ferroalloy
+    '331200': 'WPU1012',  # steel products from purchased steel
+    '331510': 'WPU1012',  # ferrous metal foundries
+    '331314': 'WPU102302',  # secondary smelting and alloying of aluminum
+    '33131B': 'WPU102302',  # aluminum products from purchased aluminum
+}
+
+#: Annual averages of the two scrap PPIs, from the BLS public API v2 (period
+#: ``M13``), retrieved 2026-09-28 and checked against the published series on
+#: data.bls.gov. Sourced as a small CSV, not an extractor: two series, eight
+#: years.
+SCRAP_PPI_CSV = (
+    Path(__file__).resolve().parents[2]
+    / 'extract'
+    / 'bls'
+    / 'data'
+    / 'bls_ppi_scrap_annual.csv'
+)
 
 
 def _require_year(year: int) -> None:
@@ -893,6 +940,68 @@ def observed_cells(year: int) -> pd.DataFrame:
     return composed_seed_and_observed(year)[1]
 
 
+@functools.cache
+def scrap_ppi() -> pd.DataFrame:
+    """The two scrap PPIs, ``year x series_id``; see :data:`SCRAP_PPI_CSV`."""
+    table = pd.read_csv(SCRAP_PPI_CSV, dtype={'series_id': str})
+    return table.pivot(index='year', columns='series_id', values='annual_average')
+
+
+def held_scrap_price_factor(year: int) -> pd.Series:
+    """``PPI(year) / PPI(2022)`` for each buyer in :data:`SCRAP_PPI_BY_BUYER`.
+
+    Exactly 1.0 up to :data:`LAST_MATERIALS_CENSUS`. Through that year the
+    census interpolation already carries the nominal scrap level.
+    """
+    buyers = pd.Series(SCRAP_PPI_BY_BUYER, name='series_id')
+    if year <= LAST_MATERIALS_CENSUS:
+        return pd.Series(1.0, index=buyers.index, name='factor')
+    ppi = scrap_ppi()
+    if year not in ppi.index:
+        raise ValueError(
+            f'no scrap PPI for {year}; {SCRAP_PPI_CSV.name} covers '
+            f'{int(ppi.index.min())}-{int(ppi.index.max())}'
+        )
+    now = ppi.loc[[year]].to_numpy(dtype=float)[0]
+    then = ppi.loc[[LAST_MATERIALS_CENSUS]].to_numpy(dtype=float)[0]
+    relative = dict(zip(ppi.columns, now / then, strict=True))
+    factor = buyers.map(relative).astype(float)
+    factor.name = 'factor'
+    factor.index.name = 'industry'
+    return factor
+
+
+def _carry_held_scrap(
+    seed: pd.DataFrame, observed: pd.DataFrame, year: int
+) -> pd.DataFrame:
+    """Move the held metal-scrap cells on their PPI from 2022 (#768).
+
+    ``seed[S00401, j] * (PPI(year) / PPI(2022)) ** theta`` on the observed
+    cells of :data:`SCRAP_PPI_BY_BUYER`. Everything else is untouched.
+
+    ⚠️ **This is not a second carry on an observed cell.** Past 2022 the census
+    seed holds 2022 dollars, so no price movement from 2022 on is in the cell
+    yet. This supplies that movement once, from the year the census stops, and
+    the observed mask still keeps the BEA carry off the cell.
+
+    ``theta`` is :func:`default_theta`, so the retired regime rule turns this
+    into the identity in the years it sets theta to 0, as it should.
+    """
+    factor = held_scrap_price_factor(year) ** default_theta(year)
+    columns = [
+        c
+        for c in factor.index
+        if c in seed.columns and bool(observed.at[SCRAP_COMMODITY, c])
+    ]
+    if not columns:
+        return seed
+    out = seed.copy()
+    for column in columns:
+        held = float(np.asarray(out.at[SCRAP_COMMODITY, column]).item())
+        out.at[SCRAP_COMMODITY, column] = held * float(factor[column])
+    return out
+
+
 def carried_column_shares(
     year: int, theta: float | pd.DataFrame | None = None, margins: bool = True
 ) -> pd.DataFrame:
@@ -921,6 +1030,10 @@ def carried_column_shares(
     """
     given: float | pd.DataFrame = default_theta(year) if theta is None else theta
     seed, observed = composed_seed_and_observed(year)
+    # Like the pin below, this belongs to the default rule: an explicit theta is
+    # the caller's own experiment and is left alone.
+    if theta is None and get_usa_config().carry_held_scrap_on_ppi:
+        seed = _carry_held_scrap(seed, observed, year)
     if isinstance(given, pd.DataFrame):
         exponent = given.reindex(index=seed.index, columns=seed.columns).fillna(0.0)
     else:
