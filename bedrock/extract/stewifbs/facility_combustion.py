@@ -569,8 +569,9 @@ def build_facility_combustion(
     ghgrp['FRS_ID'] = ghgrp['FacilityID'].map(ghgrp_frs)
     nei['FRS_ID'] = nei['FacilityID'].map(nei_frs)
 
-    # Same-address sites the FRS match missed. Both inventories are read at the
-    # GHGRP year, matching the previous match step.
+    # Same-address sites the FRS match missed. Roster year follows each
+    # inventory (GHGRP *year*, NEI *nei_year*) so carried-forward NEI years
+    # (e.g. 2023/24 → NEI 2022) do not request a missing NEI facility file.
     linked = set(nei['FRS_ID'].dropna())
     left = ghgrp[ghgrp['FRS_ID'].notna() & ~ghgrp['FRS_ID'].isin(linked)]
     covered_before = set(ghgrp['FRS_ID'].dropna())
@@ -582,9 +583,14 @@ def build_facility_combustion(
             ('GHGRP', left['FacilityID']),
             ('NEI', right['FacilityID']),
         ):
+            roster_year = nei_year if inventory == 'NEI' else year
             roster = stewi.getInventoryFacilities(
-                inventory, year, download_if_missing=True
+                inventory, roster_year, download_if_missing=True
             )
+            if roster is None or getattr(roster, 'empty', True):
+                raise ValueError(
+                    f'no {inventory} facility roster for {roster_year}'
+                )
             out = pd.DataFrame(
                 {
                     'FacilityID': roster['FacilityID'].astype(str),
