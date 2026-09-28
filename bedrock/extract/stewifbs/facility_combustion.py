@@ -335,7 +335,8 @@ def apply_pre2021_fuel_flowable_shares(
             basis_anchor_a_facility='facility',
         )
         share_rows = []
-        for fid, basis in graded['split_basis'].items():
+        for fid_key, basis in graded['split_basis'].items():
+            fid = str(fid_key)
             if basis == 'facility' and fid in tables['facility'].index:
                 share_rows.append(tables['facility'].loc[fid].rename(fid))
             elif basis == SPLIT_BASIS_NAICS6:
