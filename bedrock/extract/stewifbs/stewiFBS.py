@@ -414,8 +414,6 @@ def facility_combustion_to_sector(
             .astype(str)
             .str.replace(r'\.0$', '', regex=True),
             SectorConsumedBy=np.nan,
-            ActivityConsumedBy=np.nan,
-            ActivityProducedBy=np.nan,
             Class='Energy',
             Context='emission/air',
             Unit='kg',
@@ -440,8 +438,6 @@ def facility_combustion_to_sector(
                 'LocationSystem',
                 'SectorProducedBy',
                 'SectorConsumedBy',
-                'ActivityProducedBy',
-                'ActivityConsumedBy',
                 'MetaSources',
                 'SectorSourceName',
             ],
