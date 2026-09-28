@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import re
 from functools import lru_cache
+from typing import Any
 
 import facilitymatcher
 import numpy as np
@@ -40,6 +41,12 @@ import pandas as pd
 import stewi
 from facilitymatcher import colocation
 
+from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
+    SPLIT_BASIS_NAICS6,
+    SPLIT_BASIS_NONE,
+    SPLIT_BASIS_SECTOR,
+    _apply_combustion_process_share,
+)
 from bedrock.transform.ghg import ghgrp_subpart_w
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
@@ -192,8 +199,8 @@ def _flowable_share_frame(labeled: pd.DataFrame) -> pd.DataFrame:
     wide = (
         labeled.groupby(['FacilityID', 'Flowable'])['CO2e']
         .sum()
-        .unstack(fill_value=0.0)
-        .reindex(columns=list(_FUEL_FLOWABLES), fill_value=0.0)
+        .unstack(fill_value=0)
+        .reindex(columns=list(_FUEL_FLOWABLES), fill_value=0)
     )
     return wide.div(wide.sum(axis=1).replace(0.0, np.nan), axis=0).fillna(0.0)
 
@@ -230,7 +237,7 @@ def _scc_labeled_nei(year: int) -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def _fuel_flowable_share_tables() -> dict:
+def _fuel_flowable_share_tables() -> dict[str, Any]:
     """2021/2022 Flowable twin tables (same anchors / cascade as the diagnostics
     combustion/process backcast).
 
@@ -245,7 +252,10 @@ def _fuel_flowable_share_tables() -> dict:
     both_ids = shares_a.index.intersection(shares_b.index)
     facility = shares_a.copy()
     if len(both_ids):
-        facility.loc[both_ids] = (shares_a.loc[both_ids] + shares_b.loc[both_ids]) / 2.0
+        cols = list(_FUEL_FLOWABLES)
+        facility.loc[both_ids, cols] = (
+            shares_a.loc[both_ids, cols] + shares_b.loc[both_ids, cols]
+        ).to_numpy() / 2.0
 
     meta_a = rows_a.drop_duplicates('FacilityID').set_index('FacilityID')[
         ['NAICS', 'sector']
@@ -269,10 +279,10 @@ def _fuel_flowable_share_tables() -> dict:
 
 
 def _lookup_flowable_share_row(
-    facility_id,
-    naics,
-    sector,
-    tables: dict,
+    facility_id: object,
+    naics: object,
+    sector: object,
+    tables: dict[str, Any],
 ) -> pd.Series | None:
     """FacilityID → NAICS-6 → sector cascade (test / simple path)."""
     fac = tables['facility']
@@ -288,7 +298,7 @@ def _lookup_flowable_share_row(
 
 def apply_pre2021_fuel_flowable_shares(
     rows: pd.DataFrame,
-    tables: dict | None = None,
+    tables: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Split ``Flowable='Other'`` using 2021/2022 twin shares; keep levels.
 
@@ -304,13 +314,6 @@ def apply_pre2021_fuel_flowable_shares(
 
     # Production tables include twin membership sets; unit tests pass bare frames.
     if 'twin_both' in tables:
-        from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
-            SPLIT_BASIS_NAICS6,
-            SPLIT_BASIS_NONE,
-            SPLIT_BASIS_SECTOR,
-            _apply_combustion_process_share,
-        )
-
         keys = other.drop_duplicates('FacilityID').set_index('FacilityID')
         prior = pd.DataFrame(
             {
@@ -336,11 +339,11 @@ def apply_pre2021_fuel_flowable_shares(
             if basis == 'facility' and fid in tables['facility'].index:
                 share_rows.append(tables['facility'].loc[fid].rename(fid))
             elif basis == SPLIT_BASIS_NAICS6:
-                n6 = graded.loc[fid, 'naics6']
+                n6 = graded.at[fid, 'naics6']
                 if pd.notna(n6) and n6 in tables['naics'].index:
                     share_rows.append(tables['naics'].loc[n6].rename(fid))
             elif basis == SPLIT_BASIS_SECTOR:
-                sec = graded.loc[fid, 'sector']
+                sec = graded.at[fid, 'sector']
                 if pd.notna(sec) and sec in tables['sector'].index:
                     share_rows.append(tables['sector'].loc[sec].rename(fid))
             elif basis == SPLIT_BASIS_NONE:
@@ -353,7 +356,7 @@ def apply_pre2021_fuel_flowable_shares(
     else:
         by_fac = pd.DataFrame(columns=list(_FUEL_FLOWABLES))
 
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
     for row in other.to_dict('records'):
         fid = row['FacilityID']
         if fid in by_fac.index:

@@ -188,8 +188,7 @@ def test_prepare_carves_lease_and_splits_petroleum(
     )
     distillate = float(
         out.loc[
-            out['ActivityProducedBy']
-            == 'Petroleum Industrial - Distillate Fuel Oil',
+            out['ActivityProducedBy'] == 'Petroleum Industrial - Distillate Fuel Oil',
             'FlowAmount',
         ].sum()
     )

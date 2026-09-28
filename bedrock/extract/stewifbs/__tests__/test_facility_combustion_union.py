@@ -53,7 +53,7 @@ def test_union_prefer_ghgrp_filters_and_lease_append(
         }
     )
 
-    def fake_inventory(inventory, inv_year, **kwargs):
+    def fake_inventory(inventory: str, inv_year: int, **kwargs: object) -> pd.DataFrame:
         if inventory == 'NEI':
             return nei_raw.copy()
         return ghgrp_flows.copy()
@@ -105,7 +105,9 @@ def test_union_prefer_ghgrp_filters_and_lease_append(
         ),
     )
 
-    def fake_ghgrp_fuel_labels(ghgrp, nei, *a, **k):
+    def fake_ghgrp_fuel_labels(
+        ghgrp: pd.DataFrame, nei: pd.DataFrame, *a: object, **k: object
+    ) -> pd.DataFrame:
         # Prefer-GHGRP path: labeled GHGRP rows with FRS; Other on G_other for keep test.
         return pd.DataFrame(
             [
@@ -154,9 +156,7 @@ def test_union_prefer_ghgrp_filters_and_lease_append(
     monkeypatch.setattr(
         fc.ghgrp_subpart_w,
         'lease_and_plant_fuel',
-        lambda *a, **k: pd.DataFrame(
-            {'FacilityID': ['G_overlap'], 'CO2e': [5.0e9]}
-        ),
+        lambda *a, **k: pd.DataFrame({'FacilityID': ['G_overlap'], 'CO2e': [5.0e9]}),
     )
 
     out = fc.build_facility_combustion(
@@ -165,7 +165,6 @@ def test_union_prefer_ghgrp_filters_and_lease_append(
         keep_flowables=('Natural Gas', 'Natural Gas - lease and plant'),
     )
 
-    sources = out.groupby('source')['FacilityID'].apply(set).to_dict()
     # Overlapping FRS1: NEI N_overlap excluded; GHGRP kept.
     assert 'G_overlap' in set(out['FacilityID'])
     assert 'N_overlap' not in set(out['FacilityID'])
@@ -173,8 +172,7 @@ def test_union_prefer_ghgrp_filters_and_lease_append(
     assert 'G_power' not in set(out['FacilityID'])
     assert 'Other' not in set(out['Flowable'].astype(str))
     assert 'Natural Gas - lease and plant' in set(out['Flowable'].astype(str))
-    assert float(
-        out.loc[
-            out['Flowable'] == 'Natural Gas - lease and plant', 'CO2e'
-        ].sum()
-    ) == 5.0e9
+    assert (
+        float(out.loc[out['Flowable'] == 'Natural Gas - lease and plant', 'CO2e'].sum())
+        == 5.0e9
+    )

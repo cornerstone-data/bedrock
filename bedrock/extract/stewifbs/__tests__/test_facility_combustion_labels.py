@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import pytest
 
@@ -90,9 +92,7 @@ def test_ghgrp_fuel_labels_subpart_w_plant_and_nei_frs_shares(
         ]
     )
     per_facility = ghgrp.set_index('FacilityID')['CO2e']
-    subpart_c = pd.Series(
-        {'P1': 45.0, 'W1': 100.0, 'R1': 40.0}, name='CO2e'
-    )
+    subpart_c = pd.Series({'P1': 45.0, 'W1': 100.0, 'R1': 40.0}, name='CO2e')
     subpart_c.index.name = 'FacilityID'
 
     nei = pd.DataFrame(
@@ -120,9 +120,7 @@ def test_ghgrp_fuel_labels_subpart_w_plant_and_nei_frs_shares(
         ]
     )
 
-    out = fc.ghgrp_fuel_labels(
-        ghgrp, nei, per_facility, subpart_c, year, use_scc=True
-    )
+    out = fc.ghgrp_fuel_labels(ghgrp, nei, per_facility, subpart_c, year, use_scc=True)
     by_id = out.groupby('FacilityID')
 
     # W: 80 NG from subpart W + 20 process Other remainder of facility total.
@@ -135,7 +133,10 @@ def test_ghgrp_fuel_labels_subpart_w_plant_and_nei_frs_shares(
     assert list(p.loc[p['fuel_class'] == 'self_supplied', 'Flowable']) == [
         'Natural Gas'
     ]
-    assert abs(float(p.loc[p['fuel_class'] == 'self_supplied', 'CO2e'].sum()) - 45.0) < 1e-9
+    assert (
+        abs(float(p.loc[p['fuel_class'] == 'self_supplied', 'CO2e'].sum()) - 45.0)
+        < 1e-9
+    )
 
     # Remainder R1 split 25/75 Coal/Petroleum from NEI FRS shares.
     r = by_id.get_group('R1')
@@ -158,7 +159,9 @@ def test_build_applies_pre2021_twins_when_nei_before_scc_year(
     """nei_year < 2021 runs twin Flowable apply; 2021+ does not."""
     calls: list[int] = []
 
-    def fake_apply(rows, tables=None):
+    def fake_apply(
+        rows: pd.DataFrame, tables: dict[str, Any] | None = None
+    ) -> pd.DataFrame:
         calls.append(1)
         return rows
 
@@ -171,9 +174,7 @@ def test_build_applies_pre2021_twins_when_nei_before_scc_year(
                 'FacilityID': ['F1'],
                 'Process': ['C'] if inventory == 'GHGRP' else ['10200601'],
                 'FlowName': (
-                    ['Carbon Dioxide']
-                    if inventory == 'NEI'
-                    else ['Carbon Dioxide']
+                    ['Carbon Dioxide'] if inventory == 'NEI' else ['Carbon Dioxide']
                 ),
                 'FlowAmount': [1.0],
             }

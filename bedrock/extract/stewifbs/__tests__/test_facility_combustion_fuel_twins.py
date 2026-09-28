@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 
 from bedrock.extract.stewifbs.facility_combustion import (
@@ -9,7 +11,7 @@ from bedrock.extract.stewifbs.facility_combustion import (
 )
 
 
-def _simple_tables() -> dict:
+def _simple_tables() -> dict[str, Any]:
     """Bare tables (no twin sets) — direct FacilityID / NAICS / sector lookup."""
     return {
         'facility': pd.DataFrame(
@@ -67,9 +69,7 @@ def test_facility_twin_splits_other_conserves_level() -> None:
     assert abs(out['CO2e'].sum() - 140.0) < 1e-9
     assert (
         float(
-            out.loc[
-                out['Flowable'] == 'Natural Gas - lease and plant', 'CO2e'
-            ].iloc[0]
+            out.loc[out['Flowable'] == 'Natural Gas - lease and plant', 'CO2e'].iloc[0]
         )
         == 40.0
     )
