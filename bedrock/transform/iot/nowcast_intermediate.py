@@ -187,6 +187,7 @@ from bedrock.transform.iot.derived_intermediate_and_value_added import (
     derive_detail_value_added,
 )
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
@@ -230,6 +231,39 @@ UNPRICED_COMMODITIES = ('S00300', 'S00401', 'S00402', 'S00900')
 #: so a caller can ask for it explicitly and the two can be scored against each
 #: other. :func:`default_theta` is what the build uses.
 THETA_497 = 1.0
+
+#: Commodities with no short-run substitute, held at :data:`THETA_497` rather
+#: than at :func:`default_theta` (#891, #997).
+#:
+#: ⚠️ **theta is not "how much price movement to allow" -- it is which of two
+#: things is held fixed.** ``theta = 1`` freezes the **real** input mix and lets
+#: the nominal share move with price; ``theta = 0`` freezes the **nominal**
+#: share, which says real quantities moved inversely to price by the full
+#: amount. For a commodity an industry cannot do without, the second is a
+#: quantity response that did not happen, and the model books it as structural
+#: change.
+#:
+#: ✅ **Measured, not assumed.** MECS 2018 -> 2022 fits theta on manufacturing's
+#: own within-energy expenditure shares against its own published prices:
+#: **0.976** from Table 7.10's published expenditure and **1.091** from
+#: Table 3.2 x 7.2 reconstructed, two routes that share no arithmetic.
+#: Manufacturing is the *most* substitutable case in the table -- a boiler can
+#: move between gas, distillate and coal -- so a contractor's excavator or a
+#: carrier's tractor unit, which cannot switch at all, sits at 1.0 or above.
+#: The manufacturing fit is a lower bound for the rest.
+#:
+#: ⚠️ **This only reaches cells no survey answered.**
+#: :func:`composed_seed_and_observed` zeroes theta wherever a survey spoke, and
+#: on these rows that is 59-84% of the mass, all of it manufacturing. So the
+#: pin lands on the remaining $279.6bn -- 31% government, 17% special
+#: industries, 15% construction, 14% trade, 5% transport -- without naming a
+#: sector. Those are exactly the buyers with the least room to substitute and
+#: the ones no fuel survey observes.
+#:
+#: ``324199`` other petroleum and coal products is **deliberately excluded**:
+#: it carries asphalt, lubricants and waxes, which are not combusted and are
+#: substitutable, and MECS's 1.087 for it is measured on coal coke alone.
+INDISPENSABLE_COMMODITIES = ('211000', '212100', '221100', '221200', '324110')
 
 
 def _require_year(year: int) -> None:
@@ -791,6 +825,14 @@ def carried_column_shares(
     to the full purchaser deflator; ``theta=THETA_497, margins=False`` is #497
     as written.
 
+    ⚠️ **The indispensable rows do not take the default.** With
+    ``carry_indispensable_commodities_in_full`` on,
+    :data:`INDISPENSABLE_COMMODITIES` are pinned at :data:`THETA_497` -- read
+    that constant for why, and note the pin is applied *before* the observed
+    mask, so a survey-answered energy cell is still held at 0 and not carried
+    twice. Passing ``theta`` explicitly disables the pin: an explicit exponent
+    is the caller's own experiment and is not second-guessed.
+
     ⚠️ **A ``commodity x industry`` theta is accepted here, not only a scalar**,
     because the mask has to compose with it and a caller cannot apply both.  An
     earlier version tested the exponent for truthiness and cast it with
@@ -806,8 +848,15 @@ def carried_column_shares(
         exponent = given.reindex(index=seed.index, columns=seed.columns).fillna(0.0)
     else:
         exponent = pd.DataFrame(float(given), index=seed.index, columns=seed.columns)
+    # An explicit theta is the caller's own experiment and is left alone; the
+    # pin belongs to the default rule it is replacing.
+    if theta is None and get_usa_config().carry_indispensable_commodities_in_full:
+        rows = [c for c in INDISPENSABLE_COMMODITIES if c in exponent.index]
+        exponent.loc[rows, :] = THETA_497
     # ⚠️ A seeded cell is already nominal, so carrying it on price counts the
     # same movement twice. Hold the carry off wherever a survey spoke (#997).
+    # This runs last: an observed indispensable cell is nominal from the survey
+    # and must not be carried again, pin or no pin.
     exponent = exponent.mask(observed, 0.0)
     return carry_shares(seed, commodity_deflator(year, margins=margins), exponent)
 
@@ -912,6 +961,7 @@ __all__ = [
     'SUPPLY_VALUATION_COLUMNS',
     'THETA_497',
     'THETA_ACROSS_SURGE',
+    'INDISPENSABLE_COMMODITIES',
     'THETA_OFF_SURGE',
     'UNPRICED_COMMODITIES',
     'apply_column_control',
