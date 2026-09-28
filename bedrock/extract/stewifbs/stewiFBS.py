@@ -540,13 +540,16 @@ def _naics_amounts_at_industry_spec(
     )
     # Temporary MetaSources only to satisfy the weight-frame schema.
     fbs = FlowBySector(
-        frame, full_name='_hybrid_rollup', config=dict(config), convert_df_to_flowby=True
+        frame,
+        full_name='_hybrid_rollup',
+        config=dict(config),
+        convert_df_to_flowby=True,
     )
     rolled = pd.DataFrame(fbs.sector_aggregation())
     out = (
         rolled.rename(columns={'SectorConsumedBy': 'NAICS'})
-        .groupby('NAICS', as_index=False)['FlowAmount']
-        .sum()
+        .groupby('NAICS', as_index=False)
+        .agg(FlowAmount=('FlowAmount', 'sum'))
     )
     out['NAICS'] = out['NAICS'].astype(str)
     out['sector'] = out['NAICS'].map(bea_detail_for_naics)
@@ -567,9 +570,7 @@ def _hybrid_shares_for_flowable(
     min_coverage: float,
 ) -> pd.DataFrame:
     """Blend one fuel's facility + MECS amounts into renormalized NAICS shares."""
-    facility = facility_union[
-        facility_union['Flowable'].astype(str) == flowable
-    ].copy()
+    facility = facility_union[facility_union['Flowable'].astype(str) == flowable].copy()
     facility['NAICS'] = (
         facility['NAICS'].astype(str).str.replace(r'\.0$', '', regex=True)
     )
@@ -591,8 +592,8 @@ def _hybrid_shares_for_flowable(
         )
     mecs_w = _naics_amounts_at_industry_spec(
         mecs_fuel.assign(NAICS=mecs_fuel['SectorConsumedBy'].astype(str))
-        .groupby('NAICS', as_index=False)['FlowAmount']
-        .sum(),
+        .groupby('NAICS', as_index=False)
+        .agg(FlowAmount=('FlowAmount', 'sum')),
         config=config,
         flowable=flowable,
         year=year,
@@ -732,7 +733,9 @@ def hybrid_facility_mecs_to_sector(
             return None
         return tuple(str(x) for x in raw)
 
-    keep_flowables = _str_tuple('keep_flowables') or tuple(str(f) for f in flowables_cfg)
+    keep_flowables = _str_tuple('keep_flowables') or tuple(
+        str(f) for f in flowables_cfg
+    )
     union = build_facility_combustion(
         ghgrp_year,
         nei_year=nei_year,
