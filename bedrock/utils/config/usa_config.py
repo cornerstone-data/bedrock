@@ -193,14 +193,17 @@ class USAConfig(BaseModel):
     # indirect EF. No effect through 2022. See
     # bedrock.transform.iot.nowcast_intermediate SCRAP_PPI_BY_BUYER (#768).
     carry_held_scrap_on_ppi: bool = True  # DRI: WesIngwersen
-    # Carry the paper buyers' scrap cells (S00401, wastepaper) on the BLS
-    # recyclable-paper PPI (WPU0912) from 2017, in every year 2018-2024. The
-    # census measures metal scrap only, so these cells are BEA's 2017 values;
-    # they were wrongly flagged census-observed, which switched their price
-    # carry off and held wastepaper at 2017 dollars through 2024. Recyclable
-    # paper fell to 0.453 of 2017 in 2019 and 0.575 of 2022 in 2023. See
+    # Set the paper buyers' scrap cells (S00401, wastepaper) from measured
+    # quantity x price in every year 2018-2024: BEA's 2017 value times US
+    # recovered paper consumption (FAOSTAT, tracking AF&PA) times the BLS
+    # recyclable-paper PPI (WPU0912), both relative to 2017, as a share of the
+    # year's intermediate total. The census measures metal scrap only, so
+    # these cells are BEA's 2017 values; they were wrongly flagged
+    # census-observed and held at 2017 dollars through 2024. Consumption stays
+    # within 0.94-1.00 of 2017 while the price runs 0.45-1.08, so price alone
+    # would book a price swing as a swing in the mill's scrap intensity. See
     # bedrock.transform.iot.nowcast_intermediate BENCHMARK_SCRAP_PPI_BY_BUYER.
-    carry_benchmark_scrap_on_ppi: bool = True  # DRI: WesIngwersen
+    set_paper_scrap_from_recovered_paper: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

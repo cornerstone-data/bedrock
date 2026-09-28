@@ -315,7 +315,7 @@ SCRAP_PPI_BY_BUYER = {
 }
 
 #: Scrap buyers whose ``S00401`` cell is BEA's 2017 value, not a census
-#: measurement, and the PPI that prices it from 2017 in every year.
+#: measurement, and the PPI that prices it (#768).
 #:
 #: ⚠️ **The census measures metal scrap only.** Its five scrap material codes
 #: are iron and steel, aluminum, copper, precious metals and other nonferrous;
@@ -326,10 +326,16 @@ SCRAP_PPI_BY_BUYER = {
 #: year and left wastepaper at 2017 dollars through 2024.
 #:
 #: :func:`composed_seed_and_observed` now clears that flag, and
-#: :func:`carried_column_shares` carries the cell on recyclable paper
-#: (``WPU0912``), relative to 2017: 0.692 in 2018, 0.453 in 2019 (China's
-#: import ban), 0.612, 1.076, 1.000 in 2022, 0.575 and 0.920. These five
-#: columns buy 7.3% of the 2022 row.
+#: :func:`carried_column_shares` sets the cell's dollars to **measured quantity
+#: times price**, from 2017 in every year: BEA's 2017 value times US mills'
+#: recovered-paper consumption (:data:`RECOVERED_PAPER_CSV`) times recyclable
+#: paper's PPI (``WPU0912``), both relative to 2017.
+#:
+#: ⚠️ **Not price alone.** Mills do not swap recovered for virgin fiber with
+#: the price in any one year: consumption stays within 0.94-1.00 of 2017 while
+#: the price runs from 0.45 (2019, China's import ban) to 1.08. A price-only
+#: carry at theta = 1 would book the price swing as a swing in how much of the
+#: mill's inputs is scrap. These five columns buy 7.3% of the 2022 row.
 BENCHMARK_SCRAP_PPI_BY_BUYER = {
     '322110': 'WPU0912',  # pulp mills
     '322120': 'WPU0912',  # paper mills
@@ -337,6 +343,24 @@ BENCHMARK_SCRAP_PPI_BY_BUYER = {
     '322230': 'WPU0912',  # stationery product manufacturing
     '322299': 'WPU0912',  # all other converted paper products
 }
+
+#: US recovered paper from FAOSTAT's forestry domain (item "Recovered paper",
+#: bulk file ``Forestry_E_Americas``, retrieved 2026-09-28): production,
+#: imports and exports in tonnes. Apparent consumption, production + imports -
+#: exports, stands in for AF&PA's mill consumption, which is behind a
+#: subscription. Its year-on-year changes match the ones AF&PA publishes
+#: (2020-21: +4.1% against +3.9%; 2023-24: +4.4% against +4.1%); its level
+#: runs about 3 Mt below AF&PA's, and only the index is used.
+#:
+#: ⚠️ FAO's 2017 production equals its 2016 figure to the tonne, so it was
+#: probably carried forward. Interpolating 2016-2018 moves 2017 consumption by
+#: 0.3%, which is left as a known limitation rather than edited.
+RECOVERED_PAPER_CSV = (
+    Path(__file__).resolve().parents[2]
+    / 'extract'
+    / 'external_data'
+    / 'FAOSTAT_recovered_paper_USA.csv'
+)
 
 #: Annual averages of the three scrap PPIs, from the BLS public API v2 (period
 #: ``M13``), retrieved 2026-09-28. Titles checked against the BLS ``wp.item``
@@ -1012,10 +1036,32 @@ def held_scrap_price_factor(year: int) -> pd.Series:
     return _scrap_ppi_relative(SCRAP_PPI_BY_BUYER, year, LAST_MATERIALS_CENSUS)
 
 
-def benchmark_scrap_price_factor(year: int) -> pd.Series:
-    """``PPI(year) / PPI(2017)`` for each buyer in
-    :data:`BENCHMARK_SCRAP_PPI_BY_BUYER`, in every year."""
-    return _scrap_ppi_relative(BENCHMARK_SCRAP_PPI_BY_BUYER, year, SEED_YEAR)
+@functools.cache
+def recovered_paper_consumption() -> pd.Series:
+    """US apparent consumption of recovered paper by year, tonnes.
+
+    Production + imports - exports, from :data:`RECOVERED_PAPER_CSV`.
+    """
+    table = pd.read_csv(RECOVERED_PAPER_CSV).set_index('year')
+    consumed = table['production_t'] + table['import_t'] - table['export_t']
+    consumed.name = 'recovered_paper_t'
+    return consumed.astype(float)
+
+
+def benchmark_scrap_value_factor(year: int) -> pd.Series:
+    """``(Q(year) / Q(2017)) * (PPI(year) / PPI(2017))`` for each buyer in
+    :data:`BENCHMARK_SCRAP_PPI_BY_BUYER`: the scrap bill in year dollars
+    against 2017's, from measured quantity and price."""
+    consumed = recovered_paper_consumption()
+    if year not in consumed.index:
+        raise ValueError(
+            f'no recovered paper consumption for {year}; '
+            f'{RECOVERED_PAPER_CSV.name} covers '
+            f'{int(consumed.index.min())}-{int(consumed.index.max())}'
+        )
+    quantity = float(consumed[year] / consumed[SEED_YEAR])
+    price = _scrap_ppi_relative(BENCHMARK_SCRAP_PPI_BY_BUYER, year, SEED_YEAR)
+    return price * quantity
 
 
 def _scale_scrap_cells(
@@ -1056,27 +1102,48 @@ def _carry_held_scrap(
     return _scale_scrap_cells(seed, factor, columns)
 
 
-def _carry_benchmark_scrap(
-    seed: pd.DataFrame, observed: pd.DataFrame, year: int
+def set_benchmark_scrap_shares(
+    shares: pd.DataFrame, control: pd.Series, year: int
 ) -> pd.DataFrame:
-    """Carry the benchmark wastepaper cells on recyclable paper from 2017.
+    """Set each paper buyer's scrap share from measured quantity and price.
 
-    ``seed[S00401, j] * (PPI(year) / PPI(2017)) ** theta`` on the columns of
-    :data:`BENCHMARK_SCRAP_PPI_BY_BUYER`. This is the price carry these cells
-    would get if scrap had a BEA price index: they hold 2017 dollars, so the
-    movement is taken from 2017, in every year.
+    The target is ``Use2017[S00401, j] * benchmark_scrap_value_factor(year)[j]
+    / control[j]``: BEA's 2017 dollars moved on recovered-paper consumption and
+    price, as a share of this year's intermediate total. The column's other
+    cells are rescaled together so it still sums to one.
 
-    ⚠️ **Only unobserved cells.** If a survey ever does write one, its value is
-    nominal already and carrying it would count the price twice; such a cell
-    is skipped.
+    Run on the carried shares and not on the seed, because the target needs
+    the column total, and the seed holds every census column at its 2017 total.
+
+    ⚠️ **The rest of the column absorbs the difference.** With the total fixed,
+    a lower scrap bill raises every other input's share by the same factor. It
+    is right only if the total is: see :data:`SCRAP_PPI_BY_BUYER`.
+
+    The identity at 2017, where the benchmark already is the answer.
     """
-    factor = benchmark_scrap_price_factor(year) ** default_theta(year)
-    columns = [
-        c
-        for c in factor.index
-        if c in seed.columns and not bool(observed.at[SCRAP_COMMODITY, c])
-    ]
-    return _scale_scrap_cells(seed, factor, columns)
+    if year == SEED_YEAR:
+        return shares
+    bench = benchmark_intermediate()
+    factor = benchmark_scrap_value_factor(year)
+    out = shares.copy()
+    for column in factor.index:
+        if column not in out.columns:
+            continue
+        total = float(control[column])
+        base = float(np.asarray(bench.at[SCRAP_COMMODITY, column]).item())
+        if total <= 0 or base == 0:
+            continue
+        target = base * float(factor[column]) / total
+        current = float(np.asarray(out.at[SCRAP_COMMODITY, column]).item())
+        if not 0 <= target < 1 or current >= 1:
+            raise ValueError(
+                f'{column} {year}: scrap share {target:.4f} from quantity and '
+                f'price cannot be placed in a column whose scrap share is '
+                f'{current:.4f}'
+            )
+        out[column] = out[column] * ((1 - target) / (1 - current))
+        out.at[SCRAP_COMMODITY, column] = target
+    return out
 
 
 def carried_column_shares(
@@ -1111,8 +1178,6 @@ def carried_column_shares(
     # the caller's own experiment and is left alone.
     if theta is None and get_usa_config().carry_held_scrap_on_ppi:
         seed = _carry_held_scrap(seed, observed, year)
-    if theta is None and get_usa_config().carry_benchmark_scrap_on_ppi:
-        seed = _carry_benchmark_scrap(seed, observed, year)
     if isinstance(given, pd.DataFrame):
         exponent = given.reindex(index=seed.index, columns=seed.columns).fillna(0.0)
     else:
@@ -1177,9 +1242,12 @@ def derive_intermediate_use(
     control = (
         intermediate_column_control(year) if column_control is None else column_control
     )
-    block = apply_column_control(
-        carried_column_shares(year, theta, margins=margins), control
-    )
+    shares = carried_column_shares(year, theta, margins=margins)
+    # Like the scrap and energy steps in carried_column_shares, this belongs to
+    # the default rule: an explicit theta is the caller's own experiment.
+    if theta is None and get_usa_config().set_paper_scrap_from_recovered_paper:
+        shares = set_benchmark_scrap_shares(shares, control, year)
+    block = apply_column_control(shares, control)
     from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
         overlay_s00300_intermediate_block,
     )
