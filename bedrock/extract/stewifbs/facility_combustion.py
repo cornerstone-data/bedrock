@@ -279,9 +279,9 @@ def _fuel_flowable_share_tables() -> dict[str, Any]:
 
 
 def _lookup_flowable_share_row(
-    facility_id: object,
-    naics: object,
-    sector: object,
+    facility_id: Any,
+    naics: Any,
+    sector: Any,
     tables: dict[str, Any],
 ) -> pd.Series | None:
     """FacilityID → NAICS-6 → sector cascade (test / simple path)."""
@@ -339,11 +339,11 @@ def apply_pre2021_fuel_flowable_shares(
             if basis == 'facility' and fid in tables['facility'].index:
                 share_rows.append(tables['facility'].loc[fid].rename(fid))
             elif basis == SPLIT_BASIS_NAICS6:
-                n6 = graded.at[fid, 'naics6']
+                n6 = graded['naics6'].loc[fid]
                 if pd.notna(n6) and n6 in tables['naics'].index:
                     share_rows.append(tables['naics'].loc[n6].rename(fid))
             elif basis == SPLIT_BASIS_SECTOR:
-                sec = graded.at[fid, 'sector']
+                sec = graded['sector'].loc[fid]
                 if pd.notna(sec) and sec in tables['sector'].index:
                     share_rows.append(tables['sector'].loc[sec].rename(fid))
             elif basis == SPLIT_BASIS_NONE:
@@ -356,7 +356,7 @@ def apply_pre2021_fuel_flowable_shares(
     else:
         by_fac = pd.DataFrame(columns=list(_FUEL_FLOWABLES))
 
-    records: list[dict[str, Any]] = []
+    records: list[Any] = []
     for row in other.to_dict('records'):
         fid = row['FacilityID']
         if fid in by_fac.index:
