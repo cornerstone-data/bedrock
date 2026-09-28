@@ -117,15 +117,21 @@ def ghgrp_subpart_C_by_sector(year: int) -> pd.Series:
     return out.drop(index='221100', errors='ignore')
 
 
-def ghgrp_subpart_W_by_sector(year: int) -> pd.Series:
-    """Subpart W combustion by BEA detail, Mt CO2e, for one year."""
+def ghgrp_subpart_W_by_sector(year: int, *, nei_year: int | None = None) -> pd.Series:
+    """Subpart W combustion by BEA detail, Mt CO2e, for one year.
+
+    *nei_year* is only used because :func:`facility_sectors` loads both
+    inventories; pass the coverage NEI year (e.g. 2022 for 2023/24) so a
+    missing NEI_<ghgrp_year> facility file is not requested.
+    """
     burned = ghgrp_subpart_w.subpart_W_combustion((year,))
     if burned.empty:
         return pd.Series(dtype=float)
     year_rows = burned[burned['year'] == year]
     if year_rows.empty:
         return pd.Series(dtype=float)
-    _nei_sectors, ghgrp_sectors = facility_sectors(year, year)
+    roster_nei = int(nei_year if nei_year is not None else year)
+    _nei_sectors, ghgrp_sectors = facility_sectors(roster_nei, year)
     placed = (
         year_rows.groupby('FacilityID')['CO2e']
         .sum()
@@ -139,10 +145,10 @@ def ghgrp_subpart_W_by_sector(year: int) -> pd.Series:
     return out.drop(index='221100', errors='ignore')
 
 
-def ghgrp_combustion_floor(year: int) -> pd.Series:
+def ghgrp_combustion_floor(year: int, *, nei_year: int | None = None) -> pd.Series:
     """Subpart C + subpart W combustion floor by BEA sector, Mt CO2e."""
     subpart_c = ghgrp_subpart_C_by_sector(year)
-    subpart_w = ghgrp_subpart_W_by_sector(year)
+    subpart_w = ghgrp_subpart_W_by_sector(year, nei_year=nei_year)
     if subpart_w.empty:
         return subpart_c
     return subpart_c.add(subpart_w, fill_value=0.0)
@@ -168,7 +174,7 @@ def facility_coverage_bands(
         sector_prefixes=FACILITY_SCOPE_PREFIXES,
         exclude_sectors=('221100',),
     )
-    floor = ghgrp_combustion_floor(year)
+    floor = ghgrp_combustion_floor(year, nei_year=nei_year)
 
     nei = union[
         (union['source'] == 'NEI') & union['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
