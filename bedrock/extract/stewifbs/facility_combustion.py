@@ -18,9 +18,12 @@ This code includes:
   combustion/process backcast: FacilityID mean, else NAICS-6, else sector).
 - **Prefer GHGRP** on ``FRS_ID``; NEI-only facilities fill the residual.
   Same-site address fallback recovers links FRS missed.
-- **CO2e for weights:** GHGRP CO2/CH4/N2O collapsed with AR6 CEDA GWPs so
-  multi-gas facilities can share with NEI CO2. Prefer-GHGRP ``Flowable`` stays
-  the bare fuel name (``Petroleum``, ``Natural Gas``, ``Coal``).
+- **CO2e for weights:** GHGRP CO2/CH4/N2O collapsed with IPCC AR5 100-year
+  GWPs so multi-gas facilities can share with NEI CO2 on the same basis as
+  UMD GHGIA (AR5; see
+  https://ghgi.cgs.umd.edu/Web%20Content/Chapters/GHGIA_FullReport_2026.pdf).
+  Prefer-GHGRP ``Flowable`` stays the bare fuel name (``Petroleum``,
+  ``Natural Gas``, ``Coal``).
 - **Share-weight rows:** GHGRP lease/plant natural gas is appended for YAML
   selection only as ``Flowable: Natural Gas - lease and plant`` (FBS has no
   ``Description`` field). Those tonnes are excluded from the logged prefer-GHGRP
@@ -49,7 +52,7 @@ from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
 )
 from bedrock.transform.ghg import ghgrp_subpart_w
 from bedrock.utils.config.common import load_crosswalk
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR5
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import filter_to_model_geography
 
@@ -62,9 +65,10 @@ FACILITY_SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
 NEI_FUEL_CLASS_FIRST_YEAR = 2021
 _FUEL_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum', 'Other')
 
+# GWP100_AR5.
 GHGRP_FLOW_MAP = {
     'Carbon Dioxide': 'CO2',
-    'Methane': 'CH4_fossil',
+    'Methane': 'CH4',
     'Nitrous Oxide': 'N2O',
 }
 
@@ -533,7 +537,7 @@ def build_facility_combustion(
         # Same-year levels; Flowable from 2021/2022 twin shares.
         nei = apply_pre2021_fuel_flowable_shares(nei)
 
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR5.items()}
     flows = flows[
         ~flows['Process'].isin(GHGRP_EXCLUDED_SUBPARTS)
         & flows['FlowName'].isin(GHGRP_FLOW_MAP)
