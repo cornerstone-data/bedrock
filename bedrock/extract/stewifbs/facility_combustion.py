@@ -587,10 +587,8 @@ def build_facility_combustion(
             roster = stewi.getInventoryFacilities(
                 inventory, roster_year, download_if_missing=True
             )
-            if roster is None or getattr(roster, 'empty', True):
-                raise ValueError(
-                    f'no {inventory} facility roster for {roster_year}'
-                )
+            if roster is None:
+                raise ValueError(f'no {inventory} facility roster for {roster_year}')
             out = pd.DataFrame(
                 {
                     'FacilityID': roster['FacilityID'].astype(str),
