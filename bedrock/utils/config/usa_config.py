@@ -178,17 +178,24 @@ class USAConfig(BaseModel):
     # be re-runnable rather than only argued. See
     # bedrock.transform.iot.nowcast_intermediate.default_theta (#699, #891, #997).
     use_fitted_summary_regime_theta: bool = False  # DRI: WesIngwersen
-    # Move the census-held scrap cells (S00401) of the steel, aluminum and
-    # paper buyers from 2022 on the BLS PPIs (WPU1012 iron and steel scrap,
-    # WPU102302 aluminum base scrap, WPU0912 recyclable paper) for years after
-    # the 2022 Economic Census. The census seed holds 2022 dollars past 2022,
-    # near the scrap price peak (steel scrap 0.844 of 2022 by 2024, recyclable
-    # paper 0.575 in 2023), so without this the scrap share of these buyers'
-    # inputs stays at the peak. Because the column total is fixed, the other
-    # inputs' shares rise instead, which raises these buyers' indirect EF. No
-    # effect through 2022. See bedrock.transform.iot.nowcast_intermediate
-    # SCRAP_PPI_BY_BUYER (#768).
+    # Move the census-held scrap cells (S00401) of the steel and aluminum
+    # buyers from 2022 on the BLS PPIs (WPU1012 iron and steel scrap,
+    # WPU102302 aluminum base scrap) for years after the 2022 Economic Census.
+    # The census seed holds 2022 dollars past 2022, near the scrap price peak
+    # (steel scrap 0.844 of 2022 by 2024), so without this the scrap share of
+    # these buyers' inputs stays at the peak. Because the column total is
+    # fixed, the other inputs' shares rise instead, which raises these buyers'
+    # indirect EF. No effect through 2022. See
+    # bedrock.transform.iot.nowcast_intermediate SCRAP_PPI_BY_BUYER (#768).
     carry_held_scrap_on_ppi: bool = True  # DRI: WesIngwersen
+    # Carry the paper buyers' scrap cells (S00401, wastepaper) on the BLS
+    # recyclable-paper PPI (WPU0912) from 2017, in every year 2018-2024. The
+    # census measures metal scrap only, so these cells are BEA's 2017 values;
+    # they were wrongly flagged census-observed, which switched their price
+    # carry off and held wastepaper at 2017 dollars through 2024. Recyclable
+    # paper fell to 0.453 of 2017 in 2019 and 0.575 of 2022 in 2023. See
+    # bedrock.transform.iot.nowcast_intermediate BENCHMARK_SCRAP_PPI_BY_BUYER.
+    carry_benchmark_scrap_on_ppi: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).

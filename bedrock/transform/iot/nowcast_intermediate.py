@@ -280,28 +280,29 @@ SCRAP_COMMODITY = 'S00401'
 #: census mix at this year's dollars.
 LAST_MATERIALS_CENSUS = 2022
 
-#: The scrap buyers and the BLS PPI that prices what each one buys (#768).
+#: The census-measured scrap buyers and the BLS PPI that prices what each one
+#: buys (#768).
 #:
 #: ⚠️ **The census seeds the scrap row and then holds it.** ``materials_seed``
-#: puts 98.9% of ``S00401`` on observed cells, and after
-#: :data:`LAST_MATERIALS_CENSUS` it holds the 2022 dollars flat. Because the
-#: cells are observed, the price carry is off, and scrap has no BEA price index
-#: to carry on in any case. Against 2022, iron and steel scrap is at 0.906 in
-#: 2023 and 0.844 in 2024; recyclable paper at 0.575 and 0.920.
+#: writes the metal-scrap cells, and after :data:`LAST_MATERIALS_CENSUS` it
+#: holds the 2022 dollars flat. Because the cells are observed, the price carry
+#: is off, and scrap has no BEA price index to carry on in any case. Against
+#: 2022, iron and steel scrap is at 0.906 in 2023 and 0.844 in 2024.
 #:
-#: These ten columns buy **93.7%** of the 2022 row: steel 77.0%, aluminum 9.5%,
-#: paper 7.3%. The rest is deliberately left held. ``3314xx`` and ``331520``
-#: buy copper or mixed nonferrous scrap, and copper base scrap (``WPU102301``)
-#: barely moved (0.988, 1.062), so pricing it changes no column by 0.5%.
+#: These five columns buy **86.4%** of the 2022 row: steel 77.0%, aluminum
+#: 9.5%. ``3314xx`` and ``331520`` buy copper or mixed nonferrous scrap and are
+#: left held: copper base scrap (``WPU102301``) barely moved (0.988, 1.062), so
+#: pricing it changes no column by 0.5%. Paper's scrap is not census-measured
+#: and is handled separately, in :data:`BENCHMARK_SCRAP_PPI_BY_BUYER`.
 #:
 #: ⚠️ **What this does to the other inputs, and so to the EF.** The column
 #: total is set by the gross-output control, so a smaller scrap share raises
-#: every other input's share of the column: steel mills' by x1.084 in 2024,
-#: paperboard mills' by x1.045 in 2023. Scrap is not a Cornerstone commodity,
-#: so this moves dollars from a zero-emission input to priced ones and raises
-#: the buyer's indirect EF by about those factors. It assumes the fixed total is
-#: right: a cheaper input should partly show up as wider value added instead,
-#: which only holds if BEA's value added for the year captured it.
+#: every other input's share of the column: steel mills' by x1.084 in 2024.
+#: Scrap is not a Cornerstone commodity, so this moves dollars from a
+#: zero-emission input to priced ones and raises the buyer's indirect EF by
+#: about that factor. It assumes the fixed total is right: a cheaper input
+#: should partly show up as wider value added instead, which only holds if
+#: BEA's value added for the year captured it.
 #:
 #: ❌ ``WPU10230103`` is yellow brass scrap, not aluminum, and ``WPU1017`` is
 #: steel mill products, not scrap. Both are easy to mistake for these.
@@ -311,6 +312,25 @@ SCRAP_PPI_BY_BUYER = {
     '331510': 'WPU1012',  # ferrous metal foundries
     '331314': 'WPU102302',  # secondary smelting and alloying of aluminum
     '33131B': 'WPU102302',  # aluminum products from purchased aluminum
+}
+
+#: Scrap buyers whose ``S00401`` cell is BEA's 2017 value, not a census
+#: measurement, and the PPI that prices it from 2017 in every year.
+#:
+#: ⚠️ **The census measures metal scrap only.** Its five scrap material codes
+#: are iron and steel, aluminum, copper, precious metals and other nonferrous;
+#: it has no wastepaper code. So the paper columns' scrap is BEA's 2017
+#: wastepaper, which the materials seed only rescales with the rest of the
+#: column: 322130's is $2.355bn in 2017 and $2.367bn in 2022. That rescaling
+#: used to flag the cell observed, which switched its price carry off in every
+#: year and left wastepaper at 2017 dollars through 2024.
+#:
+#: :func:`composed_seed_and_observed` now clears that flag, and
+#: :func:`carried_column_shares` carries the cell on recyclable paper
+#: (``WPU0912``), relative to 2017: 0.692 in 2018, 0.453 in 2019 (China's
+#: import ban), 0.612, 1.076, 1.000 in 2022, 0.575 and 0.920. These five
+#: columns buy 7.3% of the 2022 row.
+BENCHMARK_SCRAP_PPI_BY_BUYER = {
     '322110': 'WPU0912',  # pulp mills
     '322120': 'WPU0912',  # paper mills
     '322130': 'WPU0912',  # paperboard mills
@@ -928,6 +948,10 @@ def composed_seed_and_observed(year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         moved = (after_share - before_share).abs() > (1e-9 + 1e-6 * before_share.abs())
         base.loc[rows, columns] = after
         observed.loc[rows, columns] = moved.fillna(False)
+    # No survey measures these cells; a column rescale moved them. See
+    # BENCHMARK_SCRAP_PPI_BY_BUYER.
+    unmeasured = [c for c in BENCHMARK_SCRAP_PPI_BY_BUYER if c in observed.columns]
+    observed.loc[SCRAP_COMMODITY, unmeasured] = False
     return base, observed
 
 
@@ -959,28 +983,52 @@ def scrap_ppi() -> pd.DataFrame:
     return table.pivot(index='year', columns='series_id', values='annual_average')
 
 
+def _scrap_ppi_relative(buyers: dict[str, str], year: int, base: int) -> pd.Series:
+    """``PPI(year) / PPI(base)`` for each buyer, on the series it is mapped to."""
+    ppi = scrap_ppi()
+    for needed in (year, base):
+        if needed not in ppi.index:
+            raise ValueError(
+                f'no scrap PPI for {needed}; {SCRAP_PPI_CSV.name} covers '
+                f'{int(ppi.index.min())}-{int(ppi.index.max())}'
+            )
+    now = ppi.loc[[year]].to_numpy(dtype=float)[0]
+    then = ppi.loc[[base]].to_numpy(dtype=float)[0]
+    relative = dict(zip(ppi.columns, now / then, strict=True))
+    factor = pd.Series(buyers, name='series_id').map(relative).astype(float)
+    factor.name = 'factor'
+    factor.index.name = 'industry'
+    return factor
+
+
 def held_scrap_price_factor(year: int) -> pd.Series:
     """``PPI(year) / PPI(2022)`` for each buyer in :data:`SCRAP_PPI_BY_BUYER`.
 
     Exactly 1.0 up to :data:`LAST_MATERIALS_CENSUS`. Through that year the
     census interpolation already carries the nominal scrap level.
     """
-    buyers = pd.Series(SCRAP_PPI_BY_BUYER, name='series_id')
     if year <= LAST_MATERIALS_CENSUS:
-        return pd.Series(1.0, index=buyers.index, name='factor')
-    ppi = scrap_ppi()
-    if year not in ppi.index:
-        raise ValueError(
-            f'no scrap PPI for {year}; {SCRAP_PPI_CSV.name} covers '
-            f'{int(ppi.index.min())}-{int(ppi.index.max())}'
-        )
-    now = ppi.loc[[year]].to_numpy(dtype=float)[0]
-    then = ppi.loc[[LAST_MATERIALS_CENSUS]].to_numpy(dtype=float)[0]
-    relative = dict(zip(ppi.columns, now / then, strict=True))
-    factor = buyers.map(relative).astype(float)
-    factor.name = 'factor'
-    factor.index.name = 'industry'
-    return factor
+        return pd.Series(1.0, index=list(SCRAP_PPI_BY_BUYER), name='factor')
+    return _scrap_ppi_relative(SCRAP_PPI_BY_BUYER, year, LAST_MATERIALS_CENSUS)
+
+
+def benchmark_scrap_price_factor(year: int) -> pd.Series:
+    """``PPI(year) / PPI(2017)`` for each buyer in
+    :data:`BENCHMARK_SCRAP_PPI_BY_BUYER`, in every year."""
+    return _scrap_ppi_relative(BENCHMARK_SCRAP_PPI_BY_BUYER, year, SEED_YEAR)
+
+
+def _scale_scrap_cells(
+    seed: pd.DataFrame, factor: pd.Series, columns: list[str]
+) -> pd.DataFrame:
+    """``seed[S00401, j] * factor[j]`` on *columns*; a copy, never in place."""
+    if not columns:
+        return seed
+    out = seed.copy()
+    for column in columns:
+        held = float(np.asarray(out.at[SCRAP_COMMODITY, column]).item())
+        out.at[SCRAP_COMMODITY, column] = held * float(factor[column])
+    return out
 
 
 def _carry_held_scrap(
@@ -1005,13 +1053,30 @@ def _carry_held_scrap(
         for c in factor.index
         if c in seed.columns and bool(observed.at[SCRAP_COMMODITY, c])
     ]
-    if not columns:
-        return seed
-    out = seed.copy()
-    for column in columns:
-        held = float(np.asarray(out.at[SCRAP_COMMODITY, column]).item())
-        out.at[SCRAP_COMMODITY, column] = held * float(factor[column])
-    return out
+    return _scale_scrap_cells(seed, factor, columns)
+
+
+def _carry_benchmark_scrap(
+    seed: pd.DataFrame, observed: pd.DataFrame, year: int
+) -> pd.DataFrame:
+    """Carry the benchmark wastepaper cells on recyclable paper from 2017.
+
+    ``seed[S00401, j] * (PPI(year) / PPI(2017)) ** theta`` on the columns of
+    :data:`BENCHMARK_SCRAP_PPI_BY_BUYER`. This is the price carry these cells
+    would get if scrap had a BEA price index: they hold 2017 dollars, so the
+    movement is taken from 2017, in every year.
+
+    ⚠️ **Only unobserved cells.** If a survey ever does write one, its value is
+    nominal already and carrying it would count the price twice; such a cell
+    is skipped.
+    """
+    factor = benchmark_scrap_price_factor(year) ** default_theta(year)
+    columns = [
+        c
+        for c in factor.index
+        if c in seed.columns and not bool(observed.at[SCRAP_COMMODITY, c])
+    ]
+    return _scale_scrap_cells(seed, factor, columns)
 
 
 def carried_column_shares(
@@ -1046,6 +1111,8 @@ def carried_column_shares(
     # the caller's own experiment and is left alone.
     if theta is None and get_usa_config().carry_held_scrap_on_ppi:
         seed = _carry_held_scrap(seed, observed, year)
+    if theta is None and get_usa_config().carry_benchmark_scrap_on_ppi:
+        seed = _carry_benchmark_scrap(seed, observed, year)
     if isinstance(given, pd.DataFrame):
         exponent = given.reindex(index=seed.index, columns=seed.columns).fillna(0.0)
     else:
