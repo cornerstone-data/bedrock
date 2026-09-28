@@ -1209,10 +1209,14 @@ def services_transport_seed(
     ``GO - VAPRO``; this supplies shape only, so the column is renormalised back
     to its 2017 total after the index is applied.
 
-    ⚠️ **2023 crosses a survey change as well as a rebenchmark.**  It is read
-    from AIES against a SAS 2017 base -- the names are aligned
-    (:data:`AIES_TO_SAS_ITEM`) but the instrument is not the same one.  Treat a
-    2023 movement as weaker evidence than a 2020-2022 one.
+    ✅ **The AIES years chain across the survey change** (the default,
+    ``chain_services_seed_across_aies``): 2023 takes :data:`LAST_SAS_YEAR`'s SAS
+    index versus ``base_year`` and nothing from AIES, and 2024 moves that index by
+    AIES's own 2024/2023 relative index (:func:`_chained_index`), so every ratio
+    stays inside one survey.  See the note at :data:`LAST_SAS_YEAR` for why the
+    2026-08-25 method -- AIES indexed directly against a SAS base -- was
+    reversed.  With the flag off that older method runs, and a 2023 movement
+    then crosses both the survey change and the rebenchmark.
 
     ✅ **2018 and 2019 build through the cut-list bridge** (#770): the
     published ``All other operating expenses`` aggregate constrains its twelve
