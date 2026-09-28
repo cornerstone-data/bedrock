@@ -279,9 +279,9 @@ def load_rcra_intersection_shares(rcra_year: int) -> tuple[pd.DataFrame, list[st
     diagnostics path; bypasses CRHW FBS). See module docstring.
     """
     notes: list[str] = [
+        "rcra_path=br_bypass",
         f"RCRA intersection from BR shipper->receiver rows (year={rcra_year}); "
-        "bypasses CRHW FBS - temporary diagnostics path; stewi/CRHW shipment-edge "
-        "extension is a follow-up decision"
+        "bypasses CRHW FBS - temporary diagnostics path; Phase 4 owns FBS replacement",
     ]
     br = load_br_reporting(rcra_year)
     mat, stats = build_intersection_mass_from_br(br)

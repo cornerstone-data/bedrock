@@ -1,9 +1,9 @@
-# Phase 3 analysis-only TREATMENT ? waste_weights_year: match_io.
+# Phase 3 analysis-only CONTROL ? waste weights frozen at 2017.
 #
-# Same MUT / GHG / electricity-off as the Phase 3 control twin for 2024, with
-# nowcast_mut_vintage pinned to the Track A verified GCS cut. Production /
-# canonical nowcast_2024.yaml stays on freeze-2017 weights and is unpinned.
-# Electricity flags omitted ? all False (Decision 6).
+# Pins nowcast_mut_vintage to the Track A verified GCS cut so both A/B arms
+# share the same MUT (never pair with unpinned canonical nowcast_2024.yaml).
+# Electricity flags omitted ? all False (Decision 6). Production canonicals
+# are unchanged.
 
 #####
 # Model base settings
@@ -25,5 +25,5 @@ nowcast_mut_vintage: 'v0.3.0_f709829'
 use_cornerstone_ghg_model: True
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
-waste_weights_year: match_io
+waste_weights_year: 2017
 cornerstone_industry_avg_margins: True
