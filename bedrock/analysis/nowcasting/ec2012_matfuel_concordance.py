@@ -544,7 +544,8 @@ def main() -> None:
     print('\n=== direction: census against BEA, per cell ===')
     print(direction())
     print('\n=== shrinkage: index ** alpha, manufacturing, common support ===')
-    print(shrinkage().round(4).to_string())
+    shrunk = shrinkage()
+    print(shrunk.round(4).to_string())
     print('\n=== churn gate: hold columns above the bar ===')
     print(churn_gate().round(4).to_string())
 
@@ -554,7 +555,42 @@ def main() -> None:
         for fallback in FALLBACKS[1:]:
             covered = coverage(fallback)['share_of_2012_cost']
             assert covered.sum() > 0.999, f'{fallback}: concordance drops cost'
+        _check_pinned(table, shrunk)
         print('\ncheck: ok')
+
+
+#: The figures ``census_materials_index_alpha``'s config comment and the module
+#: docstring quote, pinned so ``--check`` fails if a rerun no longer supports
+#: them. Keys are ``(table, row, column)``; tolerance :data:`PINNED_TOLERANCE`.
+PINNED: dict[tuple[str, str, str], float] = {
+    ('shrinkage', '1.0', 'gain_%'): -66.4033,
+    ('shrinkage', '0.75', 'gain_%'): -28.5177,
+    ('shrinkage', '0.5', 'gain_%'): -10.6408,
+    ('shrinkage', '0.1', 'gain_%'): 0.5366,
+    ('summary', 'none|full, masked|manufacturing', 'gain_%'): -138.4567,
+    ('summary', 'residual|common|manufacturing', 'median_churn_pp'): 20.0345,
+}
+
+#: Absolute tolerance on :data:`PINNED`, in the table's own units (% or pp).
+PINNED_TOLERANCE = 0.05
+
+
+def _check_pinned(table: pd.DataFrame, shrunk: pd.DataFrame) -> None:
+    """Assert the quoted figures, and that 0.1 is the best non-zero ``alpha``."""
+    keyed = table.assign(
+        key=table['fallback'] + '|' + table['support'] + '|' + table['frame']
+    ).set_index('key')
+    by_alpha = shrunk.set_axis([str(float(a)) for a in shrunk.index], axis=0)
+    frames = {'shrinkage': by_alpha, 'summary': keyed}
+    for (name, row, column), expected in PINNED.items():
+        got = float(np.asarray(frames[name].at[row, column]).item())
+        assert abs(got - expected) <= PINNED_TOLERANCE, (
+            f'{name} [{row}] {column}: {got:.4f}, pinned {expected:.4f}. The '
+            'figures quoted for census_materials_index_alpha no longer hold.'
+        )
+    gains = shrunk['gain_%'].drop(index=0.0)
+    assert float(gains.idxmax()) == 0.1, f'best alpha is {gains.idxmax()}, not 0.1'
+    assert bool((gains.drop(index=0.1) < 0).all()), 'a stronger alpha now wins'
 
 
 if __name__ == '__main__':
