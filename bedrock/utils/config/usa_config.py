@@ -104,12 +104,19 @@ class USAConfig(BaseModel):
     implement_electricity_disaggregation: bool = False  # DRI: jorge.vendries
     implement_electricity_mixed_units: bool = False  # DRI: jorge.vendries
     implement_electricity_reaggregation: bool = False  # DRI: jorge.vendries
-    # Issue #1008 — pin 221100×F01000 in nowcast GRAS. Flag stays False until
-    # explicit ship; mode holds the graded winner string for when flag flips.
-    constrain_electricity_pce_cell: bool = False  # DRI: jorge.vendries
+    # Issue #1008 — constrain 221100×F01000 in nowcast GRAS. F01000 is Tier 2,
+    # so without this the balance uses residential electricity as a residual
+    # sink: -$12.3bn in 2022 and +$5.2bn in 2023 against EIA's published
+    # residential revenue. `eia_band` collars the level to EIA and wins the
+    # full-span 2017-2024 grade on the ship arm (Step-5-weighted EIA miss
+    # $2.18bn against $4.41bn for the other two modes; trade displacement
+    # $0.08bn); see About_1008_pce_electricity_pin.md.
+    # ON by default: graded with rebase_utility_gross_output_on_eia OFF, which
+    # is how production ships, so the two are not co-enabled unattributed.
+    constrain_electricity_pce_cell: bool = True  # DRI: jorge.vendries
     electricity_pce_constraint_mode: ta.Literal[
         'none', 'tier1_fixed', 'row_side_target', 'eia_band'
-    ] = 'none'  # DRI: jorge.vendries
+    ] = 'eia_band'  # DRI: jorge.vendries
     # Rebase 221100 gross output on EIA volume x published price, splitting the
     # 2017 base into output sold to ultimate customers (moved on EPA Table 2.3
     # revenue) and sales for resale between utilities (moved on Table 8.3
@@ -120,6 +127,20 @@ class USAConfig(BaseModel):
     # distribution and water. See
     # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
     rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
+    # Chain manufacturing detail gross output for 2023-24 on AIES receipts
+    # instead of BEA's own annual movement. BEA's detail stops tracking census
+    # after the 2022 Economic Census: measured against each industry's own 2017
+    # ratio to census, the median drift is 2.3% in 2022 but 7.9% in 2024, with
+    # $387bn of gross misallocation netting to only -$35bn. Aircraft grows 8.2%
+    # on BEA in the year Boeing's deliveries fell 528 -> 348, where census shows
+    # -8.8%. Holds the manufacturing TOTAL rather than each summary group,
+    # because $250bn of the $387bn sits between groups. See
+    # bedrock.transform.iot.aies_go_chaining (#1013).
+    # ON by default: 2024 is the release year, BEA's 2023-24 manufacturing
+    # detail carries $387bn of mix error, and BEA states it could not use AIES
+    # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
+    # believe rather than an option we are trialling, so it ships enabled.
+    chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
     scale_a_matrix_with_useeio_method: bool = False  # DRI: mo.li
     # USEEIO-parity margins (useeior Rho/CPI path); anchors the USEEIO-baseline
     # release-waterfall chain (v03_waterfall_useeio_g1_schema_ghg).
