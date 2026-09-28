@@ -450,6 +450,333 @@ def facility_combustion_to_sector(
     return fbs
 
 
+def _naics_weight_frame(
+    weights: pd.DataFrame,
+    *,
+    year: int,
+    flowable: str,
+    target_schema_year: int = 2017,
+) -> pd.DataFrame:
+    """FBS-shaped rows from NAICS attribution shares.
+
+    ``Unit='share'``: ``FlowAmount`` is a dimensionless fraction within this
+    table (sums to 1), for proportional attribution only — not inventory mass.
+    NAICS codes sit on ``SectorConsumedBy`` (same side as MECS energy/money
+    FBS and TECHNOSPHERE primary-sector logic). ``MetaSources`` should already
+    be set per row from the coverage mode.
+    """
+    if 'MetaSources' not in weights.columns:
+        raise ValueError('_naics_weight_frame requires MetaSources on weights')
+    return weights.assign(
+        SectorProducedBy=np.nan,
+        SectorConsumedBy=lambda d: d['NAICS']
+        .astype(str)
+        .str.replace(r'\.0$', '', regex=True),
+        Flowable=flowable,
+        Class='Energy',
+        Context=np.nan,
+        Unit='share',
+        FlowType='TECHNOSPHERE_FLOW',
+        Year=year,
+        Location='00000',
+        LocationSystem='FIPS',
+        SectorSourceName=f'NAICS_{target_schema_year}_Code',
+    ).loc[
+        :,
+        [
+            'Flowable',
+            'Class',
+            'Context',
+            'Unit',
+            'FlowType',
+            'FlowAmount',
+            'Year',
+            'Location',
+            'LocationSystem',
+            'SectorProducedBy',
+            'SectorConsumedBy',
+            'MetaSources',
+            'SectorSourceName',
+        ],
+    ]
+
+
+def _amounts_to_shares(amounts: pd.Series) -> pd.Series:
+    """Normalize non-negative amounts to shares; zeros if the total is empty."""
+    total = float(amounts.sum())
+    if total <= 0:
+        return amounts.astype(float) * 0.0
+    return amounts.astype(float) / total
+
+
+def _naics_amounts_at_industry_spec(
+    amounts: pd.DataFrame,
+    *,
+    config: dict[str, Any],
+    flowable: str,
+    year: int,
+    target_schema_year: int,
+) -> pd.DataFrame:
+    """Roll ``NAICS``/``FlowAmount`` rows to method ``industry_spec`` targets.
+
+    Uses :meth:`FlowBySector.sector_aggregation` (same path as FBS attribution
+    sources) so facility/MECS digit lengths match inventory join keys before
+    share blending.
+    """
+    from bedrock.transform.ghg.facility_coverage import (  # noqa: PLC0415
+        bea_detail_for_naics,
+    )
+
+    if 'industry_spec' not in config:
+        raise ValueError(
+            'hybrid_facility_mecs_to_sector requires industry_spec on the '
+            'method config for NAICS rollup'
+        )
+    frame = _naics_weight_frame(
+        amounts.assign(MetaSources='rollup'),
+        year=year,
+        flowable=flowable,
+        target_schema_year=target_schema_year,
+    )
+    # Temporary MetaSources only to satisfy the weight-frame schema.
+    fbs = FlowBySector(
+        frame, full_name='_hybrid_rollup', config=dict(config), convert_df_to_flowby=True
+    )
+    rolled = pd.DataFrame(fbs.sector_aggregation())
+    out = (
+        rolled.rename(columns={'SectorConsumedBy': 'NAICS'})
+        .groupby('NAICS', as_index=False)['FlowAmount']
+        .sum()
+    )
+    out['NAICS'] = out['NAICS'].astype(str)
+    out['sector'] = out['NAICS'].map(bea_detail_for_naics)
+    return out
+
+
+def _hybrid_shares_for_flowable(
+    *,
+    flowable: str,
+    mecs_class: str | None,
+    facility_union: pd.DataFrame,
+    mecs: pd.DataFrame,
+    mecs_method: str,
+    modes: dict[str, str],
+    config: dict[str, Any],
+    year: int,
+    target_schema_year: int,
+    min_coverage: float,
+) -> pd.DataFrame:
+    """Blend one fuel's facility + MECS amounts into renormalized NAICS shares."""
+    facility = facility_union[
+        facility_union['Flowable'].astype(str) == flowable
+    ].copy()
+    facility['NAICS'] = (
+        facility['NAICS'].astype(str).str.replace(r'\.0$', '', regex=True)
+    )
+    fac_w = _naics_amounts_at_industry_spec(
+        facility.groupby('NAICS', as_index=False).agg(FlowAmount=('CO2e', 'sum')),
+        config=config,
+        flowable=flowable,
+        year=year,
+        target_schema_year=target_schema_year,
+    )
+
+    mecs_fuel = mecs[mecs['Flowable'].astype(str) == flowable]
+    if mecs_class is not None:
+        mecs_fuel = mecs_fuel[mecs_fuel['Class'].astype(str) == str(mecs_class)]
+    if mecs_fuel.empty:
+        raise ValueError(
+            f'No MECS rows for Flowable={flowable!r} class={mecs_class!r} '
+            f'in {mecs_method}'
+        )
+    mecs_w = _naics_amounts_at_industry_spec(
+        mecs_fuel.assign(NAICS=mecs_fuel['SectorConsumedBy'].astype(str))
+        .groupby('NAICS', as_index=False)['FlowAmount']
+        .sum(),
+        config=config,
+        flowable=flowable,
+        year=year,
+        target_schema_year=target_schema_year,
+    )
+
+    fac_by = fac_w.set_index('NAICS')
+    mecs_by = mecs_w.set_index('NAICS')
+    fac_share = _amounts_to_shares(fac_by['FlowAmount'])
+    mecs_share = _amounts_to_shares(mecs_by['FlowAmount'])
+    all_naics = sorted(set(fac_by.index) | set(mecs_by.index))
+    meta_by_mode = {
+        'keep_prior': mecs_method,
+        'facility_vector': 'GHGRP_NEI',
+        'facility_floor': f'GHGRP_NEI;{mecs_method}',
+    }
+    rows: list[dict[str, Any]] = []
+    for naics in all_naics:
+        fac_amt = float(fac_share.get(naics, 0.0))
+        mecs_amt = float(mecs_share.get(naics, 0.0))
+        if naics in fac_by.index and pd.notna(fac_by.at[naics, 'sector']):
+            bea = str(fac_by.at[naics, 'sector'])
+        elif naics in mecs_by.index and pd.notna(mecs_by.at[naics, 'sector']):
+            bea = str(mecs_by.at[naics, 'sector'])
+        else:
+            continue
+        mode = modes.get(bea, 'keep_prior')
+        if mode == 'keep_prior':
+            weight = mecs_amt
+        elif mode == 'facility_vector':
+            weight = fac_amt
+        else:
+            weight = max(fac_amt, mecs_amt)
+        if weight <= 0:
+            continue
+        rows.append(
+            {
+                'NAICS': naics,
+                'FlowAmount': weight,
+                'MetaSources': meta_by_mode[mode],
+            }
+        )
+    if not rows:
+        raise ValueError(
+            f'hybrid_facility_mecs_to_sector produced no weights for '
+            f'{flowable!r} at min_coverage={min_coverage}'
+        )
+    weights = pd.DataFrame(rows)
+    weights['FlowAmount'] = _amounts_to_shares(weights['FlowAmount'])
+    share_sum = float(weights['FlowAmount'].sum())
+    if abs(share_sum - 1.0) > 1e-9:
+        raise ValueError(
+            f'hybrid shares for {flowable!r} sum to {share_sum}, expected 1.0'
+        )
+    log.info(
+        'Hybrid %s attribution: %d NAICS shares after industry_spec rollup '
+        '(min_coverage=%.2f, share_sum=%.6f)',
+        flowable,
+        len(weights),
+        min_coverage,
+        share_sum,
+    )
+    return _naics_weight_frame(
+        weights,
+        year=year,
+        flowable=flowable,
+        target_schema_year=target_schema_year,
+    )
+
+
+def hybrid_facility_mecs_to_sector(
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    **_kwargs: Any,
+) -> FlowBySector:
+    """Facility + MECS hybrid attribution weights under the #928 residual rule.
+
+    Output is one attribution-share FBS (``Unit='share'``) with one
+    ``Flowable`` per configured fuel. Each fuel's ``FlowAmount`` sums to 1
+    independently — not inventory emissions. Facility CO2e and MECS native
+    units are each rolled to the method ``industry_spec`` via
+    :meth:`FlowBySector.sector_aggregation`, converted to NAICS shares, then
+    blended. NAICS codes sit on ``SectorConsumedBy``.
+
+    ``GHGRP_NEI_Facilities`` remains kg CO2e on ``SectorProducedBy``; MECS
+    ``Energy_manufacturing_national_nowcast_*`` is unchanged. This builder only
+    reads them to form per-NAICS shares for proportional attribution of
+    table 3-11.
+
+    Config keys (in addition to those of :func:`facility_combustion_to_sector`):
+
+    - ``flowables``: mapping of bare fuel name → MECS ``Class``
+      (``Natural Gas`` / ``Coal`` → ``Energy``; ``Petroleum`` → ``Money``)
+    - ``mecs_method``: Energy manufacturing FBS method stem for the year
+    - ``min_coverage``: attribution gate (default 0.8)
+    - ``industry_spec`` / ``target_schema_year``: inherited from the FBS method
+
+    Modes from :func:`~bedrock.transform.ghg.facility_coverage.modes_by_sector`:
+    ``keep_prior`` uses MECS share; ``facility_vector`` uses facility share;
+    ``facility_floor`` uses max(facility share, MECS share). Each fuel's
+    blended table is renormalized to sum to 1. ``MetaSources`` is
+    ``mecs_method`` / ``GHGRP_NEI`` / ``GHGRP_NEI;<mecs_method>`` by mode.
+    Lease/plant and still gas stay on :func:`facility_combustion_to_sector`
+    (no MECS fallback).
+    """
+    from bedrock.transform.ghg.facility_coverage import (  # noqa: PLC0415
+        ATTRIBUTION_MIN_COVERAGE,
+        facility_coverage_bands,
+        modes_by_sector,
+    )
+
+    _ = (external_config_path, _kwargs)
+    config = dict(config)
+    config['full_name'] = full_name
+    inventory_dict: InventoryDict = config['inventory_dict']
+    if 'GHGRP' not in inventory_dict:
+        raise ValueError(
+            'hybrid_facility_mecs_to_sector requires inventory_dict with GHGRP'
+        )
+    flowables_cfg = config.get('flowables')
+    mecs_method = str(config.get('mecs_method') or '')
+    if not isinstance(flowables_cfg, dict) or not flowables_cfg or not mecs_method:
+        raise ValueError(
+            'hybrid_facility_mecs_to_sector requires flowables '
+            '(fuel -> MECS Class) and mecs_method'
+        )
+    target_schema_year = int(config.get('target_schema_year', 2017))
+    ghgrp_year = int(inventory_dict['GHGRP'])
+    nei_year = int(inventory_dict.get('NEI', ghgrp_year))
+    year = int(config.get('year', ghgrp_year))
+    min_coverage = float(config.get('min_coverage', ATTRIBUTION_MIN_COVERAGE))
+
+    def _str_tuple(key: str) -> tuple[str, ...] | None:
+        raw = config.get(key)
+        if raw is None:
+            return None
+        return tuple(str(x) for x in raw)
+
+    keep_flowables = _str_tuple('keep_flowables') or tuple(str(f) for f in flowables_cfg)
+    union = build_facility_combustion(
+        ghgrp_year,
+        nei_year=nei_year,
+        sector_prefixes=_str_tuple('sector_prefixes'),
+        exclude_sectors=_str_tuple('exclude_sectors'),
+        keep_flowables=keep_flowables,
+    )
+    bands = facility_coverage_bands(ghgrp_year, nei_year=nei_year)
+    modes = modes_by_sector(bands, min_coverage=min_coverage)
+    log.info(
+        'Hybrid coverage modes (min_coverage=%.2f): %s',
+        min_coverage,
+        pd.Series(modes).value_counts().to_dict(),
+    )
+
+    mecs_fbs = FlowBySector.return_FBS(
+        method=mecs_method, download_sources_ok=True, download_fbs_ok=True
+    )
+    mecs = pd.DataFrame(mecs_fbs)
+
+    frames: list[pd.DataFrame] = []
+    for flowable, mecs_class in flowables_cfg.items():
+        frames.append(
+            _hybrid_shares_for_flowable(
+                flowable=str(flowable),
+                mecs_class=None if mecs_class is None else str(mecs_class),
+                facility_union=union,
+                mecs=mecs,
+                mecs_method=mecs_method,
+                modes=modes,
+                config=config,
+                year=year,
+                target_schema_year=target_schema_year,
+                min_coverage=min_coverage,
+            )
+        )
+    frame = pd.concat(frames, ignore_index=True)
+    fbs = FlowBySector(
+        frame, full_name=full_name, config=config, convert_df_to_flowby=True
+    )
+    fbs.config.update({'data_format': 'FBS'})
+    return fbs
+
+
 def reassign_process_to_sectors(
     df: pd.DataFrame,
     year: str,
