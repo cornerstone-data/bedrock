@@ -340,7 +340,7 @@ def _modes_median_freeze_cached(
     for y in years:
         bands = load_or_build_coverage_bands(y, nei_year=nei_year_for_method(y))
         coverage_by_year[y] = {
-            str(row.sector): float(row.coverage)
+            str(cast(Any, row.sector)): float(cast(Any, row.coverage))
             for row in bands.itertuples(index=False)
         }
         if y == recipe_year:

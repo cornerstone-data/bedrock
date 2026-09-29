@@ -38,7 +38,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -149,9 +149,7 @@ def load_or_build_bands_stable_nei(
         return pd.read_parquet(path)
 
     CACHE.mkdir(parents=True, exist_ok=True)
-    logger.info(
-        'Building stable-NEI bands year=%s baseline=%s', year, baseline_year
-    )
+    logger.info('Building stable-NEI bands year=%s baseline=%s', year, baseline_year)
     # Full unions (no keep_flowables) matching facility_coverage_bands.
     union = build_facility_combustion(
         year,
@@ -225,7 +223,7 @@ def coverage_by_year(
     for y in years:
         bands = load_or_build_bands(y, refresh=refresh)
         out[y] = {
-            str(row.sector): float(row.coverage)
+            str(cast(Any, row.sector)): float(cast(Any, row.coverage))
             for row in bands.itertuples(index=False)
         }
     return out
@@ -444,11 +442,11 @@ def metric_m3_modes(
     nat = native[late_year]
     pol = modes[late_year]
     sectors = set(nat) | set(pol)
-    agree = sum(
-        1 for s in sectors if nat.get(s, MECS_MODE) == pol.get(s, MECS_MODE)
-    )
+    agree = sum(1 for s in sectors if nat.get(s, MECS_MODE) == pol.get(s, MECS_MODE))
     native_fac = {s for s, m in nat.items() if m in FACILITY_MODES}
-    pol_fac_agree = sum(1 for s in native_fac if pol.get(s, MECS_MODE) in FACILITY_MODES)
+    pol_fac_agree = sum(
+        1 for s in native_fac if pol.get(s, MECS_MODE) in FACILITY_MODES
+    )
     return {
         'M3_late_year': float(late_year),
         'M3a_agree_rate': agree / len(sectors) if sectors else 0.0,
@@ -587,7 +585,9 @@ def metric_m3_shares(
     for flowable in panel:
         if late_year not in panel[flowable] or late_year not in s0_panel[flowable]:
             continue
-        dists.append(share_l1(panel[flowable][late_year], s0_panel[flowable][late_year]))
+        dists.append(
+            share_l1(panel[flowable][late_year], s0_panel[flowable][late_year])
+        )
     return {
         'M3c_share_L1_vs_S0_late': float(np.mean(dists)) if dists else float('nan'),
     }
@@ -638,7 +638,9 @@ def metric_m4(
         'M4a_mean_share_mass_on_too_facility': (
             fac_weight / n_weight if n_weight else 0.0
         ),
-        'M4c_mean_early_share_L1_vs_S0': float(np.mean(dists)) if dists else float('nan'),
+        'M4c_mean_early_share_L1_vs_S0': (
+            float(np.mean(dists)) if dists else float('nan')
+        ),
     }
 
 
