@@ -187,6 +187,13 @@ ATTRIBUTION_CLASS: dict[str, str] = {
     'BEA_Detail_GrossOutput_IO': 'io_gross_output',
     'Energy_manufacturing_national_nowcast': 'energy_survey',
     'Direct': 'direct',
+    # Facility-attribution FBS only (use_facility_ghg_attribution): #928's 80%
+    # coverage gate and #1023's hybrid blend. GHGRP_NEI_Facilities is the
+    # sector's own reported emissions; Hybrid_Facility_MECS backfills the
+    # under-80%-coverage remainder from the energy survey. ~8.5-9.0% of CO2e
+    # across 2017-2024 on the facilities FBS (all 8 years, checked 2026-09-29).
+    'GHGRP_NEI_Facilities': 'facility_direct',
+    'Hybrid_Facility_MECS': 'facility_hybrid',
 }
 
 #: Chart labels for :data:`ATTRIBUTION_CLASS`. The class keys are fine as
@@ -202,6 +209,8 @@ ATTRIBUTION_CLASS_LABEL: dict[str, str] = {
     'inventory_table': 'E: spread by another GHG inventory table '
     '(soils, non-energy use)',
     'io_gross_output': 'E: spread by gross output',
+    'facility_direct': 'E: GHGRP/NEI facility reports for the sector itself',
+    'facility_hybrid': 'E: a facility/MECS blend under the 80% coverage gate',
 }
 
 #: Classes whose sector split comes out of the IO tables themselves, so their
