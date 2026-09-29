@@ -117,6 +117,20 @@ _AIES_FLOW = 'RCPT_TOT_VAL'
 _EC_SOURCE = 'Census_EC_Expenses'
 _AIES_SOURCE = 'Census_AIES_Expenses'
 
+#: Industries chained on their **combined** receipts, so each member moves by
+#: the pool's growth and keeps its anchor-year share of it.
+#:
+#: ⚠️ **Cement and ready-mix concrete report receipts across the line.** From
+#: 2022 to 2024, AIES has cement (``327310``) falling 9.6% while ready-mix
+#: (``327320``) rises 19.5%. Cement's producer price index rose 18.9% over the
+#: same years and USGS production value (tonnes x mill unit value) rose 7%, so
+#: cement's own receipts cannot be right. The pair together grows 13.2%, which
+#: fits both. The likely reading is that integrated cement-and-concrete
+#: companies report more of their receipts under ready-mix in AIES than in the
+#: 2022 Economic Census. Chained separately, cement's direct emission factor
+#: comes out about 16% too high in 2024 (#1032).
+POOLED_CHAINS: tuple[tuple[str, ...], ...] = (('327310', '327320'),)
+
 
 def _f(value: object) -> float:
     """One frame or series scalar as a float.
@@ -241,6 +255,8 @@ def chain_factors(year: int, members: list[str]) -> pd.Series:
 
     ✅ **Both sides are built on the NAICS codes common to the two years**, so
     the ratio compares one population with itself.  See :func:`_common_naics`.
+
+    Members of a :data:`POOLED_CHAINS` pool share the pool's growth.
     """
     base = receipts_on_common_basis(ANCHOR_YEAR, year)
     later = receipts_on_common_basis(year, year)
@@ -256,6 +272,13 @@ def chain_factors(year: int, members: list[str]) -> pd.Series:
     factors.loc[shared] = (
         later.reindex(shared).astype(float) / base.reindex(shared).astype(float)
     ).to_numpy()
+    for pool in POOLED_CHAINS:
+        # Only when census observes every member: a partial pool would chain
+        # the observed members on a different population than the anchor.
+        if all(code in shared for code in pool):
+            factors.loc[list(pool)] = float(later.reindex(pool).sum()) / float(
+                base.reindex(pool).sum()
+            )
     return factors
 
 
