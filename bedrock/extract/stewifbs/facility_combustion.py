@@ -13,9 +13,10 @@ This code includes:
 - **NEI ``fuel_class`` / Flowable from SCC only for 2021+**
   (``NEI_FUEL_CLASS_FIRST_YEAR``). Before 2021 the SCC coding parked almost
   all on-site CO2 on process branches, so those digits are not read for fuel.
-  Pre-2021 method years keep **that year's NEI/GHGRP levels** and assign
-  ``Flowable`` from **2021/2022 twin shares** (same idea as the diagnostics
-  combustion/process backcast: FacilityID mean, else NAICS-6, else sector).
+  Pre-2021 method years keep **that year's NEI levels** and assign NEI
+  ``Flowable`` from **2021/2022 twin shares** (FacilityID mean, else NAICS-6,
+  else sector). Twins are **NEI-only** — not applied to GHGRP (process /
+  fugitive subpart mass must not be painted as Coal/Petroleum combustion).
 - **Prefer GHGRP** on ``FRS_ID``; NEI-only facilities fill the residual.
   Same-site address fallback recovers links FRS missed.
 - **CO2e for weights:** GHGRP CO2/CH4/N2O collapsed with IPCC AR5 100-year
@@ -713,8 +714,6 @@ def build_facility_combustion(
     ghgrp_out = ghgrp_fuel_labels(
         ghgrp, nei, per_facility, subpart_c, year, use_scc=use_scc
     )
-    if not use_scc:
-        ghgrp_out = apply_pre2021_fuel_flowable_shares(ghgrp_out)
 
     covered = set(ghgrp_out['FRS_ID'].dropna())
     nei_only = nei[nei['FRS_ID'].isna() | ~nei['FRS_ID'].isin(covered)]

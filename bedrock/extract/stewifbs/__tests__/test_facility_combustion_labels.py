@@ -208,8 +208,8 @@ def test_build_applies_pre2021_twins_when_nei_before_scc_year(
 
     calls.clear()
     fc.build_facility_combustion(2018, nei_year=2018)
-    # Twins applied to NEI rows and again to GHGRP remainder.
-    assert calls == [1, 1]
+    # Twins applied to NEI only (not GHGRP).
+    assert calls == [1]
 
     calls.clear()
     fc.build_facility_combustion(2021, nei_year=2021)
