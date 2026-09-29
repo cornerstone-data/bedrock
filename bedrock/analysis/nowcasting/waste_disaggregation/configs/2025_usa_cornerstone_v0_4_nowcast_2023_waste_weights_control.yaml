@@ -17,7 +17,7 @@ iot_before_or_after_redefinition: after
 usa_detail_io_source: nowcast
 usa_base_io_data_year: 2023
 usa_ghg_data_year: 2023
-nowcast_mut_vintage: 'v0.3.0_f709829'
+nowcast_mut_vintage: 'v0.3.0_92b7a8a'
 
 #####
 # Methodology selection

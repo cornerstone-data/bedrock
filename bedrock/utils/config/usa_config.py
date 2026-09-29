@@ -8,18 +8,6 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
-# Analysis-only Phase 3 waste-weight A/B YAMLs (not production registry)
-WASTE_DISAGG_ANALYSIS_CONFIG_DIR = os.path.normpath(
-    os.path.join(
-        os.path.dirname(__file__),
-        '..',
-        '..',
-        'analysis',
-        'nowcasting',
-        'waste_disaggregation',
-        'configs',
-    )
-)
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
 CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_4'
 
@@ -483,31 +471,15 @@ def _raise_if_retired_usa_config(config_file_name: str) -> None:
         )
 
 
-def _resolve_usa_config_path(config_file_name: str) -> str:
-    """Resolve a USA config YAML path.
-
-    Accepts a stem/filename (searched under ``CONFIG_DIR`` then the waste-
-    disaggregation analysis ``configs/`` tree) or an existing filesystem path.
-    """
-    name = _normalize_usa_config_file_name(config_file_name)
-    if os.path.isfile(name):
-        return os.path.abspath(name)
-    if os.path.isabs(name) or os.sep in name or (os.altsep and os.altsep in name):
-        raise FileNotFoundError(f'USA config not found: {name}')
-    for directory in (CONFIG_DIR, WASTE_DISAGG_ANALYSIS_CONFIG_DIR):
-        candidate = os.path.join(directory, name)
-        if os.path.isfile(candidate):
-            return candidate
-    raise FileNotFoundError(
-        f'USA config {name!r} not found under {CONFIG_DIR!r} or '
-        f'{WASTE_DISAGG_ANALYSIS_CONFIG_DIR!r}'
-    )
-
-
 def _load_usa_config_from_file_name(config_file_name: str) -> USAConfig:
     assert config_file_name.endswith('.yaml'), 'config file name must end with .yaml'
     _raise_if_retired_usa_config(config_file_name)
-    with open(_resolve_usa_config_path(config_file_name)) as f:
+    path = os.path.join(CONFIG_DIR, config_file_name)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f'USA config {config_file_name!r} not found under {CONFIG_DIR!r}'
+        )
+    with open(path) as f:
         data = yaml.safe_load(f)
     config = USAConfig.model_validate(data, strict=True)
     return config
@@ -557,6 +529,24 @@ def set_global_usa_config(
     else:
         _usa_config = base
     os.environ[USA_CONFIG_ENV_VAR] = config_file
+
+
+def set_global_usa_config_object(config: USAConfig, *, source_label: str) -> None:
+    """Install an already-validated ``USAConfig`` as the process-wide singleton.
+
+    Used by analysis-only loaders (e.g. waste-disagg Phase 3 YAMLs outside
+    ``CONFIG_DIR``). ``source_label`` is recorded in ``USA_CONFIG_ENV_VAR`` for
+    the already-set guard / logging only — ``get_usa_config()`` must never
+    re-resolve that label via ``_load_usa_config_from_file_name``.
+    """
+    global _usa_config
+    config_file_env = os.environ.get(USA_CONFIG_ENV_VAR)
+
+    if (_usa_config is not None) or (config_file_env is not None):
+        raise ValueError('Global USA config already set')
+
+    _usa_config = config
+    os.environ[USA_CONFIG_ENV_VAR] = source_label
 
 
 def get_usa_config() -> USAConfig:

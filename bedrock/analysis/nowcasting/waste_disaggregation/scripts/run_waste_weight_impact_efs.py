@@ -2,19 +2,19 @@
 
 Generalized beyond the 2024 pilot: CLI selects year + control/treatment
 configs; outputs land under ``cache/impact_{year}_{mut_vintage_label}/`` so
-Track A (GCS) and Track C (local) never share a directory.
+GCS year-aligned vs 2017 runs never share a cache with private local re-runs.
 
 Meta records resolved ``nowcast_mut_vintage``, ``rcra_path=br_bypass``, and
 arm roles. Subprocess-per-arm keeps the global USA config isolated.
 
 Examples::
 
-  # Track A 2024 re-baseline (defaults from phase3_pins)
+  # GCS 2024 re-baseline (defaults from phase3_pins)
   python -m ...run_waste_weight_impact_efs --year 2024
 
   # Explicit configs / vintage label override for cache dir
   python -m ...run_waste_weight_impact_efs --year 2024 \\
-    --control CFG_A --treatment CFG_B --mut-vintage-label v0.3.0_f709829
+    --control CFG_A --treatment CFG_B --mut-vintage-label v0.3.0_92b7a8a
 
   # Worker / compare entry points (used by the driver)
   python -m ...run_waste_weight_impact_efs worker CFG tag OUTDIR
@@ -66,6 +66,10 @@ def impact_cache_dir(year: int, mut_vintage: str) -> Path:
 
 def _worker(config: str, tag: str, out_dir: Path) -> None:
     """Pull D/N for one config; must be a fresh process (global USA config once)."""
+    from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (  # noqa: PLC0415
+        ANALYSIS_CONFIG_DIR,
+        install_analysis_usa_config,
+    )
     from bedrock.extract.disaggregation.waste_weight_types import (  # noqa: PLC0415
         WeightDerivationProvenance,
     )
@@ -73,15 +77,13 @@ def _worker(config: str, tag: str, out_dir: Path) -> None:
         get_waste_disagg_provenance,
         get_waste_disagg_weights,
     )
-    from bedrock.utils.config.usa_config import (  # noqa: PLC0415
-        get_usa_config,
-        set_global_usa_config,
-    )
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
     from bedrock.utils.validation.diagnostics_helpers import (  # noqa: PLC0415
         pull_efs_for_diagnostics,
     )
 
-    set_global_usa_config(config)
+    stem = config if config.endswith(".yaml") else f"{config}.yaml"
+    install_analysis_usa_config(ANALYSIS_CONFIG_DIR / stem)
     cfg = get_usa_config()
     _ = get_waste_disagg_weights()
     prov = get_waste_disagg_provenance()

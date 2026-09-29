@@ -57,6 +57,9 @@ def _fig_prefix(year: int) -> str:
     return f"impact_{year}_{_safe_vintage_label(GCS_MUT_VINTAGE)}"
 
 
+ISSUE_FIGURES_URL = "https://github.com/cornerstone-data/bedrock/issues/1031"
+
+
 def _year_figures(year: int) -> str:
     prefix = _fig_prefix(year)
     names = (
@@ -67,13 +70,14 @@ def _year_figures(year: int) -> str:
     lines = [f"### {year}", ""]
     missing = [n for n in names if not (FIG_DIR / n).is_file()]
     if missing:
-        lines.append(f"_Figures pending: {', '.join(missing)}_")
+        lines.append(f"_Figures pending locally: {', '.join(missing)}_")
         lines.append("")
-        return "\n".join(lines)
-    labels = ("N", "D", "waste")
-    for label, name in zip(labels, names, strict=True):
-        lines.append(f"![{year} {label}](figures/{name})")
-        lines.append("")
+    lines.append(
+        f"Charts (N / D histograms + waste-sector bars): "
+        f"[issue #1031]({ISSUE_FIGURES_URL}) — `{prefix}_*.png` "
+        "(local copies under `figures/` stay untracked)."
+    )
+    lines.append("")
     return "\n".join(lines)
 
 

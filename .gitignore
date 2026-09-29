@@ -73,10 +73,8 @@ bedrock/analysis/electricity/current/diagnostics/local_data/*
 # path-specific — if the report ever moves again, move this line with it or its
 # figures silently stop being tracked and the embeds break on GitHub.
 !bedrock/analysis/nowcasting/images/*.png
-# Figures embedded in waste_disaggregation impact reports (Track A histograms /
-# waste-sector bars). Working caches stay ignored; committed PNGs live here so
-# GitHub issue/PR embeds resolve from the analysis branch.
-!bedrock/analysis/nowcasting/waste_disaggregation/figures/*.png
+# Phase 1 feasibility figure only (impact_*.png stay gitignored; durable embeds on #1031).
+!bedrock/analysis/nowcasting/waste_disaggregation/figures/sas_child_revenue_shares.png
 # Figures embedded in bedrock/analysis/time_series_B_matrix/
 # About_B_change_drivers.md. Same rule as above: the working copies under
 # output/ stay ignored, and the committed pair lives in images/.

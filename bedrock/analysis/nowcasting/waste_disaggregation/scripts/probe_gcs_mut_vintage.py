@@ -1,10 +1,12 @@
-"""Phase 3 Track A gate: probe GCS NowcastMUT after-redef Make coverage.
+"""Phase 3.1 Track A gate: probe GCS NowcastMUT after-redef Make coverage.
 
-Candidate start: v0.3.0_f709829 (commit SHA is NOT proof of MUT upload).
-Fallback documented in plan: v0.3.0_4276083 (electricity / v0.4 pins).
+Fail-closed on a single candidate: ``v0.3.0_92b7a8a``. Requires a full
+2018–2024 after-redef Make panel. No shrink-years, no ``full_alt`` fallback,
+no ``f709829`` / ``4276083`` selection.
 
-Writes ``cache/phase3_gcs_mut_vintage.json`` with the verified pin (or a
-shrunk year panel + holes).
+On success writes ``cache/phase3_gcs_mut_vintage.json`` with ``status=ok``.
+On miss: ``SystemExit`` (optionally writes ``status=failed``) — never
+``status=ok`` with holes.
 
 Run:
   .venv\\Scripts\\python.exe -m \\
@@ -16,6 +18,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+    GCS_MUT_VINTAGE,
+)
 from bedrock.extract.iot.nowcast_mut_storage import (
     GCS_NOWCAST_MUT_DIR,
     latest_nowcast_mut_vintage,
@@ -24,7 +29,7 @@ from bedrock.extract.iot.nowcast_mut_storage import (
 from bedrock.utils.io.gcp import get_most_recent_from_bucket, list_bucket_files
 
 YEARS = list(range(2018, 2025))
-CANDIDATES = ("v0.3.0_f709829", "v0.3.0_4276083")
+CANDIDATES = (GCS_MUT_VINTAGE,)
 CACHE = Path(__file__).resolve().parents[1] / "cache" / "phase3_gcs_mut_vintage.json"
 
 
@@ -66,6 +71,24 @@ def _vintages_by_year() -> dict[str, list[str]]:
     return out
 
 
+def _write_failed(coverage: dict[str, dict[str, list[int]]], note: str) -> None:
+    report = {
+        "status": "failed",
+        "gcs_mut_vintage": GCS_MUT_VINTAGE,
+        "years_covered": coverage.get(GCS_MUT_VINTAGE, {}).get("ok", []),
+        "holes": coverage.get(GCS_MUT_VINTAGE, {}).get("miss", list(YEARS)),
+        "note": note,
+        "candidate_coverage": coverage,
+        "plan_note": (
+            "Phase 3.1 fail-closed: sole candidate v0.3.0_92b7a8a; "
+            "do not merge on f709829 evidence; escalate GCS MUT completeness."
+        ),
+    }
+    CACHE.parent.mkdir(parents=True, exist_ok=True)
+    CACHE.write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
+    print(f"WROTE {CACHE} (status=failed)")
+
+
 def main() -> int:
     latests: dict[str, str | None] = {}
     for year in YEARS:
@@ -85,59 +108,30 @@ def main() -> int:
         coverage[cand] = {"ok": ok, "miss": miss}
         print(f"=== {cand}: ok={ok} miss={miss}")
 
-    chosen: str | None = None
-    years_covered = list(YEARS)
-    holes: list[int] = []
-    note = ""
-    for cand in CANDIDATES:
-        ok = coverage[cand]["ok"]
-        miss = coverage[cand]["miss"]
-        if not miss:
-            chosen = cand
-            years_covered = ok
-            note = f"full 2018–2024 panel under {cand}"
-            break
-        if len(ok) > len(years_covered) - len(holes) or chosen is None:
-            # Prefer first candidate with any coverage; may shrink later
-            if ok and (chosen is None or cand == CANDIDATES[0]):
-                chosen = cand
-                years_covered = ok
-                holes = miss
-                note = (
-                    f"shrunk Track A panel to {ok} under {cand}; "
-                    f"missing years {miss}"
-                )
-
-    # If candidate0 has partial and candidate1 has full, prefer full (already
-    # handled by loop). If neither full, keep best partial under first cand
-    # that has any hits, else abort.
-    full_alt = next(
-        (c for c in CANDIDATES if not coverage[c]["miss"]),
-        None,
-    )
-    if full_alt is not None:
-        chosen = full_alt
-        years_covered = coverage[full_alt]["ok"]
-        holes = []
-        note = f"full 2018–2024 panel under {full_alt}"
-
-    if chosen is None:
-        raise SystemExit(
-            "Track A gate FAILED: no candidate GCS vintage has after-redef Make "
-            f"for any of {YEARS}. Abort Track A."
+    assert CANDIDATES == (GCS_MUT_VINTAGE,)
+    ok = coverage[GCS_MUT_VINTAGE]["ok"]
+    miss = coverage[GCS_MUT_VINTAGE]["miss"]
+    if miss:
+        note = (
+            f"Phase 3.1 Track A gate FAILED: {GCS_MUT_VINTAGE} missing after-redef "
+            f"Make for years {miss}. Abort; do not shrink years or fall back to "
+            f"f709829. Escalate GCS MUT completeness before retry."
         )
+        _write_failed(coverage, note)
+        raise SystemExit(note)
 
     report = {
         "status": "ok",
-        "gcs_mut_vintage": chosen,
-        "years_covered": years_covered,
-        "holes": holes,
-        "note": note,
+        "gcs_mut_vintage": GCS_MUT_VINTAGE,
+        "years_covered": ok,
+        "holes": [],
+        "note": f"full 2018–2024 panel under {GCS_MUT_VINTAGE}",
         "latests_by_year": latests,
         "candidate_coverage": coverage,
         "all_vintages_by_year": _vintages_by_year(),
         "plan_note": (
-            "Commit f709829a is NOT proof of MUT upload; pin is from GCS probe only."
+            "Phase 3.1 fail-closed probe: sole candidate v0.3.0_92b7a8a; "
+            "commit SHAs are NOT proof of MUT upload."
         ),
     }
     CACHE.parent.mkdir(parents=True, exist_ok=True)

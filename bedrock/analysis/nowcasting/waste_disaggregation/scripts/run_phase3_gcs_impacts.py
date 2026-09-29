@@ -1,6 +1,6 @@
-"""Run Phase 3 Track A impact for all years with verified GCS pin.
+"""Run Phase 3.1 GCS impact for all years with verified pin.
 
-Does not overwrite Track C dirs (uses GCS_MUT_VINTAGE as cache label).
+Uses ``GCS_MUT_VINTAGE`` (``v0.3.0_92b7a8a``) as the year×vintage cache label.
 """
 
 from __future__ import annotations

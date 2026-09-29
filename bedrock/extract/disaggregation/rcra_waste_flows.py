@@ -255,7 +255,9 @@ def _read_br_csv(path: Path, **kwargs: Any) -> pd.DataFrame:
 
     Consolidated BR files can trip pandas' C tokenizer (``Buffer overflow`` /
     malformed input) on some environments even when the same file parses
-    locally. The python engine is slower but tolerates those rows.
+    locally. The python engine is slower but tolerates those rows. On fallback
+    success, log ``nrows`` and total Received/Shipped tons so mass changes are
+    visible.
     """
     try:
         return pd.read_csv(path, low_memory=False, **kwargs)
@@ -266,7 +268,26 @@ def _read_br_csv(path: Path, **kwargs: Any) -> pd.DataFrame:
             exc,
         )
         kw = {k: v for k, v in kwargs.items() if k != "low_memory"}
-        return pd.read_csv(path, engine="python", **kw)
+        df = pd.read_csv(path, engine="python", **kw)
+        received = (
+            float(df["Received Tons"].sum())
+            if "Received Tons" in df.columns
+            else float("nan")
+        )
+        shipped = (
+            float(df["Shipped Tons"].sum())
+            if "Shipped Tons" in df.columns
+            else float("nan")
+        )
+        log.warning(
+            "Python-engine BR parse succeeded for %s: nrows=%s "
+            "Received Tons total=%s Shipped Tons total=%s",
+            path,
+            len(df),
+            received,
+            shipped,
+        )
+        return df
 
 
 def load_br_reporting(rcra_year: int) -> pd.DataFrame:
