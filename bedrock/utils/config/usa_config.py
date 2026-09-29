@@ -166,6 +166,14 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # Move data processing and hosting's (518200) electricity on LBNL's
+    # national data center electricity series instead of the services survey,
+    # priced on EIA's commercial price, and hold the cell through the interior
+    # fit and GRAS. The survey cell (Service Annual Survey 2020-22, AIES 2023-24)
+    # has 518200 buying ~37% fewer kWh in 2024 than 2017 while LBNL has data
+    # centers at 2.8x. Overrides the survey observation on this one cell. See
+    # nowcast_intermediate.DATA_CENTER_ELECTRICITY_CSV and #1035.
+    move_data_processing_electricity_on_lbnl: bool = False  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =

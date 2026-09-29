@@ -1246,6 +1246,86 @@ def apply_column_control(shares: pd.DataFrame, control: pd.Series) -> pd.DataFra
     return block
 
 
+#: The buyer whose electricity moves on :data:`DATA_CENTER_ELECTRICITY_CSV`.
+DATA_CENTER_BUYER = '518200'
+
+#: US data center electricity use, TWh, 2017-2024. **Digitized** from Figure 1
+#: of LBNL's *United States Data Center Energy Usage Report: 2025 Update*
+#: (Smith et al., LBNL-2001758, June 2026, OSTI 3374245), which revises the
+#: 2024 report's historical series. The report gives yearly values only in that
+#: figure. The black historical line was traced against the chart's gridlines
+#: (83.25 px per 100 TWh). Two checks against values the report states in text:
+#: 2024 reads 190.4 against the stated 192 (0.8% low), and 2018 matches the
+#: figure's "1.9% of U.S. Total" label. Only the ratio to 2017 is used, so a
+#: uniform calibration error cancels.
+DATA_CENTER_ELECTRICITY_CSV = (
+    Path(__file__).resolve().parents[2]
+    / 'extract'
+    / 'external_data'
+    / 'LBNL_data_center_electricity_USA.csv'
+)
+
+
+def data_center_electricity_index(year: int) -> float:
+    """LBNL US data center electricity use relative to 2017."""
+    table = pd.read_csv(DATA_CENTER_ELECTRICITY_CSV).set_index('year')['twh']
+    if year not in table.index or SEED_YEAR not in table.index:
+        raise KeyError(f'no LBNL data center electricity for {year}')
+    return float(table[year] / table[SEED_YEAR])
+
+
+def data_center_electricity_cell(year: int) -> float:
+    """``221100`` x ``518200``, USD: the 2017 cell moved on LBNL kWh and EIA price.
+
+    ``Use2017[221100, 518200] x (TWh / TWh_2017) x (p_commercial / p_2017)``.
+    Assumes ``518200`` keeps its 2017 share of national data center
+    electricity. Much hyperscale capacity sits in other industries, so this
+    may overstate its growth, but it replaces a survey series that has the
+    industry's kWh falling ~37% while the national total nearly triples (#1035).
+    """
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        commercial_price_index,
+    )
+
+    _require_year(year)
+    base = float(
+        np.asarray(
+            benchmark_intermediate().at[ELECTRICITY_COMMODITY, DATA_CENTER_BUYER]
+        ).item()
+    )
+    price = commercial_price_index(year) / commercial_price_index(SEED_YEAR)
+    return base * data_center_electricity_index(year) * price
+
+
+def pinned_electricity_buyers(year: int) -> list[str]:
+    """Buyers whose ``221100`` cell is written in Step 3 and held after it.
+
+    The interior fit and GRAS keep these cells where
+    :func:`pin_electricity_cells` writes them (``nowcast_interior_fit``,
+    ``nowcast_mask.fixed_value_mask``). Today that is only
+    :data:`DATA_CENTER_BUYER` under ``move_data_processing_electricity_on_lbnl``,
+    where an independent physical series replaces the survey observation on
+    this one cell (#1035). Empty with the flag off.
+    """
+    del year  # the held set does not vary by year yet
+    if get_usa_config().move_data_processing_electricity_on_lbnl:
+        return [DATA_CENTER_BUYER]
+    return []
+
+
+def pin_electricity_cells(block: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Write the held ``221100`` cells (:func:`pinned_electricity_buyers`)."""
+    buyers = [j for j in pinned_electricity_buyers(year) if j in block.columns]
+    if not buyers or ELECTRICITY_COMMODITY not in block.index:
+        return block
+    out = block.copy()
+    if DATA_CENTER_BUYER in buyers:
+        out.loc[ELECTRICITY_COMMODITY, DATA_CENTER_BUYER] = (
+            data_center_electricity_cell(year)
+        )
+    return out
+
+
 def derive_intermediate_use(
     year: int,
     theta: float | None = None,
@@ -1274,6 +1354,10 @@ def derive_intermediate_use(
     if theta is None and get_usa_config().set_paper_scrap_from_recovered_paper:
         shares = set_benchmark_scrap_shares(shares, control, year)
     block = apply_column_control(shares, control)
+    if theta is None:
+        # The interior fit and GRAS hold these cells where they are written
+        # (nowcast_interior_fit, nowcast_mask.fixed_value_mask).
+        block = pin_electricity_cells(block, year)
     from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
         overlay_s00300_intermediate_block,
     )
@@ -1329,6 +1413,10 @@ __all__ = [
     'UNPRICED_COMMODITIES',
     'apply_column_control',
     'benchmark_intermediate',
+    'data_center_electricity_cell',
+    'data_center_electricity_index',
+    'pin_electricity_cells',
+    'pinned_electricity_buyers',
     'carried_column_shares',
     'carry_shares',
     'commodity_deflator',

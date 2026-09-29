@@ -373,6 +373,28 @@ def retail_price_index(year: int) -> float:
     return retail_index(year) / (retail_sales_mwh(year) / retail_sales_mwh(BASE_YEAR))
 
 
+@functools.cache
+def commercial_price_index(year: int) -> float:
+    """EIA average commercial retail price relative to :data:`BASE_YEAR`.
+
+    Table 2.3 commercial revenue over Table 2.2 commercial sales: the price
+    trade and most services pay. Data processing's held electricity cell is
+    priced on it (:func:`~.nowcast_intermediate.data_center_electricity_cell`).
+    """
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        eia_retail_revenue_usd,
+        eia_table_2_2_end_use_mwh,
+    )
+
+    def price(y: int) -> float:
+        mwh = float(eia_table_2_2_end_use_mwh(int(y))['Commercial'])
+        if mwh <= 0:
+            raise ValueError(f'EIA Table 2.2 commercial sales are non-positive for {y}')
+        return eia_retail_revenue_usd(int(y), 'Commercial') / mwh
+
+    return float(price(year) / price(BASE_YEAR))
+
+
 def retail_sales_mwh(year: int) -> float:
     """EIA Table 2.2 sales to ultimate customers, MWh, excluding direct use."""
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
