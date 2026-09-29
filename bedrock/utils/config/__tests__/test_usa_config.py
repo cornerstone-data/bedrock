@@ -250,7 +250,7 @@ def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
     """v0.4's configuration on the v0.5 nowcast build; MUT pin + facility GHG."""
     v05 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5.yaml')
     v04 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
-    assert v05.nowcast_mut_vintage == 'v0.3.0_fa85e78'
+    assert v05.nowcast_mut_vintage == 'v0.3.0_92b7a8a'
     assert v05.use_facility_ghg_attribution
     assert not v04.use_facility_ghg_attribution
     _v05_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
