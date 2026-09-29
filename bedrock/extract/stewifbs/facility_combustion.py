@@ -113,10 +113,74 @@ _NEI_SCC_FUEL_INTERNAL = {
 }
 
 
+#: Concordance columns other than 2017 that facility NAICS may be reported in.
+#: GHGRP 2017 carries 2007 and 2012 codes (331111, 211111); GHGRP and NEI from
+#: 2022 carry 2022 codes (322120, 212115).
+OTHER_NAICS_VINTAGES = (
+    'NAICS_2022_Code',
+    'NAICS_2012_Code',
+    'NAICS_2007_Code',
+    'NAICS_2002_Code',
+)
+
+
+@lru_cache(maxsize=1)
+def naics_to_2017() -> dict[str, str]:
+    """Recode 6-digit NAICS from other vintages to one NAICS 2017 code.
+
+    The facility FBS routes emit facility NAICS on a NAICS 2017 schema. A code
+    from another vintage matches no 2017 code there: ``322120`` (NAICS 2022,
+    paper mills) is neither 2017's ``322121`` nor ``322122``. The rollup to
+    ``industry_spec`` then keeps it as its own key, and it gets no share.
+
+    An existing 2017 code is never recoded. Where one code maps to several 2017
+    codes, the lowest is used, but only when all of them map to the same BEA
+    detail. All such cases so far also roll up to the same ``industry_spec``
+    key, so the choice doesn't move a share. A code whose 2017 codes span
+    several BEA details is left as reported.
+    """
+    concordance = load_crosswalk('NAICS_Year_Concordance')
+    current = set(concordance['NAICS_2017_Code'].dropna().str.strip())
+    to_bea = (
+        load_crosswalk('NAICS_to_BEA_Crosswalk_2017')[
+            ['NAICS_2017_Code', 'BEA_2017_Detail_Code']
+        ]
+        .dropna()
+        .drop_duplicates()
+        .groupby('NAICS_2017_Code')['BEA_2017_Detail_Code']
+        .agg(frozenset)
+    )
+    recode: dict[str, str] = {}
+    for column in OTHER_NAICS_VINTAGES:
+        pairs = concordance[[column, 'NAICS_2017_Code']].dropna()
+        pairs = pairs[pairs[column].str.len() == 6]
+        for code, group in pairs.groupby(column)['NAICS_2017_Code']:
+            code = str(code).strip()
+            if code in current or code in recode:
+                continue
+            targets = sorted(set(group.str.strip()))
+            beas = {b for t in targets for b in to_bea.get(t, frozenset())}
+            if len(beas) == 1:
+                recode[code] = targets[0]
+    return recode
+
+
+def recode_naics_to_2017(naics: pd.Series) -> pd.Series:
+    """Apply :func:`naics_to_2017` to a NAICS column; other codes unchanged."""
+    text = naics.astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+    recode = naics_to_2017()
+    return text.map(lambda c: recode.get(c, c))
+
+
 def facility_sectors(
     nei_year: int, ghgrp_year: int
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """NAICS rolled up to one BEA detail code, for the NEI year and the GHGRP year."""
+    """NAICS rolled up to one BEA detail code, for the NEI year and the GHGRP year.
+
+    Facility NAICS from other vintages are recoded to NAICS 2017 first
+    (:func:`naics_to_2017`), so the ``NAICS`` column is on the 2017 schema the
+    FBS routes emit.
+    """
     crosswalk = (
         load_crosswalk('NAICS_to_BEA_Crosswalk_2017')[
             ['NAICS_2017_Code', 'BEA_2017_Detail_Code']
@@ -137,6 +201,20 @@ def facility_sectors(
         'GHGRP', ghgrp_year, download_if_missing=True
     )[['FacilityID', 'NAICS', 'State']].assign(inventory='GHGRP')
     facilities = pd.concat([nei_facilities, ghgrp_facilities], ignore_index=True)
+    reported = (
+        facilities['NAICS'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+    )
+    recoded = reported.isin(naics_to_2017().keys())
+    facilities['NAICS'] = recode_naics_to_2017(facilities['NAICS'])
+    if recoded.any():
+        log.info(
+            'facility_sectors (NEI %d, GHGRP %d): recoded %d facilities from '
+            'other NAICS vintages to NAICS 2017: %s',
+            nei_year,
+            ghgrp_year,
+            int(recoded.sum()),
+            reported[recoded].value_counts().head(8).to_dict(),
+        )
     naics = facilities['NAICS'].astype(str)
     sector = pd.Series(pd.NA, index=facilities.index, dtype='object')
     for length in (6, 5, 4, 3, 2):
