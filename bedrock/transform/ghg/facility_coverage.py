@@ -1,9 +1,15 @@
-"""Facility coverage bands for attribution gating (#928).
+"""Facility coverage bands for attribution gating (#928, #1040).
 
 ``coverage`` is GHGRP combustion floor / (floor + NEI-only below the GHGRP
 threshold). Attribution may use facility weights only where that share clears
 :data:`ATTRIBUTION_MIN_COVERAGE`; the downward (vector) gate stays at coverage
 >= 0.95 and unresolved <= 0.05.
+
+Hybrid production modes (#1040) use :func:`modes_median_freeze`: one
+facility-vs-MECS side per sector from median coverage over
+:data:`MODE_FREEZE_YEARS`, with floor vs vector taken from native modes in
+:data:`MODE_RECIPE_YEAR`. Per-year native modes remain available via
+:func:`modes_by_sector` for diagnostics.
 
 NEI CO2 ends at 2022 (#932). For later inventory years, pass ``nei_year=2022``
 so the coverage map is carried forward until #970.
@@ -12,6 +18,9 @@ so the coverage map is carried forward until #970.
 from __future__ import annotations
 
 import logging
+import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
@@ -46,6 +55,16 @@ VECTOR_UNRESOLVED_CEILING = 0.05
 #: Below this facility combustion total (Mt), a sector cannot be tested for
 #: the vector exception and stays a floor.
 MIN_MT_FOR_VECTOR_TEST = 0.5
+
+#: Span over which #1040 freezes one Hybrid mode per sector (median coverage).
+MODE_FREEZE_YEARS = tuple(range(2017, 2025))
+#: Native floor/vector recipe year when median coverage clears the gate.
+MODE_RECIPE_YEAR = 2022
+#: Last NEI inventory year with CO2 (#932); later method years reuse it.
+NEI_LAST_YEAR = 2022
+
+FACILITY_MODES = frozenset({'facility_floor', 'facility_vector'})
+MECS_MODE = 'keep_prior'
 
 
 def _naics_to_bea_detail() -> pd.Series:
@@ -234,3 +253,138 @@ def modes_by_sector(
         verdict = str(cast(Any, row.verdict))
         out[sector] = attribution_mode(coverage, verdict, min_coverage=min_coverage)
     return out
+
+
+def nei_year_for_method(method_year: int) -> int:
+    """NEI inventory year for a method year (hold at 2022 after NEI CO2 ends)."""
+    return NEI_LAST_YEAR if int(method_year) > NEI_LAST_YEAR else int(method_year)
+
+
+def _coverage_bands_cache_dir() -> Path:
+    override = os.environ.get('BEDROCK_FACILITY_COVERAGE_CACHE', '').strip()
+    root = (
+        Path(override)
+        if override
+        else (Path.home() / '.cache' / 'bedrock' / 'facility_coverage_bands')
+    )
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def load_or_build_coverage_bands(
+    year: int,
+    *,
+    nei_year: int | None = None,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """:func:`facility_coverage_bands` with an on-disk parquet cache."""
+    year = int(year)
+    nei_year = int(nei_year if nei_year is not None else nei_year_for_method(year))
+    path = _coverage_bands_cache_dir() / f'bands_{year}_nei{nei_year}.parquet'
+    if path.exists() and not refresh:
+        return pd.read_parquet(path)
+    bands = facility_coverage_bands(year, nei_year=nei_year)
+    bands.to_parquet(path, index=False)
+    logger.info('Cached coverage bands %s', path)
+    return bands
+
+
+def median_freeze_modes_from_tables(
+    coverage_by_year: dict[int, dict[str, float]],
+    native_modes: dict[int, dict[str, str]],
+    *,
+    recipe_year: int,
+    min_coverage: float = ATTRIBUTION_MIN_COVERAGE,
+) -> dict[str, str]:
+    """One Hybrid mode per sector from median coverage (#1040 A2).
+
+    Facility vs MECS comes from median coverage over the span vs
+    *min_coverage*. Floor vs vector comes from native modes in *recipe_year*
+    when that mode is facility_*; otherwise ``facility_floor``.
+    """
+    years = sorted(coverage_by_year)
+    sectors: set[str] = set()
+    for y in years:
+        sectors |= set(coverage_by_year[y])
+        sectors |= set(native_modes.get(y, {}))
+
+    late_modes = native_modes.get(int(recipe_year), {})
+    frozen: dict[str, str] = {}
+    for sector in sectors:
+        covs = [
+            coverage_by_year[y][sector]
+            for y in years
+            if sector in coverage_by_year[y]
+            and np.isfinite(coverage_by_year[y][sector])
+        ]
+        if not covs:
+            frozen[sector] = MECS_MODE
+            continue
+        med = float(np.median(covs))
+        if med < min_coverage:
+            frozen[sector] = MECS_MODE
+            continue
+        late = late_modes.get(sector, 'facility_floor')
+        frozen[sector] = late if late in FACILITY_MODES else 'facility_floor'
+    return frozen
+
+
+@lru_cache(maxsize=8)
+def _modes_median_freeze_cached(
+    years: tuple[int, ...],
+    recipe_year: int,
+    min_coverage: float,
+) -> tuple[tuple[str, str], ...]:
+    coverage_by_year: dict[int, dict[str, float]] = {}
+    native_modes: dict[int, dict[str, str]] = {}
+    for y in years:
+        bands = load_or_build_coverage_bands(y, nei_year=nei_year_for_method(y))
+        coverage_by_year[y] = {
+            str(row.sector): float(row.coverage)
+            for row in bands.itertuples(index=False)
+        }
+        if y == recipe_year:
+            native_modes[y] = modes_by_sector(bands, min_coverage=min_coverage)
+
+    frozen = median_freeze_modes_from_tables(
+        coverage_by_year,
+        native_modes,
+        recipe_year=recipe_year,
+        min_coverage=min_coverage,
+    )
+    logger.info(
+        'Median-freeze modes (years=%s-%s, recipe=%s, min_coverage=%.2f): %s',
+        min(years),
+        max(years),
+        recipe_year,
+        min_coverage,
+        pd.Series(frozen).value_counts().to_dict(),
+    )
+    return tuple(sorted(frozen.items()))
+
+
+def modes_median_freeze(
+    years: tuple[int, ...] = MODE_FREEZE_YEARS,
+    *,
+    recipe_year: int = MODE_RECIPE_YEAR,
+    min_coverage: float = ATTRIBUTION_MIN_COVERAGE,
+    refresh: bool = False,
+) -> dict[str, str]:
+    """Frozen Hybrid modes for the facility FBS span (#1040 A2).
+
+    Builds (or loads cached) coverage bands for each year in *years*, takes
+    native modes in *recipe_year* for floor vs vector, and returns one mode
+    map applied to every method year.
+    """
+    years = tuple(int(y) for y in years)
+    recipe_year = int(recipe_year)
+    min_coverage = float(min_coverage)
+    if recipe_year not in years:
+        raise ValueError(f'recipe_year {recipe_year} not in years {years}')
+    if refresh:
+        _modes_median_freeze_cached.cache_clear()
+        for y in years:
+            load_or_build_coverage_bands(
+                y, nei_year=nei_year_for_method(y), refresh=True
+            )
+    return dict(_modes_median_freeze_cached(years, recipe_year, min_coverage))

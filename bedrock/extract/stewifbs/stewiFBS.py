@@ -692,7 +692,10 @@ def hybrid_facility_mecs_to_sector(
     - ``min_coverage``: attribution gate (default 0.8)
     - ``industry_spec`` / ``target_schema_year``: inherited from the FBS method
 
-    Modes from :func:`~bedrock.transform.ghg.facility_coverage.modes_by_sector`:
+    Modes are the #1040 median-coverage freeze
+    (:func:`~bedrock.transform.ghg.facility_coverage.modes_median_freeze`):
+    one facility-vs-MECS side per sector from median 2017-2024 coverage vs
+    ``min_coverage``, with floor vs vector from 2022 native modes.
     ``keep_prior`` uses MECS share; ``facility_vector`` uses facility share;
     ``facility_floor`` uses max(facility share, MECS share). Each fuel's
     blended table is renormalized to sum to 1. ``MetaSources`` is
@@ -702,8 +705,7 @@ def hybrid_facility_mecs_to_sector(
     """
     from bedrock.transform.ghg.facility_coverage import (  # noqa: PLC0415
         ATTRIBUTION_MIN_COVERAGE,
-        facility_coverage_bands,
-        modes_by_sector,
+        modes_median_freeze,
     )
 
     _ = (external_config_path, _kwargs)
@@ -743,10 +745,9 @@ def hybrid_facility_mecs_to_sector(
         exclude_sectors=_str_tuple('exclude_sectors'),
         keep_flowables=keep_flowables,
     )
-    bands = facility_coverage_bands(ghgrp_year, nei_year=nei_year)
-    modes = modes_by_sector(bands, min_coverage=min_coverage)
+    modes = modes_median_freeze(min_coverage=min_coverage)
     log.info(
-        'Hybrid coverage modes (min_coverage=%.2f): %s',
+        'Hybrid median-freeze modes (min_coverage=%.2f): %s',
         min_coverage,
         pd.Series(modes).value_counts().to_dict(),
     )
