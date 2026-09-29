@@ -1,0 +1,37 @@
+# Cornerstone v0.5 nowcast model -- calendar year 2023 (IO + GHG).
+#
+# Same family as 2025_usa_cornerstone_v0_4_nowcast_2023.yaml, on the v0.5
+# nowcast build and with facility GHG attribution. Detail MUT from
+# NowcastMUT after-redefinition artifacts, pinned to nowcast_mut_vintage
+# v0.3.0_92b7a8a (Steps 3-7 rebuild of main at 92b7a8aa, 2026-09-28: gross
+# output chained on AIES, theta = 1, the EIA electricity rebase, #1030).
+# x and q are row and column sums of that after-redef Make; B is not
+# year-scaled or inflated.
+#
+# use_facility_ghg_attribution selects the facility-attribution GHG FBS
+# (GHG_national_Cornerstone_nowcast_facilities_2023), unpinned: the loader
+# takes the newest GCS parquet for that stem. All eight years are on GCS as
+# of 2026-09-29 (v0.3.0_92b7a8a).
+
+#####
+# Model base settings
+#####
+model_base_year: 2023
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_92b7a8a'
+usa_base_io_data_year: 2023
+usa_ghg_data_year: 2023
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+use_facility_ghg_attribution: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True

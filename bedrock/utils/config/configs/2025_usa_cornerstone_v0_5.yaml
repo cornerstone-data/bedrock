@@ -1,0 +1,54 @@
+# Cornerstone 2025 model - v0.5 release config.
+#
+# The v0.4 configuration on the v0.5 nowcast build:
+#   - Detail MUT from the NowcastMUT after-redefinition build named by
+#     nowcast_mut_vintage: v0.3.0_92b7a8a, the Steps 3-7 rebuild of main at
+#     92b7a8aa (2026-09-28). All eight years balance (T11 0.0 $M).
+#     It carries the gross output and theta stack (#1014, #1016, #1018), the
+#     residential electricity constraint (#1011), the Step 5 closers (#950),
+#     the scrap price path (#1026), the census materials switch at 1.0 (#1020),
+#     and electricity on EIA (#1030): 221100 output rebased on EIA, its price
+#     carry on EIA's retail price, and the services seed chained across the
+#     SAS -> AIES change. It supersedes v0.3.0_fa85e78, built the same day with
+#     the EIA rebase still off.
+#                                        -> usa_detail_io_source: nowcast, usa_base_io_data_year: 2024
+#   - Facility GHG attribution on the nowcast Use
+#                                        -> use_facility_ghg_attribution: True
+#     selects GHG_national_Cornerstone_nowcast_facilities_{year}.
+#     Waste disaggregation, industry-average margins,
+#     and no IO year adjustments as in v0.4.
+#
+# WARNING: The GHG FBS is NOT pinned here. use_cornerstone_ghg_model with nowcast +
+# use_facility_ghg_attribution loads the newest GCS parquet for
+# GHG_national_Cornerstone_nowcast_facilities_2024. Until plan task T15 builds
+# that stem on this MUT (facility attribution + biogenic CH4), that upload may
+# be missing and the model cannot load E. The GHG FBS is inspected directly, so
+# record the exact parquet (filename and sha256) T15 produces, here and in the
+# release notes, before the v0.5 snapshot is cut.
+#
+# nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
+# reproducible even after newer nowcast builds are uploaded; move the pin only
+# when a new build is accepted for release.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_92b7a8a'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+use_facility_ghg_attribution: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True

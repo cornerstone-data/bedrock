@@ -229,7 +229,9 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     ``usa_ghg_data_year`` selects the inventory-year method stem.
     ``usa_detail_io_source`` distinguishes published BEA Use attribution
     (``GHG_national_Cornerstone_{year}``) from nowcast Use attribution
-    (``GHG_national_Cornerstone_nowcast_{year}``).
+    (``GHG_national_Cornerstone_nowcast_{year}``). With nowcast,
+    ``use_facility_ghg_attribution`` selects the facility-attribution stem
+    (``GHG_national_Cornerstone_nowcast_facilities_{year}``) instead.
 
     Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
     instead of this helper.
@@ -238,6 +240,8 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     year = usa.usa_ghg_data_year
     if usa.usa_detail_io_source == 'bea_published':
         return f'GHG_national_Cornerstone_{year}'
+    if usa.use_facility_ghg_attribution:
+        return f'GHG_national_Cornerstone_nowcast_facilities_{year}'
     return f'GHG_national_Cornerstone_nowcast_{year}'
 
 

@@ -246,6 +246,11 @@ class USAConfig(BaseModel):
     # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
     # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
     use_cornerstone_ghg_model: bool = False
+    # When True with usa_detail_io_source=nowcast, load the facility-attribution
+    # GHG FBS stem (GHG_national_Cornerstone_nowcast_facilities_{year}) instead
+    # of the MECS/Use nowcast stem. Ignored when the detail source is
+    # bea_published.
+    use_facility_ghg_attribution: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
