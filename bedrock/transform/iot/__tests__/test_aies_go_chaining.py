@@ -236,3 +236,32 @@ def test_a_naics_missing_from_one_year_is_dropped_from_both_sides(
     # iterate the values and silently return an empty set
     assert common == frozenset({'324110'})
     assert base is not None
+
+
+def test_pooled_industries_share_the_pool_growth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cement and ready-mix chain on their combined receipts (#1032)."""
+    _receipts(
+        monkeypatch,
+        {
+            2022: {'327310': 11.7, '327320': 43.0},
+            2024: {'327310': 10.6, '327320': 51.3},
+        },
+    )
+    factors = ch.chain_factors(2024, ['327310', '327320'])
+    pooled = (10.6 + 51.3) / (11.7 + 43.0)
+    assert _f(factors['327310']) == pytest.approx(pooled)
+    assert _f(factors['327320']) == pytest.approx(pooled)
+
+
+def test_a_pool_census_only_partly_observes_chains_each_member_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _receipts(
+        monkeypatch,
+        {2022: {'327310': 11.7, '327320': 43.0}, 2024: {'327310': 10.6}},
+    )
+    factors = ch.chain_factors(2024, ['327310', '327320'])
+    assert _f(factors['327310']) == pytest.approx(10.6 / 11.7)
+    assert np.isnan(_f(factors['327320']))
