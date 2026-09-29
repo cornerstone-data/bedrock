@@ -246,6 +246,29 @@ def test_v0_4_nowcast_yamls_load(year: int) -> None:
     assert not cfg.deflate_x_to_detail_io_year_for_B
 
 
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_v0_5_yearly_yamls_load(year: int) -> None:
+    """Same family as the v0.4 per-year nowcast configs, on the v0.5 build.
+
+    Named without ``_nowcast_``: v0.5 has no ``bea_published`` per-year
+    family to disambiguate against, so the qualifier would be noise.
+    """
+    cfg = _load_usa_config_from_file_name(f'2025_usa_cornerstone_v0_5_{year}.yaml')
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == year
+    assert cfg.model_base_year == year
+    assert cfg.usa_detail_original_year == year
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+    assert cfg.nowcast_mut_vintage == 'v0.3.0_92b7a8a'
+    assert cfg.use_facility_ghg_attribution
+
+    v4 = _load_usa_config_from_file_name(
+        f'2025_usa_cornerstone_v0_4_nowcast_{year}.yaml'
+    )
+    _v5_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
+    assert cfg.model_dump(exclude=_v5_only) == v4.model_dump(exclude=_v5_only)
+
+
 def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
     """v0.4's configuration on the v0.5 nowcast build; MUT pin + facility GHG."""
     v05 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5.yaml')
