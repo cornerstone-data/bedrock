@@ -131,7 +131,14 @@ class USAConfig(BaseModel):
     # cell for summary group 22 so the reduction is not handed to gas
     # distribution and water. See
     # bedrock.transform.iot.eia_utility_go_adjustment (#1009).
-    rebase_utility_gross_output_on_eia: bool = False  # DRI: WesIngwersen
+    # ON by default for v0.5 (Wes, 2026-09-28): with it off, Steps 3-7 ran on
+    # BEA's gross output, whose 2022 spike and 2023 fall are the supply-side
+    # collapse behind #896 (221100 intermediate 2022->23: -$67.7bn off, -$28.0bn
+    # on). It also moves the 221100 price carry onto EIA's retail price (see
+    # nowcast_intermediate.commodity_price_factor). The PCE constraint's
+    # grading already covered this arm: eia_band wins it too ($2.52bn weighted
+    # EIA miss against $4.06bn), see About_1008_pce_electricity_pin.md.
+    rebase_utility_gross_output_on_eia: bool = True  # DRI: WesIngwersen
     # Chain manufacturing detail gross output for 2023-24 on AIES receipts
     # instead of BEA's own annual movement. BEA's detail stops tracking census
     # after the 2022 Economic Census: measured against each industry's own 2017
@@ -146,6 +153,19 @@ class USAConfig(BaseModel):
     # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
     # believe rather than an option we are trialling, so it ships enabled.
     chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
+    # Chain the services/transport expense seed across the SAS -> AIES survey
+    # change instead of indexing AIES years against a SAS 2017 base: 2023 takes
+    # 2022's (SAS) index and 2024 moves it by AIES's own 2024/2023 relative
+    # index, so every ratio stays inside one survey. Indexing AIES against SAS
+    # (the 2026-08-25 decision, #742) broke at the seam on two counts: item
+    # levels jump beyond their CVs (management consulting's electricity x3.1 at
+    # an 11% CV, back down 19% in 2024), and AIES publishes neither SAS's
+    # "All other operating expenses" nor a comparable one, so the relative
+    # index's denominator changes composition. For electricity that put the
+    # 2023 Step 3 row $63bn above its supply-side target, and the interior fit
+    # cut every buyer ~16% to close it (trade -24%). See
+    # bedrock.analysis.nowcasting.services_transport_expense_seed.
+    chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
