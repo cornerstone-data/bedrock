@@ -1,0 +1,29 @@
+# Phase 3 analysis-only TREATMENT ? waste_weights_year: match_io.
+#
+# Same MUT / GHG / electricity-off as the Phase 3 control twin for 2018, with
+# nowcast_mut_vintage pinned to the Track A verified GCS cut. Production /
+# canonical nowcast_2018.yaml stays on freeze-2017 weights and is unpinned.
+# Electricity flags omitted ? all False (Decision 6).
+
+#####
+# Model base settings
+#####
+model_base_year: 2018
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+usa_base_io_data_year: 2018
+usa_ghg_data_year: 2018
+nowcast_mut_vintage: 'v0.3.0_92b7a8a'
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True

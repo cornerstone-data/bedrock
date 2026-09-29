@@ -1,11 +1,9 @@
-# Cornerstone v0.4 nowcast 2024 — TREATMENT arm for waste-weight A/B impact.
+# Phase 3 analysis-only TREATMENT ? waste_weights_year: match_io.
 #
-# Same MUT / GHG / electricity-off as canonical nowcast_2024, but
-# waste_weights_year: match_io (derive weights for 2024). Production /
-# control remains 2025_usa_cornerstone_v0_4_nowcast_2024.yaml (implicit
-# waste_weights_year: 2017). Do not flip canonical defaults.
-#
-# Electricity flags omitted → all False (Decision 6).
+# Same MUT / GHG / electricity-off as the Phase 3 control twin for 2024, with
+# nowcast_mut_vintage pinned to the Track A verified GCS cut. Production /
+# canonical nowcast_2024.yaml stays on freeze-2017 weights and is unpinned.
+# Electricity flags omitted ? all False (Decision 6).
 
 #####
 # Model base settings
@@ -19,6 +17,7 @@ iot_before_or_after_redefinition: after
 usa_detail_io_source: nowcast
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
+nowcast_mut_vintage: 'v0.3.0_92b7a8a'
 
 #####
 # Methodology selection

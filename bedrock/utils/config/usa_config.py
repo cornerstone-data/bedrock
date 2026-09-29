@@ -485,7 +485,9 @@ def _normalize_usa_config_file_name(config_file_name: str) -> str:
 
 
 def _raise_if_retired_usa_config(config_file_name: str) -> None:
-    stem = _normalize_usa_config_file_name(config_file_name).removesuffix('.yaml')
+    stem = os.path.basename(
+        _normalize_usa_config_file_name(config_file_name)
+    ).removesuffix('.yaml')
     if stem in RETIRED_USA_CONFIG_STEMS:
         raise ValueError(
             f'USA config {stem!r} is retired and cannot be loaded. '
@@ -497,7 +499,12 @@ def _raise_if_retired_usa_config(config_file_name: str) -> None:
 def _load_usa_config_from_file_name(config_file_name: str) -> USAConfig:
     assert config_file_name.endswith('.yaml'), 'config file name must end with .yaml'
     _raise_if_retired_usa_config(config_file_name)
-    with open(os.path.join(CONFIG_DIR, config_file_name)) as f:
+    path = os.path.join(CONFIG_DIR, config_file_name)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f'USA config {config_file_name!r} not found under {CONFIG_DIR!r}'
+        )
+    with open(path) as f:
         data = yaml.safe_load(f)
     config = USAConfig.model_validate(data, strict=True)
     return config
@@ -547,6 +554,24 @@ def set_global_usa_config(
     else:
         _usa_config = base
     os.environ[USA_CONFIG_ENV_VAR] = config_file
+
+
+def set_global_usa_config_object(config: USAConfig, *, source_label: str) -> None:
+    """Install an already-validated ``USAConfig`` as the process-wide singleton.
+
+    Used by analysis-only loaders (e.g. waste-disagg Phase 3 YAMLs outside
+    ``CONFIG_DIR``). ``source_label`` is recorded in ``USA_CONFIG_ENV_VAR`` for
+    the already-set guard / logging only — ``get_usa_config()`` must never
+    re-resolve that label via ``_load_usa_config_from_file_name``.
+    """
+    global _usa_config
+    config_file_env = os.environ.get(USA_CONFIG_ENV_VAR)
+
+    if (_usa_config is not None) or (config_file_env is not None):
+        raise ValueError('Global USA config already set')
+
+    _usa_config = config
+    os.environ[USA_CONFIG_ENV_VAR] = source_label
 
 
 def get_usa_config() -> USAConfig:

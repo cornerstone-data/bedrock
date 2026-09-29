@@ -1,0 +1,29 @@
+# Phase 3 analysis-only CONTROL ? waste weights frozen at 2017.
+#
+# Pins nowcast_mut_vintage to the Track A verified GCS cut so both A/B arms
+# share the same MUT (never pair with unpinned canonical nowcast_2023.yaml).
+# Electricity flags omitted ? all False (Decision 6). Production canonicals
+# are unchanged.
+
+#####
+# Model base settings
+#####
+model_base_year: 2023
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+usa_base_io_data_year: 2023
+usa_ghg_data_year: 2023
+nowcast_mut_vintage: 'v0.3.0_92b7a8a'
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: 2017
+cornerstone_industry_avg_margins: True
