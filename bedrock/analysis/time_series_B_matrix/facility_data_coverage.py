@@ -1,4 +1,4 @@
-"""Data-quality indicators for the facility-based GHG FBS, per sector and year.
+"""Data coverage indicators for the facility-based GHG FBS, per sector and year.
 
 The facility FBS (#965, #1023) is meant to be **better data**, not only smoother
 data: a sector's share of industrial fuel combustion comes from the facilities
@@ -27,14 +27,15 @@ facility count keeps failing the year-on-year screen is unstable reporting,
 and a candidate to exclude from the facility method at the cut, next to the
 coverage test #1023 already applies.
 
-This is not a formal data-quality score. The EPA DQA scheme is the eventual
-basis for one; these are the indicators that can be read off the build now.
+These describe how much of each sector rests on facility reports and how
+stable that is. They are not a data quality assessment and are not scored on
+any formal scheme.
 
 ::
 
-    uv run python -m bedrock.analysis.time_series_B_matrix.facility_data_quality \\
+    uv run python -m bedrock.analysis.time_series_B_matrix.facility_data_coverage \\
         --cache-dir output/cache_v05_facilities
-    uv run python -m bedrock.analysis.time_series_B_matrix.facility_data_quality \\
+    uv run python -m bedrock.analysis.time_series_B_matrix.facility_data_coverage \\
         --cache-dir output/cache_v05_facilities --check
 """
 
@@ -75,7 +76,7 @@ FLAG_MIN_MT = 0.5  # ignore sectors with less facility-backed E than this
 FLAG_ALLOC_PCT = 50.0
 FLAG_REPORTED_STEADY_PCT = 15.0
 
-OUT_NAME = 'facility_data_quality.csv'
+OUT_NAME = 'facility_data_coverage.csv'
 
 
 def facility_union(year: int) -> pd.DataFrame:
