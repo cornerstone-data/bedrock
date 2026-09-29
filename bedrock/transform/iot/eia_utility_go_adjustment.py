@@ -377,9 +377,9 @@ def retail_price_index(year: int) -> float:
 def commercial_price_index(year: int) -> float:
     """EIA average commercial retail price relative to :data:`BASE_YEAR`.
 
-    Table 2.3 commercial revenue over Table 2.2 commercial sales. The price
-    trade and most services pay, which the physical-share pin carries their
-    electricity on (:func:`~.nowcast_intermediate.electricity_physical_share_cells`).
+    Table 2.3 commercial revenue over Table 2.2 commercial sales: the price
+    trade and most services pay. Data processing's held electricity cell is
+    priced on it (:func:`~.nowcast_intermediate.data_center_electricity_cell`).
     """
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
         eia_retail_revenue_usd,

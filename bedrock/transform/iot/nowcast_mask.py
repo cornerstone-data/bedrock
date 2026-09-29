@@ -555,8 +555,9 @@ def fixed_value_mask(
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
 
-    With ``pin_electricity_physical_share`` on, also holds ``221100`` for
-    :func:`~.nowcast_intermediate.pinned_electricity_buyers` at its Step 3 value.
+    Also holds ``221100`` for
+    :func:`~.nowcast_intermediate.pinned_electricity_buyers` at its Step 3 value
+    (data processing under ``move_data_processing_electricity_on_lbnl``).
 
     When ``pce_constraint='tier1_fixed'``, also holds the nonzero
     ``221100 × F01000`` cell at its seed (#1008). That is a published-annual-
@@ -578,8 +579,8 @@ def fixed_value_mask(
             != 0.0
         ):
             flags.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL] = True
-        # The electricity physical-share pin: an assumption held through GRAS,
-        # like the PCE cell above, not a reported value. Empty with the flag off.
+        # Held electricity cells: an assumption held through GRAS, like the
+        # PCE cell above, not a reported value. Empty with the flag off.
         from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
             ELECTRICITY_COMMODITY,
             pinned_electricity_buyers,

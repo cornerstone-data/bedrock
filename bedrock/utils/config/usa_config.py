@@ -166,16 +166,6 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
-    # Hold electricity per REAL dollar of output fixed at 2017 for the buyers in
-    # nowcast_intermediate.PHYSICAL_SHARE_BUYERS (wholesale, retail, scenic and
-    # sightseeing transportation), and keep those cells out of the interior fit
-    # and GRAS. The cell is a_2017 x GO x (EIA commercial price / the buyer's
-    # output price). theta = 1 holds the real INPUT mix, so the cell still
-    # moved with BEA value added: motor vehicle dealers' inputs-to-output ratio
-    # went 0.280 -> 0.347 -> 0.335 over 2021-23 and took the electricity
-    # coefficient with it. Only cells no survey observes are pinned. See
-    # bedrock.analysis.nowcasting.About_the_L_flux_priority (T39-T41).
-    pin_electricity_physical_share: bool = False  # DRI: WesIngwersen
     # Move data processing and hosting's (518200) electricity on LBNL's
     # national data center electricity series instead of the services survey,
     # priced on EIA's commercial price, and hold the cell through the interior

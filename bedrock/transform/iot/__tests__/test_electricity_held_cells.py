@@ -1,5 +1,5 @@
-"""The electricity physical-share pin (T40): the cell formula, the buyer set, and
-that the interior fit holds pinned cells while still meeting both margins.
+"""Held electricity cells (#1035): data processing's cell on LBNL, and that the
+interior fit holds a held cell while still meeting both margins.
 
 Synthetic throughout; no extract.
 """
@@ -18,63 +18,13 @@ from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
 ELEC = ni.ELECTRICITY_COMMODITY
-BUYERS = list(ni.PHYSICAL_SHARE_BUYERS)
 
 
-def _flag(
-    monkeypatch: pytest.MonkeyPatch, on: bool, data_centers: bool = False
-) -> None:
+def _flag(monkeypatch: pytest.MonkeyPatch, data_centers: bool) -> None:
     config = get_usa_config().model_copy(
-        update={
-            'pin_electricity_physical_share': on,
-            'move_data_processing_electricity_on_lbnl': data_centers,
-        }
+        update={'move_data_processing_electricity_on_lbnl': data_centers}
     )
     monkeypatch.setattr(ni, 'get_usa_config', lambda: config)
-
-
-def test_the_flag_is_off_by_default() -> None:
-    assert get_usa_config().pin_electricity_physical_share is False
-
-
-def test_no_buyer_is_pinned_with_the_flag_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    _flag(monkeypatch, False)
-    assert ni.pinned_electricity_buyers(2023) == []
-
-
-def test_a_survey_observed_cell_is_never_pinned(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _flag(monkeypatch, True)
-    observed = pd.DataFrame(False, index=[ELEC], columns=BUYERS)
-    observed.loc[ELEC, '441000'] = True
-    monkeypatch.setattr(ni, 'observed_cells', lambda year: observed)
-    pinned = ni.pinned_electricity_buyers(2023)
-    assert '441000' not in pinned
-    assert set(pinned) == set(BUYERS) - {'441000'}
-
-
-def test_cells_hold_kwh_per_real_dollar_of_output(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Output up 50% nominal on a 25% output price rise is 20% real growth;
-    with electricity 10% dearer, the cell is 1.2 x 1.1 = 1.32 x its 2017 value.
-    """
-    go = {
-        2017: pd.Series(1000.0, index=BUYERS),
-        2023: pd.Series(1500.0, index=BUYERS),
-    }
-    bench = pd.DataFrame(0.0, index=[ELEC], columns=BUYERS)
-    bench.loc[ELEC] = 20.0
-    prices = pd.DataFrame({2017: 1.0, 2023: 1.25}, index=pd.Index(BUYERS))
-    monkeypatch.setattr(ni, 'gross_output', lambda year: go[year])
-    monkeypatch.setattr(ni, 'benchmark_intermediate', lambda: bench)
-    monkeypatch.setattr(ni, 'derive_industry_price_index', lambda: prices.copy())
-    monkeypatch.setattr(
-        eia, 'commercial_price_index', lambda year: {2017: 1.0, 2023: 1.1}[year]
-    )
-    cells = ni.electricity_physical_share_cells(2023)
-    assert cells.to_numpy() == pytest.approx(np.full(len(BUYERS), 20.0 * 1.32))
 
 
 def test_the_fit_holds_pinned_cells_and_meets_both_margins(
@@ -114,10 +64,15 @@ def test_the_data_center_flag_is_off_by_default() -> None:
     assert get_usa_config().move_data_processing_electricity_on_lbnl is False
 
 
+def test_no_cell_is_held_with_the_flag_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    _flag(monkeypatch, False)
+    assert ni.pinned_electricity_buyers(2023) == []
+
+
 def test_the_data_center_cell_is_pinned_even_though_observed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _flag(monkeypatch, False, data_centers=True)
+    _flag(monkeypatch, True)
     assert ni.pinned_electricity_buyers(2023) == [ni.DATA_CENTER_BUYER]
 
 
@@ -138,3 +93,17 @@ def test_the_data_center_cell_moves_on_kwh_times_price(
     )
     expected = 100.0 * ni.data_center_electricity_index(2024) * 1.2
     assert ni.data_center_electricity_cell(2024) == pytest.approx(expected)
+
+
+def test_pin_writes_the_data_center_cell_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _flag(monkeypatch, True)
+    monkeypatch.setattr(ni, 'data_center_electricity_cell', lambda year: 7.0)
+    block = pd.DataFrame(
+        1.0, index=[ELEC, 'other'], columns=[ni.DATA_CENTER_BUYER, '441000']
+    )
+    out = ni.pin_electricity_cells(block, 2024)
+    assert out.at[ELEC, ni.DATA_CENTER_BUYER] == 7.0
+    assert out.at[ELEC, '441000'] == 1.0
+    assert out.at['other', ni.DATA_CENTER_BUYER] == 1.0

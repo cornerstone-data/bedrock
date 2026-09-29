@@ -1246,42 +1246,6 @@ def apply_column_control(shares: pd.DataFrame, control: pd.Series) -> pd.DataFra
     return block
 
 
-#: Buyers whose electricity is held at its 2017 **physical** intensity -- per
-#: real dollar of output -- when ``pin_electricity_physical_share`` is on: every
-#: wholesale and retail trade industry, and scenic and sightseeing
-#: transportation. None is observed by a survey (:func:`observed_cells`).
-#:
-#: ⚠️ **Why not theta = 1 alone.** theta = 1 holds the real mix of a buyer's
-#: *inputs*, so its electricity still scales with the inputs-to-output ratio,
-#: which comes off BEA value added. For trade that ratio moves with the margin:
-#: motor vehicle dealers' went 0.280 -> 0.347 -> 0.335 over 2021-23 and took
-#: the electricity coefficient 11.2 -> 14.5 -> 12.6 per thousand with it,
-#: while a dealership's kWh per unit of real sales did not move. That churn is
-#: in the Step 3 seed, not the balance (balanced / seed is 0.99-1.01 on these
-#: cells every year), so pinning the seed alone would not remove it.
-PHYSICAL_SHARE_BUYERS: tuple[str, ...] = (
-    '423100',
-    '423400',
-    '423600',
-    '423800',
-    '423A00',
-    '424200',
-    '424400',
-    '424700',
-    '424A00',
-    '441000',
-    '444000',
-    '445000',
-    '446000',
-    '447000',
-    '448000',
-    '452000',
-    '454000',
-    '4B0000',
-    '48A000',
-)
-
-
 #: The buyer whose electricity moves on :data:`DATA_CENTER_ELECTRICITY_CSV`.
 DATA_CENTER_BUYER = '518200'
 
@@ -1333,88 +1297,28 @@ def data_center_electricity_cell(year: int) -> float:
     return base * data_center_electricity_index(year) * price
 
 
-def gross_output(year: int) -> pd.Series:
-    """Industry gross output, USD: the column control plus :func:`vapro`."""
-    return intermediate_column_control(year) + vapro(year)
-
-
 def pinned_electricity_buyers(year: int) -> list[str]:
-    """The :data:`PHYSICAL_SHARE_BUYERS` whose ``221100`` cell no survey observes.
+    """Buyers whose ``221100`` cell is written in Step 3 and held after it.
 
-    Empty unless ``pin_electricity_physical_share`` is on. A survey-observed
-    cell is never pinned: the pin is an assumption, and an observation outranks
-    it. The one exception is :data:`DATA_CENTER_BUYER` under
-    ``move_data_processing_electricity_on_lbnl``, where an independent physical
-    series replaces the survey (#1035).
+    The interior fit and GRAS keep these cells where
+    :func:`pin_electricity_cells` writes them (``nowcast_interior_fit``,
+    ``nowcast_mask.fixed_value_mask``). Today that is only
+    :data:`DATA_CENTER_BUYER` under ``move_data_processing_electricity_on_lbnl``,
+    where an independent physical series replaces the survey observation on
+    this one cell (#1035). Empty with the flag off.
     """
-    config = get_usa_config()
-    buyers: list[str] = []
-    if config.pin_electricity_physical_share:
-        observed = observed_cells(year)
-        buyers += [
-            j
-            for j in PHYSICAL_SHARE_BUYERS
-            if j in observed.columns
-            and not bool(np.asarray(observed.at[ELECTRICITY_COMMODITY, j]).item())
-        ]
-    if config.move_data_processing_electricity_on_lbnl:
-        # Deliberately overrides the survey observation on this one cell (#1035).
-        buyers.append(DATA_CENTER_BUYER)
-    return buyers
+    del year  # the held set does not vary by year yet
+    if get_usa_config().move_data_processing_electricity_on_lbnl:
+        return [DATA_CENTER_BUYER]
+    return []
 
 
-def electricity_physical_share_cells(
-    year: int, output: pd.Series | None = None
-) -> pd.Series:
-    """``221100`` purchases at 2017 physical intensity, USD by buyer.
-
-    ``a_2017[j] x GO[j] x (p_elec / p_elec_2017) / (p_j / p_j_2017)``, where
-    ``a_2017`` is the benchmark cell over 2017 gross output, ``p_elec`` is EIA's
-    average **commercial** retail price (trade and services buy on the
-    commercial tariff), and ``p_j`` is the buyer's own output price from the
-    same industry price index the carry reads. kWh per real dollar of output is
-    therefore constant; the dollars move with the electricity price and with
-    real output.
-    """
-    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
-        commercial_price_index,
-    )
-
-    _require_year(year)
-    buyers = list(PHYSICAL_SHARE_BUYERS)
-    now = gross_output(year) if output is None else output
-    base = gross_output(SEED_YEAR)
-    bench = pd.Series(benchmark_intermediate().loc[ELECTRICITY_COMMODITY])
-    price_index = derive_industry_price_index()
-    price_index.index = price_index.index.astype(str)
-    output_price = price_index[year].reindex(buyers) / price_index[SEED_YEAR].reindex(
-        buyers
-    )
-    if output_price.isna().any():
-        missing = list(output_price.index[output_price.isna()])
-        raise KeyError(f'no output price index for pinned buyers: {missing}')
-    electricity_price = commercial_price_index(year) / commercial_price_index(SEED_YEAR)
-    cells = (
-        bench.reindex(buyers)
-        / base.reindex(buyers)
-        * now.reindex(buyers)
-        * electricity_price
-        / output_price
-    )
-    cells.index.name = 'industry'
-    return pd.Series(cells, dtype=float)
-
-
-def pin_electricity_physical_share(block: pd.DataFrame, year: int) -> pd.DataFrame:
-    """Write :func:`electricity_physical_share_cells` over the pinned buyers."""
+def pin_electricity_cells(block: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Write the held ``221100`` cells (:func:`pinned_electricity_buyers`)."""
     buyers = [j for j in pinned_electricity_buyers(year) if j in block.columns]
     if not buyers or ELECTRICITY_COMMODITY not in block.index:
         return block
     out = block.copy()
-    physical = [j for j in buyers if j in PHYSICAL_SHARE_BUYERS]
-    if physical:
-        cells = electricity_physical_share_cells(year)
-        out.loc[ELECTRICITY_COMMODITY, physical] = cells.reindex(physical).to_numpy()
     if DATA_CENTER_BUYER in buyers:
         out.loc[ELECTRICITY_COMMODITY, DATA_CENTER_BUYER] = (
             data_center_electricity_cell(year)
@@ -1453,7 +1357,7 @@ def derive_intermediate_use(
     if theta is None:
         # The interior fit and GRAS hold these cells where they are written
         # (nowcast_interior_fit, nowcast_mask.fixed_value_mask).
-        block = pin_electricity_physical_share(block, year)
+        block = pin_electricity_cells(block, year)
     from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
         overlay_s00300_intermediate_block,
     )
@@ -1511,9 +1415,7 @@ __all__ = [
     'benchmark_intermediate',
     'data_center_electricity_cell',
     'data_center_electricity_index',
-    'electricity_physical_share_cells',
-    'gross_output',
-    'pin_electricity_physical_share',
+    'pin_electricity_cells',
     'pinned_electricity_buyers',
     'carried_column_shares',
     'carry_shares',
