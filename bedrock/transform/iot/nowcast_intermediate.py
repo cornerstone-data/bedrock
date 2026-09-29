@@ -1282,6 +1282,57 @@ PHYSICAL_SHARE_BUYERS: tuple[str, ...] = (
 )
 
 
+#: The buyer whose electricity moves on :data:`DATA_CENTER_ELECTRICITY_CSV`.
+DATA_CENTER_BUYER = '518200'
+
+#: US data center electricity use, TWh, 2017-2024. **Digitized** from Figure 1
+#: of LBNL's *United States Data Center Energy Usage Report: 2025 Update*
+#: (Smith et al., LBNL-2001758, June 2026, OSTI 3374245), which revises the
+#: 2024 report's historical series. The report gives yearly values only in that
+#: figure. The black historical line was traced against the chart's gridlines
+#: (83.25 px per 100 TWh). Two checks against values the report states in text:
+#: 2024 reads 190.4 against the stated 192 (0.8% low), and 2018 matches the
+#: figure's "1.9% of U.S. Total" label. Only the ratio to 2017 is used, so a
+#: uniform calibration error cancels.
+DATA_CENTER_ELECTRICITY_CSV = (
+    Path(__file__).resolve().parents[2]
+    / 'extract'
+    / 'external_data'
+    / 'LBNL_data_center_electricity_USA.csv'
+)
+
+
+def data_center_electricity_index(year: int) -> float:
+    """LBNL US data center electricity use relative to 2017."""
+    table = pd.read_csv(DATA_CENTER_ELECTRICITY_CSV).set_index('year')['twh']
+    if year not in table.index or SEED_YEAR not in table.index:
+        raise KeyError(f'no LBNL data center electricity for {year}')
+    return float(table[year] / table[SEED_YEAR])
+
+
+def data_center_electricity_cell(year: int) -> float:
+    """``221100`` x ``518200``, USD: the 2017 cell moved on LBNL kWh and EIA price.
+
+    ``Use2017[221100, 518200] x (TWh / TWh_2017) x (p_commercial / p_2017)``.
+    Assumes ``518200`` keeps its 2017 share of national data center
+    electricity. Much hyperscale capacity sits in other industries, so this
+    may overstate its growth, but it replaces a survey series that has the
+    industry's kWh falling ~37% while the national total nearly triples (#1035).
+    """
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        commercial_price_index,
+    )
+
+    _require_year(year)
+    base = float(
+        np.asarray(
+            benchmark_intermediate().at[ELECTRICITY_COMMODITY, DATA_CENTER_BUYER]
+        ).item()
+    )
+    price = commercial_price_index(year) / commercial_price_index(SEED_YEAR)
+    return base * data_center_electricity_index(year) * price
+
+
 def gross_output(year: int) -> pd.Series:
     """Industry gross output, USD: the column control plus :func:`vapro`."""
     return intermediate_column_control(year) + vapro(year)
@@ -1292,17 +1343,24 @@ def pinned_electricity_buyers(year: int) -> list[str]:
 
     Empty unless ``pin_electricity_physical_share`` is on. A survey-observed
     cell is never pinned: the pin is an assumption, and an observation outranks
-    it.
+    it. The one exception is :data:`DATA_CENTER_BUYER` under
+    ``move_data_processing_electricity_on_lbnl``, where an independent physical
+    series replaces the survey (#1035).
     """
-    if not get_usa_config().pin_electricity_physical_share:
-        return []
-    observed = observed_cells(year)
-    return [
-        j
-        for j in PHYSICAL_SHARE_BUYERS
-        if j in observed.columns
-        and not bool(np.asarray(observed.at[ELECTRICITY_COMMODITY, j]).item())
-    ]
+    config = get_usa_config()
+    buyers: list[str] = []
+    if config.pin_electricity_physical_share:
+        observed = observed_cells(year)
+        buyers += [
+            j
+            for j in PHYSICAL_SHARE_BUYERS
+            if j in observed.columns
+            and not bool(np.asarray(observed.at[ELECTRICITY_COMMODITY, j]).item())
+        ]
+    if config.move_data_processing_electricity_on_lbnl:
+        # Deliberately overrides the survey observation on this one cell (#1035).
+        buyers.append(DATA_CENTER_BUYER)
+    return buyers
 
 
 def electricity_physical_share_cells(
@@ -1353,8 +1411,14 @@ def pin_electricity_physical_share(block: pd.DataFrame, year: int) -> pd.DataFra
     if not buyers or ELECTRICITY_COMMODITY not in block.index:
         return block
     out = block.copy()
-    cells = electricity_physical_share_cells(year)
-    out.loc[ELECTRICITY_COMMODITY, buyers] = cells.reindex(buyers).to_numpy()
+    physical = [j for j in buyers if j in PHYSICAL_SHARE_BUYERS]
+    if physical:
+        cells = electricity_physical_share_cells(year)
+        out.loc[ELECTRICITY_COMMODITY, physical] = cells.reindex(physical).to_numpy()
+    if DATA_CENTER_BUYER in buyers:
+        out.loc[ELECTRICITY_COMMODITY, DATA_CENTER_BUYER] = (
+            data_center_electricity_cell(year)
+        )
     return out
 
 
@@ -1445,6 +1509,8 @@ __all__ = [
     'UNPRICED_COMMODITIES',
     'apply_column_control',
     'benchmark_intermediate',
+    'data_center_electricity_cell',
+    'data_center_electricity_index',
     'electricity_physical_share_cells',
     'gross_output',
     'pin_electricity_physical_share',

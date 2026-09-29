@@ -21,8 +21,15 @@ ELEC = ni.ELECTRICITY_COMMODITY
 BUYERS = list(ni.PHYSICAL_SHARE_BUYERS)
 
 
-def _flag(monkeypatch: pytest.MonkeyPatch, on: bool) -> None:
-    config = get_usa_config().model_copy(update={'pin_electricity_physical_share': on})
+def _flag(
+    monkeypatch: pytest.MonkeyPatch, on: bool, data_centers: bool = False
+) -> None:
+    config = get_usa_config().model_copy(
+        update={
+            'pin_electricity_physical_share': on,
+            'move_data_processing_electricity_on_lbnl': data_centers,
+        }
+    )
     monkeypatch.setattr(ni, 'get_usa_config', lambda: config)
 
 
@@ -101,3 +108,33 @@ def test_the_fit_holds_pinned_cells_and_meets_both_margins(
     free = [c for c in USA_2017_COMMODITY_CODES if c != ELEC]
     grew = result.interior.loc[free, '441000'].sum() / seed.loc[free, '441000'].sum()
     assert float(grew) > 1.2
+
+
+def test_the_data_center_flag_is_off_by_default() -> None:
+    assert get_usa_config().move_data_processing_electricity_on_lbnl is False
+
+
+def test_the_data_center_cell_is_pinned_even_though_observed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _flag(monkeypatch, False, data_centers=True)
+    assert ni.pinned_electricity_buyers(2023) == [ni.DATA_CENTER_BUYER]
+
+
+def test_the_lbnl_series_starts_at_one_and_rises_every_year() -> None:
+    index = [ni.data_center_electricity_index(y) for y in range(2017, 2025)]
+    assert index[0] == 1.0
+    assert all(b > a for a, b in zip(index, index[1:]))
+
+
+def test_the_data_center_cell_moves_on_kwh_times_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bench = pd.DataFrame(0.0, index=[ELEC], columns=[ni.DATA_CENTER_BUYER])
+    bench.loc[ELEC, ni.DATA_CENTER_BUYER] = 100.0
+    monkeypatch.setattr(ni, 'benchmark_intermediate', lambda: bench)
+    monkeypatch.setattr(
+        eia, 'commercial_price_index', lambda year: {2017: 1.0, 2024: 1.2}[year]
+    )
+    expected = 100.0 * ni.data_center_electricity_index(2024) * 1.2
+    assert ni.data_center_electricity_cell(2024) == pytest.approx(expected)
