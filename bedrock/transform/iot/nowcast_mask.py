@@ -555,12 +555,14 @@ def fixed_value_mask(
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
 
+    With ``pin_electricity_physical_share`` on, also holds ``221100`` for
+    :func:`~.nowcast_intermediate.pinned_electricity_buyers` at its Step 3 value.
+
     When ``pce_constraint='tier1_fixed'``, also holds the nonzero
     ``221100 × F01000`` cell at its seed (#1008). That is a published-annual-
     counterpart / seed hold, **not** :data:`ONE_TO_ONE_FD` doctrine: EIA Form
     861 reports residential class revenue, not the BEA IO cell itself.
     """
-    del year  # the pattern is 2017-derived for every year; see the module note
     values = _panel_or_default(block, panel)
     flags = pd.DataFrame(False, index=values.index, columns=values.columns)
     if block == 'use':
@@ -576,6 +578,20 @@ def fixed_value_mask(
             != 0.0
         ):
             flags.at[PCE_ELECTRICITY_ROW, PCE_ELECTRICITY_COL] = True
+        # The electricity physical-share pin: an assumption held through GRAS,
+        # like the PCE cell above, not a reported value. Empty with the flag off.
+        from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+            ELECTRICITY_COMMODITY,
+            pinned_electricity_buyers,
+        )
+
+        if ELECTRICITY_COMMODITY in values.index:
+            for buyer in pinned_electricity_buyers(int(year)):
+                if buyer in values.columns:
+                    flags.at[ELECTRICITY_COMMODITY, buyer] = bool(
+                        np.asarray(values.at[ELECTRICITY_COMMODITY, buyer]).item()
+                        != 0.0
+                    )
     return flags
 
 

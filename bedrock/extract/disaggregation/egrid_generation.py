@@ -441,19 +441,22 @@ def eia_purchased_power_usd(year: int) -> float:
     return eia_table_8_3_line(year, 'expenses: Purchased Power')
 
 
-def eia_retail_revenue_usd(year: int) -> float:
-    """EIA Table 2.3 total retail revenue to ultimate customers, USD.
+def eia_retail_revenue_usd(year: int, customer_class: str = 'Total') -> float:
+    """EIA Table 2.3 retail revenue to ultimate customers, USD.
 
-    ``Total Electric Industry`` across all four customer classes -- the
-    published product of Table 2.2 volume and Table 2.4 average price, and the
-    leg of the electricity row that is genuinely sold to end users.
+    ``Total Electric Industry`` across all four customer classes by default --
+    the published product of Table 2.2 volume and Table 2.4 average price, and
+    the leg of the electricity row that is genuinely sold to end users. Pass a
+    *customer_class* (``'Commercial'``, ``'Residential'``, ...) for one class.
     """
     df = _epa_fba(year)
     table = df.loc[_table_mask(df, year, 'Table 2.3')]
     rows = table.loc[
         (table['ActivityProducedBy'] == 'Total Electric Industry')
-        & (table['ActivityConsumedBy'] == 'Total')
+        & (table['ActivityConsumedBy'] == customer_class)
     ]
     if rows.empty:
-        raise ValueError(f'Table 2.3 has no Total Electric Industry total for {year}')
+        raise ValueError(
+            f'Table 2.3 has no Total Electric Industry {customer_class!r} for {year}'
+        )
     return float(rows['FlowAmount'].iloc[0])

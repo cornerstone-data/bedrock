@@ -239,6 +239,20 @@ def _held_axes(sums: pd.Series, targets: pd.Series) -> tuple[pd.Series, pd.Serie
     return active, targets[held]
 
 
+def _pinned_interior(year: int, matrix: pd.DataFrame) -> pd.DataFrame:
+    """The seed's pinned cells, zero elsewhere (all zero with the pin off)."""
+    from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+        ELECTRICITY_COMMODITY,
+        pinned_electricity_buyers,
+    )
+
+    held = pd.DataFrame(False, index=matrix.index, columns=matrix.columns)
+    buyers = [j for j in pinned_electricity_buyers(year) if j in matrix.columns]
+    if buyers and ELECTRICITY_COMMODITY in matrix.index:
+        held.loc[[ELECTRICITY_COMMODITY], buyers] = True
+    return matrix.where(held, 0.0)
+
+
 def fit_interior(
     year: int,
     seed: pd.DataFrame | None = None,
@@ -272,6 +286,13 @@ def fit_interior(
     row_targets = interior_row_targets(int(year))
     column_targets = interior_column_targets(int(year))
     refuse_negative_column_targets(column_targets, int(year))
+
+    # Pinned cells stay where Step 3 wrote them: take them out of the matrix and
+    # out of both targets, fit what is left, and add them back at the end.
+    frozen = _pinned_interior(int(year), matrix)
+    matrix = matrix - frozen
+    row_targets = row_targets - frozen.sum(axis=1)
+    column_targets = column_targets - frozen.sum(axis=0)
 
     base_row_targets = row_targets.copy()
     row_active, held_rows = _held_axes(matrix.sum(axis=1), row_targets)
@@ -350,8 +371,11 @@ def fit_interior(
             f'targets are wrong, not the support - stop and diagnose.'
         )
 
-    result = pd.DataFrame(fitted, index=commodities, columns=industries)
     moved = float(np.abs(fitted - matrix.to_numpy()).sum()) / 2.0
+    fitted = fitted + frozen.to_numpy()
+    row_targets = row_targets + frozen.sum(axis=1)
+    column_targets = column_targets + frozen.sum(axis=0)
+    result = pd.DataFrame(fitted, index=commodities, columns=industries)
     return FitResult(
         interior=result,
         row_targets=row_targets,
