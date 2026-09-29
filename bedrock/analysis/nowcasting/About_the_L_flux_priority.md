@@ -148,6 +148,50 @@ structure. Settle #896 first and re-read this table after.
    `423600`, `48A000` — re-read after 1 and 2, since all six carry an
    electricity share and much of their movement may go with it.
 
+## Rerun on the v0.5 tables, 2026-09-28
+
+Same FBS (`v0.3.0_99655e9`) on MUT `v0.3.0_92b7a8a`, the build that switched
+electricity output onto EIA and fixed the electricity row's 2023 collapse
+(#1030). Holding the FBS fixed means every difference below is the tables.
+
+**The churners did not fall away.** Fixing the electricity row's *total* was
+expected to take most of their movement with it. It did not:
+
+| commodity | gross v0.4 | gross v0.5 | osc v0.4 | osc v0.5 |
+|---|---:|---:|---:|---:|
+| `441000` Motor vehicle and parts dealers | 109.1 | 99.8 | 0.97 | 0.99 |
+| `811100` Automotive repair and maintenance | 80.4 | 71.2 | 1.00 | 0.92 |
+| `423A00` Other durable goods wholesalers | 77.8 | 63.8 | 0.93 | 0.93 |
+| `531HST` Tenant-occupied housing | 63.0 | 67.1 | 0.99 | 0.99 |
+| `523900` Other financial investment activities | 61.9 | 39.7 | 0.95 | 0.98 |
+| `423600` Household appliances and electronic goods | 60.8 | 50.9 | 0.99 | 0.99 |
+| `48A000` Scenic and sightseeing transportation | 91.7 | 89.1 | 0.98 | 0.98 |
+| `324110` Petroleum refineries | 38.9 | 35.9 | 0.98 | 1.00 |
+
+Summed over all commodities, output-weighted `L` flux is 43.6 on v0.4 and
+43.9 on v0.5.
+
+**The electricity row is still the driver, and its share rose**: a driving
+cell for all 20 top commodities, carrying 33.9% of their top-cell mass
+(v0.4: 30.9%). What #1030 fixed is the row total. What still churns is how that
+total is split across buying industries. Motor vehicle dealers' electricity
+coefficient (nominal) is 0.0120 in 2021, 0.0147 in 2022 and 0.0132 in 2023
+while the row's share of intermediate use moves 1.74% -> 1.79% -> 1.65%. The
+next lever is the column split of the electricity row, not its total.
+
+**The trend group holds** and is, if anything, cleaner: `541511` custom
+computer programming now oscillates at 0.00, `541100` legal services at 0.03,
+`531HSO` owner-occupied housing at 0.05.
+
+**#922 is unchanged.** Oil and gas extraction -> refineries runs
+0.526 -> 0.490 -> 0.460 across 2021-23, and pipeline transportation -> oil and
+gas extraction still spikes in 2022, 0.021 -> 0.038 -> 0.023.
+
+To reproduce: build the span with
+`B_change_diagnostics --fbs-vintage v0.3.0_99655e9 --mut-vintage v0.3.0_92b7a8a`,
+then run this module. ⚠️ That overwrites the cached v0.4 span; copy
+`output/cache` aside first if both are needed.
+
 ## Method
 
 `A` is recovered from the cached `L` as `A = I − L⁻¹`, exact to 5.7e-16, so the
