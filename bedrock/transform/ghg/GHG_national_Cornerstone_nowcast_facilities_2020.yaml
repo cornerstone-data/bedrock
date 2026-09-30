@@ -84,6 +84,9 @@
              GHGRP_NEI_Facilities:
                selection_fields:
                  Flowable: Petroleum
+                 # Still gas is refinery fuel (#983): weight on refineries'
+                 # own petroleum only, not every facility's (#1054).
+                 SectorProducedBy: '324110'
 
          petroleum_facility:
            selection_fields:
