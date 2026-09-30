@@ -2,8 +2,10 @@
 #
 # The v0.4 configuration on the v0.5 nowcast build:
 #   - Detail MUT from the NowcastMUT after-redefinition build named by
-#     nowcast_mut_vintage: v0.3.0_92b7a8a, the Steps 3-7 rebuild of main at
-#     92b7a8aa (2026-09-28). All eight years balance (T11 0.0 $M).
+#     nowcast_mut_vintage: v0.3.0_6abf5c0, the Steps 3-7 rebuild at
+#     6abf5c00 (2026-09-29), which adds #1033's cement and ready-mix chain
+#     and data processing's electricity on LBNL (#1041, #1049). All eight
+#     years balance (T11 0.0 $M).
 #     It carries the gross output and theta stack (#1014, #1016, #1018), the
 #     residential electricity constraint (#1011), the Step 5 closers (#950),
 #     the scrap price path (#1026), the census materials switch at 1.0 (#1020),
@@ -20,11 +22,10 @@
 #
 # WARNING: The GHG FBS is NOT pinned here. use_cornerstone_ghg_model with nowcast +
 # use_facility_ghg_attribution loads the newest GCS parquet for
-# GHG_national_Cornerstone_nowcast_facilities_2024. Until plan task T15 builds
-# that stem on this MUT (facility attribution + biogenic CH4), that upload may
-# be missing and the model cannot load E. The GHG FBS is inspected directly, so
-# record the exact parquet (filename and sha256) T15 produces, here and in the
-# release notes, before the v0.5 snapshot is cut.
+# GHG_national_Cornerstone_nowcast_facilities_2024. As of 2026-09-30 that is
+# v0.3.0_8e466cd (facility attribution with #1050 CoA census interpolation, on
+# MUT 6abf5c0). Record the exact parquet (filename and sha256) here and in the
+# release notes before the v0.5 snapshot is cut.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
 # reproducible even after newer nowcast builds are uploaded; move the pin only
@@ -40,7 +41,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v0.3.0_92b7a8a'
+nowcast_mut_vintage: 'v0.3.0_6abf5c0'
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
 
