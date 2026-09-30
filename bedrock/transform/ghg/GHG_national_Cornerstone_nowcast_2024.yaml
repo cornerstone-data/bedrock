@@ -110,6 +110,14 @@ source_names:
          attribution_source:
            Nowcast_Detail_Use_AfterRedef:
              <<: *nowcast
+             # Each crop's fertilizer purchases follow its revenue year to
+             # year; blend the census-year tables instead (#934).
+             year: *coa_year
+             clean_fba: !clean_function:flowbyclean interpolate_census_years
+             census_interpolation:
+               years: [2017, 2022]
+               target_year: *ghgi_year
+               normalize: true
              selection_fields:
                ActivityProducedBy: {'325310': ''} # Fertilizers
 
@@ -256,6 +264,14 @@ source_names:
                 attribution_source:
                   Nowcast_Detail_Use_AfterRedef:
                     <<: *nowcast
+                    # Each crop's fertilizer purchases follow its revenue year to
+                    # year; blend the census-year tables instead (#934).
+                    year: *coa_year
+                    clean_fba: !clean_function:flowbyclean interpolate_census_years
+                    census_interpolation:
+                      years: [2017, 2022]
+                      target_year: *ghgi_year
+                      normalize: true
                     selection_fields:
                       ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
@@ -309,6 +325,14 @@ source_names:
                 attribution_source:
                   Nowcast_Detail_Use_AfterRedef:
                     <<: *nowcast
+                    # Each crop's fertilizer purchases follow its revenue year to
+                    # year; blend the census-year tables instead (#934).
+                    year: *coa_year
+                    clean_fba: !clean_function:flowbyclean interpolate_census_years
+                    census_interpolation:
+                      years: [2017, 2022]
+                      target_year: *ghgi_year
+                      normalize: true
                     selection_fields:
                       ActivityProducedBy: {'325310': ''} # fertilizer sectors
 

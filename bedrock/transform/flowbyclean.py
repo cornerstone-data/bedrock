@@ -414,9 +414,15 @@ def interpolate_census_years(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     outside the census years the loaded data is returned unchanged, so the
     method's ``year`` still picks the census it holds to.
 
+    With ``normalize: true`` the two years are blended as shares of their own
+    totals, and the result keeps the loaded year's total. Use it for a money
+    key, whose totals differ between census years on prices alone.
+
     Why: the soils attribution switched from the 2017 to the 2022 Census of
     Agriculture in one method year (2021), which moved grain farming's share
-    of cropland soils by 8.9 pp in that year alone (#934).
+    of cropland soils by 8.9 pp in that year alone (#934). The fertilizer
+    key, the nowcast Use table's ``325310`` row, carries each crop column's
+    revenue path, so it is blended between its 2017 and 2022 tables too.
     """
     settings = fba.config.get('census_interpolation') or {}
     low, high = (int(y) for y in settings['years'])
@@ -454,10 +460,16 @@ def interpolate_census_years(fba: FlowByActivity, **_: Any) -> FlowByActivity:
 
     weight_high = (target - low) / (high - low)
     weight = {high: weight_high, low: 1.0 - weight_high}
-    this = pd.DataFrame(fba).assign(
-        FlowAmount=lambda d: d['FlowAmount'] * weight[loaded]
-    )
-    that = pd.DataFrame(other_fba).assign(
+    this = pd.DataFrame(fba)
+    that = pd.DataFrame(other_fba)
+    if settings.get('normalize'):
+        # Blend shares, not levels, so a census year with a larger total (a
+        # money key in a year of higher prices) does not outweigh the other.
+        # The result keeps the loaded year's total.
+        scale = this['FlowAmount'].sum() / that['FlowAmount'].sum()
+        that = that.assign(FlowAmount=that['FlowAmount'] * scale)
+    this = this.assign(FlowAmount=lambda d: d['FlowAmount'] * weight[loaded])
+    that = that.assign(
         FlowAmount=lambda d: d['FlowAmount'] * weight[other],
         Year=this['Year'].iloc[0] if len(this) else loaded,
     )

@@ -80,6 +80,20 @@ def test_loaded_high_census_takes_its_own_weight(
     assert out['FlowAmount'].sum() == pytest.approx(0.2 * 100 + 0.8 * 200)
 
 
+def test_normalize_blends_shares_and_keeps_the_loaded_total(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 2022's key is twice 2017's on price alone; the blend must not favour it.
+    _patch_other(monkeypatch, 2022, {'111150': 60.0, '111160': 140.0})
+    settings = _settings(2020)
+    settings['census_interpolation']['normalize'] = True
+    fba = _fba(2017, {'111150': 50.0, '111160': 50.0}, **settings)
+    out = pd.DataFrame(flowbyclean.interpolate_census_years(fba))
+    by_code = out.groupby('ActivityConsumedBy')['FlowAmount'].sum()
+    assert by_code.sum() == pytest.approx(100.0)
+    assert by_code['111150'] == pytest.approx(100 * (0.4 * 0.5 + 0.6 * 0.3))
+
+
 @pytest.mark.parametrize('target', [2017, 2022, 2024])
 def test_census_and_later_years_are_unchanged(target: int) -> None:
     fba = _fba(2022 if target >= 2022 else 2017, {'111150': 5.0}, **_settings(target))
