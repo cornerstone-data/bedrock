@@ -1913,7 +1913,8 @@ def smoothed_survey_path(path: pd.Series) -> pd.Series:
             bench = {first: c0, **{year: np.nan for year in asm}}
         if np.isfinite(c1):
             bench[last] = c1
-        logs = np.log(pd.Series(bench, dtype=float).sort_index())
+        levels = pd.Series(bench, dtype=float).sort_index()
+        logs = pd.Series(np.log(levels.to_numpy()), index=levels.index)
         logs = logs.interpolate(limit_area='inside')
         centred = logs.rolling(3, center=True).mean()
         for year in asm:
@@ -2002,7 +2003,7 @@ def nonmaterial_seed(year: int) -> pd.DataFrame:
         for kind in SMOOTHED_EXPENSE_KINDS:
             if kind not in wide.columns.get_level_values('kind'):
                 continue
-            smoothed = smoothed_kind_block(wide[kind])
+            smoothed = smoothed_kind_block(pd.DataFrame(wide[kind]))
             for column in smoothed.columns:
                 wide[(kind, column)] = smoothed[column]
 

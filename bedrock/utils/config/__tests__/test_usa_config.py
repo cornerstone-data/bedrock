@@ -315,7 +315,10 @@ def test_v0_4_waterfall_rungs_bracket_the_release_config() -> None:
         'nowcast_mut_vintage',
         'usa_base_io_data_year',
         'apply_io_year_adjustments',
+        # Release Flip: year-matched waste shares; waterfall G3 keeps frozen 2017.
+        'waste_weights_year',
     }
+    assert nowcast_only['waste_weights_year'] == (2017, 'match_io')
     # The two rungs carry the v0.3 waterfall values over unchanged.
     assert (
         _resolved_field_diff('v04_waterfall_g2_methods', 'v03_waterfall_g2_methods')

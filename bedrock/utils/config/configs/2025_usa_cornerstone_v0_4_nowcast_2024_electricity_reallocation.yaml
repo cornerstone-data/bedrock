@@ -8,5 +8,6 @@ usa_ghg_data_year: 2024
 use_cornerstone_ghg_model: True
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
+waste_weights_year: match_io
 cornerstone_industry_avg_margins: False
 implement_electricity_reallocation: True

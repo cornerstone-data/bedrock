@@ -88,4 +88,6 @@ def test_block_keeps_each_years_total_and_the_census_years() -> None:
     assert np.allclose(out.sum(axis=0), block.sum(axis=0))
     assert np.allclose(out[2017], block[2017])
     assert np.allclose(out[2022], block[2022])
-    assert _churn(out.loc['33641A', 2017:2022]) < _churn(block.loc['33641A', 2017:2022])
+    smoothed = pd.Series(out.loc['33641A', 2017:2022], dtype=float)
+    raw = pd.Series(block.loc['33641A', 2017:2022], dtype=float)
+    assert _churn(smoothed) < _churn(raw)

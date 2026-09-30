@@ -38,6 +38,7 @@ from bedrock.extract.disaggregation.waste_year_resolvers import (
     resolve_rcra_year,
     resolve_sas_year,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
 
@@ -63,14 +64,95 @@ def _load_bundled_long() -> tuple[pd.DataFrame, pd.DataFrame]:
     return use, make
 
 
+def _match_io_active() -> bool:
+    return get_usa_config().waste_weights_year == "match_io"
+
+
+def _chain_waste_industry_mix() -> bool:
+    """AIES-only industry-mix chain: flag on and Flip ``match_io`` path."""
+    cfg = get_usa_config()
+    return (
+        bool(cfg.chain_waste_industry_mix_across_aies)
+        and cfg.waste_weights_year == "match_io"
+    )
+
+
+def _renormalize_waste_shares(shares: pd.Series) -> pd.Series:
+    s = shares.reindex(WASTE_CHILDREN).fillna(0.0).astype(float)
+    total = float(s.sum())
+    if total <= 0:
+        return pd.Series(1.0 / len(WASTE_CHILDREN), index=WASTE_CHILDREN)
+    return s / total
+
+
+def _aies_chained_industry_mix_shares(
+    target_year: int,
+    prov: WeightDerivationProvenance,
+    *,
+    require_complete_priors: bool,
+) -> pd.Series:
+    """Hold post-fill SAS 2022 levels; move 2024 by AIES-only child-share ratios.
+
+    Decision 2 override when ``chain_waste_industry_mix_across_aies`` is on:
+    AIES supplies YoY movement only; the held level is post-fill SAS 2022.
+    """
+    sas_2022, sas_notes = load_sas_table3_expense_shares(
+        2022, require_complete_priors=require_complete_priors
+    )
+    prov.sas_source_year = 2022
+    prov.fallback_notes.extend(sas_notes)
+    held = _renormalize_waste_shares(sas_2022)
+
+    if target_year == 2023:
+        prov.fallback_notes.append(
+            "waste industry-mix chain: 2023 holds post-fill SAS 2022 shares "
+            "(Decision 2 level override; AIES unused for 2023 levels)"
+        )
+        return held
+
+    if target_year == 2024:
+        aies_2023 = load_aies_child_expense_shares(2023, table="EXP01")
+        aies_2024 = load_aies_child_expense_shares(2024, table="BASIC")
+        prov.aies_source_year = 2024
+        prov.aies_table = "BASIC"
+        ratio = aies_2024.reindex(WASTE_CHILDREN).fillna(0.0).astype(float) / (
+            aies_2023.reindex(WASTE_CHILDREN).fillna(0.0).astype(float)
+        )
+        ratio = ratio.replace([float("inf"), -float("inf")], 1.0).fillna(1.0)
+        # No movement where 2023 AIES share is zero.
+        ratio = ratio.where(aies_2023.reindex(WASTE_CHILDREN).fillna(0.0) > 0, 1.0)
+        moved = _renormalize_waste_shares(held * ratio)
+        prov.fallback_notes.append(
+            "waste industry-mix chain: 2024 = post-fill SAS 2022 × "
+            "(AIES 2024 / AIES 2023) child-share ratios, renormalised"
+        )
+        return moved
+
+    raise ValueError(
+        f"waste industry-mix chain only defined for 2023–2024, got {target_year}"
+    )
+
+
 def _industry_mix_shares(
     target_year: int, prov: WeightDerivationProvenance
 ) -> pd.Series:
     kind, survey_year = resolve_industry_mix_source(target_year)
+    require_complete = _match_io_active()
     if kind == "sas_table3":
-        shares = load_sas_table3_expense_shares(survey_year)
+        shares, sas_notes = load_sas_table3_expense_shares(
+            survey_year, require_complete_priors=require_complete
+        )
         prov.sas_source_year = survey_year
+        prov.fallback_notes.extend(sas_notes)
         return shares
+
+    if _chain_waste_industry_mix() and target_year in (2023, 2024):
+        return _aies_chained_industry_mix_shares(
+            target_year,
+            prov,
+            require_complete_priors=require_complete,
+        )
+
     table: Literal["EXP01", "BASIC"] = "EXP01" if kind == "aies_exp01" else "BASIC"
     try:
         shares = load_aies_child_expense_shares(survey_year, table=table)
@@ -78,13 +160,19 @@ def _industry_mix_shares(
         prov.aies_table = table
         return shares
     except Exception as exc:  # noqa: BLE001
-        # Fallback: scale prior year (2022 SAS Table 3) per plan failure-mode
+        if _match_io_active():
+            raise RuntimeError(
+                f"AIES {table} {survey_year} failed under waste_weights_year="
+                f"match_io ({type(exc).__name__}: {exc}); refusing SAS fallback"
+            ) from exc
+        # Soft fallback for non-match_io analysis / diagnostic configs only.
         prov.fallback_notes.append(
             f"AIES {table} {survey_year} failed ({type(exc).__name__}: {exc}); "
             "falling back to 2022 SAS Table 3 expense shares"
         )
-        shares = load_sas_table3_expense_shares(2022)
+        shares, sas_notes = load_sas_table3_expense_shares(2022)
         prov.sas_source_year = 2022
+        prov.fallback_notes.extend(sas_notes)
         return shares
 
 
@@ -247,10 +335,13 @@ def derive_waste_weights(
         sas_row_year = resolve_sas_year(min(target_year, 2022))
         if target_year >= 2023:
             sas_row_year = 2022
-        row_shares = load_sas_table2_revenue_shares(sas_row_year)
+        row_shares, table2_notes = load_sas_table2_revenue_shares(
+            sas_row_year, require_complete_priors=_match_io_active()
+        )
         use = _replace_row_sum(use, row_shares)
         if prov.sas_source_year is None:
             prov.sas_source_year = sas_row_year
+        prov.fallback_notes.extend(table2_notes)
     except Exception as exc:  # noqa: BLE001
         prov.fallback_notes.append(
             f"SAS Table 2 row-sum failed ({type(exc).__name__}); keeping 2017 bundled"

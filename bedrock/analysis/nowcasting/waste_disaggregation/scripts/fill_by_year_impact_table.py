@@ -1,4 +1,4 @@
-"""Fill auto sections in impact_nowcast_updated_weights_by_year.md from Track A."""
+"""Fill auto sections in impact_nowcast_updated_weights_by_year.md from GCS evidence."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ import json
 import re
 from pathlib import Path
 
-from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (
     GCS_MUT_VINTAGE,
-    PHASE3_YEARS,
+    IMPACT_YEARS,
 )
 from bedrock.analysis.nowcasting.waste_disaggregation.scripts.run_waste_weight_impact_efs import (  # noqa: E501
     _safe_vintage_label,
@@ -86,7 +86,7 @@ def _summary_block() -> str:
         "| Year | N median % | N p95 \\|%\\| | Waste N max \\|%\\| mover | Notes |\n"
         "|------|------------|-------------|-------------------------|-------|\n"
     )
-    rows = "\n".join(_row(y) for y in PHASE3_YEARS)
+    rows = "\n".join(_row(y) for y in IMPACT_YEARS)
     return (
         "<!-- AUTO:PER_YEAR_SUMMARY -->\n"
         f"{header}{rows}\n"
@@ -95,7 +95,7 @@ def _summary_block() -> str:
 
 
 def _figures_block() -> str:
-    figs = "\n".join(_year_figures(y) for y in PHASE3_YEARS)
+    figs = "\n".join(_year_figures(y) for y in IMPACT_YEARS)
     return "<!-- AUTO:FIGURES_BY_YEAR -->\n" f"{figs}" "<!-- /AUTO:FIGURES_BY_YEAR -->"
 
 

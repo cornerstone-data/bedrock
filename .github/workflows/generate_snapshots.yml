@@ -41,6 +41,10 @@ jobs:
 
       - name: Generate snapshots
         id: generate
+        env:
+          # Waste match_io / AIES industry-mix (and other Census FBAs) need this
+          # when the parquet is not yet on gs://…/flowsa/FlowByActivity/.
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
           CONFIG_NAME="${{ github.event.inputs.config_name || '2025_usa_cornerstone_v0_4' }}"
           PREFIX="${{ github.event.inputs.snapshot_prefix_override }}"

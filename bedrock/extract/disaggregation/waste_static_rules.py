@@ -6,7 +6,7 @@ from __future__ import annotations
 NAICS_MAP_VERSION = "workbook_ec_tab+Sector_Crosswalk_Cornerstone_2025_v1"
 
 # Locked Decision (plan): workbook EC tab + Cornerstone_2025 crosswalk.
-# Do NOT use Phase 1 preview_sas_rcra_shares.py map (562119→562HAZ was wrong).
+# Do NOT use preview_sas_rcra_shares.py map (562119→562HAZ was wrong).
 SAS_NAICS_TO_CORNERSTONE: dict[str, str] = {
     "562111": "562111",
     "562112": "562HAZ",

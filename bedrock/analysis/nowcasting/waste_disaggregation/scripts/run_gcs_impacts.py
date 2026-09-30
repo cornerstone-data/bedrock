@@ -1,4 +1,4 @@
-"""Run Phase 3.1 GCS impact for all years with verified pin.
+"""Run GCS paired waste-weight impacts for all years with verified pin.
 
 Uses ``GCS_MUT_VINTAGE`` (``v0.3.0_92b7a8a``) as the year×vintage cache label.
 """
@@ -11,9 +11,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (
     GCS_MUT_VINTAGE,
-    PHASE3_YEARS,
+    IMPACT_YEARS,
     control_config_name,
     treatment_config_name,
 )
@@ -23,14 +23,14 @@ from bedrock.analysis.nowcasting.waste_disaggregation.scripts.run_waste_weight_i
 )
 
 ROOT = Path(__file__).resolve().parents[5]
-CACHE = Path(__file__).resolve().parents[1] / "cache" / "phase3_gcs_impact_index.json"
+CACHE = Path(__file__).resolve().parents[1] / "cache" / "gcs_impact_index.json"
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--years",
-        default=",".join(str(y) for y in PHASE3_YEARS),
+        default=",".join(str(y) for y in IMPACT_YEARS),
         help="Comma-separated years (default: 2018-2024)",
     )
     parser.add_argument(
@@ -53,7 +53,7 @@ def main(argv: list[str]) -> int:
             print(f"SKIP {year} (existing {out})", flush=True)
             index["results"][str(year)] = {"status": "skipped", "out_dir": str(out)}  # type: ignore[index]
             continue
-        print(f"=== Track A year={year} ===", flush=True)
+        print(f"=== GCS year={year} ===", flush=True)
         subprocess.run(
             [
                 py,

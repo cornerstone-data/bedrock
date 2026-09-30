@@ -1,15 +1,15 @@
-"""Kick off Phase 3 Track B local MUT rebuild (2018–2024 only).
+"""Kick off local MUT rebuild (2018–2024 only).
 
 Runs Step 5 → 6 → 7 with explicit years (no bare defaults, no ``--gcs``).
-Records the exact ``default_nowcast_mut_vintage()`` string for Track C.
+Records the exact ``default_nowcast_mut_vintage()`` string for local-MUT impacts.
 
 Prerequisite: local ``EIA_MECS_Energy_2018`` FBA must include Tables 7.2 and
 7.10 (#895). If Step 5 fails with a stale MECS cache, regenerate::
 
   generateFlowByActivity(source='EIA_MECS_Energy', year=2018)
 
-Soft-balance failure for a year: that year is skipped in Track C (hole in
-report) — see ``cache/phase3_local_mut_rebuild.json``.
+Soft-balance failure for a year: that year is skipped in local-MUT impacts (hole in
+report) — see ``cache/local_mut_rebuild.json``.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from pathlib import Path
 from bedrock.extract.iot.nowcast_mut_storage import default_nowcast_mut_vintage
 
 YEARS = list(range(2018, 2025))
-CACHE = Path(__file__).resolve().parents[1] / "cache" / "phase3_local_mut_rebuild.json"
+CACHE = Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
 ROOT = Path(__file__).resolve().parents[5]
 
 
@@ -40,7 +40,7 @@ def _ensure_mecs_tables() -> None:
 
     for year in (2018, 2022):
         print(
-            f"Regenerating EIA_MECS_Energy {year} (Track B prerequisite)...",
+            f"Regenerating EIA_MECS_Energy {year} (local MUT rebuild prerequisite)...",
             flush=True,
         )
         generateFlowByActivity(source="EIA_MECS_Energy", year=year)
@@ -56,7 +56,7 @@ def main() -> int:
         "years": YEARS,
         "steps": [],
         "failed_years": [],
-        "note": "Do not pass --gcs. Track C pins both arms to intended_local_vintage.",
+        "note": "Do not pass --gcs. local-MUT impacts pins both arms to intended_local_vintage.",
     }
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     CACHE.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

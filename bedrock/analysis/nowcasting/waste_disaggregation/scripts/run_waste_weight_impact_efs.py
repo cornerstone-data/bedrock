@@ -1,4 +1,4 @@
-"""Paired EF comparison for Phase 3 waste-weight A/B (no Google Sheet required).
+"""Paired EF comparison for waste-weight A/B (no Google Sheet required).
 
 Generalized beyond the 2024 pilot: CLI selects year + control/treatment
 configs; outputs land under ``cache/impact_{year}_{mut_vintage_label}/`` so
@@ -9,7 +9,7 @@ arm roles. Subprocess-per-arm keeps the global USA config isolated.
 
 Examples::
 
-  # GCS 2024 re-baseline (defaults from phase3_pins)
+  # GCS 2024 re-baseline (defaults from impact_pins)
   python -m ...run_waste_weight_impact_efs --year 2024
 
   # Explicit configs / vintage label override for cache dir
@@ -66,7 +66,7 @@ def impact_cache_dir(year: int, mut_vintage: str) -> Path:
 
 def _worker(config: str, tag: str, out_dir: Path) -> None:
     """Pull D/N for one config; must be a fresh process (global USA config once)."""
-    from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (  # noqa: PLC0415
+    from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (  # noqa: PLC0415
         ANALYSIS_CONFIG_DIR,
         install_analysis_usa_config,
     )
@@ -201,7 +201,7 @@ def _assert_matching_vintages(out_dir: Path) -> str:
     t_v = treatment.get("nowcast_mut_vintage")
     if c_v is None or t_v is None:
         raise ValueError(
-            "Phase 3 impact requires both arms to resolve nowcast_mut_vintage; "
+            "Impact requires both arms to resolve nowcast_mut_vintage; "
             f"got control={c_v!r} treatment={t_v!r}"
         )
     if c_v != t_v:
@@ -305,7 +305,7 @@ def _run_pair(
     if out_dir.exists() and (out_dir / "summary.json").exists():
         print(
             f"NOTE: {out_dir} already has summary.json — will overwrite arm "
-            "outputs in this directory only (Track C must use a different "
+            "outputs in this directory only (local-MUT arms must use a different "
             "mut-vintage-label).",
             flush=True,
         )
@@ -340,7 +340,7 @@ def main(argv: list[str]) -> int:
         compare_and_plot(out_dir, figure_prefix=prefix)
         return 0
 
-    from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (  # noqa: PLC0415
+    from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (  # noqa: PLC0415
         GCS_MUT_VINTAGE,
         control_config_name,
         treatment_config_name,
@@ -351,18 +351,18 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--control",
         default=None,
-        help="Control USAConfig name (default: Phase 3 waste_weights_control)",
+        help="Control USAConfig name (default: waste_weights_control)",
     )
     parser.add_argument(
         "--treatment",
         default=None,
-        help="Treatment USAConfig name (default: Phase 3 waste_weights_match_io)",
+        help="Treatment USAConfig name (default: waste_weights_match_io)",
     )
     parser.add_argument(
         "--mut-vintage-label",
         default=None,
         help=(
-            "Cache-dir vintage label (default: GCS_MUT_VINTAGE). Track C must "
+            "Cache-dir vintage label (default: GCS_MUT_VINTAGE). local-MUT arms must "
             "pass the recorded local vintage so GCS artifacts are not overwritten."
         ),
     )

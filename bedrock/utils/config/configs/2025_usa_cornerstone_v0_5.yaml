@@ -52,4 +52,5 @@ use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
+waste_weights_year: match_io
 cornerstone_industry_avg_margins: True
