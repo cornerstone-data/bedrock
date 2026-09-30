@@ -43,6 +43,7 @@ is both arms pinned on a verified **GCS** MUT, year-aligned weights vs 2017.
 - [x] GCS by-year report on target MUT pin — [`impact_nowcast_updated_weights_by_year.md`](impact_nowcast_updated_weights_by_year.md)
 - [x] Release note drafted — [`phase32_flip_release_note.md`](phase32_flip_release_note.md)
 - [x] Canonical YAMLs set to `waste_weights_year: match_io`
-- [ ] Snapshot regenerate + `.SNAPSHOT_KEY` bump (Phase A after merge) — see release note
-- [ ] Waterfall / feature-impact re-dispatch after snapshot bump
+- [x] Snapshot regenerate on Flip branch (`generate_snapshots` run [36665300634](https://github.com/cornerstone-data/bedrock/actions/runs/36665300634); GCS `gs://cornerstone-default/snapshots/60c8a6b8568b3002a73cdf8569114b2250571e94/`)
+- [x] `.SNAPSHOT_KEY` / `releases.py` / Literal bumped to that SHA on this branch
+- [x] Waterfall / Flip diagnostics dispatched (see [`phase32_flip_release_note.md`](phase32_flip_release_note.md) run index)
 - [ ] ~~Prefer §11 hardening + optional who-buys SAS-scale before/with flip~~ → **optional only; not a gate**

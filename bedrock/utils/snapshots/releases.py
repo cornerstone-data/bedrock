@@ -59,7 +59,14 @@ v0_3_2 = "7d0cb92af43882ee9496b5932e1893bb9ffcbdd7"  # config: 2025_usa_cornerst
 # build v0.3.0_4276083) instead of published BEA 2017 detail; x and q are that
 # Make's row and column sums, B is no longer year-scaled or inflated, and the
 # GHG FBS is attributed on nowcast Use (#880).
-v0_4_0 = "2fcbd68b3275cc8e409d4df5d1f28a3a8355c249"  # config: 2025_usa_cornerstone_v0_4; matches .SNAPSHOT_KEY
+v0_4_0_pre_waste_match_io = (
+    "2fcbd68b3275cc8e409d4df5d1f28a3a8355c249"  # config: 2025_usa_cornerstone_v0_4
+)
+
+# Output change: Phase 3.2 Flip — waste_weights_year match_io on canonical
+# nowcast (year-aligned shares + SAS Table 2/3 suppression recovery); Flip
+# evidence MUT v0.3.0_92b7a8a (#1052).
+v0_4_0 = "60c8a6b8568b3002a73cdf8569114b2250571e94"  # config: 2025_usa_cornerstone_v0_4; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -77,6 +84,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_3_0: 2024,
     v0_3_1: 2024,
     v0_3_2: 2024,
+    v0_4_0_pre_waste_match_io: 2024,
     v0_4_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,

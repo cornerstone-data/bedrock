@@ -42,16 +42,30 @@ Canonical nowcast YAMLs now set `waste_weights_year: match_io` (resolves to `usa
 
 USAConfig field default remains `2017` for non-nowcast / unset configs. Analysis-only Phase 3 control YAMLs under `waste_disaggregation/configs/` stay on `2017` for A/B comparison.
 
-## Snapshot / waterfall ops (required after this change merges)
+## Snapshot / waterfall ops (Phase 3.2.D on Flip branch)
 
-Flipping `waste_weights_year` on the canonical nowcast config **changes pipeline outputs**. Follow [`bedrock/utils/snapshots/README.md`](../../../utils/snapshots/README.md) Phase A after merge:
+**Snapshot (done on branch `jv_waste_disagg_nowcast_flip_decision`):**
 
-1. Merge this Flip PR to `main`.
-2. Trigger GitHub Actions **generate_snapshots** on that `main` SHA (`config_name`: `2025_usa_cornerstone_v0_4`).
-3. Open the mechanical snapshot bump PR (`.SNAPSHOT_KEY`, `releases.py`, `usa_config` Literal, optional `diagnostics_baseline` alias).
-4. Confirm `eeio_integration` passes against the new snapshot; merge bump.
+- Workflow: [generate_snapshots #36665300634](https://github.com/cornerstone-data/bedrock/actions/runs/36665300634) (`config_name=2025_usa_cornerstone_v0_4`)
+- SHA / `.SNAPSHOT_KEY`: `60c8a6b8568b3002a73cdf8569114b2250571e94`
+- GCS: `gs://cornerstone-default/snapshots/60c8a6b8568b3002a73cdf8569114b2250571e94/`
+- Prior v0.4.0 SHA kept as `releases.v0_4_0_pre_waste_match_io` for comparison
 
-**Waterfall / feature-impact:** re-dispatch diagnostics that embed waste structure (e.g. pattern [`v03_waterfall_ceda_g1b_waste_disagg.yaml`](../../../utils/config/configs/v03_waterfall_ceda_g1b_waste_disagg.yaml) and any nowcast feature-impact cells) **after** the snapshot bump so baselines and marginal waste steps reflect year-matched weights. Historical waterfall YAML flags need not all be rewritten in this PR; refresh is an ops re-run against post-Flip configs / snapshot.
+**Diagnostics dispatched against this git-ref** (indexes under `cache/`):
+
+| Sheet / config | Baseline | Folder |
+|----------------|----------|--------|
+| `2025_usa_cornerstone_v0_4` | ceda-v0 | v0.4 Diagnostics |
+| `2025_usa_cornerstone_v0_5` | ceda-v0 | v0.4 Diagnostics |
+| `2025_usa_cornerstone_v0_4` | v0.3 | v0.4 Diagnostics |
+| `2025_usa_cornerstone_v0_5` | v0.3 | v0.4 Diagnostics |
+| `v03_waterfall_ceda_g1b_waste_disagg` | ceda-v0 | v0.3 waterfall |
+
+Note: historical G1b waterfall YAML still defaults to frozen 2017 waste shares (`match_io` would resolve to `usa_base_io_data_year=2017` on that footing). Flip effect is on the nowcast v0.4 / v0.5 cells above.
+
+Run indexes: `cache/ef_run_index_phase32_flip.csv`, `cache/ef_run_index_phase32_flip_waterfall.csv`.
+
+After merge to `main`, re-run `generate_snapshots` on the **merge commit** if it differs from this branch tip, and point `.SNAPSHOT_KEY` at that final SHA.
 
 ## Gate
 
