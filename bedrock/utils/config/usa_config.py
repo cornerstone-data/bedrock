@@ -100,8 +100,9 @@ class USAConfig(BaseModel):
         ),
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
-    # Waste weight vintage: 2017 = bundled CSVs (default/production);
-    # match_io = usa_base_io_data_year; int = explicit year (diagnostic OK).
+    # Waste weight vintage: 2017 = bundled CSVs (default when unset / non-nowcast);
+    # match_io = usa_base_io_data_year. Canonical nowcast v0.4/v0.5 YAMLs set
+    # match_io after Phase 3.2 Flip; int = explicit year (diagnostic OK).
     waste_weights_year: ta.Literal['match_io'] | int | None = (
         2017  # DRI: jorge.vendries
     )

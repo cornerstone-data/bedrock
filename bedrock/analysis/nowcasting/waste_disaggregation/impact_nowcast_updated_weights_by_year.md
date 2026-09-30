@@ -3,7 +3,7 @@
 **Audience:** reviewers deciding whether year-varying waste weights belong on Cornerstone’s nowcast production path.  
 **Scope:** control (frozen **2017** production weights) vs treatment (weights rebuilt to match each nowcast year), both arms on the **same GCS** MUT pin `v0.3.0_92b7a8a`. Local / Track C MUT comparison is **out of scope** for this report.  
 **Companion 2024-only note:** [`impact_nowcast_updated_weights.md`](impact_nowcast_updated_weights.md).  
-**Production status:** default **HOLD** — see [`phase3_production_gate.md`](phase3_production_gate.md).
+**Production status:** **FLIP** — see [`phase3_production_gate.md`](phase3_production_gate.md) and [`phase32_flip_release_note.md`](phase32_flip_release_note.md).
 
 ---
 
@@ -91,7 +91,7 @@ Before emission-factor results, the tables below show how the **weight inputs th
 
 Comparison of **bundled 2017 production weight CSVs** (control) vs **2024 derived** weights (treatment `match_io`). Values are percent shares among the seven Cornerstone waste children (each vector sums to ~100%). Δ is 2024 − 2017 in percentage points.
 
-_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: rcra_path=br_bypass; RCRA intersection from BR shipper->receiver rows (year=2021); bypasses CRHW FBS - temporary diagnostics path; Phase 4 owns FBS replacement; BR intersection stats: rows_seen=1829582, rows_used_received=1248765, rows_used_shipped=311228, rows_skipped_missing_ids=21699, rows_with_tons_or_ids=1559993, rows_skipped_non_waste_endpoint=1401094, rows_used_waste_intersection=158899.
+_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 2 revenue waste suppression recovery (equal_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, fill_each=2231500000, recovered_naics=['562112', '562213']; rcra_path=br_bypass; RCRA intersection from BR shipper->receiver rows (year=2021); bypasses CRHW FBS - temporary diagnostics path; Phase 4 owns FBS replacement; BR intersection stats: rows_seen=1829582, rows_used_received=1248765, rows_used_shipped=311228, rows_skipped_missing_ids=21699, rows_with_tons_or_ids=1559993, rows_skipped_non_waste_endpoint=1401094, rows_used_waste_intersection=158899.
 
 **Industry mix — Use column sum (industry output)**
 
@@ -109,13 +109,13 @@ _2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: 
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
-| 562111 | 46.30% | 50.63% | +4.33 pp |
-| 562HAZ | 10.30% | 6.71% | -3.59 pp |
-| 562212 | 9.80% | 8.50% | -1.30 pp |
-| 562213 | 1.50% | 0.00% | -1.50 pp |
-| 562910 | 16.60% | 16.72% | +0.12 pp |
-| 562920 | 7.53% | 6.09% | -1.44 pp |
-| 562OTH | 7.97% | 11.34% | +3.37 pp |
+| 562111 | 46.30% | 48.98% | +2.68 pp |
+| 562HAZ | 10.30% | 8.13% | -2.17 pp |
+| 562212 | 9.80% | 8.22% | -1.58 pp |
+| 562213 | 1.50% | 1.63% | +0.13 pp |
+| 562910 | 16.60% | 16.17% | -0.43 pp |
+| 562920 | 7.53% | 5.89% | -1.64 pp |
+| 562OTH | 7.97% | 10.97% | +3.00 pp |
 
 **Make column sum**
 
@@ -131,7 +131,7 @@ _2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: 
 
 **Use waste×waste intersection (shipper→receiver shares)**
 
-Max abs cell Δ: `562HAZ`←`562HAZ` = +21.73 pp (2017=57.98%, 2024=79.72%).
+Max abs cell Δ (context only; not dominating-slice input): `562HAZ`←`562HAZ` = +21.73 pp (2017=57.98%, 2024=79.72%).
 
 Diagonal cells (receiver = shipper):
 
@@ -152,18 +152,18 @@ Diagonal cells (receiver = shipper):
 <!-- AUTO:PER_YEAR_SUMMARY -->
 | Year | N median % | N p95 \|%\| | Waste N max \|%\| mover | Notes |
 |------|------------|-------------|-------------------------|-------|
-| 2018 | -0.39% | 1.60% | 562OTH (+25.2%) | EC freeze |
-| 2019 | -0.36% | 1.56% | 562OTH (+17.7%) | EC freeze |
-| 2020 | -0.40% | 2.00% | 562920 (+15.3%) | EC freeze |
-| 2021 | -0.51% | 2.50% | 562213 (-95.0%) | EC freeze |
-| 2022 | -0.64% | 2.73% | 562HAZ (-100.0%) | EC 2022 |
-| 2023 | -0.28% | 1.26% | 562213 (+42.8%) | AIES |
-| 2024 | -0.23% | 1.15% | 562213 (+63.8%) | AIES |
+| 2018 | -0.39% | 1.59% | 562OTH (+25.2%) | EC freeze |
+| 2019 | -0.36% | 1.54% | 562OTH (+17.7%) | EC freeze |
+| 2020 | -0.39% | 1.96% | 562920 (+15.3%) | EC freeze |
+| 2021 | -0.43% | 2.13% | 562HAZ (-28.5%) | EC freeze |
+| 2022 | -0.10% | 0.44% | 562HAZ (+150.2%) | EC 2022 |
+| 2023 | -0.05% | 0.26% | 562213 (+42.8%) | AIES |
+| 2024 | -0.01% | 0.08% | 562213 (+63.9%) | AIES |
 <!-- /AUTO:PER_YEAR_SUMMARY -->
 
-Economy-wide, the weight update is a **small, consistently slightly negative** shift in median N (roughly −0.2% to −0.6% across years). Tail width (p95 of \|N %\|) stays on the order of **1–3%**. Direct EF (D) is essentially unchanged for most non-waste sectors (median D % ≈ 0 in the 2024 summary); large D moves concentrate in waste children where industry mix and intersection shares change most.
+Economy-wide, the weight update is a **small, consistently slightly negative** shift in median N (roughly −0.01% to −0.43% across years after post-recovery regen). Tail width (p95 of \|N %\|) stays on the order of **~0.1–2%**. Direct EF (D) is essentially unchanged for most non-waste sectors (median D % ≈ 0 in the 2024 summary); large D moves concentrate in waste children where industry mix and intersection shares change most.
 
-Within waste, the **largest mover changes by year**. Later years (especially 2023–2024 under AIES) highlight **562213** (solid waste combustors / incinerators) with large positive N/D shifts. Some earlier years show large absolute moves in **562OTH**, **562920**, or near-zeroing of **562HAZ** / **562213** under SAS-era shares — expected when child expense or intersection mass is suppressed or reallocated relative to the 2017 workbook baseline.
+Within waste, the **largest mover changes by year**. Later years (especially 2023–2024 under AIES) highlight **562213** (solid waste combustors / incinerators) with large positive N/D shifts. Mid-panel extremes (2021–2022) are large but **no longer wipe to zero** after SAS Table 2/3 equal-residual suppression recovery — e.g. 2022 `562HAZ` +150% and 2021 `562HAZ` −28.5% reflect recovered shares vs 2017 control structure, not Census-`S`-as-zero.
 
 ### 3.2 Figures by year
 
@@ -201,9 +201,10 @@ Charts (N / D histograms + waste-sector bars): [issue #1031](https://github.com/
 
 ### 3.3 Caveats
 
-1. Control still embeds workbook **2012** RCRA intersection; treatment uses **BR ≥2017** shipper→receiver (`rcra_path=br_bypass`). Part of every year’s delta is that RCRA refresh, not industry mix alone.
-2. Who-buys for 2018–2021 stays on **EC 2017** while industry mix moves with SAS — intentional under Decision 4, but those years are only partially year-aligned on the who-buys slice.
-3. Figures are on GCS MUT `v0.3.0_92b7a8a`. Durable copies live on [#1031](https://github.com/cornerstone-data/bedrock/issues/1031) (local `impact_*.png` untracked).
+1. Control still embeds workbook **2012** RCRA intersection; treatment uses **BR ≥2017** shipper→receiver (`rcra_path=br_bypass`). Part of every year’s delta is that RCRA refresh, not industry mix alone. **Settled for Flip** (Phase 3.2): BR bypass is OK until Phase 4; do not treat bypass retirement as a remaining Flip gate.
+2. Who-buys for 2018–2021 stays on **bare EC 2017** while industry mix moves with SAS — **Phase 3.2.A `freeze_confirmed`** ([`phase32_who_buys_search.md`](phase32_who_buys_search.md)); intentional, not a Flip blocker. SAS-scale / §11 remain optional hardening only.
+3. SAS Table 3 industry mix **and** Table 2 Use-row revenue apply **equal-residual suppression recovery** under NAICS `562` ([`phase32_waste_n_variance.md`](phase32_waste_n_variance.md)). Impact caches `impact_{Y}_v0.3.0_92b7a8a/` were **regenerated** after that recovery (full 2018–2024 panel).
+4. Figures are on GCS MUT `v0.3.0_92b7a8a`. Durable copies live on [#1031](https://github.com/cornerstone-data/bedrock/issues/1031) (local `impact_*.png` untracked).
 
 ---
 
@@ -211,11 +212,11 @@ Charts (N / D histograms + waste-sector bars): [issue #1031](https://github.com/
 
 Updating waste disaggregation weights to align with each nowcast year **does change emission factors**, but the economy-wide footprint of that change is **modest and stable across 2018–2024**:
 
-- Median total EF (N) shifts slightly **downward** every year (about **−0.2% to −0.6%**).
+- Median total EF (N) shifts slightly **downward** every year (about **−0.01% to −0.43%** after post-recovery regen).
 - Large absolute moves are **concentrated in waste children**, not in a broad rewriting of non-waste N; direct EF (D) for most of the economy stays near zero change.
-- Tail risk (p95 of \|N %\|) remains on the order of **1–3%**, with the widest tails in the mid-panel (around 2021–2022) and the narrowest in the AIES years (2023–2024).
+- Tail risk (p95 of \|N %\|) remains on the order of **~0.1–2%**, with wider tails in the mid-panel (around 2021) and the narrowest in the AIES years (2023–2024).
 - Within waste, **year-aligned data matter**: the identity of the largest mover and the sign/magnitude of child N/D shifts change as SAS → EC 2022 → AIES sources come online — evidence that freezing 2017 shares on a moving MUT is not a neutral choice for waste-sector EFs.
 
 **Interpretation for the nowcasting approach:** year-matched waste weights on a pinned GCS MUT remove a known structure/dollar mismatch without destabilizing economy-wide N/D. That supports treating year-varying weights as a **credible alignment fix**, not a wholesale EF rewrite.
 
-**What this report does not decide:** production still defaults to **HOLD**. Remaining gates include retiring or validating the BR RCRA bypass and an explicit stakeholder flip decision (deferred past v0.5). Until then, canonical nowcast configs should continue to ship **2017** weight shares.
+**Production status (Phase 3.2.D Flip):** canonical nowcast YAMLs ship **`waste_weights_year: match_io`**. Settled path notes: BR RCRA bypass until Phase 4; RCRA ≥2017 refresh; who-buys 2018–2021 = bare EC 2017 (`freeze_confirmed`). Evidence: [`phase32_waste_n_variance.md`](phase32_waste_n_variance.md) (3.2.B) + [`phase32_y2y_comparison.md`](phase32_y2y_comparison.md) (3.2.C). Release note + snapshot ops: [`phase32_flip_release_note.md`](phase32_flip_release_note.md). Gate: [`phase3_production_gate.md`](phase3_production_gate.md).

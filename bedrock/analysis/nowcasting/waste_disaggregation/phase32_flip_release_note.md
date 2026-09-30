@@ -1,0 +1,58 @@
+# Phase 3.2.D — Flip release note (year-aligned waste weights)
+
+**Decision:** **FLIP** (2026-09-29) — production nowcast uses year-matched waste disaggregation weight shares (`waste_weights_year: match_io`) instead of frozen 2017 bundled CSVs.
+
+**Evidence package (accepted):**
+
+- [`phase32_who_buys_search.md`](phase32_who_buys_search.md) — 3.2.A `freeze_confirmed`
+- [`phase32_waste_n_variance.md`](phase32_waste_n_variance.md) — 3.2.B extremes + SAS Table 2/3 suppression recovery
+- [`phase32_y2y_comparison.md`](phase32_y2y_comparison.md) — 3.2.C control vs treatment Y2Y
+- [`impact_nowcast_updated_weights_by_year.md`](impact_nowcast_updated_weights_by_year.md) — GCS paired panel on pin below
+
+---
+
+## What changed for users / downstream EFs
+
+- **National / typical-sector total EFs (N)** may shift slightly from waste weights alone (Phase 3.1/3.2 paired medians roughly −0.01% to −0.4%; tail ~0.1–2%). This is **not** a wholesale economy rewrite.
+- **Waste-child** EFs can move by tens of percent (occasionally more) in some years — concentrated, explained structure updates (including Census suppression recovery and SAS→AIES industry-mix handoff).
+- Direct EFs (D) for most non-waste sectors stay near unchanged in the paired evidence.
+
+## Settled methodology path (Flip does not wait on these)
+
+| Item | Production Flip path |
+|------|----------------------|
+| GCS MUT vintage under Flip evidence | **`v0.3.0_92b7a8a`** |
+| Waste×waste Use intersection | **`rcra_path=br_bypass`** (Biennial Report shipper→receiver) **until Phase 4** retires the bypass with bedrock BR→FBS |
+| RCRA vintage on treatment | **≥2017** BR (not workbook 2012 embedded in 2017 CSVs) |
+| Who-buys / FD for model years 2018–2021 | **Bare Economic Census 2017** (`freeze_confirmed`) — no intercensal 6-digit substitute |
+| Who-buys for 2022+ | Economic Census **2022** `ecnclcust` |
+| Industry mix ≤2022 | SAS Table 3 expenses **with equal-residual suppression recovery** under NAICS `562` |
+| Industry mix 2023–2024 | AIES `EXPS_TOT_DVAL` (EXP01 / BASIC) |
+| Commodity / Use-row ≤2022 (carry 2022 for 2023–2024) | SAS Table 2 revenue **with the same suppression recovery** |
+
+Phase 4, §11 hardening, and who-buys SAS-scale of 2017 EC are **not** Flip prerequisites.
+
+## Configs flipped
+
+Canonical nowcast YAMLs now set `waste_weights_year: match_io` (resolves to `usa_base_io_data_year`):
+
+- `2025_usa_cornerstone_v0_4.yaml` (canonical snapshot config)
+- `2025_usa_cornerstone_v0_4_nowcast_{2017–2024}.yaml` (+ 2024 electricity diagnostic variants that enable waste disaggregation)
+- `2025_usa_cornerstone_v0_5.yaml` and `2025_usa_cornerstone_v0_5_{2017–2024}.yaml`
+
+USAConfig field default remains `2017` for non-nowcast / unset configs. Analysis-only Phase 3 control YAMLs under `waste_disaggregation/configs/` stay on `2017` for A/B comparison.
+
+## Snapshot / waterfall ops (required after this change merges)
+
+Flipping `waste_weights_year` on the canonical nowcast config **changes pipeline outputs**. Follow [`bedrock/utils/snapshots/README.md`](../../../utils/snapshots/README.md) Phase A after merge:
+
+1. Merge this Flip PR to `main`.
+2. Trigger GitHub Actions **generate_snapshots** on that `main` SHA (`config_name`: `2025_usa_cornerstone_v0_4`).
+3. Open the mechanical snapshot bump PR (`.SNAPSHOT_KEY`, `releases.py`, `usa_config` Literal, optional `diagnostics_baseline` alias).
+4. Confirm `eeio_integration` passes against the new snapshot; merge bump.
+
+**Waterfall / feature-impact:** re-dispatch diagnostics that embed waste structure (e.g. pattern [`v03_waterfall_ceda_g1b_waste_disagg.yaml`](../../../utils/config/configs/v03_waterfall_ceda_g1b_waste_disagg.yaml) and any nowcast feature-impact cells) **after** the snapshot bump so baselines and marginal waste steps reflect year-matched weights. Historical waterfall YAML flags need not all be rewritten in this PR; refresh is an ops re-run against post-Flip configs / snapshot.
+
+## Gate
+
+See [`phase3_production_gate.md`](phase3_production_gate.md) — status **FLIP**.

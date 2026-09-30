@@ -68,8 +68,9 @@ def _industry_mix_shares(
 ) -> pd.Series:
     kind, survey_year = resolve_industry_mix_source(target_year)
     if kind == "sas_table3":
-        shares = load_sas_table3_expense_shares(survey_year)
+        shares, sas_notes = load_sas_table3_expense_shares(survey_year)
         prov.sas_source_year = survey_year
+        prov.fallback_notes.extend(sas_notes)
         return shares
     table: Literal["EXP01", "BASIC"] = "EXP01" if kind == "aies_exp01" else "BASIC"
     try:
@@ -83,8 +84,9 @@ def _industry_mix_shares(
             f"AIES {table} {survey_year} failed ({type(exc).__name__}: {exc}); "
             "falling back to 2022 SAS Table 3 expense shares"
         )
-        shares = load_sas_table3_expense_shares(2022)
+        shares, sas_notes = load_sas_table3_expense_shares(2022)
         prov.sas_source_year = 2022
+        prov.fallback_notes.extend(sas_notes)
         return shares
 
 
@@ -247,10 +249,11 @@ def derive_waste_weights(
         sas_row_year = resolve_sas_year(min(target_year, 2022))
         if target_year >= 2023:
             sas_row_year = 2022
-        row_shares = load_sas_table2_revenue_shares(sas_row_year)
+        row_shares, table2_notes = load_sas_table2_revenue_shares(sas_row_year)
         use = _replace_row_sum(use, row_shares)
         if prov.sas_source_year is None:
             prov.sas_source_year = sas_row_year
+        prov.fallback_notes.extend(table2_notes)
     except Exception as exc:  # noqa: BLE001
         prov.fallback_notes.append(
             f"SAS Table 2 row-sum failed ({type(exc).__name__}); keeping 2017 bundled"
