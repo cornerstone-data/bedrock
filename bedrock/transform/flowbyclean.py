@@ -396,6 +396,87 @@ def substitute_nonexistent_values(
     return merged
 
 
+def interpolate_census_years(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """Blend two census years linearly for a method year between them.
+
+    A ``clean_fba`` step, so it runs after suppressed cells are estimated and
+    units converted, on both census years alike. Configure on the source::
+
+        clean_fba: !clean_function:flowbyclean interpolate_census_years
+        census_interpolation:
+          years: [2017, 2022]
+          target_year: *ghgi_year
+
+    For a target year strictly between the two census years, every row of the
+    loaded year is weighted by its distance to the target, and the other
+    year's rows, prepared the same way, are added with the complementary
+    weight. A cell present in only one census counts as 0 in the other. At or
+    outside the census years the loaded data is returned unchanged, so the
+    method's ``year`` still picks the census it holds to.
+
+    Why: the soils attribution switched from the 2017 to the 2022 Census of
+    Agriculture in one method year (2021), which moved grain farming's share
+    of cropland soils by 8.9 pp in that year alone (#934).
+    """
+    settings = fba.config.get('census_interpolation') or {}
+    low, high = (int(y) for y in settings['years'])
+    target = int(settings['target_year'])
+    loaded = int(fba.config['year'])
+    if not low < target < high:
+        return fba
+    if loaded not in (low, high):
+        raise ValueError(
+            f'{fba.full_name}: census_interpolation years {low}, {high} '
+            f'do not include the loaded year {loaded}'
+        )
+    other = high if loaded == low else low
+
+    other_config = {
+        k: v
+        for k, v in fba.config.items()
+        if k not in ('clean_fba', 'census_interpolation')
+    }
+    other_config['year'] = other
+    other_fba = (
+        FlowByActivity.return_FBA(
+            full_name=fba.full_name, year=other, config=other_config
+        )
+        .function_socket('clean_fba_before_mapping')
+        .select_by_fields()
+        .function_socket('estimate_suppressed')
+        .select_by_fields(
+            selection_fields=other_config.get(
+                'selection_fields_after_data_suppression_estimation', 'null'
+            ),
+        )
+        .convert_units_and_flows()
+    )
+
+    weight_high = (target - low) / (high - low)
+    weight = {high: weight_high, low: 1.0 - weight_high}
+    this = pd.DataFrame(fba).assign(
+        FlowAmount=lambda d: d['FlowAmount'] * weight[loaded]
+    )
+    that = pd.DataFrame(other_fba).assign(
+        FlowAmount=lambda d: d['FlowAmount'] * weight[other],
+        Year=this['Year'].iloc[0] if len(this) else loaded,
+    )
+    log.info(
+        '%s: census years %d x %.2f + %d x %.2f for %d',
+        fba.full_name,
+        loaded,
+        weight[loaded],
+        other,
+        weight[other],
+        target,
+    )
+    return FlowByActivity(
+        pd.concat([this, that], ignore_index=True),
+        full_name=fba.full_name,
+        config=fba.config,
+    )
+
+
 def estimate_suppressed_sectors_equal_attribution(
     fba: FlowByActivity,
 ) -> FlowByActivity:

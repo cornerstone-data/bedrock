@@ -14,6 +14,11 @@ epa_ghgi_year: &epa_ghgi_year 2021
 sources_to_cache:
   USDA_CoA_Cropland_NAICS:
     year: *coa_year
+    # Between censuses, blend 2017 and 2022 linearly (#934).
+    clean_fba: !clean_function:flowbyclean interpolate_census_years
+    census_interpolation:
+      years: [2017, 2022]
+      target_year: *ghgi_year
     selection_fields:
       Class: Land
       FlowName:
@@ -265,6 +270,10 @@ source_names:
                 attribution_source:
                   USDA_CoA_Cropland:
                     year: *coa_year
+                    clean_fba: !clean_function:flowbyclean interpolate_census_years
+                    census_interpolation:
+                      years: [2017, 2022]
+                      target_year: *ghgi_year
                     selection_fields:
                       Class: Land
                       FlowName:
