@@ -59,9 +59,7 @@ v0_3_2 = "7d0cb92af43882ee9496b5932e1893bb9ffcbdd7"  # config: 2025_usa_cornerst
 # build v0.3.0_4276083) instead of published BEA 2017 detail; x and q are that
 # Make's row and column sums, B is no longer year-scaled or inflated, and the
 # GHG FBS is attributed on nowcast Use (#880).
-v0_4_0 = (
-    "2fcbd68b3275cc8e409d4df5d1f28a3a8355c249"  # config: 2025_usa_cornerstone_v0_4
-)
+v0_4_0 = "2fcbd68b3275cc8e409d4df5d1f28a3a8355c249"  # config: 2025_usa_cornerstone_v0_4
 
 # Alias for the shipped v0.4.0 SHA (pre waste match_io Flip) — same as v0_4_0.
 v0_4_0_pre_waste_match_io = v0_4_0
