@@ -18,6 +18,7 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_Ytot_usa,
 )
 from bedrock.extract.iot.nowcast_mut_storage import (
+    load_nowcast_detail_margins_by_sector_usa,
     load_nowcast_detail_margins_usa,
     load_nowcast_detail_Uimp_usa,
     load_nowcast_detail_Utot_usa,
@@ -54,6 +55,17 @@ def load_detail_margins_usa() -> pd.DataFrame:
     if _detail_io_source() == 'bea_published':
         return load_2017_margins_usa()
     return load_nowcast_detail_margins_usa()
+
+
+def load_detail_margins_by_sector_usa() -> pd.DataFrame | None:
+    """Margin dollars per margin commodity, or ``None`` when not available.
+
+    Only the nowcast Margins table names the margin commodity behind each
+    transaction; BEA's published table has the three family columns only.
+    """
+    if _detail_io_source() == 'bea_published':
+        return None
+    return load_nowcast_detail_margins_by_sector_usa()
 
 
 def load_detail_Ytot_usa() -> pd.DataFrame:

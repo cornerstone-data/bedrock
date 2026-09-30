@@ -18,7 +18,10 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.detail_io import load_detail_margins_usa
+from bedrock.extract.iot.detail_io import (
+    load_detail_margins_by_sector_usa,
+    load_detail_margins_usa,
+)
 from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
@@ -29,6 +32,10 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_sector_commodity_price_ratio,
 )
 from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
+from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity import (
+    MARGIN_TYPE_TO_BEA_SECTOR_CODE,
+    load_margin_type_to_cornerstone_commodity,
+)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     load_usa_2017_commodity__cornerstone_commodity_correspondence,
@@ -267,6 +274,76 @@ def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
 def derive_margins_cornerstone_usa() -> pd.DataFrame:
     """Margins at ``model_base_year`` (alias for :func:`derive_margins_cornerstone_usa_at_year`)."""
     return derive_margins_cornerstone_usa_at_year(get_usa_config().model_base_year)
+
+
+@functools.cache
+def derive_margin_sectors_cornerstone_usa_at_year(
+    target_year: int,
+) -> pd.DataFrame | None:
+    """Margin dollars by purchased commodity and margin commodity, Cornerstone codes.
+
+    Rows are purchased Cornerstone commodities, columns the Cornerstone margin
+    commodities (wholesale, retail and transport codes), in USD. It is the
+    per-sector counterpart of :func:`derive_margins_cornerstone_usa_at_year`,
+    built with the same filters, negatives treatment and inflation, so each
+    family's columns sum to that function's ``Wholesale``, ``Retail`` and
+    ``Transportation`` columns (#836).
+
+    ``None`` when the detail source has no per-sector split, which is the case
+    for BEA's published tables.
+    """
+    raw = load_detail_margins_by_sector_usa()
+    if raw is None:
+        return None
+    cfg = get_usa_config()
+    filters = _get_active_margins_filters()
+    df = _apply_margins_filter(raw, filters)
+    if cfg.cornerstone_industry_avg_margins:
+        # abs_negative_margin_columns flips a row's *type* total when it is
+        # negative. Flip that row's sector cells of the same type together, so
+        # they still sum to exactly the flipped total; taking each cell's
+        # absolute value would not, wherever a row mixes signs.
+        types = _apply_margins_filter(load_detail_margins_usa(), filters)
+        family: dict[str, str] = {
+            str(code): margin_type
+            for margin_type, codes in load_margin_type_to_cornerstone_commodity().items()
+            for code in codes
+        }
+        unknown = [c for c in df.columns if c not in family]
+        if unknown:
+            raise ValueError(f'margin commodities in no margin type: {unknown}')
+        df = df.copy()
+        for margin_type in MARGIN_TYPE_TO_BEA_SECTOR_CODE:
+            columns = [c for c in df.columns if family[c] == margin_type]
+            negative = (types[margin_type].reindex(df.index) < 0).to_numpy()
+            df.loc[negative, columns] = -df.loc[negative, columns]
+    by_commodity = (
+        df.groupby(level='Commodity Code')
+        .sum()
+        .reindex(USA_2017_COMMODITY_INDEX)
+        .fillna(0.0)
+    )
+    corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
+    to_margin = corresp.loc[:, list(by_commodity.columns)]
+    receiving = to_margin.index[to_margin.to_numpy().sum(axis=1) > 0]
+    out = (corresp @ by_commodity) @ to_margin.loc[receiving].T
+    if (cfg.useeio_margins or cfg.cornerstone_industry_avg_margins) and (
+        cfg.usa_base_io_data_year != target_year
+    ):
+        sector_pi = get_sector_commodity_price_ratio(
+            cfg.usa_base_io_data_year, target_year
+        )
+        for margin_type, codes in load_margin_type_to_cornerstone_commodity().items():
+            present = [c for c in codes if c in out.columns]
+            out[present] *= sector_pi[MARGIN_TYPE_TO_BEA_SECTOR_CODE[margin_type]]
+    return out
+
+
+def derive_margin_sectors_cornerstone_usa() -> pd.DataFrame | None:
+    """Per-sector margins at ``model_base_year``; see the ``_at_year`` form."""
+    return derive_margin_sectors_cornerstone_usa_at_year(
+        get_usa_config().model_base_year
+    )
 
 
 def _phi_from_margins(margins: pd.DataFrame) -> pd.Series[float]:
