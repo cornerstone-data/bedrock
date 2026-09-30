@@ -51,3 +51,18 @@ def test_facilities_yamls_wire_prep_and_activity_sets() -> None:
         assert 'Nowcast_Detail_Use_AfterRedef:' in text
         assert 'Petroleum Industrial - Distillate Fuel Oil' in text
         assert 'Petroleum Industrial - Motor Gasoline' in text
+
+
+def test_still_gas_attributes_to_refineries_only() -> None:
+    """Still gas is refinery fuel (#983): weight on 324110's petroleum only (#1054)."""
+    for path in sorted(
+        _GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml')
+    ):
+        text = path.read_text(encoding='utf-8')
+        block = text.split('petroleum_still_gas:', 1)[1].split(
+            'petroleum_facility:', 1
+        )[0]
+        assert 'GHGRP_NEI_Facilities:' in block, path.name
+        assert (
+            "SectorProducedBy: '324110'" in block
+        ), f'{path.name}: still gas must attribute to refineries only'
