@@ -22,11 +22,10 @@
 #
 # WARNING: The GHG FBS is NOT pinned here. use_cornerstone_ghg_model with nowcast +
 # use_facility_ghg_attribution loads the newest GCS parquet for
-# GHG_national_Cornerstone_nowcast_facilities_2024. Until plan task T15 builds
-# that stem on this MUT (facility attribution + biogenic CH4), that upload may
-# be missing and the model cannot load E. The GHG FBS is inspected directly, so
-# record the exact parquet (filename and sha256) T15 produces, here and in the
-# release notes, before the v0.5 snapshot is cut.
+# GHG_national_Cornerstone_nowcast_facilities_2024. As of 2026-09-30 that is
+# v0.3.0_8e466cd (facility attribution with #1050 CoA census interpolation, on
+# MUT 6abf5c0). Record the exact parquet (filename and sha256) here and in the
+# release notes before the v0.5 snapshot is cut.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
 # reproducible even after newer nowcast builds are uploaded; move the pin only
