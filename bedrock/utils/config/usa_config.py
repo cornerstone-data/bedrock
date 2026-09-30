@@ -166,6 +166,16 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # Smooth each manufacturing industry's share of the expense seed's survey
+    # total across the survey changes (census 2017 -> ASM 2018-21 -> census
+    # 2022 -> AIES): ASM shares benchmarked to both censuses, a 3-year centred
+    # geometric mean on the ASM years, and AIES years chained on AIES's own
+    # change from the 2022 census share. The total keeps its raw path (2020 dip,
+    # 2022 price peak) and census years stay exact. Every kind but electricity.
+    # The raw path passed each instrument switch and withheld-cell fill into the
+    # Use table's fuel rows (#1053: 33641A fuel 1.9, 11.0, 2.3 $M 2017-19). See
+    # bedrock.analysis.nowcasting.inputs_structure.smoothed_kind_block.
+    smooth_manufacturing_expense_path: bool = True  # DRI: WesIngwersen
     # Move data processing and hosting's (518200) electricity on LBNL's
     # national data center electricity series instead of the services survey,
     # priced on EIA's commercial price, and hold the cell through the interior
