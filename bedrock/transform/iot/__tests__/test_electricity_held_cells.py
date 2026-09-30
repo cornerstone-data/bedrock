@@ -60,8 +60,8 @@ def test_the_fit_holds_pinned_cells_and_meets_both_margins(
     assert float(grew) > 1.2
 
 
-def test_the_data_center_flag_is_off_by_default() -> None:
-    assert get_usa_config().move_data_processing_electricity_on_lbnl is False
+def test_the_data_center_flag_is_on_by_default() -> None:
+    assert get_usa_config().move_data_processing_electricity_on_lbnl is True
 
 
 def test_no_cell_is_held_with_the_flag_off(monkeypatch: pytest.MonkeyPatch) -> None:
