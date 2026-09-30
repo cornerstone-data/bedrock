@@ -391,7 +391,9 @@ def _nearest_sas_priors_for_naics(
     for y in range(year - 1, SAS_PRIOR_YEAR_FLOOR - 1, -1):
         if y not in SAS_PRIOR_SEARCH_YEARS or not remaining:
             continue
-        fba = getFlowByActivity(datasource="Census_SAS", year=y)
+        fba = getFlowByActivity(
+            datasource="Census_SAS", year=y, download_FBA_if_missing=True
+        )
         frame, ncol = _table_slice(
             fba, table_prefix=table_prefix, preferred_naics=preferred_naics
         )
@@ -475,7 +477,9 @@ def load_sas_table3_expense_shares(
 
     Returns ``(shares, provenance_notes)``.
     """
-    fba = getFlowByActivity(datasource="Census_SAS", year=year)
+    fba = getFlowByActivity(
+        datasource="Census_SAS", year=year, download_FBA_if_missing=True
+    )
     df, naics_col = _table_slice(fba, table_prefix="Table 3")
     suppressed_naics = _suppressed_detail_naics(df, naics_col=naics_col)
     prior_notes: list[str] = []
@@ -510,7 +514,9 @@ def load_sas_table2_revenue_shares(
 
     Returns ``(shares, provenance_notes)``.
     """
-    fba = getFlowByActivity(datasource="Census_SAS", year=year)
+    fba = getFlowByActivity(
+        datasource="Census_SAS", year=year, download_FBA_if_missing=True
+    )
     preferred = "ActivityProducedBy" if "ActivityProducedBy" in fba.columns else None
     df, naics_col = _table_slice(fba, table_prefix="Table 2", preferred_naics=preferred)
     suppressed_naics = _suppressed_detail_naics(df, naics_col=naics_col)

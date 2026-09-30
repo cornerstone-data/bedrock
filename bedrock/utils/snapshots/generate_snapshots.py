@@ -145,7 +145,8 @@ def generate_snapshots(
     total_start = time.time()
     set_global_usa_config(config_name)
 
-    # If an FBA requires an API key to generate, download the FBA from GCS
+    # Prefer GCS-cached FBAs when generate would need a Census API key
+    # (see generateflowbyactivity.process_fba_config + download_fba_on_api_error).
     common.download_fba_on_api_error = True
 
     # Late-binding imports after config is set

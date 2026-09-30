@@ -340,6 +340,15 @@ def process_fba_config(
     for p_year in year_iter:
         year = str(p_year)
         if not call_all_years:
+            # Prefer a cached FBA on GCS when diagnostics/snapshots ask for it —
+            # avoids a live Census call (and empty-key JSONDecodeError) when the
+            # parquet already exists under flowsa/FlowByActivity/.
+            if download_fba_on_api_error:
+                try:
+                    _download_fba_from_gcs(source, year)
+                    continue
+                except APIError:
+                    pass
             try:
                 # replace parts of urls with specific instructions from source.py
                 urls = assemble_urls_for_query(source=source, year=year, config=config)

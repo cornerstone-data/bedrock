@@ -114,7 +114,7 @@ def test_sampling_error_s_not_suppressed_for_recovery() -> None:
     mask = _suppressed_mask(df)
     assert not bool(mask.iloc[3])
     recovered, notes = recover_suppressed_sas_table3_waste_expenses(df)
-    assert float(recovered.loc[3, "FlowAmount"]) == pytest.approx(15.0)
+    assert float(recovered.loc[3, "FlowAmount"]) == pytest.approx(15.0)  # type: ignore[arg-type]
     assert any("no suppressed" in n for n in notes)
 
 
@@ -130,7 +130,7 @@ def test_z_not_in_suppressed_set() -> None:
     mask = _suppressed_mask(df)
     assert not bool(mask.iloc[3])
     recovered, notes = recover_suppressed_sas_table3_waste_expenses(df)
-    assert float(recovered.loc[3, "FlowAmount"]) == pytest.approx(0.0)
+    assert float(recovered.loc[3, "FlowAmount"]) == pytest.approx(0.0)  # type: ignore[arg-type]
     assert any("no suppressed" in n for n in notes)
 
 

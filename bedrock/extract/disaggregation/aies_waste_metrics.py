@@ -29,7 +29,9 @@ def load_aies_waste_detail_expense_dollars(year: int) -> dict[str, float]:
     ``562112``+``562211`` → ``562HAZ`` (unlike
     :func:`load_aies_child_expense_shares`).
     """
-    fba = getFlowByActivity(datasource=AIES_SOURCE, year=year)
+    fba = getFlowByActivity(
+        datasource=AIES_SOURCE, year=year, download_FBA_if_missing=True
+    )
     naics_col = _aies_naics_col(fba)
     out: dict[str, float] = {}
     for _, row in fba.iterrows():
@@ -78,7 +80,9 @@ def load_aies_child_expense_shares(
     by year. Hard-fail if the pull is EXP02-shaped (aggregate 562 only).
     """
     del table  # year selects dataset in YAML; kept for API clarity / provenance
-    fba = getFlowByActivity(datasource=AIES_SOURCE, year=year)
+    fba = getFlowByActivity(
+        datasource=AIES_SOURCE, year=year, download_FBA_if_missing=True
+    )
     # Guard: must see 6-digit 562* detail, not only aggregate 562
     naics_vals = []
     for cand in ("ActivityConsumedBy", "ActivityProducedBy"):
