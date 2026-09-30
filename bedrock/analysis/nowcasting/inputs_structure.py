@@ -1851,6 +1851,117 @@ def expense_scope() -> pd.DataFrame:
     return pd.DataFrame(records).set_index('kind').sort_values('survey/BEA')
 
 
+#: Kinds whose survey path is benchmarked and smoothed across the survey changes
+#: (:func:`smoothed_survey_path`). ⚠️ **Electricity is left out**: its row is
+#: rebased on EIA (#1010, #1030) and was verified on the raw path.
+SMOOTHED_EXPENSE_KINDS = tuple(kind for kind in EXPENSE_TO_BEA if kind != 'CSTELEC')
+
+#: The census years bracket the ASM years; both censuses are complete counts.
+CENSUS_EXPENSE_YEARS = EXPENSE_SOURCES['Census_EC_Expenses']
+ASM_EXPENSE_YEARS = EXPENSE_SOURCES['Census_ASM_Expenses']
+
+
+def _positive(value: float) -> float:
+    number = float(value)
+    return number if np.isfinite(number) and number > 0 else float('nan')
+
+
+def smoothed_survey_path(path: pd.Series) -> pd.Series:
+    """One industry's survey path for one kind, without the survey-change breaks.
+
+    ``path`` is indexed by year. The raw path switches instrument three times:
+    the 2017 census, ASM for 2018-2021 (a sample), the 2022 census, then AIES.
+    For small industries the level jumps at each switch, and withheld cells
+    filled by interpolation or from the parent add one-year spikes. Every jump
+    passes straight into the seed, because the seed is ``Use2017 * path(t) /
+    path(2017)`` (#1053: ``33641A`` fuel reads 1.9, 11.0, 2.3 $M for 2017-2019).
+
+    1. **Benchmark ASM to the censuses.** Each ASM year is multiplied by a
+       correction that runs geometrically from ``census2017 / first ASM year``
+       to ``census2022 / last ASM year``, so the path meets both censuses
+       without a level break and keeps ASM's shape in between.
+    2. **Damp one-year noise.** Each ASM year becomes the geometric mean of
+       itself and its two neighbours on the benchmarked path. The census years
+       stay exact, so the seed is still BEA's own table in 2017.
+    3. **Chain across the census-to-AIES change**, as the services seed does
+       (``chain_services_seed_across_aies``): the first AIES year holds the 2022
+       census level, and each later year moves by AIES's own year-on-year
+       change, so every ratio stays inside one survey.
+
+    Years with no usable value keep their raw entry, so an industry the surveys
+    do not observe behaves exactly as before.
+    """
+    raw = path.astype(float)
+    out = raw.copy()
+    first, last = CENSUS_EXPENSE_YEARS
+    c0 = _positive(raw.get(first, np.nan))
+    c1 = _positive(raw.get(last, np.nan))
+    asm = [year for year in ASM_EXPENSE_YEARS if year in raw.index]
+    observed = pd.Series({year: _positive(raw[year]) for year in asm}, dtype=float)
+
+    if np.isfinite(c0) and asm:
+        if observed.notna().any():
+            r0 = c0 / float(observed.dropna().iloc[0])
+            r1 = c1 / float(observed.dropna().iloc[-1]) if np.isfinite(c1) else r0
+            span = last - first
+            bench = {first: c0}
+            for year in asm:
+                weight = (year - first) / span
+                bench[year] = observed[year] * r0 ** (1 - weight) * r1**weight
+        else:
+            # No ASM reading at all: interpolate the censuses geometrically.
+            bench = {first: c0, **{year: np.nan for year in asm}}
+        if np.isfinite(c1):
+            bench[last] = c1
+        levels = pd.Series(bench, dtype=float).sort_index()
+        logs = pd.Series(np.log(levels.to_numpy()), index=levels.index)
+        logs = logs.interpolate(limit_area='inside')
+        centred = logs.rolling(3, center=True).mean()
+        for year in asm:
+            value = centred.get(year, np.nan)
+            if not np.isfinite(value):
+                value = logs.get(year, np.nan)
+            if np.isfinite(value):
+                out[year] = float(np.exp(value))
+
+    aies = [year for year in AIES_EXPENSE_YEARS if year in raw.index]
+    if aies and np.isfinite(c1):
+        out[aies[0]] = c1
+        for previous, year in zip(aies, aies[1:]):
+            now, before = _positive(raw[year]), _positive(raw[previous])
+            step = now / before if np.isfinite(now) and np.isfinite(before) else 1.0
+            out[year] = float(out[previous]) * step
+    return out
+
+
+def smoothed_kind_block(block: pd.DataFrame) -> pd.DataFrame:
+    """Smooth one kind's ``industry x year`` survey block on shares, not levels.
+
+    ⚠️ **The total keeps its raw path.** Smoothing each industry's level would
+    also smooth what every industry shares: fuel purchases are nominal, and the
+    survey total's 2020 dip and 2022-23 price swing are real (applied to levels,
+    2020 manufacturing gas went from $8.2bn to $11.0bn and 2023 held at 2022's
+    peak). So each industry's **share** of the kind's total goes through
+    :func:`smoothed_survey_path`, the smoothed shares are renormalized within
+    each year, and they split the raw total again. What is removed is the
+    industry-by-industry noise at survey changes and withheld cells, which is
+    where the churn is.
+    """
+    total = block.sum(axis=0, min_count=1)
+    shares = block.div(total.where(total > 0), axis=1)
+    smoothed = shares.apply(smoothed_survey_path, axis=1)[block.columns]
+    observed = block.notna()
+    smoothed = smoothed.where(observed)
+    smoothed = smoothed.div(smoothed.sum(axis=0, min_count=1), axis=1)
+    return smoothed.mul(total, axis=1).where(observed, block)
+
+
+def _smooth_survey_paths() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().smooth_manufacturing_expense_path
+
+
 def nonmaterial_seed(year: int) -> pd.DataFrame:
     """The S3b seed: BEA's 2017 non-materials cells, moved on the survey index.
 
@@ -1886,6 +1997,15 @@ def nonmaterial_seed(year: int) -> pd.DataFrame:
     wide = expense_panel().pivot_table(
         index='bea_industry', columns=['kind', 'year'], values='FlowAmount'
     )
+    if _smooth_survey_paths():
+        # Benchmark and smooth each industry's path across the survey changes
+        # (#1053); electricity keeps its raw path.
+        for kind in SMOOTHED_EXPENSE_KINDS:
+            if kind not in wide.columns.get_level_values('kind'):
+                continue
+            smoothed = smoothed_kind_block(pd.DataFrame(wide[kind]))
+            for column in smoothed.columns:
+                wide[(kind, column)] = smoothed[column]
 
     seed = pd.DataFrame(0.0, index=use.index, columns=pd.Index(man))
     for kind, codes in EXPENSE_TO_BEA.items():

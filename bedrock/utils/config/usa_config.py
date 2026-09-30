@@ -167,6 +167,16 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # Smooth each manufacturing industry's share of the expense seed's survey
+    # total across the survey changes (census 2017 -> ASM 2018-21 -> census
+    # 2022 -> AIES): ASM shares benchmarked to both censuses, a 3-year centred
+    # geometric mean on the ASM years, and AIES years chained on AIES's own
+    # change from the 2022 census share. The total keeps its raw path (2020 dip,
+    # 2022 price peak) and census years stay exact. Every kind but electricity.
+    # The raw path passed each instrument switch and withheld-cell fill into the
+    # Use table's fuel rows (#1053: 33641A fuel 1.9, 11.0, 2.3 $M 2017-19). See
+    # bedrock.analysis.nowcasting.inputs_structure.smoothed_kind_block.
+    smooth_manufacturing_expense_path: bool = True  # DRI: WesIngwersen
     # Chain waste industry-mix shares across the SAS → AIES survey seam when
     # the share-seam grade triggers (≥ 3 pp max |Δ| among Cornerstone waste
     # children). 2023 holds post-fill SAS 2022 shares; 2024 moves by AIES's
@@ -181,7 +191,7 @@ class USAConfig(BaseModel):
     # has 518200 buying ~37% fewer kWh in 2024 than 2017 while LBNL has data
     # centers at 2.8x. Overrides the survey observation on this one cell. See
     # nowcast_intermediate.DATA_CENTER_ELECTRICITY_CSV and #1035.
-    move_data_processing_electricity_on_lbnl: bool = False  # DRI: WesIngwersen
+    move_data_processing_electricity_on_lbnl: bool = True  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
