@@ -49,13 +49,14 @@ USAConfig field default remains `2017` for non-nowcast / unset configs. Analysis
 | Label | SHA | Role |
 |-------|-----|------|
 | `v0_4_0` / `v0.4.0` | `2fcbd68b3275cc8e409d4df5d1f28a3a8355c249` | Shipped published v0.4.0 (pre Flip) |
-| `v0_4_1` / `v0.4.1` | `1ca4453a7882ffbc70527bdaab32fcc835b7f84d` | Flip snapshot after prior-weighted fill + industry-mix chain |
+| `v0_4_1` / `v0.4.1` | `0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0` | Flip snapshot after prior-weighted fill + industry-mix chain (CI) |
 
 **Snapshot (Flip branch tip; `v0_4_1`):**
 
-- Local `generate_snapshots` (CI workflow lacked AIES FBA on runner GCS path); SHA / `.SNAPSHOT_KEY`: `1ca4453a7882ffbc70527bdaab32fcc835b7f84d`
-- GCS: `gs://cornerstone-default/snapshots/1ca4453a7882ffbc70527bdaab32fcc835b7f84d/`
-- Prior equal-fill interim SHA `60c8a6b8…` retained on the Literal allowlist only
+- Workflow: [generate_snapshots #36738456856](https://github.com/cornerstone-data/bedrock/actions/runs/36738456856) (`config_name=2025_usa_cornerstone_v0_4`)
+- SHA / `.SNAPSHOT_KEY`: `0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0`
+- GCS: `gs://cornerstone-default/snapshots/0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0/`
+- AIES Waste Child Expenses FBAs published under `gs://cornerstone-default/flowsa/FlowByActivity/` so CI can download without a Census API key
 
 **Diagnostics dispatched against this git-ref** (indexes under `cache/`):
 

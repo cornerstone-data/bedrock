@@ -1,6 +1,6 @@
 # Production inclusion gate
 
-**Status:** **FLIP** (2026-09-29) — evidence package accepted; canonical nowcast YAMLs use `waste_weights_year: match_io`. Release note: [`flip_release_note.md`](flip_release_note.md). Snapshot after prior-weighted fill + industry-mix chain: **`v0_4_1` = `1ca4453a…`**; shipped **`v0_4_0` = `2fcbd68…`**.
+**Status:** **FLIP** (2026-09-29) — evidence package accepted; canonical nowcast YAMLs use `waste_weights_year: match_io`. Release note: [`flip_release_note.md`](flip_release_note.md). Snapshot after prior-weighted fill + industry-mix chain: **`v0_4_1` = `0d26d14f…`**; shipped **`v0_4_0` = `2fcbd68…`**.
 
 Flip is **not** blocked by BR bypass, RCRA ≥2017, §11 hardening, or who-buys SAS-scale.
 
