@@ -113,7 +113,10 @@ import numpy as np
 import pandas as pd
 import stewi
 
-from bedrock.transform.allocation.derived import map_fbs_sectors_to_model_schema
+from bedrock.transform.allocation.derived import (
+    map_fbs_sectors_to_model_schema,
+    resplit_waste_use_emissions,
+)
 from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_Vnorm_scrap_corrected,
@@ -529,7 +532,7 @@ def fbs_to_co2e(fbs: pd.DataFrame) -> pd.DataFrame:
     Must be called inside the year's config context: the sector mapping reads
     ``implement_electricity_disaggregation``.
     """
-    mapped = map_fbs_sectors_to_model_schema(fbs)
+    mapped = resplit_waste_use_emissions(map_fbs_sectors_to_model_schema(fbs))
     mapped['Flowable'] = mapped['Flowable'].map(GAS_MAP).fillna(mapped['Flowable'])
     apply_ch4_non_fossil_flowable(mapped)
 

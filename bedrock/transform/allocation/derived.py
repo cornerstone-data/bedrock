@@ -99,6 +99,86 @@ def _apply_cornerstone_waste_overrides(mapping: pd.DataFrame) -> pd.DataFrame:
     ).drop_duplicates()
 
 
+#: Activity-set name fragment -> the commodity row whose waste-column split keys
+#: it. Other Use-attributed sets (refrigerants, foams) key on the whole column.
+WASTE_E_FUEL_ROWS: tuple[tuple[str, str], ...] = (
+    ('natural_gas', '221200'),
+    ('petroleum', '324110'),
+    ('coal', '212100'),
+)
+
+USE_ATTRIBUTION_SOURCE = 'Nowcast_Detail_Use_AfterRedef'
+
+
+def waste_child_shares(
+    U: pd.DataFrame, children: list[str], meta_source: str
+) -> pd.Series:
+    """Each waste child's share of the disaggregated Use for one activity set."""
+    columns = U.reindex(columns=children).fillna(0.0)
+    key = columns.sum(axis=0)
+    name = meta_source.lower()
+    for fragment, row in WASTE_E_FUEL_ROWS:
+        if fragment in name and row in columns.index:
+            fuel = pd.Series(columns.loc[row], dtype=float)
+            if float(fuel.sum()) > 0:
+                key = fuel
+            break
+    total = float(key.sum())
+    if total <= 0:
+        return pd.Series(1.0 / len(children), index=children)
+    return key / total
+
+
+def resplit_waste_use_emissions(fbs: pd.DataFrame) -> pd.DataFrame:
+    """Split Use-attributed waste emissions on the waste disaggregation (#1053).
+
+    The nowcast Use table has one waste column, ``562000``, so the FBS spreads
+    every Use-attributed activity set (non-manufacturing fuel, refrigerants)
+    **equally across the 562 NAICS codes**, which the Cornerstone mapping then
+    groups into the seven waste children. The model splits the same column with
+    the waste weights (``implement_waste_disaggregation``, year-aligned under
+    ``waste_weights_year: match_io``), so ``E`` and ``x`` for a child were split
+    on different keys and a child's direct factor moved with the weights alone.
+
+    Each Use-attributed (activity set, gas) pool on the waste children is split
+    again on the children's shares of the disaggregated Use table: the fuel's own
+    row for gas, petroleum and coal sets, and the whole column otherwise.
+    Directly attributed waste emissions (landfills, incineration) keep their
+    NAICS placement, and every pool's total is unchanged.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        derive_cornerstone_U_after_waste,
+        get_waste_disagg_weights,
+    )
+
+    if get_waste_disagg_weights() is None or 'AttributionSources' not in fbs:
+        return fbs
+    children = [str(code) for code in WASTE_DISAGG_INDUSTRIES['562000']]
+    selected = fbs['SectorProducedBy'].astype(str).isin(children) & (
+        fbs['AttributionSources'].astype(str) == USE_ATTRIBUTION_SOURCE
+    )
+    if not selected.any():
+        return fbs
+
+    Udom, Uimp = derive_cornerstone_U_after_waste()
+    U = Udom.add(Uimp, fill_value=0.0)
+    U.index = U.index.astype(str)
+    U.columns = U.columns.astype(str)
+
+    parts = [fbs.loc[~selected]]
+    for (meta, _gas), pool in fbs.loc[selected].groupby(
+        ['MetaSources', 'Flowable'], observed=True
+    ):
+        shares = waste_child_shares(U, children, str(meta))
+        template = pool.iloc[[0]]
+        rows = pd.concat([template] * len(children), ignore_index=True)
+        rows['SectorProducedBy'] = children
+        pool_total = float(pool['FlowAmount'].sum())
+        rows['FlowAmount'] = [pool_total * float(shares[c]) for c in children]
+        parts.append(rows[rows['FlowAmount'] != 0])
+    return pd.concat(parts, ignore_index=True)
+
+
 def derive_E_usa() -> pd.DataFrame:
     """Published industry E for snapshots, diagnostics, and comparisons.
 
@@ -362,6 +442,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         fbs = getFlowBySector(methodname=f'GHG_national_CEDA_{year}')
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
+    fbs = resplit_waste_use_emissions(fbs)
 
     # Align flow names with temporary mapping
     gas_map = {
