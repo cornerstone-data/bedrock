@@ -4,7 +4,7 @@ Default year=2024 preserves the prior path: writes markdown into
 ``<!-- AUTO:WEIGHT_DELTA_2017_VS_2024 -->`` markers and
 ``cache/weight_delta_2017_vs_2024.csv``.
 
-For any year Y (Phase 3.2.B extremes: 2021, 2022):
+For any year Y (waste-N variance extremes: 2021, 2022):
 ``cache/weight_delta_2017_vs_{Y}.csv`` with build_delta_frame columns plus
 intersection diagonal Δ and locked dominating-slice label.
 """
@@ -39,7 +39,7 @@ _MARKER_RE = re.compile(
 
 CHILDREN = list(WASTE_CHILDREN)
 
-# Locked Phase 3.2.B dominating-slice vocabulary
+# Locked dominating-slice vocabulary
 SLICE_INDUSTRY = "industry_mix"  # use_col
 SLICE_WHO_BUYS = "who_buys"  # use_row / FD
 SLICE_INTERSECTION = "intersection"  # diagonal cell
@@ -143,11 +143,17 @@ def _intersection_summary(
     )
 
 
+def _diag_cell(m: pd.DataFrame, child: str) -> float:
+    return float(m.at[child, child])  # type: ignore[arg-type]
+
+
 def intersection_diag_delta(m2017: pd.DataFrame, m_year: pd.DataFrame) -> pd.Series:
-    """Locked Phase 3.2.B intersection Δ: diagonal cell only."""
+    """Locked intersection Δ: diagonal cell only."""
     a = m2017.reindex(index=CHILDREN, columns=CHILDREN).fillna(0.0).astype(float)
     b = m_year.reindex(index=CHILDREN, columns=CHILDREN).fillna(0.0).astype(float)
-    return pd.Series({c: float(b.at[c, c] - a.at[c, c]) for c in CHILDREN}, dtype=float)
+    return pd.Series(
+        {c: _diag_cell(b, c) - _diag_cell(a, c) for c in CHILDREN}, dtype=float
+    )
 
 
 def dominating_slice(
@@ -230,8 +236,8 @@ def build_delta_frame_full(
                 "make_col_delta": float(
                     make_col_y.get(c, 0.0) - make_col_17.get(c, 0.0)
                 ),
-                "intersection_diag_2017": float(a.at[c, c]),
-                f"intersection_diag_{y}": float(b.at[c, c]),
+                "intersection_diag_2017": _diag_cell(a, c),
+                f"intersection_diag_{y}": _diag_cell(b, c),
                 "intersection_diag_delta": id_d,
                 "dominating_slice": dominating_slice(uc_d, ur_d, id_d),
             }

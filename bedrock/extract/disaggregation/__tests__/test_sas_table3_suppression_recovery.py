@@ -84,7 +84,7 @@ def test_missing_parent_skips() -> None:
         }
     )
     recovered, notes = recover_suppressed_sas_table3_waste_expenses(df)
-    assert float(recovered.loc[1, "FlowAmount"]) == 0.0
+    assert float(recovered.loc[1, "FlowAmount"]) == 0.0  # type: ignore[arg-type]
     assert any("skipped" in n and "parent" in n for n in notes)
 
 
@@ -97,5 +97,5 @@ def test_nonpositive_residual_skips() -> None:
         }
     )
     recovered, notes = recover_suppressed_sas_table3_waste_expenses(df)
-    assert float(recovered.loc[2, "FlowAmount"]) == 0.0
+    assert float(recovered.loc[2, "FlowAmount"]) == 0.0  # type: ignore[arg-type]
     assert any("residual" in n and "skipped" in n for n in notes)
