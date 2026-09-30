@@ -1,4 +1,4 @@
-"""Phase 3 pin-equality and impact-cache helpers."""
+"""Impact pin-equality and impact-cache helpers."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (
     ANALYSIS_CONFIG_DIR,
     GCS_MUT_VINTAGE,
-    PHASE3_YEARS,
+    IMPACT_YEARS,
     control_config_name,
     install_analysis_usa_config,
     treatment_config_name,
@@ -39,8 +39,8 @@ def _load_analysis_config(stem: str) -> USAConfig:
     return USAConfig.model_validate(data, strict=True)
 
 
-@pytest.mark.parametrize("year", list(PHASE3_YEARS))
-def test_phase3_control_treatment_share_gcs_mut_pin(year: int) -> None:
+@pytest.mark.parametrize("year", list(IMPACT_YEARS))
+def test_control_treatment_share_gcs_mut_pin(year: int) -> None:
     control = _load_analysis_config(control_config_name(year))
     treatment = _load_analysis_config(treatment_config_name(year))
     assert control.nowcast_mut_vintage == GCS_MUT_VINTAGE
@@ -57,8 +57,8 @@ def test_phase3_control_treatment_share_gcs_mut_pin(year: int) -> None:
     assert treatment.implement_electricity_reallocation is False
 
 
-@pytest.mark.parametrize("year", list(PHASE3_YEARS))
-def test_phase3_yaml_files_exist(year: int) -> None:
+@pytest.mark.parametrize("year", list(IMPACT_YEARS))
+def test_yaml_files_exist(year: int) -> None:
     c = CONFIG_DIR / f"{control_config_name(year)}.yaml"
     t = CONFIG_DIR / f"{treatment_config_name(year)}.yaml"
     assert c.is_file(), c
@@ -69,7 +69,7 @@ def test_phase3_yaml_files_exist(year: int) -> None:
 
 def test_no_local_yaml_configs_ship() -> None:
     locals_ = list(CONFIG_DIR.glob("*_local.yaml"))
-    assert locals_ == [], f"Track C local YAMLs must be deleted: {locals_}"
+    assert locals_ == [], f"local-MUT YAMLs must be deleted: {locals_}"
 
 
 def test_impact_cache_dirs_isolate_gcs_vs_other_vintages() -> None:
@@ -99,7 +99,7 @@ def test_install_analysis_usa_config_sets_singleton() -> None:
 def test_probe_fail_closed_on_misses(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(probe_mod, "CACHE", tmp_path / "phase3_gcs_mut_vintage.json")
+    monkeypatch.setattr(probe_mod, "CACHE", tmp_path / "gcs_mut_vintage.json")
     monkeypatch.setattr(
         probe_mod,
         "_coverage",
@@ -113,8 +113,6 @@ def test_probe_fail_closed_on_misses(
     with pytest.raises(SystemExit) as exc:
         probe_mod.main()
     assert "FAILED" in str(exc.value)
-    report = json.loads(
-        (tmp_path / "phase3_gcs_mut_vintage.json").read_text(encoding="utf-8")
-    )
+    report = json.loads((tmp_path / "gcs_mut_vintage.json").read_text(encoding="utf-8"))
     assert report["status"] == "failed"
     assert report["holes"]

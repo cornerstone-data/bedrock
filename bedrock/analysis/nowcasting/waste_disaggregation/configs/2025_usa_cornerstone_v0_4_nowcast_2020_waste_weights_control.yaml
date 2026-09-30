@@ -1,6 +1,6 @@
-# Phase 3 analysis-only CONTROL ? waste weights frozen at 2017.
+# Analysis-only CONTROL ? waste weights frozen at 2017.
 #
-# Pins nowcast_mut_vintage to the Track A verified GCS cut so both A/B arms
+# Pins nowcast_mut_vintage to the verified GCS MUT cut so both A/B arms
 # share the same MUT (never pair with unpinned canonical nowcast_2020.yaml).
 # Electricity flags omitted ? all False (Decision 6). Production canonicals
 # are unchanged.

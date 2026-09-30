@@ -1,4 +1,4 @@
-"""Phase 1 §4.1.4 preview: SAS child revenue shares + RCRA intersection drift.
+"""§4.1.4 preview: SAS child revenue shares + RCRA intersection drift.
 
 Read-only analysis under waste_disaggregation/. Writes figures/ and cache/
 artifacts here; STEWI/FBA may also write library caches elsewhere (allowed).
@@ -265,7 +265,7 @@ def main() -> int:
         report["artifacts"].append(str(fig.relative_to(OUT_DIR)))
         report["sas_max_abs_delta"] = float(delta.abs().to_numpy().max())
         report["sas_years"] = sas_years
-    except Exception as exc:  # noqa: BLE001 — Phase 1 blocked-exit honesty
+    except Exception as exc:  # noqa: BLE001 — blocked-exit honesty
         report["blockers"].append(f"SAS preview blocked: {type(exc).__name__}: {exc}")
         report["status"] = "partial"
 

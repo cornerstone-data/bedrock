@@ -1,8 +1,8 @@
-"""After Track B: write Track C YAMLs pinned to recorded local MUT vintage.
+"""After local MUT rebuild: write local-MUT YAMLs pinned to recorded local MUT vintage.
 
-Reads ``cache/phase3_local_mut_rebuild.json`` for ``recorded_local_vintage``
+Reads ``cache/local_mut_rebuild.json`` for ``recorded_local_vintage``
 (or ``intended_local_vintage`` if rebuild still running but stamp known).
-Does **not** overwrite Track A GCS-pinned YAMLs.
+Does **not** overwrite GCS-pinned YAMLs.
 """
 
 from __future__ import annotations
@@ -11,24 +11,22 @@ import argparse
 import json
 from pathlib import Path
 
-from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (
     ANALYSIS_CONFIG_DIR,
-    PHASE3_YEARS,
+    IMPACT_YEARS,
 )
 
 CONFIG_DIR = ANALYSIS_CONFIG_DIR
-REBUILD = (
-    Path(__file__).resolve().parents[1] / "cache" / "phase3_local_mut_rebuild.json"
-)
+REBUILD = Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
 
 
 def _yaml(year: int, *, vintage: str, treatment: bool) -> str:
     ww = "match_io" if treatment else "2017"
     role = "TREATMENT" if treatment else "CONTROL"
-    return f"""# Phase 3 Track C analysis-only {role} — local MUT vintage.
+    return f"""# Analysis-only {role} — local MUT vintage.
 #
-# Pins nowcast_mut_vintage to the Track B recorded local cut. Do not use these
-# arms against GCS-pinned Track A configs. Electricity off (Decision 6).
+# Pins nowcast_mut_vintage to the recorded local MUT cut. Do not use these
+# arms against GCS-pinned analysis configs. Electricity off (Decision 6).
 
 #####
 # Model base settings
@@ -60,17 +58,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--vintage",
         default=None,
-        help="Override local vintage (default: from phase3_local_mut_rebuild.json)",
+        help="Override local vintage (default: from local_mut_rebuild.json)",
     )
     parser.add_argument(
         "--years",
-        default=",".join(str(y) for y in PHASE3_YEARS),
+        default=",".join(str(y) for y in IMPACT_YEARS),
     )
     args = parser.parse_args(argv)
     vintage = args.vintage
     if vintage is None:
         if not REBUILD.is_file():
-            raise SystemExit(f"Missing {REBUILD}; pass --vintage or finish Track B")
+            raise SystemExit(
+                f"Missing {REBUILD}; pass --vintage or finish local MUT rebuild"
+            )
         data = json.loads(REBUILD.read_text(encoding="utf-8"))
         vintage = data.get("recorded_local_vintage") or data.get(
             "intended_local_vintage"

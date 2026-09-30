@@ -1,10 +1,10 @@
-"""Phase 3.1 Track A gate: probe GCS NowcastMUT after-redef Make coverage.
+"""GCS MUT vintage gate: probe GCS NowcastMUT after-redef Make coverage.
 
 Fail-closed on a single candidate: ``v0.3.0_92b7a8a``. Requires a full
 2018–2024 after-redef Make panel. No shrink-years, no ``full_alt`` fallback,
 no ``f709829`` / ``4276083`` selection.
 
-On success writes ``cache/phase3_gcs_mut_vintage.json`` with ``status=ok``.
+On success writes ``cache/gcs_mut_vintage.json`` with ``status=ok``.
 On miss: ``SystemExit`` (optionally writes ``status=failed``) — never
 ``status=ok`` with holes.
 
@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from bedrock.analysis.nowcasting.waste_disaggregation.phase3_pins import (
+from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (
     GCS_MUT_VINTAGE,
 )
 from bedrock.extract.iot.nowcast_mut_storage import (
@@ -30,7 +30,7 @@ from bedrock.utils.io.gcp import get_most_recent_from_bucket, list_bucket_files
 
 YEARS = list(range(2018, 2025))
 CANDIDATES = (GCS_MUT_VINTAGE,)
-CACHE = Path(__file__).resolve().parents[1] / "cache" / "phase3_gcs_mut_vintage.json"
+CACHE = Path(__file__).resolve().parents[1] / "cache" / "gcs_mut_vintage.json"
 
 
 def _parquet_hits(vintage: str, year: int) -> list[str]:
@@ -80,7 +80,7 @@ def _write_failed(coverage: dict[str, dict[str, list[int]]], note: str) -> None:
         "note": note,
         "candidate_coverage": coverage,
         "plan_note": (
-            "Phase 3.1 fail-closed: sole candidate v0.3.0_92b7a8a; "
+            "Fail-closed: sole candidate v0.3.0_92b7a8a; "
             "do not merge on f709829 evidence; escalate GCS MUT completeness."
         ),
     }
@@ -113,7 +113,7 @@ def main() -> int:
     miss = coverage[GCS_MUT_VINTAGE]["miss"]
     if miss:
         note = (
-            f"Phase 3.1 Track A gate FAILED: {GCS_MUT_VINTAGE} missing after-redef "
+            f"GCS MUT vintage gate FAILED: {GCS_MUT_VINTAGE} missing after-redef "
             f"Make for years {miss}. Abort; do not shrink years or fall back to "
             f"f709829. Escalate GCS MUT completeness before retry."
         )
@@ -130,7 +130,7 @@ def main() -> int:
         "candidate_coverage": coverage,
         "all_vintages_by_year": _vintages_by_year(),
         "plan_note": (
-            "Phase 3.1 fail-closed probe: sole candidate v0.3.0_92b7a8a; "
+            "Fail-closed probe: sole candidate v0.3.0_92b7a8a; "
             "commit SHAs are NOT proof of MUT upload."
         ),
     }

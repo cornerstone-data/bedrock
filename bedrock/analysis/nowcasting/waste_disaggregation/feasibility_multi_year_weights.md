@@ -1,7 +1,7 @@
 # Multi-year waste disaggregation weights — feasibility report
 
 **Audience:** stakeholders deciding whether to fund/approve year-varying waste weights on Cornerstone’s nowcast production path.
-**Scope:** Phase 1 feasibility (complete) + status of the **2024 pilot implementation** authorized by Decision 7. Production defaults are unchanged until after impact review.
+**Scope:** feasibility (complete) + status of the **2024 pilot implementation** authorized by Decision 7. Production defaults are unchanged until after impact review.
 **Folder:** `bedrock/analysis/nowcasting/waste_disaggregation/`
 
 **Workbook reviewed:** local copy of the authorship workbook  
@@ -13,9 +13,9 @@
 
 ---
 
-## Status vs Phase 1 exit (as of 2026-09-22)
+## Status vs exit (as of 2026-09-22)
 
-| Item | Phase 1 recommendation | Implemented in 2024 pilot? |
+| Item | recommendation | Implemented in 2024 pilot? |
 |------|------------------------|----------------------------|
 | Decision 7 Pilot-only (2024) | Yes | **Yes** — treatment YAML + derive; no 2018–2023 series |
 | Industry mix SAS ≤2022 / AIES 2023–2024 | Decision 2 | **Yes** — AIES BASIC 2024 on treatment path (`Census_AIES_Waste_Child_Expenses`) |
@@ -138,7 +138,7 @@ The authorship workbook builds the export CSVs (`Use input csv` / `Make input cs
 
 | Step | Target slice | Source tab / data | How used |
 |------|--------------|-------------------|----------|
-| **1** | Use **intersection** (waste×waste) | `1_RCRA_data` — shipper→receiver tons among 562* | Mass shares → intersection allocation. Workbook sheet still cites **2012** RCRA; **Decision 3:** Phase 2 rebuilds from **≥2017** after CRHW load fix |
+| **1** | Use **intersection** (waste×waste) | `1_RCRA_data` — shipper→receiver tons among 562* | Mass shares → intersection allocation. Workbook sheet still cites **2012** RCRA; **Decision 3:** rebuilds from **≥2017** after CRHW load fix |
 | **2** | Use **columns** (industry mix) | `2_SAS_22_Table3` — SAS **Table 3 total Expenses** by detailed waste NAICS (≤2022); **AIES** `EXPS_TOT_DVAL` by child NAICS for 2023–2024 | Child expense totals → Use column-sum shares among 7 children |
 | **3** | Use **rows** (who buys) | `3A_EC_CLUST` / `3B_EC_USEEIO_Mapping` — EC receipts by **customer class** for 562* | “Business firms and farms” → default Use row-sum for most industries; Federal / State&local / NFP / Household → special FD & gov rows |
 | **4–6** | Make columns / intersection / rows | Use row totals + **manual** static rules | Make column sums track Use commodity output; intersection diagonal from adjusted output; selected Make cells expert-fixed |
@@ -201,13 +201,13 @@ timeline
 
 ## 4.1.3 Missing sources and alternatives
 
-For each gap: problem → options → **Phase 1 recommendation**.
+For each gap: problem → options → **recommendation**.
 
 ### 1. Industry mix after 2017 — clarify SAS / AIES series (workbook vs nowcast)
 
 - **Problem (corrected):** Earlier drafts mixed up two different “expense” concepts. The **workbook** Use column-sum uses SAS **Table 3 total Expenses of waste NAICS** (published through 2022). The **nowcast** purchaser line “Water, sewer, refuse removal” / `EXPS_REFUSE_VAL` is a *different* series and is irrelevant to child industry mix. AIES succeeds SAS for 2023+, but has **no** 2017–2022 back-years.
 - **Options:** (a) SAS Table 3 expenses by child (≤2022, matches workbook); (b) AIES total firm expenses by child (`EXPS_TOT_DVAL` via EXP01/BASIC) for 2023–2024; (c) SAS Table 2 revenue by child (proxy / cross-check); (d) scale 2017 shares by expense or revenue growth; (e) carry 2022; (f) uniform 1/7 last resort.
-- **Recommendation (LOCKED — Decision 2):** Primary = **SAS Table 3 expenses** for **≤2022**; **AIES** total expenses by waste child NAICS for **2023–2024** (EXP01 in 2023; BASIC in 2024 — see item 6 probe). Secondary = Table 2 revenue. Do **not** use AIES/`EXPS_REFUSE` for this slice.
+- **Recommendation (LOCKED — Decision 2):** Primary = **SAS Table 3 expenses** for **≤2022**; **AIES** total expenses by waste child NAICS for **2023–2024** (EXP01 in 2023; BASIC in 2024 — see item 6 probe). Secondary = Table 2 revenue. Do **not** use AIES/`EXPS_REFUSE` for this slice. **Override when `chain_waste_industry_mix_across_aies` is on (Flip/`match_io` after share-seam grade ≥ 3 pp):** 2023–2024 industry-mix **levels** hold post-fill SAS 2022; AIES supplies **YoY movement only** (2024 = SAS 2022 × AIES 2024/2023, renormalised).
 
 ### 2. RCRA only odd years / incomplete bedrock wiring / 2012 provenance
 
@@ -223,7 +223,7 @@ For each gap: problem → options → **Phase 1 recommendation**.
   - Refuse/`PCHRFUS`/`EXPS_REFUSE` measure **purchasers’** spend toward aggregate waste — wrong economic object vs EC `ecnclcust`.
   - Services expense seed for the waste **industry** is only NAICS **`562`**, not `562111`…`562OTH`.
 
-#### Alternate who-buys search (Phase 1, 2026-09-22)
+#### Alternate who-buys search (2026-09-22)
 
 Requirement: **receipts (or revenue) by class of customer at 6-digit waste NAICS**, comparable to workbook Step 3 / EC `ecnclcust`. Search notes + verdict in `cache/who_buys_alt_sources_search.json`.
 
@@ -240,7 +240,7 @@ Requirement: **receipts (or revenue) by class of customer at 6-digit waste NAICS
 **Result:** No viable alternate to EC `ecnclcust` at 6-digit waste NAICS.
 
 - **Options:** (a) validate + wire EC 2022; (b) freeze 2017 EC rows for a thin pilot; (c) SAS-scale 2017 EC for intercensal years only (not a 2022 substitute).
-- **Recommendation (LOCKED — Decision 4):** **Validate EC 2022 and wire** for who-buys/FD rows for 2022+ — **part of the 2024 pilot** (not deferred to Phase D). Do **not** treat nowcast / AIES56CLASS / SAS Table 8 / QSS as substitutes. Load failure may freeze bundled 2017 rows with provenance (failure-mode only).
+- **Recommendation (LOCKED — Decision 4):** **Validate EC 2022 and wire** for who-buys/FD rows for 2022+ — **part of the 2024 pilot** (not deferred). Do **not** treat nowcast / AIES56CLASS / SAS Table 8 / QSS as substitutes. Load failure may freeze bundled 2017 rows with provenance (failure-mode only).
 
 ### 4. No BEA detail child IO
 
@@ -257,7 +257,7 @@ Requirement: **receipts (or revenue) by class of customer at 6-digit waste NAICS
 
 ### 6. Post-SAS continuity (2023–2024) — AIES probe vs SAS Table 3
 
-AIES is the **successor** survey to SAS for this annual services program. Phase 1 probed Census FTP / table pages and downloaded files under `cache/aies_probe/` (summary: `aies_vs_sas_table3_probe.json`).
+AIES is the **successor** survey to SAS for this annual services program. probed Census FTP / table pages and downloaded files under `cache/aies_probe/` (summary: `aies_vs_sas_table3_probe.json`).
 
 | Year / table | Same type as SAS Table 3 (total expenses by waste child NAICS)? | Notes |
 |--------------|----------------------------------------------------------------|-------|
@@ -307,7 +307,7 @@ AIES is the **successor** survey to SAS for this annual services program. Phase 
 - **Partially feasible without full CSV implementation** for industry/commodity mix via **SAS** (Table 2 revenue previewed; Table 3 expenses ≤2022 preferred for column-sum) and **AIES** total expenses by child for 2023–2024 (EXP01/BASIC probe).
 - **Not fully feasible without implementation** for complete Use/Make CSVs (EC FD rows, Make `adjusted_q`, orientation, slice routing).
 - **RCRA intersection preview blocked** (FBS `target_schema_year`) — no invented numbers.
-- **Nowcast Use estimates are not a Phase 1 preview source** for child weights (aggregate only).
+- **Nowcast Use estimates are not a preview source** for child weights (aggregate only).
 
 ### What we ran
 
@@ -316,13 +316,13 @@ Script: `preview_sas_rcra_shares.py`
 | Step | Result |
 |------|--------|
 | SAS Table 2 **revenue** → 7 children (2017–2022) | **Succeeded** — `figures/sas_child_revenue_shares.png` + `cache/` |
-| RCRA CRHW 2017/2019/2021 intersection | Phase 1 **blocked** on FBS `target_schema_year`; later fixed. Pilot uses **BR shipper→receiver** (not CRHW FBS edges) |
+| RCRA CRHW 2017/2019/2021 intersection | **blocked** on FBS `target_schema_year`; later fixed. Pilot uses **BR shipper→receiver** (not CRHW FBS edges) |
 | EC 2022 | **Wired and used** on 2024 treatment (`EC2200CLCUST`; validate script green) |
 | Nowcast Use intermediate / refuse seed as child-share source | **Rejected** after method review (§4.1.1 / §4.1.3) |
 | AIES EXP01 / BASIC / EXP02 / CLASS56 vs SAS Table 3 | **Done** — EXP01 (2023) and BASIC (2024) match Table 3 type at 6-digit `562*`; no AIES 2017–2022; EXP02/CLASS56 not substitutes (`cache/aies_probe/`) |
 | Who-buys alternate sources (6-digit waste) | **Done** — no alternate; lock EC 2022 (`cache/who_buys_alt_sources_search.json`) |
 
-**Note:** Phase 1 numeric preview used Table 2 revenue as a convenient share vector. Workbook Step 2 authorship uses Table 3 **expenses**; Phase 2 should prefer **SAS Table 3 ≤2022** and **AIES `EXPS_TOT_DVAL` 2023–2024** for column-sum parity (revenue remains a cross-check). 2017 revenue shares were already close to bundled column-sum (max abs Δ ≈ 0.026).
+**Note:** numeric preview used Table 2 revenue as a convenient share vector. Workbook Step 2 authorship uses Table 3 **expenses**; should prefer **SAS Table 3 ≤2022** and **AIES `EXPS_TOT_DVAL` 2023–2024** for column-sum parity (revenue remains a cross-check). 2017 revenue shares were already close to bundled column-sum (max abs Δ ≈ 0.026).
 
 ### SAS revenue results (headline)
 
@@ -341,24 +341,24 @@ Script: `preview_sas_rcra_shares.py`
 | Metric | Value |
 |--------|-------|
 | Use CSV mass in principle previewable (column + row + intersection) | **~20%** |
-| Successfully previewed in Phase 1 (SAS revenue proxy for column/row) | **~13.3%** |
-| Phase 1 blocked (RCRA via CRHW FBS) | **~6.7%** (later unblocked for pilot via BR bypass) |
+| Successfully previewed in (SAS revenue proxy for column/row) | **~13.3%** |
+| blocked (RCRA via CRHW FBS) | **~6.7%** (later unblocked for pilot via BR bypass) |
 | 2024 pilot coverage | Industry mix (AIES) + row sum (SAS 2022) + EC 2022 who-buys + BR RCRA intersection — full derive path for treatment arm |
 
 ### Partial vs full feasibility (updated after 2024 pilot)
 
-**Phase 1:** Partial yes (SAS drift modest) / full no without generator.  
-**Phase 2 pilot (2024):** Full derive path **implemented** for treatment; impact report shows economy-wide N barely moves while waste children revise substantially. Multi-year 2018–2023 still **blocked** pending stakeholder review.
+**Feasibility:** Partial yes (SAS drift modest) / full no without generator.  
+**pilot (2024):** Full derive path **implemented** for treatment; impact report shows economy-wide N barely moves while waste children revise substantially. Multi-year 2018–2023 still **blocked** pending stakeholder review.
 
 ---
 
-## Decisions requested (Phase 1 exit)
+## Decisions requested (exit)
 
-Work through these in order. **Proceed with Phase 2 is last.** Decision 7 is **LOCKED: Pilot-only (2024)**. Begin Phase A code per the single guiding plan [`.cursor/plans/waste_disagg_three_phases_18d3c084.plan.md`](../../../../.cursor/plans/waste_disagg_three_phases_18d3c084.plan.md) (Phase 2 section). Do not implement 2018–2023 until after 2024 impact review. The local [`implementation_plan.md`](implementation_plan.md) is a stub pointer only.
+Work through these in order. **Proceed with is last.** Decision 7 is **LOCKED: Pilot-only (2024)**. Begin implementation per the single guiding plan [`.cursor/plans/waste_disagg_nowcasting_update.plan.md`](../../../../.cursor/plans/waste_disagg_nowcasting_update.plan.md). Do not implement 2018–2023 until after 2024 impact review. The local [`implementation_plan.md`](implementation_plan.md) is a stub pointer only.
 
 ### Locked
 
-1. **Pilot year — LOCKED: 2024 first.** Phase 2 builds and runs control vs treatment impact for nowcast **2024**. Extension to 2018–2023 is deferred until after 2024 impact review (Decision 7).  
+1. **Pilot year — LOCKED: 2024 first.** builds and runs control vs treatment impact for nowcast **2024**. Extension to 2018–2023 is deferred until after 2024 impact review (Decision 7).  
    *See §4.1.4; `2025_usa_cornerstone_v0_4_nowcast_2024.yaml`.*
 
 2. **Industry mix primary source — LOCKED: SAS Table 3 for ≤2022; AIES for 2023–2024.** Use SAS **Table 3 total Expenses** by waste child NAICS through 2022 (workbook method); use AIES **`EXPS_TOT_DVAL`** by waste child NAICS for 2023 (**EXP01**) and 2024 (**BASIC**; EXP01 not published). Table 2 revenue remains secondary. Still reject purchaser `EXPS_REFUSE_VAL` / nowcast refuse seed for this slice.  
@@ -374,10 +374,10 @@ Work through these in order. **Proceed with Phase 2 is last.** Decision 7 is **L
    *See §4.1.1 critical distinction; §4.1.3 items 1, 6–7; `Census_AIES.py` / `service_expense_seed.py`.*
 
 6. **Electricity off for weight A/B impact — LOCKED: yes.** Control vs treatment impact runs with electricity steps **off** so EF deltas isolate waste-weight changes (same nowcast MUT year).  
-   *See guiding plan Phase 2 impact experiment.*
+   *See guiding plan impact experiment.*
 
-7. **Proceed with Phase 2 — LOCKED: Pilot-only (2024).** **Done for A–C:** 2024 treatment derive + local paired EF impact report. Do **not** implement 2018–2023 until after stakeholder review of [`impact_nowcast_updated_weights.md`](impact_nowcast_updated_weights.md).  
-   *See guiding plan Phase 2 §12; impact report.*
+7. **Proceed with — LOCKED: Pilot-only (2024).** **Done for A–C:** 2024 treatment derive + local paired EF impact report. Do **not** implement 2018–2023 until after stakeholder review of [`impact_nowcast_updated_weights.md`](impact_nowcast_updated_weights.md).  
+   *See guiding plan §12; impact report.*
 
 ### Pending
 

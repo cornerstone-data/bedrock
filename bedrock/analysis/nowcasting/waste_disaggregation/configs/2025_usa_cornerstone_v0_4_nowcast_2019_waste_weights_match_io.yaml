@@ -1,7 +1,7 @@
-# Phase 3 analysis-only TREATMENT ? waste_weights_year: match_io.
+# Analysis-only TREATMENT ? waste_weights_year: match_io.
 #
-# Same MUT / GHG / electricity-off as the Phase 3 control twin for 2019, with
-# nowcast_mut_vintage pinned to the Track A verified GCS cut. Production /
+# Same MUT / GHG / electricity-off as the control twin for 2019, with
+# nowcast_mut_vintage pinned to the verified GCS MUT cut. Production /
 # canonical nowcast_2019.yaml stays on freeze-2017 weights and is unpinned.
 # Electricity flags omitted ? all False (Decision 6).
 

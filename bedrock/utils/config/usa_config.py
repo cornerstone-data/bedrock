@@ -100,8 +100,9 @@ class USAConfig(BaseModel):
         ),
     )
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
-    # Waste weight vintage: 2017 = bundled CSVs (default/production);
-    # match_io = usa_base_io_data_year; int = explicit year (diagnostic OK).
+    # Waste weight vintage: 2017 = bundled CSVs (default when unset / non-nowcast);
+    # match_io = usa_base_io_data_year. Canonical nowcast v0.4/v0.5 YAMLs set
+    # match_io after Flip; int = explicit year (diagnostic OK).
     waste_weights_year: ta.Literal['match_io'] | int | None = (
         2017  # DRI: jorge.vendries
     )
@@ -166,6 +167,13 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # Chain waste industry-mix shares across the SAS → AIES survey seam when
+    # the share-seam grade triggers (≥ 3 pp max |Δ| among Cornerstone waste
+    # children). 2023 holds post-fill SAS 2022 shares; 2024 moves by AIES's
+    # own 2024/2023 child-share ratios then renormalises. Independent of
+    # chain_services_seed_across_aies. On for Flip / match_io once the grade
+    # has triggered (#1052).
+    chain_waste_industry_mix_across_aies: bool = True  # DRI: jorge.vendries
     # Move data processing and hosting's (518200) electricity on LBNL's
     # national data center electricity series instead of the services survey,
     # priced on EIA's commercial price, and hold the cell through the interior
@@ -440,7 +448,10 @@ class USAConfig(BaseModel):
         'c60bdf4308cb660eee80a246214901cff9122820',  # v0.3.0
         '00524c3c8ba122a7a5b7f2139ff7ea6de08947bb',  # v0.3.1
         '7d0cb92af43882ee9496b5932e1893bb9ffcbdd7',  # v0.3.2
-        '2fcbd68b3275cc8e409d4df5d1f28a3a8355c249',  # v0.4.0 (current .SNAPSHOT_KEY)
+        '2fcbd68b3275cc8e409d4df5d1f28a3a8355c249',  # v0.4.0 (shipped; pre waste match_io Flip)
+        '60c8a6b8568b3002a73cdf8569114b2250571e94',  # v0.4.1 interim equal-fill Flip snapshot
+        '1ca4453a7882ffbc70527bdaab32fcc835b7f84d',  # v0.4.1 local prior-weighted snapshot
+        '0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0',  # v0.4.1 (current .SNAPSHOT_KEY; CI Flip)
     ] = 'v0'
 
     @property
@@ -577,7 +588,7 @@ def set_global_usa_config(
 def set_global_usa_config_object(config: USAConfig, *, source_label: str) -> None:
     """Install an already-validated ``USAConfig`` as the process-wide singleton.
 
-    Used by analysis-only loaders (e.g. waste-disagg Phase 3 YAMLs outside
+    Used by analysis-only loaders (e.g. waste-disagg analysis YAMLs outside
     ``CONFIG_DIR``). ``source_label`` is recorded in ``USA_CONFIG_ENV_VAR`` for
     the already-set guard / logging only — ``get_usa_config()`` must never
     re-resolve that label via ``_load_usa_config_from_file_name``.
