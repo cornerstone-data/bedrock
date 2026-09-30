@@ -2,8 +2,10 @@
 #
 # The v0.4 configuration on the v0.5 nowcast build:
 #   - Detail MUT from the NowcastMUT after-redefinition build named by
-#     nowcast_mut_vintage: v0.3.0_92b7a8a, the Steps 3-7 rebuild of main at
-#     92b7a8aa (2026-09-28). All eight years balance (T11 0.0 $M).
+#     nowcast_mut_vintage: v0.3.0_6abf5c0, the Steps 3-7 rebuild at
+#     6abf5c00 (2026-09-29), which adds #1033's cement and ready-mix chain
+#     and data processing's electricity on LBNL (#1041, #1049). All eight
+#     years balance (T11 0.0 $M).
 #     It carries the gross output and theta stack (#1014, #1016, #1018), the
 #     residential electricity constraint (#1011), the Step 5 closers (#950),
 #     the scrap price path (#1026), the census materials switch at 1.0 (#1020),
@@ -40,7 +42,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v0.3.0_92b7a8a'
+nowcast_mut_vintage: 'v0.3.0_6abf5c0'
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
 
