@@ -22,9 +22,7 @@ from bedrock.analysis.nowcasting.waste_disaggregation.scripts.run_waste_weight_i
 )
 
 ROOT = Path(__file__).resolve().parents[5]
-REBUILD = (
-    Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
-)
+REBUILD = Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
 INDEX = Path(__file__).resolve().parents[1] / "cache" / "local_impact_index.json"
 
 CONTROL_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_control_local"

@@ -113,8 +113,6 @@ def test_probe_fail_closed_on_misses(
     with pytest.raises(SystemExit) as exc:
         probe_mod.main()
     assert "FAILED" in str(exc.value)
-    report = json.loads(
-        (tmp_path / "gcs_mut_vintage.json").read_text(encoding="utf-8")
-    )
+    report = json.loads((tmp_path / "gcs_mut_vintage.json").read_text(encoding="utf-8"))
     assert report["status"] == "failed"
     assert report["holes"]

@@ -17,9 +17,7 @@ from bedrock.analysis.nowcasting.waste_disaggregation.impact_pins import (
 )
 
 CONFIG_DIR = ANALYSIS_CONFIG_DIR
-REBUILD = (
-    Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
-)
+REBUILD = Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
 
 
 def _yaml(year: int, *, vintage: str, treatment: bool) -> str:
@@ -70,7 +68,9 @@ def main(argv: list[str] | None = None) -> int:
     vintage = args.vintage
     if vintage is None:
         if not REBUILD.is_file():
-            raise SystemExit(f"Missing {REBUILD}; pass --vintage or finish local MUT rebuild")
+            raise SystemExit(
+                f"Missing {REBUILD}; pass --vintage or finish local MUT rebuild"
+            )
         data = json.loads(REBUILD.read_text(encoding="utf-8"))
         vintage = data.get("recorded_local_vintage") or data.get(
             "intended_local_vintage"
