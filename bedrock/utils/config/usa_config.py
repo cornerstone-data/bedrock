@@ -173,7 +173,7 @@ class USAConfig(BaseModel):
     # has 518200 buying ~37% fewer kWh in 2024 than 2017 while LBNL has data
     # centers at 2.8x. Overrides the survey observation on this one cell. See
     # nowcast_intermediate.DATA_CENTER_ELECTRICITY_CSV and #1035.
-    move_data_processing_electricity_on_lbnl: bool = False  # DRI: WesIngwersen
+    move_data_processing_electricity_on_lbnl: bool = True  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
