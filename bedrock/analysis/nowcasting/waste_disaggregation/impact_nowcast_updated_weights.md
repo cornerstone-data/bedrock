@@ -23,28 +23,28 @@ Do **not** treat the Sep-22 unpinned-control pilot alone as flip evidence.
 
 Comparison of **bundled 2017 production weight CSVs** (control) vs **2024 derived** weights (treatment `match_io`). Values are percent shares among the seven Cornerstone waste children (each vector sums to ~100%). Δ is 2024 − 2017 in percentage points.
 
-_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 2 revenue waste suppression recovery (equal_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, fill_each=2231500000, recovered_naics=['562112', '562213']; rcra_path=br_bypass; RCRA intersection from BR shipper->receiver rows (year=2021); bypasses CRHW FBS - temporary diagnostics path; follow-on BR→FBS work owns FBS replacement; BR intersection stats: rows_seen=1829582, rows_used_received=1248765, rows_used_shipped=311228, rows_skipped_missing_ids=21699, rows_with_tons_or_ids=1559993, rows_skipped_non_waste_endpoint=1401094, rows_used_waste_intersection=158899.
+_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 3 prior_by_naics={'562211': 8022000000.0, '562112': 1733000000.0, '562213': 1132000000.0}; SAS Table 3 expenses waste suppression recovery (prior_weighted_residual under NAICS 562): parent=95778000000, published_detail=84242000000, residual=11536000000, n_suppressed=3, priors={'562112': 1733000000.0, '562211': 8022000000.0, '562213': 1132000000.0}, require_complete_priors=True, recovered_naics=['562112', '562211', '562213']; waste industry-mix chain: 2024 = post-fill SAS 2022 × (AIES 2024 / AIES 2023) child-share ratios, renormalised; SAS Table 2 prior_by_naics={'562112': 2507000000.0, '562213': 1148000000.0}; SAS Table 2 revenue waste suppression recovery (prior_weighted_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, priors={'562112': 2507000000.0, '562213': 1148000000.0}, require_complete_priors=True, recovered_naics=['562112', '562213']; rcra_path=br_bypass.
 
 **Industry mix — Use column sum (industry output)**
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
-| 562111 | 47.60% | 45.59% | -2.01 pp |
-| 562HAZ | 12.10% | 10.01% | -2.10 pp |
-| 562212 | 8.27% | 7.03% | -1.24 pp |
-| 562213 | 1.51% | 0.77% | -0.74 pp |
-| 562910 | 16.60% | 19.86% | +3.25 pp |
-| 562920 | 4.48% | 4.77% | +0.29 pp |
-| 562OTH | 9.43% | 11.97% | +2.54 pp |
+| 562111 | 47.60% | 48.62% | +1.02 pp |
+| 562HAZ | 12.10% | 10.93% | -1.17 pp |
+| 562212 | 8.27% | 8.15% | -0.12 pp |
+| 562213 | 1.51% | 1.04% | -0.47 pp |
+| 562910 | 16.60% | 15.21% | -1.39 pp |
+| 562920 | 4.48% | 4.64% | +0.16 pp |
+| 562OTH | 9.43% | 11.39% | +1.96 pp |
 
 **Commodity mix — Use row sum (commodity output)**
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
 | 562111 | 46.30% | 48.98% | +2.68 pp |
-| 562HAZ | 10.30% | 8.13% | -2.17 pp |
+| 562HAZ | 10.30% | 8.73% | -1.57 pp |
 | 562212 | 9.80% | 8.22% | -1.58 pp |
-| 562213 | 1.50% | 1.63% | +0.13 pp |
+| 562213 | 1.50% | 1.03% | -0.47 pp |
 | 562910 | 16.60% | 16.17% | -0.43 pp |
 | 562920 | 7.53% | 5.89% | -1.64 pp |
 | 562OTH | 7.97% | 10.97% | +3.00 pp |
@@ -53,13 +53,13 @@ _2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: 
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
-| 562111 | 47.91% | 45.59% | -2.32 pp |
-| 562HAZ | 12.80% | 10.01% | -2.80 pp |
-| 562212 | 8.15% | 7.03% | -1.12 pp |
-| 562213 | 1.35% | 0.77% | -0.58 pp |
-| 562910 | 14.60% | 19.86% | +5.25 pp |
-| 562920 | 5.42% | 4.77% | -0.66 pp |
-| 562OTH | 9.76% | 11.97% | +2.21 pp |
+| 562111 | 47.91% | 48.62% | +0.71 pp |
+| 562HAZ | 12.80% | 10.93% | -1.87 pp |
+| 562212 | 8.15% | 8.15% | +0.00 pp |
+| 562213 | 1.35% | 1.04% | -0.31 pp |
+| 562910 | 14.60% | 15.21% | +0.61 pp |
+| 562920 | 5.42% | 4.64% | -0.78 pp |
+| 562OTH | 9.76% | 11.39% | +1.63 pp |
 
 **Use waste×waste intersection (shipper→receiver shares)**
 

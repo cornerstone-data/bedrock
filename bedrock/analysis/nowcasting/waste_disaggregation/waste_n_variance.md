@@ -32,7 +32,7 @@ That is **not** the same as the MUT having $0 for waste, and it is **not** evide
 
 **Suppression recovery** = when Census hides detail but publishes the parent total, estimate the hidden lines from the shortfall instead of treating them as $0.
 
-We do that the same way elsewhere in bedrock when a parent total is published and several children are hidden: take `parent(562) − sum(published detail)` and split that residual **equally** across the suppressed waste lines.
+Take `parent(562) − sum(published detail)` and allocate that residual across suppressed waste lines using **prior-weighted** fills when same-table (or Table 3 AIES detail-dollar) priors exist; **equal** only when no prior is available and Flip/`match_io` is not requiring complete priors. Only Census flags **`S`/`D`** count as suppressed — not `(s)` or `Z`.
 
 - **SAS Table 3** (firm expenses) → restores **industry mix** (how large each waste child is among waste firms) — also drives Make-column shares by construction.
 - **SAS Table 2** (firm revenue) → restores **commodity / Use-row mix** (how waste output is split across children).
@@ -41,19 +41,19 @@ Every fill is recorded in derive provenance notes.
 
 After regenerating the impact caches with that recovery:
 
-| Case | Before fix | After fix |
-|------|------------|-----------|
-| 2022 `562HAZ` | N = 0 (−100%) | N ≈ 3.0 vs control ≈ 1.2 (**+150%**) |
-| 2021 `562213` | N ≈ 0.4 (−95%) | N ≈ 5.6 vs control ≈ 7.1 (**−20%**) |
+| Case | Before fix | After equal-fill (interim Flip evidence) | After prior-weighted + chain (current) |
+|------|------------|------------------------------------------|----------------------------------------|
+| 2022 `562HAZ` | N = 0 (−100%) | N ≈ 3.0 vs control ≈ 1.2 (**+150%**) | N ≈ 1.02 vs control ≈ 1.22 (**−16%**) |
+| 2021 `562213` | N ≈ 0.4 (−95%) | N ≈ 5.6 vs control ≈ 7.1 (**−20%**) | unchanged ≈ **−20%** (n=1 fill = residual) |
 
-So the “sector disappears” story is gone. What remains for `562HAZ` in 2022 is a **large increase** vs 2017 shares (hazardous waste is still in the mix, but year-2022 structure plus refreshed waste-firm-to-waste-firm shipments differ from the workbook). For `562213` in 2021, treatment is lower than control by about a fifth — a real share shift, not a wipe.
+Equal-fill removed the wipe but overstated 2022 HAZ/562213 industry mix. **Prior-weighted** 2022 fill brings HAZ industry mix to ~10.8% and cuts the paired HAZ spike; the AIES-only **chain** removes the equal-fill 2022→2023 `562213` +319% YoY rebound from the production path.
 
 ### Where the leftover movement comes from (not a mystery box)
 
-Weight shares have a few independent slices. For the two extremes after the fix:
+Weight shares have a few independent slices. For the two extremes after prior-weighted regen:
 
-- **2022 `562HAZ`** — the biggest change vs 2017 is the **waste×waste intersection** (which waste firms ship to which other waste firms, from Biennial Report / RCRA data for ≥2017), not a vanished industry mix. Industry mix for HAZ is ~8% after recovery (was ~12% in 2017 CSVs) — smaller, but not zero.
-- **2021 `562213`** — industry mix is fine; the largest slice gap vs 2017 is the **commodity / Use-row** share (SAS Table 2 after recovery). **Who-buys** (which customer classes purchase waste services) for 2018–2021 still uses Economic Census 2017 by design (`freeze_confirmed`); that is settled and not a Flip blocker.
+- **2022 `562HAZ`** — the biggest change vs 2017 is still the **waste×waste intersection** (Biennial Report / RCRA ≥2017), not a vanished industry mix. Industry mix for HAZ is **~10.8%** after prior-weighted recovery (was ~12% in 2017 CSVs; equal-fill had pushed it toward ~8% with an inflated 562213 sibling).
+- **2021 `562213`** — industry mix is fine; the largest slice gap vs 2017 among industry mix / Use-row / intersection is the **commodity / Use-row** share (SAS Table 2 after recovery). **Who-buys** for 2018–2021 still uses Economic Census 2017 by design (`freeze_confirmed`).
 
 ### What Flip would and would not change (from this note alone)
 
@@ -75,93 +75,113 @@ Weight shares have a few independent slices. For the two extremes after the fix:
 | Use/Make **column** (industry mix — size of each waste child among waste firms) | SAS **Table 3** expenses | 2022 `562HAZ` (−100% N) via 562112/562211 |
 | Use **row** (commodity mix — split of waste output across children) | SAS **Table 2** revenue | 2021 `562213` Use-row share = 0 (also `S` on Table 2) |
 
-**Pattern locked (same for both tables; best fit vs other bedrock recoveries):**
+**Pattern locked:**
 
 | Metric | Result |
 |--------|--------|
 | Published parent control? | **Yes** — NAICS **`562`** total is unsuppressed on both Table 2 and Table 3 |
-| # suppressed detail cells under that control | Often **>1** (e.g. 2022 Table 3: three cells; 2022 Table 2: two) → **rejects** single-cell subtraction when `n>1` |
-| Intermediate parents 5621/5622/5629? | **Absent** → **rejects** NAICS hierarchy walk (`estimate_suppressed_sectors_equal_attribution`) |
-| Cross-table allocation prior? | Only **partial** overlap of which NAICS are `S` → prefer **equal** split on each table’s own residual |
+| Mask | Only Census **`S`/`D`** (not `(s)` sampling markup or `Z`) |
+| Fill | **Prior-weighted** residual among suppressed detail NAICS; equal only if no prior and `require_complete_priors=False` |
+| Table 3 priors | Nearest published same-table SAS expense year per NAICS in `{Y-1…2017}`; fallback **AIES 2023 detail-NAICS dollars** (not child-aggregated shares) |
+| Table 2 priors | Nearest published same-table SAS **revenue** only — **no** AIES / Table 3 cross-table prior |
+| Flip / `match_io` | `require_complete_priors=True` — raise if multi-suppress missing prior after table-specific rules |
 
-**Implementation:** shared `recover_suppressed_sas_waste_detail` in [`sas_waste_metrics.py`](../../../extract/disaggregation/sas_waste_metrics.py), with wrappers:
+**Implementation:** shared `recover_suppressed_sas_waste_detail` in [`sas_waste_metrics.py`](../../../extract/disaggregation/sas_waste_metrics.py); loaders own prior search:
 
-- `recover_suppressed_sas_table3_waste_expenses` → `load_sas_table3_expense_shares`
-- `recover_suppressed_sas_table2_waste_revenue` → `load_sas_table2_revenue_shares`
+- `load_sas_table3_expense_shares(year, *, require_complete_priors=False)`
+- `load_sas_table2_revenue_shares(year, *, require_complete_priors=False)`
 
-Same family as `estimate_suppressed_ec_pxi` (Economic Census product×industry equal-residual fill):
+1. `residual = FlowAmount(562) − sum(published waste-detail amounts)`
+2. Allocate `residual` with complete / partial / equal rules (tag `prior_weighted_residual` or `equal_residual`)
+3. Append provenance notes on `WeightDerivationProvenance.fallback_notes`
 
-1. `residual = FlowAmount(562) − sum(unsuppressed waste-detail amounts)`
-2. Split `residual` **equally** across suppressed detail NAICS that map to Cornerstone waste children
-3. Tag filled rows `SuppressionRecovery='equal_residual'`; append provenance notes on `WeightDerivationProvenance.fallback_notes`
+**Table 3 expenses (live, prior-weighted):**
 
-**Table 3 expenses (live):**
+| Year | Parent | Published detail | Residual | `n_suppressed` | Fill (prior-weighted) | Prior year(s) |
+|------|-------:|-----------------:|---------:|---------------:|-----------------------|---------------|
+| 2022 | $95.778B | $84.242B | $11.536B | 3 | 562112≈$1.84B; 562211≈$8.50B; 562213≈$1.20B | 2021 SAS expenses for all three |
+| 2021 | (562 control) | — | $1.440B | 1 | $1.440B (`equal_residual`, n=1) | — |
 
-| Year | Parent | Published detail | Residual | `n_suppressed` | fill_each | Recovered NAICS |
-|------|-------:|-----------------:|---------:|---------------:|----------:|-----------------|
-| 2022 | $95.778B | $84.242B | $11.536B | 3 | ≈$3.845B | 562112, 562211, 562213 |
-| 2021 | (562 control) | — | $1.440B | 1 | $1.440B | 562213 |
+Equal-fill would have given each 2022 suppressed cell ≈$3.85B (overstating 562213). Prior-weighted restores a plausible 562213 share (~1.3 pp of industry mix).
 
-**Table 2 revenue (live):**
+**Table 2 revenue (live, prior-weighted):**
 
-| Year | Parent | Published detail | Residual | `n_suppressed` | fill_each | Recovered NAICS |
-|------|-------:|-----------------:|---------:|---------------:|----------:|-----------------|
-| 2021 | $124.319B | $123.113B | $1.206B | 1 | $1.206B | 562213 |
-| 2022 | $136.674B | $132.211B | $4.463B | 2 | ≈$2.232B | 562112, 562213 |
+| Year | Parent | Published detail | Residual | `n_suppressed` | Fill (prior-weighted) | Prior year(s) |
+|------|-------:|-----------------:|---------:|---------------:|-----------------------|---------------|
+| 2021 | $124.319B | $123.113B | $1.206B | 1 | $1.206B | — |
+| 2022 | $136.674B | $132.211B | $4.463B | 2 | 562112≈$3.06B; 562213≈$1.40B | 2021 SAS revenue |
 
 Use column and Make column still share one industry-mix vector by construction (`derive_waste_weights`); Table 3 recovery lifts **both** together. Table 2 recovery restores Use-row commodity shares independently.
 
+### SAS→AIES industry-mix share-seam grade (post prior-weighted fill)
+
+Metric: \(\max_c \lvert 100\cdot s_{c,2023}^{\text{AIES}} - 100\cdot s_{c,2022}^{\text{SAS, post-fill}}\rvert\) among Cornerstone waste children (industry-mix shares only).
+
+| Child | SAS 2022 post-fill (pp) | AIES 2023 (pp) | Δ pp |
+|-------|------------------------:|---------------:|-----:|
+| 562111 | 50.06 | 47.15 | −2.91 |
+| 562HAZ | 10.79 | 9.92 | −0.87 |
+| 562212 | 8.25 | 7.15 | −1.10 |
+| 562213 | 1.25 | 0.93 | −0.32 |
+| 562910 | 14.35 | 18.82 | **+4.46** |
+| 562920 | 4.54 | 4.68 | +0.14 |
+| 562OTH | 10.76 | 11.36 | +0.60 |
+
+**max \|Δ\| = 4.46 pp ≥ 3 pp → chain triggers.** Production Flip/`match_io` holds post-fill SAS 2022 industry-mix shares for **2023** and moves **2024** by AIES-only 2024/2023 child-share ratios (`chain_waste_industry_mix_across_aies`; Decision 2 level override — AIES supplies YoY movement only). Independent of `chain_services_seed_across_aies`.
+
 ---
 
-## (i) Absolute EF — required extremes (**post-recovery** caches)
+## (i) Absolute EF — required extremes (**post prior-weighted + chain** caches)
 
-### 2022 `562HAZ` — post-recovery
+Caches under `cache/impact_{Y}_v0.3.0_92b7a8a/` regenerated 2026-09-30 after prior-weighted fill + AIES-only industry-mix chain.
 
-| Metric | Control | Treatment | Notes |
-|--------|--------:|----------:|-------|
-| **N** (total EF) | 1.216 | **3.042** | No longer wiped; treatment > control |
-| **D** (direct EF) | 0.067 | 0.126 | Same direction |
-| `N_perc_diff` | — | **+1.502** (+150.2%) | Largest paired waste mover in 2022 |
-
-**Pre-recovery (historical):** treatment N/D = 0 → unclipped −100%. Root cause was Table 3 `S` treated as true zero → 0% industry-mix share. **Not** MUT $0 for parent `562000`. Equal-residual fill (~8% industry mix) removes the wipe; remaining large **positive** paired Δ reflects restored HAZ mass plus Biennial Report waste×waste shipments / Economic Census 2022 who-buys vs frozen 2017 control shares.
-
-### 2021 `562213` — post-recovery
+### 2022 `562HAZ` — post prior-weighted recovery
 
 | Metric | Control | Treatment | Notes |
 |--------|--------:|----------:|-------|
-| **N** (total EF) | 7.057 | **5.622** | ~80% of control (was ~5%) |
+| **N** (total EF) | 1.216 | **1.018** | No wipe; treatment slightly below control |
+| **D** (direct EF) | 0.067 | 0.094 | D up while N down (structure mix) |
+| `N_perc_diff` | — | **−0.163** (−16.3%) | Equal-fill Flip evidence had been **+150%** |
+
+**Pre-recovery (historical):** treatment N/D = 0 → unclipped −100%. **Equal-fill interim:** ~+150% paired Δ from overstated residual mass into HAZ siblings. **Prior-weighted:** fills 562112/562211/562213 from 2021 SAS expense priors → HAZ industry mix ~10.8%; remaining paired Δ is structure (intersection / who-buys / commodity), not a suppression zero.
+
+### 2021 `562213` — post recovery (n=1 → exact residual)
+
+| Metric | Control | Treatment | Notes |
+|--------|--------:|----------:|-------|
+| **N** (total EF) | 7.057 | **5.622** | ~80% of control (was ~5% pre-recovery) |
 | **D** (direct EF) | 6.885 | 5.475 | Same pattern |
-| `N_perc_diff` | — | **−0.203** (−20.3%) | No longer −95% wipe |
+| `N_perc_diff` | — | **−0.203** (−20.3%) | Unchanged vs equal-fill (single suppressed cell) |
 
-**Pre-recovery (historical):** treatment N ≈ 0.355 (−95%). Both Table 3 and Table 2 had sole `S` on `562213`; recovery restores industry-mix (~1.7%) and commodity / Use-row (~0.97%). Remaining −20% is a real share/structure shift (largest weight-slice gap still commodity / Use-row), not a suppression zero.
+**Pre-recovery (historical):** treatment N ≈ 0.355 (−95%). Both Table 3 and Table 2 had sole `S` on `562213`; n=1 fill equals the residual. Remaining −20% is a real share/structure shift, not a suppression zero.
 
-Economy-wide paired median N % / p95 \|N %\| stay modest (by-year §3.1: ≈ −0.01% to −0.43% / ≈0.1–2.1% after regen). Variance concern remains **waste-child concentration**, not economy-wide rewrite.
+Economy-wide paired median N % / p95 \|N %\| stay modest (by-year §3.1: ≈ −0.29% to −0.43% / ≈1.4–2.1% after regen). Variance concern remains **waste-child concentration**, not economy-wide rewrite.
 
 ---
 
-## (ii) Weight-slice attribution — **post Table 2+3 recovery** shares
+## (ii) Weight-slice attribution — **post prior-weighted** shares
 
 These are **percent shares among the seven waste children** (each vector sums to ~1), **not** BEA MUT dollar cells.
 
-### 2022 `562HAZ` (after equal-residual recovery)
+### 2022 `562HAZ` (after prior-weighted recovery)
 
 From `cache/weight_delta_2017_vs_2022.csv`:
 
 | Slice | 2017 CSV share | 2022 treatment share | Δ |
 |-------|---------------:|---------------------:|--:|
-| **Use column** (industry mix) | 0.121012 (~12.1%) | **0.080297 (~8.0%)** | −0.040715 |
-| **Make column** (same industry-mix vector on Make) | 0.128026 (~12.8%) | **0.080297 (~8.0%)** | −0.047729 |
-| **Use row** (commodity mix from SAS Table 2) | 0.103000 (~10.3%) | **0.081270 (~8.1%)** | −0.021730 |
+| **Use column** (industry mix) | 0.121012 (~12.1%) | **0.107922 (~10.8%)** | −0.013090 |
+| **Make column** (same industry-mix vector on Make) | 0.128026 (~12.8%) | **0.107922 (~10.8%)** | −0.020104 |
+| **Use row** (commodity mix from SAS Table 2) | 0.103000 (~10.3%) | **0.087341 (~8.7%)** | −0.015659 |
 | **Intersection diagonal** (same child ships to itself in waste×waste) | 0.579842 (~58.0%) | 0.797185 (~79.7%) | **+0.217343** |
 
 **Dominating slice** (largest absolute Δ among industry mix / commodity Use-row / intersection diagonal): **`intersection`**
 
 **Raw before recovery:** Table 3: 562112 / 562211 / 562213 = `S`; Table 2: 562112 / 562213 = `S`.  
-**After recovery:** Table 3 fills → `562HAZ` industry-mix **~8.0%**; Table 2 fills → commodity Use-row **~8.1%**.
+**After prior-weighted recovery:** Table 3 fills → `562HAZ` industry-mix **~10.8%**; Table 2 fills → commodity Use-row **~8.7%**.
 
 Who-buys / final-demand customer-class rows still from **Economic Census 2022** (`ecnclcust`). Intersection from the temporary **Biennial Report shipper→receiver path** (`rcra_path=br_bypass`; diagonal share up).
 
-### 2021 `562213` (after equal-residual recovery)
+### 2021 `562213` (after recovery)
 
 From `cache/weight_delta_2017_vs_2021.csv`:
 
@@ -179,6 +199,6 @@ Industry mix and Use-row are both restored from their respective 562 residuals. 
 
 ## Acceptance bar (variance portion)
 
-1. Extremes documented with absolute N/D from **post-recovery** caches; −100%/−95% explained as pre-recovery suppression wipe; post-recovery shares + Table 2/3 method documented — **met**.  
+1. Extremes documented with absolute N/D from **post prior-weighted** caches; −100%/−95% explained as pre-recovery suppression wipe; equal-fill +150% HAZ spike retired by prior-weighted fill — **met**.  
 2. Economy-wide band still modest after regen — **met**.  
 3–4. See Y2Y note ([`waste_y2y_comparison.md`](waste_y2y_comparison.md)) for control panel + stakeholder call.

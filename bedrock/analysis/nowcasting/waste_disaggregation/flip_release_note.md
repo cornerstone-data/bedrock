@@ -26,9 +26,9 @@
 | RCRA vintage on treatment | **≥2017** BR (not workbook 2012 embedded in 2017 CSVs) |
 | Who-buys / FD for model years 2018–2021 | **Bare Economic Census 2017** (`freeze_confirmed`) — no intercensal 6-digit substitute |
 | Who-buys for 2022+ | Economic Census **2022** `ecnclcust` |
-| Industry mix ≤2022 | SAS Table 3 expenses **with equal-residual suppression recovery** under NAICS `562` |
-| Industry mix 2023–2024 | AIES `EXPS_TOT_DVAL` (EXP01 / BASIC) |
-| Commodity / Use-row ≤2022 (carry 2022 for 2023–2024) | SAS Table 2 revenue **with the same suppression recovery** |
+| Industry mix ≤2022 | SAS Table 3 expenses **with prior-weighted suppression recovery** under NAICS `562` (`S`/`D` only) |
+| Industry mix 2023–2024 (`match_io`) | **Chained:** 2023 = post-fill SAS 2022 shares; 2024 = SAS 2022 × (AIES 2024/2023), renormalised. Share-seam grade max \|Δ\| = **4.46 pp** (triggered). AIES fail-loud (no silent SAS fallback) |
+| Commodity / Use-row ≤2022 (carry 2022 for 2023–2024) | SAS Table 2 revenue **with prior-weighted recovery** (same-table revenue priors only) |
 
 Follow-on BR→FBS work, §11 hardening, and who-buys SAS-scale of 2017 EC are **not** Flip prerequisites.
 
@@ -36,7 +36,7 @@ Follow-on BR→FBS work, §11 hardening, and who-buys SAS-scale of 2017 EC are *
 
 Canonical nowcast YAMLs now set `waste_weights_year: match_io` (resolves to `usa_base_io_data_year`):
 
-- `2025_usa_cornerstone_v0_4.yaml` (canonical snapshot config)
+- `2025_usa_cornerstone_v0_4.yaml` (canonical snapshot config) — **v0.4.1** story
 - `2025_usa_cornerstone_v0_4_nowcast_{2017–2024}.yaml` (+ 2024 electricity diagnostic variants that enable waste disaggregation)
 - `2025_usa_cornerstone_v0_5.yaml` and `2025_usa_cornerstone_v0_5_{2017–2024}.yaml`
 
@@ -44,12 +44,18 @@ USAConfig field default remains `2017` for non-nowcast / unset configs. Analysis
 
 ## Snapshot / waterfall ops (on Flip branch)
 
-**Snapshot (done on branch `jv_waste_disagg_nowcast_flip_decision`):**
+**Release labels:**
+
+| Label | SHA | Role |
+|-------|-----|------|
+| `v0_4_0` / `v0.4.0` | `2fcbd68b3275cc8e409d4df5d1f28a3a8355c249` | Shipped published v0.4.0 (pre Flip) |
+| `v0_4_1` / `v0.4.1` | `60c8a6b8568b3002a73cdf8569114b2250571e94` (provisional) | Flip snapshot; **re-point** after post-fill/chain `generate_snapshots` |
+
+**Snapshot (Flip branch tip; provisional `v0_4_1`):**
 
 - Workflow: [generate_snapshots #36665300634](https://github.com/cornerstone-data/bedrock/actions/runs/36665300634) (`config_name=2025_usa_cornerstone_v0_4`)
 - SHA / `.SNAPSHOT_KEY`: `60c8a6b8568b3002a73cdf8569114b2250571e94`
 - GCS: `gs://cornerstone-default/snapshots/60c8a6b8568b3002a73cdf8569114b2250571e94/`
-- Prior v0.4.0 SHA kept as `releases.v0_4_0_pre_waste_match_io` for comparison
 
 **Diagnostics dispatched against this git-ref** (indexes under `cache/`):
 

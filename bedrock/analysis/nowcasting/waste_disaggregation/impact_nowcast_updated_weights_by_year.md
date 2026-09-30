@@ -43,7 +43,7 @@ For each year we report percent differences (treatment − control) / control fo
 These choices come from the feasibility lock and the analysis plan:
 
 1. **EEIO-only change.** Weights update after correspondence; nowcast Steps 1–7 and GCS MUT contents are not rebuilt for this A/B.
-2. **Industry mix (Use column sums).** SAS Table 3 total expenses by waste child NAICS for **≤2022**; AIES total firm expenses (`EXPS_TOT_DVAL`) for **2023–2024**. Do not use purchaser refuse / `EXPS_REFUSE` for child mix.
+2. **Industry mix (Use column sums).** SAS Table 3 total expenses by waste child NAICS for **≤2022** with **prior-weighted** suppression recovery. For **2023–2024** under Flip/`match_io`, hold post-fill SAS 2022 levels and move 2024 by AIES-only child-share ratios (share-seam grade triggered). Do not use purchaser refuse / `EXPS_REFUSE` for child mix. Table 2 Use-row revenue uses the same prior-weighted recovery (same-table revenue priors only). Impact caches regenerated 2026-09-30.
 3. **Who buys waste (Use rows / FD).** Economic Census `ecnclcust` customer-class receipts. **EC 2022** for model years 2022+; **bare EC 2017 freeze** for 2018–2021 (`resolve_ec_year`) because there is no intercensal 6-digit who-buys substitute.
 4. **Waste×waste Use intersection.** Rebuild from **RCRA ≥2017**, not the workbook’s 2012 RCRA embedded in the 2017 CSVs. Analysis uses a temporary Biennial Report shipper→receiver path recorded as `rcra_path=br_bypass` (CRHW FBS remains generation-only).
 5. **Reject refuse for industry mix.** Purchaser refuse series stay on the aggregate nowcast seed only.
@@ -63,9 +63,9 @@ Verified by GCS probe for a complete 2018–2024 panel (`cache/gcs_mut_vintage.j
 | 2019 | SAS Table 3 (2019) | EC **2017** (freeze) | 2019 BR | SAS revenue |
 | 2020 | SAS Table 3 (2020) | EC **2017** (freeze) | →2019 BR | SAS revenue |
 | 2021 | SAS Table 3 (2021) | EC **2017** (freeze) | 2021 BR | SAS revenue |
-| 2022 | SAS Table 3 (2022) | EC **2022** | →2021 BR | SAS revenue |
-| 2023 | AIES **2023** EXP01 | EC **2022** | →2021 BR | SAS **2022** carry |
-| 2024 | AIES **2024** BASIC | EC **2022** | →2021 BR | SAS **2022** carry |
+| 2022 | SAS Table 3 (2022), **prior-weighted** `S`/`D` recovery | EC **2022** | →2021 BR | SAS revenue (prior-weighted) |
+| 2023 | **Chain:** hold post-fill SAS 2022 (AIES unused for levels) | EC **2022** | →2021 BR | SAS **2022** carry |
+| 2024 | **Chain:** SAS 2022 × (AIES 2024/2023), renormalised | EC **2022** | →2021 BR | SAS **2022** carry |
 
 **Control weight provenance (every year):** bundled 2017 Use/Make CSVs, including the workbook’s **2012** RCRA intersection shares — unchanged from production.
 
@@ -91,28 +91,28 @@ Before emission-factor results, the tables below show how the **weight inputs th
 
 Comparison of **bundled 2017 production weight CSVs** (control) vs **2024 derived** weights (treatment `match_io`). Values are percent shares among the seven Cornerstone waste children (each vector sums to ~100%). Δ is 2024 − 2017 in percentage points.
 
-_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 2 revenue waste suppression recovery (equal_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, fill_each=2231500000, recovered_naics=['562112', '562213']; rcra_path=br_bypass; RCRA intersection from BR shipper->receiver rows (year=2021); bypasses CRHW FBS - temporary diagnostics path; follow-on BR→FBS work owns FBS replacement; BR intersection stats: rows_seen=1829582, rows_used_received=1248765, rows_used_shipped=311228, rows_skipped_missing_ids=21699, rows_with_tons_or_ids=1559993, rows_skipped_non_waste_endpoint=1401094, rows_used_waste_intersection=158899.
+_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 3 prior_by_naics={'562211': 8022000000.0, '562112': 1733000000.0, '562213': 1132000000.0}; SAS Table 3 expenses waste suppression recovery (prior_weighted_residual under NAICS 562): parent=95778000000, published_detail=84242000000, residual=11536000000, n_suppressed=3, priors={'562112': 1733000000.0, '562211': 8022000000.0, '562213': 1132000000.0}, require_complete_priors=True, recovered_naics=['562112', '562211', '562213']; waste industry-mix chain: 2024 = post-fill SAS 2022 × (AIES 2024 / AIES 2023) child-share ratios, renormalised; SAS Table 2 prior_by_naics={'562112': 2507000000.0, '562213': 1148000000.0}; SAS Table 2 revenue waste suppression recovery (prior_weighted_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, priors={'562112': 2507000000.0, '562213': 1148000000.0}, require_complete_priors=True, recovered_naics=['562112', '562213']; rcra_path=br_bypass.
 
 **Industry mix — Use column sum (industry output)**
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
-| 562111 | 47.60% | 45.59% | -2.01 pp |
-| 562HAZ | 12.10% | 10.01% | -2.10 pp |
-| 562212 | 8.27% | 7.03% | -1.24 pp |
-| 562213 | 1.51% | 0.77% | -0.74 pp |
-| 562910 | 16.60% | 19.86% | +3.25 pp |
-| 562920 | 4.48% | 4.77% | +0.29 pp |
-| 562OTH | 9.43% | 11.97% | +2.54 pp |
+| 562111 | 47.60% | 48.62% | +1.02 pp |
+| 562HAZ | 12.10% | 10.93% | -1.17 pp |
+| 562212 | 8.27% | 8.15% | -0.12 pp |
+| 562213 | 1.51% | 1.04% | -0.47 pp |
+| 562910 | 16.60% | 15.21% | -1.39 pp |
+| 562920 | 4.48% | 4.64% | +0.16 pp |
+| 562OTH | 9.43% | 11.39% | +1.96 pp |
 
 **Commodity mix — Use row sum (commodity output)**
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
 | 562111 | 46.30% | 48.98% | +2.68 pp |
-| 562HAZ | 10.30% | 8.13% | -2.17 pp |
+| 562HAZ | 10.30% | 8.73% | -1.57 pp |
 | 562212 | 9.80% | 8.22% | -1.58 pp |
-| 562213 | 1.50% | 1.63% | +0.13 pp |
+| 562213 | 1.50% | 1.03% | -0.47 pp |
 | 562910 | 16.60% | 16.17% | -0.43 pp |
 | 562920 | 7.53% | 5.89% | -1.64 pp |
 | 562OTH | 7.97% | 10.97% | +3.00 pp |
@@ -121,13 +121,13 @@ _2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: 
 
 | Child | 2017 CSV | 2024 derive | Δ (pp) |
 |-------|----------:|----------:|-------:|
-| 562111 | 47.91% | 45.59% | -2.32 pp |
-| 562HAZ | 12.80% | 10.01% | -2.80 pp |
-| 562212 | 8.15% | 7.03% | -1.12 pp |
-| 562213 | 1.35% | 0.77% | -0.58 pp |
-| 562910 | 14.60% | 19.86% | +5.25 pp |
-| 562920 | 5.42% | 4.77% | -0.66 pp |
-| 562OTH | 9.76% | 11.97% | +2.21 pp |
+| 562111 | 47.91% | 48.62% | +0.71 pp |
+| 562HAZ | 12.80% | 10.93% | -1.87 pp |
+| 562212 | 8.15% | 8.15% | +0.00 pp |
+| 562213 | 1.35% | 1.04% | -0.31 pp |
+| 562910 | 14.60% | 15.21% | +0.61 pp |
+| 562920 | 5.42% | 4.64% | -0.78 pp |
+| 562OTH | 9.76% | 11.39% | +1.63 pp |
 
 **Use waste×waste intersection (shipper→receiver shares)**
 
@@ -156,14 +156,14 @@ Diagonal cells (receiver = shipper):
 | 2019 | -0.36% | 1.54% | 562OTH (+17.7%) | EC freeze |
 | 2020 | -0.39% | 1.96% | 562920 (+15.3%) | EC freeze |
 | 2021 | -0.43% | 2.13% | 562HAZ (-28.5%) | EC freeze |
-| 2022 | -0.10% | 0.44% | 562HAZ (+150.2%) | EC 2022 |
-| 2023 | -0.05% | 0.26% | 562213 (+42.8%) | AIES |
-| 2024 | -0.01% | 0.08% | 562213 (+63.9%) | AIES |
+| 2022 | -0.30% | 1.36% | 562HAZ (-16.3%) | EC 2022 |
+| 2023 | -0.35% | 1.59% | 562HAZ (-25.4%) | AIES |
+| 2024 | -0.29% | 1.40% | 562213 (+23.4%) | AIES |
 <!-- /AUTO:PER_YEAR_SUMMARY -->
 
 Economy-wide, the weight update is a **small, consistently slightly negative** shift in median N (roughly −0.01% to −0.43% across years after post-recovery regen). Tail width (p95 of \|N %\|) stays on the order of **~0.1–2%**. Direct EF (D) is essentially unchanged for most non-waste sectors (median D % ≈ 0 in the 2024 summary); large D moves concentrate in waste children where industry mix and intersection shares change most.
 
-Within waste, the **largest mover changes by year**. Later years (especially 2023–2024 under AIES) highlight **562213** (solid waste combustors / incinerators) with large positive N/D shifts. Mid-panel extremes (2021–2022) are large but **no longer wipe to zero** after SAS Table 2/3 equal-residual suppression recovery — e.g. 2022 `562HAZ` +150% and 2021 `562HAZ` −28.5% reflect recovered shares vs 2017 control structure, not Census-`S`-as-zero.
+Within waste, the **largest mover changes by year**. After prior-weighted fill + chain, mid-panel extremes are moderate (e.g. 2022 `562HAZ` **−16%**, 2021 `562HAZ` −28.5%) — the equal-fill Flip interim’s +150% 2022 HAZ spike and +319% 562213 YoY rebound are retired. 2024’s largest waste mover is `562213` (+23.4%).
 
 ### 3.2 Figures by year
 
@@ -203,7 +203,7 @@ Charts (N / D histograms + waste-sector bars): [issue #1031](https://github.com/
 
 1. Control still embeds workbook **2012** RCRA intersection; treatment uses **BR ≥2017** shipper→receiver (`rcra_path=br_bypass`). Part of every year’s delta is that RCRA refresh, not industry mix alone. **Settled for Flip**: BR bypass is OK until follow-on BR→FBS work; do not treat bypass retirement as a remaining Flip gate.
 2. Who-buys for 2018–2021 stays on **bare EC 2017** while industry mix moves with SAS — **who-buys search `freeze_confirmed`** ([`who_buys_search.md`](who_buys_search.md)); intentional, not a Flip blocker. SAS-scale / §11 remain optional hardening only.
-3. SAS Table 3 industry mix **and** Table 2 Use-row revenue apply **equal-residual suppression recovery** under NAICS `562` ([`waste_n_variance.md`](waste_n_variance.md)). Impact caches `impact_{Y}_v0.3.0_92b7a8a/` were **regenerated** after that recovery (full 2018–2024 panel).
+3. SAS Table 3 industry mix **and** Table 2 Use-row revenue apply **prior-weighted suppression recovery** under NAICS `562` ([`waste_n_variance.md`](waste_n_variance.md)). Impact caches `impact_{Y}_v0.3.0_92b7a8a/` regenerated 2026-09-30 under prior-weighted fill + AIES-only industry-mix chain.
 4. Figures are on GCS MUT `v0.3.0_92b7a8a`. Durable copies live on [#1031](https://github.com/cornerstone-data/bedrock/issues/1031) (local `impact_*.png` untracked).
 
 ---

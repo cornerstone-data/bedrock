@@ -207,7 +207,7 @@ For each gap: problem → options → **recommendation**.
 
 - **Problem (corrected):** Earlier drafts mixed up two different “expense” concepts. The **workbook** Use column-sum uses SAS **Table 3 total Expenses of waste NAICS** (published through 2022). The **nowcast** purchaser line “Water, sewer, refuse removal” / `EXPS_REFUSE_VAL` is a *different* series and is irrelevant to child industry mix. AIES succeeds SAS for 2023+, but has **no** 2017–2022 back-years.
 - **Options:** (a) SAS Table 3 expenses by child (≤2022, matches workbook); (b) AIES total firm expenses by child (`EXPS_TOT_DVAL` via EXP01/BASIC) for 2023–2024; (c) SAS Table 2 revenue by child (proxy / cross-check); (d) scale 2017 shares by expense or revenue growth; (e) carry 2022; (f) uniform 1/7 last resort.
-- **Recommendation (LOCKED — Decision 2):** Primary = **SAS Table 3 expenses** for **≤2022**; **AIES** total expenses by waste child NAICS for **2023–2024** (EXP01 in 2023; BASIC in 2024 — see item 6 probe). Secondary = Table 2 revenue. Do **not** use AIES/`EXPS_REFUSE` for this slice.
+- **Recommendation (LOCKED — Decision 2):** Primary = **SAS Table 3 expenses** for **≤2022**; **AIES** total expenses by waste child NAICS for **2023–2024** (EXP01 in 2023; BASIC in 2024 — see item 6 probe). Secondary = Table 2 revenue. Do **not** use AIES/`EXPS_REFUSE` for this slice. **Override when `chain_waste_industry_mix_across_aies` is on (Flip/`match_io` after share-seam grade ≥ 3 pp):** 2023–2024 industry-mix **levels** hold post-fill SAS 2022; AIES supplies **YoY movement only** (2024 = SAS 2022 × AIES 2024/2023, renormalised).
 
 ### 2. RCRA only odd years / incomplete bedrock wiring / 2012 provenance
 

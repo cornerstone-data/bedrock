@@ -1,6 +1,6 @@
 # Production inclusion gate
 
-**Status:** **FLIP** (2026-09-29) — evidence package accepted; canonical nowcast YAMLs use `waste_weights_year: match_io`. Release note: [`flip_release_note.md`](flip_release_note.md). Branch snapshot / waterfall done; **re-snapshot on the merge commit to `main`** remains (see release note).
+**Status:** **FLIP** (2026-09-29) — evidence package accepted; canonical nowcast YAMLs use `waste_weights_year: match_io`. Release note: [`flip_release_note.md`](flip_release_note.md). Branch snapshot / waterfall done; **re-snapshot after prior-weighted fill + industry-mix chain** (provisional `v0_4_1` = `60c8a6b…`; shipped `v0_4_0` = `2fcbd68…`).
 
 Flip is **not** blocked by BR bypass, RCRA ≥2017, §11 hardening, or who-buys SAS-scale.
 
@@ -8,10 +8,12 @@ Flip is **not** blocked by BR bypass, RCRA ≥2017, §11 hardening, or who-buys 
 
 | Item | Value |
 |------|--------|
-| Production nowcast weights | **`waste_weights_year: match_io`** on canonical v0.4 / v0.5 nowcast YAMLs |
+| Production nowcast weights | **`waste_weights_year: match_io`** on canonical v0.4 / v0.5 nowcast YAMLs (**v0.4.1** story) |
+| Published v0.4.0 baseline | **`releases.v0_4_0` = `2fcbd68…`** (not Flip) |
 | Analysis control (A/B) | `waste_weights_year: 2017` on control YAMLs under `configs/` |
 | Evidence scope | Year-aligned weights vs 2017 production on **GCS** MUT only (local MUT retired from evidence) |
-| MUT pin (GCS) | **`v0.3.0_92b7a8a`** (impact caches regenerated after SAS Table 2/3 suppression recovery) |
+| MUT pin (GCS) | **`v0.3.0_92b7a8a`** (impact caches regenerated 2026-09-30 under prior-weighted fill + chain) |
+| SAS→AIES share-seam grade | **max \|Δ\| = 4.46 pp → chain on** (`chain_waste_industry_mix_across_aies`) |
 | RCRA Use intersection | **`rcra_path=br_bypass`** until follow-on BR→FBS work — **settled / OK for Flip** (follow-on BR→FBS is post-v0.5 separate PR) |
 | Who-buys 2018–2021 | **`freeze_confirmed`** — bare EC 2017; see [`who_buys_search.md`](who_buys_search.md) |
 | Electricity | Off for all weight A/B evidence runs |

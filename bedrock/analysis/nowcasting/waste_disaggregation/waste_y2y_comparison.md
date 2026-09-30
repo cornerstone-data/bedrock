@@ -16,7 +16,7 @@ Smoke: seven `summary.json` present; `resolved_nowcast_mut_vintage == v0.3.0_92b
 
 **What this note answers:** Even if we **never** update waste weight shares, those waste-child emission factors still change year to year because the nowcast industry **dollar** tables (the MUT) move. How does that “frozen weights, moving dollars” path compare to the path where we **also** update the percent shares each year?
 
-**Short answer:** Holding 2017 shares fixed does **not** freeze waste-child EFs — under today’s approach they already drift ~8% year-over-year on average (up to ~25% in a bad year; up to ~50% vs 2018 by 2024 for hazardous waste). Year-aligned weights add **extra spikes on a few children in a few years**, but after the suppression fix those spikes are real structure updates (and one large switch when AIES replaces SAS — see below), not “the sector vanished.” Flip is choosing whether production should track year-matched waste structure on top of that already-moving dollar baseline.
+**Short answer:** Holding 2017 shares fixed does **not** freeze waste-child EFs — under today’s approach they already drift ~8% year-over-year on average (up to ~25% in a bad year; up to ~50% vs 2018 by 2024 for hazardous waste). Year-aligned weights with **prior-weighted** SAS recovery and the **AIES-only industry-mix chain** add only a little extra volatility (treatment mean \|YoY\| ≈ 9% vs control ≈ 8%). The equal-fill Flip interim’s +319% `562213` 2022→2023 rebound is **gone** from the production path.
 
 ### Two paths, same dollars
 
@@ -29,10 +29,12 @@ Both arms use the **same** MUT pin each year. The only intentional difference is
 
 Share slices on the treatment arm (plain names):
 
-- **Industry mix** — how large each waste child is among waste firms (SAS Table 3 expenses through 2022; AIES total expenses in 2023–2024).
-- **Commodity mix** — how waste output is split across children (SAS Table 2 revenue).
+- **Industry mix** — how large each waste child is among waste firms (SAS Table 3 expenses through 2022 with prior-weighted suppression recovery; **2023–2024 under Flip/`match_io`:** hold post-fill SAS 2022 levels and move 2024 by AIES-only ratios — see share-seam grade in [`waste_n_variance.md`](waste_n_variance.md)).
+- **Commodity mix** — how waste output is split across children (SAS Table 2 revenue with prior-weighted recovery; **2022 shares carried into 2023–2024**).
 - **Who-buys** — which customer classes buy waste services (Economic Census `ecnclcust`; frozen at 2017 for model years 2018–2021).
 - **RCRA intersection** — waste-firm-to-waste-firm shipments (Biennial Report shipper→receiver path for now; follow-on BR→FBS work will replace the temporary bypass).
+
+**Mixed in-year sources (2023–2024 treatment):** industry mix may be chained from SAS 2022 + AIES ratios while commodity mix stays on carried SAS Table 2 2022, who-buys on EC 2022, and waste×waste intersection on BR/RCRA 2021. Those slices are independent — do not expect a single survey to own the whole year.
 
 So any control year-to-year change is “the economy’s waste dollars moved under old shares.” Any extra treatment movement is “shares caught up to the year.”
 
@@ -42,12 +44,12 @@ Under frozen 2017 weights, hazardous-waste total EF (`562HAZ`) falls roughly **c
 
 ### What year-aligned weights add
 
-Treatment is choppier for a few children:
+Treatment after prior-weighted regen + chain:
 
-- **`562HAZ`:** after **suppression recovery** (Census hid some 6-digit SAS lines with flag `S` and a published zero; we fill those from the published NAICS-562 total so hazardous-waste shares are no longer forced to 0%), 2022 jumps up (treatment ≈ 3.0 vs a gently declining control ≈ 1.2), then settles back near control in 2023–2024. The jump lines up with those restored SAS shares plus refreshing how waste firms ship to each other (Biennial Report ≥2017) versus the workbook’s older 2012 RCRA pattern — see [`waste_n_variance.md`](waste_n_variance.md).
-- **`562213`:** declines through 2022 under **SAS** (Census Service Annual Survey) shares, then **rebounds sharply in 2023** when **AIES** (Annual Integrated Economic Survey — successor survey for waste-firm expenses) becomes the industry-mix source (2.25 → 9.43, +319% year-over-year). By 2024 it stays elevated vs control. That is a survey-source change (SAS → AIES), not a wipe-to-zero.
+- **`562HAZ`:** no wipe; 2022 paired Δ is **−16%** (equal-fill interim had been **+150%**). YoY path is smoother than equal-fill Flip evidence.
+- **`562213`:** 2022→2023 treatment YoY is **+7%** (equal-fill AIES-level handoff had been **+319%**). Chain holds post-fill SAS 2022 industry mix through 2023 and moves 2024 by AIES-only ratios.
 
-Panel-wide, treatment’s average absolute year-over-year move among waste children is higher than control (~0.24 vs ~0.08 on a fractional scale, i.e. ~24% vs ~8%), but the gap is driven by those handful of spikes — not every child every year.
+Panel-wide, treatment’s mean absolute year-over-year move among waste children is now ≈ **0.089** vs control ≈ **0.082** (fractional) — nearly matched. Max treatment \|YoY\| ≈ 0.39 (2021 `562HAZ` vs prior), not the equal-fill 3.2 spike.
 
 ### How to use this for HOLD vs Flip
 
@@ -75,9 +77,9 @@ Values are **fractional** year-over-year changes in N (0.08 ≈ 8%). `vs_prior` 
 | Arm | mean \|N_yoy_vs_prior\| | p95 \|N_yoy_vs_prior\| | max \|N_yoy_vs_prior\| | mean \|N_yoy_vs_2018\| | p95 \|vs_2018\| | max \|vs_2018\| |
 |-----|------------------------:|-----------------------:|-----------------------:|----------------------:|----------------:|----------------:|
 | Control | 0.082 | 0.165 | 0.254 | 0.172 | 0.372 | 0.480 |
-| Treatment | 0.242 | 0.646 | 3.192* | 0.196 | 0.403 | 0.968 |
+| Treatment | 0.089 | 0.179 | 0.390 | 0.160 | 0.386 | 0.481 |
 
-\*Treatment max is dominated by **2022→2023 `562213`** rebound (2.25 → 9.43, +319%).
+\*Treatment max \|vs_prior\| is **2021 `562HAZ`** (−39% vs 2020); the equal-fill **+319% `562213` 2022→2023** spike is retired under prior-weighted fill + chain.
 
 ### Extreme paths (both YoY bases)
 
@@ -89,9 +91,9 @@ Values are **fractional** year-over-year changes in N (0.08 ≈ 8%). `vs_prior` 
 | 2019 | 1.797 | −9% | −9% | 1.658 | +7% | +7% |
 | 2020 | 1.761 | −2% | −11% | 1.539 | −7% | −0% |
 | 2021 | 1.314 | −25% | −34% | 0.939 | −39% | −39% |
-| 2022 | 1.216 | −7% | −38% | **3.042** | **+224%** | **+97%** |
-| 2023 | 1.120 | −8% | −43% | 1.069 | −65% | −31% |
-| 2024 | 1.027 | −8% | −48% | 1.022 | −4% | −34% |
+| 2022 | 1.216 | −7% | −38% | **1.018** | **+8%** | **−34%** |
+| 2023 | 1.120 | −8% | −43% | 0.835 | −18% | −46% |
+| 2024 | 1.027 | −8% | −48% | 0.802 | −4% | −48% |
 
 **`562213` N** (solid waste combustors / incinerators — total EF)
 
@@ -101,16 +103,16 @@ Values are **fractional** year-over-year changes in N (0.08 ≈ 8%). `vs_prior` 
 | 2019 | 7.878 | −7% | −7% | 7.800 | +1% | +1% |
 | 2020 | 8.079 | +3% | −4% | 7.376 | −5% | −5% |
 | 2021 | 7.057 | −13% | −16% | **5.622** | **−24%** | **−27%** |
-| 2022 | 6.234 | −12% | −26% | 2.249 | −60% | −71% |
-| 2023 | 6.602 | +6% | −22% | 9.428 | +319% | +22% |
-| 2024 | 5.501 | −17% | −35% | 9.013 | −4% | +17% |
+| 2022 | 6.234 | −12% | −26% | 6.476 | +15% | −16% |
+| 2023 | 6.602 | +6% | −22% | 6.898 | +7% | −11% |
+| 2024 | 5.501 | −17% | −35% | 6.786 | −2% | −12% |
 
 ---
 
 ## Comparison note (acceptance bar item 3)
 
 1. **Frozen-2017 control already moves.** Under fixed 2017 shares, waste-child total EFs still drift with MUT dollars (control mean absolute year-over-year ≈ 8%, max ≈ 25%; vs 2018 up to ~48% for `562HAZ` by 2024).
-2. **Year-aligned weights add child-specific volatility**, not a uniform amplification. After suppression recovery, treatment no longer shows **near-zero / −100% wipe** episodes; remaining spikes are **share/structure jumps** (2022 `562HAZ` under restored SAS shares + refreshed waste×waste shipments; 2022→2023 `562213` when AIES replaces SAS for industry mix) rather than “Census hid the cell → we treated it as $0.”
-3. **Vs both bases:** control paths remain smoother cumulative declines; treatment paths still move more at a few children/years, but the pre-fix cliff-to-zero story is **obsolete**. Paired treatment-vs-control extremes in the by-year table (e.g. 2022 `562HAZ` +150%, 2021 `562213` −20%) sit **on top of** an already-moving control baseline — see waste-N variance for which share slice dominates each case.
+2. **Year-aligned weights** after prior-weighted fill + chain add **little extra YoY volatility** (treatment mean ≈ 9%). Equal-fill Flip interim spikes (+150% paired 2022 HAZ; +319% 562213 YoY at the SAS→AIES handoff) are **retired**.
+3. **Vs both bases:** control and treatment paths now track more closely; remaining paired gaps (e.g. 2022 `562HAZ` −16%, 2021 `562213` −20%) sit on top of an already-moving control baseline — see waste-N variance for which share slice dominates each case.
 
-**Stakeholder decision (acceptance bar item 4):** **FLIP** (2026-09-29). See [`flip_release_note.md`](flip_release_note.md) and [`production_gate.md`](production_gate.md). Branch snapshot / waterfall are done; **re-snapshot on the merge commit to `main`** remains per the release note.
+**Stakeholder decision (acceptance bar item 4):** **FLIP** (2026-09-29). See [`flip_release_note.md`](flip_release_note.md) and [`production_gate.md`](production_gate.md). Evidence caches regenerated 2026-09-30 under prior-weighted fill + chain; **re-snapshot** for final `v0_4_1` SHA still required.
