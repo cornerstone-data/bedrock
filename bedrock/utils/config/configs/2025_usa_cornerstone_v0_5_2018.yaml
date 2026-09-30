@@ -3,10 +3,11 @@
 # Same family as 2025_usa_cornerstone_v0_4_nowcast_2018.yaml, on the v0.5
 # nowcast build and with facility GHG attribution. Detail MUT from
 # NowcastMUT after-redefinition artifacts, pinned to nowcast_mut_vintage
-# v0.3.0_6abf5c0 (Steps 3-7 rebuild at 6abf5c00, 2026-09-29: gross output
+# v0.3.0_3096818 (Steps 3-7 rebuild at 30968183, 2026-09-30: gross output
 # chained on AIES, theta = 1, the EIA electricity rebase (#1030), cement and
 # ready-mix chained together (#1033), data processing's electricity on LBNL
-# (#1041, #1049)).
+# (#1041), and the manufacturing expense seed smoothed across survey changes
+# (#1056)).
 # x and q are row and column sums of that after-redef Make; B is not
 # year-scaled or inflated.
 #
@@ -14,7 +15,8 @@
 # (GHG_national_Cornerstone_nowcast_facilities_2018), unpinned: the loader
 # takes the newest GCS parquet for that stem. As of 2026-09-30 that is
 # v0.3.0_8e466cd (CoA census interpolation #1050; attributed on the
-# 6abf5c0 MUT / Use tables).
+# 6abf5c0 MUT / Use tables); it must be rebuilt on the 3096818 tables with
+# #1055 before release).
 
 #####
 # Model base settings
@@ -26,7 +28,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v0.3.0_6abf5c0'
+nowcast_mut_vintage: 'v0.3.0_3096818'
 usa_base_io_data_year: 2018
 usa_ghg_data_year: 2018
 
