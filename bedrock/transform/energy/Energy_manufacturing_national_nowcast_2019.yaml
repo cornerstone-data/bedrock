@@ -6,11 +6,16 @@
 !include:Cornerstone_2025_target.yaml
 year: &use_year 2019
 mecs_year: &mecs_year 2018
+# Year of the Use table that splits each MECS total into its detail industries
+# (#1053). A census year, not use_year: the nowcast fuel cells churn from year
+# to year, and splitting on them passed that churn into every GHG FBS. It
+# changes once, at the MECS 2018 -> 2022 switch.
+split_year: &split_year 2017
 geoscale: national
 
 _attribution_sources:
   Nowcast_use: &nowcast_use
-    year: *use_year
+    year: *split_year
     activity_to_sector_mapping: Cornerstone_2025
     exclusion_fields:
       # Match GHG nowcast Use attribution (FD columns only)
