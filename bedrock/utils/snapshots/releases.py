@@ -69,9 +69,7 @@ v0_4_0_pre_waste_match_io = v0_4_0
 # Output change: waste Flip — match_io year-aligned shares, prior-weighted SAS
 # Table 2/3 suppression recovery, fail-loud AIES on match_io, and AIES-only
 # industry-mix chain after SAS→AIES share-seam grade ≥ 3 pp (#1052).
-# Provisional Flip SHA from branch generate_snapshots; re-point after a post-
-# fill/chain snapshot regen if EFs move.
-v0_4_1 = "60c8a6b8568b3002a73cdf8569114b2250571e94"  # config: 2025_usa_cornerstone_v0_4; matches .SNAPSHOT_KEY
+v0_4_1 = "1ca4453a7882ffbc70527bdaab32fcc835b7f84d"  # config: 2025_usa_cornerstone_v0_4; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (

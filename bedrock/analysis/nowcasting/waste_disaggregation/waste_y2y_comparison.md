@@ -115,4 +115,4 @@ Values are **fractional** year-over-year changes in N (0.08 ≈ 8%). `vs_prior` 
 2. **Year-aligned weights** after prior-weighted fill + chain add **little extra YoY volatility** (treatment mean ≈ 9%). Equal-fill Flip interim spikes (+150% paired 2022 HAZ; +319% 562213 YoY at the SAS→AIES handoff) are **retired**.
 3. **Vs both bases:** control and treatment paths now track more closely; remaining paired gaps (e.g. 2022 `562HAZ` −16%, 2021 `562213` −20%) sit on top of an already-moving control baseline — see waste-N variance for which share slice dominates each case.
 
-**Stakeholder decision (acceptance bar item 4):** **FLIP** (2026-09-29). See [`flip_release_note.md`](flip_release_note.md) and [`production_gate.md`](production_gate.md). Evidence caches regenerated 2026-09-30 under prior-weighted fill + chain; **re-snapshot** for final `v0_4_1` SHA still required.
+**Stakeholder decision (acceptance bar item 4):** **FLIP** (2026-09-29). See [`flip_release_note.md`](flip_release_note.md) and [`production_gate.md`](production_gate.md). Evidence caches regenerated 2026-09-30 under prior-weighted fill + chain; **`v0_4_1`** snapshot SHA `1ca4453a…`.

@@ -449,7 +449,8 @@ class USAConfig(BaseModel):
         '00524c3c8ba122a7a5b7f2139ff7ea6de08947bb',  # v0.3.1
         '7d0cb92af43882ee9496b5932e1893bb9ffcbdd7',  # v0.3.2
         '2fcbd68b3275cc8e409d4df5d1f28a3a8355c249',  # v0.4.0 (shipped; pre waste match_io Flip)
-        '60c8a6b8568b3002a73cdf8569114b2250571e94',  # v0.4.1 (current .SNAPSHOT_KEY; waste Flip)
+        '60c8a6b8568b3002a73cdf8569114b2250571e94',  # v0.4.1 interim equal-fill Flip snapshot
+        '1ca4453a7882ffbc70527bdaab32fcc835b7f84d',  # v0.4.1 (current .SNAPSHOT_KEY; prior-weighted + chain)
     ] = 'v0'
 
     @property

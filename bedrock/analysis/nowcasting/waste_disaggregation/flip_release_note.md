@@ -49,13 +49,13 @@ USAConfig field default remains `2017` for non-nowcast / unset configs. Analysis
 | Label | SHA | Role |
 |-------|-----|------|
 | `v0_4_0` / `v0.4.0` | `2fcbd68b3275cc8e409d4df5d1f28a3a8355c249` | Shipped published v0.4.0 (pre Flip) |
-| `v0_4_1` / `v0.4.1` | `60c8a6b8568b3002a73cdf8569114b2250571e94` (provisional) | Flip snapshot; **re-point** after post-fill/chain `generate_snapshots` |
+| `v0_4_1` / `v0.4.1` | `1ca4453a7882ffbc70527bdaab32fcc835b7f84d` | Flip snapshot after prior-weighted fill + industry-mix chain |
 
-**Snapshot (Flip branch tip; provisional `v0_4_1`):**
+**Snapshot (Flip branch tip; `v0_4_1`):**
 
-- Workflow: [generate_snapshots #36665300634](https://github.com/cornerstone-data/bedrock/actions/runs/36665300634) (`config_name=2025_usa_cornerstone_v0_4`)
-- SHA / `.SNAPSHOT_KEY`: `60c8a6b8568b3002a73cdf8569114b2250571e94`
-- GCS: `gs://cornerstone-default/snapshots/60c8a6b8568b3002a73cdf8569114b2250571e94/`
+- Local `generate_snapshots` (CI workflow lacked AIES FBA on runner GCS path); SHA / `.SNAPSHOT_KEY`: `1ca4453a7882ffbc70527bdaab32fcc835b7f84d`
+- GCS: `gs://cornerstone-default/snapshots/1ca4453a7882ffbc70527bdaab32fcc835b7f84d/`
+- Prior equal-fill interim SHA `60c8a6b8…` retained on the Literal allowlist only
 
 **Diagnostics dispatched against this git-ref** (indexes under `cache/`):
 
