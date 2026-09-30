@@ -1,8 +1,8 @@
-# Phase 3.2.C — Frozen-2017 control vs treatment year-to-year N
+# Frozen-2017 control vs treatment year-to-year N
 
 **Pin:** Shared Google Cloud Make/Use tables (MUT) vintage `v0.3.0_92b7a8a` — regenerated after the SAS suppression fix described below.  
-**Script:** `scripts/summarize_phase32_y2y_panels.py`  
-**Artifacts:** `cache/phase32_y2y_waste_N.csv`, `cache/phase32_y2y_waste_D.csv`  
+**Script:** `scripts/summarize_waste_y2y_panels.py`  
+**Artifacts:** `cache/y2y_waste_N.csv`, `cache/y2y_waste_D.csv`  
 **Schema:** `{year, sector, arm, N|D, *_yoy_vs_prior, *_yoy_vs_2018}` — both year-over-year bases required.
 
 Smoke: seven `summary.json` present; `resolved_nowcast_mut_vintage == v0.3.0_92b7a8a`; 98 rows = 7 years × 7 waste children × 2 arms.
@@ -32,7 +32,7 @@ Share slices on the treatment arm (plain names):
 - **Industry mix** — how large each waste child is among waste firms (SAS Table 3 expenses through 2022; AIES total expenses in 2023–2024).
 - **Commodity mix** — how waste output is split across children (SAS Table 2 revenue).
 - **Who-buys** — which customer classes buy waste services (Economic Census `ecnclcust`; frozen at 2017 for model years 2018–2021).
-- **RCRA intersection** — waste-firm-to-waste-firm shipments (Biennial Report shipper→receiver path for now; Phase 4 will replace the temporary bypass).
+- **RCRA intersection** — waste-firm-to-waste-firm shipments (Biennial Report shipper→receiver path for now; follow-on BR→FBS work will replace the temporary bypass).
 
 So any control year-to-year change is “the economy’s waste dollars moved under old shares.” Any extra treatment movement is “shares caught up to the year.”
 
@@ -44,7 +44,7 @@ Under frozen 2017 weights, hazardous-waste total EF (`562HAZ`) falls roughly **c
 
 Treatment is choppier for a few children:
 
-- **`562HAZ`:** after **suppression recovery** (Census hid some 6-digit SAS lines with flag `S` and a published zero; we fill those from the published NAICS-562 total so hazardous-waste shares are no longer forced to 0%), 2022 jumps up (treatment ≈ 3.0 vs a gently declining control ≈ 1.2), then settles back near control in 2023–2024. The jump lines up with those restored SAS shares plus refreshing how waste firms ship to each other (Biennial Report ≥2017) versus the workbook’s older 2012 RCRA pattern — see [`phase32_waste_n_variance.md`](phase32_waste_n_variance.md).
+- **`562HAZ`:** after **suppression recovery** (Census hid some 6-digit SAS lines with flag `S` and a published zero; we fill those from the published NAICS-562 total so hazardous-waste shares are no longer forced to 0%), 2022 jumps up (treatment ≈ 3.0 vs a gently declining control ≈ 1.2), then settles back near control in 2023–2024. The jump lines up with those restored SAS shares plus refreshing how waste firms ship to each other (Biennial Report ≥2017) versus the workbook’s older 2012 RCRA pattern — see [`waste_n_variance.md`](waste_n_variance.md).
 - **`562213`:** declines through 2022 under **SAS** (Census Service Annual Survey) shares, then **rebounds sharply in 2023** when **AIES** (Annual Integrated Economic Survey — successor survey for waste-firm expenses) becomes the industry-mix source (2.25 → 9.43, +319% year-over-year). By 2024 it stays elevated vs control. That is a survey-source change (SAS → AIES), not a wipe-to-zero.
 
 Panel-wide, treatment’s average absolute year-over-year move among waste children is higher than control (~0.24 vs ~0.08 on a fractional scale, i.e. ~24% vs ~8%), but the gap is driven by those handful of spikes — not every child every year.
@@ -56,10 +56,10 @@ Panel-wide, treatment’s average absolute year-over-year move among waste child
 | National / typical-sector EFs | Flip is a small move (by-year medians ≈ −0.01% to −0.4%). This year-to-year note is about **waste children**, not the whole economy. |
 | Stable waste-child EFs year to year | Neither path is flat. HOLD still drifts with the MUT; Flip adds share updates and a few larger child-year jumps. |
 | Honest alignment of shares to the model year | Flip is the better match: shares follow SAS/AIES, Economic Census, and RCRA/Biennial Report inputs for that year (with a documented fill when Census suppresses detail). HOLD keeps 2017 shares on 2018–2024 dollars by design. |
-| Fear of “zeros / −100%” | Obsolete after suppression recovery (3.2.B). Do not HOLD for that reason. |
-| Remaining known shortcuts | Temporary Biennial Report shipper→receiver path for waste×waste flows until Phase 4; Economic Census who-buys frozen at 2017 for model years 2018–2021 — both already settled as OK for Flip. |
+| Fear of “zeros / −100%” | Obsolete after suppression recovery (waste-N variance). Do not HOLD for that reason. |
+| Remaining known shortcuts | Temporary Biennial Report shipper→receiver path for waste×waste flows until follow-on BR→FBS work; Economic Census who-buys frozen at 2017 for model years 2018–2021 — both already settled as OK for Flip. |
 
-**Decision framing for 3.2.C:** HOLD vs Flip is not “calm vs wild economy-wide EFs.” It is whether production should **accept a few waste-child EF jumps when year-matched data arrive** (and when survey sources change, e.g. SAS → AIES) in exchange for ending the systematic 2017-share / nowcast-year mismatch. The tables below are the evidence for that tradeoff.
+**Decision framing for Y2Y comparison:** HOLD vs Flip is not “calm vs wild economy-wide EFs.” It is whether production should **accept a few waste-child EF jumps when year-matched data arrive** (and when survey sources change, e.g. SAS → AIES) in exchange for ending the systematic 2017-share / nowcast-year mismatch. The tables below are the evidence for that tradeoff.
 
 ---
 
@@ -111,6 +111,6 @@ Values are **fractional** year-over-year changes in N (0.08 ≈ 8%). `vs_prior` 
 
 1. **Frozen-2017 control already moves.** Under fixed 2017 shares, waste-child total EFs still drift with MUT dollars (control mean absolute year-over-year ≈ 8%, max ≈ 25%; vs 2018 up to ~48% for `562HAZ` by 2024).
 2. **Year-aligned weights add child-specific volatility**, not a uniform amplification. After suppression recovery, treatment no longer shows **near-zero / −100% wipe** episodes; remaining spikes are **share/structure jumps** (2022 `562HAZ` under restored SAS shares + refreshed waste×waste shipments; 2022→2023 `562213` when AIES replaces SAS for industry mix) rather than “Census hid the cell → we treated it as $0.”
-3. **Vs both bases:** control paths remain smoother cumulative declines; treatment paths still move more at a few children/years, but the pre-fix cliff-to-zero story is **obsolete**. Paired treatment-vs-control extremes in the by-year table (e.g. 2022 `562HAZ` +150%, 2021 `562213` −20%) sit **on top of** an already-moving control baseline — see 3.2.B for which share slice dominates each case.
+3. **Vs both bases:** control paths remain smoother cumulative declines; treatment paths still move more at a few children/years, but the pre-fix cliff-to-zero story is **obsolete**. Paired treatment-vs-control extremes in the by-year table (e.g. 2022 `562HAZ` +150%, 2021 `562213` −20%) sit **on top of** an already-moving control baseline — see waste-N variance for which share slice dominates each case.
 
-**Stakeholder decision (acceptance bar item 4):** **FLIP** (2026-09-29). See [`phase32_flip_release_note.md`](phase32_flip_release_note.md) and [`phase3_production_gate.md`](phase3_production_gate.md). Phase 3.2.D snapshot / waterfall ops remain after merge.
+**Stakeholder decision (acceptance bar item 4):** **FLIP** (2026-09-29). See [`flip_release_note.md`](flip_release_note.md) and [`production_gate.md`](production_gate.md). Branch snapshot / waterfall are done; **re-snapshot on the merge commit to `main`** remains per the release note.

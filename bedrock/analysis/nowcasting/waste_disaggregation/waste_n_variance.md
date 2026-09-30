@@ -1,7 +1,7 @@
-# Phase 3.2.B — Waste-sector N variance (absolute EFs + weight slices)
+# Waste-sector N variance (absolute EFs + weight slices)
 
-**Pin:** Shared Google Cloud Make/Use tables (MUT) vintage `v0.3.0_92b7a8a` — Phase 3.1 caches **regenerated** after the SAS Table 2/3 suppression fix below.  
-**Who-buys path:** Phase 3.2.A outcome `freeze_confirmed` — for model years 2018–2021, customer-class “who buys waste” shares stay on Economic Census **2017** (no intercensal 6-digit substitute found).  
+**Pin:** Shared Google Cloud Make/Use tables (MUT) vintage `v0.3.0_92b7a8a` — impact caches **regenerated** after the SAS Table 2/3 suppression fix below.  
+**Who-buys path:** who-buys search outcome `freeze_confirmed` — for model years 2018–2021, customer-class “who buys waste” shares stay on Economic Census **2017** (no intercensal 6-digit substitute found).  
 **−100% semantics:** the by-year table’s `N_perc_diff` is **unclipped**. −100% means treatment total EF (N) ≈ 0 while control N > 0 — **not** the histogram display that clips at ±100%. Pre-fix caches showed −100% / −95% wipes; **post-fix** extremes below no longer wipe to zero.
 
 Artifacts: `cache/impact_{Y}_v0.3.0_92b7a8a/waste_sectors_control_vs_treatment.csv`, `cache/weight_delta_2017_vs_{Y}.csv` (dominating slice = argmax of `{|use_col_delta|, |use_row_delta|, |intersection_diag_delta|}`).
@@ -60,15 +60,15 @@ Weight shares have a few independent slices. For the two extremes after the fix:
 - **Would not** broadly rewrite economy-wide total EFs. Median sector N moves about **−0.01% to −0.4%**; the fat tail of absolute moves is roughly **0.1–2%**. Direct EFs (D) for most non-waste sectors barely move.
 - **Would** change **waste-child** EFs in some years by tens of percent (occasionally more), because those children are where the weight shares actually update.
 - **Would** replace a known mismatch (2017 shares on 2018–2024 dollars) with year-matched shares that follow published SAS / AIES (Annual Integrated Economic Survey, post-SAS expenses) / Economic Census / RCRA inputs — including an explicit, documented guess for Census-suppressed cells.
-- **Would still** use the temporary Biennial Report shipper→receiver path for waste×waste intersection until Phase 4, and Economic Census 2017 who-buys for 2018–2021 — both already accepted as OK for Flip.
+- **Would still** use the temporary Biennial Report shipper→receiver path for waste×waste intersection until follow-on BR→FBS work, and Economic Census 2017 who-buys for 2018–2021 — both already accepted as OK for Flip.
 
-**Decision framing for 3.2.B:** If the worry was “year-aligned weights zero out hazardous waste / incinerators,” that worry is resolved. Remaining concentrated waste-child EF shifts were accepted for production Flip (2026-09-29) — see [`phase32_flip_release_note.md`](phase32_flip_release_note.md). Pair with the year-to-year note ([`phase32_y2y_comparison.md`](phase32_y2y_comparison.md)) for how much movement happens even under frozen weights.
+**Decision framing for this note:** If the worry was “year-aligned weights zero out hazardous waste / incinerators,” that worry is resolved. Remaining concentrated waste-child EF shifts were accepted for production Flip (2026-09-29) — see [`flip_release_note.md`](flip_release_note.md). Pair with the year-to-year note ([`waste_y2y_comparison.md`](waste_y2y_comparison.md)) for how much movement happens even under frozen weights.
 
 ---
 
 ## SAS Table 2/3 suppression recovery (implemented)
 
-**Problem found in 3.2.B:** Treatment shares went to **0%** where Census marks cells **`Suppressed=S`** with `FlowAmount=0` — not measured $0.
+**Problem found:** Treatment shares went to **0%** where Census marks cells **`Suppressed=S`** with `FlowAmount=0` — not measured $0.
 
 | Slice | Source | Pre-recovery wipe example |
 |-------|--------|---------------------------|
@@ -171,14 +171,14 @@ From `cache/weight_delta_2017_vs_2021.csv`:
 | Commodity / Table 2 (`use_row`) | 0.015000 | **0.009701** | **−0.005299** |
 | Intersection diagonal | ~0 | ~0 | 0.000 |
 
-**Dominating slice:** **`who_buys`** in the locked vocabulary (= commodity / Use-row gap here; largest \|Δ\| among the three slices above)
+**Dominating slice:** **`who_buys`** in the locked CSV vocabulary — this means the **commodity / Use-row** gap (`|use_row_delta|` largest among industry mix / Use-row / intersection diagonal). It does **not** mean Economic Census customer-class who-buys changed for 2021 (those stay on EC 2017 under `freeze_confirmed`).
 
 Industry mix and Use-row are both restored from their respective 562 residuals. Remaining Use-row Δ vs 2017 is a **share shift**, not a suppression wipe. Who-buys for 2018–2021 remains Economic Census 2017 (`freeze_confirmed`).
 
 ---
 
-## Acceptance bar (3.2.B portion)
+## Acceptance bar (variance portion)
 
 1. Extremes documented with absolute N/D from **post-recovery** caches; −100%/−95% explained as pre-recovery suppression wipe; post-recovery shares + Table 2/3 method documented — **met**.  
 2. Economy-wide band still modest after regen — **met**.  
-3–4. See Phase 3.2.C Y2Y note ([`phase32_y2y_comparison.md`](phase32_y2y_comparison.md)) for control panel + stakeholder call.
+3–4. See Y2Y note ([`waste_y2y_comparison.md`](waste_y2y_comparison.md)) for control panel + stakeholder call.

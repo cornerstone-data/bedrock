@@ -1,4 +1,4 @@
-"""Phase 3 RCRA path records ``rcra_path=br_bypass`` (hermetic).
+"""RCRA path records ``rcra_path=br_bypass`` (hermetic).
 
 Full ``derive_waste_weights`` against live BR CSVs is not CI-safe: consolidated
 ``br_reporting_*.csv`` files can trip pandas' C tokenizer on the runner. The

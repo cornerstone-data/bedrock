@@ -102,7 +102,7 @@ class USAConfig(BaseModel):
     implement_waste_disaggregation: bool = False  # DRI: jorge.vendries
     # Waste weight vintage: 2017 = bundled CSVs (default when unset / non-nowcast);
     # match_io = usa_base_io_data_year. Canonical nowcast v0.4/v0.5 YAMLs set
-    # match_io after Phase 3.2 Flip; int = explicit year (diagnostic OK).
+    # match_io after Flip; int = explicit year (diagnostic OK).
     waste_weights_year: ta.Literal['match_io'] | int | None = (
         2017  # DRI: jorge.vendries
     )
@@ -579,7 +579,7 @@ def set_global_usa_config(
 def set_global_usa_config_object(config: USAConfig, *, source_label: str) -> None:
     """Install an already-validated ``USAConfig`` as the process-wide singleton.
 
-    Used by analysis-only loaders (e.g. waste-disagg Phase 3 YAMLs outside
+    Used by analysis-only loaders (e.g. waste-disagg analysis YAMLs outside
     ``CONFIG_DIR``). ``source_label`` is recorded in ``USA_CONFIG_ENV_VAR`` for
     the already-set guard / logging only — ``get_usa_config()`` must never
     re-resolve that label via ``_load_usa_config_from_file_name``.

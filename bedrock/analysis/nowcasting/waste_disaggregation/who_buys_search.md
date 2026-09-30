@@ -1,4 +1,4 @@
-# Phase 3.2.A — Who-buys search (2018–2021 gap)
+# Who-buys search (2018–2021 gap)
 
 **search_date:** 2026-09-29
 
@@ -6,20 +6,20 @@
 
 **outcome:** `freeze_confirmed`
 
-**rationale:** Across all three required search legs, nothing meets quick-wire fitness for intercensal **2018–2021** (6-digit `562*` seller receipts by customer class that can land in this Phase 3.2 PR). The only primary who-buys source remains EC `ecnclcust` (2012/2017/2022 already wired). Settled #3 for this gate = **bare EC 2017 freeze** for 2018–2021. Legs 2–3 were searched; all non-EC candidates fail or are N/A for who-buys.
+**rationale:** Across all three required search legs, nothing meets quick-wire fitness for intercensal **2018–2021** (6-digit `562*` seller receipts by customer class that can land in this Flip PR). The only primary who-buys source remains EC `ecnclcust` (2012/2017/2022 already wired). Settled #3 for this gate = **bare EC 2017 freeze** for 2018–2021. Legs 2–3 were searched; all non-EC candidates fail or are N/A for who-buys.
 
 ---
 
 ## sources_checked
 
-### (1) External / literature (Phase 1 re-check + new since 2026-09-22)
+### (1) External / literature (re-check + new since 2026-09-22)
 
-Re-verified Phase 1 table in `feasibility_multi_year_weights.md` § "Alternate who-buys search (Phase 1, 2026-09-22)". Repo `cache/who_buys_alt_sources_search.json` is **not present** (feasibility still cites it); conclusions re-checked live where possible.
+Re-verified table in `feasibility_multi_year_weights.md` § "Alternate who-buys search (2026-09-22)". Optional Phase 1 artifact `cache/who_buys_alt_sources_search.json` was not in the tree at search time; conclusions were re-checked live against the feasibility table and Census API where applicable.
 
 | Source | Pass / fail / fit | Notes |
 |--------|-------------------|--------|
 | **EC `ecnclcust` (2017 / 2022)** | **Pass — primary (already wired)** | Census years only (ending in 2/7). Covers 2017 and 2022+ via `resolve_ec_year`; **does not fill 2018–2021**. |
-| **AIES56CLASS (2023–2024)** | **Fail** | Live Census API query 2026-09-29 (`aiesmiscsector`, `RCPT_BUS_DVAL` / `RCPT_LEISURE_DVAL` / `RCPT_TOT_VAL`): **zero `562*` NAICS** in both 2023 and 2024; only `56133`, `56151`, `56152`, `561599` (matches Phase 1 FTP probe). Also wrong class taxonomy vs EC (business/leisure/billing — not household/fed/S&L/NFP). |
+| **AIES56CLASS (2023–2024)** | **Fail** | Live Census API query 2026-09-29 (`aiesmiscsector`, `RCPT_BUS_DVAL` / `RCPT_LEISURE_DVAL` / `RCPT_TOT_VAL`): **zero `562*` NAICS** in both 2023 and 2024; only `56133`, `56151`, `56152`, `561599` (matches FTP probe). Also wrong class taxonomy vs EC (business/leisure/billing — not household/fed/S&L/NFP). |
 | **SAS Table 8** | **Fail** | Bedrock `Census_SAS.yaml`: Table 8 is truck (`484`) product × class-of-customer allocator only — not waste-child who-buys. |
 | **QSS** | **Fail / absent** | No bedrock extract. Aggregate sector/subsector class-of-customer at best — not 6-digit `562*`. |
 | **BLS QCEW** | **Fail** | Employment/wages; no receipts by customer class. |
@@ -55,7 +55,7 @@ Pinned package: `StEWI` from [`cornerstone-data/standardizedinventories`](https:
 | stewi `RCRAInfo.py` / BR path | **Fail for who-buys** (intersection only) | No `Shipper`/`Receiver`/`ActivityConsumedBy`/`SectorConsumedBy` strings in installed stewi package sources. Bedrock `rcra_waste_flows.py` builds waste×waste **intersection** from consolidated BR CSV shipper→receiver tons — **not** FD/who-buys. |
 | CRHW national/state FBS (`CRHW_national_{2013,2015,2017,2019,2021}.yaml` via `stewiFBS_common.yaml:CRHW` → `stewi_to_sector`) | **Fail for who-buys** | `prepare_stewi_fbs` maps facility NAICS → `ActivityProducedBy` and assigns `ActivityConsumedBy=nan` when missing/all-null. Reconfirms generation-oriented FBS (empty consumed-by) — cannot proxy EC-style who-buys. Receivers in BR bypass ≠ customer-class FD shares. |
 | Other stewi inventories bedrock pulls (e.g. eGRID via `egrid_generation.py`) | **N/A** | Electricity generation — no waste customer-class columns. |
-| Phase 4 BR→FBS shipment edges | **Out of scope / not a who-buys find** | Would improve intersection provenance; still not seller receipts by customer class. |
+| follow-on BR→FBS shipment edges | **Out of scope / not a who-buys find** | Would improve intersection provenance; still not seller receipts by customer class. |
 
 ---
 
@@ -66,6 +66,6 @@ Pinned package: `StEWI` from [`cornerstone-data/standardizedinventories`](https:
 | **`freeze_confirmed`** | **Yes** | Nothing usable across legs 1–3 meets quick-wire fitness for 2018–2021. Settled #3 = bare EC 2017 for 2018–2021. |
 | **`quick_wire_in_phase`** | No | No source with 6-digit `562*` seller receipts by customer class that can validate→wire→regen in this PR. |
 
-**Deferred notes (non-blocking, not flip gates):** SAS-scale of 2017 EC and §11 hardening remain optional hardening only. Phase 4 BR→FBS remains a separate post-v0.5 PR.
+**Deferred notes (non-blocking, not flip gates):** SAS-scale of 2017 EC and §11 hardening remain optional hardening only. Follow-on BR→FBS remains a separate post-v0.5 PR.
 
-**Stop:** Phase 3.2.A complete. Do not start `p32-mark-settled`, cache regen, 3.2.B, or 3.2.C until the stakeholder confirms continue.
+**Status:** who-buys search complete with `outcome=freeze_confirmed`. Downstream Flip evidence (settled-doc cleanup, variance, Y2Y) and production Flip (2026-09-29) proceeded from this result — see [`production_gate.md`](production_gate.md).

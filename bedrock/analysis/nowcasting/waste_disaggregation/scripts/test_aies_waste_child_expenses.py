@@ -1,6 +1,6 @@
 """Validate AIES waste-child EXPS_TOT_DVAL shape (EXP01 2023 / BASIC 2024).
 
-Prefers Census FBA ``Census_AIES_Waste_Child_Expenses``; falls back to Phase 1
+Prefers Census FBA ``Census_AIES_Waste_Child_Expenses``; falls back to the feasibility
 FTP probe cache under analysis/nowcasting/waste_disaggregation/cache/aies_probe/.
 
 Run:

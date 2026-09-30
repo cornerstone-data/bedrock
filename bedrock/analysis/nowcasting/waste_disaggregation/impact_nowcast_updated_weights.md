@@ -1,7 +1,7 @@
 ﻿# Impact report — 2024 waste-weight pilot (control vs treatment)
 
-**Status:** GCS year-aligned vs 2017 on pin `v0.3.0_92b7a8a` (Phase 3.1).  
-**Plan:** `.cursor/plans/waste_disagg_nowcasting_update.plan.md` (Phase 3.1).  
+**Status:** GCS year-aligned vs 2017 on pin `v0.3.0_92b7a8a`.  
+**Plan:** `.cursor/plans/waste_disagg_nowcasting_update.plan.md`.  
 **By-year:** [`impact_nowcast_updated_weights_by_year.md`](impact_nowcast_updated_weights_by_year.md).
 
 ## Context
@@ -23,7 +23,7 @@ Do **not** treat the Sep-22 unpinned-control pilot alone as flip evidence.
 
 Comparison of **bundled 2017 production weight CSVs** (control) vs **2024 derived** weights (treatment `match_io`). Values are percent shares among the seven Cornerstone waste children (each vector sums to ~100%). Δ is 2024 − 2017 in percentage points.
 
-_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 2 revenue waste suppression recovery (equal_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, fill_each=2231500000, recovered_naics=['562112', '562213']; rcra_path=br_bypass; RCRA intersection from BR shipper->receiver rows (year=2021); bypasses CRHW FBS - temporary diagnostics path; Phase 4 owns FBS replacement; BR intersection stats: rows_seen=1829582, rows_used_received=1248765, rows_used_shipped=311228, rows_skipped_missing_ids=21699, rows_with_tons_or_ids=1559993, rows_skipped_non_waste_endpoint=1401094, rows_used_waste_intersection=158899.
+_2024 derive provenance:_ RCRA=2021, EC=2022, SAS=2022, AIES=2024/BASIC; notes: SAS Table 2 revenue waste suppression recovery (equal_residual under NAICS 562): parent=136674000000, published_detail=132211000000, residual=4463000000, n_suppressed=2, fill_each=2231500000, recovered_naics=['562112', '562213']; rcra_path=br_bypass; RCRA intersection from BR shipper->receiver rows (year=2021); bypasses CRHW FBS - temporary diagnostics path; follow-on BR→FBS work owns FBS replacement; BR intersection stats: rows_seen=1829582, rows_used_received=1248765, rows_used_shipped=311228, rows_skipped_missing_ids=21699, rows_with_tons_or_ids=1559993, rows_skipped_non_waste_endpoint=1401094, rows_used_waste_intersection=158899.
 
 **Industry mix — Use column sum (industry output)**
 
@@ -104,4 +104,4 @@ Artifacts: `cache/impact_2024_v0.3.0_92b7a8a/` (regenerated after SAS Table 2/3 
 
 ## Production gate
 
-**FLIP** — [`phase3_production_gate.md`](phase3_production_gate.md); release note [`phase32_flip_release_note.md`](phase32_flip_release_note.md). Evidence = GCS year-aligned vs 2017.
+**FLIP** — [`production_gate.md`](production_gate.md); release note [`flip_release_note.md`](flip_release_note.md). Evidence = GCS year-aligned vs 2017.
