@@ -24,14 +24,16 @@
 #     Waste disaggregation, industry-average margins,
 #     and no IO year adjustments as in v0.4.
 #
-# WARNING: The GHG FBS is NOT pinned here. use_cornerstone_ghg_model with nowcast +
+# The GHG FBS is not pinned by this config: use_cornerstone_ghg_model with nowcast +
 # use_facility_ghg_attribution loads the newest GCS parquet for
-# GHG_national_Cornerstone_nowcast_facilities_2024. As of 2026-09-30 that is
-# v0.3.0_8e466cd (facility attribution with #1050 CoA census interpolation, on
-# MUT 6abf5c0). It must be rebuilt on this MUT with #1055 (still gas to
-# refineries; MECS split on a census-year Use table) before release. Record
-# the exact parquet (filename and sha256) here and in the release notes before
-# the v0.5 snapshot is cut.
+# GHG_national_Cornerstone_nowcast_facilities_2024. The v0.5 release FBS, built
+# from main 0e1b0f01 on the 3096818 tables (still gas to refineries and the MECS
+# split on a census-year Use table, #1055; soils fertilizer on census-year Use,
+# #1059), is
+#   GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_0e1b0f0.parquet
+#   sha256 544839a871ef07b55258340de4acc4eb8ba6409674cfb67bc3fe15a6bd56454e
+# and the v0.5 snapshot (0e1b0f01) was cut on it. A newer upload for that stem
+# would change this config's output; check the vintage before reusing it.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
 # reproducible even after newer nowcast builds are uploaded; move the pin only

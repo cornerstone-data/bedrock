@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 USA_CONFIG_ENV_VAR = 'USA_CONFIG_FILE'
-CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_4'
+CANONICAL_USA_CONFIG = '2025_usa_cornerstone_v0_5'
 
 # Stems with no yaml under configs/. Historical EF sheets / combine keys may
 # still use these strings (e.g. CEDA_V0_BASELINE); load/run is not supported.
@@ -461,7 +461,8 @@ class USAConfig(BaseModel):
         '2fcbd68b3275cc8e409d4df5d1f28a3a8355c249',  # v0.4.0 (shipped; pre waste match_io Flip)
         '60c8a6b8568b3002a73cdf8569114b2250571e94',  # v0.4.1 interim equal-fill Flip snapshot
         '1ca4453a7882ffbc70527bdaab32fcc835b7f84d',  # v0.4.1 local prior-weighted snapshot
-        '0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0',  # v0.4.1 (current .SNAPSHOT_KEY; CI Flip)
+        '0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0',  # v0.4.1 (CI Flip)
+        '0e1b0f016d7fca99db79f6f872c9159872ff09bc',  # v0.5.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property

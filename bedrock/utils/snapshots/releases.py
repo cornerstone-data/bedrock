@@ -67,7 +67,14 @@ v0_4_0_pre_waste_match_io = v0_4_0
 # Output change: waste Flip — match_io year-aligned shares, prior-weighted SAS
 # Table 2/3 suppression recovery, fail-loud AIES on match_io, and AIES-only
 # industry-mix chain after SAS→AIES share-seam grade ≥ 3 pp (#1052).
-v0_4_1 = "0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0"  # config: 2025_usa_cornerstone_v0_4; matches .SNAPSHOT_KEY
+v0_4_1 = "0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0"  # config: 2025_usa_cornerstone_v0_4
+
+# Output change: nowcast build v0.3.0_3096818 (AIES-chained gross output, theta = 1,
+# electricity on EIA, smoothed manufacturing expense seed; #1014, #1030, #1056,
+# pinned by #1057), facility GHG attribution with the release FBS
+# GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_0e1b0f0 (#965, #1023,
+# #1055, #1059), margin impacts by transaction (#1027), waste re-split (#1058).
+v0_5_0 = "0e1b0f016d7fca99db79f6f872c9159872ff09bc"  # config: 2025_usa_cornerstone_v0_5; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -88,6 +95,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_4_0: 2024,
     v0_4_0_pre_waste_match_io: 2024,
     v0_4_1: 2024,
+    v0_5_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
 }
