@@ -1,0 +1,30 @@
+# v05_waterfall G4 — "Nowcasting" rung: 2025_usa_cornerstone_v0_5 less facility
+# GHG attribution, so G4 minus G3 is the v0.5 nowcast MUT replacing published 2017
+# detail, and the release minus G4 is facility attribution alone.
+#
+# This is also 2025_usa_cornerstone_v0_4 on the v0.5 MUT build. The GHG side is the
+# newest GCS parquet for GHG_national_Cornerstone_nowcast_2024; when this snapshot
+# was cut that is v0.3.0_0e1b0f0, built on MUT v0.3.0_3096818.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_3096818'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True
