@@ -244,6 +244,7 @@ def main(
     if do_check:
         check(df)
     out = Path(bcd.OUTPUT_DIR) / f'fbs_vs_ghgrp_{label}.csv'
+    out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out, index=False)
     report(df)
     logger.info('Wrote %s', out)

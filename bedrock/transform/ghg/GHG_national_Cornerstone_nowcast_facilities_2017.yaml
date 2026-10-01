@@ -5,6 +5,9 @@
 # floor = max(facility share, MECS share) then renormalize.
 
 !include:GHG_national_Cornerstone_nowcast_2017.yaml
+  # Every in-scope sector's CO2 at least what its own facilities report to
+  # GHGRP (all subparts but power), moved within industrial combustion (#1060).
+  ghgrp_sector_floor: 2017
   sources_to_cache: !include:GHG_national_Cornerstone_nowcast_2017.yaml:sources_to_cache
     # Pure facility combustion (prefer-GHGRP): FlowAmount is CO2e in kg.
     # Used for lease/plant NG and still gas (no MECS/Use fallback).
