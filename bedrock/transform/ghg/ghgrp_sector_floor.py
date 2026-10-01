@@ -28,8 +28,13 @@ national total is unchanged:
    whose median coverage clears the attribution gate (0.8) and are not
    capped, each giving in proportion to its slack above its own floor. Where
    a fuel cannot cover its need, the rest moves to fuels with spare capacity.
-   Capped sectors take the floor per gas: their comparable CO2 is pinned to
-   their GHGRP CO2, and any CH4/N2O shortfall is reported, not filled with CO2;
+   The floor is CO2e for every sector. For capped sectors the CO2 it adds is
+   limited by their ceiling; a CO2e gap left at the ceiling is CH4/N2O (e.g.
+   biomass combustion at paper mills) and is reported, not filled with CO2.
+   CO2 is not pinned from below: GHGRP's CO2 includes emissions the inventory
+   books elsewhere (by-product fuel gas as non-energy use, coke-oven CO2 under
+   iron and steel, ammonia CO2 later used for urea), so a CO2 top-up there
+   would double count;
 3. released CO2 the floor did not use goes to in-scope sectors whose median
    coverage is below the attribution gate (mostly small facilities GHGRP
    cannot see), in proportion to their combustion in that fuel.
@@ -197,6 +202,7 @@ def floor_moves(
     eligible: pd.Index | None = None,
     first: pd.Series | None = None,
     co2_slack: pd.Series | None = None,
+    max_add: pd.Series | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     """CO2 to add to recipients and to take from donors, both sector x fuel, kg.
 
@@ -211,9 +217,10 @@ def floor_moves(
     the fuels with spare capacity, in proportion to the spare. Only sectors in
     *eligible* (all, if None) can donate. *co2_slack* (by sector) further caps
     each donor at its CO2 above its own GHGRP CO2, so giving CO2 never takes a
-    donor below its GHGRP CO2 while its methane carries the CO2e slack. Raises
-    only if all fuels together cannot cover the deficits. Returns (add, give,
-    used from *first*).
+    donor below its GHGRP CO2 while its methane carries the CO2e slack.
+    *max_add* (by sector) limits what a recipient can receive, e.g. its room
+    under its CO2 ceiling. Raises only if all fuels together cannot cover the
+    deficits. Returns (add, give, used from *first*).
     """
     pool = pool.reindex(columns=list(FUEL_SETS)).fillna(0.0)
     first = (first if first is not None else pd.Series(dtype=float)).reindex(
@@ -224,6 +231,11 @@ def floor_moves(
     have = sector_co2.reindex(sectors).fillna(0.0)
     need = floor.reindex(sectors).fillna(0.0)
     deficit = (need - have).clip(lower=0.0)
+    if max_add is not None:
+        limit = max_add.reindex(deficit.index).clip(lower=0.0)
+        deficit = deficit.where(
+            limit.isna(), pd.concat([deficit, limit], axis=1).min(axis=1)
+        )
     deficit = deficit[deficit > 0]
     if deficit.empty:
         empty = pd.DataFrame(columns=pool.columns, dtype=float)
@@ -360,19 +372,20 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
     ghg = weight.notna() & in_scope
     sector_co2e = (out.loc[ghg, 'FlowAmount'] * weight[ghg]).groupby(sector[ghg]).sum()
     floor = match_to_sectors(ghgrp_co2e_by_naics(year), pd.Index(sector_co2e.index))
-    # Fully covered sectors take the floor per gas: their comparable CO2 is
-    # pinned to their GHGRP CO2 from both sides, and a CH4/N2O shortfall (e.g.
-    # biomass combustion at paper mills) is reported, not filled with CO2.
-    pinned = ceiling.index.intersection(capped)
     comparable_after = (
         out.loc[comparable].groupby(sector[comparable])['FlowAmount'].sum()
     )
-    have = sector_co2e.copy()
-    have.loc[pinned] = comparable_after.reindex(pinned).fillna(0.0)
-    floor.loc[pinned] = ceiling.reindex(pinned)
+    # Capped sectors can take CO2 only up to their ceiling; the rest of a CO2e
+    # gap there is CH4/N2O, reported rather than filled with CO2.
+    room = (
+        ceiling.reindex(capped).dropna()
+        - comparable_after.reindex(ceiling.reindex(capped).dropna().index).fillna(0.0)
+    ).clip(lower=0.0)
     # Donors give CO2, so they are also held at their GHGRP CO2 (comparable).
     co2_slack = comparable_after - ceiling.reindex(comparable_after.index).fillna(0.0)
-    add, give, used = floor_moves(have, floor, pool, eligible, released, co2_slack)
+    add, give, used = floor_moves(
+        sector_co2e, floor, pool, eligible, released, co2_slack, room
+    )
     if not give.empty:
         factor = cast(pd.Series, (1.0 - give / pool.reindex(index=give.index)).stack())
         rows = pool_rows & sector.isin(give.index)

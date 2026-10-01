@@ -211,3 +211,15 @@ def test_donors_are_held_at_their_ghgrp_co2() -> None:
     add, give, _ = gf.floor_moves(have, floor, pool, co2_slack=co2_slack)
     assert give.loc['gassy'].sum() <= 5.0 + 1e-12
     assert give['Natural Gas'].sum() == pytest.approx(30.0)
+
+
+def test_floor_fill_is_limited_by_room_under_the_ceiling() -> None:
+    """A capped sector short in CO2e by its CH4/N2O gets CO2 only up to its
+    ceiling; the rest of the gap is not filled."""
+    have = pd.Series({'paper': 14.0, 'donor': 100.0})
+    floor = pd.Series({'paper': 16.0})  # CO2e
+    pool = pd.DataFrame({'Natural Gas': [10.0, 100.0]}, index=['paper', 'donor'])
+    room = pd.Series({'paper': 0.5})  # CO2 ceiling minus comparable CO2
+    add, give, _ = gf.floor_moves(have, floor, pool, max_add=room)
+    assert add.loc['paper'].sum() == pytest.approx(0.5)
+    assert give['Natural Gas'].sum() == pytest.approx(0.5)

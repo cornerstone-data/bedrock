@@ -218,15 +218,16 @@ def compare(
     out['fbs_over_ghgrp'] = out['fbs_Mt'] / out['ghgrp_Mt']
     out['median_coverage'] = out['sector'].map(median_coverage())
     capped = out['median_coverage'] >= fc.VECTOR_COVERAGE_FLOOR
-    # Floor: CO2e everywhere, except where coverage is essentially complete,
-    # which is judged per gas on CO2 (the floor pins it there, #1060); their
-    # CH4/N2O shortfall is reported in ch4_n2o_short_Mt, not failed.
-    out['below_ghgrp'] = (
-        ~capped & (out['fbs_Mt'] < out['ghgrp_Mt'] - CEILING_TOL_MT)
-    ) | (capped & (out['fbs_comparable_CO2_Mt'] < out['ghgrp_CO2_Mt'] - CEILING_TOL_MT))
-    # With CO2 pinned, a fully covered sector's remaining CO2e gap is CH4/N2O.
+    # Floor: CO2e for every sector (#1060). A fully covered sector whose CO2
+    # is already at its ceiling cannot take more CO2, so its remaining CO2e gap
+    # is CH4/N2O: reported in ch4_n2o_short_Mt, not failed.
+    short = out['fbs_Mt'] < out['ghgrp_Mt'] - CEILING_TOL_MT
+    at_ceiling = capped & (
+        out['fbs_comparable_CO2_Mt'] >= out['ghgrp_CO2_Mt'] - CEILING_TOL_MT
+    )
+    out['below_ghgrp'] = short & ~at_ceiling
     out['ch4_n2o_short_Mt'] = (
-        (out['ghgrp_Mt'] - out['fbs_Mt']).clip(lower=0.0).where(capped, 0.0)
+        (out['ghgrp_Mt'] - out['fbs_Mt']).clip(lower=0.0).where(short & at_ceiling, 0.0)
     )
     # Ceiling: where coverage is essentially complete, comparable CO2 is at
     # most what the facilities report.
