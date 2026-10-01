@@ -1,4 +1,4 @@
-"""Pinned Cornerstone GHG FBS parquets for integration tests."""
+"""Pinned FlowBySector parquets for integration tests."""
 
 from __future__ import annotations
 
@@ -9,16 +9,14 @@ from pathlib import Path
 from bedrock.utils.io.gcp import download_gcs_file
 
 _SNAPSHOT_BASE = Path(__file__).resolve().parent
-DEFAULT_CORNERSTONE_GHG_FBS_2024_PIN = (
-    _SNAPSHOT_BASE / 'cornerstone_ghg_fbs_2024_pin.json'
-)
+
+#: Regen golden for ``GHG_national_Cornerstone_nowcast_facilities_2024``.
+DEFAULT_FBS_PIN = _SNAPSHOT_BASE / 'cornerstone_ghg_fbs_2024_pin.json'
 
 
-def load_cornerstone_ghg_fbs_pin(
-    pin_json_path: str | Path | None = None,
-) -> dict[str, str]:
+def load_fbs_pin(pin_json_path: str | Path | None = None) -> dict[str, str]:
     """Load a committed FBS pin (method, GCS location, filename, SHA256)."""
-    path = Path(pin_json_path or DEFAULT_CORNERSTONE_GHG_FBS_2024_PIN)
+    path = Path(pin_json_path or DEFAULT_FBS_PIN)
     raw = json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(raw, dict):
         raise ValueError(f'FBS pin JSON must be an object, got {type(raw).__name__}')
@@ -30,6 +28,11 @@ def load_cornerstone_ghg_fbs_pin(
     exp = out['sha256'].lower()
     if len(exp) != 64 or any(c not in '0123456789abcdef' for c in exp):
         raise ValueError('sha256 must be a 64-char lowercase hex string')
+    if exp == '0' * 64:
+        raise ValueError(
+            f'FBS pin {path!r} still has a placeholder sha256; set it after the '
+            'blessed parquet is on GCS'
+        )
     out['sha256'] = exp
     return out
 
@@ -42,7 +45,7 @@ def _file_sha256_hex(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def download_pinned_cornerstone_ghg_fbs(
+def download_pinned_fbs(
     pin: dict[str, str],
     local_dir: str | Path,
 ) -> Path:
@@ -63,3 +66,8 @@ def download_pinned_cornerstone_ghg_fbs(
             f'got {got}, expected {pin["sha256"]}'
         )
     return local_path
+
+
+# Legacy import names used by analysis scripts.
+load_cornerstone_ghg_fbs_pin = load_fbs_pin
+download_pinned_cornerstone_ghg_fbs = download_pinned_fbs

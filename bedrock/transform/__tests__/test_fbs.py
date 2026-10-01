@@ -9,10 +9,7 @@ from pandas.testing import assert_frame_equal
 
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.config import settings
-from bedrock.utils.snapshots.fbs_pin import (
-    download_pinned_cornerstone_ghg_fbs,
-    load_cornerstone_ghg_fbs_pin,
-)
+from bedrock.utils.snapshots.fbs_pin import download_pinned_fbs, load_fbs_pin
 
 _SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
 # Pinned parquet may store these as object/None; regen uses float64/NaN per schema.
@@ -41,15 +38,19 @@ def isolated_fbs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterato
 
 
 @pytest.mark.eeio_integration
-def test_generate_cornerstone_ghg_fbs_2024_matches_pinned_reference(
+def test_generate_nowcast_facilities_ghg_fbs_2024_matches_pinned_reference(
     isolated_fbs_dir: Path,
 ) -> None:
-    """Regenerated GHG_national_Cornerstone_2024 matches the pinned GCS parquet."""
+    """Regenerated nowcast facilities 2024 FBS matches the pinned GCS parquet.
+
+    Relies on ``stewi_facility_pin`` (default on) for GHGRP/NEI + facilitymatcher
+    and on the Energy FBS stems available via GCS / local cache for Hybrid.
+    """
     fbs_dir = isolated_fbs_dir
-    pin = load_cornerstone_ghg_fbs_pin()
+    pin = load_fbs_pin()
     method = pin['method']
 
-    pinned_path = download_pinned_cornerstone_ghg_fbs(pin, fbs_dir)
+    pinned_path = download_pinned_fbs(pin, fbs_dir)
     fbs_reference = pd.read_parquet(pinned_path)
 
     FlowBySector.generateFlowBySector(method, download_sources_ok=True)
