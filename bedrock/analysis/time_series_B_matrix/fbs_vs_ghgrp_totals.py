@@ -76,7 +76,13 @@ OUT_COLUMNS = [
     'fbs_other_Mt',
     'fbs_over_ghgrp',
     'below_ghgrp',
+    'median_coverage',
+    'ghgrp_CO2_Mt',
+    'fbs_comparable_CO2_Mt',
+    'above_ceiling',
 ]
+#: Numerical tolerance for the floor and ceiling comparisons, Mt.
+CEILING_TOL_MT = 1e-6
 
 
 def in_scope(sector: pd.Series) -> pd.Series:
@@ -131,7 +137,9 @@ def ghgrp_by_sector(year: int) -> pd.DataFrame:
         if col not in out:
             out[col] = 0.0
     out['ghgrp_Mt'] = out.sum(axis=1)
-    return out
+    co2 = resolved[resolved['FlowName'] == 'Carbon Dioxide']
+    out['ghgrp_CO2_Mt'] = co2.groupby('sector')['CO2e'].sum().reindex(out.index) / 1e9
+    return out.fillna(0.0)
 
 
 def fbs_by_sector(year: int, vintage: str, config: str) -> pd.DataFrame:
@@ -166,7 +174,30 @@ def fbs_by_sector(year: int, vintage: str, config: str) -> pd.DataFrame:
         if col not in out:
             out[col] = 0.0
     out['fbs_Mt'] = out.sum(axis=1)
-    return out
+    # CO2 GHGRP can see: not Use-table petroleum (on-site vehicles, equipment)
+    # or non-energy use, as the GHGRP ceiling compares it (#1060).
+    comparable = (
+        (co2e['Flowable'] == 'CO2')
+        & ~co2e['AttributionSources'].astype(str).str.startswith('Nowcast_Detail_Use')
+        & ~co2e['MetaSources'].astype(str).str.startswith('UMD_GHGIA_T_3_14')
+    )
+    out['fbs_comparable_CO2_Mt'] = (
+        co2e[comparable].groupby(co2e['SectorProducedBy'].astype(str))['CO2e'].sum()
+        / 1e9
+    ).reindex(out.index)
+    return out.fillna(0.0)
+
+
+def median_coverage() -> pd.Series:
+    """Facility coverage by BEA sector, median over the #1040 freeze span."""
+    panel = pd.concat(
+        [
+            fc.load_or_build_coverage_bands(y).set_index('sector')['coverage']
+            for y in fc.MODE_FREEZE_YEARS
+        ],
+        axis=1,
+    )
+    return panel.median(axis=1)
 
 
 def compare(
@@ -183,7 +214,13 @@ def compare(
         rows.append(d.rename_axis('sector').reset_index())
     out = pd.concat(rows, ignore_index=True)
     out['fbs_over_ghgrp'] = out['fbs_Mt'] / out['ghgrp_Mt']
-    out['below_ghgrp'] = out['fbs_Mt'] < out['ghgrp_Mt']
+    out['below_ghgrp'] = out['fbs_Mt'] < out['ghgrp_Mt'] - CEILING_TOL_MT
+    out['median_coverage'] = out['sector'].map(median_coverage())
+    # Ceiling: where coverage is essentially complete, comparable CO2 is at
+    # most what the facilities report.
+    out['above_ceiling'] = (out['median_coverage'] >= fc.VECTOR_COVERAGE_FLOOR) & (
+        out['fbs_comparable_CO2_Mt'] > out['ghgrp_CO2_Mt'] + CEILING_TOL_MT
+    )
     return out[OUT_COLUMNS]
 
 
@@ -228,6 +265,23 @@ def report(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(
         'Largest median shortfalls (Mt, median over the years):\n%s',
         worst[worst['shortfall_Mt'] > 0].head(25).round(2).to_string(),
+    )
+    over = df[df['above_ceiling']].assign(
+        over_Mt=lambda d: d['fbs_comparable_CO2_Mt'] - d['ghgrp_CO2_Mt']
+    )
+    logger.info(
+        'Fully covered sector-years (median coverage >= %.2f) whose comparable CO2 '
+        'exceeds their GHGRP CO2: %d of %d, %.2f Mt\n%s',
+        fc.VECTOR_COVERAGE_FLOOR,
+        len(over),
+        int((df['median_coverage'] >= fc.VECTOR_COVERAGE_FLOOR).sum()),
+        over['over_Mt'].sum(),
+        over.sort_values('over_Mt', ascending=False)[
+            ['sector', 'year', 'ghgrp_CO2_Mt', 'fbs_comparable_CO2_Mt', 'over_Mt']
+        ]
+        .head(25)
+        .round(2)
+        .to_string(index=False),
     )
     return by_year
 

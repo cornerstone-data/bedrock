@@ -1,4 +1,4 @@
-"""Tests for the GHGRP sector floor (#1060)."""
+"""Tests for the GHGRP sector floor and ceiling (#1060)."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def test_floor_moves_match_the_recipients_fuel_and_respect_donor_floors() -> Non
         },
         index=['327310', '311221', '325110'],
     )
-    add, give = gf.floor_moves(have, floor, pool)
+    add, give, _ = gf.floor_moves(have, floor, pool)
     # cement short 24, in its own 75/25 coal/gas mix
     assert add.loc['327310', 'Coal'] == pytest.approx(18.0)
     assert add.loc['327310', 'Natural Gas'] == pytest.approx(6.0)
@@ -63,7 +63,7 @@ def test_floor_moves_spill_a_short_fuel_to_fuels_with_spare_capacity() -> None:
     pool = pd.DataFrame(
         {'Coal': [1.0, 0.0], 'Natural Gas': [0.0, 100.0]}, index=['a', 'b']
     )
-    add, give = gf.floor_moves(have, floor, pool)
+    add, give, _ = gf.floor_moves(have, floor, pool)
     assert add.loc['a', 'Coal'] == pytest.approx(0.0)
     assert add.loc['a', 'Natural Gas'] == pytest.approx(50.0)
     assert give.loc['b', 'Natural Gas'] == pytest.approx(50.0)
@@ -85,7 +85,7 @@ def test_only_eligible_sectors_donate() -> None:
     pool = pd.DataFrame(
         {'Natural Gas': [1.0, 100.0, 100.0]}, index=['a', 'good', 'poor']
     )
-    add, give = gf.floor_moves(have, floor, pool, eligible=pd.Index(['good']))
+    add, give, _ = gf.floor_moves(have, floor, pool, eligible=pd.Index(['good']))
     assert give.index.tolist() == ['good']
     assert give.loc['good', 'Natural Gas'] == pytest.approx(30.0)
 
@@ -120,11 +120,14 @@ def test_apply_floor_conserves_each_activity_set_and_spares_still_gas(
     monkeypatch.setattr(
         gf,
         'ghgrp_co2e_by_naics',
-        lambda year: pd.Series(
+        lambda year, gases=None: pd.Series(
             {'327310': 64.0, '311221': 10.0, '325110': 5.0, '324110': 90.0}
         ),
     )
-    monkeypatch.setattr(gf, 'well_covered_sectors', lambda codes: codes)
+    # every sector a donor-eligible 0.9: none capped, none low-coverage
+    monkeypatch.setattr(
+        gf, 'median_coverage', lambda codes: pd.Series(0.9, index=codes)
+    )
     out = gf.apply_ghgrp_sector_floor(fbs, 2022)
     co2 = out[out['Flowable'] == gf.CO2]
     by_sector = co2.groupby('SectorProducedBy')['FlowAmount'].sum()
@@ -140,3 +143,57 @@ def test_apply_floor_conserves_each_activity_set_and_spares_still_gas(
     still = out[out['MetaSources'] == STILL_GAS]
     assert still['FlowAmount'].tolist() == [90.0]
     assert out.loc[out['Flowable'] == 'Methane', 'FlowAmount'].tolist() == [5.0]
+
+
+def test_floor_moves_use_released_co2_before_donors() -> None:
+    have = pd.Series({'a': 0.0, 'b': 100.0})
+    floor = pd.Series({'a': 30.0})
+    pool = pd.DataFrame({'Natural Gas': [1.0, 100.0]}, index=['a', 'b'])
+    first = pd.Series({'Natural Gas': 20.0})
+    add, give, used = gf.floor_moves(have, floor, pool, first=first)
+    assert used['Natural Gas'] == pytest.approx(20.0)
+    assert give.loc['b', 'Natural Gas'] == pytest.approx(10.0)
+
+
+def test_apply_ceiling_trims_fully_covered_sectors_and_gives_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Refinery 10 over its GHGRP CO2: 5 fills cement's deficit, 5 goes to the
+    low-coverage sector; still gas and each activity set's total are unchanged."""
+    fbs = pd.DataFrame(
+        [
+            _row('32411', NG_MFG, 120.0),
+            _row('32411', STILL_GAS, 90.0),
+            _row('32411', 'UMD_GHGIA_T_3_11.petroleum_use', 7.0)
+            | {
+                'AttributionSources': 'Nowcast_Detail_Use_AfterRedef'
+            },  # on-site vehicles: not comparable
+            _row('327310', NG_MFG, 45.0),
+            _row('311', NG_MFG, 20.0),
+        ]
+    )
+    ghgrp = pd.Series({'324110': 200.0, '327310': 50.0})
+    monkeypatch.setattr(gf, 'ghgrp_co2e_by_naics', lambda year, gases=None: ghgrp)
+    cov = {'32411': 1.0, '327310': 0.9, '311': 0.5}
+    monkeypatch.setattr(
+        gf,
+        'median_coverage',
+        lambda codes: pd.Series([cov[c] for c in codes], index=codes),
+    )
+    out = gf.apply_ghgrp_sector_floor(fbs, 2022)
+    by = out.groupby(['SectorProducedBy', 'MetaSources'])['FlowAmount'].sum()
+    assert by[('32411', NG_MFG)] == pytest.approx(110.0)  # 210 comparable -> 200
+    assert by[('32411', STILL_GAS)] == pytest.approx(90.0)
+    assert out[out['SectorProducedBy'] == '327310'][
+        'FlowAmount'
+    ].sum() == pytest.approx(50.0)
+    assert out[out['SectorProducedBy'] == '311']['FlowAmount'].sum() == pytest.approx(
+        25.0
+    )
+    pd.testing.assert_series_equal(
+        fbs.groupby('MetaSources')['FlowAmount'].sum(),
+        out.groupby('MetaSources')['FlowAmount'].sum(),
+    )
+    labels = out.groupby('AttributionSources')['FlowAmount'].sum()
+    assert labels[gf.FLOOR_ATTRIBUTION] == pytest.approx(5.0)
+    assert labels[gf.CEILING_ATTRIBUTION] == pytest.approx(5.0)
