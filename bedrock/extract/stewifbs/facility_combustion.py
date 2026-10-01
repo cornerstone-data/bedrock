@@ -68,6 +68,10 @@ _FUEL_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum', 'Other')
 COMBUSTION_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum')
 LEASE_PLANT_FLOWABLE = 'Natural Gas - lease and plant'
 HYDROGEN_FLOWABLE = 'Natural Gas - hydrogen production'
+LNG_FLOWABLE = 'Natural Gas - LNG liquefaction'
+#: BEA prefix of natural gas distribution (221200), whose GHGRP reporters
+#: include LNG export terminals (NAICS 221210).
+GAS_DISTRIBUTION_PREFIX = '2212'
 COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
 
 # GWP100_AR5.
@@ -584,6 +588,25 @@ def _nei_fuel_shares(nei: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return out
 
 
+def gas_distribution_plant_fuel(union: pd.DataFrame) -> pd.Series:
+    """Purchased natural gas burned at gas distribution facilities, kg CO2e by
+    FacilityID (#1067).
+
+    Mostly LNG export terminals' liquefaction fuel (Corpus Christi, Venture
+    Global), plus compressor fuel at distribution and gathering companies, all
+    GHGRP NAICS 221210. EIA counts this gas as pipeline and distribution use,
+    so the GHG Inventory books its CO2 in table 3-8 pipeline natural gas.
+    Self-supplied gas (Great Plains Synfuels' coal-derived gas) is not included.
+    """
+    rows = union[
+        (union['source'] == 'GHGRP')
+        & union['sector'].astype(str).str.startswith(GAS_DISTRIBUTION_PREFIX)
+        & (union['fuel_class'] == 'purchased')
+        & (union['Flowable'] == 'Natural Gas')
+    ]
+    return rows.groupby('FacilityID')['CO2e'].sum()
+
+
 def split_subpart_c_fuel(
     remainder: pd.DataFrame, subpart_c: pd.Series, nei: pd.DataFrame
 ) -> pd.DataFrame:
@@ -839,6 +862,14 @@ def build_facility_combustion(
                 union,
                 share_weight_rows(hydrogen, 'hydrogen production', HYDROGEN_FLOWABLE),
             ],
+            ignore_index=True,
+        )
+    # Purchased natural gas burned at gas distribution facilities: LNG export
+    # terminals' liquefaction fuel and distribution compressor fuel (#1067).
+    lng = gas_distribution_plant_fuel(union)
+    if not lng.empty:
+        union = pd.concat(
+            [union, share_weight_rows(lng, 'lng liquefaction', LNG_FLOWABLE)],
             ignore_index=True,
         )
 

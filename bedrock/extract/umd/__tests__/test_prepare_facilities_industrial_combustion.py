@@ -230,3 +230,42 @@ def test_hydrogen_carve_takes_subpart_p_from_manufacturing_natural_gas(
     assert by['Natural Gas Industrial - Manufacturing'] == pytest.approx(173.0)
     assert by['Natural Gas Industrial'] == pytest.approx(100.0)
     assert out['FlowAmount'].sum() == pytest.approx(300.0)
+
+
+def test_lng_carve_takes_gas_distribution_plant_fuel_from_pipeline_gas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1067: LNG terminal fuel moves out of pipeline natural gas; total unchanged."""
+    fba = _minimal_fba(
+        [
+            {
+                'ActivityProducedBy': 'Pipeline Natural Gas',
+                'FlowAmount': 70.0,
+                'Year': 2024,
+            },
+            {
+                'ActivityProducedBy': 'Buses Natural Gas',
+                'FlowAmount': 1.0,
+                'Year': 2024,
+            },
+        ],
+        {},
+    )
+    union = pd.DataFrame(
+        {
+            'FacilityID': ['lng1', 'lng2', 'synfuel', 'ldc'],
+            'source': ['GHGRP'] * 4,
+            'sector': ['221200', '221200', '221200', '221200'],
+            'fuel_class': ['purchased', 'purchased', 'self_supplied', 'process'],
+            'Flowable': ['Natural Gas', 'Natural Gas', 'Natural Gas', 'Other'],
+            'CO2e': [3.0e9, 2.5e9, 1.8e9, 1.4e9],  # kg
+        }
+    )
+    monkeypatch.setattr(UMD_GHGIA, 'build_facility_combustion', lambda *a, **k: union)
+    out = UMD_GHGIA.assign_lng_liquefaction_gas(fba, {'year': 2024})
+    by = out.groupby('ActivityProducedBy')['FlowAmount'].sum()
+    # purchased natural gas only: not the self-supplied synfuel or the LDC process
+    assert by[UMD_GHGIA.LNG_ACTIVITY] == pytest.approx(5.5)
+    assert by['Pipeline Natural Gas'] == pytest.approx(64.5)
+    assert by['Buses Natural Gas'] == pytest.approx(1.0)
+    assert out['FlowAmount'].sum() == pytest.approx(71.0)
