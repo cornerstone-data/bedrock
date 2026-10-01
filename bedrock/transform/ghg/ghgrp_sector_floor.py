@@ -520,7 +520,7 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
             SPILL_ANCHOR_RATE,
             (moved / 1e9).round(2).to_dict(),
         )
-        if short.sum() > 0:
+        if short.sum() > 1e6:  # 0.001 Mt; below that it is rounding
             logger.warning(
                 'GHGRP ceiling %d: %.2f Mt of the anchored spill could not be '
                 'taken without a fully covered sector going below its GHGRP '
