@@ -27,12 +27,12 @@
 # The GHG FBS is not pinned by this config: use_cornerstone_ghg_model with nowcast +
 # use_facility_ghg_attribution loads the newest GCS parquet for
 # GHG_national_Cornerstone_nowcast_facilities_2024. The v0.5 release FBS, built
-# from main 0e1b0f01 on the 3096818 tables (still gas to refineries and the MECS
-# split on a census-year Use table, #1055; soils fertilizer on census-year Use,
-# #1059), is
-#   GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_0e1b0f0.parquet
-#   sha256 544839a871ef07b55258340de4acc4eb8ba6409674cfb67bc3fe15a6bd56454e
-# and the v0.5 snapshot (0e1b0f01) was cut on it. A newer upload for that stem
+# from main 3a1dddc2 on the 3096818 tables (#1055, #1059; GHGRP sector floor and
+# ceiling, still gas, hydrogen and LNG carve-outs, #1061) with the stewi inputs
+# pinned in stewi_facility_pin.json (#1066), is
+#   GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
+#   sha256 7cc30cb922bb054e01122d4786b63d7ff23431121c934c22a8b8aa9c9b4f66c7
+# and the v0.5 snapshot (3a1dddc2) was cut on it. A newer upload for that stem
 # would change this config's output; check the vintage before reusing it.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is

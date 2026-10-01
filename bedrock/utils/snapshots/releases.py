@@ -72,9 +72,10 @@ v0_4_1 = "0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0"  # config: 2025_usa_cornerst
 # Output change: nowcast build v0.3.0_3096818 (AIES-chained gross output, theta = 1,
 # electricity on EIA, smoothed manufacturing expense seed; #1014, #1030, #1056,
 # pinned by #1057), facility GHG attribution with the release FBS
-# GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_0e1b0f0 (#965, #1023,
-# #1055, #1059), margin impacts by transaction (#1027), waste re-split (#1058).
-v0_5_0 = "0e1b0f016d7fca99db79f6f872c9159872ff09bc"  # config: 2025_usa_cornerstone_v0_5; matches .SNAPSHOT_KEY
+# GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc (#965, #1023,
+# #1055, #1059; GHGRP sector floor and ceiling, still gas, hydrogen and LNG
+# carve-outs, #1061), margin impacts by transaction (#1027), waste re-split (#1058).
+v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerstone_v0_5; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (

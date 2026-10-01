@@ -462,7 +462,7 @@ class USAConfig(BaseModel):
         '60c8a6b8568b3002a73cdf8569114b2250571e94',  # v0.4.1 interim equal-fill Flip snapshot
         '1ca4453a7882ffbc70527bdaab32fcc835b7f84d',  # v0.4.1 local prior-weighted snapshot
         '0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0',  # v0.4.1 (CI Flip)
-        '0e1b0f016d7fca99db79f6f872c9159872ff09bc',  # v0.5.0 (current .SNAPSHOT_KEY)
+        '3a1dddc2030e5793b929888c1343cf5a14729f4c',  # v0.5.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
