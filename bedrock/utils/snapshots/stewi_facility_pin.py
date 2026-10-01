@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -240,7 +241,7 @@ def _inventory_name_data(inventory: str, year: str | int) -> str:
 
 
 def resolve_inventory_local_files(
-    inventory_dict: dict[str, str | int],
+    inventory_dict: Mapping[str, str | int],
     *,
     pin: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -312,7 +313,7 @@ def resolve_energy_fbs_filename(mecs_method: str) -> str | None:
 
 
 def facility_attribution_source_metadata(
-    inventory_dict: dict[str, str | int],
+    inventory_dict: Mapping[str, str | int],
     *,
     mecs_method: str | None = None,
     name_data: str | None = None,
