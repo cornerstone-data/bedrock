@@ -56,6 +56,7 @@ from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.emissions.gwp import GWP100_AR5
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import filter_to_model_geography
+from bedrock.utils.snapshots.stewi_facility_pin import ensure_pinned_inventories
 
 ONSITE_SCC_BRANCHES = ('1', '2', '3')
 COMBUSTION_SCC_BRANCHES = ('1', '2')
@@ -598,6 +599,8 @@ def build_facility_combustion(
     use_scc = nei_year >= NEI_FUEL_CLASS_FIRST_YEAR
     if sector_prefixes is None:
         sector_prefixes = FACILITY_SCOPE_PREFIXES
+
+    ensure_pinned_inventories()
 
     nei_raw = stewi.getInventory(
         'NEI', nei_year, stewiformat='flowbyprocess', download_if_missing=True
