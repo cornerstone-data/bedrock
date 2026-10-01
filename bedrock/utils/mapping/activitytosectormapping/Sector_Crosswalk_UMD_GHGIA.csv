@@ -291,6 +291,9 @@ UMD_GHGIA,Natural Gas Industrial - Manufacturing,NAICS_2017_Code,31,,"31, 32, 33
 UMD_GHGIA,Natural Gas Industrial - Manufacturing,NAICS_2017_Code,32,,,EPA_GHGI_T_A_14
 UMD_GHGIA,Natural Gas Industrial - Manufacturing,NAICS_2017_Code,33,,,EPA_GHGI_T_A_14
 UMD_GHGIA,Natural Gas Industrial - Lease and Plant,NAICS_2017_Code,211,,211,"UMD_GHGIA_T_3_11; lease/plant carved from industrial NG"
+UMD_GHGIA,Natural Gas Industrial - Hydrogen Production,NAICS_2017_Code,31,,"31, 32, 33","UMD_GHGIA_T_3_11; hydrogen feedstock carved from manufacturing NG (#1060)"
+UMD_GHGIA,Natural Gas Industrial - Hydrogen Production,NAICS_2017_Code,32,,,"UMD_GHGIA_T_3_11; hydrogen feedstock carved from manufacturing NG (#1060)"
+UMD_GHGIA,Natural Gas Industrial - Hydrogen Production,NAICS_2017_Code,33,,,"UMD_GHGIA_T_3_11; hydrogen feedstock carved from manufacturing NG (#1060)"
 UMD_GHGIA,Total Petroleum Industrial,NAICS_2017_Code,11,,"11, 21, 2212, 23, 31, 32, 33",EPA_GHGI_T_A_14
 UMD_GHGIA,Total Petroleum Industrial,NAICS_2017_Code,21,,,EPA_GHGI_T_A_14
 UMD_GHGIA,Total Petroleum Industrial,NAICS_2017_Code,2212,,,EPA_GHGI_T_A_14
