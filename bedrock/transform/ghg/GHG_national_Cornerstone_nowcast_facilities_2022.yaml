@@ -5,6 +5,9 @@
 # floor = max(facility share, MECS share) then renormalize.
 
 !include:GHG_national_Cornerstone_nowcast_2022.yaml
+  # Every in-scope sector's CO2 at least what its own facilities report to
+  # GHGRP (all subparts but power), moved within industrial combustion (#1060).
+  ghgrp_sector_floor: 2022
   sources_to_cache: !include:GHG_national_Cornerstone_nowcast_2022.yaml:sources_to_cache
     # Pure facility combustion (prefer-GHGRP): FlowAmount is CO2e in kg.
     # Used for lease/plant NG and still gas (no MECS/Use fallback).
@@ -62,6 +65,22 @@
         - Coal
         - Petroleum
   source_names: !include:GHG_national_Cornerstone_nowcast_2022.yaml:source_names
+    # Pipeline natural gas burned at LNG export terminals and gas distribution
+    # facilities (GHGRP NAICS 221210) goes to them, not to pipelines (#1067).
+    UMD_GHGIA_T_3_8: !include:GHG_national_Cornerstone_nowcast_2022.yaml:source_names:UMD_GHGIA_T_3_8
+      clean_fba_before_activity_sets: !script_function:UMD_GHGIA prepare_facilities_mobile_combustion
+      clean_parameter:
+        year: 2022
+      activity_sets: !include:GHG_national_Cornerstone_nowcast_2022.yaml:source_names:UMD_GHGIA_T_3_8:activity_sets
+        lng_liquefaction:
+          selection_fields:
+            PrimaryActivity:
+              - Pipeline Natural Gas - LNG Liquefaction
+          attribution_method: proportional
+          attribution_source:
+            GHGRP_NEI_Facilities:
+              selection_fields:
+                Flowable: Natural Gas - LNG liquefaction
     UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
        year: 2022
        activity_to_sector_mapping: UMD_GHGIA
@@ -86,7 +105,9 @@
                  Flowable: Petroleum
                  # Still gas is refinery fuel (#983): weight on refineries'
                  # own petroleum only, not every facility's (#1054).
-                 SectorProducedBy: '324110'
+                 # The cached source carries refineries at industry spec, 32411;
+                 # '324110' alone matched nothing and dropped all still gas (#1060).
+                 SectorProducedBy: ['32411', '324110']
 
          petroleum_facility:
            selection_fields:
@@ -124,6 +145,19 @@
              GHGRP_NEI_Facilities:
                selection_fields:
                  Flowable: Natural Gas - lease and plant
+
+         # Natural gas reformed into hydrogen, carved from manufacturing natural
+         # gas by the GHGRP subpart P amount and attributed to the reporting
+         # plants' sectors: industrial gases and refineries (#1060).
+         natural_gas_hydrogen:
+           selection_fields:
+             PrimaryActivity:
+               - Natural Gas Industrial - Hydrogen Production
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Natural Gas - hydrogen production
 
          natural_gas_nonmanufacturing:
            selection_fields:

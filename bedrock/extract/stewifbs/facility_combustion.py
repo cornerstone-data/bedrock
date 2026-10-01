@@ -66,6 +66,14 @@ PROCESS_GAS_SCC_LEVEL3 = '007'
 FACILITY_SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
 NEI_FUEL_CLASS_FIRST_YEAR = 2021
 _FUEL_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum', 'Other')
+COMBUSTION_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum')
+LEASE_PLANT_FLOWABLE = 'Natural Gas - lease and plant'
+HYDROGEN_FLOWABLE = 'Natural Gas - hydrogen production'
+LNG_FLOWABLE = 'Natural Gas - LNG liquefaction'
+#: BEA prefix of natural gas distribution (221200), whose GHGRP reporters
+#: include LNG export terminals (NAICS 221210).
+GAS_DISTRIBUTION_PREFIX = '2212'
+COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
 
 # GWP100_AR5.
 GHGRP_FLOW_MAP = {
@@ -547,32 +555,107 @@ def ghgrp_fuel_labels(
     # SCC years, or pre-2021 after twin Flowables were applied to *nei*.
     nei_has_fuels = not nei.empty and (nei['Flowable'].astype(str) != 'Other').any()
     if (use_scc or nei_has_fuels) and not remainder.empty:
-        nei_by_frs = (
-            nei.dropna(subset=['FRS_ID'])
-            .groupby(['FRS_ID', 'fuel_class', 'Flowable'])['CO2e']
-            .sum()
-            .reset_index()
-        )
-        if not nei_by_frs.empty:
-            totals = nei_by_frs.groupby('FRS_ID')['CO2e'].transform('sum')
-            shares = nei_by_frs.assign(share=nei_by_frs['CO2e'] / totals)[
-                ['FRS_ID', 'fuel_class', 'Flowable', 'share']
-            ]
-            merged = remainder.merge(
-                shares, on='FRS_ID', how='inner', suffixes=('_old', '')
-            )
-            if not merged.empty:
-                shared = merged.assign(CO2e=merged['CO2e'] * merged['share']).drop(
-                    columns=['share', 'fuel_class_old', 'Flowable_old'],
-                    errors='ignore',
-                )
-                unmatched = remainder[~remainder['FRS_ID'].isin(set(merged['FRS_ID']))]
-                remainder = pd.concat([shared, unmatched], ignore_index=True)
+        remainder = split_subpart_c_fuel(remainder, subpart_c, nei)
     ghgrp_out = pd.concat(
         [p for p in (labeled_ghgrp, remainder) if p is not None and not p.empty],
         ignore_index=True,
     )
     return ghgrp_out[ghgrp_out['CO2e'] > 0]
+
+
+def _nei_fuel_shares(nei: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Combustion fuel shares from NEI rows: by FRS_ID, NAICS-6 and sector.
+
+    Only combustion-class rows with a fuel Flowable count, so a kiln or
+    furnace NEI files under a process SCC never decides the fuel type.
+    Shares carry ``fuel_class`` (purchased / self_supplied) with the Flowable.
+    """
+    fuel = nei[
+        nei['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
+        & nei['Flowable'].isin(COMBUSTION_FLOWABLES)
+        & (nei['CO2e'] > 0)
+    ].copy()
+    fuel['naics6'] = fuel['NAICS'].astype(str).str[:6]
+    out: dict[str, pd.DataFrame] = {}
+    for key in ('FRS_ID', 'naics6', 'sector'):
+        g = (
+            fuel.dropna(subset=[key])
+            .groupby([key, 'fuel_class', 'Flowable'])['CO2e']
+            .sum()
+            .reset_index()
+        )
+        g['share'] = g['CO2e'] / g.groupby(key)['CO2e'].transform('sum')
+        out[key] = g.drop(columns='CO2e')
+    return out
+
+
+def gas_distribution_plant_fuel(union: pd.DataFrame) -> pd.Series:
+    """Purchased natural gas burned at gas distribution facilities, kg CO2e by
+    FacilityID (#1067).
+
+    Mostly LNG export terminals' liquefaction fuel (Corpus Christi, Venture
+    Global), plus compressor fuel at distribution and gathering companies, all
+    GHGRP NAICS 221210. EIA counts this gas as pipeline and distribution use,
+    so the GHG Inventory books its CO2 in table 3-8 pipeline natural gas.
+    Self-supplied gas (Great Plains Synfuels' coal-derived gas) is not included.
+    """
+    rows = union[
+        (union['source'] == 'GHGRP')
+        & union['sector'].astype(str).str.startswith(GAS_DISTRIBUTION_PREFIX)
+        & (union['fuel_class'] == 'purchased')
+        & (union['Flowable'] == 'Natural Gas')
+    ]
+    return rows.groupby('FacilityID')['CO2e'].sum()
+
+
+def split_subpart_c_fuel(
+    remainder: pd.DataFrame, subpart_c: pd.Series, nei: pd.DataFrame
+) -> pd.DataFrame:
+    """Label GHGRP facility totals: subpart C is fuel, the rest is process (#1060).
+
+    A facility's subpart C emissions are fuel combustion by definition. Its
+    fuel type comes from the matched NEI facility's combustion rows, else
+    from NEI combustion at the same NAICS-6, else the same sector; with none,
+    it stays ``Flowable='Other'``. Everything else the facility reports
+    (process subparts such as H, S, N, Q, Y) is labeled ``process``.
+
+    Splitting the whole facility total on the NEI facility's SCC shares put
+    subpart C fuel on ``process`` wherever NEI files the kiln or furnace
+    under a process SCC (lime, glass, iron and steel, refineries).
+    """
+    totals = remainder['CO2e'].to_numpy(dtype=float)
+    c_part = (
+        subpart_c.reindex(remainder['FacilityID']).fillna(0.0).to_numpy(dtype=float)
+    )
+    c_part = np.minimum(np.clip(c_part, 0.0, None), totals)
+    process = remainder.assign(
+        CO2e=totals - c_part, fuel_class='process', Flowable='Other'
+    )
+    fuel = remainder.assign(CO2e=c_part, fuel_class='purchased', Flowable='Other')
+    fuel = fuel[fuel['CO2e'] > 0].copy()
+    fuel['naics6'] = fuel['NAICS'].astype(str).str[:6]
+
+    shares = _nei_fuel_shares(nei)
+    pieces: list[pd.DataFrame] = []
+    left = fuel
+    for key in ('FRS_ID', 'naics6', 'sector'):
+        if left.empty:
+            break
+        merged = left.dropna(subset=[key]).merge(
+            shares[key], on=key, how='inner', suffixes=('_old', '')
+        )
+        if merged.empty:
+            continue
+        pieces.append(
+            merged.assign(CO2e=merged['CO2e'] * merged['share']).drop(
+                columns=['share', 'fuel_class_old', 'Flowable_old']
+            )
+        )
+        left = left[~left['FacilityID'].isin(set(merged['FacilityID']))]
+    pieces.append(left)
+    labeled = pd.concat([p for p in pieces if not p.empty], ignore_index=True)
+    labeled = labeled.drop(columns='naics6', errors='ignore')
+    return pd.concat([labeled, process], ignore_index=True)
 
 
 def build_facility_combustion(
@@ -737,37 +820,61 @@ def build_facility_combustion(
     union = union.assign(year=year)
     union_mt = float(union['CO2e'].sum()) / 1e9
 
-    # Lease and plant natural gas, for YAML selection only. Not part of the
-    # prefer-GHGRP level total. Distinct Flowable; FBS has no Description column.
+    def share_weight_rows(
+        by_facility: pd.Series, fuel_class: str, flowable: str
+    ) -> pd.DataFrame:
+        rows = (
+            by_facility.rename('CO2e')
+            .reset_index()
+            .join(ghgrp_sectors, on='FacilityID')
+            .assign(source='GHGRP', fuel_class=fuel_class, Flowable=flowable, year=year)
+        )
+        rows = rows[rows['CO2e'] > 0]
+        if exclude_sectors:
+            rows = rows[~rows['sector'].astype(str).isin(exclude_sectors)]
+        rows = rows[
+            rows['sector'].notna()
+            & rows['sector'].astype(str).str.strip().str[:2].isin(sector_prefixes)
+        ]
+        for col in set(union.columns) - set(rows.columns):
+            rows[col] = np.nan
+        return rows[union.columns]
+
+    # Share-weight rows for YAML selection only, not part of the prefer-GHGRP
+    # level total; a distinct Flowable each, as FBS has no Description column.
+    # Lease and plant natural gas (subpart W):
     lease_plant_fuel = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
     if not lease_plant_fuel.empty:
-        lease_plant = (
-            lease_plant_fuel.groupby('FacilityID', as_index=False)['CO2e']
-            .sum()
-            .join(ghgrp_sectors, on='FacilityID')
-            .assign(
-                source='GHGRP',
-                fuel_class='lease and plant',
-                Flowable='Natural Gas - lease and plant',
-                year=year,
-            )
+        union = pd.concat(
+            [
+                union,
+                share_weight_rows(
+                    lease_plant_fuel.groupby('FacilityID')['CO2e'].sum(),
+                    'lease and plant',
+                    LEASE_PLANT_FLOWABLE,
+                ),
+            ],
+            ignore_index=True,
         )
-        lease_plant = lease_plant[lease_plant['CO2e'] > 0]
-        if exclude_sectors:
-            lease_plant = lease_plant[
-                ~lease_plant['sector'].astype(str).isin(exclude_sectors)
-            ]
-        lease_plant = lease_plant[
-            lease_plant['sector'].notna()
-            & lease_plant['sector']
-            .astype(str)
-            .str.strip()
-            .str[:2]
-            .isin(sector_prefixes)
-        ]
-        for col in set(union.columns) - set(lease_plant.columns):
-            lease_plant[col] = np.nan
-        union = pd.concat([union, lease_plant[union.columns]], ignore_index=True)
+    # Natural gas feedstock for hydrogen production (subpart P, #1060): merchant
+    # plants (325120) and refineries' captive plants.
+    hydrogen = flows[flows['Process'] == 'P'].groupby('FacilityID')['CO2e'].sum()
+    if not hydrogen.empty:
+        union = pd.concat(
+            [
+                union,
+                share_weight_rows(hydrogen, 'hydrogen production', HYDROGEN_FLOWABLE),
+            ],
+            ignore_index=True,
+        )
+    # Purchased natural gas burned at gas distribution facilities: LNG export
+    # terminals' liquefaction fuel and distribution compressor fuel (#1067).
+    lng = gas_distribution_plant_fuel(union)
+    if not lng.empty:
+        union = pd.concat(
+            [union, share_weight_rows(lng, 'lng liquefaction', LNG_FLOWABLE)],
+            ignore_index=True,
+        )
 
     n_facilities = int(union['FacilityID'].nunique())
     log.info(

@@ -20,7 +20,11 @@ import stewi
 
 from bedrock.extract.epa.EPA_GHGI import allocate_industrial_combustion
 from bedrock.extract.flowbyactivity import FlowByActivity
-from bedrock.extract.stewifbs.facility_combustion import GHGRP_FLOW_MAP
+from bedrock.extract.stewifbs.facility_combustion import (
+    GHGRP_FLOW_MAP,
+    build_facility_combustion,
+    gas_distribution_plant_fuel,
+)
 from bedrock.transform.flowbyfunctions import (
     assign_fips_location_system,
     load_fba_w_standardized_units,
@@ -962,6 +966,70 @@ def assign_lease_and_plant_natural_gas(
     return fba
 
 
+#: Table 3-11 activity holding natural gas used for hydrogen production (#1060).
+HYDROGEN_ACTIVITY = 'Natural Gas Industrial - Hydrogen Production'
+
+
+def assign_hydrogen_natural_gas(
+    fba: FlowByActivity, params: dict[str, Any]
+) -> FlowByActivity:
+    """Separate hydrogen-production natural gas from manufacturing natural gas (#1060).
+
+    The GHG Inventory has no hydrogen production category: the natural gas a
+    hydrogen plant reforms is industrial natural gas consumption in EIA's data,
+    so its CO2 sits in table 3-11 ``Natural Gas Industrial - Manufacturing``.
+    That activity is spread on energy-survey (MECS) and facility fuel shares,
+    and MECS counts feedstock as non-fuel use, so industrial gases (325120)
+    received almost none of it while its plants report ~27 Mt under GHGRP
+    subpart P. Take the subpart P CO2e for ``ghgrp_year`` (AR5, as UMD GHGIA)
+    out of manufacturing natural gas as activity :data:`HYDROGEN_ACTIVITY`; the
+    method attributes it to the reporting plants' own sectors.
+    """
+    year = int(params['year'])
+    ghgrp_year = int(params['ghgrp_year'])
+    flows = stewi.getInventory(
+        'GHGRP', ghgrp_year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    hydrogen_mmt = 0.0
+    if flows is not None and not getattr(flows, 'empty', True):
+        gwp = {str(k): float(v) for k, v in GWP100_AR5.items()}
+        p = flows[(flows['Process'] == 'P') & flows['FlowName'].isin(GHGRP_FLOW_MAP)]
+        hydrogen_mmt = (
+            float((p['FlowAmount'] * p['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)).sum())
+            / 1e9
+        )
+    ng_mfg = fba['ActivityProducedBy'].astype(str) == (
+        'Natural Gas Industrial - Manufacturing'
+    )
+    ng_mfg_total = float(fba.loc[ng_mfg, 'FlowAmount'].sum())
+    if hydrogen_mmt <= 0 or ng_mfg_total <= 0:
+        log.warning(
+            f'No GHGRP subpart P or no manufacturing natural gas for {year}; '
+            'leaving it intact'
+        )
+        return fba
+
+    share = float(np.minimum(hydrogen_mmt / ng_mfg_total, 1.0))
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+    hydrogen = fba.loc[ng_mfg].copy()
+    hydrogen['FlowAmount'] = hydrogen['FlowAmount'] * share
+    hydrogen['ActivityProducedBy'] = HYDROGEN_ACTIVITY
+    remainder = fba.copy()
+    remainder.loc[ng_mfg, 'FlowAmount'] = remainder.loc[ng_mfg, 'FlowAmount'] * (
+        1.0 - share
+    )
+    fba = FlowByActivity(pd.concat([remainder, hydrogen], ignore_index=True))
+    for attr, value in attributes_to_save.items():
+        setattr(fba, attr, value)
+    log.info(
+        f'{HYDROGEN_ACTIVITY}: {hydrogen_mmt:.1f} MMT from GHGRP subpart P '
+        f'({100 * share:.1f}% of manufacturing natural gas) for {year}'
+    )
+    return fba
+
+
 def split_activity_by_annex_shares(fba: FlowByActivity) -> FlowByActivity:
     """Split one activity into annex fuel rows using annex CO2 shares."""
     params = fba.config.get('clean_parameter') or {}
@@ -1031,7 +1099,7 @@ def split_activity_by_annex_shares(fba: FlowByActivity) -> FlowByActivity:
 def prepare_facilities_industrial_combustion(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
-    """Facilities T_3_11 prep: mfg split, GHGRP lease and plant natural gas, petroleum annex.
+    """Facilities T_3_11 prep: mfg split, lease/plant and hydrogen gas, petroleum annex.
 
     clean_fba_before_activity_sets for the facilities nowcast methods.
     ``exclude_sectors`` is read from ``clean_parameter``. Manufacturing ratios
@@ -1081,5 +1149,83 @@ def prepare_facilities_industrial_combustion(
     fba = _with_params(fba)
     fba = allocate_industrial_combustion(_with_params(fba))
     fba = assign_lease_and_plant_natural_gas(_with_params(fba), params)
+    fba = assign_hydrogen_natural_gas(_with_params(fba), params)
     fba = split_activity_by_annex_shares(_with_params(fba))
     return fba
+
+
+#: Table 3-8 activity holding pipeline natural gas burned at LNG export
+#: terminals and gas distribution facilities (#1067).
+LNG_ACTIVITY = 'Pipeline Natural Gas - LNG Liquefaction'
+PIPELINE_NG_ACTIVITY = 'Pipeline Natural Gas'
+
+
+def assign_lng_liquefaction_gas(
+    fba: FlowByActivity, params: dict[str, Any]
+) -> FlowByActivity:
+    """Separate gas distribution facilities' fuel from pipeline natural gas (#1067).
+
+    EIA counts the natural gas burned to liquefy LNG for export as pipeline and
+    distribution use, so its CO2 sits in table 3-8 ``Pipeline Natural Gas``,
+    attributed to pipelines (486). LNG export terminals report it to GHGRP
+    under NAICS 221210 (gas distribution). Take that GHGRP CO2e for
+    ``ghgrp_year`` (purchased natural gas at 221210 facilities, AR5 as UMD
+    GHGIA) out of pipeline natural gas as activity :data:`LNG_ACTIVITY`; the
+    method attributes it to the reporting facilities' sector.
+    """
+    year = int(params['year'])
+    ghgrp_year = int(params.get('ghgrp_year', year))
+    nei_year = int(params.get('nei_year', min(ghgrp_year, 2022)))
+    union = build_facility_combustion(
+        ghgrp_year,
+        nei_year=nei_year,
+        sector_prefixes=('22',),
+        exclude_sectors=('221100',),
+    )
+    lng_mmt = float(gas_distribution_plant_fuel(union).sum()) / 1e9
+    pipeline = fba['ActivityProducedBy'].astype(str) == PIPELINE_NG_ACTIVITY
+    pipeline_total = float(fba.loc[pipeline, 'FlowAmount'].sum())
+    if lng_mmt <= 0 or pipeline_total <= 0:
+        log.warning(
+            f'No GHGRP gas distribution plant fuel or no pipeline natural gas for '
+            f'{year}; leaving pipeline natural gas intact'
+        )
+        return fba
+
+    share = float(np.minimum(lng_mmt / pipeline_total, 1.0))
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+    lng = fba.loc[pipeline].copy()
+    lng['FlowAmount'] = lng['FlowAmount'] * share
+    lng['ActivityProducedBy'] = LNG_ACTIVITY
+    remainder = fba.copy()
+    remainder.loc[pipeline, 'FlowAmount'] = remainder.loc[pipeline, 'FlowAmount'] * (
+        1.0 - share
+    )
+    fba = FlowByActivity(pd.concat([remainder, lng], ignore_index=True))
+    for attr, value in attributes_to_save.items():
+        setattr(fba, attr, value)
+    log.info(
+        f'{LNG_ACTIVITY}: {lng_mmt:.1f} MMT from GHGRP gas distribution facilities '
+        f'({100 * share:.1f}% of pipeline natural gas) for {year}'
+    )
+    return fba
+
+
+def prepare_facilities_mobile_combustion(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
+    """Facilities T_3_8 prep: LNG terminal fuel out of pipeline natural gas (#1067).
+
+    clean_fba_before_activity_sets for table 3-8 in the facilities nowcast
+    methods. Required ``clean_parameter`` key: ``year``; optional
+    ``ghgrp_year`` (default ``year``) and ``nei_year`` (default the NEI year
+    held for the GHGRP year).
+    """
+    clean_parameter = fba.config.get('clean_parameter')
+    if clean_parameter is None or 'year' not in clean_parameter:
+        raise ValueError(
+            'prepare_facilities_mobile_combustion requires clean_parameter.year'
+        )
+    return assign_lng_liquefaction_gas(fba, dict(clean_parameter))

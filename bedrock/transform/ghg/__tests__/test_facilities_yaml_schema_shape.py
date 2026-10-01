@@ -54,7 +54,11 @@ def test_facilities_yamls_wire_prep_and_activity_sets() -> None:
 
 
 def test_still_gas_attributes_to_refineries_only() -> None:
-    """Still gas is refinery fuel (#983): weight on 324110's petroleum only (#1054)."""
+    """Still gas is refinery fuel (#983): weight on refineries' petroleum only (#1054).
+
+    The cached facility source carries refineries as 32411 (industry spec); a
+    selection on '324110' alone matched nothing and dropped all still gas (#1060).
+    """
     for path in sorted(
         _GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml')
     ):
@@ -64,5 +68,5 @@ def test_still_gas_attributes_to_refineries_only() -> None:
         )[0]
         assert 'GHGRP_NEI_Facilities:' in block, path.name
         assert (
-            "SectorProducedBy: '324110'" in block
+            "SectorProducedBy: ['32411', '324110']" in block
         ), f'{path.name}: still gas must attribute to refineries only'

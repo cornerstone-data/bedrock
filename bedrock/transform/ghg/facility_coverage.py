@@ -1,9 +1,14 @@
-"""Facility coverage bands for attribution gating (#928, #1040).
+"""Facility coverage bands for attribution gating (#928, #1040, #1060).
 
 ``coverage`` is GHGRP combustion floor / (floor + NEI-only below the GHGRP
 threshold). Attribution may use facility weights only where that share clears
 :data:`ATTRIBUTION_MIN_COVERAGE`; the downward (vector) gate stays at coverage
->= 0.95 and unresolved <= 0.05.
+>= 0.95 and unresolved <= 0.05, and (#1060) is closed to a sector whose
+facilities report :data:`MIN_MT_FOR_VECTOR_TEST` or more under source-category
+subparts (cement H, lime S, glass N, iron and steel Q, refineries Y, ...).
+Those subparts report kiln and furnace fuel together with process emissions,
+so part of the sector's fuel can be invisible to the facility fuel shares; the
+floor keeps at least the MECS share for each fuel.
 
 Hybrid production modes (#1040) use :func:`modes_median_freeze`: one
 facility-vs-MECS side per sector from median coverage over
@@ -29,6 +34,7 @@ import stewi
 
 from bedrock.extract.stewifbs.facility_combustion import (
     FACILITY_SCOPE_PREFIXES,
+    GHGRP_EXCLUDED_SUBPARTS,
     GHGRP_FLOW_MAP,
     build_facility_combustion,
     facility_sectors,
@@ -65,6 +71,15 @@ NEI_LAST_YEAR = 2022
 
 FACILITY_MODES = frozenset({'facility_floor', 'facility_vector'})
 MECS_MODE = 'keep_prior'
+
+#: GHGRP subparts whose fuel the facility fuel shares can see: general
+#: stationary combustion (C) and oil and gas combustion (W).
+COMBUSTION_SUBPARTS = frozenset({'C', 'W'})
+
+#: Version of the coverage bands; part of the cache filename, so a definition
+#: change never reuses bands cached under the old one. 2: subpart C labeled as
+#: fuel, and no vector mode with process-subpart emissions (#1060).
+COVERAGE_DEFINITION_VERSION = 2
 
 
 def _naics_to_bea_detail() -> pd.Series:
@@ -136,6 +151,63 @@ def ghgrp_subpart_C_by_sector(year: int) -> pd.Series:
     return out.drop(index='221100', errors='ignore')
 
 
+def ghgrp_process_subparts_by_sector(year: int) -> pd.Series:
+    """GHGRP emissions outside the combustion subparts by BEA detail, Mt CO2e.
+
+    Everything a sector's facilities report under subparts other than C and W
+    (and the excluded power subpart D): process emissions plus any kiln or
+    furnace fuel those subparts report with them (#1060).
+    """
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    to_bea = _naics_to_bea_detail()
+    flows = stewi.getInventory(
+        'GHGRP', year=year, stewiformat='flowbyprocess', download_if_missing=True
+    )
+    other = flows[
+        ~flows['Process'].isin(COMBUSTION_SUBPARTS | GHGRP_EXCLUDED_SUBPARTS)
+        & flows['FlowName'].isin(GHGRP_FLOW_MAP)
+    ].copy()
+    other['CO2e'] = other['FlowAmount'] * other['FlowName'].map(GHGRP_FLOW_MAP).map(gwp)
+    facilities = stewi.getInventoryFacilities('GHGRP', year, download_if_missing=True)[
+        ['FacilityID', 'NAICS', 'State']
+    ]
+    other = other.merge(facilities, on='FacilityID', how='left')
+    other['sector'] = other['NAICS'].map(lambda n: _bea_of(n, to_bea))
+    other = _drop_outside_geography(other, 'CO2e', 'GHGRP process subparts', year)
+    resolved = other.dropna(subset=['sector'])
+    out = resolved.groupby('sector')['CO2e'].sum() / 1e9
+    return out.drop(index='221100', errors='ignore')
+
+
+def coverage_from_components(
+    ghgrp_Mt: pd.Series,
+    nei_below_Mt: pd.Series,
+    nei_above_Mt: pd.Series,
+    process_subparts_Mt: pd.Series,
+) -> pd.DataFrame:
+    """Coverage and unresolved share from the per-sector components, Mt CO2e.
+
+    ``coverage`` = GHGRP combustion / (GHGRP combustion + NEI below the GHGRP
+    threshold). ``unresolved`` = NEI above the threshold not matched to GHGRP
+    / combustion total. ``process_subparts_Mt`` is carried for the vector
+    test (#1060) and does not enter coverage. Sectors with no facility
+    combustion are dropped.
+    """
+    out = pd.DataFrame(
+        {
+            'ghgrp_Mt': ghgrp_Mt,
+            'nei_below_Mt': nei_below_Mt,
+            'nei_above_Mt': nei_above_Mt,
+        }
+    ).fillna(0.0)
+    out['total_Mt'] = out.sum(axis=1)
+    out = out[out['total_Mt'] > 0]
+    out['process_subparts_Mt'] = process_subparts_Mt.reindex(out.index).fillna(0.0)
+    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
+    out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
+    return out
+
+
 def ghgrp_subpart_W_by_sector(year: int, *, nei_year: int | None = None) -> pd.Series:
     """Subpart W combustion by BEA detail, Mt CO2e, for one year.
 
@@ -201,22 +273,21 @@ def facility_coverage_bands(
     per_facility = nei.groupby(['FacilityID', 'sector'])['CO2e'].sum().reset_index()
     big = per_facility['CO2e'] > GHGRP_THRESHOLD_KG
 
-    out = pd.DataFrame(
-        {
-            'ghgrp_Mt': floor,
-            'nei_below_Mt': per_facility[~big].groupby('sector')['CO2e'].sum() / 1e9,
-            'nei_above_Mt': per_facility[big].groupby('sector')['CO2e'].sum() / 1e9,
-        }
-    ).fillna(0.0)
-    out['total_Mt'] = out.sum(axis=1)
-    out = out[out['total_Mt'] > 0]
-    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
-    out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
+    out = coverage_from_components(
+        floor,
+        per_facility[~big].groupby('sector')['CO2e'].sum() / 1e9,
+        per_facility[big].groupby('sector')['CO2e'].sum() / 1e9,
+        ghgrp_process_subparts_by_sector(year),
+    )
     testable = out['total_Mt'] >= min_Mt
+    # #1060: fuel reported inside a process subpart is invisible to the fuel
+    # shares, so such a sector stays on the floor (at least its MECS share).
+    process_fuel_possible = out['process_subparts_Mt'] >= min_Mt
     out['verdict'] = np.where(
         testable
         & (out['coverage'] >= coverage_floor)
-        & (out['unresolved'] <= unresolved_ceiling),
+        & (out['unresolved'] <= unresolved_ceiling)
+        & ~process_fuel_possible,
         'vector',
         'floor',
     )
@@ -280,7 +351,9 @@ def load_or_build_coverage_bands(
     """:func:`facility_coverage_bands` with an on-disk parquet cache."""
     year = int(year)
     nei_year = int(nei_year if nei_year is not None else nei_year_for_method(year))
-    path = _coverage_bands_cache_dir() / f'bands_{year}_nei{nei_year}.parquet'
+    path = _coverage_bands_cache_dir() / (
+        f'bands_v{COVERAGE_DEFINITION_VERSION}_{year}_nei{nei_year}.parquet'
+    )
     if path.exists() and not refresh:
         return pd.read_parquet(path)
     bands = facility_coverage_bands(year, nei_year=nei_year)
