@@ -81,6 +81,7 @@ OUT_COLUMNS = [
     'fbs_comparable_CO2_Mt',
     'above_ceiling',
     'ch4_n2o_short_Mt',
+    'co2_below_ghgrp',
 ]
 #: Numerical tolerance for the floor and ceiling comparisons, Mt.
 CEILING_TOL_MT = 1e-6
@@ -232,6 +233,11 @@ def compare(
     out['above_ceiling'] = capped & (
         out['fbs_comparable_CO2_Mt'] > out['ghgrp_CO2_Mt'] + CEILING_TOL_MT
     )
+    # Per-gas flag (#1061 review): CO2 alone below the facilities' CO2, even
+    # where CH4/N2O carry the sector over its CO2e floor.
+    out['co2_below_ghgrp'] = (
+        out['fbs_comparable_CO2_Mt'] < out['ghgrp_CO2_Mt'] - CEILING_TOL_MT
+    )
     return out[OUT_COLUMNS]
 
 
@@ -302,6 +308,21 @@ def report(df: pd.DataFrame) -> pd.DataFrame:
         short['ch4_n2o_short_Mt'].sum(),
         short.sort_values('ch4_n2o_short_Mt', ascending=False)[
             ['sector', 'year', 'ch4_n2o_short_Mt']
+        ]
+        .head(25)
+        .round(2)
+        .to_string(index=False),
+    )
+    low = df[df['co2_below_ghgrp']].assign(
+        co2_short_Mt=lambda d: d['ghgrp_CO2_Mt'] - d['fbs_comparable_CO2_Mt']
+    )
+    logger.info(
+        'Sector-years whose comparable CO2 is below their GHGRP CO2 (per gas; the '
+        'CO2e floor may still hold): %d, %.2f Mt\n%s',
+        len(low),
+        low['co2_short_Mt'].sum(),
+        low.sort_values('co2_short_Mt', ascending=False)[
+            ['sector', 'year', 'median_coverage', 'ghgrp_CO2_Mt', 'co2_short_Mt']
         ]
         .head(25)
         .round(2)

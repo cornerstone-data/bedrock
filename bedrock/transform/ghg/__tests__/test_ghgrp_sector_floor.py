@@ -197,3 +197,17 @@ def test_apply_ceiling_trims_fully_covered_sectors_and_gives_back(
     labels = out.groupby('AttributionSources')['FlowAmount'].sum()
     assert labels[gf.FLOOR_ATTRIBUTION] == pytest.approx(5.0)
     assert labels[gf.CEILING_ATTRIBUTION] == pytest.approx(5.0)
+
+
+def test_donors_are_held_at_their_ghgrp_co2() -> None:
+    """A donor whose CO2e slack is methane gives no more than its CO2 slack."""
+    have = pd.Series({'a': 0.0, 'gassy': 100.0, 'plain': 100.0})
+    floor = pd.Series({'a': 30.0, 'gassy': 50.0, 'plain': 50.0})
+    pool = pd.DataFrame(
+        {'Natural Gas': [1.0, 50.0, 50.0]}, index=['a', 'gassy', 'plain']
+    )
+    # 'gassy' has 50 of CO2e slack but only 5 of CO2 above its GHGRP CO2.
+    co2_slack = pd.Series({'gassy': 5.0, 'plain': 50.0})
+    add, give, _ = gf.floor_moves(have, floor, pool, co2_slack=co2_slack)
+    assert give.loc['gassy'].sum() <= 5.0 + 1e-12
+    assert give['Natural Gas'].sum() == pytest.approx(30.0)

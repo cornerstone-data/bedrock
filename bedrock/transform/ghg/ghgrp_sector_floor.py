@@ -168,6 +168,25 @@ def median_coverage(codes: pd.Index) -> pd.Series:
     )
     median = panel.median(axis=1)
     bea = pd.Series([fc.bea_detail_for_naics(c) for c in codes], index=codes)
+    # Guard (#1061 review): a code that does not resolve to a BEA sector, or
+    # whose sector has no coverage row, gets 0 and so can neither be capped
+    # nor donate. Say so rather than let it pass silently.
+    unmapped = sorted(str(c) for c in bea.index[bea.isna()])
+    no_row = sorted(str(c) for c in bea.index[bea.notna() & ~bea.isin(median.index)])
+    if unmapped:
+        logger.warning(
+            'GHGRP floor: %d sector codes do not resolve to a BEA sector and get '
+            'coverage 0: %s',
+            len(unmapped),
+            unmapped,
+        )
+    if no_row:
+        logger.info(
+            'GHGRP floor: %d sector codes have no facility coverage row (no '
+            'facility combustion) and get coverage 0: %s',
+            len(no_row),
+            no_row,
+        )
     return bea.map(median).fillna(0.0)
 
 
@@ -177,6 +196,7 @@ def floor_moves(
     pool: pd.DataFrame,
     eligible: pd.Index | None = None,
     first: pd.Series | None = None,
+    co2_slack: pd.Series | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     """CO2 to add to recipients and to take from donors, both sector x fuel, kg.
 
@@ -189,8 +209,11 @@ def floor_moves(
     its need (industrial coal sits almost entirely with GHGRP reporters already
     near their floors), the rest of each recipient's need in that fuel moves to
     the fuels with spare capacity, in proportion to the spare. Only sectors in
-    *eligible* (all, if None) can donate. Raises only if all fuels together
-    cannot cover the deficits. Returns (add, give, used from *first*).
+    *eligible* (all, if None) can donate. *co2_slack* (by sector) further caps
+    each donor at its CO2 above its own GHGRP CO2, so giving CO2 never takes a
+    donor below its GHGRP CO2 while its methane carries the CO2e slack. Raises
+    only if all fuels together cannot cover the deficits. Returns (add, give,
+    used from *first*).
     """
     pool = pool.reindex(columns=list(FUEL_SETS)).fillna(0.0)
     first = (first if first is not None else pd.Series(dtype=float)).reindex(
@@ -214,6 +237,11 @@ def floor_moves(
     if eligible is not None:
         donors = donors[donors.index.isin(eligible)]
     slack = (have - need).clip(lower=0.0).reindex(donors.index)
+    if co2_slack is not None:
+        slack = pd.concat(
+            [slack, co2_slack.reindex(donors.index).fillna(0.0).clip(lower=0.0)],
+            axis=1,
+        ).min(axis=1)
     share = (slack / donors.sum(axis=1)).clip(upper=1.0)
     capacity = donors.mul(share, axis=0)
     wanted = add.sum()
@@ -342,7 +370,9 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
     have = sector_co2e.copy()
     have.loc[pinned] = comparable_after.reindex(pinned).fillna(0.0)
     floor.loc[pinned] = ceiling.reindex(pinned)
-    add, give, used = floor_moves(have, floor, pool, eligible, released)
+    # Donors give CO2, so they are also held at their GHGRP CO2 (comparable).
+    co2_slack = comparable_after - ceiling.reindex(comparable_after.index).fillna(0.0)
+    add, give, used = floor_moves(have, floor, pool, eligible, released, co2_slack)
     if not give.empty:
         factor = cast(pd.Series, (1.0 - give / pool.reindex(index=give.index)).stack())
         rows = pool_rows & sector.isin(give.index)
