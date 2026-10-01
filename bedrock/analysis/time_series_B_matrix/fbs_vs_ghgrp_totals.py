@@ -80,6 +80,7 @@ OUT_COLUMNS = [
     'ghgrp_CO2_Mt',
     'fbs_comparable_CO2_Mt',
     'above_ceiling',
+    'ch4_n2o_short_Mt',
 ]
 #: Numerical tolerance for the floor and ceiling comparisons, Mt.
 CEILING_TOL_MT = 1e-6
@@ -214,11 +215,21 @@ def compare(
         rows.append(d.rename_axis('sector').reset_index())
     out = pd.concat(rows, ignore_index=True)
     out['fbs_over_ghgrp'] = out['fbs_Mt'] / out['ghgrp_Mt']
-    out['below_ghgrp'] = out['fbs_Mt'] < out['ghgrp_Mt'] - CEILING_TOL_MT
     out['median_coverage'] = out['sector'].map(median_coverage())
+    capped = out['median_coverage'] >= fc.VECTOR_COVERAGE_FLOOR
+    # Floor: CO2e everywhere, except where coverage is essentially complete,
+    # which is judged per gas on CO2 (the floor pins it there, #1060); their
+    # CH4/N2O shortfall is reported in ch4_n2o_short_Mt, not failed.
+    out['below_ghgrp'] = (
+        ~capped & (out['fbs_Mt'] < out['ghgrp_Mt'] - CEILING_TOL_MT)
+    ) | (capped & (out['fbs_comparable_CO2_Mt'] < out['ghgrp_CO2_Mt'] - CEILING_TOL_MT))
+    # With CO2 pinned, a fully covered sector's remaining CO2e gap is CH4/N2O.
+    out['ch4_n2o_short_Mt'] = (
+        (out['ghgrp_Mt'] - out['fbs_Mt']).clip(lower=0.0).where(capped, 0.0)
+    )
     # Ceiling: where coverage is essentially complete, comparable CO2 is at
     # most what the facilities report.
-    out['above_ceiling'] = (out['median_coverage'] >= fc.VECTOR_COVERAGE_FLOOR) & (
+    out['above_ceiling'] = capped & (
         out['fbs_comparable_CO2_Mt'] > out['ghgrp_CO2_Mt'] + CEILING_TOL_MT
     )
     return out[OUT_COLUMNS]
@@ -278,6 +289,19 @@ def report(df: pd.DataFrame) -> pd.DataFrame:
         over['over_Mt'].sum(),
         over.sort_values('over_Mt', ascending=False)[
             ['sector', 'year', 'ghgrp_CO2_Mt', 'fbs_comparable_CO2_Mt', 'over_Mt']
+        ]
+        .head(25)
+        .round(2)
+        .to_string(index=False),
+    )
+    short = df[df['ch4_n2o_short_Mt'] > CEILING_TOL_MT]
+    logger.info(
+        'Fully covered sector-years with CO2 at GHGRP but CH4/N2O short of it '
+        '(reported, not filled): %d, %.2f Mt\n%s',
+        len(short),
+        short['ch4_n2o_short_Mt'].sum(),
+        short.sort_values('ch4_n2o_short_Mt', ascending=False)[
+            ['sector', 'year', 'ch4_n2o_short_Mt']
         ]
         .head(25)
         .round(2)

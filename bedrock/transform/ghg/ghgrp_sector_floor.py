@@ -27,7 +27,9 @@ national total is unchanged:
    the CO2 the ceiling released, in the same fuel, then from donor sectors
    whose median coverage clears the attribution gate (0.8) and are not
    capped, each giving in proportion to its slack above its own floor. Where
-   a fuel cannot cover its need, the rest moves to fuels with spare capacity;
+   a fuel cannot cover its need, the rest moves to fuels with spare capacity.
+   Capped sectors take the floor per gas: their comparable CO2 is pinned to
+   their GHGRP CO2, and any CH4/N2O shortfall is reported, not filled with CO2;
 3. released CO2 the floor did not use goes to in-scope sectors whose median
    coverage is below the attribution gate (mostly small facilities GHGRP
    cannot see), in proportion to their combustion in that fuel.
@@ -327,7 +329,17 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
     ghg = weight.notna() & in_scope
     sector_co2e = (out.loc[ghg, 'FlowAmount'] * weight[ghg]).groupby(sector[ghg]).sum()
     floor = match_to_sectors(ghgrp_co2e_by_naics(year), pd.Index(sector_co2e.index))
-    add, give, used = floor_moves(sector_co2e, floor, pool, eligible, released)
+    # Fully covered sectors take the floor per gas: their comparable CO2 is
+    # pinned to their GHGRP CO2 from both sides, and a CH4/N2O shortfall (e.g.
+    # biomass combustion at paper mills) is reported, not filled with CO2.
+    pinned = ceiling.index.intersection(capped)
+    comparable_after = (
+        out.loc[comparable].groupby(sector[comparable])['FlowAmount'].sum()
+    )
+    have = sector_co2e.copy()
+    have.loc[pinned] = comparable_after.reindex(pinned).fillna(0.0)
+    floor.loc[pinned] = ceiling.reindex(pinned)
+    add, give, used = floor_moves(have, floor, pool, eligible, released)
     if not give.empty:
         factor = (1.0 - give / pool.reindex(index=give.index)).stack()
         rows = pool_rows & sector.isin(give.index)
