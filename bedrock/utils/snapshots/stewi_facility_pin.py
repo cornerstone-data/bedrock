@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -10,8 +11,11 @@ from typing import Any
 
 import facilitymatcher.globals as fm_globals
 import stewi.globals as stewi_globals
+from esupy.processed_data_mgmt import FileMeta
 
+from bedrock.utils.config.settings import FBS_DIR, WRITE_FORMAT
 from bedrock.utils.io.gcp import download_gcs_file
+from bedrock.utils.io.read import find_file
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +24,11 @@ DEFAULT_STEWI_FACILITY_PIN = _SNAPSHOT_BASE / 'stewi_facility_pin.json'
 
 #: Set to ``0`` / ``false`` / ``off`` to skip pin download + checks.
 _ENV_PIN = 'BEDROCK_STEWI_FACILITY_PIN'
+
+_MATCHER_STEMS = (
+    'FacilityMatchList_forStEWI',
+    'FRS_NAICSforStEWI',
+)
 
 
 def pin_enforced() -> bool:
@@ -207,6 +216,137 @@ def check_stewi_facility_pin(
                 f'pin={spec["filename"]} also={rivals}'
             )
     return problems
+
+
+def pin_manifest_sha256(pin_json_path: str | Path | None = None) -> str:
+    """SHA256 of the committed pin JSON bytes (provenance, not GCS objects)."""
+    path = Path(pin_json_path or DEFAULT_STEWI_FACILITY_PIN)
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _newest_parquet_stem(directory: Path, name_data: str) -> str | None:
+    if not directory.is_dir():
+        return None
+    matches = sorted(
+        directory.glob(f'{name_data}_v*.parquet'),
+        key=lambda p: p.stat().st_ctime,
+        reverse=True,
+    )
+    return matches[0].name if matches else None
+
+
+def _inventory_name_data(inventory: str, year: str | int) -> str:
+    return f'{inventory}_{year}'
+
+
+def resolve_inventory_local_files(
+    inventory_dict: dict[str, str | int],
+    *,
+    pin: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Map each inventory year to local parquet stems actually present.
+
+    Prefer the pin stem when that file exists; otherwise the newest ctime
+    match (same rule stewi / :func:`find_file` use).
+    """
+    pin = pin if pin is not None else load_stewi_facility_pin()
+    categories = [str(c) for c in pin['stewi']['categories']]
+    pin_inv: dict[str, str] = pin['stewi']['inventories']
+    stewi_root = _local_base('stewi')
+    out: dict[str, Any] = {}
+    for inventory, year in inventory_dict.items():
+        name_data = _inventory_name_data(str(inventory), year)
+        pin_vh = pin_inv.get(name_data)
+        cats: dict[str, str | None] = {}
+        for cat in categories:
+            pinned_name = f'{name_data}_{pin_vh}.parquet' if pin_vh else None
+            cat_dir = stewi_root / cat
+            if pinned_name and (cat_dir / pinned_name).is_file():
+                cats[cat] = pinned_name
+            else:
+                cats[cat] = _newest_parquet_stem(cat_dir, name_data)
+        matches_pin = bool(pin_vh) and all(
+            cats.get(cat) == f'{name_data}_{pin_vh}.parquet' for cat in categories
+        )
+        out[name_data] = {
+            'pin_version_hash': pin_vh,
+            'categories': cats,
+            'matches_pin': matches_pin,
+        }
+    return out
+
+
+def resolve_facilitymatcher_local_files(
+    *,
+    pin: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Local facilitymatcher parquet stems vs the pin."""
+    pin = pin if pin is not None else load_stewi_facility_pin()
+    fm_dir = _local_base('facilitymatcher')
+    pinned = [str(n) for n in pin['facilitymatcher']['files']]
+    local_by_stem: dict[str, str | None] = {}
+    for stem in _MATCHER_STEMS:
+        pinned_for_stem = next((n for n in pinned if n.startswith(f'{stem}_')), None)
+        if pinned_for_stem and (fm_dir / pinned_for_stem).is_file():
+            local_by_stem[stem] = pinned_for_stem
+            continue
+        local_by_stem[stem] = _newest_parquet_stem(fm_dir, stem)
+    return {
+        'pinned': pinned,
+        'local': local_by_stem,
+        'matches_pin': all(local_by_stem.get(stem) in pinned for stem in _MATCHER_STEMS)
+        and all(local_by_stem.values()),
+    }
+
+
+def resolve_energy_fbs_filename(mecs_method: str) -> str | None:
+    """Filename of the Energy FBS ``find_file`` would load for *mecs_method*."""
+    meta = FileMeta()
+    meta.name_data = mecs_method
+    meta.ext = WRITE_FORMAT or 'parquet'
+    try:
+        path = find_file(meta, str(FBS_DIR))
+    except FileNotFoundError:
+        return None
+    return Path(path).name
+
+
+def facility_attribution_source_metadata(
+    inventory_dict: dict[str, str | int],
+    *,
+    mecs_method: str | None = None,
+    name_data: str | None = None,
+    pin_json_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Provenance for facilities / Hybrid FBS attribution sources.
+
+    Used when FBS metadata would otherwise record
+    ``No metadata found for GHGRP_NEI_Facilities`` (or Hybrid): records the
+    stewi inventory stems, facilitymatcher stems, pin manifest, and optional
+    Energy FBS filename actually present locally.
+    """
+    pin_path = Path(pin_json_path or DEFAULT_STEWI_FACILITY_PIN)
+    pin = load_stewi_facility_pin(pin_path)
+    tool_meta: dict[str, Any] = {
+        'inventories': resolve_inventory_local_files(inventory_dict, pin=pin),
+        'facilitymatcher': resolve_facilitymatcher_local_files(pin=pin),
+        'stewi_facility_pin': {
+            'path': str(pin_path),
+            'sha256': pin_manifest_sha256(pin_path),
+            'enforced': pin_enforced(),
+        },
+    }
+    if mecs_method:
+        tool_meta['energy_fbs'] = {
+            'method': mecs_method,
+            'filename': resolve_energy_fbs_filename(mecs_method),
+        }
+    return {
+        'tool': 'bedrock',
+        'category': 'facility_attribution',
+        'name_data': name_data or 'facility_attribution',
+        'tool_meta': tool_meta,
+    }
 
 
 def main() -> None:
