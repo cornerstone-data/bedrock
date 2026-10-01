@@ -13,10 +13,10 @@
 #
 # use_facility_ghg_attribution selects the facility-attribution GHG FBS
 # (GHG_national_Cornerstone_nowcast_facilities_2019), unpinned: the loader
-# takes the newest GCS parquet for that stem. As of 2026-09-30 that is
-# v0.3.0_8e466cd (CoA census interpolation #1050; attributed on the
-# 6abf5c0 MUT / Use tables); it must be rebuilt on the 3096818 tables with
-# #1055 before release).
+# takes the newest GCS parquet for that stem. The v0.5 release FBS, built
+# from main 0e1b0f01 on the 3096818 tables (#1055, #1059), is
+# GHG_national_Cornerstone_nowcast_facilities_2019_v0.3.0_0e1b0f0.parquet
+# sha256 ab78eebdadf7269e10f47cd7f17367ba9c1fad03e73fce214bacdc26fb982861
 
 #####
 # Model base settings
