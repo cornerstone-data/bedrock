@@ -194,3 +194,39 @@ def test_prepare_carves_lease_and_splits_petroleum(
     )
     assert abs(still - 60.0) < 1e-9
     assert abs(distillate - 40.0) < 1e-9
+
+
+def test_hydrogen_carve_takes_subpart_p_from_manufacturing_natural_gas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1060: subpart P CO2e moves to its own activity; the total is unchanged."""
+    fba = _minimal_fba(
+        [
+            {
+                'ActivityProducedBy': 'Natural Gas Industrial - Manufacturing',
+                'FlowAmount': 200.0,
+                'Year': 2022,
+            },
+            {
+                'ActivityProducedBy': 'Natural Gas Industrial',
+                'FlowAmount': 100.0,
+                'Year': 2022,
+            },
+        ],
+        {},
+    )
+    ghgrp = pd.DataFrame(
+        {
+            'FacilityID': ['h1', 'h2', 'c1'],
+            'Process': ['P', 'P', 'C'],
+            'FlowName': ['Carbon Dioxide'] * 3,
+            'FlowAmount': [20.0e9, 7.0e9, 50.0e9],  # kg
+        }
+    )
+    monkeypatch.setattr(UMD_GHGIA.stewi, 'getInventory', lambda *a, **k: ghgrp)
+    out = UMD_GHGIA.assign_hydrogen_natural_gas(fba, {'year': 2022, 'ghgrp_year': 2022})
+    by = out.groupby('ActivityProducedBy')['FlowAmount'].sum()
+    assert by[UMD_GHGIA.HYDROGEN_ACTIVITY] == pytest.approx(27.0)
+    assert by['Natural Gas Industrial - Manufacturing'] == pytest.approx(173.0)
+    assert by['Natural Gas Industrial'] == pytest.approx(100.0)
+    assert out['FlowAmount'].sum() == pytest.approx(300.0)

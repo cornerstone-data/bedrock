@@ -66,6 +66,8 @@ FACILITY_SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
 NEI_FUEL_CLASS_FIRST_YEAR = 2021
 _FUEL_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum', 'Other')
 COMBUSTION_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum')
+LEASE_PLANT_FLOWABLE = 'Natural Gas - lease and plant'
+HYDROGEN_FLOWABLE = 'Natural Gas - hydrogen production'
 COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
 
 # GWP100_AR5.
@@ -792,37 +794,53 @@ def build_facility_combustion(
     union = union.assign(year=year)
     union_mt = float(union['CO2e'].sum()) / 1e9
 
-    # Lease and plant natural gas, for YAML selection only. Not part of the
-    # prefer-GHGRP level total. Distinct Flowable; FBS has no Description column.
+    def share_weight_rows(
+        by_facility: pd.Series, fuel_class: str, flowable: str
+    ) -> pd.DataFrame:
+        rows = (
+            by_facility.rename('CO2e')
+            .reset_index()
+            .join(ghgrp_sectors, on='FacilityID')
+            .assign(source='GHGRP', fuel_class=fuel_class, Flowable=flowable, year=year)
+        )
+        rows = rows[rows['CO2e'] > 0]
+        if exclude_sectors:
+            rows = rows[~rows['sector'].astype(str).isin(exclude_sectors)]
+        rows = rows[
+            rows['sector'].notna()
+            & rows['sector'].astype(str).str.strip().str[:2].isin(sector_prefixes)
+        ]
+        for col in set(union.columns) - set(rows.columns):
+            rows[col] = np.nan
+        return rows[union.columns]
+
+    # Share-weight rows for YAML selection only, not part of the prefer-GHGRP
+    # level total; a distinct Flowable each, as FBS has no Description column.
+    # Lease and plant natural gas (subpart W):
     lease_plant_fuel = ghgrp_subpart_w.lease_and_plant_fuel((year,), {year: subpart_c})
     if not lease_plant_fuel.empty:
-        lease_plant = (
-            lease_plant_fuel.groupby('FacilityID', as_index=False)['CO2e']
-            .sum()
-            .join(ghgrp_sectors, on='FacilityID')
-            .assign(
-                source='GHGRP',
-                fuel_class='lease and plant',
-                Flowable='Natural Gas - lease and plant',
-                year=year,
-            )
+        union = pd.concat(
+            [
+                union,
+                share_weight_rows(
+                    lease_plant_fuel.groupby('FacilityID')['CO2e'].sum(),
+                    'lease and plant',
+                    LEASE_PLANT_FLOWABLE,
+                ),
+            ],
+            ignore_index=True,
         )
-        lease_plant = lease_plant[lease_plant['CO2e'] > 0]
-        if exclude_sectors:
-            lease_plant = lease_plant[
-                ~lease_plant['sector'].astype(str).isin(exclude_sectors)
-            ]
-        lease_plant = lease_plant[
-            lease_plant['sector'].notna()
-            & lease_plant['sector']
-            .astype(str)
-            .str.strip()
-            .str[:2]
-            .isin(sector_prefixes)
-        ]
-        for col in set(union.columns) - set(lease_plant.columns):
-            lease_plant[col] = np.nan
-        union = pd.concat([union, lease_plant[union.columns]], ignore_index=True)
+    # Natural gas feedstock for hydrogen production (subpart P, #1060): merchant
+    # plants (325120) and refineries' captive plants.
+    hydrogen = flows[flows['Process'] == 'P'].groupby('FacilityID')['CO2e'].sum()
+    if not hydrogen.empty:
+        union = pd.concat(
+            [
+                union,
+                share_weight_rows(hydrogen, 'hydrogen production', HYDROGEN_FLOWABLE),
+            ],
+            ignore_index=True,
+        )
 
     n_facilities = int(union['FacilityID'].nunique())
     log.info(

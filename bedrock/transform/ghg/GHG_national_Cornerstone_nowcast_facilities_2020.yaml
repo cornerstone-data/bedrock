@@ -130,6 +130,19 @@
                selection_fields:
                  Flowable: Natural Gas - lease and plant
 
+         # Natural gas reformed into hydrogen, carved from manufacturing natural
+         # gas by the GHGRP subpart P amount and attributed to the reporting
+         # plants' sectors: industrial gases and refineries (#1060).
+         natural_gas_hydrogen:
+           selection_fields:
+             PrimaryActivity:
+               - Natural Gas Industrial - Hydrogen Production
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Natural Gas - hydrogen production
+
          natural_gas_nonmanufacturing:
            selection_fields:
              PrimaryActivity:

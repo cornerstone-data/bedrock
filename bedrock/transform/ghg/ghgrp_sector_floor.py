@@ -14,7 +14,8 @@ combustion CO2 **in its own fuel mix** across the shared industrial-combustion
 fuels (:data:`FUEL_SETS`: coal, natural gas, petroleum): its own combustion
 mix in the FBS, else its NAICS-4 then NAICS-3
 parent's, else the whole pool's. Each fuel's deficit comes only from that
-fuel's activity sets in other sectors. Donors give in proportion to their
+fuel's activity sets in other sectors whose median facility coverage clears
+the attribution gate (0.8). Donors give in proportion to their
 slack above their own floor, spread over their fuels, so no donor is pushed
 below its floor. Within a fuel, recipients take the activity-set mix the
 donors gave, so every activity set's national total is unchanged. Lease and
@@ -31,6 +32,7 @@ import logging
 import pandas as pd
 import stewi
 
+from bedrock.transform.ghg import facility_coverage as fc
 from bedrock.transform.ghg.facility_coverage import _drop_outside_geography
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 
@@ -126,8 +128,30 @@ def fuel_mix(pool: pd.DataFrame, sector: str) -> pd.Series:
     raise ValueError('GHGRP floor: the combustion pool is empty')
 
 
+def well_covered_sectors(codes: pd.Index) -> pd.Index:
+    """FBS sector codes whose facility coverage clears the attribution gate.
+
+    Coverage is the sector's median over :data:`fc.MODE_FREEZE_YEARS`, as the
+    #1040 mode freeze uses it, against :data:`fc.ATTRIBUTION_MIN_COVERAGE`.
+    Sectors with no facility combustion have no coverage and are not eligible.
+    """
+    panel = pd.concat(
+        [
+            fc.load_or_build_coverage_bands(y).set_index('sector')['coverage']
+            for y in fc.MODE_FREEZE_YEARS
+        ],
+        axis=1,
+    )
+    median = panel.median(axis=1)
+    bea = pd.Series([fc.bea_detail_for_naics(c) for c in codes], index=codes)
+    return codes[bea.map(median).fillna(0.0).to_numpy() >= fc.ATTRIBUTION_MIN_COVERAGE]
+
+
 def floor_moves(
-    sector_co2: pd.Series, floor: pd.Series, pool: pd.DataFrame
+    sector_co2: pd.Series,
+    floor: pd.Series,
+    pool: pd.DataFrame,
+    eligible: pd.Index | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """CO2 to add to recipients and to take from donors, both sector x fuel, kg.
 
@@ -139,7 +163,8 @@ def floor_moves(
     cannot cover its need (industrial coal sits almost entirely with GHGRP
     reporters already near their floors), the rest of each recipient's need
     in that fuel moves to the fuels with spare capacity, in proportion to the
-    spare. Raises only if all fuels together cannot cover the deficits.
+    spare. Only sectors in *eligible* (all, if None) can donate. Raises only
+    if all fuels together cannot cover the deficits.
     """
     pool = pool.reindex(columns=list(FUEL_SETS)).fillna(0.0)
     sectors = sector_co2.index.union(floor.index).union(pool.index)
@@ -156,6 +181,8 @@ def floor_moves(
 
     donors = pool.drop(index=deficit.index, errors='ignore')
     donors = donors[donors.sum(axis=1) > 0]
+    if eligible is not None:
+        donors = donors[donors.index.isin(eligible)]
     slack = (have - need).clip(lower=0.0).reindex(donors.index)
     share = (slack / donors.sum(axis=1)).clip(upper=1.0)
     capacity = donors.mul(share, axis=0)
@@ -205,7 +232,10 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
         .sum()
         .unstack(fill_value=0.0)
     )
-    add, give = floor_moves(sector_co2, floor, pool)
+    # Donors: only sectors whose facility coverage clears the attribution
+    # gate, where emissions well above GHGRP are the likeliest over-attribution.
+    eligible = well_covered_sectors(pd.Index(pool.index.astype(str)))
+    add, give = floor_moves(sector_co2, floor, pool, eligible)
     if add.empty:
         logger.info('GHGRP floor %d: no sector below its GHGRP CO2', year)
         return fbs

@@ -79,6 +79,17 @@ def test_floor_moves_raise_when_all_fuels_cannot_cover() -> None:
         gf.floor_moves(have, floor, pool)
 
 
+def test_only_eligible_sectors_donate() -> None:
+    have = pd.Series({'a': 0.0, 'good': 100.0, 'poor': 100.0})
+    floor = pd.Series({'a': 30.0})
+    pool = pd.DataFrame(
+        {'Natural Gas': [1.0, 100.0, 100.0]}, index=['a', 'good', 'poor']
+    )
+    add, give = gf.floor_moves(have, floor, pool, eligible=pd.Index(['good']))
+    assert give.index.tolist() == ['good']
+    assert give.loc['good', 'Natural Gas'] == pytest.approx(30.0)
+
+
 def _row(
     sector: str, meta: str, amount: float, flowable: str = gf.CO2
 ) -> dict[str, object]:
@@ -113,6 +124,7 @@ def test_apply_floor_conserves_each_activity_set_and_spares_still_gas(
             {'327310': 64.0, '311221': 10.0, '325110': 5.0, '324110': 90.0}
         ),
     )
+    monkeypatch.setattr(gf, 'well_covered_sectors', lambda codes: codes)
     out = gf.apply_ghgrp_sector_floor(fbs, 2022)
     co2 = out[out['Flowable'] == gf.CO2]
     by_sector = co2.groupby('SectorProducedBy')['FlowAmount'].sum()
