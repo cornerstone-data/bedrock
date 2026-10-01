@@ -128,7 +128,7 @@ def test_apply_floor_conserves_each_activity_set_and_spares_still_gas(
     monkeypatch.setattr(
         gf, 'median_coverage', lambda codes: pd.Series(0.9, index=codes)
     )
-    out = gf.apply_ghgrp_sector_floor(fbs, 2022)
+    out = gf.apply_ghgrp_sector_floor(fbs, gf.SPILL_ANCHOR_YEAR)
     co2 = out[out['Flowable'] == gf.CO2]
     by_sector = co2.groupby('SectorProducedBy')['FlowAmount'].sum()
     assert by_sector['327310'] == pytest.approx(64.0)
@@ -180,7 +180,7 @@ def test_apply_ceiling_trims_fully_covered_sectors_and_gives_back(
         'median_coverage',
         lambda codes: pd.Series([cov[c] for c in codes], index=codes),
     )
-    out = gf.apply_ghgrp_sector_floor(fbs, 2022)
+    out = gf.apply_ghgrp_sector_floor(fbs, gf.SPILL_ANCHOR_YEAR)
     by = out.groupby(['SectorProducedBy', 'MetaSources'])['FlowAmount'].sum()
     assert by[('32411', NG_MFG)] == pytest.approx(110.0)  # 210 comparable -> 200
     assert by[('32411', STILL_GAS)] == pytest.approx(90.0)
@@ -223,3 +223,73 @@ def test_floor_fill_is_limited_by_room_under_the_ceiling() -> None:
     add, give, _ = gf.floor_moves(have, floor, pool, max_add=room)
     assert add.loc['paper'].sum() == pytest.approx(0.5)
     assert give['Natural Gas'].sum() == pytest.approx(0.5)
+
+
+def test_anchor_moves_take_within_headroom_and_give_back_to_trimmed() -> None:
+    current = pd.Series(
+        {('a', 'Natural Gas'): 30.0, ('b', 'Natural Gas'): 10.0, ('a', 'Coal'): 5.0}
+    )
+    headroom = pd.Series({'a': 100.0, 'b': 1.0})
+    factor, short = gf.anchor_moves(
+        pd.Series({'Natural Gas': 8.0, 'Coal': -2.0}), current, {'a'}, headroom
+    )
+    # b can give only 1 (its headroom), so a gives the other 7
+    assert factor[('b', 'Natural Gas')] == pytest.approx(0.9)
+    assert factor[('a', 'Natural Gas')] == pytest.approx(1 - 7 / 30)
+    # a surplus goes back to the trimmed sector
+    assert factor[('a', 'Coal')] == pytest.approx(1.4)
+    assert short.sum() == pytest.approx(0.0)
+
+
+def _ceiling_fbs() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            _row('32411', NG_MFG, 120.0),
+            _row('32411', STILL_GAS, 90.0),
+            _row('32411', 'UMD_GHGIA_T_3_11.petroleum_use', 7.0)
+            | {'AttributionSources': 'Nowcast_Detail_Use_AfterRedef'},
+            _row('327310', NG_MFG, 45.0),
+            _row('311', NG_MFG, 20.0),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ('rate', 'refinery_ng', 'low_sector'),
+    [
+        (0.5, 105.0, 30.0),  # spill 10: refinery gives 5 more
+        (0.1, 113.0, 22.0),  # spill 2: 3 goes back to the refinery
+        (0.8, 103.0, 32.0),  # spill 16 wanted; refinery stops at its GHGRP total
+    ],
+)
+def test_spill_before_the_anchor_year_follows_the_anchor_rate(
+    monkeypatch: pytest.MonkeyPatch, rate: float, refinery_ng: float, low_sector: float
+) -> None:
+    """As the ceiling test: 10 trimmed, 5 to cement, 5 left over (rate 0.25 on
+    the low-coverage sector's 20). Before the anchor year the spill is
+    rate x 20, balanced at the refinery, whose 207 total stays >= 200."""
+    fbs = _ceiling_fbs()
+    ghgrp = pd.Series({'324110': 200.0, '327310': 50.0})
+    monkeypatch.setattr(gf, 'ghgrp_co2e_by_naics', lambda year, gases=None: ghgrp)
+    cov = {'32411': 1.0, '327310': 0.9, '311': 0.5}
+    monkeypatch.setattr(
+        gf,
+        'median_coverage',
+        lambda codes: pd.Series([cov[c] for c in codes], index=codes),
+    )
+    monkeypatch.setattr(gf, 'SPILL_ANCHOR_RATE', {'Natural Gas': rate})
+    out = gf.apply_ghgrp_sector_floor(fbs, gf.SPILL_ANCHOR_YEAR - 1)
+    by = out.groupby(['SectorProducedBy', 'MetaSources'])['FlowAmount'].sum()
+    assert by[('32411', NG_MFG)] == pytest.approx(refinery_ng)
+    assert by[('32411', STILL_GAS)] == pytest.approx(90.0)
+    assert out[out['SectorProducedBy'] == '327310'][
+        'FlowAmount'
+    ].sum() == pytest.approx(50.0)
+    assert out[out['SectorProducedBy'] == '311']['FlowAmount'].sum() == pytest.approx(
+        low_sector
+    )
+    assert out[out['SectorProducedBy'] == '32411']['FlowAmount'].sum() >= 200.0 - 1e-9
+    pd.testing.assert_series_equal(
+        fbs.groupby('MetaSources')['FlowAmount'].sum(),
+        out.groupby('MetaSources')['FlowAmount'].sum(),
+    )

@@ -37,7 +37,13 @@ national total is unchanged:
    would double count;
 3. released CO2 the floor did not use goes to in-scope sectors whose median
    coverage is below the attribution gate (mostly small facilities GHGRP
-   cannot see), in proportion to their combustion in that fuel.
+   cannot see), in proportion to their combustion in that fuel. In years
+   before :data:`SPILL_ANCHOR_YEAR` the amount is held at that year's rate per
+   unit of their combustion, so it follows their own fuel use rather than the
+   year's gap between two inventories (#1073). The difference is taken from
+   the fully covered sectors in their own combustion, none going below its own
+   GHGRP total, or given back to the sectors the ceiling trimmed, which then
+   sit somewhat above their GHGRP CO2 in those years.
 
 Within a fuel, recipients take the activity-set mix that was removed. Lease and
 plant gas, still gas and hydrogen gas are attributed to specific sectors on
@@ -75,6 +81,12 @@ FUEL_SETS: dict[str, tuple[str, ...]] = {
     ),
 }
 FUEL_OF_SET = {meta: fuel for fuel, metas in FUEL_SETS.items() for meta in metas}
+#: Before this year, the ceiling's spill to low-coverage sectors is held at this
+#: year's rate per unit of their own combustion, by fuel (#1073). The rates are
+#: the 2024 facility FBS v0.3.0_3a1dddc's; a 2024 build logs its own and warns
+#: if they drift from these.
+SPILL_ANCHOR_YEAR = 2024
+SPILL_ANCHOR_RATE = {'Coal': 0.0, 'Natural Gas': 0.3703, 'Petroleum': 0.0791}
 FLOOR_ATTRIBUTION = 'GHGRP_sector_floor'
 CEILING_ATTRIBUTION = 'GHGRP_sector_ceiling'
 CO2 = 'Carbon dioxide'
@@ -286,6 +298,69 @@ def floor_moves(
     return add, give[give.sum(axis=1) > 0], used
 
 
+def anchor_moves(
+    change: pd.Series,
+    current: pd.Series,
+    trimmed: set[str],
+    headroom: pd.Series,
+) -> tuple[pd.Series, pd.Series]:
+    """Scale factors that move *change* (by fuel, kg CO2) out of fully covered
+    sectors, and what could not be moved (by fuel).
+
+    *current* is the fully covered sectors' comparable combustion CO2 (sector x
+    fuel). A positive change is taken from them in proportion to it, none
+    taking a sector below its own GHGRP total (*headroom*, its CO2e above it,
+    shared across fuels). A negative change is given back to the sectors the
+    ceiling trimmed (*trimmed*), in proportion to what they still burn.
+    """
+    parts: list[pd.Series] = []
+    short = pd.Series(0.0, index=change.index)
+    room = headroom.copy()
+    for fuel_name, amount in change.items():
+        fuel_name = str(fuel_name)
+        if amount == 0:
+            continue
+        burn = current[current.index.get_level_values(1) == fuel_name].droplevel(1)
+        burn = burn[burn > 0]
+        if amount < 0:
+            burn = burn[burn.index.isin(trimmed)]
+            if burn.sum() <= 0:
+                short[fuel_name] = amount  # nothing to give it back to
+                continue
+            # In proportion to what they burn: one factor for all of them.
+            parts.append(_keyed(burn * 0.0 + 1.0 - amount / burn.sum(), fuel_name))
+            continue
+        # Water-fill: proportional to combustion, capped by each sector's room.
+        cap = pd.concat([burn, room.reindex(burn.index).fillna(0.0)], axis=1).min(
+            axis=1
+        )
+        take = pd.Series(0.0, index=burn.index)
+        need = amount
+        while need > 1e-6 * amount:
+            open_ = cap - take > 1e-9
+            if not open_.any():
+                break
+            step = burn[open_] / burn[open_].sum() * need
+            step = pd.concat([step, (cap - take)[open_]], axis=1).min(axis=1)
+            take = take.add(step, fill_value=0.0)
+            need = amount - take.sum()
+        short[fuel_name] = max(need, 0.0)
+        room = room.sub(take, fill_value=0.0)
+        parts.append(_keyed(1.0 - take[take > 0] / burn, fuel_name).dropna())
+    factor = pd.concat(parts) if parts else pd.Series(dtype=float)
+    return factor, short
+
+
+def _keyed(by_sector: pd.Series, fuel_name: str) -> pd.Series:
+    """*by_sector* re-keyed on (sector, *fuel_name*)."""
+    return pd.Series(
+        by_sector.to_numpy(),
+        index=pd.MultiIndex.from_arrays(
+            [by_sector.index, [fuel_name] * len(by_sector)]
+        ),
+    )
+
+
 def _scale_rows(
     out: pd.DataFrame,
     rows: pd.Series,
@@ -397,11 +472,65 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
 
     # 3. Released CO2 the floor did not use: to low-coverage sectors.
     leftover = (released - used.reindex(released.index).fillna(0.0)).clip(lower=0.0)
+    takers = pool[pool.index.isin(low)]
+    if takers.sum().sum() <= 0:
+        takers = pool[~pool.index.isin(capped)]
+    takers_pool = takers.sum().reindex(list(FUEL_SETS)).fillna(0.0)
+    rate = (leftover / takers_pool.where(takers_pool > 0)).fillna(0.0)
+    logger.info(
+        'GHGRP ceiling %d: leftover per unit of low-coverage combustion, by fuel: %s',
+        year,
+        rate.round(4).to_dict(),
+    )
+    if year == SPILL_ANCHOR_YEAR:
+        drift = (rate - pd.Series(SPILL_ANCHOR_RATE).reindex(rate.index)).abs()
+        if drift.max() > 0.005:
+            logger.warning(
+                'GHGRP ceiling %d: the rates above differ from SPILL_ANCHOR_RATE %s; '
+                'update it so earlier years follow this build',
+                year,
+                SPILL_ANCHOR_RATE,
+            )
+    elif year < SPILL_ANCHOR_YEAR:
+        target = pd.Series(SPILL_ANCHOR_RATE).reindex(takers_pool.index).fillna(0.0)
+        target = target * takers_pool
+        co2e_now = (
+            (out.loc[ghg, 'FlowAmount'] * weight[ghg])
+            .groupby(sector[ghg])
+            .sum()
+            .add(add.sum(axis=1), fill_value=0.0)
+        )
+        headroom = (co2e_now - floor.reindex(co2e_now.index).fillna(0.0)).clip(
+            lower=0.0
+        )
+        rows = cut_rows & sector.isin(capped)
+        keys = pd.MultiIndex.from_arrays([sector[rows], fuel[rows]])
+        current = out.loc[rows, 'FlowAmount'].groupby([sector[rows], fuel[rows]]).sum()
+        factor, short = anchor_moves(
+            target - leftover, current, set(excess.index), headroom
+        )
+        removed.append(_scale_rows(out, rows, keys, factor))
+        moved = target - short - leftover
+        leftover = (target - short).clip(lower=0.0)
+        logger.info(
+            'GHGRP ceiling %d: spill held at the %d rate %s; fully covered sectors '
+            'gave (+) or took back (-) %s Mt',
+            year,
+            SPILL_ANCHOR_YEAR,
+            SPILL_ANCHOR_RATE,
+            (moved / 1e9).round(2).to_dict(),
+        )
+        if short.sum() > 0:
+            logger.warning(
+                'GHGRP ceiling %d: %.2f Mt of the anchored spill could not be '
+                'taken without a fully covered sector going below its GHGRP '
+                'total; the spill is that much smaller: %s',
+                year,
+                short.sum() / 1e9,
+                (short / 1e9).round(2).to_dict(),
+            )
     spread = pd.DataFrame(0.0, index=pd.Index([], dtype=str), columns=list(FUEL_SETS))
     if leftover.sum() > 0:
-        takers = pool[pool.index.isin(low)]
-        if takers.sum().sum() <= 0:
-            takers = pool[~pool.index.isin(capped)]
         shares = takers.div(takers.sum().where(takers.sum() > 0), axis=1).fillna(0.0)
         spread = shares.mul(leftover, axis=1)
         missing = leftover[(takers.sum() <= 0) & (leftover > 0)]
