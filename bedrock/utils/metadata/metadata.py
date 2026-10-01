@@ -139,14 +139,27 @@ def get_source_metadata(
         except AttributeError:
             year = None
 
-        cat = (
-            get_catalog_info(source)
-            .get('data_format', 'FBS')
-            .replace('FBS', 'FlowBySector')
-            .replace('FBA', 'FlowByActivity')
-        )
+        # Facility / Hybrid attribution sources live in sources_to_cache with
+        # inventory_dict; they are not prebuilt FBS artifacts with sidecars.
+        if isinstance(nested_attr, dict) and nested_attr.get('inventory_dict'):
+            from bedrock.extract.stewifbs.stewiFBS import (  # noqa: PLC0415
+                add_stewi_metadata,
+            )
 
-        attr_source_meta[source] = getMetadata(source, year=year, category=cat)
+            attr_source_meta[source] = add_stewi_metadata(
+                nested_attr['inventory_dict'],
+                mecs_method=nested_attr.get('mecs_method'),
+                name_data=source,
+            )
+        else:
+            cat = (
+                get_catalog_info(source)
+                .get('data_format', 'FBS')
+                .replace('FBS', 'FlowBySector')
+                .replace('FBA', 'FlowByActivity')
+            )
+
+            attr_source_meta[source] = getMetadata(source, year=year, category=cat)
 
         if nested_attr is not None:
             if 'activity_sets' in nested_attr:
@@ -255,10 +268,18 @@ def return_fbs_method_data(
                     local_inventory_name
                 )
             else:
-                meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])
+                meta['primary_source_meta'][k] = add_stewi_metadata(
+                    v['inventory_dict'],
+                    mecs_method=v.get('mecs_method'),
+                    name_data=k,
+                )
             return True
         if v.get('data_format') == 'FBS_outside_flowsa' and v.get('inventory_dict'):
-            meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])
+            meta['primary_source_meta'][k] = add_stewi_metadata(
+                v['inventory_dict'],
+                mecs_method=v.get('mecs_method'),
+                name_data=k,
+            )
             return True
         return False
 

@@ -35,6 +35,9 @@ from bedrock.utils.mapping.location import (
     update_geoscale,
 )
 from bedrock.utils.mapping.sectormapping import get_activitytosector_mapping
+from bedrock.utils.snapshots.stewi_facility_pin import (
+    facility_attribution_source_metadata,
+)
 
 InventoryDict = dict[str, str]
 
@@ -1040,13 +1043,27 @@ def prepare_stewi_fbs(df_load: pd.DataFrame, config: dict[str, Any]) -> FlowBySe
     return fbs
 
 
-def add_stewi_metadata(inventory_dict: InventoryDict) -> dict[str, Any]:
+def add_stewi_metadata(
+    inventory_dict: InventoryDict,
+    *,
+    mecs_method: str | None = None,
+    name_data: str | None = None,
+) -> dict[str, Any]:
     """
-    Access stewi metadata for generating FBS metdata file
-    :param inventory_dict: a dictionary of inventory types and years (e.g.,
-                {'NEI':'2017', 'TRI':'2017'})
-    :return: combined dictionary of metadata from each inventory
+    Stewi (+ facilitymatcher / pin / Energy) provenance for FBS metadata.
+
+    Facility combustion and Hybrid methods use
+    :func:`~bedrock.utils.snapshots.stewi_facility_pin.facility_attribution_source_metadata`.
+    Other stewi inventory dicts keep :func:`stewicombo.globals.compile_metadata`.
     """
+    # GHGRP/NEI facility path (and Hybrid) -- record pin + matcher + optional Energy.
+    keys = {str(k).upper() for k in inventory_dict}
+    if keys & {'GHGRP', 'NEI'} and not (keys - {'GHGRP', 'NEI'}):
+        return facility_attribution_source_metadata(
+            inventory_dict,
+            mecs_method=mecs_method,
+            name_data=name_data,
+        )
     return compile_metadata(inventory_dict)
 
 

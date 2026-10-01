@@ -218,6 +218,20 @@ class FlowBySector(_FlowBy):
         # aggregate to target sector
         fbs = fbs.sector_aggregation()
 
+        # Floor each sector's CO2 at its own GHGRP reports (#1060), where the
+        # method asks for it with `ghgrp_sector_floor: <year>`.
+        floor_year = fbs.config.get('ghgrp_sector_floor')
+        if floor_year:
+            from bedrock.transform.ghg.ghgrp_sector_floor import (  # noqa: PLC0415
+                apply_ghgrp_sector_floor,
+            )
+
+            fbs = FlowBySector(
+                apply_ghgrp_sector_floor(fbs, int(floor_year)),
+                full_name=method,
+                config=method_config,
+            ).aggregate_flowby()
+
         # set all data quality fields to none until implemented fully
         dq_cols = ['Spread', 'Min', 'Max']
         fbs = fbs.assign(**dict.fromkeys(dq_cols, None))
