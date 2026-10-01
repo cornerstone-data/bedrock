@@ -65,6 +65,8 @@ PROCESS_GAS_SCC_LEVEL3 = '007'
 FACILITY_SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
 NEI_FUEL_CLASS_FIRST_YEAR = 2021
 _FUEL_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum', 'Other')
+COMBUSTION_FLOWABLES = ('Coal', 'Natural Gas', 'Petroleum')
+COMBUSTION_FUEL_CLASSES = ('purchased', 'self_supplied')
 
 # GWP100_AR5.
 GHGRP_FLOW_MAP = {
@@ -546,32 +548,88 @@ def ghgrp_fuel_labels(
     # SCC years, or pre-2021 after twin Flowables were applied to *nei*.
     nei_has_fuels = not nei.empty and (nei['Flowable'].astype(str) != 'Other').any()
     if (use_scc or nei_has_fuels) and not remainder.empty:
-        nei_by_frs = (
-            nei.dropna(subset=['FRS_ID'])
-            .groupby(['FRS_ID', 'fuel_class', 'Flowable'])['CO2e']
-            .sum()
-            .reset_index()
-        )
-        if not nei_by_frs.empty:
-            totals = nei_by_frs.groupby('FRS_ID')['CO2e'].transform('sum')
-            shares = nei_by_frs.assign(share=nei_by_frs['CO2e'] / totals)[
-                ['FRS_ID', 'fuel_class', 'Flowable', 'share']
-            ]
-            merged = remainder.merge(
-                shares, on='FRS_ID', how='inner', suffixes=('_old', '')
-            )
-            if not merged.empty:
-                shared = merged.assign(CO2e=merged['CO2e'] * merged['share']).drop(
-                    columns=['share', 'fuel_class_old', 'Flowable_old'],
-                    errors='ignore',
-                )
-                unmatched = remainder[~remainder['FRS_ID'].isin(set(merged['FRS_ID']))]
-                remainder = pd.concat([shared, unmatched], ignore_index=True)
+        remainder = split_subpart_c_fuel(remainder, subpart_c, nei)
     ghgrp_out = pd.concat(
         [p for p in (labeled_ghgrp, remainder) if p is not None and not p.empty],
         ignore_index=True,
     )
     return ghgrp_out[ghgrp_out['CO2e'] > 0]
+
+
+def _nei_fuel_shares(nei: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Combustion fuel shares from NEI rows: by FRS_ID, NAICS-6 and sector.
+
+    Only combustion-class rows with a fuel Flowable count, so a kiln or
+    furnace NEI files under a process SCC never decides the fuel type.
+    Shares carry ``fuel_class`` (purchased / self_supplied) with the Flowable.
+    """
+    fuel = nei[
+        nei['fuel_class'].isin(COMBUSTION_FUEL_CLASSES)
+        & nei['Flowable'].isin(COMBUSTION_FLOWABLES)
+        & (nei['CO2e'] > 0)
+    ].copy()
+    fuel['naics6'] = fuel['NAICS'].astype(str).str[:6]
+    out: dict[str, pd.DataFrame] = {}
+    for key in ('FRS_ID', 'naics6', 'sector'):
+        g = (
+            fuel.dropna(subset=[key])
+            .groupby([key, 'fuel_class', 'Flowable'])['CO2e']
+            .sum()
+            .reset_index()
+        )
+        g['share'] = g['CO2e'] / g.groupby(key)['CO2e'].transform('sum')
+        out[key] = g.drop(columns='CO2e')
+    return out
+
+
+def split_subpart_c_fuel(
+    remainder: pd.DataFrame, subpart_c: pd.Series, nei: pd.DataFrame
+) -> pd.DataFrame:
+    """Label GHGRP facility totals: subpart C is fuel, the rest is process (#1060).
+
+    A facility's subpart C emissions are fuel combustion by definition. Its
+    fuel type comes from the matched NEI facility's combustion rows, else
+    from NEI combustion at the same NAICS-6, else the same sector; with none,
+    it stays ``Flowable='Other'``. Everything else the facility reports
+    (process subparts such as H, S, N, Q, Y) is labeled ``process``.
+
+    Splitting the whole facility total on the NEI facility's SCC shares put
+    subpart C fuel on ``process`` wherever NEI files the kiln or furnace
+    under a process SCC (lime, glass, iron and steel, refineries).
+    """
+    totals = remainder['CO2e'].to_numpy(dtype=float)
+    c_part = (
+        subpart_c.reindex(remainder['FacilityID']).fillna(0.0).to_numpy(dtype=float)
+    )
+    c_part = np.minimum(np.clip(c_part, 0.0, None), totals)
+    process = remainder.assign(
+        CO2e=totals - c_part, fuel_class='process', Flowable='Other'
+    )
+    fuel = remainder.assign(CO2e=c_part, fuel_class='purchased', Flowable='Other')
+    fuel = fuel[fuel['CO2e'] > 0].copy()
+    fuel['naics6'] = fuel['NAICS'].astype(str).str[:6]
+
+    shares = _nei_fuel_shares(nei)
+    pieces: list[pd.DataFrame] = []
+    left = fuel
+    for key in ('FRS_ID', 'naics6', 'sector'):
+        if left.empty:
+            break
+        merged = left.dropna(subset=[key]).merge(
+            shares[key], on=key, how='inner', suffixes=('_old', '')
+        )
+        if merged.empty:
+            continue
+        pieces.append(
+            merged.assign(CO2e=merged['CO2e'] * merged['share']).drop(
+                columns=['share', 'fuel_class_old', 'Flowable_old']
+            )
+        )
+        left = left[~left['FacilityID'].isin(set(merged['FacilityID']))]
+    pieces.append(left)
+    labeled = pd.concat([p for p in pieces if not p.empty], ignore_index=True)
+    labeled = labeled.drop(columns='naics6', errors='ignore')
+    return pd.concat([labeled, process], ignore_index=True)
 
 
 def build_facility_combustion(

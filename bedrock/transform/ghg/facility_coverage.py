@@ -1,15 +1,14 @@
 """Facility coverage bands for attribution gating (#928, #1040, #1060).
 
 ``coverage`` is GHGRP combustion floor / (floor + NEI-only below the GHGRP
-threshold + GHGRP emissions reported outside the combustion subparts). The
-last term (#1060) is what the sector's facilities report under source-category
+threshold). Attribution may use facility weights only where that share clears
+:data:`ATTRIBUTION_MIN_COVERAGE`; the downward (vector) gate stays at coverage
+>= 0.95 and unresolved <= 0.05, and (#1060) is closed to a sector whose
+facilities report :data:`MIN_MT_FOR_VECTOR_TEST` or more under source-category
 subparts (cement H, lime S, glass N, iron and steel Q, refineries Y, ...).
 Those subparts report kiln and furnace fuel together with process emissions,
-so the fuel in them is invisible to the facility fuel shares; a sector whose
-reports sit mostly there keeps the MECS shares. Attribution may use facility
-weights only where that share clears
-:data:`ATTRIBUTION_MIN_COVERAGE`; the downward (vector) gate stays at coverage
->= 0.95 and unresolved <= 0.05.
+so part of the sector's fuel can be invisible to the facility fuel shares; the
+floor keeps at least the MECS share for each fuel.
 
 Hybrid production modes (#1040) use :func:`modes_median_freeze`: one
 facility-vs-MECS side per sector from median coverage over
@@ -77,11 +76,10 @@ MECS_MODE = 'keep_prior'
 #: stationary combustion (C) and oil and gas combustion (W).
 COMBUSTION_SUBPARTS = frozenset({'C', 'W'})
 
-#: Version of the coverage definition; part of the bands cache filename, so a
-#: definition change never reuses bands cached under the old one.
-COVERAGE_DEFINITION_VERSION = (
-    2  # 2: process-subpart emissions in the denominator (#1060)
-)
+#: Version of the coverage bands; part of the cache filename, so a definition
+#: change never reuses bands cached under the old one. 2: subpart C labeled as
+#: fuel, and no vector mode with process-subpart emissions (#1060).
+COVERAGE_DEFINITION_VERSION = 2
 
 
 def _naics_to_bea_detail() -> pd.Series:
@@ -190,10 +188,10 @@ def coverage_from_components(
     """Coverage and unresolved share from the per-sector components, Mt CO2e.
 
     ``coverage`` = GHGRP combustion / (GHGRP combustion + NEI below the GHGRP
-    threshold + GHGRP process-subpart emissions). ``unresolved`` = NEI above
-    the threshold not matched to GHGRP / combustion total. ``total_Mt`` (the
-    vector-test size) stays combustion only. Sectors with no facility
-    combustion are dropped, as before.
+    threshold). ``unresolved`` = NEI above the threshold not matched to GHGRP
+    / combustion total. ``process_subparts_Mt`` is carried for the vector
+    test (#1060) and does not enter coverage. Sectors with no facility
+    combustion are dropped.
     """
     out = pd.DataFrame(
         {
@@ -205,9 +203,7 @@ def coverage_from_components(
     out['total_Mt'] = out.sum(axis=1)
     out = out[out['total_Mt'] > 0]
     out['process_subparts_Mt'] = process_subparts_Mt.reindex(out.index).fillna(0.0)
-    out['coverage'] = out['ghgrp_Mt'] / (
-        out['ghgrp_Mt'] + out['nei_below_Mt'] + out['process_subparts_Mt']
-    )
+    out['coverage'] = out['ghgrp_Mt'] / (out['ghgrp_Mt'] + out['nei_below_Mt'])
     out['unresolved'] = out['nei_above_Mt'] / out['total_Mt']
     return out
 
@@ -284,10 +280,14 @@ def facility_coverage_bands(
         ghgrp_process_subparts_by_sector(year),
     )
     testable = out['total_Mt'] >= min_Mt
+    # #1060: fuel reported inside a process subpart is invisible to the fuel
+    # shares, so such a sector stays on the floor (at least its MECS share).
+    process_fuel_possible = out['process_subparts_Mt'] >= min_Mt
     out['verdict'] = np.where(
         testable
         & (out['coverage'] >= coverage_floor)
-        & (out['unresolved'] <= unresolved_ceiling),
+        & (out['unresolved'] <= unresolved_ceiling)
+        & ~process_fuel_possible,
         'vector',
         'floor',
     )
