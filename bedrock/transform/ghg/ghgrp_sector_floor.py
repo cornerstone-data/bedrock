@@ -45,6 +45,7 @@ GHGRP facility NAICS are matched to the FBS's sector codes by longest prefix.
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 import pandas as pd
 import stewi
@@ -276,7 +277,7 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
             out.loc[pool_rows]
             .groupby([sector[pool_rows], fuel[pool_rows]])['FlowAmount']
             .sum()
-            .unstack(fill_value=0.0)
+            .unstack(fill_value=0)
             .reindex(columns=list(FUEL_SETS))
             .fillna(0.0)
         )
@@ -313,8 +314,10 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
     cuttable = out.loc[cut_rows].groupby(sector[cut_rows])['FlowAmount'].sum()
     excess = pd.concat([over, cuttable.reindex(over.index)], axis=1).min(axis=1)
     excess = excess[excess > 0]
-    trim = (1.0 - excess / cuttable.reindex(excess.index)).to_frame('f')
-    trim = pd.DataFrame({f: trim['f'] for f in FUEL_SETS}, index=trim.index).stack()
+    keep = 1.0 - excess / cuttable.reindex(excess.index)
+    trim = cast(
+        pd.Series, pd.DataFrame({f: keep for f in FUEL_SETS}, index=keep.index).stack()
+    )
     rows = cut_rows & sector.isin(excess.index)
     removed = [
         _scale_rows(
@@ -341,7 +344,7 @@ def apply_ghgrp_sector_floor(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
     floor.loc[pinned] = ceiling.reindex(pinned)
     add, give, used = floor_moves(have, floor, pool, eligible, released)
     if not give.empty:
-        factor = (1.0 - give / pool.reindex(index=give.index)).stack()
+        factor = cast(pd.Series, (1.0 - give / pool.reindex(index=give.index)).stack())
         rows = pool_rows & sector.isin(give.index)
         removed.append(
             _scale_rows(

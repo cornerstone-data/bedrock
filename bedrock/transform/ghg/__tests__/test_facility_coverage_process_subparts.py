@@ -32,7 +32,9 @@ def test_process_only_sector_without_combustion_is_dropped() -> None:
     assert '999999' not in out.index
 
 
-def _ghgrp(fid: str, frs: str, naics: str, sector: str, co2e: float) -> dict:
+def _ghgrp(
+    fid: str, frs: str | None, naics: str, sector: str, co2e: float
+) -> dict[str, object]:
     return {
         'FacilityID': fid,
         'FRS_ID': frs,
@@ -45,7 +47,9 @@ def _ghgrp(fid: str, frs: str, naics: str, sector: str, co2e: float) -> dict:
     }
 
 
-def _nei(frs: str, naics: str, sector: str, cls: str, flow: str, co2e: float) -> dict:
+def _nei(
+    frs: str, naics: str, sector: str, cls: str, flow: str, co2e: float
+) -> dict[str, object]:
     return {
         'FacilityID': f'n{frs}',
         'FRS_ID': frs,
