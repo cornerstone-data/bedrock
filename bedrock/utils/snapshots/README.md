@@ -327,4 +327,25 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 | [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Scheduled CI that diffs current pipeline output against `.SNAPSHOT_KEY` |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pinned `GHG_national_Cornerstone_2024` parquet for FBS regen test |
 | [`fbs_pin.py`](fbs_pin.py) | Load pin JSON, download from GCS, verify SHA256 |
+| [`stewi_facility_pin.json`](stewi_facility_pin.json) | Pinned stewi GHGRP/NEI + facilitymatcher outputs for facilities FBS |
+| [`stewi_facility_pin.py`](stewi_facility_pin.py) | Load pin, download from GCS, preflight check |
 | [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `eeio_integration` test: regen vs pinned FBS |
+
+## Stewi + facilitymatcher pin
+
+[`stewi_facility_pin.json`](stewi_facility_pin.json) pins the **produced** stewi inventory parquets (`flowbyprocess`, `facility`) and facilitymatcher outputs (`FacilityMatchList_forStEWI`, `FRS_NAICSforStEWI`) used by facilities GHG FBS builds. It does not pin the FRS national zip or other matcher raw inputs.
+
+Objects live under `gs://cornerstone-default/stewi/` and `gs://cornerstone-default/facilitymatcher/`. [`stewi_facility_pin.py`](stewi_facility_pin.py) downloads missing pinned files before `build_facility_combustion` when `BEDROCK_STEWI_FACILITY_PIN` is enabled (default on; set to `off` to skip).
+
+### When to bump the pin
+
+Bump when the team intentionally adopts new stewi inventory stems or a new facilitymatcher build for release facilities FBS work. Upload the new parquets (and metadata JSON) to GCS first, then edit the pin JSON stems.
+
+### How to bump / verify
+
+```powershell
+# After uploading new stems to GCS and editing stewi_facility_pin.json:
+uv run python -m bedrock.utils.snapshots.stewi_facility_pin
+```
+
+Preflight fails if a pinned parquet is missing locally and cannot be downloaded, or if a competing local version exists for the same inventory year.
