@@ -327,6 +327,27 @@ def test_v0_4_waterfall_rungs_bracket_the_release_config() -> None:
     assert _resolved_field_diff('v04_waterfall_g3_data', 'v03_waterfall_g3_data') == {}
 
 
+def test_v0_5_waterfall_rungs_bracket_the_release_config() -> None:
+    """G2 and G3 carry v0.4's rungs over; G3 -> G4 is nowcasting, G4 -> release
+    is facility GHG attribution alone."""
+    for rung in ('g2_methods', 'g3_data'):
+        assert (
+            _resolved_field_diff(f'v05_waterfall_{rung}', f'v04_waterfall_{rung}') == {}
+        )
+    assert set(
+        _resolved_field_diff('v05_waterfall_g3_data', 'v05_waterfall_g4_nowcast')
+    ) == {
+        'usa_detail_io_source',
+        'nowcast_mut_vintage',
+        'usa_base_io_data_year',
+        'apply_io_year_adjustments',
+        'waste_weights_year',
+    }
+    assert _resolved_field_diff(
+        'v05_waterfall_g4_nowcast', '2025_usa_cornerstone_v0_5'
+    ) == {'use_facility_ghg_attribution': (False, True)}
+
+
 def test_electricity_reaggregation_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
         'test_usa_config_waste_disagg_electricity_reaggregation.yaml'
