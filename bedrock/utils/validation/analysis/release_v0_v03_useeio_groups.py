@@ -9,9 +9,9 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Sheet IDs point at diagnostics spreadsheets in the v0.3 waterfall Drive
-folder; each ``sheet_title`` records the date and release the sheet was
-generated for.
+Sheet IDs point at diagnostics spreadsheets (G1 in the v0.5 Diagnostics
+Drive folder; G2–FINAL remain on the historical v0.3 cut). Each
+``sheet_title`` records the date and release the sheet was generated for.
 
 When a snapshot bump moves a config's ``N_new``, mint a fresh sheet and repoint
 the ``sheet_id`` here rather than re-running ``generate_diagnostics`` against
@@ -30,10 +30,10 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1_SCHEMA_GHG = ProgressionSheet(
     step_label="G1: USEEIO-like A/margins + Cornerstone schema/GHG",
-    sheet_id="1QiWLS9N2wig5SGa2eujGIS-B2cB5DTnIfWHo-fPOXgk",
+    sheet_id="1M04NJ03SMlnGHlqvfWG0z8-P7Doqi2Qbw0c1Qp5FIOU",
     config_name="v03_waterfall_useeio_g1_schema_ghg",
     sheet_title=(
-        "[2026-09-10, bedrock repo, 2024, useeio, "
+        "[2026-10-02, bedrock repo, 2024, useeio, "
         "v03_waterfall_useeio_g1_schema_ghg] EFs diagnostics"
     ),
 )
