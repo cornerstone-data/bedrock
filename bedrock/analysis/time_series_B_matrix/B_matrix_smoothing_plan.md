@@ -1,5 +1,11 @@
 # B matrix smoothing project plan
 
+## Status
+
+Phase 1 closed on 2026-10-02 without meeting its acceptance test. The outcome,
+the final figures and the Phase 2 candidates are in
+[`About_B_smoothing_phase1_outcome.md`](About_B_smoothing_phase1_outcome.md).
+
 ## Phase 1 Project objective
 
 Identify sources of emissions and/or output changes that cause unjustified direct emissions intensity changes; prioritize remediation; test and implement remediation (smoothing) steps; test for acceptance.  
