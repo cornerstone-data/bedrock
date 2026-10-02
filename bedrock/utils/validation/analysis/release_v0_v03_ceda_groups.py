@@ -11,9 +11,9 @@ Group definitions (cumulative):
   G3 — ``v03_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
   FINAL — ``v03_waterfall_final`` — full v0.3 methodology (verification column)
 
-Sheet IDs point at diagnostics spreadsheets in the v0.3 waterfall Drive
-folder; each ``sheet_title`` records the date and release the sheet was
-generated for.
+Sheet IDs point at diagnostics spreadsheets (G1a/G1b in the v0.5 Diagnostics
+Drive folder; G2–FINAL remain on the historical v0.3 cut). Each
+``sheet_title`` records the date and release the sheet was generated for.
 
 When a snapshot bump moves a config's ``N_new``, mint a fresh sheet and repoint
 the ``sheet_id`` here rather than re-running ``generate_diagnostics`` against
@@ -32,20 +32,20 @@ from bedrock.utils.validation.analysis.release_v0_3_progression import (
 
 G1A_SCHEMA_GHG = ProgressionSheet(
     step_label="G1a: Cornerstone schema/GHG (no waste)",
-    sheet_id="15-I_FZnIl9kSX9YoP30TzOjHyKdeOhAw3mnRuILVjW8",
+    sheet_id="1FVQY1DLhG_VVlaWN0zUm_EnokXCl_R9YeBi55xLpF9E",
     config_name="v03_waterfall_ceda_g1a_schema_ghg",
     sheet_title=(
-        "[2026-09-10, bedrock repo, 2024, ceda-v0, "
+        "[2026-10-02, bedrock repo, 2024, ceda-v0, "
         "v03_waterfall_ceda_g1a_schema_ghg] EFs diagnostics"
     ),
 )
 
 G1B_WASTE_DISAGG = ProgressionSheet(
     step_label="G1b: Waste disaggregation",
-    sheet_id="1PqvCWIUWKSrcFIbKTkcYs2TtOU19QLyvjlI03bA6AxE",
+    sheet_id="1qZ-pVEUp8rpp2YwXW-AuAkh4rFcecBmY4DckkX8vxyY",
     config_name="v03_waterfall_ceda_g1b_waste_disagg",
     sheet_title=(
-        "[2026-09-10, bedrock repo, 2024, ceda-v0, "
+        "[2026-10-02, bedrock repo, 2024, ceda-v0, "
         "v03_waterfall_ceda_g1b_waste_disagg] EFs diagnostics"
     ),
 )
