@@ -153,9 +153,8 @@ but the commodity measure did not follow it; that difference is unexplained.
 
 ## Phase 2 candidates
 
-For mid-October to December, if taken up. All are on the
-[B Smoothing Backlog](https://github.com/orgs/cornerstone-data/projects/35)
-unless noted.
+For mid-October to December, if taken up. Issues are on the
+[B Smoothing Backlog](https://github.com/orgs/cornerstone-data/projects/35).
 
 1. A better acceptance measure: score factor movement against independent
    physical series (fuel use, production volumes) so that real movement is not
@@ -163,7 +162,7 @@ unless noted.
 2. Rescore after the 2017-2023 facility FBS is rebuilt with #1074; the v0.5 run
    here uses local builds.
 3. Output movement in electric power and refineries, which now drives their
-   factors (not yet filed; nowcast side).
+   factors ([#1079](https://github.com/cornerstone-data/bedrock/issues/1079)).
 4. Refineries' commodity measure rising while the industry factor steadies:
    check `Vnorm` and the own-share weighting.
 5. The Use-table vector that still places combustion outside facility scope
