@@ -1,5 +1,12 @@
 # B driver investigation tracker
 
+Phase 1 closed on 2026-10-02. Rows 1, 2, 15, 16 and 17 were waiting on the
+facility basis (#929), which is now in the v0.5 GHG FBS; their result is
+measured in
+[`About_B_smoothing_phase1_outcome.md`](About_B_smoothing_phase1_outcome.md).
+Open rows carry over to Phase 2 through their issues. The figures below are
+from the 2026-09-21 run and were not restated.
+
 A running list of the departures the diagnostics surface, what each one is
 worth, and whether it turns out to be justified. This is the working document
 for the plan's "determine why the drivers change and how to fix them" step.
