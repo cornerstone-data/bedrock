@@ -41,7 +41,11 @@ import pandas as pd
 from bedrock.utils.snapshots import releases
 from bedrock.utils.validation.analysis import (
     release_v0_v03_ceda_groups as ceda_early,
+)
+from bedrock.utils.validation.analysis import (
     release_v0_v03_useeio_groups as useeio_early,
+)
+from bedrock.utils.validation.analysis import (
     release_v0_v05_us_waterfall_groups as us_waterfall,
 )
 
@@ -108,7 +112,10 @@ ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
 
 def live_waterfall_configs() -> tuple[str, ...]:
     """Dual-ladder config names: early G1* rungs, then v0.5 US ladder."""
-    return tuple(s.config_name for s in _EARLY_RUNG_SHEETS) + us_waterfall.V05_WATERFALL_CONFIGS
+    return (
+        tuple(s.config_name for s in _EARLY_RUNG_SHEETS)
+        + us_waterfall.V05_WATERFALL_CONFIGS
+    )
 
 
 def _primary_sheet_id_for_config(config_name: str) -> str:
