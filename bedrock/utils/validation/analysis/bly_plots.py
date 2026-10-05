@@ -41,6 +41,8 @@ WASTE_AGGREGATE_SECTOR = "562000"
 DEFAULT_GROUP_SMALL_THRESHOLD = 3.0
 DEFAULT_MAX_SECTORS = 0
 DEFAULT_LABEL_MAX_LEN = 42
+# Other-bucket floor for weighted-avg N contributions (kg CO2e / USD).
+DEFAULT_WEIGHTED_N_GROUP_SMALL_THRESHOLD = 1e-4
 
 
 @dataclass(frozen=True)
@@ -125,6 +127,7 @@ def bucket_small_and_overflow(
     *,
     threshold: float,
     max_sectors: int,
+    threshold_unit: str = "MMT",
 ) -> pd.DataFrame:
     """Roll sectors with |Δ| < threshold AND any overflow past top-N into Other buckets.
 
@@ -157,7 +160,9 @@ def bucket_small_and_overflow(
     pos = rolled.loc[rolled["value"] > 0, "value"]
     neg = rolled.loc[rolled["value"] < 0, "value"]
 
-    suffix = f"\n(|Δ| < {threshold:g} MMT)" if below_threshold.any() else ""
+    suffix = (
+        f"\n(|Δ| < {threshold:g} {threshold_unit})" if below_threshold.any() else ""
+    )
 
     rolled_rows: list[dict[str, str | float]] = []
     if len(pos) > 0 and pos.sum() != 0:
@@ -183,6 +188,7 @@ def build_sector_stack_frame(
     value_column: str = VALUE_COLUMN,
     group_small_threshold: float = DEFAULT_GROUP_SMALL_THRESHOLD,
     max_sectors: int = DEFAULT_MAX_SECTORS,
+    threshold_unit: str = "MMT",
 ) -> pd.DataFrame:
     """Normalize a ``BLy_new_vs_BLy_old`` tab to ``sector`` / ``value`` for plotting."""
     missing = [c for c in (sector_column, value_column) if c not in tab.columns]
@@ -196,7 +202,10 @@ def build_sector_stack_frame(
     df["value"] = pd.to_numeric(df["value"], errors="raise")
     df = combine_waste_diffs(df, aggregate_sector=WASTE_AGGREGATE_SECTOR)
     df = bucket_small_and_overflow(
-        df, threshold=group_small_threshold, max_sectors=max_sectors
+        df,
+        threshold=group_small_threshold,
+        max_sectors=max_sectors,
+        threshold_unit=threshold_unit,
     )
     return df
 
@@ -293,12 +302,119 @@ def bly_span_delta(
     )
 
 
+def n_new_by_sector(sheet_id: str, *, refresh: bool = False) -> pd.DataFrame:
+    """Live ``N_new`` per sector from ``N_and_diffs``, with ``sector_name`` when present."""
+    df = load_tab(sheet_id, TAB_N, refresh=refresh)
+    if "N_new" not in df.columns:
+        raise ValueError(f"N_and_diffs missing N_new; columns={list(df.columns)}")
+    out = df[[SECTOR_COLUMN, "N_new"]].rename(
+        columns={SECTOR_COLUMN: "sector", "N_new": "n_new"}
+    )
+    out["sector"] = out["sector"].astype(str)
+    out["n_new"] = pd.to_numeric(out["n_new"], errors="raise")
+    out = out.drop_duplicates("sector", keep="first")
+    if "sector_name" in df.columns:
+        names = df[[SECTOR_COLUMN, "sector_name"]].drop_duplicates(SECTOR_COLUMN)
+        names = names.rename(columns={SECTOR_COLUMN: "sector"})
+        names["sector"] = names["sector"].astype(str)
+        out = out.merge(names, on="sector", how="left")
+    return out
+
+
+def weighted_n_step_delta(
+    before_sheet_id: str,
+    after_sheet_id: str,
+    *,
+    q: pd.Series | None = None,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """Per-sector contribution to Δ of q-weighted average N: ``(ΔN · q) / Σq``.
+
+    Uses canonical v0.5 ``scaled_q_USA`` when ``q`` is omitted. Net of ``value``
+    equals the waterfall step ``Σ(N·q)/Σq`` after − before on the same q.
+    """
+    if q is None:
+        from bedrock.utils.validation.waterfall_progression import (  # noqa: PLC0415
+            load_canonical_v0_5_q,
+        )
+
+        q = load_canonical_v0_5_q()
+    q = q.astype(float).copy()
+    q.index = q.index.astype(str)
+
+    before = n_new_by_sector(before_sheet_id, refresh=refresh).rename(
+        columns={"n_new": "n_before"}
+    )
+    after = n_new_by_sector(after_sheet_id, refresh=refresh).rename(
+        columns={"n_new": "n_after"}
+    )
+    merged = before[["sector", "n_before"]].merge(
+        after[["sector", "n_after"]], on="sector", how="inner"
+    )
+    if "sector_name" in after.columns:
+        merged = merged.merge(after[["sector", "sector_name"]], on="sector", how="left")
+    elif "sector_name" in before.columns:
+        merged = merged.merge(
+            before[["sector", "sector_name"]], on="sector", how="left"
+        )
+
+    q_aligned = q.reindex(merged["sector"]).to_numpy()
+    n_before = merged["n_before"].to_numpy(dtype=float)
+    n_after = merged["n_after"].to_numpy(dtype=float)
+    mask = (
+        pd.notna(q_aligned) & (q_aligned != 0) & pd.notna(n_before) & pd.notna(n_after)
+    )
+    merged = merged.loc[mask].copy()
+    q_vals = q.reindex(merged["sector"]).to_numpy(dtype=float)
+    denom = float(q_vals.sum())
+    if denom == 0.0:
+        raise ValueError(
+            "canonical q has zero sum on sectors overlapping both N sheets"
+        )
+    merged["q"] = q_vals
+    merged["value"] = (merged["n_after"] - merged["n_before"]) * merged["q"] / denom
+    return merged
+
+
+def weighted_n_span_delta(
+    pairs: Sequence[BlyStepPair],
+    *,
+    q: pd.Series | None = None,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """Combined weighted-N bar: first.before → last.after (same chaining rules as BLy)."""
+    if not pairs:
+        raise ValueError("weighted_n_span_delta requires at least one BlyStepPair")
+
+    for idx in range(len(pairs) - 1):
+        left = pairs[idx].after.config_name
+        right = pairs[idx + 1].before.config_name
+        if left != right:
+            logger.warning(
+                "Weighted-N step pairs do not chain at index %s: %s.after=%s vs "
+                "%s.before=%s; span still uses first.before → last.after",
+                idx,
+                pairs[idx].key,
+                left,
+                pairs[idx + 1].key,
+                right,
+            )
+
+    return weighted_n_step_delta(
+        pairs[0].before.sheet_id,
+        pairs[-1].after.sheet_id,
+        q=q,
+        refresh=refresh,
+    )
+
+
 def stack_frame_from_delta(
     delta: pd.DataFrame,
     *,
     group_small_threshold: float = DEFAULT_GROUP_SMALL_THRESHOLD,
     max_sectors: int = DEFAULT_MAX_SECTORS,
     label_max_len: int = DEFAULT_LABEL_MAX_LEN,
+    threshold_unit: str = "MMT",
 ) -> pd.DataFrame:
     """Bucket a step/span delta frame and label sectors as ``code name`` for plotting."""
     if "sector" not in delta.columns or "value" not in delta.columns:
@@ -314,6 +430,7 @@ def stack_frame_from_delta(
         tab,
         group_small_threshold=group_small_threshold,
         max_sectors=max_sectors,
+        threshold_unit=threshold_unit,
     )
 
     if "sector_name" not in delta.columns:

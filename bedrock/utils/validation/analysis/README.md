@@ -28,10 +28,12 @@ dispatch, interpret). Shared dispatch helpers:
 - `bly_plots.py` — BLy sector stacked-bar data prep + `bly_plot_options` CLI decorator;
   also cross-sheet ``bly_step_delta`` / ``bly_span_delta`` helpers (live ``BLy_new``
   across waterfall sheets).
-- `bly_step_gross.py` — CLI for per-step and combined-span BLy gross-change stacked
-  bars (default v0.5 US: nowcast G3→G4 + facility G4→FINAL). Pathway totals, not E/D.
+- `bly_step_gross.py` — CLI for per-step and combined-span gross-change stacked bars
+  (default v0.5 US: nowcast G3→G4 + facility G4→FINAL). ``--metric bly`` (pathway
+  BLy MMT) or ``weighted_n`` (``(ΔN·q)/Σq`` kg/USD; stack net = waterfall AVG N step).
   ```bash
   uv run python -m bedrock.utils.validation.analysis.bly_step_gross --layout both
+  uv run python -m bedrock.utils.validation.analysis.bly_step_gross --metric weighted_n
   ```
 - `diagnostics_plots.py` — umbrella entry point. Produces five EF PNGs every run,
   and a sixth (`bly_sector_stacked_net_change.png`) when `BLy_new_vs_BLy_old` is
