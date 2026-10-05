@@ -2,26 +2,79 @@
 
 Consumed by ``diagnostics_plots`` as part of the diagnostics figure suite. Tab
 layout matches ``calculate_national_accounting_balance_diagnostics`` output.
+
+Cross-sheet step / span helpers (``bly_step_delta``, ``bly_span_delta``) compare
+live ``BLy_new`` across diagnostics sheets — pathway totals
+(``diag(d) @ L @ y``), not inventory E / direct D.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import logging
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 import click
 import pandas as pd
 
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+from bedrock.utils.validation.analysis.fetch import load_tab
+from bedrock.utils.validation.analysis.release_v0_3_progression import ProgressionSheet
+from bedrock.utils.validation.analysis.release_v0_v05_us_waterfall_groups import (
+    FINAL_V05_USEEIO,
+    G2_METHODS,
+    G3_DATA,
+    G4_NOWCAST,
+)
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+logger = logging.getLogger(__name__)
+
 TAB_BLY = "BLy_new_vs_BLy_old"
+TAB_N = "N_and_diffs"
 SECTOR_COLUMN = "index"
 VALUE_COLUMN = "BLy_new - BLy_old (MtCO2e)"
+BLY_NEW_COLUMN = "BLy_new (MtCO2e)"
 WASTE_AGGREGATE_SECTOR = "562000"
 DEFAULT_GROUP_SMALL_THRESHOLD = 3.0
 DEFAULT_MAX_SECTORS = 0
+DEFAULT_LABEL_MAX_LEN = 42
+
+
+@dataclass(frozen=True)
+class BlyStepPair:
+    """Named adjacent (or span-endpoint) rung pair for cross-sheet BLy Δ."""
+
+    key: str
+    label: str
+    before: ProgressionSheet
+    after: ProgressionSheet
+
+
+V05_US_BLY_STEP_PAIRS: dict[str, BlyStepPair] = {
+    "data": BlyStepPair(
+        key="data",
+        label="Data (G2→G3)",
+        before=G2_METHODS,
+        after=G3_DATA,
+    ),
+    "nowcast": BlyStepPair(
+        key="nowcast",
+        label="Nowcast (G3→G4)",
+        before=G3_DATA,
+        after=G4_NOWCAST,
+    ),
+    "facility": BlyStepPair(
+        key="facility",
+        label="Facility GHG (G4→FINAL)",
+        before=G4_NOWCAST,
+        after=FINAL_V05_USEEIO,
+    ),
+}
+
+DEFAULT_V05_US_PAIR_KEYS: tuple[str, ...] = ("nowcast", "facility")
 
 
 def bly_plot_options(func: F) -> F:
@@ -146,3 +199,154 @@ def build_sector_stack_frame(
         df, threshold=group_small_threshold, max_sectors=max_sectors
     )
     return df
+
+
+def bly_new_by_sector(sheet_id: str, *, refresh: bool = False) -> pd.DataFrame:
+    """Live ``BLy_new`` per sector (MMT), with ``sector_name`` when ``N_and_diffs`` has it."""
+    bly = load_tab(sheet_id, TAB_BLY, refresh=refresh)
+    if BLY_NEW_COLUMN not in bly.columns:
+        raise ValueError(
+            f"BLy tab missing {BLY_NEW_COLUMN!r}; columns={list(bly.columns)}"
+        )
+    out = bly[[SECTOR_COLUMN, BLY_NEW_COLUMN]].rename(
+        columns={SECTOR_COLUMN: "sector", BLY_NEW_COLUMN: "bly_new_mmt"}
+    )
+    out["sector"] = out["sector"].astype(str)
+    out["bly_new_mmt"] = pd.to_numeric(out["bly_new_mmt"], errors="raise")
+
+    try:
+        names = load_tab(sheet_id, TAB_N, refresh=refresh)[
+            [SECTOR_COLUMN, "sector_name"]
+        ].drop_duplicates(SECTOR_COLUMN)
+        names = names.rename(columns={SECTOR_COLUMN: "sector"})
+        names["sector"] = names["sector"].astype(str)
+        out = out.merge(names, on="sector", how="left")
+    except Exception as exc:  # noqa: BLE001 — names are best-effort for labels
+        logger.info("sector_name join skipped for sheet %s: %s", sheet_id, exc)
+
+    return out
+
+
+def bly_step_delta(
+    before_sheet_id: str,
+    after_sheet_id: str,
+    *,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """Per-sector ``BLy_new(after) − BLy_new(before)`` as ``sector`` / ``value`` (+ name)."""
+    before = bly_new_by_sector(before_sheet_id, refresh=refresh).rename(
+        columns={"bly_new_mmt": "bly_before"}
+    )
+    after = bly_new_by_sector(after_sheet_id, refresh=refresh).rename(
+        columns={"bly_new_mmt": "bly_after"}
+    )
+    name_col = (
+        after[["sector", "sector_name"]]
+        if "sector_name" in after.columns
+        else (
+            before[["sector", "sector_name"]]
+            if "sector_name" in before.columns
+            else None
+        )
+    )
+    merged = before[["sector", "bly_before"]].merge(
+        after[["sector", "bly_after"]], on="sector", how="inner"
+    )
+    merged["value"] = merged["bly_after"] - merged["bly_before"]
+    if name_col is not None:
+        merged = merged.merge(name_col, on="sector", how="left")
+    return merged
+
+
+def bly_span_delta(
+    pairs: Sequence[BlyStepPair],
+    *,
+    refresh: bool = False,
+) -> pd.DataFrame:
+    """Combined bar across ordered pairs: ``BLy_new(last.after) − BLy_new(first.before)``.
+
+    When pairs chain (``after[i].config_name == before[i+1].config_name``), per-sector
+    span Δ equals the sum of adjacent step Δs. Opposing moves within the span cancel.
+    """
+    if not pairs:
+        raise ValueError("bly_span_delta requires at least one BlyStepPair")
+
+    for idx in range(len(pairs) - 1):
+        left = pairs[idx].after.config_name
+        right = pairs[idx + 1].before.config_name
+        if left != right:
+            logger.warning(
+                "BLy step pairs do not chain at index %s: %s.after=%s vs %s.before=%s; "
+                "span still uses first.before → last.after but step Δs will not "
+                "telescope to the span",
+                idx,
+                pairs[idx].key,
+                left,
+                pairs[idx + 1].key,
+                right,
+            )
+
+    return bly_step_delta(
+        pairs[0].before.sheet_id,
+        pairs[-1].after.sheet_id,
+        refresh=refresh,
+    )
+
+
+def stack_frame_from_delta(
+    delta: pd.DataFrame,
+    *,
+    group_small_threshold: float = DEFAULT_GROUP_SMALL_THRESHOLD,
+    max_sectors: int = DEFAULT_MAX_SECTORS,
+    label_max_len: int = DEFAULT_LABEL_MAX_LEN,
+) -> pd.DataFrame:
+    """Bucket a step/span delta frame and label sectors as ``code name`` for plotting."""
+    if "sector" not in delta.columns or "value" not in delta.columns:
+        raise ValueError("delta must have 'sector' and 'value' columns")
+
+    tab = pd.DataFrame(
+        {
+            SECTOR_COLUMN: delta["sector"].astype(str),
+            VALUE_COLUMN: delta["value"],
+        }
+    )
+    frame = build_sector_stack_frame(
+        tab,
+        group_small_threshold=group_small_threshold,
+        max_sectors=max_sectors,
+    )
+
+    if "sector_name" not in delta.columns:
+        return frame
+
+    name_map = (
+        delta.assign(sector=delta["sector"].astype(str))
+        .drop_duplicates("sector")
+        .set_index("sector")["sector_name"]
+        .to_dict()
+    )
+
+    def _label(sector: str) -> str:
+        normalized = sector.strip().lower()
+        if normalized.startswith(("other increase", "other decrease")):
+            return sector
+        name = name_map.get(sector)
+        if name is None or (isinstance(name, float) and pd.isna(name)):
+            return sector
+        return f"{sector} {name}"[:label_max_len]
+
+    frame = frame.copy()
+    frame["sector"] = frame["sector"].map(_label)
+    return frame
+
+
+def resolve_v05_us_pairs(pair_keys: Sequence[str]) -> tuple[BlyStepPair, ...]:
+    """Resolve ordered ``V05_US_BLY_STEP_PAIRS`` keys; raise on unknown names."""
+    resolved: list[BlyStepPair] = []
+    for key in pair_keys:
+        try:
+            resolved.append(V05_US_BLY_STEP_PAIRS[key])
+        except KeyError as exc:
+            known = ", ".join(sorted(V05_US_BLY_STEP_PAIRS))
+            raise ValueError(f"unknown BLy step pair {key!r}; known: {known}") from exc
+    return tuple(resolved)
