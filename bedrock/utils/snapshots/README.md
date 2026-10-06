@@ -16,7 +16,10 @@ These are **independent** concepts and frequently point at different commits:
 - **Snapshot SHA** = the commit on `main` whose pipeline outputs were captured into `gs://cornerstone-default/snapshots/<sha>/`. Stored in `.SNAPSHOT_KEY`. Immutable per release.
 - **Release tag SHA** = the commit on `main` that the `vX.Y.Z` tag points at. Marks "what users get when they check out this release." May include the snapshot bump *plus* any docs / polish / non-output-changing PRs that landed before the tag.
 
-**Invariant**: at any tagged commit, the value of `.SNAPSHOT_KEY` is already the snapshot SHA for that release (i.e. the snapshot bump PR is an ancestor of the tagged commit). `git log <snapshot_sha>..<tag_sha>` gives you the docs/polish included in the release.
+**Invariants** at any tagged commit:
+
+- `.SNAPSHOT_KEY` is already the snapshot SHA for that release (the snapshot bump PR is an ancestor of the tagged commit). `git log <snapshot_sha>..<tag_sha>` gives you the docs/polish included in the release.
+- `[project].version` in `pyproject.toml` equals the tag without the `v` prefix (tag `v0.5.0` → `0.5.0`).
 
 ## Concepts
 
@@ -25,6 +28,7 @@ These are **independent** concepts and frequently point at different commits:
 | Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 11 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
+| Package version | [`pyproject.toml`](../../../pyproject.toml) `[project].version` | Same number as the release tag without the `v` prefix (e.g. tag `v0.5.0` → `0.5.0`). `return_pkg_version` in [`settings.py`](../config/settings.py) stamps FBA/FBS filenames (`{method}_v{tool_version}_{git_hash}.parquet`) from this value. Bumped in Phase B before the tag. |
 | Named release | [`releases.py`](releases.py) | Release label → snapshot SHA map, each entry commented with the config stem it was built from and the output change that made it necessary. Imported by [`diagnostics_baseline`](../validation/diagnostics_baseline.py) so `--baseline v0.3` (etc.) resolves; update in Phase A alongside `.SNAPSHOT_KEY`. |
 | Diagnostics baseline alias | [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | Short operator names (`ceda-v0`, `v0.3`, …) → `releases.py` constants. Add an entry when a new release is a common comparison target. Raw SHAs skip this map if they are already on the `Literal`. |
 | Allowed snapshot keys | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs diagnostics may load as `N_old` / `D_old`. Every released snapshot SHA must appear here. YAML default is `'v0'`; dispatch `--baseline` overrides for that run only. |
@@ -63,6 +67,8 @@ Tags follow `v<major>.<minor>.<patch>`. The choice between patch and minor is **
 | **major** (`v0.x.y` → `v1.0.0`) | Reserved for the first official Cornerstone U.S. release. After that, breaking changes to the artifact contract (schema/shape changes that downstream consumers must adapt to). | First public release; output schema redesign |
 
 A reviewer can verify the patch-vs-minor decision by inspecting the diff between tags: `git diff <prev_tag>..<new_tag> -- bedrock/utils/snapshots/.SNAPSHOT_KEY`.
+
+Every Phase B release (patch or minor) also bumps `[project].version` in `pyproject.toml` to match the tag. That field is independent of `.SNAPSHOT_KEY`; leaving it stale does not break snapshot tests, but new FBA/FBS artifacts keep stamping the old `tool_version` until it is updated.
 
 ## When to cut a new snapshot (Phase A trigger)
 
@@ -168,7 +174,10 @@ If you're cutting `v1.0.0` or a later major release, that's a deliberate methodo
 **B2. Confirm `main` is shippable.**
 Integration tests green on the most recent scheduled run. CI on `main` is green. Any docs PRs intended for this release have already merged.
 
-**B3. Tag `main`.**
+**B3. Bump the package version.**
+On a small PR (or the same PR as any last docs/polish for the release), set `[project].version` in [`pyproject.toml`](../../../pyproject.toml) to the version you are about to tag — no `v` prefix (e.g. tag `v0.5.0` → `version = "0.5.0"`). Run `uv lock` so [`uv.lock`](../../../uv.lock) records the same `bedrock` version, and commit both files. Merge before tagging. Do this for every release, patch or minor. Already-uploaded FBA/FBS objects keep their old `tool_version` in the filename; only new regenerations pick up the bumped value via `return_pkg_version`.
+
+**B4. Tag `main`.**
 
 ```bash
 git checkout main && git pull
@@ -186,15 +195,15 @@ Highlights since previous tag:
 git push origin v0.X.Y
 ```
 
-The tag is annotated (not lightweight) so the release notes show up in `git log` and `git tag -n`.
+The tag is annotated (not lightweight) so the release notes show up in `git log` and `git tag -n`. Confirm `pyproject.toml` on the tagged commit reads `version = "0.X.Y"` before pushing the tag.
 
-**B4. Create a GitHub Release.**
+**B5. Create a GitHub Release.**
 
 - GitHub → Releases → Draft new release → pick tag `v0.X.Y`
 - Title: `v0.X.Y`
 - Body: paste the tag message, plus a generated "what changed" section. The easiest way is `git log <prev_tag>..v0.X.Y --oneline` and group entries into Methodology / Docs / Fixes / Other.
 
-**B5. Announce in Slack.**
+**B6. Announce in Slack.**
 Post in `#alerts-bedrock` (and any other relevant channel):
 
 > :package: **Bedrock release `v0.X.Y`**
@@ -204,7 +213,7 @@ Post in `#alerts-bedrock` (and any other relevant channel):
 > Highlights: <one or two lines>
 > Downstream impact: <e.g. use `--baseline v0.X` (or the new SHA) on diagnostics dispatch when comparing to this release>
 
-**B6. (Optional) Announce diagnostics baseline for the release.**
+**B7. (Optional) Announce diagnostics baseline for the release.**
 Model config YAMLs leave `snapshot_version_or_git_sha` at `'v0'`. To compare diagnostics against the new release snapshot, pass `--baseline v0.X` on `generate_diagnostics` / the workflow `baseline` input, or the raw SHA once it is on the `Literal`. See [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md) (§ Choose a baseline). Do not flip YAML defaults solely to change the comparison target.
 
 ## Anatomy of the Phase A snapshot bump PR
@@ -318,6 +327,7 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 | File | Role |
 |---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The pinned SHA that integration tests load |
+| [`../../../pyproject.toml`](../../../pyproject.toml) | `[project].version` stamped onto FBA/FBS artifacts; bump in Phase B to match the tag |
 | [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the 11 parquet snapshots and uploads to GCS |
 | [`loader.py`](loader.py) | `load_current_snapshot`, `load_configured_snapshot`, GCS download helpers |
 | [`names.py`](names.py) | `SnapshotName` literal type and `SNAPSHOT_NAMES` list |
