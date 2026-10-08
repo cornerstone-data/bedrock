@@ -1,13 +1,14 @@
 """Cornerstone IO data processing pipeline.
 
-Derives 2017 detail IO matrices (V, U, Y, A, B, g, q) using the
-Cornerstone 2026 taxonomy (405 sectors).
+Derives detail IO matrices (V, U, Y, A, B, g, q) using the Cornerstone 2026
+taxonomy (405 sectors), from the published BEA 2017 tables or a nowcast year's
+MUT via ``bedrock.extract.iot.detail_io``.
 
 **Core approach** — A is computed in the original BEA 2017 ~400-sector
 space and then *expanded* to 405 Cornerstone sectors by duplicating
 rows/columns for disaggregated codes. V, U, and Y are mapped via
 correspondence-matrix multiplication. B is computed directly in
-Cornerstone space from runtime `derive_E_usa()`. Waste subsectors receive
+Cornerstone space from runtime `load_E_from_flowsa()`. Waste subsectors receive
 special intragroup treatment to prevent Leontief-inverse inflation.
 
 Year-scaling logic (summary → detail disaggregation) uses the cornerstone
@@ -33,14 +34,14 @@ import numpy as np
 import pandas as pd
 import pandera.typing as pt
 
-from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
-    load_2017_value_added_usa,
-    load_2017_Ytot_usa,
+from bedrock.extract.iot.detail_io import (
+    load_detail_Uimp_usa,
+    load_detail_Utot_usa,
+    load_detail_V_usa,
+    load_detail_value_added_usa,
+    load_detail_Ytot_usa,
 )
-from bedrock.transform.allocation.derived import derive_E_usa
+from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio.cornerstone_bea_intermediates import (
     bea_Aq,
 )
@@ -52,7 +53,16 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     distribute_waste_parent_x_using_v_row_shares,
     electricity_conversion_factors,
+    electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
+    electricity_reaggregation_enabled,
+    reaggregate_electricity_children_aq,
+    reaggregate_electricity_children_b,
+    reaggregate_electricity_children_u,
+    reaggregate_electricity_children_v,
+    reaggregate_electricity_children_va,
+    reaggregate_electricity_children_x,
+    reaggregate_electricity_children_y,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     CS_COMMODITY_LIST,
@@ -73,6 +83,7 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_Ytot_usa_matrix_set,
 )
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
+    derive_margin_sectors_cornerstone_usa,
     derive_margins_cornerstone_usa,
 )
 from bedrock.transform.iot.derived_gross_industry_output import (
@@ -152,16 +163,16 @@ def _cornerstone_aq_matrix_set(
 
 
 def _derive_cornerstone_V_baseline() -> pd.DataFrame:
-    V_2017 = load_2017_V_usa()
-    V = industry_corresp() @ V_2017 @ commodity_corresp().T
+    V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
+    V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
     return V
 
 
 def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
 
     com_c = commodity_corresp()
@@ -178,13 +189,13 @@ def _derive_cornerstone_U_baseline() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def _derive_cornerstone_VA_baseline() -> pd.DataFrame:
-    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
     return VA
 
 
 def _derive_cornerstone_Ytot_baseline() -> pd.DataFrame:
-    Ytot_orig = load_2017_Ytot_usa()
+    Ytot_orig = load_detail_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
     return Ytot
@@ -197,7 +208,7 @@ def _ytot_for_public_routers() -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — V, g, q
+# Base detail IO matrices (published 2017 or nowcast year) — V, g, q
 # ---------------------------------------------------------------------------
 
 
@@ -243,7 +254,19 @@ def _distribute_waste_parent_x_using_v_row_shares(
 def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     """Gross industry output in Cornerstone schema, after BEA redefinitions.
 
-    Uses gross-output time series for *year* (defaults to
+    ``usa_detail_io_source == 'nowcast'``: the detail Make the router loads is
+    already the after-redefinition nowcast table for ``usa_base_io_data_year``
+    (Step 7), so industry output is its row sum, ``derive_cornerstone_x()``.
+    The stored artifact is BEA detail schema; the waste and electricity
+    splits live inside the Cornerstone ``V`` that
+    ``derive_cornerstone_V()`` builds from it via the correspondences and
+    the disaggregation pipeline - x is the row sum of that post-schema
+    ``V``, so nothing is expanded from a BEA gross-output series and the
+    stored vectors are never treated as Cornerstone-shaped. *year* must be
+    0 or ``usa_base_io_data_year`` - a nowcast Make exists for one calendar
+    year only.
+
+    ``bea_published``: uses gross-output time series for *year* (defaults to
     ``usa_ghg_data_year`` when *year* is 0), selecting before/after-redefinition
     source from config, then expands it to Cornerstone industries via the
     BEA→Cornerstone industry correspondence.
@@ -262,6 +285,13 @@ def derive_cornerstone_x_after_redefinition(year: int = 0) -> pd.Series[float]:
     ``derive_cornerstone_x()``.
     """
     cfg = get_usa_config()
+    if cfg.usa_detail_io_source == 'nowcast':
+        if year not in (0, cfg.usa_base_io_data_year):
+            raise ValueError(
+                'nowcast detail IO carries one calendar year; x is available at '
+                f'usa_base_io_data_year={cfg.usa_base_io_data_year}, got year={year}'
+            )
+        return derive_cornerstone_x()
     effective_year = (
         cfg.usa_ghg_data_year
         if year == 0
@@ -308,8 +338,8 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
-    scrap_2017 = load_2017_V_usa().loc[:, 'S00401']
-    scrap_fraction = industry_corresp() @ scrap_2017
+    scrap_detail = load_detail_V_usa().loc[:, 'S00401']
+    scrap_fraction = industry_corresp() @ scrap_detail
     if get_usa_config().implement_electricity_disaggregation:
         parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
         scrap_fraction = scrap_fraction.drop(
@@ -331,7 +361,7 @@ def derive_cornerstone_Vnorm_scrap_corrected(
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — U
+# Base detail IO matrices (published 2017 or nowcast year) — U
 # ---------------------------------------------------------------------------
 
 
@@ -366,7 +396,7 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — Y
+# Base detail IO matrices (published 2017 or nowcast year) — Y
 # ---------------------------------------------------------------------------
 
 
@@ -408,7 +438,7 @@ def derive_cornerstone_Y_personal_consumption_expenditure() -> pd.Series[float]:
 
 
 # ---------------------------------------------------------------------------
-# Base 2017 IO matrices — VA
+# Base detail IO matrices (published 2017 or nowcast year) — VA
 # ---------------------------------------------------------------------------
 
 
@@ -491,11 +521,71 @@ def _derive_cornerstone_Aq_from_disaggregated() -> SingleRegionAqMatrixSet:
 # ---------------------------------------------------------------------------
 
 
+def _reanchor_electricity_aq_if_disaggregation_enabled(
+    aq: SingleRegionAqMatrixSet,
+    *,
+    original_year: int,
+    target_year: int,
+    model_year: int,
+    use_commodity_pi: bool,
+) -> SingleRegionAqMatrixSet:
+    """Re-apply EIA end-use class shares at model year onto A/q when enabled.
+
+    No-op when electricity disaggregation is off. Otherwise delegates to
+    ``reanchor_electricity_aq_after_year_scaling``, which re-runs the allocator
+    so class MWh targets come from EIA Table 2.2 / 2.14 at ``model_year``
+    (not the scaled 2017 structure) and rewrites electricity rows/columns of
+    A and q after year scaling and price-index inflation.
+    """
+    if not electricity_disaggregation_enabled():
+        return aq
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        reanchor_electricity_aq_after_year_scaling,
+    )
+
+    out = reanchor_electricity_aq_after_year_scaling(
+        aq,
+        original_year=original_year,
+        target_year=target_year,
+        model_year=model_year,
+        use_commodity_pi=use_commodity_pi,
+    )
+
+    return _cornerstone_aq_matrix_set(
+        Adom=out.Adom, Aimp=out.Aimp, scaled_q=out.scaled_q
+    )
+
+
 @functools.cache
 def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
-    """Year-scaled and inflated A matrices and q."""
+    """Return model-ready A matrices and ``q``.
+
+    On the published-BEA path, scales detail A and ``q`` from
+    ``usa_detail_original_year`` to ``usa_io_data_year``, then inflates to
+    ``model_base_year``. When electricity disaggregation is enabled, re-anchors
+    electricity rows/columns after inflation.
+
+    No-op shortcuts:
+
+    - ``usa_detail_io_source == 'nowcast'`` without electricity disaggregation —
+      detail IO is already at the IO calendar year; summary-ratio scaling and PI
+      inflation do not apply. When electricity disaggregation is enabled, re-anchors
+      G/T/D at ``model_base_year`` via ``reanchor_electricity_aq_at_year``.
+    - ``scale_a_matrix_with_useeio_method`` — USEEIO-parity A path.
+    """
     base = derive_cornerstone_Aq()
     cfg = get_usa_config()
+    if cfg.usa_detail_io_source == 'nowcast':
+        if electricity_disaggregation_enabled():
+            from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+                reanchor_electricity_aq_at_year,
+            )
+
+            out = reanchor_electricity_aq_at_year(base, year=cfg.model_base_year)
+            return _cornerstone_aq_matrix_set(
+                Adom=out.Adom, Aimp=out.Aimp, scaled_q=out.scaled_q
+            )
+        return base
     io_year = cfg.usa_io_data_year
     detail_year = cfg.usa_detail_original_year
     model_year = cfg.model_base_year
@@ -504,31 +594,31 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
     if cfg.scale_a_matrix_with_useeio_method:
         return base
 
-    # IO year adjustments (v0.3): CEDA's A approach with dollar-year rebase.
-    # Scale to usa_io_data_year, then inflate to model_base_year:
-    # 1. scale detail A and q with dollar-year-adjusted summary numbers
-    #    (`scale_cornerstone_A`/`_q` rebase the target-year summary tables into
-    #    2017 USD before the ratio is taken, so the structural cross-year ratio
-    #    is formed entirely in 2017 USD),
-    # 2. inflate with commodity pi instead of industry pi.
+    # 1. Scale detail A and q to usa_io_data_year.
+    #    With apply_io_year_adjustments, scale_cornerstone_A/_q rebase the
+    #    target-year summary tables into 2017 USD before the ratio is taken,
+    #    so the structural cross-year ratio is formed entirely in 2017 USD.
+    Adom = scale_cornerstone_A(
+        base.Adom,
+        target_year=io_year,
+        original_year=detail_year,
+        dom_or_imp_or_total='dom',
+    )
+    Aimp = scale_cornerstone_A(
+        base.Aimp,
+        target_year=io_year,
+        original_year=detail_year,
+        dom_or_imp_or_total='imp',
+    )
+    q = scale_cornerstone_q(
+        base.scaled_q,
+        target_year=io_year,
+        original_year=detail_year,
+    )
+
+    # 2. Inflate to model_base_year (commodity pi for v0.3 IO-year path;
+    #    industry pi otherwise).
     if cfg.apply_io_year_adjustments:
-        Adom = scale_cornerstone_A(
-            base.Adom,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='dom',
-        )
-        Aimp = scale_cornerstone_A(
-            base.Aimp,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='imp',
-        )
-        q = scale_cornerstone_q(
-            base.scaled_q,
-            target_year=io_year,
-            original_year=detail_year,
-        )
         Adom = inflate_cornerstone_A_matrix_with_commodity_pi(
             Adom, original_year=detail_year, target_year=model_year
         )
@@ -538,36 +628,27 @@ def derive_cornerstone_Aq_scaled() -> SingleRegionAqMatrixSet:
         q = inflate_cornerstone_q_or_y_with_commodity_pi(
             q, original_year=detail_year, target_year=model_year
         )
-        return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
+        use_commodity_pi = True
+    else:
+        Adom = inflate_cornerstone_A_matrix_with_industry_pi(
+            Adom, original_year=io_year, target_year=model_year
+        )
+        Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
+            Aimp, original_year=io_year, target_year=model_year
+        )
+        q = inflate_cornerstone_q_or_y_with_industry_pi(
+            q, original_year=io_year, target_year=model_year
+        )
+        use_commodity_pi = False
 
-    Adom = inflate_cornerstone_A_matrix_with_industry_pi(
-        scale_cornerstone_A(
-            base.Adom,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='dom',
-        ),
-        original_year=io_year,
-        target_year=model_year,
+    # 3. Re-apply electricity end-use class shares at model year when enabled.
+    return _reanchor_electricity_aq_if_disaggregation_enabled(
+        _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q),
+        original_year=int(detail_year),
+        target_year=int(io_year),
+        model_year=int(model_year),
+        use_commodity_pi=use_commodity_pi,
     )
-    Aimp = inflate_cornerstone_A_matrix_with_industry_pi(
-        scale_cornerstone_A(
-            base.Aimp,
-            target_year=io_year,
-            original_year=detail_year,
-            dom_or_imp_or_total='imp',
-        ),
-        original_year=io_year,
-        target_year=model_year,
-    )
-    q = inflate_cornerstone_q_or_y_with_industry_pi(
-        scale_cornerstone_q(
-            base.scaled_q, target_year=io_year, original_year=detail_year
-        ),
-        original_year=io_year,
-        target_year=model_year,
-    )
-    return _cornerstone_aq_matrix_set(Adom=Adom, Aimp=Aimp, scaled_q=q)
 
 
 # ---------------------------------------------------------------------------
@@ -592,49 +673,102 @@ def _margin_sector_commodity_output_ratio(
     return pd.Series(ratios, dtype=float)
 
 
-@functools.cache
-def derive_cornerstone_A_margin() -> pd.DataFrame:
-    """Margin-provider A matrix (commodity supplying margin x commodity purchased).
+def _a_margin_from_type_margins(
+    margins: pd.DataFrame,
+    q: pd.Series[float],
+    margin_sector_commodities: ta.Mapping[str, ta.Sequence[str]],
+    commodities: ta.Sequence[str],
+) -> pd.DataFrame:
+    """``A_margin`` spreading each margin type over its group by output share.
 
-    Python port of useeior's ``calculateMarginSectorImpacts`` A_margin
-    construction: for each Cornerstone commodity, its Transportation/Wholesale/
-    Retail margin fraction of producer price (from ``derive_margins_cornerstone_usa()``,
-    the equivalent of ``model$Margins``) is allocated across the Cornerstone
-    commodities in the corresponding BEA-Sector margin group in proportion to
-    each commodity's share of that group's total ``derive_cornerstone_q()``
-    output (the equivalent of ``model$q``).
-
-    Row ``i`` (a margin-providing commodity) gives, for every column ``j``
-    (purchasing commodity), the fraction of ``j``'s producer-price purchase
-    that flows to commodity ``i`` to cover ``j``'s trade/transportation margin.
-    Non-margin-providing rows are all zero.
+    useeior's ``calculateMarginSectorImpacts``: commodity ``j``'s margin of a
+    type, as a fraction of its producer value, goes to the type's margin
+    commodities in proportion to each one's share of the group's ``q``. Every
+    purchased commodity gets the same split within a type: a table average.
     """
-    margins = derive_margins_cornerstone_usa()
-    margin_sector_commodities = load_margin_type_to_cornerstone_commodity()
     margin_types = list(margin_sector_commodities)
     margin_coefficients = (
         margins[margin_types]
         .div(margins["Producers' Value"], axis=0)
         .replace([np.inf, -np.inf, np.nan], 0.0)
     )
+    output_ratio = _margin_sector_commodity_output_ratio(q, margin_sector_commodities)
 
-    output_ratio = _margin_sector_commodity_output_ratio(
-        derive_cornerstone_q(), margin_sector_commodities
-    )
-
-    margin_allocation = pd.DataFrame(0.0, index=margin_types, columns=CS_COMMODITY_LIST)
+    margin_allocation = pd.DataFrame(0.0, index=margin_types, columns=list(commodities))
     for margin_type, codes in margin_sector_commodities.items():
         code_list = list(codes)
         margin_allocation.loc[margin_type, code_list] = output_ratio.loc[code_list]
 
     margins_by_sector = margin_coefficients @ margin_allocation
 
-    A_margin = pd.DataFrame(0.0, index=CS_COMMODITY_LIST, columns=CS_COMMODITY_LIST)
-    A_margin.index.name = 'sector'
-    A_margin.columns.name = 'sector'
+    A_margin = pd.DataFrame(0.0, index=list(commodities), columns=list(commodities))
     for codes in margin_sector_commodities.values():
         code_list = list(codes)
         A_margin.loc[code_list, :] = margins_by_sector[code_list].T
+    return A_margin
+
+
+def _a_margin_from_sector_margins(
+    sector_margins: pd.DataFrame,
+    producers_value: pd.Series[float],
+    commodities: ta.Sequence[str],
+) -> pd.DataFrame:
+    """``A_margin`` from the margin commodity each transaction actually paid (#836).
+
+    ``A_margin[i, j]`` is the margin dollars commodity ``j``'s purchases paid to
+    margin commodity ``i``, as a fraction of ``j``'s producer value. Within each
+    margin type this sums to the same total as
+    :func:`_a_margin_from_type_margins`; only the split across the type's
+    margin commodities changes, from a table average to each commodity's own.
+    """
+    coefficients = (
+        sector_margins.reindex(index=list(commodities))
+        .div(producers_value.reindex(list(commodities)), axis=0)
+        .replace([np.inf, -np.inf, np.nan], 0.0)
+        .fillna(0.0)
+    )
+    A_margin = pd.DataFrame(0.0, index=list(commodities), columns=list(commodities))
+    rows = [c for c in coefficients.columns if c in A_margin.index]
+    A_margin.loc[rows, :] = coefficients[rows].T.to_numpy()
+    return A_margin
+
+
+@functools.cache
+def derive_cornerstone_A_margin() -> pd.DataFrame:
+    """Margin-provider A matrix (commodity supplying margin x commodity purchased).
+
+    Row ``i`` (a margin-providing commodity) gives, for every column ``j``
+    (purchasing commodity), the fraction of ``j``'s producer-price purchase
+    that flows to commodity ``i`` to cover ``j``'s trade/transportation margin.
+    Non-margin-providing rows are all zero. Feeds ``M_margin = M @ A_margin``
+    and ``N_margin = N @ A_margin``.
+
+    With ``margin_impacts_from_transaction_sectors`` on and a nowcast detail
+    source, the split across margin commodities is each purchased commodity's
+    own, from the nowcast Margins table (:func:`_a_margin_from_sector_margins`,
+    #836). Otherwise it is useeior's table average
+    (:func:`_a_margin_from_type_margins`), which is also what BEA's published
+    tables allow, since they carry only the three margin types.
+    """
+    margins = derive_margins_cornerstone_usa()
+    sector_margins = (
+        derive_margin_sectors_cornerstone_usa()
+        if get_usa_config().margin_impacts_from_transaction_sectors
+        else None
+    )
+    if sector_margins is not None:
+        A_margin = _a_margin_from_sector_margins(
+            sector_margins, margins["Producers' Value"], CS_COMMODITY_LIST
+        )
+    else:
+        A_margin = _a_margin_from_type_margins(
+            margins,
+            derive_cornerstone_q(),
+            load_margin_type_to_cornerstone_commodity(),
+            CS_COMMODITY_LIST,
+        )
+    A_margin.index.name = 'sector'
+    A_margin.columns.name = 'sector'
     return A_margin
 
 
@@ -646,8 +780,16 @@ def derive_cornerstone_A_margin() -> pd.DataFrame:
 def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     """B (ghg × Cornerstone commodity).
 
-    Always computed in Cornerstone space: E = derive_E_usa(), then B = (E / x) @ Vnorm.
+    Always computed in Cornerstone space: E = load_E_from_flowsa() (407 when
+    electricity disaggregation is on), then B = (E / x) @ Vnorm. Published E
+    under reaggregation is ``derive_E_usa`` (405 column-sum collapse); B still
+    uses the 407 path so per-child intensities feed the later q-weighted
+    ``reaggregate_electricity_children_b`` step.
     Industry ``x`` is:
+    - ``usa_detail_io_source == 'nowcast'``: row sums of the nowcast Make,
+      ``derive_cornerstone_x()``. E and the Make share one calendar year
+      (``usa_ghg_data_year == usa_base_io_data_year``, validator-enforced), so
+      no gross-output series and no deflation enter.
     - ``deflate_x_to_detail_io_year_for_B=True``: gross output from the BEA
       gross-output time series at ``usa_ghg_data_year`` (nominal), divided by
       ``PI(usa_ghg_data_year)/PI(usa_detail_original_year)`` so ``E/x`` uses
@@ -661,8 +803,10 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
     No BEA intermediate or expand_ghg_matrix_from_bea_to_cornerstone.
     """
     cfg = get_usa_config()
-    E = derive_E_usa()
-    if cfg.deflate_x_to_detail_io_year_for_B:
+    E = load_E_from_flowsa()
+    if cfg.usa_detail_io_source == 'nowcast':
+        x = derive_cornerstone_x()
+    elif cfg.deflate_x_to_detail_io_year_for_B:
         # Deflate GHG-year nominal gross output to detail IO year ($) for E/x:
         #   1) nominal industry output at usa_ghg_data_year
         #   2) divide by PI(ghg)/PI(detail) so x matches usa_detail_original_year $
@@ -698,9 +842,14 @@ def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
     and stays on vnorm only. On the legacy footing, B is scaled 2017 →
     ``usa_io_data_year`` with summary q ratios and then inflated to
     ``model_base_year`` with the industry PI.
+
+    No-op shortcut, mirroring ``derive_cornerstone_Aq_scaled``: when
+    ``usa_detail_io_source == 'nowcast'``, E, x and A already share the IO
+    calendar year, so summary-ratio scaling to ``usa_io_data_year`` and PI
+    inflation to ``model_base_year`` do not apply.
     """
     cfg = get_usa_config()
-    if cfg.use_ghg_year_x_in_B:
+    if cfg.use_ghg_year_x_in_B or cfg.usa_detail_io_source == 'nowcast':
         return derive_cornerstone_B_via_vnorm()
     return inflate_cornerstone_B_matrix_with_industry_pi(
         scale_cornerstone_B(
@@ -725,6 +874,57 @@ def derive_cornerstone_B_mixed_units() -> pd.DataFrame:
     aq = derive_cornerstone_Aq_scaled()
     c_col, _ = electricity_conversion_factors(aq)
     return build_electricity_mixed_units_b(derive_cornerstone_B_non_finetuned(), c_col)
+
+
+@functools.cache
+def derive_cornerstone_Aq_reaggregated() -> SingleRegionAqMatrixSet:
+    """Published 405 A/q: collapse G/T/D after scaled+reanchor. No-op if flag off."""
+    return reaggregate_electricity_children_aq(derive_cornerstone_Aq_scaled())
+
+
+@functools.cache
+def derive_cornerstone_B_reaggregated() -> pd.DataFrame:
+    """Published 405 B: q-weight 407 B columns with post-reanchor scaled_q."""
+    aq = derive_cornerstone_Aq_scaled()
+    return reaggregate_electricity_children_b(
+        derive_cornerstone_B_non_finetuned(), aq.scaled_q
+    )
+
+
+@functools.cache
+def derive_cornerstone_V_reaggregated() -> pd.DataFrame:
+    """Excel Make: 3×3 collapse of 2017 ``derive_cornerstone_V`` (still 407)."""
+    return reaggregate_electricity_children_v(derive_cornerstone_V())
+
+
+@functools.cache
+def derive_cornerstone_U_set_reaggregated() -> SingleRegionUMatrixSet:
+    """Excel Use intermediates: 3×3 collapse of 2017 ``derive_cornerstone_U_set``."""
+    uset = derive_cornerstone_U_set()
+    udom = reaggregate_electricity_children_u(uset.Udom)
+    uimp = reaggregate_electricity_children_u(uset.Uimp)
+    return SingleRegionUMatrixSet(
+        Udom=cast(pt.DataFrame[UMatrix], udom),
+        Uimp=cast(pt.DataFrame[UMatrix], uimp),
+    )
+
+
+@functools.cache
+def derive_cornerstone_VA_reaggregated() -> pd.DataFrame:
+    """Excel VA: sum G/T/D industry columns of 2017 ``derive_cornerstone_VA``."""
+    return reaggregate_electricity_children_va(derive_cornerstone_VA())
+
+
+@functools.cache
+def derive_cornerstone_x_reaggregated() -> pd.Series[float]:
+    """Excel industry output: sum G/T/D of 2017 ``derive_cornerstone_x``."""
+    return reaggregate_electricity_children_x(derive_cornerstone_x())
+
+
+@functools.cache
+def derive_disagg_Ytot_reaggregated() -> pd.DataFrame:
+    """Excel FD: sum G/T/D commodity rows of 2017 ``derive_disagg_Ytot_with_trade``."""
+    return reaggregate_electricity_children_y(derive_disagg_Ytot_with_trade())
 
 
 # ---------------------------------------------------------------------------
@@ -783,6 +983,12 @@ def derive_cornerstone_Y_and_trade_scaled() -> SingleRegionYtotAndTradeVectorSet
         clip_negatives=True,
         **common,  # type: ignore[arg-type]
     )
+    if electricity_disaggregation_enabled():
+        from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+            collapse_electricity_imports_onto_generation,
+        )
+
+        imports = collapse_electricity_imports_onto_generation(imports)
 
     return SingleRegionYtotAndTradeVectorSet(
         ytot=ytot, exports=exports, imports=imports
@@ -814,6 +1020,15 @@ def derive_cornerstone_y_nab_mixed_units() -> pd.Series[float]:
     if not electricity_mixed_units_enabled():
         return derive_cornerstone_y_nab()
     aq = derive_cornerstone_Aq_mixed_units()
+    return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
+
+
+@functools.cache
+def derive_cornerstone_y_nab_reaggregated() -> pd.Series[float]:
+    """National-accounting y from collapsed Adom/q. No-op path uses scaled y_nab."""
+    if not electricity_reaggregation_enabled():
+        return derive_cornerstone_y_nab()
+    aq = derive_cornerstone_Aq_reaggregated()
     return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
 
 

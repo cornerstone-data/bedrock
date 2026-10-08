@@ -120,6 +120,7 @@ These surface as a **failed GH run after a successful dispatch** — the sheet i
 
 ## Conventions (don't reinvent)
 
+- **One sheet per run — never reuse an existing sheet ID.** `generate_diagnostics` clears and rewrites every tab of the `sheet_id` it is given and never renames the file, so pointing it at a registry sheet (e.g. the `v03_waterfall_*` sheets in `release_v0_v03_*_groups.py`) destroys that release's columns and leaves a title describing data the sheet no longer holds. To refresh a registry sheet after a snapshot bump, mint a new sheet, dispatch against it, then repoint `sheet_id` + `sheet_title` in the registry. Restoring an overwritten sheet is a manual **File > Version history** operation in the Sheets UI — the Drive API cannot revert revisions of Google-native files.
 - **Drive folder:** `EF_TIME_SERIES_DRIVE_FOLDER_ID = 1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s`.
 - **Sheet title:** `[{YYYY-MM-DD}, {year}, {baseline} based, {approach label}, {scenario}] EFs diagnostics`.
 - **Run index:** `output/results/ef_run_index.csv` — columns `scenario, approach, year, baseline, config_name, sheet_id, sheet_title, useeio_box_ticked, git_ref, triggered_at`.

@@ -1,0 +1,136 @@
+author: US Census Bureau
+source_name: Economic Census, Products by Industry
+source_url: https://www.census.gov/programs-surveys/economic-census.html
+source_publication_date: ''
+bib_id: Census_EC_PxI
+
+# ⚠️ The product identifier here is NOT the NAPCS classification, despite the
+# API calling the field NAPCS2017. Census labels it "2017 NAPCS collection
+# code", and it is a distinct code set - referred to throughout bedrock as the
+# **Census_2017_PxI_product_code** to keep the two apart.
+#
+# Measured against the published NAPCS 2017 structure and definitions
+# (census.gov/naics/napcs/structure/2017NAPCSStructure.xlsx and
+# .../2017_NAPCS_Definitions.xlsx):
+#
+#   - official NAPCS codes are hierarchical at lengths 2/3/5/7/9/11; these are
+#     uniformly 10 digits
+#   - **0 of the 620 trade product codes appear in either official file**
+#   - joining on title instead recovers only 144 of 620 lines, 12% of value -
+#     and for goods lines alone 14 of 341, 11% of value
+#
+# So the two do not join on code and mostly do not join on title. Treat the
+# official NAPCS files as reference material for the minority that do match
+# (their definitions usefully confirm a product is the *manufactured* good, not
+# the retail act), never as a source of coverage.
+#
+# The codes are also unstable across vintages: 525 codes are new in 2022 and 548
+# are gone, but the large "new" ones are recodings of products already present
+# in 2017. Anything built on this source must key on the product **description**,
+# not the code.
+#
+# How the data is made, from Census's 2017 methodology - it bears on what the
+# numbers can carry:
+#
+#   - establishments report product lines on their Economic Census form, and
+#     "the sales of each individual product reported by (or **imputed to**) an
+#     establishment are separately tabulated"
+#   - it is a **weighted sample**, not a full enumeration: "a post-stratification
+#     weighting adjustment (using industry by state strata) is subsequently
+#     performed to ensure that the weighted product data of the sampled
+#     establishments sum to the total receipts of all establishments"
+#
+# The second point is why this suits an allocation-share use - the mix is built
+# to sum to total receipts - and also why cell-level suppression is so heavy:
+# thin industry x product cells do not meet publication standards.
+#
+# ✅ **Broad vs detail lines: checked, no double count here.** Collection codes
+# come in two levels - broad lines end in "0" (3,534 of them, published across
+# sectors) and detail lines end in "1"-"9" (4,703, industry-specific). The
+# EC1700NAPCSPRDIND group is **entirely broad lines**: all 29,118 rows end in
+# "0", and no industry carries both a broad line and its own detail children. So
+# the parent/child double count that U50705BU1 has is absent. Re-run that check
+# if another group is ever added to this method.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: http://api.census.gov/data/
+  api_path: __year__/__dataset__?
+  url_params:
+    get: __group__
+    for: "us:*"
+    key: __apiKey__     # make the __apiKey__ part of the url and substitute in individual api key
+  key_param: key
+url_replace_fxn: !script_function:Census_EC census_EC_URL_helper
+call_response_fxn: !script_function:Census_EC census_EC_call
+parse_response_fxn: !script_function:Census_EC census_EC_PxI_parse
+
+# Product-line sales by kind of business. This is BEA's own input for the
+# trade-margin method (2009 IO manual ch. 8) and for the change in private
+# inventories merchandise-trade rule, both of which ask what a kind of business
+# sells rather than what it makes:
+#   - #529 F03000, weights within each trade line's commodity set
+#   - #615 re-running BEA's product-line margin method
+# See analysis/nowcasting/inventories_estimation_plan.md.
+#
+# https://www.census.gov/data/developers/data-sets/economic-census.2017.html
+
+datasets:
+  # ⚠️ ecnnapcsind (industry BY product) is the transpose of the dataset below
+  # and wants the opposite Produced/Consumed assignment. Do not add it here
+  # without revisiting census_EC_PxI_parse - see its docstring.
+  #
+  # ecnnapcsind: # Economic Census: Industry by Products Statistics for the U.S.
+  #   '2017':
+  #     - EC1700NAPCSINDPRD
+  #     # https://api.census.gov/data/2017/ecnnapcsind.html
+
+  ecnnapcsprd: # Economic Census: Products by Industry Statistics for the U.S.
+    '2017':
+      # All Sectors: Products by Industry for the U.S. and States: 2017
+      - EC1700NAPCSPRDIND
+      # https://api.census.gov/data/2017/ecnnapcsprd.html
+    '2022':
+      # Selected Sectors: Products by Industry for the U.S.: 2022 (#650)
+      - EC2200NAPCSPRDIND
+      # https://api.census.gov/data/2022/ecnnapcsprd.html
+
+# The Economic Census is quinquennial, so any weights built from this are fixed
+# between census years. 2017 is the benchmark I-O year the concordance is
+# anchored against; 2022 is pulled as of #650 because a *second* vintage is what
+# lets a commodity mix move on observed product data rather than stay frozen at
+# the benchmark, which is what Step 4a needs (#570,
+# analysis/nowcasting/output_estimation_plan.md).
+#
+# ⚠️ The two vintages do not line up cleanly. What the trial pull showed, which
+# still governs how they may be compared:
+#
+#   - 902 industries against 2017's 946, and the group is titled "Selected
+#     Sectors" where 2017 is "All Sectors" - so the vintages do not obviously
+#     cover the same ground
+#   - 525 product codes are new and 548 are gone, but the large "new" ones are
+#     **recodings of products already present in 2017** ("Wholesale sales of
+#     cosmetics, beauty supplies, perfumes and colognes" is a new code for an
+#     existing product)
+#   - the 2017-built concordance covers 94.4% of 2017 trade goods value but only
+#     70.5% of 2022, the gap being description drift rather than new goods
+#
+# The middle point is why anything built on this source keys on the product
+# **description** rather than the code. The third is the work #650 has to do.
+#
+# ✅ **The 70.5% drift is trade-goods specific, not general.** Measured on the
+# twelve service industries that carry Step 4a's at-risk dollars (#570) - 5417,
+# 5418, 5415, 622, 5182, 7132, 5321, 2211, 2213, 8111, 7225 - 2022 value joins
+# back to 2017 at **98.6% by code and 98.1% by description**, on 3.84tn. So the
+# vintage instability is concentrated in the wholesale and retail product lines
+# the trade-margin method uses, and the services side may be joined either way.
+# Do not generalise the 70.5% to a services use, or the reverse.
+#
+# ⚠️ 2022 is "Selected Sectors" against 2017's "All Sectors" and some industries
+# simply drop out - `5151` radio and television broadcasting has no 2022 rows at
+# all. Check presence before differencing the vintages, rather than reading an
+# absence as a decline to zero.
+years:
+- 2017
+- 2022

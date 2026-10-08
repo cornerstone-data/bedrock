@@ -35,9 +35,19 @@ class FlowsaLoader(yaml.SafeLoader):
         except FileNotFoundError:
             transform_file_folder = settings.transformpath
 
+        # An extract config living in a subfolder (e.g. extract/epa/) can
+        # !include a sibling. Only the transform tree was resolved that way, so
+        # such an include raised FileNotFoundError before any download was
+        # attempted. !from_index: already resolves the extract tree this way.
+        try:
+            extract_file_folder = return_folder_path(settings.extractpath, file)
+        except FileNotFoundError:
+            extract_file_folder = settings.extractpath
+
         for folder in [
             *loader.external_paths_to_search,
             settings.extractpath,
+            extract_file_folder,
             settings.datapath,
             settings.transformpath / 'common',
             transform_file_folder,
@@ -49,7 +59,13 @@ class FlowsaLoader(yaml.SafeLoader):
         else:
             raise FileNotFoundError(f'{file} not found')
 
-        with open(file) as f:
+        # ⚠️ encoding='utf-8' is required, not cosmetic. Without it Python picks
+        # the locale default - cp1252 on Windows - and an included file
+        # containing the ⚠️/✅ markers this repo's yaml comments use dies with
+        # UnicodeDecodeError before the document is ever parsed. load_yaml_dict
+        # already opens the TOP-level method this way; this is the same fix for
+        # the files it pulls in.
+        with open(file, encoding='utf-8') as f:
             branch: Any = load(f, loader.external_path_to_pass)
 
         while keys:

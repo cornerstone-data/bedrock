@@ -1,0 +1,500 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+STB_CRSR,01129,BEA_2017_Code,1111B0,,"Raw Cotton, Nec"
+STB_CRSR,01131,BEA_2017_Code,1111B0,,Barley
+STB_CRSR,01132,BEA_2017_Code,1111B0,,Corn
+STB_CRSR,01133,BEA_2017_Code,1111B0,,Oats
+STB_CRSR,01134,BEA_2017_Code,1111B0,,"Rice, Rough"
+STB_CRSR,01135,BEA_2017_Code,1111B0,,Rye
+STB_CRSR,01136,BEA_2017_Code,1111B0,,Sorghum Grains
+STB_CRSR,01137,BEA_2017_Code,1111B0,,Wheat
+STB_CRSR,01139,BEA_2017_Code,1111B0,,"Grain, Nec"
+STB_CRSR,01141,BEA_2017_Code,1111A0,,Cottonseeds
+STB_CRSR,01142,BEA_2017_Code,1111A0,,Flaxseeds
+STB_CRSR,01143,BEA_2017_Code,1111A0,,Peanuts
+STB_CRSR,01144,BEA_2017_Code,1111A0,,Soybeans (Soya Beans)
+STB_CRSR,01149,BEA_2017_Code,1111A0,,"Oil Kernels, Nuts or Seeds"
+STB_CRSR,01151,BEA_2017_Code,111900,,Lawn Grass Seeds
+STB_CRSR,01152,BEA_2017_Code,111900,,Popcorn
+STB_CRSR,01159,BEA_2017_Code,111900,,"Field Seeds, Nec"
+STB_CRSR,01191,BEA_2017_Code,111900,,"Fodder, Ray or Roughage"
+STB_CRSR,01195,BEA_2017_Code,111200,,"Potatoes, Other Than Sweet"
+STB_CRSR,01214,BEA_2017_Code,111300,,Oranges
+STB_CRSR,01219,BEA_2017_Code,111300,,"Citrus Fruits, Nec"
+STB_CRSR,01221,BEA_2017_Code,111300,,Apples
+STB_CRSR,01224,BEA_2017_Code,111300,,Grapes
+STB_CRSR,01295,BEA_2017_Code,111900,,"Coffee, Green"
+STB_CRSR,01298,BEA_2017_Code,111900,,"Nuts, Edible, In The Shell, Nec"
+STB_CRSR,01299,BEA_2017_Code,111900,,"Fresh Fruits or Tree Nuts, Nec"
+STB_CRSR,01331,BEA_2017_Code,111900,,Broccoii
+STB_CRSR,01334,BEA_2017_Code,111900,,Celery
+STB_CRSR,01341,BEA_2017_Code,111900,,"Beans, Dry Ripe"
+STB_CRSR,01342,BEA_2017_Code,111900,,"Peas, Dry"
+STB_CRSR,01343,BEA_2017_Code,111900,,"Cowpeas, Lentils or Lupines"
+STB_CRSR,01399,BEA_2017_Code,111200,,"Fresh Vegetables, Nec"
+STB_CRSR,01421,BEA_2017_Code,111900,,Dairy Farm Products Exc Pasteurized
+STB_CRSR,01912,BEA_2017_Code,111900,,Nursery Stock
+STB_CRSR,01915,BEA_2017_Code,111900,,"Herbs (Seeds, Leaves, Roots, Etc.)"
+STB_CRSR,01919,BEA_2017_Code,111900,,"Horticultural Specialties, Nec"
+STB_CRSR,01991,BEA_2017_Code,111900,,"Chopped, Ground or Pulverized Hay or Straw"
+STB_CRSR,08422,BEA_2017_Code,113000,,"Barks or Gums, Crude"
+STB_CRSR,09121,BEA_2017_Code,114000,,Finfish
+STB_CRSR,09122,BEA_2017_Code,114000,,Shellfish
+STB_CRSR,10113,BEA_2017_Code,2122A0,,Iron Concentrates or Agglomerates
+STB_CRSR,10212,BEA_2017_Code,2122A0,,Copper Concentrates or Precipitates
+STB_CRSR,10511,BEA_2017_Code,2122A0,,Crude Bauxite Ores
+STB_CRSR,10513,BEA_2017_Code,2122A0,,Calcinpd or Activated Bauxite Ores
+STB_CRSR,10929,BEA_2017_Code,2122A0,,"Miscellaneous Metal Ores, Nec"
+STB_CRSR,11112,BEA_2017_Code,212100,,Prepared Anthracite
+STB_CRSR,11212,BEA_2017_Code,212100,,Prepared Bituminous Coal
+STB_CRSR,13111,BEA_2017_Code,211000,,Crude Petroleum
+STB_CRSR,13211,BEA_2017_Code,211000,,Natural Gasoline
+STB_CRSR,14211,BEA_2017_Code,212310,,"Agricultural Limestone, Broken or Crushed"
+STB_CRSR,14219,BEA_2017_Code,212310,,"Broken or Crushed Stone or Riprap, Nec"
+STB_CRSR,14411,BEA_2017_Code,2123A0,,Sand (Aggregate or Ballast)
+STB_CRSR,14412,BEA_2017_Code,2123A0,,Gravel (Aggregate or Ballast)
+STB_CRSR,14413,BEA_2017_Code,2123A0,,"Industrial Sand, Crude, Ground or Pulverized"
+STB_CRSR,14511,BEA_2017_Code,2123A0,,"Bentonite, Crude"
+STB_CRSR,14519,BEA_2017_Code,2123A0,,"Ceramic or Clay Minerals, Crude"
+STB_CRSR,14711,BEA_2017_Code,2123A0,,"Barite, Crude"
+STB_CRSR,14713,BEA_2017_Code,2123A0,,"Borate, Potash or Soda, Crude"
+STB_CRSR,14715,BEA_2017_Code,2123A0,,"Rock Salt, Crude, Crushed, Lump or Screened"
+STB_CRSR,14716,BEA_2017_Code,2123A0,,"Sulphur, Crude, Liquid, Ground or Treated"
+STB_CRSR,14911,BEA_2017_Code,2123A0,,"Anhydrite or Gypsum, Crude"
+STB_CRSR,14914,BEA_2017_Code,2123A0,,"Pumice or Pumicite, Crude"
+STB_CRSR,14916,BEA_2017_Code,2123A0,,"Natural Abrasives, Flour or Sized Grains, Industri"
+STB_CRSR,14917,BEA_2017_Code,2123A0,,"Peat, Natural"
+STB_CRSR,14918,BEA_2017_Code,2123A0,,"Diatomaceous or Infusorial Earth, Crude"
+STB_CRSR,14919,BEA_2017_Code,2123A0,,"Nonmetallic Minerals, Loam, Soil or Top"
+STB_CRSR,19000,BEA_2017_Code,33299A,,Ordnance
+STB_CRSR,20129,BEA_2017_Code,31161A,,"Meat, Fresh Frozen, Nec"
+STB_CRSR,20131,BEA_2017_Code,31161A,,Lard
+STB_CRSR,20139,BEA_2017_Code,31161A,,"Meat Products, Nec"
+STB_CRSR,20141,BEA_2017_Code,31161A,,"Hides, Pelts or Skins, Not Tanned"
+STB_CRSR,20143,BEA_2017_Code,31161A,,Grease or Inedible Tallow
+STB_CRSR,20144,BEA_2017_Code,31161A,,"Animal Refuse, Tankage, Meat Meal"
+STB_CRSR,20149,BEA_2017_Code,31161A,,"Animal By-products, Inedible, Nec"
+STB_CRSR,20158,BEA_2017_Code,31161A,,Poultry or Small Game By-products
+STB_CRSR,20161,BEA_2017_Code,31161A,,Dressed Poultry or Small Game
+STB_CRSR,20211,BEA_2017_Code,311514,,Creamery Butter
+STB_CRSR,20231,BEA_2017_Code,311514,,Dry Milk Products
+STB_CRSR,20241,BEA_2017_Code,311514,,Ice Cream or Related Frozen Desserts
+STB_CRSR,20251,BEA_2017_Code,311513,,Cheese Exc. Cottage Cheese
+STB_CRSR,20259,BEA_2017_Code,311514,,Special Dairy Products
+STB_CRSR,20311,BEA_2017_Code,311700,,Canned Fish or Other Seafood
+STB_CRSR,20321,BEA_2017_Code,311420,,Canned Baby Foods
+STB_CRSR,20322,BEA_2017_Code,311420,,Canned Soups
+STB_CRSR,20329,BEA_2017_Code,311420,,"Canned Specialties, Nec"
+STB_CRSR,20331,BEA_2017_Code,311420,,Canned Fruits
+STB_CRSR,20332,BEA_2017_Code,311420,,Canned Vegetables
+STB_CRSR,20334,BEA_2017_Code,311420,,"Fruit Juices, Canned, Bottled or Bulk"
+STB_CRSR,20336,BEA_2017_Code,311420,,Catsup or Other Tomato Sauces
+STB_CRSR,20338,BEA_2017_Code,311420,,"Jams, Jellies or Preserves"
+STB_CRSR,20339,BEA_2017_Code,311420,,"Canned Fruits or Vegetables, Nec"
+STB_CRSR,20341,BEA_2017_Code,311420,,Dehydrated or Dried Fruits
+STB_CRSR,20343,BEA_2017_Code,311420,,Dehydrated or Dried Potatoes or Products
+STB_CRSR,20352,BEA_2017_Code,311940,,Pickles or Other Pickled Products
+STB_CRSR,20354,BEA_2017_Code,311940,,"Salad Dressings, Mayonnaise"
+STB_CRSR,20359,BEA_2017_Code,311940,,"Sauces or Seasonings, Nec"
+STB_CRSR,20361,BEA_2017_Code,311700,,Frozen Processed Fish or Other Seafood
+STB_CRSR,20373,BEA_2017_Code,311410,,Frozen Vegetables
+STB_CRSR,20379,BEA_2017_Code,311410,,Frozen Fruits or Vegetables In Mixed Loads
+STB_CRSR,20381,BEA_2017_Code,311410,,Frozen Prepared Foods or Soups
+STB_CRSR,20391,BEA_2017_Code,311410,,"Mixed Loads Of Fruits, Seafood or Vegetables"
+STB_CRSR,20411,BEA_2017_Code,311210,,Wheat Flour
+STB_CRSR,20412,BEA_2017_Code,311210,,"Wheat Bran, Middlings or Shorts"
+STB_CRSR,20413,BEA_2017_Code,311210,,Corn Meal or Flour
+STB_CRSR,20416,BEA_2017_Code,311210,,Oat Meal or Flour
+STB_CRSR,20418,BEA_2017_Code,311210,,Grain Mill By-products
+STB_CRSR,20419,BEA_2017_Code,311210,,"Flour or Other Grain Mill Products, Nec"
+STB_CRSR,20421,BEA_2017_Code,311119,,"Prepared Feed, Animal, Fish or Poultry"
+STB_CRSR,20423,BEA_2017_Code,311119,,"Canned Feed, Animal, Fish or Poultry"
+STB_CRSR,20431,BEA_2017_Code,311230,,Cooked Cereals
+STB_CRSR,20441,BEA_2017_Code,311210,,"Rice, Cleaned"
+STB_CRSR,20442,BEA_2017_Code,311210,,"Rice Flour, Bran or Meal"
+STB_CRSR,20443,BEA_2017_Code,311210,,Brewers Rice
+STB_CRSR,20449,BEA_2017_Code,311210,,"Milled Rice or By-products, Nec"
+STB_CRSR,20461,BEA_2017_Code,311221,,Corn Syrup
+STB_CRSR,20462,BEA_2017_Code,311221,,Corn Starch
+STB_CRSR,20463,BEA_2017_Code,311221,,Corn Sugar
+STB_CRSR,20465,BEA_2017_Code,311221,,Corn Oil
+STB_CRSR,20466,BEA_2017_Code,311221,,Starch
+STB_CRSR,20467,BEA_2017_Code,311221,,Wet Process Corn Mill Products
+STB_CRSR,20469,BEA_2017_Code,311221,,Wet Process Corn Milling Products
+STB_CRSR,20471,BEA_2017_Code,311111,,"Dog, Cat or Other Pet Food, Nec"
+STB_CRSR,20511,BEA_2017_Code,3118A0,,Bread or Other Bakery Products
+STB_CRSR,20521,BEA_2017_Code,3118A0,,"Biscuits, Crackers or Pretzels"
+STB_CRSR,20529,BEA_2017_Code,3118A0,,"Dry Bakery Products, Nec"
+STB_CRSR,20616,BEA_2017_Code,311300,,Sugar Molasses
+STB_CRSR,20617,BEA_2017_Code,311300,,Blackstrap Molasses
+STB_CRSR,20619,BEA_2017_Code,311300,,Sugar Mill Products
+STB_CRSR,20621,BEA_2017_Code,311300,,"Sugar, Granulated or Powdered"
+STB_CRSR,20625,BEA_2017_Code,311300,,Sugar Refining By-products
+STB_CRSR,20711,BEA_2017_Code,311300,,"Candy or Candy Bars, Bulk or Packaged"
+STB_CRSR,20712,BEA_2017_Code,311300,,"Nuts, Coated, Cooked, Roasted or Salted"
+STB_CRSR,20713,BEA_2017_Code,311300,,Chocolate or Cocoa Products
+STB_CRSR,20719,BEA_2017_Code,311300,,Confectionery Products
+STB_CRSR,20821,BEA_2017_Code,312120,,Beer
+STB_CRSR,20823,BEA_2017_Code,312120,,Malt Extracts or Brewers Spent Grains
+STB_CRSR,20831,BEA_2017_Code,311210,,Malt
+STB_CRSR,20841,BEA_2017_Code,312130,,"Wine, Brandy or Brandy Spirits"
+STB_CRSR,20851,BEA_2017_Code,312140,,"Distilled, Rectified or Blended Liquors"
+STB_CRSR,20859,BEA_2017_Code,312140,,By-products Of Liquor Distilling
+STB_CRSR,20861,BEA_2017_Code,312110,,Soft Drinks or Carbonated Beverages
+STB_CRSR,20871,BEA_2017_Code,311930,,"Miscellaneous Flavoring Extracts, Syrups or Compou"
+STB_CRSR,20911,BEA_2017_Code,311224,,"Cottonseed Oil, Crude or Refined"
+STB_CRSR,20914,BEA_2017_Code,311224,,Cottonseed Cake or Meal or By-products
+STB_CRSR,20921,BEA_2017_Code,311224,,"Soybean Oil, Crude or Refined"
+STB_CRSR,20923,BEA_2017_Code,311224,,"Soybean Cake, Flour, Manufacing Oils"
+STB_CRSR,20931,BEA_2017_Code,311224,,"Linseed Oil, Crude or Refined"
+STB_CRSR,20933,BEA_2017_Code,311224,,Nut or Vegetable Oils
+STB_CRSR,20939,BEA_2017_Code,311224,,Nut or Vegetable Oil Seed
+STB_CRSR,20941,BEA_2017_Code,311224,,Marine Oil Mill Products
+STB_CRSR,20942,BEA_2017_Code,311224,,Marine Oil Mill By-products
+STB_CRSR,20951,BEA_2017_Code,311920,,Roasted Coffee or Instant Coffee
+STB_CRSR,20961,BEA_2017_Code,311224,,Shortening or Cooking or Salad Oils
+STB_CRSR,20981,BEA_2017_Code,3118A0,,"Macaroni, Spaghetti, Vermicelli or Noodles"
+STB_CRSR,20992,BEA_2017_Code,311910,,"Chips (Potato, Corn, Etc.)"
+STB_CRSR,20993,BEA_2017_Code,311990,,Sweetening Syrups or Molasses
+STB_CRSR,20995,BEA_2017_Code,311990,,Mixed Loads Of Food or Kindered Products
+STB_CRSR,20997,BEA_2017_Code,311940,,Spices
+STB_CRSR,20998,BEA_2017_Code,311920,,Tea or Instant Tea
+STB_CRSR,20999,BEA_2017_Code,311990,,"Food Preparations or By-products, Nec"
+STB_CRSR,22112,BEA_2017_Code,313200,,"Cotton Sheetings, Unfinished (Gray Goods)"
+STB_CRSR,22119,BEA_2017_Code,313200,,"Cotton Broad-woven Fabrlcs, Nec,"
+STB_CRSR,22211,BEA_2017_Code,313200,,Man Made or Glass Fibre Broad-woven Fabrics
+STB_CRSR,22799,BEA_2017_Code,314110,,"Carpets, Mats or Rugs, Nec"
+STB_CRSR,22819,BEA_2017_Code,313200,,"Yarn, Nec"
+STB_CRSR,22931,BEA_2017_Code,313200,,"Paddings, Upholstery Fillings, Batting or Wadding"
+STB_CRSR,22951,BEA_2017_Code,313200,,Artificial Leather
+STB_CRSR,22991,BEA_2017_Code,313200,,Bonded Fibre Fabrics
+STB_CRSR,22999,BEA_2017_Code,313200,,"Textile Goods, Nec"
+STB_CRSR,23111,BEA_2017_Code,315000,,"Mens, Youths or Boys Clothing or Uniforms"
+STB_CRSR,23311,BEA_2017_Code,315000,,"Womens, Misses, Chi]ldrens or Infants Clothing"
+STB_CRSR,23891,BEA_2017_Code,315000,,"Apparel,Nec"
+STB_CRSR,23929,BEA_2017_Code,314120,,"Textile Housefurnishings, Nec"
+STB_CRSR,23931,BEA_2017_Code,314900,,Textile Bags
+STB_CRSR,23999,BEA_2017_Code,314900,,Fabricated Textile Products
+STB_CRSR,24111,BEA_2017_Code,113000,,Sawlogs
+STB_CRSR,24112,BEA_2017_Code,113000,,Hewn Railroad or Mine Ties
+STB_CRSR,24114,BEA_2017_Code,113000,,Pulpwood Logs
+STB_CRSR,24115,BEA_2017_Code,113000,,Pulpwood or Other Wood Chips
+STB_CRSR,24116,BEA_2017_Code,113000,,"Wood Posts, Poles or Piling"
+STB_CRSR,24117,BEA_2017_Code,113000,,"Fuelwood, Hogfuel or Cordwood"
+STB_CRSR,24211,BEA_2017_Code,321100,,"Lumber, Rough or Dressed"
+STB_CRSR,24214,BEA_2017_Code,321100,,Hardwood Dimension Stock or Furniture Parts
+STB_CRSR,24215,BEA_2017_Code,321100,,Hardwood Flooring
+STB_CRSR,24219,BEA_2017_Code,321100,,"Lumber or Dimension Stock, Nec"
+STB_CRSR,24291,BEA_2017_Code,321100,,Shingles
+STB_CRSR,24299,BEA_2017_Code,321100,,"Sawmill or Planing Mill Products, Nec"
+STB_CRSR,24314,BEA_2017_Code,321910,,"Doors or Shutters or Door Units, Wood"
+STB_CRSR,24321,BEA_2017_Code,321200,,Plywood or Veneer or Built-up Wood
+STB_CRSR,24391,BEA_2017_Code,321200,,Prefabricated Structural Members or Wood Laminate
+STB_CRSR,24411,BEA_2017_Code,321100,,"Boxes, Cases, Crates or Carriers"
+STB_CRSR,24415,BEA_2017_Code,321100,,Cooperage
+STB_CRSR,24911,BEA_2017_Code,321100,,"Wood Piling, Posts, Props or Timbers, Etc."
+STB_CRSR,24912,BEA_2017_Code,321100,,"Ties, Mine, Railroad, Etc."
+STB_CRSR,24913,BEA_2017_Code,321100,,"Lumber, Creosoted or Treated"
+STB_CRSR,24991,BEA_2017_Code,3219A0,,Wood Products
+STB_CRSR,24992,BEA_2017_Code,3219A0,,"Skids, Pallets or Platforms"
+STB_CRSR,24996,BEA_2017_Code,321200,,Wood Particle Board
+STB_CRSR,24997,BEA_2017_Code,3219A0,,"Fencing or Gates, Wood"
+STB_CRSR,24998,BEA_2017_Code,3219A0,,Wood Reels or Spools
+STB_CRSR,24999,BEA_2017_Code,3219A0,,"Wood Products, Nec"
+STB_CRSR,25131,BEA_2017_Code,337110,,"Davenports, Sofas, Couches"
+STB_CRSR,25151,BEA_2017_Code,337900,,"Bed or Box Springs, or Mattresses"
+STB_CRSR,25179,BEA_2017_Code,337110,,"Cabinets, Nec"
+STB_CRSR,25199,BEA_2017_Code,337122,,Household or Office Furniture
+STB_CRSR,25411,BEA_2017_Code,337215,,"Wood Lockers, Partitions or Shelving"
+STB_CRSR,25421,BEA_2017_Code,337215,,"Metal Lockers, Partitions or Shelving"
+STB_CRSR,25999,BEA_2017_Code,337900,,"Furniture or Fixtures, Nec"
+STB_CRSR,26111,BEA_2017_Code,322110,,Pulp
+STB_CRSR,26112,BEA_2017_Code,322110,,Pulp Mill By-products
+STB_CRSR,26211,BEA_2017_Code,322120,,Newsprint
+STB_CRSR,26212,BEA_2017_Code,322120,,"Ground Wood Paper, Uncoated"
+STB_CRSR,26213,BEA_2017_Code,322120,,"Printing Paper, Coated or Uncoated"
+STB_CRSR,26214,BEA_2017_Code,322120,,"Wrapping Paper, Wrappers, or Coarse Paper"
+STB_CRSR,26217,BEA_2017_Code,322120,,Special Industrial Paper
+STB_CRSR,26218,BEA_2017_Code,322120,,Sanitary Tissue Stock
+STB_CRSR,26219,BEA_2017_Code,322120,,"Paper, Nec"
+STB_CRSR,26311,BEA_2017_Code,322130,,"Fibreboard, Paperboard or Pulpboard"
+STB_CRSR,26431,BEA_2017_Code,322220,,Paper Bags
+STB_CRSR,26451,BEA_2017_Code,322299,,Office Supplies
+STB_CRSR,26469,BEA_2017_Code,322299,,"Pressed or Molded Pulp Goods, Nec"
+STB_CRSR,26471,BEA_2017_Code,322291,,Sanitary Tissues or Health Products
+STB_CRSR,26491,BEA_2017_Code,322299,,Stationery or Stationery Envelopes
+STB_CRSR,26499,BEA_2017_Code,322299,,"Converted Paper Products, Nec"
+STB_CRSR,26511,BEA_2017_Code,322210,,"Containers or Boxes, Paperboard, Fibreboard"
+STB_CRSR,26515,BEA_2017_Code,322210,,"Pallets, Skids or Platforms"
+STB_CRSR,26543,BEA_2017_Code,322210,,"Paper, Fibreboard, Paperboard or Pulpboard Cans"
+STB_CRSR,26551,BEA_2017_Code,322210,,"Fmre Cans, Drums or Tubes or Similar Products"
+STB_CRSR,26614,BEA_2017_Code,322299,,Insulating Material
+STB_CRSR,27211,BEA_2017_Code,323110,,Periodicals
+STB_CRSR,27311,BEA_2017_Code,323110,,Books
+STB_CRSR,27411,BEA_2017_Code,323110,,"Catalogues, Directories, Business Service Publicat"
+STB_CRSR,27419,BEA_2017_Code,323110,,"Printed Matter, Nec"
+STB_CRSR,27812,BEA_2017_Code,322230,,Loose Leaf Binders or Devices
+STB_CRSR,28121,BEA_2017_Code,325180,,Inorganic Bleaching Compounds
+STB_CRSR,28122,BEA_2017_Code,325180,,Sodium Alkalies
+STB_CRSR,28123,BEA_2017_Code,325180,,Sodium Compounds
+STB_CRSR,28124,BEA_2017_Code,325180,,Potassium Alkalies
+STB_CRSR,28125,BEA_2017_Code,325180,,Potassrum
+STB_CRSR,28126,BEA_2017_Code,325180,,"Barium, Calcium, Magnesium or Strontium Compunds"
+STB_CRSR,28128,BEA_2017_Code,325180,,Chlorine
+STB_CRSR,28133,BEA_2017_Code,325120,,Carbon Dioxide
+STB_CRSR,28134,BEA_2017_Code,325120,,Elemental Gases
+STB_CRSR,28139,BEA_2017_Code,325120,,"Industrial Gases, Nec"
+STB_CRSR,28141,BEA_2017_Code,325110,,"Crude Products From Coal Tar, Natural Gas or Petro"
+STB_CRSR,28151,BEA_2017_Code,325190,,Cyclic Intermediates or Other Cyclic Chemicals
+STB_CRSR,28152,BEA_2017_Code,325190,,Cyclic Intermediates or Other Cyclic Chemicals
+STB_CRSR,28161,BEA_2017_Code,325130,,Titanium Pigments
+STB_CRSR,28163,BEA_2017_Code,325130,,Zinc Pigments
+STB_CRSR,28169,BEA_2017_Code,325130,,"Inorganic Pigments, Nec"
+STB_CRSR,28180,BEA_2017_Code,325190,,"Industrial Organic Chemicals, Nec"
+STB_CRSR,28181,BEA_2017_Code,325190,,Miscellaneous Acyclic Organic Chemical Products
+STB_CRSR,28182,BEA_2017_Code,325190,,Miscellaneous Acyclic Organic Chemical Products
+STB_CRSR,28183,BEA_2017_Code,325190,,Miscellaneous Cyclic Chemical Products
+STB_CRSR,28184,BEA_2017_Code,325190,,Alcohols
+STB_CRSR,28185,BEA_2017_Code,325190,,Glycols or Glycerines
+STB_CRSR,28186,BEA_2017_Code,325190,,Organic Acids or Salts
+STB_CRSR,28187,BEA_2017_Code,325190,,Unknown STCC Value
+STB_CRSR,28189,BEA_2017_Code,325190,,"Industrial Organic Chemicals, Nec"
+STB_CRSR,28191,BEA_2017_Code,325180,,Ammonia or Ammonium Compounds
+STB_CRSR,28192,BEA_2017_Code,325180,,Nitric Acid
+STB_CRSR,28193,BEA_2017_Code,325180,,Sulphuric Acid
+STB_CRSR,28194,BEA_2017_Code,325180,,Industrial Inorganic Acids
+STB_CRSR,28195,BEA_2017_Code,325180,,"Cobalt, Copper, Iron, Nickel or Zinc Compounds"
+STB_CRSR,28196,BEA_2017_Code,325180,,Aluminum Compounds
+STB_CRSR,28197,BEA_2017_Code,325180,,Radio-active or Nuclear Chemicals
+STB_CRSR,28198,BEA_2017_Code,325180,,Anhydrous Ammonia
+STB_CRSR,28199,BEA_2017_Code,325180,,"Industrial Inorganic Chemicals, Nec"
+STB_CRSR,28211,BEA_2017_Code,325211,,Plastic Materials or Synthetic Resins
+STB_CRSR,28212,BEA_2017_Code,3252A0,,Synthetic Rubbers
+STB_CRSR,28311,BEA_2017_Code,325412,,Drugs For Human Use
+STB_CRSR,28419,BEA_2017_Code,325610,,Soap or Other Detergents
+STB_CRSR,28422,BEA_2017_Code,325610,,"Specialty Cleaning, Polishing or Sanitation Prepar"
+STB_CRSR,28423,BEA_2017_Code,325610,,Waxes or Polishing Preparations
+STB_CRSR,28431,BEA_2017_Code,325610,,Surface Active or Finishing Agents
+STB_CRSR,28441,BEA_2017_Code,325620,,"Cosmetics, Perfumes or Other Toilet Preparations"
+STB_CRSR,28511,BEA_2017_Code,325510,,"Paints, Enamels, Lacquers, Shellacs or Varnishes"
+STB_CRSR,28512,BEA_2017_Code,325510,,"Paint Oils, Solvents or Thinners"
+STB_CRSR,28519,BEA_2017_Code,325510,,"Paints, Enamels, Lacquers, Shellacs or Varnishes"
+STB_CRSR,28612,BEA_2017_Code,325190,,Gum or Wood Chemicals
+STB_CRSR,28712,BEA_2017_Code,325310,,Superphosphate
+STB_CRSR,28713,BEA_2017_Code,325310,,Ammoniating Fertilizer Solution
+STB_CRSR,28714,BEA_2017_Code,325310,,Miscellaneous Fertilizer Compounds
+STB_CRSR,28719,BEA_2017_Code,325310,,"Ferthizers, Nec"
+STB_CRSR,28799,BEA_2017_Code,325320,,"Agricultural Chemicals, Nec"
+STB_CRSR,28911,BEA_2017_Code,325520,,"Adhesives, Cements, Glues, Sizes, Calking"
+STB_CRSR,28921,BEA_2017_Code,3259A0,,Explosives
+STB_CRSR,28931,BEA_2017_Code,325910,,Printing Ink
+STB_CRSR,28991,BEA_2017_Code,325180,,"Salt, Common"
+STB_CRSR,28993,BEA_2017_Code,3259A0,,Fireworks or Pyrotechnics
+STB_CRSR,28994,BEA_2017_Code,325190,,Fatty Acids
+STB_CRSR,28995,BEA_2017_Code,325180,,Water Treating Compounds
+STB_CRSR,28996,BEA_2017_Code,325180,,Blacks
+STB_CRSR,28997,BEA_2017_Code,3259A0,,Chemicals Or Chemical Preparations
+STB_CRSR,28998,BEA_2017_Code,3259A0,,Miscellaneous Chemical Compounds
+STB_CRSR,28999,BEA_2017_Code,3259A0,,"Chemical Products, Nec"
+STB_CRSR,29111,BEA_2017_Code,324110,,Gasoline or Jet or High Volatile Petroleum Fuels
+STB_CRSR,29113,BEA_2017_Code,324110,,Distillate Fuel Oil
+STB_CRSR,29114,BEA_2017_Code,324110,,Petroleum Lubricating or Similar Oils
+STB_CRSR,29116,BEA_2017_Code,324110,,Asphalt Pitches or Tars From Petroleum
+STB_CRSR,29117,BEA_2017_Code,324110,,Petroleum Residual Fuel Oils
+STB_CRSR,29119,BEA_2017_Code,324110,,"Petroleum Refining Products, Nec"
+STB_CRSR,29121,BEA_2017_Code,324110,,"Liquefied Gases, Coal or Petroleum"
+STB_CRSR,29523,BEA_2017_Code,324122,,"Asphalt Sheathings, Shingles or Sidings"
+STB_CRSR,29529,BEA_2017_Code,324122,,"Asphalt Coatings or Felts, Nec"
+STB_CRSR,29912,BEA_2017_Code,324190,,Lubricants or Similar Compounds
+STB_CRSR,29913,BEA_2017_Code,324190,,Petroleum Coke
+STB_CRSR,29914,BEA_2017_Code,324190,,Coke Produced From Coal
+STB_CRSR,29919,BEA_2017_Code,324190,,"Coal or Petroleum Products, Nec"
+STB_CRSR,30111,BEA_2017_Code,326210,,Rubber Pneumatic Tires or Parts
+STB_CRSR,30119,BEA_2017_Code,326210,,"Rubber Tires or Related Products, Nec"
+STB_CRSR,30211,BEA_2017_Code,316000,,Footwear Rubber Or Rubbersoled Fabric Canvas With
+STB_CRSR,30613,BEA_2017_Code,326290,,Sponge or Foam Rubber Goods
+STB_CRSR,30618,BEA_2017_Code,326290,,"Fabricated Rubber Products, Nec"
+STB_CRSR,30619,BEA_2017_Code,326290,,"Fabricated Rubber Products, Nec"
+STB_CRSR,30711,BEA_2017_Code,326190,,Plastic Dinnerware or Housewares
+STB_CRSR,30712,BEA_2017_Code,326190,,"Plastic Pipe, Tubing or Fittings"
+STB_CRSR,30713,BEA_2017_Code,326190,,Industrial (Molded) Plastic Products
+STB_CRSR,30714,BEA_2017_Code,326110,,Unsupported Vinyl or Polyethylene Film
+STB_CRSR,30716,BEA_2017_Code,326150,,Expanded or Foamed Plastics
+STB_CRSR,30718,BEA_2017_Code,326110,,Plastic Packaging or Shipping Containers
+STB_CRSR,30719,BEA_2017_Code,326190,,"Miscellaneous Fabricated Plastic Products, Nec"
+STB_CRSR,30729,BEA_2017_Code,326190,,"Miscellaneous Fabricated Plastic Products, Nec"
+STB_CRSR,31411,BEA_2017_Code,316000,,"Footwear, Leather or Other Materials"
+STB_CRSR,31611,BEA_2017_Code,316000,,Luggage or Handbags
+STB_CRSR,32113,BEA_2017_Code,327200,,Laminated or Safety Glass
+STB_CRSR,32119,BEA_2017_Code,327200,,"Flat Glass, Nec"
+STB_CRSR,32211,BEA_2017_Code,327200,,"Glass Containers, or Glass Caps"
+STB_CRSR,32219,BEA_2017_Code,327200,,"Glass Containers, Nec"
+STB_CRSR,32291,BEA_2017_Code,327200,,"Art, Kitchen, Novelty or Tile"
+STB_CRSR,32292,BEA_2017_Code,327200,,Lighting Glassware
+STB_CRSR,32293,BEA_2017_Code,327200,,Glass Fibre
+STB_CRSR,32295,BEA_2017_Code,327200,,"Glass Blocks, Brick, Skylights"
+STB_CRSR,32299,BEA_2017_Code,327200,,"Glass or Glassware, Blown Or, Pressed, Nec"
+STB_CRSR,32411,BEA_2017_Code,327310,,"Hydraulic Cement, Natural, Portland or Masonry"
+STB_CRSR,32511,BEA_2017_Code,327100,,"Brick or Blocks, Clay or Shale"
+STB_CRSR,32531,BEA_2017_Code,327100,,"Ceramic, Enamel, Faience, Quarry Floor or Wall Til"
+STB_CRSR,32552,BEA_2017_Code,327100,,Nonclay Refractories
+STB_CRSR,32611,BEA_2017_Code,327100,,Vitreous China Plumbing Fixtures
+STB_CRSR,32719,BEA_2017_Code,327390,,"Concrete Products, Nec"
+STB_CRSR,32741,BEA_2017_Code,327400,,Lime or Lime Plaster
+STB_CRSR,32752,BEA_2017_Code,327400,,Gypsum Plaster
+STB_CRSR,32754,BEA_2017_Code,327400,,Gypsum Wallboard
+STB_CRSR,32952,BEA_2017_Code,327999,,"Light Weight Aggregates, Clays or Slags"
+STB_CRSR,32953,BEA_2017_Code,327999,,Magnesite or Magnesia
+STB_CRSR,32954,BEA_2017_Code,327999,,"Pyrophillite, Steatite (Soapstone) or Talc"
+STB_CRSR,32959,BEA_2017_Code,327992,,"Nonmetallic Minerals or Earths, Ground or Treated"
+STB_CRSR,32996,BEA_2017_Code,327999,,Nonmetallic Mineral Insulating Materials
+STB_CRSR,33111,BEA_2017_Code,331110,,Pig Iron
+STB_CRSR,33119,BEA_2017_Code,331110,,"Blast Furnace, or Coke Oven Products, Nec"
+STB_CRSR,33121,BEA_2017_Code,331110,,Steel Ingot or Semi Finished Shapes
+STB_CRSR,33122,BEA_2017_Code,331110,,Iron or Steel Plates
+STB_CRSR,33123,BEA_2017_Code,331110,,Iron or Steel Sheet or Strip
+STB_CRSR,33124,BEA_2017_Code,331110,,"Iron or Steel Bars, Bar Shapes or Rods"
+STB_CRSR,33125,BEA_2017_Code,331110,,Structural Shapes or Piling Products
+STB_CRSR,33126,BEA_2017_Code,331200,,"Iron or Steel Pipe, Tubes or Fittings"
+STB_CRSR,33127,BEA_2017_Code,331200,,Tin Mill Products
+STB_CRSR,33128,BEA_2017_Code,331110,,Railway Track Material
+STB_CRSR,33131,BEA_2017_Code,331110,,Ferromanganese
+STB_CRSR,33134,BEA_2017_Code,331110,,Additive Alloys
+STB_CRSR,33135,BEA_2017_Code,331110,,Electrometallurgical Products
+STB_CRSR,33139,BEA_2017_Code,331110,,"Ferroalloys, Nec"
+STB_CRSR,33151,BEA_2017_Code,331200,,Noninsulated Ferrous Wire
+STB_CRSR,33155,BEA_2017_Code,331200,,Steel Wire
+STB_CRSR,33211,BEA_2017_Code,331510,,Iron or Steel Cast Pipe or Fittings
+STB_CRSR,33311,BEA_2017_Code,331410,,Primary Copper or Copper Base Alloy Pig
+STB_CRSR,33321,BEA_2017_Code,331410,,"Lead Pig, Slab, Ingots or Bullion"
+STB_CRSR,33331,BEA_2017_Code,331410,,Zinc Smelter Products
+STB_CRSR,33332,BEA_2017_Code,331410,,"Zinc Dross, Residues, Ashes"
+STB_CRSR,33341,BEA_2017_Code,331313,,Primary Aluminum Ingots
+STB_CRSR,33521,BEA_2017_Code,33131B,,Aluminum or Aluminum Base Alloy Plate or Sheet
+STB_CRSR,33523,BEA_2017_Code,33131B,,Aluminum or Aluminum Base Alloy Rods or Bars
+STB_CRSR,33567,BEA_2017_Code,33131B,,"Solder, Babbitt, Or Type Metal Shapes"
+STB_CRSR,33911,BEA_2017_Code,331110,,Iron or Steel Forgings
+STB_CRSR,33999,BEA_2017_Code,331110,,"Primary Metal Products, Nec"
+STB_CRSR,34111,BEA_2017_Code,332430,,Metal Cans
+STB_CRSR,34239,BEA_2017_Code,332200,,"Hand Tools, Nec"
+STB_CRSR,34285,BEA_2017_Code,332500,,"Hooks, Clamps, Clips, Fasteners"
+STB_CRSR,34298,BEA_2017_Code,332500,,"Hardware, Nec"
+STB_CRSR,34299,BEA_2017_Code,332500,,"Hardware, Nec"
+STB_CRSR,34311,BEA_2017_Code,332913,,Cast Iron Sanitary Ware
+STB_CRSR,34312,BEA_2017_Code,332913,,Metal Sanitary Ware
+STB_CRSR,34331,BEA_2017_Code,332913,,"Oil Burners, Residential or Industrial"
+STB_CRSR,34339,BEA_2017_Code,332913,,"Heating Equipment, Nec"
+STB_CRSR,34421,BEA_2017_Code,332320,,Metal Doors or Door Frames
+STB_CRSR,34433,BEA_2017_Code,332320,,"Steel Power Boilers, Parts or Attachments"
+STB_CRSR,34435,BEA_2017_Code,332320,,Metal Tanks
+STB_CRSR,34439,BEA_2017_Code,332320,,"Fabricated Plate Products, Nec"
+STB_CRSR,34441,BEA_2017_Code,332320,,"Sheet Metal Roofing, Ceiling Or Siding"
+STB_CRSR,34449,BEA_2017_Code,332320,,"Sheet Metal Products, Nec"
+STB_CRSR,34464,BEA_2017_Code,332320,,Stairs Staircases Balconies Fire Escapes Railings
+STB_CRSR,34521,BEA_2017_Code,332720,,"Bolts, Nuts, Screws, or Other Industrial Fastener"
+STB_CRSR,34529,BEA_2017_Code,332720,,"Industrial Fasteners, Nec"
+STB_CRSR,34612,BEA_2017_Code,332430,,Stamped or Spun Household Utensils
+STB_CRSR,34614,BEA_2017_Code,332430,,Metal Closures
+STB_CRSR,34616,BEA_2017_Code,332430,,"Dispensers, Holders or Containers"
+STB_CRSR,34812,BEA_2017_Code,332600,,Wire Springs
+STB_CRSR,34814,BEA_2017_Code,332600,,Wire Cloth or Other Wire Products
+STB_CRSR,34816,BEA_2017_Code,332600,,Barbed Or Twisted Wire
+STB_CRSR,34912,BEA_2017_Code,332430,,Steel Shipping Containers
+STB_CRSR,34919,BEA_2017_Code,332430,,"Metal Shipping Containers, Nec"
+STB_CRSR,34943,BEA_2017_Code,332430,,Metal Pipe Coils
+STB_CRSR,34997,BEA_2017_Code,332430,,"Metal Shipping Containers, Boxes or Racks"
+STB_CRSR,34999,BEA_2017_Code,332430,,"Fabricated Metal Products, Nec"
+STB_CRSR,35112,BEA_2017_Code,333611,,"Steam Engines, Turbines, Turbine Generator Sets"
+STB_CRSR,35199,BEA_2017_Code,333611,,"Internal Combustion Engines, Nec"
+STB_CRSR,35222,BEA_2017_Code,333111,,"Wheel Tractors, Parts or Attachments"
+STB_CRSR,35225,BEA_2017_Code,333111,,Harvesting or Hay Machinery or Parts
+STB_CRSR,35229,BEA_2017_Code,333111,,"Farm Machinery or Equipment, Nec"
+STB_CRSR,35241,BEA_2017_Code,333112,,"Garden Tractors, Lawn or Garden Equipment"
+STB_CRSR,35314,BEA_2017_Code,333920,,"Power Cranes, Draglines, Shovels Loaders or Parts"
+STB_CRSR,35319,BEA_2017_Code,333920,,"Construction Machinery or Equipment, Nec"
+STB_CRSR,35331,BEA_2017_Code,333920,,Gas or Oil Field Drilling or Production Machinery
+STB_CRSR,35341,BEA_2017_Code,333920,,"Elevators, Moving Stairways"
+STB_CRSR,35371,BEA_2017_Code,333920,,"Industrial Trucks, Tractors, Trailers Stackers"
+STB_CRSR,35373,BEA_2017_Code,333920,,Industrial Pallets Platforms Or Skids Metal
+STB_CRSR,35522,BEA_2017_Code,33329A,,"Textile Machinery, Attachments"
+STB_CRSR,35531,BEA_2017_Code,33329A,,Woodworking Machinery
+STB_CRSR,35552,BEA_2017_Code,33329A,,Printing Trades Machinery or Equipment
+STB_CRSR,35595,BEA_2017_Code,33329A,,Petroleum Refinery Machinery or Equipment
+STB_CRSR,35599,BEA_2017_Code,33329A,,"Special Industry Machinery, Nec"
+STB_CRSR,35621,BEA_2017_Code,333413,,Ball or Roller Bearings
+STB_CRSR,35641,BEA_2017_Code,333413,,Industrial Fans or Blowers
+STB_CRSR,35642,BEA_2017_Code,333413,,Dust Collection or Air Purification Equipment
+STB_CRSR,35731,BEA_2017_Code,333318,,Electronic Data Processing Machines
+STB_CRSR,35741,BEA_2017_Code,333318,,Accounting or Calculating Machines
+STB_CRSR,35821,BEA_2017_Code,333415,,Commercial Laundry Equipment Or Presses
+STB_CRSR,35853,BEA_2017_Code,333415,,Commercial Refaigeration Equipment
+STB_CRSR,35857,BEA_2017_Code,333415,,"Air Conditioning, Cooling or Dehumidifying"
+STB_CRSR,35891,BEA_2017_Code,333318,,Commercial Cooking or Food Warming Equipment
+STB_CRSR,35999,BEA_2017_Code,33399A,,"Machinery or Parts, Nec"
+STB_CRSR,36113,BEA_2017_Code,334513,,"Indicating, Measuring or Recording Instruments"
+STB_CRSR,36129,BEA_2017_Code,335311,,"Power, Distribution Transformers"
+STB_CRSR,36212,BEA_2017_Code,335220,,Generators
+STB_CRSR,36221,BEA_2017_Code,335220,,Industrial Controls Or Parts
+STB_CRSR,36311,BEA_2017_Code,335220,,"Household Ranges, Ovens"
+STB_CRSR,36321,BEA_2017_Code,335220,,Household Refrigerators or Freezers
+STB_CRSR,36331,BEA_2017_Code,335220,,Household Washing Machines or Dryers
+STB_CRSR,36343,BEA_2017_Code,335210,,Small Electric Cooking Appliances
+STB_CRSR,36392,BEA_2017_Code,335220,,"Water Heaters, All Types"
+STB_CRSR,36399,BEA_2017_Code,335220,,"Household Appliances, Nec"
+STB_CRSR,36421,BEA_2017_Code,335120,,Electric Fixtures
+STB_CRSR,36449,BEA_2017_Code,335120,,"Noncurrent Carrying Wiring Devices, Nec"
+STB_CRSR,36512,BEA_2017_Code,334300,,Household Television Receivers
+STB_CRSR,36791,BEA_2017_Code,335220,,Miscellaneous Electronic Components
+STB_CRSR,36911,BEA_2017_Code,335911,,Storage Batteries or Plates
+STB_CRSR,36921,BEA_2017_Code,335912,,Primary Batteries (Dry or Wet)
+STB_CRSR,37111,BEA_2017_Code,336111,,"Motor Passenger Cars, Assembled"
+STB_CRSR,37112,BEA_2017_Code,336112,,"Motor Trucks or Truck Tractors, Assembled"
+STB_CRSR,37112,BEA_2017_Code,336120,,"Motor Trucks or Truck Tractors, Assembled"
+STB_CRSR,37119,BEA_2017_Code,336111,,"Motor Vehicles, Nec"
+STB_CRSR,37142,BEA_2017_Code,336111,,Motor Vehicle
+STB_CRSR,37143,BEA_2017_Code,336370,,Motor Vehicle Frames
+STB_CRSR,37144,BEA_2017_Code,336310,,Motor Car Internal Combustion Engines or Parts
+STB_CRSR,37145,BEA_2017_Code,336370,,Motor Vehicle Brakes or Parts
+STB_CRSR,37147,BEA_2017_Code,336211,,Motor Vehicle Body Parts
+STB_CRSR,37148,BEA_2017_Code,336370,,Motor Vehicle Wheels or Parts
+STB_CRSR,37149,BEA_2017_Code,336390,,"Motor Vehicle Accessories or Parts, Nec"
+STB_CRSR,37421,BEA_2017_Code,336500,,Passenger Train Cars
+STB_CRSR,37422,BEA_2017_Code,336500,,Freight Train Cars
+STB_CRSR,37423,BEA_2017_Code,336500,,Street Cars or Self Propelled Railroad Cars
+STB_CRSR,37424,BEA_2017_Code,336500,,Maintenance or Repair Cars
+STB_CRSR,37426,BEA_2017_Code,336500,,Railroad Car Wheels
+STB_CRSR,37428,BEA_2017_Code,336500,,Parts or Accessories For Railroad or Street Cars
+STB_CRSR,37511,BEA_2017_Code,336991,,"Motorbikes, Motorcycles, Motorscooters or Bodies"
+STB_CRSR,37512,BEA_2017_Code,336991,,Bicycles
+STB_CRSR,37993,BEA_2017_Code,336999,,Hand Carts Wagons Wheelbarrows Or Parts
+STB_CRSR,37999,BEA_2017_Code,336999,,"Transportation Equipment, Parts or Accessories, Ne"
+STB_CRSR,38411,BEA_2017_Code,339112,,Surgical or Medical Instruments or Apparatus
+STB_CRSR,38421,BEA_2017_Code,339113,,"Orthopedic, Prosthetic or Surgical Supplies"
+STB_CRSR,39319,BEA_2017_Code,339990,,"Musical Instruments, Accessories or Parts"
+STB_CRSR,39411,BEA_2017_Code,339930,,Games or Toys
+STB_CRSR,39439,BEA_2017_Code,339920,,"Childrens Vehicles or Parts, Nec"
+STB_CRSR,39497,BEA_2017_Code,339920,,Playground or Equipment or Parts
+STB_CRSR,39499,BEA_2017_Code,339920,,"Sporting or Athletic Goods or Parts, Nec"
+STB_CRSR,39522,BEA_2017_Code,339990,,Artists Materials
+STB_CRSR,39531,BEA_2017_Code,339990,,Marking Devices
+STB_CRSR,39911,BEA_2017_Code,339990,,"Brooms or Brushes For Carpet Sweepers, Vacuum Clea"
+STB_CRSR,39921,BEA_2017_Code,339990,,"Coverings, Facing or Flooring"
+STB_CRSR,39941,BEA_2017_Code,339990,,Morticians Goods
+STB_CRSR,39991,BEA_2017_Code,339990,,Chemical Fire Extinguishing Equipment or Parts
+STB_CRSR,39995,BEA_2017_Code,339990,,"Tobacco Pipes, Cigarette Accessories"
+STB_CRSR,39998,BEA_2017_Code,339990,,"Miscellaneous Manufactured Products, Nec"
+STB_CRSR,39999,BEA_2017_Code,339990,,"Miscellaneous Manufactured Products, Nec"
+STB_CRSR,40112,BEA_2017_Code,S00401,,Ashes
+STB_CRSR,40211,BEA_2017_Code,S00401,,"Iron or Steel Scrap, Wastes or Tailings"
+STB_CRSR,40212,BEA_2017_Code,S00401,,"Brass, Bronze, Copper or Alloy Scrap"
+STB_CRSR,40214,BEA_2017_Code,S00401,,"Aluminum or Alloy Scrap, Wastes"
+STB_CRSR,40219,BEA_2017_Code,S00401,,Nonferrous Metal or Alloy Scrap
+STB_CRSR,40241,BEA_2017_Code,S00401,,Paper Waste or Scrap
+STB_CRSR,40251,BEA_2017_Code,S00401,,Chemical or Petroleum Waste
+STB_CRSR,40261,BEA_2017_Code,S00401,,Rubber Or Plastic Scrap Or Waste
+STB_CRSR,40271,BEA_2017_Code,S00401,,Stone Clay Or Glass Wasteor Scrap
+STB_CRSR,40291,BEA_2017_Code,S00401,,"Waste Or Scrap, Nec"
+STB_CRSR,41112,BEA_2017_Code,S00402,,Used Plant Or Office Equipment Records Or Supplie
+STB_CRSR,41114,BEA_2017_Code,S00402,,Articles Used See 41115 Or 42111-12 Or 4021/4029
+STB_CRSR,41115,BEA_2017_Code,S00402,,Articles Used Returned For Repair Or Reconditioni
+STB_CRSR,41116,BEA_2017_Code,S00402,,Household Goods Or Emigrant Movables
+STB_CRSR,41118,BEA_2017_Code,S00402,,Used Vehicles

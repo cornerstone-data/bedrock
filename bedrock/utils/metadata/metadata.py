@@ -8,6 +8,7 @@ FlowByActivity (FBA) and FlowBySector (FBS) datasets
 
 import json
 import os
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -138,14 +139,27 @@ def get_source_metadata(
         except AttributeError:
             year = None
 
-        cat = (
-            get_catalog_info(source)
-            .get('data_format', 'FBS')
-            .replace('FBS', 'FlowBySector')
-            .replace('FBA', 'FlowByActivity')
-        )
+        # Facility / Hybrid attribution sources live in sources_to_cache with
+        # inventory_dict; they are not prebuilt FBS artifacts with sidecars.
+        if isinstance(nested_attr, dict) and nested_attr.get('inventory_dict'):
+            from bedrock.extract.stewifbs.stewiFBS import (  # noqa: PLC0415
+                add_stewi_metadata,
+            )
 
-        attr_source_meta[source] = getMetadata(source, year=year, category=cat)
+            attr_source_meta[source] = add_stewi_metadata(
+                nested_attr['inventory_dict'],
+                mecs_method=nested_attr.get('mecs_method'),
+                name_data=source,
+            )
+        else:
+            cat = (
+                get_catalog_info(source)
+                .get('data_format', 'FBS')
+                .replace('FBS', 'FlowBySector')
+                .replace('FBA', 'FlowByActivity')
+            )
+
+            attr_source_meta[source] = getMetadata(source, year=year, category=cat)
 
         if nested_attr is not None:
             if 'activity_sets' in nested_attr:
@@ -254,10 +268,18 @@ def return_fbs_method_data(
                     local_inventory_name
                 )
             else:
-                meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])
+                meta['primary_source_meta'][k] = add_stewi_metadata(
+                    v['inventory_dict'],
+                    mecs_method=v.get('mecs_method'),
+                    name_data=k,
+                )
             return True
         if v.get('data_format') == 'FBS_outside_flowsa' and v.get('inventory_dict'):
-            meta['primary_source_meta'][k] = add_stewi_metadata(v['inventory_dict'])
+            meta['primary_source_meta'][k] = add_stewi_metadata(
+                v['inventory_dict'],
+                mecs_method=v.get('mecs_method'),
+                name_data=k,
+            )
             return True
         return False
 
@@ -446,3 +468,43 @@ def getMetadata(
         meta = {'source_meta': f'No metadata found for {name}'}
 
     return meta
+
+
+def source_lineage(
+    stems: Iterable[str], directory: Path | str | None = None
+) -> dict[str, Any]:
+    """Sidecar metadata for artifacts named by *stems*, keyed for lineage.
+
+    The bespoke savers in Step 5 through Step 7 write their products directly
+    rather than through the FBS framework, so nothing populates
+    ``primary_source_meta`` for them.  Without it the staleness check has no
+    way to know an input moved: it reported "no stale cached artifacts" about
+    balanced SUTs sitting on trade inputs that had been rebuilt hours earlier.
+    Passing what a saver actually read through this function gives those
+    products the same lineage shape an FBS product carries, which is what
+    ``stale_artifacts._walk_sources`` already knows how to follow.
+
+    :param stems: artifact stems without the ``.parquet`` suffix, as
+        ``load_balanced_sut`` returns them
+    :param directory: where the sidecars live; defaults to :data:`FBS_DIR`
+    :return: ``{name: metadata}``, keyed by the sidecar's own ``name_data``
+        where it has one and by the stem otherwise.  A stem with no readable
+        sidecar is recorded with a ``lineage_error`` rather than dropped -- a
+        silently missing source reads as "no inputs moved", which is the
+        failure this function exists to stop.
+    """
+    where = Path(directory) if directory is not None else Path(FBS_DIR)
+    out: dict[str, Any] = {}
+    for stem in stems:
+        # NOT Path(stem).stem: these names carry a dotted version, so
+        # ``..._v0.3.0_d2e2112`` would lose its tail to a phantom suffix.
+        base = str(stem).removesuffix('.parquet')
+        path = where / f'{base}_metadata.json'
+        try:
+            meta = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            out[base] = {'lineage_error': f'no readable sidecar at {path}: {exc}'}
+            continue
+        key = meta.get('name_data') or base
+        out[str(key)] = meta
+    return out

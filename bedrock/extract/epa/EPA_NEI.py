@@ -101,13 +101,28 @@ def epa_nei_global_parse(
         .str.zfill(5)
     )
     # remove records from certain FIPS
-    excluded_fips = ['78', '85', '88']
+    # ⚠️ 85 is NOT excluded. FIPS 85xxx is the "Federal Waters" pseudo-county
+    # set (state code DM: Gulf, Atlantic, N/S Pacific, near Alaska/Hawaii, north
+    # of Puerto Rico) and in the 2020 NEI it is used by exactly one sector,
+    # Mobile - Commercial Marine Vessels. Excluding it silently dropped 1.562 Mt
+    # of the 15.415 Mt of CMV CO2 - 10.1%, essentially all offshore underway
+    # emissions. Those are US emissions and belong in a national inventory.
+    # Note for state-geoscale methods: update_geoscale maps 85xxx to a "85000"
+    # pseudo-state that is not in the 51-row state FIPS list. At national
+    # geoscale it folds into the US total correctly.
+    excluded_fips = ['78', '88']
     df = df[~df['Location'].str[0:2].isin(excluded_fips)]
     excluded_fips2 = ['777']
     df = df[~df['Location'].str[-3:].isin(excluded_fips2)]
 
+    # Year must be set BEFORE standardize_units: that function reads
+    # df['Year'][0] to pick the Canadian-dollar exchange rate, so calling it
+    # first raised KeyError('Year') after the full download.
+    df['Year'] = year
+
     # to align with other processed NEI data (Point from StEWI), units are
     # converted during FBA creation instead of maintained
+    df = df.reset_index(drop=True)
     df = standardize_units(df)
 
     # add hardcoded data
@@ -115,7 +130,6 @@ def epa_nei_global_parse(
     df['Class'] = "Chemicals"
     df['SourceName'] = source
     df['Compartment'] = "air"
-    df['Year'] = year
     df = assign_fips_location_system(df, year)
 
     return df

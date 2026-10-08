@@ -1,0 +1,12 @@
+author: US Bureau of Economic Analysis
+source_name: International Transactions Accounts goods and services totals
+source_url: https://www.bea.gov/data/intl-trade-investment/international-transactions
+bib_id: BEA_ITA
+format: csv
+url:
+  base_url: https://apps.bea.gov/itable/
+parse_response_fxn: !script_function:BEA_ITA bea_ita_parse
+gcs_fxn: !script_function:BEA_ITA bea_ita_load
+extract_data_from_raw_sources: False
+years:
+  - 2017

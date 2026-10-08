@@ -1,0 +1,43 @@
+# Cornerstone v0.5 nowcast model -- calendar year 2024 (IO + GHG).
+#
+# Same family as 2025_usa_cornerstone_v0_4_nowcast_2024.yaml, on the v0.5
+# nowcast build and with facility GHG attribution. Detail MUT from
+# NowcastMUT after-redefinition artifacts, pinned to nowcast_mut_vintage
+# v0.3.0_3096818 (Steps 3-7 rebuild at 30968183, 2026-09-30: gross output
+# chained on AIES, theta = 1, the EIA electricity rebase (#1030), cement and
+# ready-mix chained together (#1033), data processing's electricity on LBNL
+# (#1041), and the manufacturing expense seed smoothed across survey changes
+# (#1056)).
+# x and q are row and column sums of that after-redef Make; B is not
+# year-scaled or inflated.
+#
+# use_facility_ghg_attribution selects the facility-attribution GHG FBS
+# (GHG_national_Cornerstone_nowcast_facilities_2024), unpinned: the loader
+# takes the newest GCS parquet for that stem. The v0.5 release FBS, built
+# from main 3a1dddc2 on the 3096818 tables (#1055, #1059, #1061), is
+# GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
+# sha256 7cc30cb922bb054e01122d4786b63d7ff23431121c934c22a8b8aa9c9b4f66c7
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_3096818'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+use_facility_ghg_attribution: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True

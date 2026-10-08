@@ -1,0 +1,83 @@
+author: US Census Bureau
+source_name: Economic Census, Inventories by Stage of Fabrication
+source_url: https://www.census.gov/programs-surveys/economic-census.html
+bib_id: Census_EC_Inventories
+
+# **The industry x stage inventory cell BEA does not publish.**
+#
+# `U50705BU1` gives manufacturing inventories two ways - by industry across 22
+# leaves, and by stage of fabrication split only durable/nondurable - and both
+# sum to the same total. There is no cell where the two decompositions meet.
+# Hill's rules for allocating the change in inventories operate at the **6-digit
+# industry**, and applying them needs to know how much of each industry's stock
+# is finished goods, work-in-process and materials-and-supplies. This is that
+# cell, at NAICS-6, for 2017 and 2022 (#664).
+#
+# ⚠️ **Stock levels, not changes. Do not difference these to build `F03000`.**
+# Beginning- and end-of-year stocks differ by holding gains as well as by real
+# accumulation, and CIPI excludes holding gains through the inventory valuation
+# adjustment. The same trap is documented for FIWS in
+# `analysis/nowcasting/inventories_estimation_plan.md`, where differencing gave
+# -887 against a true -5,679, out by roughly six times.
+#
+# ✅ **Verified additive against the published stage totals.** Finished goods
+# plus work-in-process plus materials-and-supplies sums to `INVTOT` at a median
+# ratio of exactly 1.0000 across the 360 (2017) and 346 (2022) six-digit
+# manufacturing industries, 98.6-99.8% in aggregate and within 1% for 339-355 of
+# them. Manufacturing holds $619.7B at the start of 2017 and $914.8B at the end
+# of 2022.
+#
+# ✅ **Use these for the stage shares, and keep the level from `U50705BU1`.**
+# That is the division of labour #664 sets out: the published series carries the
+# magnitude, this carries the composition that decides where the magnitude goes.
+#
+# ⚠️ **Quinquennial.** ASM's `timeseries/asm/industry` carries the same `INV*`
+# cells annually and is the source to reach for if the shares are needed between
+# censuses - not yet extracted. This is the pair of years the benchmark sits on,
+# and 2017 is the benchmark year itself.
+#
+# ⚠️ **`INVTOTB` and `INVTOTE` are the stage totals**, kept so a consumer can
+# check the three stages sum to them. Summing this FBA unfiltered counts every
+# inventory twice over, and summing across `B` and `E` counts each year twice
+# again.
+#
+# ⚠️ **Every NAICS level is published**, 3- through 6-digit, each parent covering
+# all of its children. Filter to `^\d{6}$` before summing.
+#
+# ⚠️ **Amounts are Thousand USD**, as everywhere in the Census API.
+#
+# ⚠️ **No `source_catalog.yaml` entry yet.** Nothing attributes this to sectors;
+# it is an extraction for #664 and the modelling lands in its own branch. Write
+# a real entry when the first FBS consumes it.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: __year__/ecnbasic?
+  url_params:
+    get: __variables__
+    # 2022 returns HTTP 400 without an explicit geography; both vintages are
+    # pulled at the national level, so set it for both.
+    for: "us:*"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_EC census_EC_cells_URL_helper
+call_response_fxn: !script_function:Census_EC census_EC_cells_call
+parse_response_fxn: !script_function:Census_EC census_EC_Inventories_parse
+
+# Three stages of fabrication, beginning and end of year, plus the two totals
+# they sum to.
+variables:
+- INVFINB
+- INVFINE
+- INVWIPB
+- INVWIPE
+- INVMATB
+- INVMATE
+- INVTOTB
+- INVTOTE
+
+years:
+- 2017
+- 2022

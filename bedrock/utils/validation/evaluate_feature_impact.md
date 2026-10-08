@@ -46,6 +46,7 @@ separate step from running the model.
 | **v0.4 Diagnostics** | `1W6I4q2ssfgaaVz6eLNICNiETP05dhrCK` | `dispatch_diagnostics.V04_DIAGNOSTICS_DRIVE_FOLDER_ID` | Methodology feature evaluations |
 | EF time-series / v0.3 release progression | `1M2-Vopqfrx1vGcwoNi6wq55FmoELNV1s` | `a_matrix_time_series.dispatch_ef_time_series.EF_TIME_SERIES_DRIVE_FOLDER_ID` | A-matrix time-series and v0.3 step-by-step release sheets |
 | v0.3 waterfall | `107RNHx1OUGN6roYdRi3BbdCSrMNFhl6u` | `dispatch_diagnostics.V03_WATERFALL_DRIVE_FOLDER_ID` | Wholesale G1→G3 / FINAL waterfall only |
+| v0.5 waterfall | `1wC8Ids_2TbJ2plgnHMitNgPEPIefMf7t` | `dispatch_diagnostics.V05_WATERFALL_DRIVE_FOLDER_ID` | v0.4→v0.5 US rungs (G2/G3/G4) |
 
 Default feature-impact sheets to the **v0.4 Diagnostics** folder. The
 A-matrix time-series folder ID stays on its epic dispatcher. Do not place

@@ -32,7 +32,7 @@ def bls_ces_call(
 ) -> list[pd.DataFrame]:
     """ """
     headers = {'Content-type': 'application/json'}
-    api_key = load_env_file_key('API_Key', config['api_name'])
+    api_key = load_env_file_key('api_key', config['api_name'])
     series = read_ces_item_codes()['item_code']
     series_dict0 = OrderedDict(config['series'])
     series_dict0['item'] = list(series)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+import logging
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -9,8 +11,12 @@ import pandas as pd
 import stewi.exceptions
 from stewi.egrid import OUTPUT_PATH, _config, download_eGRID, extract_eGRID_excel
 from stewi.formats import StewiFormat
-from stewi.globals import MWh_MJ, read_inventory
+from stewi.globals import MWh_MJ, generate_inventory, read_inventory
 from stewi.globals import config as stewi_config
+
+from bedrock.utils.validation.exceptions import FBANotAvailableError
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2024
@@ -18,7 +24,7 @@ DEFAULT_YEAR_END = 2024
 
 def egrid_inventory_years(year_start: int, year_end: int) -> list[int]:
     """Calendar years with stewi eGRID source config in [year_start, year_end]."""
-    keys = stewi_config()["databases"]["eGRID"]
+    keys = stewi_config()['databases']['eGRID']
     configured = sorted(int(k) for k in keys if str(k).isdigit())
     return [y for y in configured if year_start <= y <= year_end]
 
@@ -27,7 +33,7 @@ def _require_egrid_year(year: int) -> str:
     year_str = str(year)
     if year_str not in _config:
         raise stewi.exceptions.InventoryNotAvailableError(
-            inv="eGRID",
+            inv='eGRID',
             year=year_str,
         )
     return year_str
@@ -36,14 +42,14 @@ def _require_egrid_year(year: int) -> str:
 def ensure_egrid_workbook(year: int, *, download_if_missing: bool = True) -> Path:
     """Return the local eGRID workbook path for a stewi-configured year."""
     year_str = _require_egrid_year(year)
-    path = OUTPUT_PATH / _config[year_str]["file_name"]
+    path = OUTPUT_PATH / _config[year_str]['file_name']
     if not path.is_file():
         if not download_if_missing:
-            msg = f"eGRID workbook not found for {year}: {path}"
+            msg = f'eGRID workbook not found for {year}: {path}'
             raise FileNotFoundError(msg)
         download_eGRID(year_str)
     if not path.is_file():
-        msg = f"eGRID workbook not found for {year} after download: {path}"
+        msg = f'eGRID workbook not found for {year} after download: {path}'
         raise FileNotFoundError(msg)
     return path
 
@@ -51,7 +57,7 @@ def ensure_egrid_workbook(year: int, *, download_if_missing: bool = True) -> Pat
 def _find_column(df: pd.DataFrame, substring: str) -> str:
     matches = [c for c in df.columns if substring in str(c)]
     if not matches:
-        msg = f"No column containing {substring!r} in GGL sheet; got {list(df.columns)}"
+        msg = f'No column containing {substring!r} in GGL sheet; got {list(df.columns)}'
         raise ValueError(msg)
     return str(matches[0])
 
@@ -65,33 +71,33 @@ def load_egrid_ggl(
     year_str = _require_egrid_year(year)
     if download_if_missing:
         ensure_egrid_workbook(year, download_if_missing=True)
-    raw = extract_eGRID_excel(year_str, "GGL", index="field")
+    raw = extract_eGRID_excel(year_str, 'GGL', index='field')
     return _normalize_ggl(raw)
 
 
 def _normalize_ggl(raw: pd.DataFrame) -> pd.DataFrame:
-    region_col = _find_column(raw, "interconnect power grids")
-    est_col = _find_column(raw, "Estimated losses (MWh)")
-    loss_col = _find_column(raw, "Grid gross loss")
+    region_col = _find_column(raw, 'interconnect power grids')
+    est_col = _find_column(raw, 'Estimated losses (MWh)')
+    loss_col = _find_column(raw, 'Grid gross loss')
     year_col = next(
-        (c for c in ("Data Year", "Data year") if c in raw.columns),
+        (c for c in ('Data Year', 'Data year') if c in raw.columns),
         None,
     )
     if year_col is None:
-        msg = f"GGL sheet missing Data Year column; got {list(raw.columns)}"
+        msg = f'GGL sheet missing Data Year column; got {list(raw.columns)}'
         raise ValueError(msg)
 
     out = pd.DataFrame(
         {
-            "year": pd.to_numeric(raw[year_col], errors="coerce").astype("Int64"),
-            "region": raw[region_col].astype(str).str.strip(),
-            "estimated_losses_mwh": pd.to_numeric(raw[est_col], errors="coerce"),
-            "grid_gross_loss": pd.to_numeric(raw[loss_col], errors="coerce"),
+            'year': pd.to_numeric(raw[year_col], errors='coerce').astype('Int64'),
+            'region': raw[region_col].astype(str).str.strip(),
+            'estimated_losses_mwh': pd.to_numeric(raw[est_col], errors='coerce'),
+            'grid_gross_loss': pd.to_numeric(raw[loss_col], errors='coerce'),
         }
     )
-    if out["year"].isna().any():
-        raise ValueError("GGL sheet has non-numeric Data Year values")
-    return out.astype({"year": int})
+    if out['year'].isna().any():
+        raise ValueError('GGL sheet has non-numeric Data Year values')
+    return out.astype({'year': int})
 
 
 def grid_loss_by_region_by_year(
@@ -124,33 +130,52 @@ def load_egrid_flowbyfacility(
     Uses ``read_inventory`` so plant net generation matches the stored inventory
     (sum of PLNT / US ``USNGENAN``). ``getInventory`` re-aggregates on read and drops
     non-positive ``FlowAmount`` rows, which raises the US electricity total.
+
+    ``read_inventory(..., download_if_missing=True)`` only fetches a pre-built
+    parquet from EPA DMAP S3; it does not generate from the eGRID workbook.
+    Years that exist in Cornerstone stewi config (e.g. 2024) but are not on
+    S3 yet therefore miss. After that miss, generate from source (Zenodo xlsx
+    → processed inventory) and read the local parquet.
     """
     _require_egrid_year(year)
     inv = read_inventory(
-        "eGRID",
+        'eGRID',
         year,
         StewiFormat.FLOWBYFACILITY,
         download_if_missing=download_if_missing,
     )
+    if inv is None and download_if_missing:
+        logger.info(
+            'eGRID %s flow-by-facility not in local cache or remote; '
+            'generating from source',
+            year,
+        )
+        generate_inventory('eGRID', year)
+        inv = read_inventory(
+            'eGRID',
+            year,
+            StewiFormat.FLOWBYFACILITY,
+            download_if_missing=False,
+        )
     if inv is None:
-        msg = f"eGRID flow-by-facility inventory not available for {year}"
+        msg = f'eGRID flow-by-facility inventory not available for {year}'
         raise FileNotFoundError(msg)
     return inv
 
 
 def _net_generation_mj(flowbyfacility: pd.DataFrame) -> float:
     """Sum Electricity (net generation) across a stewi eGRID flowbyfacility table, in MJ."""
-    gen = flowbyfacility.loc[flowbyfacility["FlowName"] == "Electricity", "FlowAmount"]
+    gen = flowbyfacility.loc[flowbyfacility['FlowName'] == 'Electricity', 'FlowAmount']
     if gen.empty:
         msg = (
             "eGRID flow-by-facility has no 'Electricity' rows "
-            "(plant annual net generation)"
+            '(plant annual net generation)'
         )
         raise ValueError(msg)
     units = flowbyfacility.loc[
-        flowbyfacility["FlowName"] == "Electricity", "Unit"
+        flowbyfacility['FlowName'] == 'Electricity', 'Unit'
     ].unique()
-    if len(units) != 1 or units[0] != "MJ":
+    if len(units) != 1 or units[0] != 'MJ':
         msg = f"unexpected units for 'Electricity': {units.tolist()}"
         raise ValueError(msg)
     return float(gen.sum())
@@ -184,4 +209,254 @@ def us_total_net_generation_by_year(
         totals[year] = us_total_net_generation_mwh(
             year, download_if_missing=download_if_missing
         )
-    return pd.Series(totals, dtype=float, name="net_generation_mwh")
+    return pd.Series(totals, dtype=float, name='net_generation_mwh')
+
+
+# ---------------------------------------------------------------------------
+# EIA Electric Power Annual helpers for EIA-anchored G/T/D
+# ---------------------------------------------------------------------------
+
+_TABLE_2_2_KEYS: tuple[str, ...] = (
+    'Residential',
+    'Commercial',
+    'Industrial',
+    'Transportation',
+    'Direct Use',
+    'Total End Use',
+)
+_TABLE_3_1_TOTAL_PRODUCER = 'Total (all sectors)'
+
+
+def _epa_fba(year: int) -> pd.DataFrame:
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    return getFlowByActivity('EIA_ElectricPowerAnnual', year)
+
+
+def _epa_fba_if_available(year: int) -> pd.DataFrame | None:
+    try:
+        return _epa_fba(year)
+    except (FBANotAvailableError, FileNotFoundError):
+        return None
+
+
+def _table_mask(df: pd.DataFrame, year: int, table_fragment: str) -> pd.Series:
+    desc = df['Description'].astype(str)
+    return (df['Year'] == year) & desc.str.contains(table_fragment, na=False)
+
+
+@functools.cache
+def eia_table_2_2_end_use_mwh(year: int) -> dict[str, float]:
+    """EIA Table 2.2 sales + Direct Use + Total End Use, MWh.
+
+    Do not require ActivityProducedBy == 'Total Electric Industry' for every
+    key: Direct Use / Total End Use may be other provider rows.
+    """
+    df = _epa_fba(year)
+    table = df.loc[_table_mask(df, year, 'Table 2.2')]
+    out: dict[str, float] = {}
+    for key in _TABLE_2_2_KEYS:
+        rows = table.loc[table['ActivityConsumedBy'] == key]
+        if rows.empty:
+            raise ValueError(f'Table 2.2 missing {key!r} for year {year}')
+        tei = rows.loc[rows['ActivityProducedBy'] == 'Total Electric Industry']
+        if not tei.empty:
+            out[key] = float(tei['FlowAmount'].iloc[0])
+        else:
+            out[key] = float(rows['FlowAmount'].sum())
+    if out['Total End Use'] <= 0:
+        raise ValueError(f'Table 2.2 Total End Use non-positive for year {year}')
+    if 'Direct Use' not in out:
+        raise ValueError(f'Table 2.2 missing Direct Use for year {year}')
+    return out
+
+
+_TABLE_2_14_EXPORT_FLOW = 'electricity exports'
+_TABLE_2_14_IMPORT_FLOW = 'electricity imports'
+
+
+def _trade_mwh_from_fba(df: pd.DataFrame, year: int, flow_name: str) -> float | None:
+    """Canada + Mexico Table 2.14 MWh for one flow name, or None if missing."""
+    mask = (
+        (df['Year'] == year)
+        & (df['FlowName'].astype(str) == flow_name)
+        & df['Description'].astype(str).str.contains('Table 2.14', na=False)
+    )
+    sub = df.loc[mask]
+    if sub.empty:
+        return None
+    loc = sub['Location'].astype(str)
+    keep = loc.str.contains('Canada', case=False, na=False) | loc.str.contains(
+        'Mexico', case=False, na=False
+    )
+    rows = sub.loc[keep]
+    if rows.empty:
+        return None
+    return float(rows['FlowAmount'].sum())
+
+
+def _export_mwh_from_fba(df: pd.DataFrame, year: int) -> float | None:
+    return _trade_mwh_from_fba(df, year, _TABLE_2_14_EXPORT_FLOW)
+
+
+_TABLE_2_14_MIN_YEAR = 2014
+
+
+@functools.cache
+def eia_table_2_14_year_for_egrid_year(egrid_year: int) -> int:
+    """Latest EIA Table 2.14 year at or before ``egrid_year``.
+
+    Table 2.14 (Canada/Mexico electricity trade) can lag the eGRID inventory
+    year. Callers that need a lag must resolve the table year here and pass it
+    to ``eia_table_2_14_export_mwh`` — the loader itself does not substitute.
+    """
+    for table_year in range(egrid_year, _TABLE_2_14_MIN_YEAR - 1, -1):
+        df = _epa_fba_if_available(table_year)
+        if df is None:
+            continue
+        if _export_mwh_from_fba(df, table_year) is not None:
+            if table_year != egrid_year:
+                logger.info(
+                    'EIA Table 2.14 not available for eGRID year %s; '
+                    'using Table 2.14 year %s',
+                    egrid_year,
+                    table_year,
+                )
+            return table_year
+    raise ValueError(
+        f'Table 2.14 Canada+Mexico exports missing for eGRID year {egrid_year} '
+        f'(no table found in {_TABLE_2_14_MIN_YEAR}–{egrid_year})'
+    )
+
+
+@functools.cache
+def eia_table_2_14_export_mwh(year: int) -> float:
+    """Canada + Mexico electricity exports from EIA Table 2.14 for *year*, MWh.
+
+    Workbook key ``epa_02_14`` uses ``flow_amount_scale: 1`` (not Table 3.1's
+    1000). Requires Table 2.14 for this exact year. If the table lags eGRID,
+    resolve the table year with ``eia_table_2_14_year_for_egrid_year`` at the
+    call site.
+    """
+    df = _epa_fba(year)
+    val = _export_mwh_from_fba(df, year)
+    if val is None:
+        raise ValueError(f'Table 2.14 Canada+Mexico exports missing for year {year}')
+    return val
+
+
+@functools.cache
+def eia_table_2_14_import_mwh(year: int) -> float:
+    """Canada + Mexico electricity imports from EIA Table 2.14 for *year*, MWh.
+
+    Same scale and exact-year rules as ``eia_table_2_14_export_mwh``.
+    """
+    df = _epa_fba(year)
+    val = _trade_mwh_from_fba(df, year, _TABLE_2_14_IMPORT_FLOW)
+    if val is None:
+        raise ValueError(f'Table 2.14 Canada+Mexico imports missing for year {year}')
+    return val
+
+
+@functools.cache
+def eia_table_3_1_total_mwh(year: int) -> float:
+    """EIA Table 3.1.A + 3.1.B all-sector net generation, MWh.
+
+    Filter ``ActivityProducedBy == 'Total (all sectors)'`` and sum FlowAmount
+    (extract already drops double-count columns and applies scale 1000).
+    """
+    df = _epa_fba(year)
+    mask = (
+        (df['Year'] == year)
+        & (df['ActivityProducedBy'] == _TABLE_3_1_TOTAL_PRODUCER)
+        & df['Description'].astype(str).str.contains('Table 3.1', na=False)
+    )
+    sub = df.loc[mask]
+    if sub.empty:
+        raise ValueError(
+            f'Table 3.1 Total (all sectors) missing for year {year} '
+            f'(2017 eGRID scale has no fallback)'
+        )
+    total = float(sub['FlowAmount'].sum())
+    if total <= 0:
+        raise ValueError(f'Table 3.1 total non-positive for year {year}')
+    return total
+
+
+@functools.cache
+def egrid_mwh_for_io_year(year: int, *, download_if_missing: bool = True) -> float:
+    """Plant-net eGRID MWh for an IO-account year.
+
+    For 2017 there is no stewi eGRID inventory, so we take 2016 eGRID net
+    generation and scale it by EIA Table 3.1 total generation in 2017 relative
+    to 2016. Other years use the eGRID inventory for that year directly.
+    Do not add GGL losses.
+    """
+    if year == 2017:
+        egrid_2016 = us_total_net_generation_mwh(
+            2016, download_if_missing=download_if_missing
+        )
+        t31_2017 = eia_table_3_1_total_mwh(2017)
+        t31_2016 = eia_table_3_1_total_mwh(2016)
+        if t31_2016 <= 0:
+            raise ValueError('EIA Table 3.1 2016 total is non-positive')
+        return float(egrid_2016 * (t31_2017 / t31_2016))
+    return us_total_net_generation_mwh(year, download_if_missing=download_if_missing)
+
+
+_TABLE_8_3_PROVIDER = 'Investor-owned electric utilities'
+
+
+@functools.cache
+def eia_table_8_3_line(year: int, flow_name: str) -> float:
+    """One EIA Table 8.3 line item for major investor-owned utilities, USD.
+
+    Table 8.3 is FERC Form 1 revenue and expense statistics. Its hierarchy is
+    carried on ``FlowName`` with a ``revenue: ``/``expenses: `` prefix -- the
+    line label is **not** on ``ActivityConsumedBy``, which the parser leaves
+    null for this layout. ``eia_purchased_power_usd`` is the caller that
+    matters; pass any other label verbatim, e.g. ``'expenses: Cost of Fuel'``.
+
+    ⚠️ **Investor-owned only.** Public power, cooperatives and independent
+    power producers are absent, so this is a lower bound on the industry and
+    must be used as an *index*, never as a level.
+    """
+    df = _epa_fba(year)
+    table = df.loc[_table_mask(df, year, 'Table 8.3')]
+    rows = table.loc[table['FlowName'] == flow_name]
+    if rows.empty:
+        available = sorted(table['FlowName'].astype(str).unique())
+        raise ValueError(
+            f'Table 8.3 has no line {flow_name!r} for {year}; saw {available}'
+        )
+    return float(rows['FlowAmount'].iloc[0])
+
+
+def eia_purchased_power_usd(year: int) -> float:
+    """Purchased power expense of major investor-owned electric utilities, USD.
+
+    The observed counterpart to the intra-industry electricity trade that BEA's
+    gross output implies but the benchmark Use table does not carry (#1009).
+    """
+    return eia_table_8_3_line(year, 'expenses: Purchased Power')
+
+
+def eia_retail_revenue_usd(year: int, customer_class: str = 'Total') -> float:
+    """EIA Table 2.3 retail revenue to ultimate customers, USD.
+
+    ``Total Electric Industry`` across all four customer classes by default --
+    the published product of Table 2.2 volume and Table 2.4 average price, and
+    the leg of the electricity row that is genuinely sold to end users. Pass a
+    *customer_class* (``'Commercial'``, ``'Residential'``, ...) for one class.
+    """
+    df = _epa_fba(year)
+    table = df.loc[_table_mask(df, year, 'Table 2.3')]
+    rows = table.loc[
+        (table['ActivityProducedBy'] == 'Total Electric Industry')
+        & (table['ActivityConsumedBy'] == customer_class)
+    ]
+    if rows.empty:
+        raise ValueError(
+            f'Table 2.3 has no Total Electric Industry {customer_class!r} for {year}'
+        )
+    return float(rows['FlowAmount'].iloc[0])

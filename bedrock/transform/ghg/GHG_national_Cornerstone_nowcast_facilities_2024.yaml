@@ -1,0 +1,196 @@
+# Stationary combustion with facility data under the #928 residual rule.
+# Hybrid_Facility_MECS is attribution shares (Unit=share, sum to 1 per fuel), not kg CO2e.
+# GHGRP_NEI_Facilities is kg CO2e (lease/plant NG + still gas).
+# Hybrid: facility share where coverage >= 0.8, else MECS share;
+# floor = max(facility share, MECS share) then renormalize.
+
+!include:GHG_national_Cornerstone_nowcast_2024.yaml
+  # Every in-scope sector's CO2 at least what its own facilities report to
+  # GHGRP (all subparts but power), moved within industrial combustion (#1060).
+  ghgrp_sector_floor: 2024
+  sources_to_cache: !include:GHG_national_Cornerstone_nowcast_2024.yaml:sources_to_cache
+    # Pure facility combustion (prefer-GHGRP): FlowAmount is CO2e in kg.
+    # Used for lease/plant NG and still gas (no MECS/Use fallback).
+    GHGRP_NEI_Facilities:
+      data_format: FBS_outside_flowsa
+      FBS_datapull_fxn: !script_function:stewiFBS facility_combustion_to_sector
+      year: 2024
+      inventory_dict:
+        GHGRP: 2024
+        NEI: 2022
+      sector_prefixes:
+        - '21'
+        - '22'
+        - '31'
+        - '32'
+        - '33'
+      exclude_sectors:
+        - '221100'
+      # Facility sector-weight Flowables (Petroleum / Natural Gas / Coal).
+      # Lease/plant NG is added later from GHGRP subpart W as its own Flowable
+      # ("Natural Gas - lease and plant").
+      keep_flowables:
+        - Petroleum
+        - Natural Gas
+        - Coal
+    # Attribution shares on SectorConsumedBy (Unit=share). One FBS with
+    # Natural Gas / Coal / Petroleum; each fuel's FlowAmount sums to 1.
+    # Facility CO2e and MECS (Energy bcf/kg or Money USD) become NAICS shares,
+    # then: keep_prior->MECS, facility_vector->facility,
+    # facility_floor->max(shares); renormalize per fuel. Still gas stays on
+    # GHGRP_NEI (kg).
+    Hybrid_Facility_MECS:
+      data_format: FBS_outside_flowsa
+      FBS_datapull_fxn: !script_function:stewiFBS hybrid_facility_mecs_to_sector
+      year: 2024
+      inventory_dict:
+        GHGRP: 2024
+        NEI: 2022
+      min_coverage: 0.8
+      sector_prefixes:
+        - '21'
+        - '22'
+        - '31'
+        - '32'
+        - '33'
+      exclude_sectors:
+        - '221100'
+      mecs_method: Energy_manufacturing_national_nowcast_2024
+      flowables:
+        Natural Gas: Energy
+        Coal: Energy
+        Petroleum: Money
+      keep_flowables:
+        - Natural Gas
+        - Coal
+        - Petroleum
+  source_names: !include:GHG_national_Cornerstone_nowcast_2024.yaml:source_names
+    # Pipeline natural gas burned at LNG export terminals and gas distribution
+    # facilities (GHGRP NAICS 221210) goes to them, not to pipelines (#1067).
+    UMD_GHGIA_T_3_8: !include:GHG_national_Cornerstone_nowcast_2024.yaml:source_names:UMD_GHGIA_T_3_8
+      clean_fba_before_activity_sets: !script_function:UMD_GHGIA prepare_facilities_mobile_combustion
+      clean_parameter:
+        year: 2024
+      activity_sets: !include:GHG_national_Cornerstone_nowcast_2024.yaml:source_names:UMD_GHGIA_T_3_8:activity_sets
+        lng_liquefaction:
+          selection_fields:
+            PrimaryActivity:
+              - Pipeline Natural Gas - LNG Liquefaction
+          attribution_method: proportional
+          attribution_source:
+            GHGRP_NEI_Facilities:
+              selection_fields:
+                Flowable: Natural Gas - LNG liquefaction
+    UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
+       year: 2024
+       activity_to_sector_mapping: UMD_GHGIA
+       clean_fba_before_activity_sets: !script_function:UMD_GHGIA prepare_facilities_industrial_combustion
+       clean_parameter:
+         year: 2024
+         nei_year: 2022
+         annex_fba: 'UMD_GHGIA_T_A5_1_S1'
+         annex_year: 2023
+         exclude_sectors:
+           - '221100'
+       fedefl_mapping: UMD_GHGIA_AR5_100
+       activity_sets:
+         petroleum_still_gas:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Still Gas
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Petroleum
+                 # Still gas is refinery fuel (#983): weight on refineries'
+                 # own petroleum only, not every facility's (#1054).
+                 # The cached source carries refineries at industry spec, 32411;
+                 # '324110' alone matched nothing and dropped all still gas (#1060).
+                 SectorProducedBy: ['32411', '324110']
+
+         petroleum_facility:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Petroleum Coke
+               - Petroleum Industrial - HGL
+               - Petroleum Industrial - Kerosene
+           attribution_method: proportional
+           attribution_source:
+             Hybrid_Facility_MECS:
+               selection_fields:
+                 Flowable: Petroleum
+
+         petroleum_use:
+           selection_fields:
+             PrimaryActivity:
+               - Petroleum Industrial - Distillate Fuel Oil
+               - Petroleum Industrial - Motor Gasoline
+           attribution_method: proportional
+           attribution_source:
+             Nowcast_Detail_Use_AfterRedef:
+               year: 2024
+               activity_to_sector_mapping: Cornerstone_2025
+               selection_fields:
+                 ActivityProducedBy: {'324110': ''}
+               clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
+               attribution_method: equal
+
+         natural_gas_lease_plant:
+           selection_fields:
+             PrimaryActivity:
+               - Natural Gas Industrial - Lease and Plant
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Natural Gas - lease and plant
+
+         # Natural gas reformed into hydrogen, carved from manufacturing natural
+         # gas by the GHGRP subpart P amount and attributed to the reporting
+         # plants' sectors: industrial gases and refineries (#1060).
+         natural_gas_hydrogen:
+           selection_fields:
+             PrimaryActivity:
+               - Natural Gas Industrial - Hydrogen Production
+           attribution_method: proportional
+           attribution_source:
+             GHGRP_NEI_Facilities:
+               selection_fields:
+                 Flowable: Natural Gas - hydrogen production
+
+         natural_gas_nonmanufacturing:
+           selection_fields:
+             PrimaryActivity:
+              - Natural Gas Industrial
+           attribution_method: proportional
+           attribution_source:
+             Nowcast_Detail_Use_AfterRedef:
+               year: 2024
+               activity_to_sector_mapping: Cornerstone_2025
+               selection_fields:
+                 ActivityProducedBy: {'221200': ''}
+               attribution_method: equal
+
+         ng_manufacturing:
+           selection_fields:
+             PrimaryActivity:
+               - Natural Gas Industrial - Manufacturing
+           attribution_method: proportional
+           attribution_source:
+             Hybrid_Facility_MECS:
+               selection_fields:
+                 Flowable: Natural Gas
+
+         coal:
+           selection_fields:
+             PrimaryActivity:
+              - Coal Industrial
+              - Coal Industrial - Manufacturing
+           attribution_method: proportional
+           attribution_source:
+             Hybrid_Facility_MECS:
+               selection_fields:
+                 Flowable: Coal
+
+       # Intentionally left out 'Wood Commercial' and 'Wood Industrial'

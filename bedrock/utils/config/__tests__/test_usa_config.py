@@ -199,3 +199,192 @@ def test_electricity_mixed_units_requires_disaggregation() -> None:
             },
             strict=True,
         )
+
+
+def test_nowcast_requires_ghg_year_to_match_io_year() -> None:
+    """x is the nowcast Make row sum at the IO year; E must be that same year."""
+    with pytest.raises(
+        ValueError, match='usa_ghg_data_year must equal usa_base_io_data_year'
+    ):
+        USAConfig.model_validate(
+            {
+                'usa_detail_io_source': 'nowcast',
+                'usa_base_io_data_year': 2023,
+                'model_base_year': 2023,
+                'usa_ghg_data_year': 2022,
+            },
+            strict=True,
+        )
+
+
+def test_nowcast_forbids_deflated_x_in_b() -> None:
+    with pytest.raises(
+        ValueError, match='deflate_x_to_detail_io_year_for_B is incompatible'
+    ):
+        USAConfig.model_validate(
+            {
+                'usa_detail_io_source': 'nowcast',
+                'usa_base_io_data_year': 2023,
+                'model_base_year': 2023,
+                'usa_ghg_data_year': 2023,
+                'use_E_data_year_for_x_in_B': True,
+                'deflate_x_to_detail_io_year_for_B': True,
+            },
+            strict=True,
+        )
+
+
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_v0_4_nowcast_yamls_load(year: int) -> None:
+    cfg = _load_usa_config_from_file_name(
+        f'2025_usa_cornerstone_v0_4_nowcast_{year}.yaml'
+    )
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == year
+    assert cfg.model_base_year == year
+    assert cfg.usa_detail_original_year == year
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+
+
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_v0_5_yearly_yamls_load(year: int) -> None:
+    """Same family as the v0.4 per-year nowcast configs, on the v0.5 build.
+
+    Named without ``_nowcast_``: v0.5 has no ``bea_published`` per-year
+    family to disambiguate against, so the qualifier would be noise.
+    """
+    cfg = _load_usa_config_from_file_name(f'2025_usa_cornerstone_v0_5_{year}.yaml')
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == year
+    assert cfg.model_base_year == year
+    assert cfg.usa_detail_original_year == year
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+    assert cfg.nowcast_mut_vintage == 'v0.3.0_3096818'
+    assert cfg.use_facility_ghg_attribution
+
+    v4 = _load_usa_config_from_file_name(
+        f'2025_usa_cornerstone_v0_4_nowcast_{year}.yaml'
+    )
+    _v5_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
+    assert cfg.model_dump(exclude=_v5_only) == v4.model_dump(exclude=_v5_only)
+
+
+def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
+    """v0.4's configuration on the v0.5 nowcast build; MUT pin + facility GHG."""
+    v05 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5.yaml')
+    v04 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
+    assert v05.nowcast_mut_vintage == 'v0.3.0_3096818'
+    assert v05.use_facility_ghg_attribution
+    assert not v04.use_facility_ghg_attribution
+    _v05_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
+    assert v05.model_dump(exclude=_v05_only) == v04.model_dump(exclude=_v05_only)
+
+
+def test_v0_4_release_yaml_loads() -> None:
+    cfg = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.nowcast_mut_vintage == 'v0.3.0_4276083'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == 2024
+    assert cfg.model_base_year == 2024
+    assert cfg.iot_before_or_after_redefinition == 'after'
+    assert cfg.use_cornerstone_ghg_model
+    assert cfg.implement_waste_disaggregation
+    assert cfg.cornerstone_industry_avg_margins
+    assert not cfg.apply_io_year_adjustments
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+
+
+def _resolved_field_diff(a: str, b: str) -> dict[str, tuple[object, object]]:
+    da = _load_usa_config_from_file_name(f'{a}.yaml').model_dump()
+    db = _load_usa_config_from_file_name(f'{b}.yaml').model_dump()
+    return {k: (da[k], db[k]) for k in da if da[k] != db[k]}
+
+
+def test_v0_4_waterfall_rungs_bracket_the_release_config() -> None:
+    """G2 -> G3 is the US data update; G3 -> release is nowcasting only."""
+    assert _resolved_field_diff(
+        'v04_waterfall_g2_methods', 'v04_waterfall_g3_data'
+    ) == {
+        'usa_ghg_data_year': (2023, 2024),
+    }
+    nowcast_only = _resolved_field_diff(
+        'v04_waterfall_g3_data', '2025_usa_cornerstone_v0_4'
+    )
+    assert set(nowcast_only) == {
+        'usa_detail_io_source',
+        'nowcast_mut_vintage',
+        'usa_base_io_data_year',
+        'apply_io_year_adjustments',
+        # Release Flip: year-matched waste shares; waterfall G3 keeps frozen 2017.
+        'waste_weights_year',
+    }
+    assert nowcast_only['waste_weights_year'] == (2017, 'match_io')
+    # The two rungs carry the v0.3 waterfall values over unchanged.
+    assert (
+        _resolved_field_diff('v04_waterfall_g2_methods', 'v03_waterfall_g2_methods')
+        == {}
+    )
+    assert _resolved_field_diff('v04_waterfall_g3_data', 'v03_waterfall_g3_data') == {}
+
+
+def test_v0_5_waterfall_rungs_bracket_the_release_config() -> None:
+    """G2 and G3 carry v0.4's rungs over; G3 -> G4 is nowcasting, G4 -> release
+    is facility GHG attribution alone."""
+    for rung in ('g2_methods', 'g3_data'):
+        assert (
+            _resolved_field_diff(f'v05_waterfall_{rung}', f'v04_waterfall_{rung}') == {}
+        )
+    assert set(
+        _resolved_field_diff('v05_waterfall_g3_data', 'v05_waterfall_g4_nowcast')
+    ) == {
+        'usa_detail_io_source',
+        'nowcast_mut_vintage',
+        'usa_base_io_data_year',
+        'apply_io_year_adjustments',
+        'waste_weights_year',
+    }
+    assert _resolved_field_diff(
+        'v05_waterfall_g4_nowcast', '2025_usa_cornerstone_v0_5'
+    ) == {'use_facility_ghg_attribution': (False, True)}
+
+
+def test_electricity_reaggregation_config_parsing() -> None:
+    config = _load_usa_config_from_file_name(
+        'test_usa_config_waste_disagg_electricity_reaggregation.yaml'
+    )
+    assert config.implement_electricity_reaggregation is True
+    assert config.implement_electricity_disaggregation is True
+    assert config.implement_electricity_mixed_units is False
+
+
+def test_electricity_reaggregation_requires_disaggregation() -> None:
+    with pytest.raises(
+        ValueError,
+        match='implement_electricity_reaggregation requires',
+    ):
+        USAConfig.model_validate(
+            {
+                'implement_electricity_reaggregation': True,
+                'implement_electricity_disaggregation': False,
+                'implement_electricity_reallocation': True,
+                'implement_waste_disaggregation': True,
+            },
+            strict=True,
+        )
+
+
+def test_electricity_reaggregation_xor_mixed_units() -> None:
+    with pytest.raises(
+        ValueError,
+        match='implement_electricity_reaggregation is mutually exclusive',
+    ):
+        USAConfig.model_validate(
+            {
+                'implement_electricity_reaggregation': True,
+                'implement_electricity_mixed_units': True,
+                'implement_electricity_disaggregation': True,
+                'implement_electricity_reallocation': True,
+                'implement_waste_disaggregation': True,
+            },
+            strict=True,
+        )

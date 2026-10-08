@@ -1,0 +1,266 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+Census_SAS,4861,BEA_2017_Code,211000,,Oil and gas extraction
+Census_SAS,4862,BEA_2017_Code,211000,,Oil and gas extraction
+Census_SAS,48691,BEA_2017_Code,324110,,Petroleum refineries
+Census_SAS,48691,BEA_2017_Code,324190,,Other petroleum and coal products manufacturing
+Census_SAS,48699,BEA_2017_Code,325130,,Synthetic dye and pigment manufacturing
+Census_SAS,48699,BEA_2017_Code,325310,,Fertilizer manufacturing
+Census_SAS,48699,BEA_2017_Code,325910,,Printing ink manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,1111A0,,Oilseed farming
+Census_SAS,Agricultural products,BEA_2017_Code,111200,,Vegetable and melon farming
+Census_SAS,Agricultural products,BEA_2017_Code,111300,,Fruit and tree nut farming
+Census_SAS,Agricultural products,BEA_2017_Code,111400,,"Greenhouse, nursery, and floriculture production"
+Census_SAS,Agricultural products,BEA_2017_Code,111900,,Other crop farming
+Census_SAS,Agricultural products,BEA_2017_Code,112120,,Dairy cattle and milk production
+Census_SAS,Agricultural products,BEA_2017_Code,1121A0,,"Beef cattle ranching and farming, including feedlots and dual-purpose ranching and farming"
+Census_SAS,Agricultural products,BEA_2017_Code,112300,,Poultry and egg production
+Census_SAS,Agricultural products,BEA_2017_Code,112A00,,"Animal production, except cattle and poultry and eggs"
+Census_SAS,Agricultural products,BEA_2017_Code,114000,,"Fishing, hunting and trapping"
+Census_SAS,Agricultural products,BEA_2017_Code,311111,,Dog and cat food manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311119,,Other animal food manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311221,,Wet corn milling
+Census_SAS,Agricultural products,BEA_2017_Code,311224,,Soybean and other oilseed processing
+Census_SAS,Agricultural products,BEA_2017_Code,311225,,Fats and oils refining and blending
+Census_SAS,Agricultural products,BEA_2017_Code,311230,,Breakfast cereal manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311300,,Sugar and confectionery product manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311410,,Frozen food manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311420,,"Fruit and vegetable canning, pickling, and drying"
+Census_SAS,Agricultural products,BEA_2017_Code,311513,,Cheese manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311514,,"Dry, condensed, and evaporated dairy product manufacturing"
+Census_SAS,Agricultural products,BEA_2017_Code,31151A,,Fluid milk and butter manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311520,,Ice cream and frozen dessert manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311615,,Poultry processing
+Census_SAS,Agricultural products,BEA_2017_Code,31161A,,"Animal (except poultry) slaughtering, rendering, and processing"
+Census_SAS,Agricultural products,BEA_2017_Code,311700,,Seafood product preparation and packaging
+Census_SAS,Agricultural products,BEA_2017_Code,311810,,Bread and bakery product manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,3118A0,,"Cookie, cracker, pasta, and tortilla manufacturing"
+Census_SAS,Agricultural products,BEA_2017_Code,311910,,Snack food manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311920,,Coffee and tea manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311930,,Flavoring syrup and concentrate manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311940,,Seasoning and dressing manufacturing
+Census_SAS,Agricultural products,BEA_2017_Code,311990,,All other food manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,331110,,Iron and steel mills and ferroalloy manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,331200,,Steel product manufacturing from purchased steel
+Census_SAS,Base metal and machinery,BEA_2017_Code,331313,,Alumina refining and primary aluminum production
+Census_SAS,Base metal and machinery,BEA_2017_Code,33131B,,Aluminum product manufacturing from purchased aluminum
+Census_SAS,Base metal and machinery,BEA_2017_Code,331410,,Nonferrous metal (except aluminum) smelting and refining
+Census_SAS,Base metal and machinery,BEA_2017_Code,331420,,"Copper rolling, drawing, extruding and alloying"
+Census_SAS,Base metal and machinery,BEA_2017_Code,331490,,"Nonferrous metal (except copper and aluminum) rolling, drawing, extruding and alloying"
+Census_SAS,Base metal and machinery,BEA_2017_Code,331510,,Ferrous metal foundries
+Census_SAS,Base metal and machinery,BEA_2017_Code,331520,,Nonferrous metal foundries
+Census_SAS,Base metal and machinery,BEA_2017_Code,332114,,Custom roll forming
+Census_SAS,Base metal and machinery,BEA_2017_Code,332119,,"Metal crown, closure, and other metal stamping (except automotive)"
+Census_SAS,Base metal and machinery,BEA_2017_Code,33211A,,"All other forging, stamping, and sintering"
+Census_SAS,Base metal and machinery,BEA_2017_Code,332200,,Cutlery and handtool manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332310,,Plate work and fabricated structural product manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332320,,Ornamental and architectural metal products manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332410,,Power boiler and heat exchanger manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332420,,Metal tank (heavy gauge) manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332430,,"Metal can, box, and other metal container (light gauge) manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,332500,,Hardware manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332600,,Spring and wire product manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332710,,Machine shops
+Census_SAS,Base metal and machinery,BEA_2017_Code,332720,,"Turned product and screw, nut, and bolt manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,332800,,"Coating, engraving, heat treating and allied activities"
+Census_SAS,Base metal and machinery,BEA_2017_Code,332913,,Plumbing fixture fitting and trim manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,33291A,,Valve and fittings other than plumbing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332991,,Ball and roller bearing manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332996,,Fabricated pipe and pipe fitting manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,332999,,Other fabricated metal manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,33299A,,"Ammunition, arms, ordnance, and accessories manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,333111,,Farm machinery and equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333112,,Lawn and garden equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333120,,Construction machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333130,,Mining and oil and gas field machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333242,,Semiconductor machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,33329A,,Other industrial machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333314,,Optical instrument and lens manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333316,,Photographic and photocopying equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333318,,Other commercial and service industry machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333413,,Industrial and commercial fan and blower and air purification equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333414,,Heating equipment (except warm air furnaces) manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333415,,"Air conditioning, refrigeration, and warm air heating equipment manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,333511,,Industrial mold manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333514,,"Special tool, die, jig, and fixture manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,333517,,Machine tool manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,33351B,,"Cutting and machine tool accessory, rolling mill, and other metalworking machinery manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,333611,,Turbine and turbine generator set units manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333612,,"Speed changer, industrial high-speed drive, and gear manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,333613,,Mechanical power transmission equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333618,,Other engine equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333912,,Air and gas compressor manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333914,,"Measuring, dispensing, and other pumping equipment manufacturing"
+Census_SAS,Base metal and machinery,BEA_2017_Code,333920,,Material handling equipment manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333991,,Power-driven handtool manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333993,,Packaging machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,333994,,Industrial process furnace and oven manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,33399A,,Other general purpose machinery manufacturing
+Census_SAS,Base metal and machinery,BEA_2017_Code,33399B,,Fluid power process machinery
+Census_SAS,Coal and petroleum products,BEA_2017_Code,211000,,Oil and gas extraction
+Census_SAS,Coal and petroleum products,BEA_2017_Code,212100,,Coal mining
+Census_SAS,Coal and petroleum products,BEA_2017_Code,324110,,Petroleum refineries
+Census_SAS,Coal and petroleum products,BEA_2017_Code,324121,,Asphalt paving mixture and block manufacturing
+Census_SAS,Coal and petroleum products,BEA_2017_Code,324122,,Asphalt shingle and coating materials manufacturing
+Census_SAS,Coal and petroleum products,BEA_2017_Code,324190,,Other petroleum and coal products manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334111,,Electronic computer manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334112,,Computer storage device manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334118,,Computer terminals and other computer peripheral equipment manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334210,,Telephone apparatus manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334220,,Broadcast and wireless communications equipment
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334290,,Other communications equipment manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334300,,Audio and video equipment manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334413,,Semiconductor and related device manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334418,,Printed circuit assembly (electronic assembly) manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,33441A,,Other electronic component manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334510,,Electromedical and electrotherapeutic apparatus manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334511,,"Search, detection, and navigation instruments manufacturing"
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334512,,Automatic environmental control manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334513,,Industrial process variable instruments manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334514,,Totalizing fluid meter and counting device manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334515,,Electricity and signal testing instruments manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334516,,Analytical laboratory instrument manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334517,,Irradiation apparatus manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,33451A,,"Watch, clock, and other measuring and controlling device manufacturing"
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,334610,,Manufacturing and reproducing magnetic and optical media
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335110,,Electric lamp bulb and part manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335120,,Lighting fixture manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335210,,Small electrical appliance manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335220,,Major household appliance manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335311,,"Power, distribution, and specialty transformer manufacturing"
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335312,,Motor and generator manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335313,,Switchgear and switchboard apparatus manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335314,,Relay and industrial control manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335911,,Storage battery manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335912,,Primary battery manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335920,,Communication and energy wire and cable manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335930,,Wiring device manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335991,,Carbon and graphite product manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,335999,,All other miscellaneous electrical equipment and component manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336111,,Automobile manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336112,,Light truck and utility vehicle manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336120,,Heavy duty truck manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336211,,Motor vehicle body manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336212,,Truck trailer manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336213,,Motor home manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336214,,Travel trailer and camper manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336310,,Motor vehicle gasoline engine and engine parts manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336320,,Motor vehicle electrical and electronic equipment manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336350,,Motor vehicle transmission and power train parts manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336360,,Motor vehicle seating and interior trim manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336370,,Motor vehicle metal stamping
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336390,,Other motor vehicle parts manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,3363A0,,"Motor vehicle steering, suspension component (except spring), and brake systems manufacturing"
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336411,,Aircraft manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336412,,Aircraft engine and engine parts manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336413,,Other aircraft parts and auxiliary equipment manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336414,,Guided missile and space vehicle manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,33641A,,Propulsion units and parts for space vehicles and guided missiles
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336500,,Railroad rolling stock manufacturing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336611,,Ship building and repairing
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336612,,Boat building
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336991,,"Motorcycle, bicycle, and parts manufacturing"
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336992,,"Military armored vehicle, tank, and tank component manufacturing"
+Census_SAS,Electronic and precision instruments and motorized vehicles,BEA_2017_Code,336999,,All other transportation equipment manufacturing
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,1111B0,,Grain farming
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,311210,,Flour milling and malt manufacturing
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,312110,,Soft drink and ice manufacturing
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,312120,,Breweries
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,312130,,Wineries
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,312140,,Distilleries
+Census_SAS,"Grains, alcohol, and tobacco products",BEA_2017_Code,312200,,Tobacco manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326110,,Plastics packaging materials and unlaminated film and sheet manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326120,,"Plastics pipe, pipe fitting, and unlaminated profile shape manufacturing"
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326130,,"Laminated plastics plate, sheet (except packaging), and shape manufacturing"
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326140,,Polystyrene foam product manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326150,,Urethane and other foam product (except polystyrene) manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326160,,Plastics bottle manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326190,,Other plastics product manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326210,,Tire manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326220,,Rubber and plastics hoses and belting manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,326290,,Other rubber product manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,337110,,Wood kitchen cabinet and countertop manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,337121,,Upholstered household furniture manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,337122,,Nonupholstered wood household furniture manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,337127,,Institutional furniture manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,33712N,,Other household nonupholstered furniture
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,337215,,"Showcase, partition, shelving, and locker manufacturing"
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,33721A,,Office furniture and custom architectural woodwork and millwork manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,337900,,Other furniture related product manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339112,,Surgical and medical instrument manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339113,,Surgical appliance and supplies manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339114,,Dental equipment and supplies manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339115,,Ophthalmic goods manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339116,,Dental laboratories
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339910,,Jewelry and silverware manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339920,,Sporting and athletic goods manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339930,,"Doll, toy, and game manufacturing"
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339940,,Office supplies (except paper) manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339950,,Sign manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,339990,,All other miscellaneous manufacturing
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,511110,,Newspaper publishers
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,511120,,Periodical Publishers
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,511130,,Book publishers
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,5111A0,,"Directory, mailing list, and other publishers"
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,511200,,Software publishers
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,512100,,Motion picture and video industries
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,512200,,Sound recording industries
+Census_SAS,New furniture and miscellaneous manufactured products,BEA_2017_Code,S00401,,Scrap
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325110,,Petrochemical manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325120,,Industrial gas manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325130,,Synthetic dye and pigment manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325180,,Other basic inorganic chemical manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325190,,Other basic organic chemical manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325211,,Plastics material and resin manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,3252A0,,Synthetic rubber and artificial and synthetic fibers and filaments manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325310,,Fertilizer manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325320,,Pesticide and other agricultural chemical manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325411,,Medicinal and botanical manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325412,,Pharmaceutical preparation manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325413,,In-vitro diagnostic substance manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325414,,Biological product (except diagnostic) manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325510,,Paint and coating manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325520,,Adhesive manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325610,,Soap and cleaning compound manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325620,,Toilet preparation manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,325910,,Printing ink manufacturing
+Census_SAS,Pharmaceutical and chemical products,BEA_2017_Code,3259A0,,All other chemical product and preparation manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,212230,,"Copper, nickel, lead, and zinc mining"
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,2122A0,,"Iron, gold, silver, and other metal ore mining"
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,212310,,Stone mining and quarrying
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,2123A0,,Other nonmetallic mineral mining and quarrying
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327100,,Clay product and refractory manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327200,,Glass and glass product manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327310,,Cement manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327320,,Ready-mix concrete manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327330,,"Concrete pipe, brick, and block manufacturing"
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327390,,Other concrete product manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327400,,Lime and gypsum product manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327910,,Abrasive product manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327991,,Cut stone and stone product manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327992,,Ground or treated mineral and earth manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327993,,Mineral wool manufacturing
+Census_SAS,"Stone, nonmetallic minerals, and metallic ores",BEA_2017_Code,327999,,Miscellaneous nonmetallic mineral products
+Census_SAS,Used household and office goods,BEA_2017_Code,S00402,,Used and secondhand goods
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,113000,,Forestry and logging
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,313100,,"Fiber, yarn, and thread mills"
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,313200,,Fabric mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,313300,,Textile and fabric finishing and fabric coating mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,314110,,Carpet and rug mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,314120,,Curtain and linen mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,314900,,Other textile product mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,315000,,Apparel manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,316000,,Leather and allied product manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,321100,,Sawmills and wood preservation
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,321200,,"Veneer, plywood, and engineered wood product manufacturing"
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,321910,,Millwork
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,3219A0,,All other wood product manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322110,,Pulp mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322120,,Paper mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322130,,Paperboard mills
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322210,,Paperboard container manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322220,,Paper bag and coated and treated paper manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322230,,Stationery product manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322291,,Sanitary paper product manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,322299,,All other converted paper product manufacturing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,323110,,Printing
+Census_SAS,"Wood products, textiles, and leathers",BEA_2017_Code,323120,,Support activities for printing

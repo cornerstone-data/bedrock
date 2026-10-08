@@ -1,6 +1,7 @@
-"""Production home for EPA end-use mapping and EIA Table 2.4 prices (PR4).
+"""Production home for EPA end-use mapping and EIA Table 2.4 prices.
 
-Promoted from ``bedrock/analysis/electricity/d_85/``; analysis modules re-import from here.
+Promoted from ``bedrock/analysis/electricity/d_85/`` so production G/T/D
+allocation can share the same class map. Analysis modules re-import from here.
 """
 
 from __future__ import annotations
@@ -19,9 +20,7 @@ from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 _DATA_DIR = Path(__file__).resolve().parent / 'data'
 _OVERRIDES_PATH = _DATA_DIR / 'cornerstone_to_epa_end_use.csv'
 
-END_USE_MAPPING_REVIEW_STATUS = (
-    'DRAFT — pending PR-4 mapping review; not release-approved'
-)
+END_USE_MAPPING_REVIEW_STATUS = 'adopted for EIA-anchored G/T/D'
 
 EPA_END_USES = ('Residential', 'Commercial', 'Industrial', 'Transportation')
 
@@ -29,10 +28,16 @@ TABLE_2_4_DESCRIPTION = 'Table 2.4 Average price of electricity to ultimate cust
 TABLE_2_4_PROVIDER = 'Total Electric Industry'
 
 EPAEndUse = ta.Literal[
-    'Residential', 'Commercial', 'Industrial', 'Transportation', 'Total'
+    'Residential',
+    'Commercial',
+    'Industrial',
+    'Transportation',
+    'Total',
+    'Exports',
 ]
 
-# FD codes → end-use (initial draft mapping)
+# FD codes → end-use. F04000 is the Exports class in G/T/D allocation;
+# F05000 (imports) is not an allocation class.
 _FD_DEFAULTS: dict[str, str] = {
     'F01000': 'Residential',
     'F02R00': 'Residential',
@@ -40,7 +45,7 @@ _FD_DEFAULTS: dict[str, str] = {
     'F02N00': 'Commercial',
     'F02S00': 'Commercial',
     'F03000': 'Commercial',
-    'F04000': 'Commercial',
+    'F04000': 'Exports',
     'F05000': 'Commercial',
     'F06C00': 'Commercial',
     'F06E00': 'Commercial',
@@ -86,6 +91,20 @@ def classify_industry_end_use(industry_code: str) -> tuple[str, str]:
     return 'Commercial', 'naics_catchall'
 
 
+def _table_24_price_for_class(
+    end_use: str,
+    prices_by_class: dict[str, float] | None,
+) -> float:
+    """Table 2.4 ¢/kWh lookup; Exports has no retail price, so use Commercial."""
+    if not prices_by_class:
+        return float('nan')
+    if end_use in prices_by_class:
+        return float(prices_by_class[end_use])
+    if end_use == 'Exports' and 'Commercial' in prices_by_class:
+        return float(prices_by_class['Commercial'])
+    return float('nan')
+
+
 def build_end_use_map() -> dict[str, str]:
     """Map every Use/A column key (commodity + FD) to an EPA end-use sector."""
     mapping: dict[str, str] = {}
@@ -114,11 +133,7 @@ def build_end_use_map_resolved(
     rows: list[dict[str, ta.Any]] = []
     for code in CORNERSTONE_COMMODITIES_ELEC:
         end_use, rule = classify_industry_end_use(code)
-        price = (
-            float(prices_by_class[end_use])
-            if prices_by_class and end_use in prices_by_class
-            else float('nan')
-        )
+        price = _table_24_price_for_class(end_use, prices_by_class)
         rel_factor = (
             float(c_row[code] / c_row.mean())
             if c_row is not None and code in c_row.index and c_row.mean() > 0
@@ -136,11 +151,7 @@ def build_end_use_map_resolved(
         )
     for fd in FINAL_DEMANDS:
         end_use = _FD_DEFAULTS.get(fd, 'Commercial')
-        price = (
-            float(prices_by_class[end_use])
-            if prices_by_class and end_use in prices_by_class
-            else float('nan')
-        )
+        price = _table_24_price_for_class(end_use, prices_by_class)
         rel_factor = (
             float(c_row[fd] / c_row.mean())
             if c_row is not None and fd in c_row.index and c_row.mean() > 0

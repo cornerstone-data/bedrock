@@ -1,0 +1,259 @@
+sas_group,bea_2017_commodity,bea_2017_description,basis
+Agricultural products,1111A0,Oilseed farming,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,111200,Vegetable and melon farming,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,111300,Fruit and tree nut farming,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,111400,"Greenhouse, nursery, and floriculture production",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,111900,Other crop farming,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,112120,Dairy cattle and milk production,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,1121A0,"Beef cattle ranching and farming, including feedlots and dual-purpose ranching and farming",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,112300,Poultry and egg production,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,112A00,"Animal production, except cattle and poultry and eggs",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,114000,"Fishing, hunting and trapping",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311111,Dog and cat food manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311119,Other animal food manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311221,Wet corn milling,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311224,Soybean and other oilseed processing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311225,Fats and oils refining and blending,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311230,Breakfast cereal manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311300,Sugar and confectionery product manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311410,Frozen food manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311420,"Fruit and vegetable canning, pickling, and drying",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311513,Cheese manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311514,"Dry, condensed, and evaporated dairy product manufacturing",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,31151A,Fluid milk and butter manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311520,Ice cream and frozen dessert manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311615,Poultry processing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,31161A,"Animal (except poultry) slaughtering, rendering, and processing",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311700,Seafood product preparation and packaging,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311810,Bread and bakery product manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,3118A0,"Cookie, cracker, pasta, and tortilla manufacturing",Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311910,Snack food manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311920,Coffee and tea manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311930,Flavoring syrup and concentrate manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311940,Seasoning and dressing manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Agricultural products,311990,All other food manufacturing,Farm output plus processed food (311). See the module docstring: reading the ten groups as raw commodities only would leave food manufacturing with no truck margin at all.
+Base metal and machinery,331110,Iron and steel mills and ferroalloy manufacturing,
+Base metal and machinery,331200,Steel product manufacturing from purchased steel,
+Base metal and machinery,331313,Alumina refining and primary aluminum production,
+Base metal and machinery,33131B,Aluminum product manufacturing from purchased aluminum,
+Base metal and machinery,331410,Nonferrous metal (except aluminum) smelting and refining,
+Base metal and machinery,331420,"Copper rolling, drawing, extruding and alloying",
+Base metal and machinery,331490,"Nonferrous metal (except copper and aluminum) rolling, drawing, extruding and alloying",
+Base metal and machinery,331510,Ferrous metal foundries,
+Base metal and machinery,331520,Nonferrous metal foundries,
+Base metal and machinery,332114,Custom roll forming,
+Base metal and machinery,332119,"Metal crown, closure, and other metal stamping (except automotive)",
+Base metal and machinery,33211A,"All other forging, stamping, and sintering",
+Base metal and machinery,332200,Cutlery and handtool manufacturing,
+Base metal and machinery,332310,Plate work and fabricated structural product manufacturing,
+Base metal and machinery,332320,Ornamental and architectural metal products manufacturing,
+Base metal and machinery,332410,Power boiler and heat exchanger manufacturing,
+Base metal and machinery,332420,Metal tank (heavy gauge) manufacturing,
+Base metal and machinery,332430,"Metal can, box, and other metal container (light gauge) manufacturing",
+Base metal and machinery,332500,Hardware manufacturing,
+Base metal and machinery,332600,Spring and wire product manufacturing,
+Base metal and machinery,332710,Machine shops,
+Base metal and machinery,332720,"Turned product and screw, nut, and bolt manufacturing",
+Base metal and machinery,332800,"Coating, engraving, heat treating and allied activities",
+Base metal and machinery,332913,Plumbing fixture fitting and trim manufacturing,
+Base metal and machinery,33291A,Valve and fittings other than plumbing,
+Base metal and machinery,332991,Ball and roller bearing manufacturing,
+Base metal and machinery,332996,Fabricated pipe and pipe fitting manufacturing,
+Base metal and machinery,332999,Other fabricated metal manufacturing,
+Base metal and machinery,33299A,"Ammunition, arms, ordnance, and accessories manufacturing",
+Base metal and machinery,333111,Farm machinery and equipment manufacturing,
+Base metal and machinery,333112,Lawn and garden equipment manufacturing,
+Base metal and machinery,333120,Construction machinery manufacturing,
+Base metal and machinery,333130,Mining and oil and gas field machinery manufacturing,
+Base metal and machinery,333242,Semiconductor machinery manufacturing,
+Base metal and machinery,33329A,Other industrial machinery manufacturing,
+Base metal and machinery,333314,Optical instrument and lens manufacturing,
+Base metal and machinery,333316,Photographic and photocopying equipment manufacturing,
+Base metal and machinery,333318,Other commercial and service industry machinery manufacturing,
+Base metal and machinery,333413,Industrial and commercial fan and blower and air purification equipment manufacturing,
+Base metal and machinery,333414,Heating equipment (except warm air furnaces) manufacturing,
+Base metal and machinery,333415,"Air conditioning, refrigeration, and warm air heating equipment manufacturing",
+Base metal and machinery,333511,Industrial mold manufacturing,
+Base metal and machinery,333514,"Special tool, die, jig, and fixture manufacturing",
+Base metal and machinery,333517,Machine tool manufacturing,
+Base metal and machinery,33351B,"Cutting and machine tool accessory, rolling mill, and other metalworking machinery manufacturing",
+Base metal and machinery,333611,Turbine and turbine generator set units manufacturing,
+Base metal and machinery,333612,"Speed changer, industrial high-speed drive, and gear manufacturing",
+Base metal and machinery,333613,Mechanical power transmission equipment manufacturing,
+Base metal and machinery,333618,Other engine equipment manufacturing,
+Base metal and machinery,333912,Air and gas compressor manufacturing,
+Base metal and machinery,333914,"Measuring, dispensing, and other pumping equipment manufacturing",
+Base metal and machinery,333920,Material handling equipment manufacturing,
+Base metal and machinery,333991,Power-driven handtool manufacturing,
+Base metal and machinery,333993,Packaging machinery manufacturing,
+Base metal and machinery,333994,Industrial process furnace and oven manufacturing,
+Base metal and machinery,33399A,Other general purpose machinery manufacturing,
+Base metal and machinery,33399B,Fluid power process machinery,
+Coal and petroleum products,211000,Oil and gas extraction,"Includes 211000 oil and gas extraction, which is also where the pipeline mode concentrates - the bound check is what keeps the two from colliding."
+Coal and petroleum products,212100,Coal mining,"Includes 211000 oil and gas extraction, which is also where the pipeline mode concentrates - the bound check is what keeps the two from colliding."
+Coal and petroleum products,324110,Petroleum refineries,"Includes 211000 oil and gas extraction, which is also where the pipeline mode concentrates - the bound check is what keeps the two from colliding."
+Coal and petroleum products,324121,Asphalt paving mixture and block manufacturing,"Includes 211000 oil and gas extraction, which is also where the pipeline mode concentrates - the bound check is what keeps the two from colliding."
+Coal and petroleum products,324122,Asphalt shingle and coating materials manufacturing,"Includes 211000 oil and gas extraction, which is also where the pipeline mode concentrates - the bound check is what keeps the two from colliding."
+Coal and petroleum products,324190,Other petroleum and coal products manufacturing,"Includes 211000 oil and gas extraction, which is also where the pipeline mode concentrates - the bound check is what keeps the two from colliding."
+Electronic and precision instruments and motorized vehicles,334111,Electronic computer manufacturing,
+Electronic and precision instruments and motorized vehicles,334112,Computer storage device manufacturing,
+Electronic and precision instruments and motorized vehicles,334118,Computer terminals and other computer peripheral equipment manufacturing,
+Electronic and precision instruments and motorized vehicles,334210,Telephone apparatus manufacturing,
+Electronic and precision instruments and motorized vehicles,334220,Broadcast and wireless communications equipment,
+Electronic and precision instruments and motorized vehicles,334290,Other communications equipment manufacturing,
+Electronic and precision instruments and motorized vehicles,334300,Audio and video equipment manufacturing,
+Electronic and precision instruments and motorized vehicles,334413,Semiconductor and related device manufacturing,
+Electronic and precision instruments and motorized vehicles,334418,Printed circuit assembly (electronic assembly) manufacturing,
+Electronic and precision instruments and motorized vehicles,33441A,Other electronic component manufacturing,
+Electronic and precision instruments and motorized vehicles,334510,Electromedical and electrotherapeutic apparatus manufacturing,
+Electronic and precision instruments and motorized vehicles,334511,"Search, detection, and navigation instruments manufacturing",
+Electronic and precision instruments and motorized vehicles,334512,Automatic environmental control manufacturing,
+Electronic and precision instruments and motorized vehicles,334513,Industrial process variable instruments manufacturing,
+Electronic and precision instruments and motorized vehicles,334514,Totalizing fluid meter and counting device manufacturing,
+Electronic and precision instruments and motorized vehicles,334515,Electricity and signal testing instruments manufacturing,
+Electronic and precision instruments and motorized vehicles,334516,Analytical laboratory instrument manufacturing,
+Electronic and precision instruments and motorized vehicles,334517,Irradiation apparatus manufacturing,
+Electronic and precision instruments and motorized vehicles,33451A,"Watch, clock, and other measuring and controlling device manufacturing",
+Electronic and precision instruments and motorized vehicles,334610,Manufacturing and reproducing magnetic and optical media,
+Electronic and precision instruments and motorized vehicles,335110,Electric lamp bulb and part manufacturing,
+Electronic and precision instruments and motorized vehicles,335120,Lighting fixture manufacturing,
+Electronic and precision instruments and motorized vehicles,335210,Small electrical appliance manufacturing,
+Electronic and precision instruments and motorized vehicles,335220,Major household appliance manufacturing,
+Electronic and precision instruments and motorized vehicles,335311,"Power, distribution, and specialty transformer manufacturing",
+Electronic and precision instruments and motorized vehicles,335312,Motor and generator manufacturing,
+Electronic and precision instruments and motorized vehicles,335313,Switchgear and switchboard apparatus manufacturing,
+Electronic and precision instruments and motorized vehicles,335314,Relay and industrial control manufacturing,
+Electronic and precision instruments and motorized vehicles,335911,Storage battery manufacturing,
+Electronic and precision instruments and motorized vehicles,335912,Primary battery manufacturing,
+Electronic and precision instruments and motorized vehicles,335920,Communication and energy wire and cable manufacturing,
+Electronic and precision instruments and motorized vehicles,335930,Wiring device manufacturing,
+Electronic and precision instruments and motorized vehicles,335991,Carbon and graphite product manufacturing,
+Electronic and precision instruments and motorized vehicles,335999,All other miscellaneous electrical equipment and component manufacturing,
+Electronic and precision instruments and motorized vehicles,336111,Automobile manufacturing,
+Electronic and precision instruments and motorized vehicles,336112,Light truck and utility vehicle manufacturing,
+Electronic and precision instruments and motorized vehicles,336120,Heavy duty truck manufacturing,
+Electronic and precision instruments and motorized vehicles,336211,Motor vehicle body manufacturing,
+Electronic and precision instruments and motorized vehicles,336212,Truck trailer manufacturing,
+Electronic and precision instruments and motorized vehicles,336213,Motor home manufacturing,
+Electronic and precision instruments and motorized vehicles,336214,Travel trailer and camper manufacturing,
+Electronic and precision instruments and motorized vehicles,336310,Motor vehicle gasoline engine and engine parts manufacturing,
+Electronic and precision instruments and motorized vehicles,336320,Motor vehicle electrical and electronic equipment manufacturing,
+Electronic and precision instruments and motorized vehicles,336350,Motor vehicle transmission and power train parts manufacturing,
+Electronic and precision instruments and motorized vehicles,336360,Motor vehicle seating and interior trim manufacturing,
+Electronic and precision instruments and motorized vehicles,336370,Motor vehicle metal stamping,
+Electronic and precision instruments and motorized vehicles,336390,Other motor vehicle parts manufacturing,
+Electronic and precision instruments and motorized vehicles,3363A0,"Motor vehicle steering, suspension component (except spring), and brake systems manufacturing",
+Electronic and precision instruments and motorized vehicles,336411,Aircraft manufacturing,
+Electronic and precision instruments and motorized vehicles,336412,Aircraft engine and engine parts manufacturing,
+Electronic and precision instruments and motorized vehicles,336413,Other aircraft parts and auxiliary equipment manufacturing,
+Electronic and precision instruments and motorized vehicles,336414,Guided missile and space vehicle manufacturing,
+Electronic and precision instruments and motorized vehicles,33641A,Propulsion units and parts for space vehicles and guided missiles,
+Electronic and precision instruments and motorized vehicles,336500,Railroad rolling stock manufacturing,
+Electronic and precision instruments and motorized vehicles,336611,Ship building and repairing,
+Electronic and precision instruments and motorized vehicles,336612,Boat building,
+Electronic and precision instruments and motorized vehicles,336991,"Motorcycle, bicycle, and parts manufacturing",
+Electronic and precision instruments and motorized vehicles,336992,"Military armored vehicle, tank, and tank component manufacturing",
+Electronic and precision instruments and motorized vehicles,336999,All other transportation equipment manufacturing,
+"Grains, alcohol, and tobacco products",1111B0,Grain farming,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+"Grains, alcohol, and tobacco products",311210,Flour milling and malt manufacturing,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+"Grains, alcohol, and tobacco products",312110,Soft drink and ice manufacturing,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+"Grains, alcohol, and tobacco products",312120,Breweries,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+"Grains, alcohol, and tobacco products",312130,Wineries,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+"Grains, alcohol, and tobacco products",312140,Distilleries,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+"Grains, alcohol, and tobacco products",312200,Tobacco manufacturing,"Grain farming, flour milling and malt, beverages and tobacco. The group names products, not crops, so the processed forms sit here rather than under Agricultural products."
+New furniture and miscellaneous manufactured products,326110,Plastics packaging materials and unlaminated film and sheet manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326120,"Plastics pipe, pipe fitting, and unlaminated profile shape manufacturing","Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326130,"Laminated plastics plate, sheet (except packaging), and shape manufacturing","Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326140,Polystyrene foam product manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326150,Urethane and other foam product (except polystyrene) manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326160,Plastics bottle manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326190,Other plastics product manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326210,Tire manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326220,Rubber and plastics hoses and belting manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,326290,Other rubber product manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,337110,Wood kitchen cabinet and countertop manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,337121,Upholstered household furniture manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,337122,Nonupholstered wood household furniture manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,337127,Institutional furniture manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,33712N,Other household nonupholstered furniture,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,337215,"Showcase, partition, shelving, and locker manufacturing","Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,33721A,Office furniture and custom architectural woodwork and millwork manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,337900,Other furniture related product manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339112,Surgical and medical instrument manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339113,Surgical appliance and supplies manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339114,Dental equipment and supplies manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339115,Ophthalmic goods manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339116,Dental laboratories,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339910,Jewelry and silverware manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339920,Sporting and athletic goods manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339930,"Doll, toy, and game manufacturing","Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339940,Office supplies (except paper) manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339950,Sign manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,339990,All other miscellaneous manufacturing,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,511110,Newspaper publishers,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,511120,Periodical Publishers,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,511130,Book publishers,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,5111A0,"Directory, mailing list, and other publishers","Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,511200,Software publishers,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,512100,Motion picture and video industries,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,512200,Sound recording industries,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+New furniture and miscellaneous manufactured products,S00401,Scrap,"Furniture, miscellaneous manufacturing, plastics and rubber products, S00401 scrap, and printed and recorded media (511, 512). Media is the one placement with no natural group: books, newspapers and recordings plainly move by truck, and leaving them unassigned would give them no truck margin at all."
+Pharmaceutical and chemical products,325110,Petrochemical manufacturing,
+Pharmaceutical and chemical products,325120,Industrial gas manufacturing,
+Pharmaceutical and chemical products,325130,Synthetic dye and pigment manufacturing,
+Pharmaceutical and chemical products,325180,Other basic inorganic chemical manufacturing,
+Pharmaceutical and chemical products,325190,Other basic organic chemical manufacturing,
+Pharmaceutical and chemical products,325211,Plastics material and resin manufacturing,
+Pharmaceutical and chemical products,3252A0,Synthetic rubber and artificial and synthetic fibers and filaments manufacturing,
+Pharmaceutical and chemical products,325310,Fertilizer manufacturing,
+Pharmaceutical and chemical products,325320,Pesticide and other agricultural chemical manufacturing,
+Pharmaceutical and chemical products,325411,Medicinal and botanical manufacturing,
+Pharmaceutical and chemical products,325412,Pharmaceutical preparation manufacturing,
+Pharmaceutical and chemical products,325413,In-vitro diagnostic substance manufacturing,
+Pharmaceutical and chemical products,325414,Biological product (except diagnostic) manufacturing,
+Pharmaceutical and chemical products,325510,Paint and coating manufacturing,
+Pharmaceutical and chemical products,325520,Adhesive manufacturing,
+Pharmaceutical and chemical products,325610,Soap and cleaning compound manufacturing,
+Pharmaceutical and chemical products,325620,Toilet preparation manufacturing,
+Pharmaceutical and chemical products,325910,Printing ink manufacturing,
+Pharmaceutical and chemical products,3259A0,All other chemical product and preparation manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",212230,"Copper, nickel, lead, and zinc mining",
+"Stone, nonmetallic minerals, and metallic ores",2122A0,"Iron, gold, silver, and other metal ore mining",
+"Stone, nonmetallic minerals, and metallic ores",212310,Stone mining and quarrying,
+"Stone, nonmetallic minerals, and metallic ores",2123A0,Other nonmetallic mineral mining and quarrying,
+"Stone, nonmetallic minerals, and metallic ores",327100,Clay product and refractory manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327200,Glass and glass product manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327310,Cement manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327320,Ready-mix concrete manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327330,"Concrete pipe, brick, and block manufacturing",
+"Stone, nonmetallic minerals, and metallic ores",327390,Other concrete product manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327400,Lime and gypsum product manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327910,Abrasive product manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327991,Cut stone and stone product manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327992,Ground or treated mineral and earth manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327993,Mineral wool manufacturing,
+"Stone, nonmetallic minerals, and metallic ores",327999,Miscellaneous nonmetallic mineral products,
+Used household and office goods,S00402,Used and secondhand goods,"Maps to the single BEA commodity S00402, which receives 23,868 $M of TRANS in 2017."
+"Wood products, textiles, and leathers",113000,Forestry and logging,
+"Wood products, textiles, and leathers",313100,"Fiber, yarn, and thread mills",
+"Wood products, textiles, and leathers",313200,Fabric mills,
+"Wood products, textiles, and leathers",313300,Textile and fabric finishing and fabric coating mills,
+"Wood products, textiles, and leathers",314110,Carpet and rug mills,
+"Wood products, textiles, and leathers",314120,Curtain and linen mills,
+"Wood products, textiles, and leathers",314900,Other textile product mills,
+"Wood products, textiles, and leathers",315000,Apparel manufacturing,
+"Wood products, textiles, and leathers",316000,Leather and allied product manufacturing,
+"Wood products, textiles, and leathers",321100,Sawmills and wood preservation,
+"Wood products, textiles, and leathers",321200,"Veneer, plywood, and engineered wood product manufacturing",
+"Wood products, textiles, and leathers",321910,Millwork,
+"Wood products, textiles, and leathers",3219A0,All other wood product manufacturing,
+"Wood products, textiles, and leathers",322110,Pulp mills,
+"Wood products, textiles, and leathers",322120,Paper mills,
+"Wood products, textiles, and leathers",322130,Paperboard mills,
+"Wood products, textiles, and leathers",322210,Paperboard container manufacturing,
+"Wood products, textiles, and leathers",322220,Paper bag and coated and treated paper manufacturing,
+"Wood products, textiles, and leathers",322230,Stationery product manufacturing,
+"Wood products, textiles, and leathers",322291,Sanitary paper product manufacturing,
+"Wood products, textiles, and leathers",322299,All other converted paper product manufacturing,
+"Wood products, textiles, and leathers",323110,Printing,
+"Wood products, textiles, and leathers",323120,Support activities for printing,

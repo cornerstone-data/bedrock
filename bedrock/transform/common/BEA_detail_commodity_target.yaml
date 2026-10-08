@@ -1,0 +1,27 @@
+# Target schema for methods whose output is a BEA commodity vector rather than
+# a NAICS industry vector
+#
+# Differs from BEA_detail_target.yaml in which schema is primary. There, NAICS
+# is the default_schema and BEA codes are a keep-list of the aggregates NAICS
+# cannot express. Here BEA is the default_schema, so the full BEA 2017 Detail
+# hierarchy maps to itself and every commodity - including 531HSO/531HST/
+# 531ORE, S00203, 611A00, 52A000 and the other BEA-only aggregates - is a legal
+# target. Those are exactly the codes the PCE and PEQ bridges name, so both
+# sides of the attribution meet on the same code.
+#
+# There is deliberately no naics block. The attribution sources here - the two
+# bridges and BEA_Detail_Use_SUT - are all BEA-coded, so a method that names
+# NAICS on one side has nothing to meet on the other; that is what stranded
+# FD_Gov / FD_Structures / FD_IP (issue #546). Every crosswalk this method uses
+# now targets BEA codes.
+#
+# To use in an FBS method add
+# !include:BEA_detail_commodity_target.yaml
+# to the top of the method.
+
+industry_spec:
+  default_schema: bea
+  bea:
+    default_level: Detail
+
+target_schema_year: 2017

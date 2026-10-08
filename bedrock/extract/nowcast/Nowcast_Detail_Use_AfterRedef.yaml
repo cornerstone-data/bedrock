@@ -1,0 +1,17 @@
+author: Cornerstone Sustainability Data Initiative
+source_name: Nowcast Detail Use After Redefinitions
+source_url: ''
+original_data_download_date: ''
+bib_id: Nowcast_Detail_Use_AfterRedef
+format: parquet
+url: None
+parse_response_fxn: !script_function:Nowcast nowcast_detail_use_after_redef_parse
+years:
+  - 2017
+  - 2018
+  - 2019
+  - 2020
+  - 2021
+  - 2022
+  - 2023
+  - 2024

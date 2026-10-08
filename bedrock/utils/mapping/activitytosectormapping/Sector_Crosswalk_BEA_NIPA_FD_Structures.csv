@@ -1,0 +1,57 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+BEA_NIPA,Air,BEA_2017_Code,nan,,
+BEA_NIPA,All other electric,BEA_2017_Code,nan,,
+BEA_NIPA,Alternative electric,BEA_2017_Code,nan,,
+BEA_NIPA,Amusement and recreation,BEA_2017_Code,2332D0,,Other nonresidential structures; 2332D0
+BEA_NIPA,Brokers' commissions and other ownership transfer costs,BEA_2017_Code,5241XX,,"Insurance carriers, except direct life"
+BEA_NIPA,Brokers' commissions and other ownership transfer costs,BEA_2017_Code,531HSO,,Other real estate
+BEA_NIPA,Brokers' commissions and other ownership transfer costs,BEA_2017_Code,531HST,,Other real estate
+BEA_NIPA,Brokers' commissions and other ownership transfer costs,BEA_2017_Code,531ORE,,Other real estate
+BEA_NIPA,Brokers' commissions and other ownership transfer costs,BEA_2017_Code,541100,,Legal services
+BEA_NIPA,Brokers' commissions and other ownership transfer costs,BEA_2017_Code,541300,,"Architectural, engineering, and related services"
+BEA_NIPA,Brokers' commissions on sale of structures,BEA_2017_Code,531HSO,,Other real estate
+BEA_NIPA,Brokers' commissions on sale of structures,BEA_2017_Code,531HST,,Other real estate
+BEA_NIPA,Brokers' commissions on sale of structures,BEA_2017_Code,531ORE,,Other real estate
+BEA_NIPA,Commercial and health care,BEA_2017_Code,nan,,
+BEA_NIPA,Communication,BEA_2017_Code,nan,,
+BEA_NIPA,Dormitories,BEA_2017_Code,2334A0,,Other residential structures; 2334A0
+BEA_NIPA,Educational and vocational,BEA_2017_Code,233262,,Educational and vocational structures; 233262
+BEA_NIPA,Electric,BEA_2017_Code,nan,,
+BEA_NIPA,Farm,BEA_2017_Code,2332D0,,Other nonresidential structures; 2332D0
+BEA_NIPA,Food and beverage establishments,BEA_2017_Code,2332A0,,Office and commercial structures; 2332A0
+BEA_NIPA,Health care,BEA_2017_Code,233210,,Health care structures; 233210
+BEA_NIPA,Hospitals,BEA_2017_Code,nan,,
+BEA_NIPA,Hospitals and special care,BEA_2017_Code,nan,,
+BEA_NIPA,Improvements,BEA_2017_Code,2334A0,,Other residential structures; 2334A0
+BEA_NIPA,Land,BEA_2017_Code,nan,,
+BEA_NIPA,Lodging,BEA_2017_Code,2332D0,,Other nonresidential structures; 2332D0
+BEA_NIPA,Manufactured homes,BEA_2017_Code,3219A0,,All other wood product manufacturing
+BEA_NIPA,Manufacturing,BEA_2017_Code,233230,,Manufacturing structures; 233230
+BEA_NIPA,Medical buildings,BEA_2017_Code,nan,,
+BEA_NIPA,Mining,BEA_2017_Code,213111,,Drilling oil and gas wells
+BEA_NIPA,Mining,BEA_2017_Code,21311A,,Other support activities for mining
+BEA_NIPA,"Mining exploration, shafts, and wells",BEA_2017_Code,nan,,
+BEA_NIPA,Multifamily,BEA_2017_Code,233412,,Multifamily residential structures; 233412
+BEA_NIPA,Multimerchandise shopping,BEA_2017_Code,2332A0,,Office and commercial structures; 2332A0
+BEA_NIPA,Net purchases of used structures (Nonresidential),BEA_2017_Code,S00402,,Used and secondhand goods
+BEA_NIPA,Net purchases of used structures (Residential),BEA_2017_Code,nan,,
+BEA_NIPA,Nonresidential structures,BEA_2017_Code,nan,,
+BEA_NIPA,Office,BEA_2017_Code,2332A0,,Office and commercial structures; 2332A0
+BEA_NIPA,Other,BEA_2017_Code,2332D0,,Other nonresidential structures; 2332D0
+BEA_NIPA,Other commercial,BEA_2017_Code,2332A0,,Office and commercial structures; 2332A0
+BEA_NIPA,Other power,BEA_2017_Code,nan,,
+BEA_NIPA,Other structures,BEA_2017_Code,nan,,
+BEA_NIPA,Permanent site,BEA_2017_Code,nan,,
+BEA_NIPA,Petroleum and natural gas,BEA_2017_Code,213111,,Drilling oil and gas wells
+BEA_NIPA,Petroleum and natural gas,BEA_2017_Code,21311A,,Other support activities for mining
+BEA_NIPA,Power,BEA_2017_Code,nan,,
+BEA_NIPA,Power and communication,BEA_2017_Code,233240,,Power and communication structures; 233240
+BEA_NIPA,Private fixed investment in new structures,BEA_2017_Code,nan,,
+BEA_NIPA,Private fixed investment in structures,BEA_2017_Code,nan,,
+BEA_NIPA,Religious,BEA_2017_Code,2332D0,,Other nonresidential structures; 2332D0
+BEA_NIPA,Residential structures,BEA_2017_Code,nan,,
+BEA_NIPA,Single family,BEA_2017_Code,233411,,Single-family residential structures; 233411
+BEA_NIPA,Special care,BEA_2017_Code,nan,,
+BEA_NIPA,Structures,BEA_2017_Code,nan,,
+BEA_NIPA,Transportation,BEA_2017_Code,2332C0,,Transportation structures and highways and streets; 2332C0
+BEA_NIPA,Warehouses,BEA_2017_Code,2332A0,,Office and commercial structures; 2332A0

@@ -1,0 +1,32 @@
+{
+  "description": "Pinned stewi inventory and facilitymatcher outputs for facilities FBS builds. Produced parquet stems only (not FRS zip raw inputs).",
+  "gcs_bucket": "cornerstone-default",
+  "facilitymatcher": {
+    "gcs_prefix": "facilitymatcher",
+    "files": [
+      "FacilityMatchList_forStEWI_v1.2.2_3056390.parquet",
+      "FRS_NAICSforStEWI_v1.2.2_3056390.parquet"
+    ]
+  },
+  "stewi": {
+    "gcs_prefix": "stewi",
+    "categories": ["flowbyprocess", "facility"],
+    "inventories": {
+      "GHGRP_2017": "v1.1.0_084a311",
+      "GHGRP_2018": "v1.1.0_084a311",
+      "GHGRP_2019": "v1.1.0_084a311",
+      "GHGRP_2020": "v1.1.0_084a311",
+      "GHGRP_2021": "v1.1.0_084a311",
+      "GHGRP_2022": "v1.2.0_d850466",
+      "GHGRP_2023": "v1.2.2_7e204f7",
+      "GHGRP_2024": "v1.2.2_8a81f38",
+      "NEI_2017": "v1.1.0_084a311",
+      "NEI_2018": "v1.1.0_084a311",
+      "NEI_2019": "v1.1.0_084a311",
+      "NEI_2020": "v1.1.0_084a311",
+      "NEI_2021": "v1.2.0_d850466",
+      "NEI_2022": "v1.2.0_d850466",
+      "NEI_2023": "v1.2.2_309cdfc"
+    }
+  }
+}

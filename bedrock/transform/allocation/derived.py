@@ -8,12 +8,16 @@ from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.emissions.ch4_classification import apply_ch4_non_fossil_flowable
 from bedrock.utils.emissions.ghg import GHG_MAPPING
 from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
-from bedrock.utils.schemas.cornerstone_schemas import CORNERSTONE_INDUSTRIES_ELEC
+from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_INDUSTRIES,
+    CORNERSTONE_INDUSTRIES_ELEC,
+)
 from bedrock.utils.taxonomy.cornerstone.industries import (
     INDUSTRIES,
     WASTE_DISAGG_INDUSTRIES,
@@ -95,8 +99,103 @@ def _apply_cornerstone_waste_overrides(mapping: pd.DataFrame) -> pd.DataFrame:
     ).drop_duplicates()
 
 
+#: Activity-set name fragment -> the commodity row whose waste-column split keys
+#: it. Other Use-attributed sets (refrigerants, foams) key on the whole column.
+WASTE_E_FUEL_ROWS: tuple[tuple[str, str], ...] = (
+    ('natural_gas', '221200'),
+    ('petroleum', '324110'),
+    ('coal', '212100'),
+)
+
+USE_ATTRIBUTION_SOURCE = 'Nowcast_Detail_Use_AfterRedef'
+
+
+def waste_child_shares(
+    U: pd.DataFrame, children: list[str], meta_source: str
+) -> pd.Series:
+    """Each waste child's share of the disaggregated Use for one activity set."""
+    columns = U.reindex(columns=children).fillna(0.0)
+    key = columns.sum(axis=0)
+    name = meta_source.lower()
+    for fragment, row in WASTE_E_FUEL_ROWS:
+        if fragment in name and row in columns.index:
+            fuel = pd.Series(columns.loc[row], dtype=float)
+            if float(fuel.sum()) > 0:
+                key = fuel
+            break
+    total = float(key.sum())
+    if total <= 0:
+        return pd.Series(1.0 / len(children), index=children)
+    return key / total
+
+
+def resplit_waste_use_emissions(fbs: pd.DataFrame) -> pd.DataFrame:
+    """Split Use-attributed waste emissions on the waste disaggregation (#1053).
+
+    The nowcast Use table has one waste column, ``562000``, so the FBS spreads
+    every Use-attributed activity set (non-manufacturing fuel, refrigerants)
+    **equally across the 562 NAICS codes**, which the Cornerstone mapping then
+    groups into the seven waste children. The model splits the same column with
+    the waste weights (``implement_waste_disaggregation``, year-aligned under
+    ``waste_weights_year: match_io``), so ``E`` and ``x`` for a child were split
+    on different keys and a child's direct factor moved with the weights alone.
+
+    Each Use-attributed (activity set, gas) pool on the waste children is split
+    again on the children's shares of the disaggregated Use table: the fuel's own
+    row for gas, petroleum and coal sets, and the whole column otherwise.
+    Directly attributed waste emissions (landfills, incineration) keep their
+    NAICS placement, and every pool's total is unchanged.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        derive_cornerstone_U_after_waste,
+        get_waste_disagg_weights,
+    )
+
+    if get_waste_disagg_weights() is None or 'AttributionSources' not in fbs:
+        return fbs
+    children = [str(code) for code in WASTE_DISAGG_INDUSTRIES['562000']]
+    selected = fbs['SectorProducedBy'].astype(str).isin(children) & (
+        fbs['AttributionSources'].astype(str) == USE_ATTRIBUTION_SOURCE
+    )
+    if not selected.any():
+        return fbs
+
+    Udom, Uimp = derive_cornerstone_U_after_waste()
+    U = Udom.add(Uimp, fill_value=0.0)
+    U.index = U.index.astype(str)
+    U.columns = U.columns.astype(str)
+
+    parts = [fbs.loc[~selected]]
+    for (meta, _gas), pool in fbs.loc[selected].groupby(
+        ['MetaSources', 'Flowable'], observed=True
+    ):
+        shares = waste_child_shares(U, children, str(meta))
+        template = pool.iloc[[0]]
+        rows = pd.concat([template] * len(children), ignore_index=True)
+        rows['SectorProducedBy'] = children
+        pool_total = float(pool['FlowAmount'].sum())
+        rows['FlowAmount'] = [pool_total * float(shares[c]) for c in children]
+        parts.append(rows[rows['FlowAmount'] != 0])
+    return pd.concat(parts, ignore_index=True)
+
+
 def derive_E_usa() -> pd.DataFrame:
-    return load_E_from_flowsa()
+    """Published industry E for snapshots, diagnostics, and comparisons.
+
+    When electricity reaggregation is on, collapses G/T/D columns into
+    ``221100`` and reindexes to ``CORNERSTONE_INDUSTRIES`` (405). Internal B
+    construction must use ``load_E_from_flowsa`` so per-child E/x is available
+    before the q-weighted B collapse.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        collapse_electricity_children_columns,
+        electricity_reaggregation_enabled,
+    )
+
+    E = load_E_from_flowsa()
+    if electricity_reaggregation_enabled():
+        E = collapse_electricity_children_columns(E, col_codes=CORNERSTONE_INDUSTRIES)
+    return E
 
 
 def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
@@ -158,32 +257,81 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
 
-_EGRID_FBS_METHOD_BY_YEAR: dict[int, str] = {
-    2023: 'GHG_national_Cornerstone_2023_egrid',
-    2024: 'GHG_national_Cornerstone_2024_egrid',
+# (usa_detail_io_source, usa_ghg_data_year) → eGRID-backed Cornerstone GHG FBS stem.
+_EGRID_FBS_METHOD_BY_SOURCE_YEAR: dict[tuple[str, int], str] = {
+    ('bea_published', 2023): 'GHG_national_Cornerstone_2023_egrid',
+    ('bea_published', 2024): 'GHG_national_Cornerstone_2024_egrid',
+    ('nowcast', 2024): 'GHG_national_Cornerstone_nowcast_2024',
 }
 
 
-def egrid_fbs_method_for_year(year: int) -> str:
-    """Return the eGRID-backed Cornerstone GHG FBS method name for *year*."""
+def egrid_fbs_method_for_config() -> str:
+    """Return the eGRID-backed Cornerstone GHG FBS method for the active config.
+
+    Branches on ``usa_detail_io_source`` and ``usa_ghg_data_year`` so electricity
+    disaggregation composes with nowcast Use attribution instead of always
+    selecting the published ``*_egrid`` stem.
+    """
+    usa = get_usa_config()
+    key = (usa.usa_detail_io_source, usa.usa_ghg_data_year)
     try:
-        return _EGRID_FBS_METHOD_BY_YEAR[year]
+        return _EGRID_FBS_METHOD_BY_SOURCE_YEAR[key]
     except KeyError as exc:
-        supported = ', '.join(str(y) for y in sorted(_EGRID_FBS_METHOD_BY_YEAR))
+        supported = ', '.join(
+            f'{src}/{yr}' for src, yr in sorted(_EGRID_FBS_METHOD_BY_SOURCE_YEAR)
+        )
+        raise ValueError(
+            f'usa_detail_io_source={usa.usa_detail_io_source!r}, '
+            f'usa_ghg_data_year={usa.usa_ghg_data_year} is unsupported for the '
+            f'electricity-disaggregation eGRID FBS; supported: {supported}'
+        ) from exc
+
+
+def egrid_fbs_method_for_year(year: int) -> str:
+    """Published-BEA alias: eGRID FBS stem for *year* (``bea_published`` only)."""
+    key = ('bea_published', year)
+    try:
+        return _EGRID_FBS_METHOD_BY_SOURCE_YEAR[key]
+    except KeyError as exc:
+        published_years = sorted(
+            yr for src, yr in _EGRID_FBS_METHOD_BY_SOURCE_YEAR if src == 'bea_published'
+        )
+        supported = ', '.join(str(y) for y in published_years)
         raise ValueError(
             f'usa_ghg_data_year={year} is unsupported for the electricity-'
             f'disaggregation eGRID FBS; supported years: {supported}'
         ) from exc
 
 
+def _select_cornerstone_ghg_fbs_base_name() -> str:
+    """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
+
+    ``usa_ghg_data_year`` selects the inventory-year method stem.
+    ``usa_detail_io_source`` distinguishes published BEA Use attribution
+    (``GHG_national_Cornerstone_{year}``) from nowcast Use attribution
+    (``GHG_national_Cornerstone_nowcast_{year}``). With nowcast,
+    ``use_facility_ghg_attribution`` selects the facility-attribution stem
+    (``GHG_national_Cornerstone_nowcast_facilities_{year}``) instead.
+
+    Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
+    instead of this helper.
+    """
+    usa = get_usa_config()
+    year = usa.usa_ghg_data_year
+    if usa.usa_detail_io_source == 'bea_published':
+        return f'GHG_national_Cornerstone_{year}'
+    if usa.use_facility_ghg_attribution:
+        return f'GHG_national_Cornerstone_nowcast_facilities_{year}'
+    return f'GHG_national_Cornerstone_nowcast_{year}'
+
+
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
     """Load the eGRID-based national GHG FBS for electricity disaggregation.
 
-    Selects ``GHG_national_Cornerstone_<year>_egrid`` from
-    ``usa_ghg_data_year`` so v0.2 (2023) and v0.3 (2024) electricity configs
-    stay year-matched.
+    Selects the method stem via :func:`egrid_fbs_method_for_config` so nowcast
+    and published electricity configs stay year- and IO-source-matched.
     """
-    method = egrid_fbs_method_for_year(get_usa_config().usa_ghg_data_year)
+    method = egrid_fbs_method_for_config()
     try:
         return _load_cornerstone_ghg_fbs_from_gcs(base_name=method)
     except FileNotFoundError:
@@ -211,7 +359,7 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
     ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
-    name such as ``GHG_national_Cornerstone_2023_egrid``) are loaded directly
+    name such as ``GHG_national_Cornerstone_2024``) are loaded directly
     instead (used by use_cornerstone_ghg_model).
 
     Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
@@ -255,13 +403,18 @@ def _load_cornerstone_ghg_fbs_from_gcs(
 
 
 def load_E_from_flowsa() -> pd.DataFrame:
-    """Load E_usa (GHG × model-schema sectors) from a flowsa FBS.
+    """Load industry E (GHG × model-schema sectors) from a flowsa FBS.
+
+    This is the internal/pre-publish matrix: when electricity disaggregation is
+    on it retains G/T/D columns (407 industries) so B can form per-child E/x
+    before q-weighted reaggregation. Published E (405 under reaggregation) is
+    ``derive_E_usa``.
 
     FBS selection ("GHG model allocation" bucket + data-year knob):
-    - use_cornerstone_ghg_model → the pre-built GHG_national_Cornerstone_{year}
-      FBS parquet from GCS. Which inventory/attribution vintages that carries
-      (EPA GHGI vs UMD GHGIA, MECS survey year) is defined per year by the
-      method files in ``bedrock/transform/ghg/``.
+    - use_cornerstone_ghg_model → pre-built Cornerstone GHG FBS parquet from
+      GCS via :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid``
+      when electricity disaggregation is on). Inventory/attribution vintages
+      live in ``bedrock/transform/ghg/`` method files.
     - otherwise → GHG_national_CEDA_{year}, the flowsa implementation of the
       legacy CEDA allocation methodology (method files exist for 2023 only).
     """
@@ -274,9 +427,11 @@ def load_E_from_flowsa() -> pd.DataFrame:
             # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
             # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
             # FBS) fail there. Load the pre-built FBS parquet from GCS at
-            # `transform/output_data/` (GHG_national_Cornerstone_<year>) directly
-            # so the year-Y diagnostics get year-Y GHG data.
-            fbs = _load_cornerstone_ghg_fbs_from_gcs(year)
+            # `transform/output_data/` directly so the year-Y diagnostics get
+            # year-Y GHG data.
+            fbs = _load_cornerstone_ghg_fbs_from_gcs(
+                base_name=_select_cornerstone_ghg_fbs_base_name()
+            )
     else:
         if year != 2023:
             raise ValueError(
@@ -287,6 +442,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
         fbs = getFlowBySector(methodname=f'GHG_national_CEDA_{year}')
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
+    fbs = resplit_waste_use_emissions(fbs)
 
     # Align flow names with temporary mapping
     gas_map = {
@@ -319,17 +475,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     }
     fbs['Flowable'] = fbs['Flowable'].map(gas_map).fillna(fbs['Flowable'])
 
-    # CH4: use CH4_non_fossil when meta source is table 5_* or when in 2_1 and sector starts with 1 or 562 or 2213
-    # to align with CH4_NON_FOSSIL defined in extract/allocation/epa.py
-    meta = fbs['MetaSources'].astype(str)
-    sector = fbs['SectorProducedBy'].astype(str)
-    ch4_non_fossil_mask = meta.str.contains('_5_', regex=False, na=False) | (
-        meta.str.contains('2_1', regex=False, na=False)
-        & sector.str.match(r'^(1|562|2213)', na=False)
-    )
-    fbs.loc[ch4_non_fossil_mask & (fbs['Flowable'] == 'CH4_fossil'), 'Flowable'] = (
-        'CH4_non_fossil'
-    )
+    # Biogenic CH4 → CH4_non_fossil (AR6 27.0) via table family + sector.
+    apply_ch4_non_fossil_flowable(fbs)
 
     # Convert values to CO2e
     ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}

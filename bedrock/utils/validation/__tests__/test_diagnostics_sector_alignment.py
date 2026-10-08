@@ -244,13 +244,11 @@ def test_get_aligned_sector_desc_electricity() -> None:
     assert desc_on['221110'] == 'Electric power generation'
     assert desc_on['221121'] == 'Electric Bulk Power Transmission and Control'
     assert desc_on['221122'] == 'Electric Power Distribution'
-    assert (
-        desc_on[ELECTRICITY_AGGREGATE_SECTOR]
-        == 'Electric power generation, transmission, and distribution'
-    )
+    assert desc_on[ELECTRICITY_AGGREGATE_SECTOR] == 'Electricity'
 
     reset_usa_config(should_reset_env_var=True)
     desc_off = get_aligned_sector_desc()
 
+    assert desc_off[ELECTRICITY_AGGREGATE_SECTOR] == 'Electricity'
     assert '221121' not in desc_off
     assert '221122' not in desc_off

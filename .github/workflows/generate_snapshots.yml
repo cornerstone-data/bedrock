@@ -7,7 +7,7 @@ on:
         description: "USA config name (without .yaml extension)"
         required: true
         type: string
-        default: "2025_usa_cornerstone_v0_3"
+        default: "2025_usa_cornerstone_v0_5"
       snapshot_prefix_override:
         description: "Override snapshot prefix (optional)"
         required: false
@@ -41,8 +41,12 @@ jobs:
 
       - name: Generate snapshots
         id: generate
+        env:
+          # Waste match_io / AIES industry-mix (and other Census FBAs) need this
+          # when the parquet is not yet on gs://…/flowsa/FlowByActivity/.
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
-          CONFIG_NAME="${{ github.event.inputs.config_name || '2025_usa_cornerstone_v0_3' }}"
+          CONFIG_NAME="${{ github.event.inputs.config_name || '2025_usa_cornerstone_v0_5' }}"
           PREFIX="${{ github.event.inputs.snapshot_prefix_override }}"
           uv run python bedrock/utils/snapshots/generate_snapshots.py \
             --config_name "$CONFIG_NAME" \

@@ -5,37 +5,36 @@ Functions associated with data quality scoring
 import numpy as np
 import pandas as pd
 
-from bedrock.utils.config.common import load_sector_length_cw_melt
 
-
-def adjust_dqi_reliability_collection_scores(
-    df: pd.DataFrame, sector_source_year: str
-) -> pd.DataFrame:
+def adjust_dqi_reliability_collection_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     Adjust the dqi scores for
     Data Reliability, Data Collection
 
-    based on source naics and target naics
+    based on source sectors and target sectors
 
-    Df must have 5 columns: DataReliability, DataCollection, source_naics, target_naics, SectorSourceName
+    Df must have 5 columns: DataReliability, DataCollection, source_sector, target_sector, SectorSourceName
 
     :param df:
     :return:
     """
 
-    # assign two new columns to df, sector length for source and target naics
-    cw = load_sector_length_cw_melt(sector_source_year)
+    if 'SectorSourceName' not in df.columns:
+        return df
+
+    from bedrock.utils.mapping.sector import _sector_level_table  # noqa: PLC0415
+
+    levels = _sector_level_table()
     df2 = df.copy()
-    for c in ["source", "target"]:
-        df2 = (
-            df2.merge(cw, how="left", left_on=f"{c}_naics", right_on="Sector")
-            .drop(columns="Sector")
-            .rename(columns={"SectorLength": f"{c}Length"})
-            # drop the duplicates caused by household/gov codes, assign codes as shortest sector length
-            .drop_duplicates(subset=df.columns, keep='first')
-        )
-    # find difference in length between source and target naics
-    df2 = df2.assign(source_to_target_diff=df2['sourceLength'] - df2['targetLength'])
+    for c in ['source', 'target']:
+        df2 = df2.merge(
+            levels.rename(
+                columns={'Sector': f'{c}_sector', 'SectorLevel': f'{c}Level'}
+            ),
+            how='left',
+            on=['SectorSourceName', f'{c}_sector'],
+        ).drop_duplicates(subset=df.columns, keep='first')
+    df2 = df2.assign(source_to_target_diff=df2['sourceLevel'] - df2['targetLevel'])
 
     # Data Reliability
     # If value maps to a different sector level than what the data set provides (maps down), then change all
@@ -48,10 +47,10 @@ def adjust_dqi_reliability_collection_scores(
     )
 
     # Data Collection
-    # If NAICS level drops, NAICS4 -> NAICS6, assign a score of 5 because no longer know if % of
-    # establishments/activities represented
+    # If sector level drops (coarser source → finer target), assign a score of 5
+    # because no longer know if % of establishments/activities represented
     df2['DataCollection'] = np.where(
         df2['source_to_target_diff'] < 0, 5, df2['DataCollection']
     )
 
-    return df2.drop(columns=['sourceLength', 'targetLength', 'source_to_target_diff'])
+    return df2.drop(columns=['sourceLevel', 'targetLevel', 'source_to_target_diff'])

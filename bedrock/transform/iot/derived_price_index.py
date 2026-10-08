@@ -6,11 +6,13 @@ from bedrock.extract.iot.constants import (
 from bedrock.extract.iot.gdp import (
     SECTOR_NAME_COL,
     SECTOR_SUMMARY_CODE_COL,
+    BeaDataVersion,
     load_go_detail,
     load_pi_detail,
     load_pi_summary_quarterly,
 )
 from bedrock.transform.iot.helpers import map_detail_table, map_pi_summary__detail
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_industry import BEA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.utils import assert_sets_equal
 
@@ -41,8 +43,13 @@ to deliver a robust and complete dataset for downstream inflation and industry a
 
 
 START_YEAR = 2012
-END_YEAR = 2025
-YEARS = list(range(START_YEAR, END_YEAR + 1))
+#: Last year each vintage prices. The detail tables stop the year before the
+#: release, so the final year is the mean of the quarters the summary table
+#: has published for it -- Q1-Q2 in a Q2 release, not a full year.
+END_YEAR_BY_VINTAGE: dict[BeaDataVersion, int] = {
+    "2025Q2": 2025,
+    "2026Q2": 2026,
+}
 SECTOR_CODE_COL = "sector_code"
 DISAGGREGATED_CODES = [
     "562111",  # Solid waste collection
@@ -55,22 +62,31 @@ DISAGGREGATED_CODES = [
 ]
 
 
-def derive_industry_price_index() -> pd.DataFrame:
-    """Return the BEA detail industry price index table formatted for all configured years."""
-    pi_industry = _combine_pi_detail_summary(END_YEAR).loc[
-        :, [str(year) for year in YEARS]
+def derive_industry_price_index(
+    vintage: BeaDataVersion | None = None,
+) -> pd.DataFrame:
+    """Return the BEA detail industry price index table formatted for all configured years.
+
+    ``vintage`` defaults to ``USAConfig.bea_price_index_vintage``.
+    """
+    if vintage is None:
+        vintage = get_usa_config().bea_price_index_vintage
+    end_year = END_YEAR_BY_VINTAGE[vintage]
+    years = range(START_YEAR, end_year + 1)
+    pi_industry = _combine_pi_detail_summary(end_year, vintage).loc[
+        :, [str(year) for year in years]
     ]
     pi_industry.columns = pi_industry.columns.astype(int)
 
     return pi_industry
 
 
-def _combine_pi_detail_summary(end_year: int) -> pd.DataFrame:
+def _combine_pi_detail_summary(end_year: int, vintage: BeaDataVersion) -> pd.DataFrame:
     """Merge aggregated detail PI with the latest summary PI and add waste splits."""
     pi = pd.merge(
-        _aggregate_detail_pi(),
+        _aggregate_detail_pi(vintage),
         map_pi_summary__detail(
-            pi_summary=_aggregate_latest_pi_summary_quarterly__annual(end_year)
+            pi_summary=_aggregate_latest_pi_summary_quarterly__annual(end_year, vintage)
         ),
         on=SECTOR_CODE_COL,
         how="left",
@@ -97,10 +113,11 @@ def _combine_pi_detail_summary(end_year: int) -> pd.DataFrame:
     return pi_final[YEAR_COLS]
 
 
-def _aggregate_detail_pi() -> pd.DataFrame:
+def _aggregate_detail_pi(vintage: BeaDataVersion) -> pd.DataFrame:
     """Load detail-level PI/GO tables, aggregate duplicates, and validate coverage."""
-    pi_detail = map_detail_table(load_pi_detail())
-    go_detail = map_detail_table(load_go_detail())
+    pi_detail = map_detail_table(load_pi_detail(vintage))
+    # Same vintage as the index it weights, not the module-level GO pin.
+    go_detail = map_detail_table(load_go_detail(vintage))
 
     duplicated_codes = (
         pi_detail[SECTOR_CODE_COL]
@@ -140,9 +157,11 @@ def _aggregate_detail_pi() -> pd.DataFrame:
     return pi_detail_reagg
 
 
-def _aggregate_latest_pi_summary_quarterly__annual(end_year: int) -> pd.DataFrame:
+def _aggregate_latest_pi_summary_quarterly__annual(
+    end_year: int, vintage: BeaDataVersion
+) -> pd.DataFrame:
     """Average quarterly summary PI into an annual column for the provided year."""
-    pi_summary_quarterly = load_pi_summary_quarterly()
+    pi_summary_quarterly = load_pi_summary_quarterly(vintage)
     pi_summary_quarterly.index = pi_summary_quarterly.index.map(
         PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_BEA_2017_SUMMARY_MAPPING_NON_EMPTY
     )

@@ -23,16 +23,19 @@ import pandera.typing as pt
 
 from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
+from bedrock.extract.disaggregation.waste_static_rules import NAICS_MAP_VERSION
 from bedrock.extract.disaggregation.waste_weight_config import (
     EEIOWasteDisaggConfig,
     effective_waste_disagg_config,
+    resolved_waste_weights_year,
 )
-from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
-    load_2017_value_added_usa,
-    load_2017_Ytot_usa,
+from bedrock.extract.disaggregation.waste_weight_types import WeightDerivationProvenance
+from bedrock.extract.iot.detail_io import (
+    load_detail_Uimp_usa,
+    load_detail_Utot_usa,
+    load_detail_V_usa,
+    load_detail_value_added_usa,
+    load_detail_Ytot_usa,
 )
 from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
@@ -46,6 +49,12 @@ from bedrock.transform.eeio.waste_disaggregation import (
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_x
+from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_COMMODITIES,
+    CORNERSTONE_INDUSTRIES,
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
+)
 from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
@@ -94,20 +103,105 @@ def electricity_disaggregation_enabled() -> bool:
     return get_usa_config().implement_electricity_disaggregation
 
 
-@functools.cache
+_WASTE_WEIGHTS_CACHE: dict[tuple[Any, ...], DisaggWeights | None] = {}
+_WASTE_PROVENANCE_CACHE: dict[tuple[Any, ...], WeightDerivationProvenance | None] = {}
+
+
+def _waste_weights_cache_key(cfg: Any) -> tuple[Any, ...]:
+    """Hashable key — never cache on USAConfig instance identity."""
+    return (
+        bool(cfg.implement_waste_disaggregation),
+        (
+            resolved_waste_weights_year(cfg)
+            if cfg.implement_waste_disaggregation
+            else None
+        ),
+        cfg.iot_before_or_after_redefinition,
+        int(cfg.usa_base_io_data_year),
+    )
+
+
 def get_waste_disagg_weights() -> DisaggWeights | None:
-    """Return waste disaggregation weights if the feature is enabled, else None."""
+    """Return waste disaggregation weights if the feature is enabled, else None.
+
+    When ``waste_weights_year`` resolves to a year other than 2017 (and IO is
+    after-redefinition), derives weights in-memory. Before-redef always uses
+    USEEIOR v1.8 bundled path via ``effective_waste_disagg_config``.
+    """
     cfg = get_usa_config()
     if not cfg.implement_waste_disaggregation:
         return None
-    resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
-    return _disagg_weights.load_disagg_weights(
-        resolved_cfg,
-        original_code=_WASTE_ORIGINAL_CODE,
-        new_codes=_WASTE_NEW_CODES,
-        disagg_sectors=_WASTE_NEW_CODES,
-        va_row_codes=list(VALUE_ADDEDS),
-    )
+    key = _waste_weights_cache_key(cfg)
+    if key in _WASTE_WEIGHTS_CACHE:
+        return _WASTE_WEIGHTS_CACHE[key]
+
+    weights_year = resolved_waste_weights_year(cfg)
+    if cfg.iot_before_or_after_redefinition == "before":
+        # Forbid year-derived weights on before-redef path
+        resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
+        weights = _disagg_weights.load_disagg_weights(
+            resolved_cfg,
+            original_code=_WASTE_ORIGINAL_CODE,
+            new_codes=_WASTE_NEW_CODES,
+            disagg_sectors=_WASTE_NEW_CODES,
+            va_row_codes=list(VALUE_ADDEDS),
+        )
+        _WASTE_PROVENANCE_CACHE[key] = WeightDerivationProvenance(
+            target_year=2017,
+            rcra_source_year=2012,
+            ec_source_year=2017,
+            fallback_notes=["before-redef USEEIOR v1.8 weights"],
+            naics_map_version=NAICS_MAP_VERSION,
+        )
+    elif weights_year == 2017:
+        resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
+        weights = _disagg_weights.load_disagg_weights(
+            resolved_cfg,
+            original_code=_WASTE_ORIGINAL_CODE,
+            new_codes=_WASTE_NEW_CODES,
+            disagg_sectors=_WASTE_NEW_CODES,
+            va_row_codes=list(VALUE_ADDEDS),
+        )
+        _WASTE_PROVENANCE_CACHE[key] = WeightDerivationProvenance(
+            target_year=2017,
+            rcra_source_year=2012,
+            ec_source_year=2017,
+            fallback_notes=[
+                "bundled 2017 CSVs (intersection still embeds workbook 2012 RCRA)"
+            ],
+            naics_map_version=NAICS_MAP_VERSION,
+            mut_dollar_year=int(cfg.usa_base_io_data_year),
+        )
+    else:
+        from bedrock.extract.disaggregation.derive_waste_weights import (  # noqa: PLC0415
+            derive_waste_weights,
+        )
+
+        weights, prov = derive_waste_weights(
+            weights_year,
+            mut_dollar_year=int(cfg.usa_base_io_data_year),
+            ec_2022_wired=True,
+        )
+        _WASTE_PROVENANCE_CACHE[key] = prov
+
+    _WASTE_WEIGHTS_CACHE[key] = weights
+    return weights
+
+
+def get_waste_disagg_provenance() -> WeightDerivationProvenance | None:
+    """Return provenance for the last/cached ``get_waste_disagg_weights`` call."""
+    cfg = get_usa_config()
+    if not cfg.implement_waste_disaggregation:
+        return None
+    key = _waste_weights_cache_key(cfg)
+    if key not in _WASTE_PROVENANCE_CACHE:
+        get_waste_disagg_weights()
+    return _WASTE_PROVENANCE_CACHE.get(key)
+
+
+def clear_waste_disagg_weights_cache() -> None:
+    _WASTE_WEIGHTS_CACHE.clear()
+    _WASTE_PROVENANCE_CACHE.clear()
 
 
 @functools.cache
@@ -125,8 +219,8 @@ class CornerstoneDisaggIOBundle:
 
 
 def derive_cornerstone_V_after_waste() -> pd.DataFrame:
-    V_2017 = load_2017_V_usa()
-    V = industry_corresp() @ V_2017 @ commodity_corresp().T
+    V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
+    V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -138,8 +232,8 @@ def derive_cornerstone_V_after_waste() -> pd.DataFrame:
 
 
 def derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
 
     com_c = commodity_corresp()
@@ -164,7 +258,7 @@ def derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def _derive_y_before_electricity_disagg() -> pd.DataFrame:
     """Correspondence-mapped Y after waste disagg, before electricity row split."""
-    ytot_orig = load_2017_Ytot_usa()
+    ytot_orig = load_detail_Ytot_usa()
     ytot = commodity_corresp() @ ytot_orig
     ytot.index.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -175,7 +269,7 @@ def _derive_y_before_electricity_disagg() -> pd.DataFrame:
 
 
 def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
-    VA = load_2017_value_added_usa() @ industry_corresp().T
+    VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
     weights = get_waste_disagg_weights()
     if weights is not None:
@@ -186,7 +280,7 @@ def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
 
 @functools.cache
 def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
-    """Correspondence + waste (+ optional electricity). Uninflated 2017 chain dollars."""
+    """Correspondence + waste (+ optional electricity). Uninflated dollars of the detail IO year."""
     V = derive_cornerstone_V_after_waste()
     Udom, Uimp = derive_cornerstone_U_after_waste()
     VA = derive_cornerstone_VA_after_waste()
@@ -208,7 +302,7 @@ def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
 @functools.cache
 def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
     """Correspondence-mapped Y with optional waste and electricity disagg."""
-    Ytot_orig = load_2017_Ytot_usa()
+    Ytot_orig = load_detail_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -216,13 +310,11 @@ def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
         Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
         Ytot.index.name = 'sector'
     if electricity_disaggregation_enabled():
-        from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
-            disaggregate_electricity_commodity_row_in_y,
-            get_electricity_commodity_row_weights,
+        from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+            apply_purchaser_allocation_to_y,
         )
 
-        w_row = get_electricity_commodity_row_weights()
-        Ytot = disaggregate_electricity_commodity_row_in_y(Ytot, w_row)
+        Ytot = apply_purchaser_allocation_to_y(Ytot)
         Ytot.index.name = 'sector'
     return Ytot
 
@@ -263,6 +355,11 @@ def distribute_waste_parent_x_using_v_row_shares(
 @functools.cache
 def electricity_mixed_units_enabled() -> bool:
     return get_usa_config().implement_electricity_mixed_units
+
+
+@functools.cache
+def electricity_reaggregation_enabled() -> bool:
+    return get_usa_config().implement_electricity_reaggregation
 
 
 # --- Lazy end-use facade (importing this module must not load elec) -------------
@@ -362,37 +459,36 @@ def electricity_conversion_factors(
     *,
     prices_by_class: Mapping[str, float] | None = None,
 ) -> tuple[float, pd.Series[float]]:
-    """Return (c_col, c_row) for generation sector unit conversion."""
+    """Return (c_col, c_row) for generation sector unit conversion.
+
+    ``c_col`` is eGRID / q_$. ``c_row`` is ``1/p`` on every A column.
+    ``prices_by_class`` is unused (kept for call-site compatibility).
+    """
+    del prices_by_class
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
-        us_total_net_generation_mwh,
+        egrid_mwh_for_io_year,
     )
     from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
         GENERATION_SECTOR,
-        electricity_class_row_factors,
         electricity_output_factor,
     )
+    from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+        _go_p_and_td_shares,
+    )
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        ELECTRICITY_DISAGG_SECTORS,
+    )
 
-    # Call module-level facade for end-use helpers so unittest patches on
-    # ``cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh`` still apply.
     cfg = get_usa_config()
     q_usd = float(aq_scaled.scaled_q[GENERATION_SECTOR])
-    mwh = float(us_total_net_generation_mwh(cfg.model_base_year))
+    mwh = float(egrid_mwh_for_io_year(cfg.model_base_year))
     c_col = electricity_output_factor(q_usd, mwh)
-    if prices_by_class is None:
-        prices = electricity_end_use_retail_prices_cents_kwh(cfg.usa_ghg_data_year)
-    else:
-        prices = dict(prices_by_class)
-    end_use_map = build_end_use_map()
-    y_row = _model_year_y_row_221110(aq_scaled)
-    adom_row = cast(pd.Series, aq_scaled.Adom.loc[GENERATION_SECTOR])
-    c_row = electricity_class_row_factors(
-        adom_row,
-        aq_scaled.scaled_q,
-        y_row,
-        prices,
-        end_use_map,
-        mwh,
-    )
+    p_share, _td = _go_p_and_td_shares()
+    q_elec = float(aq_scaled.scaled_q.reindex(ELECTRICITY_DISAGG_SECTORS).sum())
+    p = p_share * q_elec / mwh
+    if not (p > 0):
+        raise ValueError(f'electricity_conversion_factors: non-positive p={p!r}')
+    c_row = pd.Series(1.0 / p, index=aq_scaled.Adom.columns, dtype=float)
     return c_col, c_row
 
 
@@ -484,3 +580,191 @@ def compute_mixed_unit_ef_vectors(
     d = compute_d(B=b_mixed)
     n = compute_n(M=m)
     return MixedUnitEfResult(D=d, N=n, M=m, c_col=c_col, c_row=c_row)
+
+
+# --- Post–3-way monetary collapse of G/T/D back to 221100 (published 405) ---
+
+_ELEC_CHILDREN: tuple[str, ...] = tuple(ELECTRICITY_DISAGG_SECTORS)
+_ELEC_PARENT: str = ELECTRICITY_AGGREGATE_SECTOR
+
+
+def _require_electricity_children(index: pd.Index, *, label: str) -> None:
+    missing = [code for code in _ELEC_CHILDREN if code not in index]
+    if missing:
+        raise ValueError(
+            f'electricity reaggregation: {label} missing child sectors {missing}'
+        )
+
+
+def collapse_electricity_children_square(
+    df: pd.DataFrame,
+    *,
+    row_codes: list[str],
+    col_codes: list[str],
+) -> pd.DataFrame:
+    """3×3 block identity on both axes: sum children into ``221100``, drop G/T/D."""
+    _require_electricity_children(df.index, label='rows')
+    _require_electricity_children(df.columns, label='columns')
+    out = df.copy()
+    if _ELEC_PARENT in out.index:
+        out = out.drop(index=[_ELEC_PARENT])
+    if _ELEC_PARENT in out.columns:
+        out = out.drop(columns=[_ELEC_PARENT])
+    children = list(_ELEC_CHILDREN)
+    parent_row = out.loc[children].sum(axis=0)
+    out = out.drop(index=children)
+    out.loc[_ELEC_PARENT] = parent_row
+    parent_col = out[children].sum(axis=1)
+    out = out.drop(columns=children)
+    out[_ELEC_PARENT] = parent_col
+    return out.reindex(index=row_codes, columns=col_codes)
+
+
+def collapse_electricity_children_rows(
+    df: pd.DataFrame, *, row_codes: list[str]
+) -> pd.DataFrame:
+    """Sum child commodity rows into ``221100``; leave columns unchanged."""
+    _require_electricity_children(df.index, label='rows')
+    out = df.copy()
+    children = list(_ELEC_CHILDREN)
+    parent_row = out.loc[children].sum(axis=0)
+    out = out.drop(index=children)
+    if _ELEC_PARENT in out.index:
+        out = out.drop(index=[_ELEC_PARENT])
+    out.loc[_ELEC_PARENT] = parent_row
+    return out.reindex(index=row_codes)
+
+
+def collapse_electricity_children_columns(
+    df: pd.DataFrame, *, col_codes: list[str]
+) -> pd.DataFrame:
+    """Sum child industry columns into ``221100``; leave rows unchanged."""
+    _require_electricity_children(df.columns, label='columns')
+    out = df.copy()
+    children = list(_ELEC_CHILDREN)
+    parent_col = out[children].sum(axis=1)
+    out = out.drop(columns=children)
+    if _ELEC_PARENT in out.columns:
+        out = out.drop(columns=[_ELEC_PARENT])
+    out[_ELEC_PARENT] = parent_col
+    return out.reindex(columns=col_codes)
+
+
+def collapse_electricity_children_vector(
+    values: pd.Series[float],
+    *,
+    codes: list[str],
+    require_positive_parent: bool = False,
+) -> pd.Series[float]:
+    """Sum child entries into ``221100`` and reindex to *codes*."""
+    _require_electricity_children(values.index, label='index')
+    out = values.copy()
+    parent_val = float(out.loc[list(_ELEC_CHILDREN)].sum())
+    if require_positive_parent and parent_val == 0.0:
+        raise ValueError('electricity reaggregation: q[221100] == 0')
+    out = out.drop(labels=list(_ELEC_CHILDREN))
+    if _ELEC_PARENT in out.index:
+        out = out.drop(labels=[_ELEC_PARENT])
+    out.loc[_ELEC_PARENT] = parent_val
+    return out.reindex(codes)
+
+
+def reaggregate_electricity_children_aq(
+    aq_scaled: SingleRegionAqMatrixSet,
+) -> SingleRegionAqMatrixSet:
+    """Collapse post-reanchor Adom/Aimp/q to 405. No-op if the flag is off.
+
+    Does **not** wrap the result in ``_cornerstone_aq_matrix_set`` (that still
+    ``validate_cornerstone``s at 407).
+    """
+    if not electricity_reaggregation_enabled():
+        return aq_scaled
+    q_407 = aq_scaled.scaled_q
+    q = collapse_electricity_children_vector(
+        q_407,
+        codes=CORNERSTONE_COMMODITIES,
+        require_positive_parent=True,
+    )
+    udom = collapse_electricity_children_square(
+        aq_scaled.Adom.multiply(q_407, axis=1),
+        row_codes=CORNERSTONE_COMMODITIES,
+        col_codes=CORNERSTONE_COMMODITIES,
+    )
+    uimp = collapse_electricity_children_square(
+        aq_scaled.Aimp.multiply(q_407, axis=1),
+        row_codes=CORNERSTONE_COMMODITIES,
+        col_codes=CORNERSTONE_COMMODITIES,
+    )
+    adom = udom.divide(q, axis=1).fillna(0.0)
+    aimp = uimp.divide(q, axis=1).fillna(0.0)
+    return SingleRegionAqMatrixSet(
+        Adom=cast(pt.DataFrame[AMatrix], adom),
+        Aimp=cast(pt.DataFrame[AMatrix], aimp),
+        scaled_q=q,
+    )
+
+
+def reaggregate_electricity_children_b(
+    b_407: pd.DataFrame,
+    q_scaled: pd.Series[float],
+) -> pd.DataFrame:
+    """q-weight 407 B columns onto ``221100``. No-op if the flag is off."""
+    if not electricity_reaggregation_enabled():
+        return b_407
+    _require_electricity_children(b_407.columns, label='B columns')
+    _require_electricity_children(q_scaled.index, label='q')
+    q_parent = float(q_scaled.loc[list(_ELEC_CHILDREN)].sum())
+    if q_parent == 0.0:
+        raise ValueError('electricity reaggregation: q[221100] == 0')
+    weighted = (
+        sum(
+            b_407[code].astype(float) * float(q_scaled.loc[code])
+            for code in _ELEC_CHILDREN
+        )
+        / q_parent
+    )
+    out = b_407.drop(columns=list(_ELEC_CHILDREN))
+    if _ELEC_PARENT in out.columns:
+        out = out.drop(columns=[_ELEC_PARENT])
+    out[_ELEC_PARENT] = weighted
+    return out.reindex(columns=CORNERSTONE_COMMODITIES)
+
+
+def reaggregate_electricity_children_v(v_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return v_407
+    return collapse_electricity_children_square(
+        v_407,
+        row_codes=CORNERSTONE_INDUSTRIES,
+        col_codes=CORNERSTONE_COMMODITIES,
+    )
+
+
+def reaggregate_electricity_children_u(u_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return u_407
+    return collapse_electricity_children_square(
+        u_407,
+        row_codes=CORNERSTONE_COMMODITIES,
+        col_codes=CORNERSTONE_INDUSTRIES,
+    )
+
+
+def reaggregate_electricity_children_y(y_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return y_407
+    return collapse_electricity_children_rows(y_407, row_codes=CORNERSTONE_COMMODITIES)
+
+
+def reaggregate_electricity_children_va(va_407: pd.DataFrame) -> pd.DataFrame:
+    if not electricity_reaggregation_enabled():
+        return va_407
+    return collapse_electricity_children_columns(
+        va_407, col_codes=CORNERSTONE_INDUSTRIES
+    )
+
+
+def reaggregate_electricity_children_x(x_407: pd.Series[float]) -> pd.Series[float]:
+    if not electricity_reaggregation_enabled():
+        return x_407
+    return collapse_electricity_children_vector(x_407, codes=CORNERSTONE_INDUSTRIES)

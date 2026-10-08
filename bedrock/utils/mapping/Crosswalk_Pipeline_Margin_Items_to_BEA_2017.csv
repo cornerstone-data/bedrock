@@ -1,0 +1,8 @@
+sas_naics,sas_description,bea_2017_commodity,bea_2017_description,basis
+4861,Pipeline transportation of crude oil,211000,Oil and gas extraction,"BEA: ""Crude pipelines margins go to any crude oil commodity."" At BEA 2017 detail crude oil and natural gas are a single commodity, so 4861 and 4862 land on the same code and their split does not affect the allocation."
+4862,Pipeline transportation of natural gas,211000,Oil and gas extraction,"BEA: ""Natural gas pipelines margins go to natural gas commodity."" 221200 natural gas distribution is the utility, not the commodity, and receives no TRANS in 2017 - do not map here."
+48691,Pipeline transportation of refined petroleum products,324110,Petroleum refineries,"BEA: ""Refined petroleum margins go to refined fuels such as gasoline, jet fuel, kerosene and other refined oils and waxes."" 324110 is gasoline, jet fuel and kerosene."
+48691,Pipeline transportation of refined petroleum products,324190,Other petroleum and coal products manufacturing,"The ""other refined oils and waxes"" half of BEA's list. Excluded deliberately: 324121 asphalt paving mixture and 324122 asphalt shingles, which are refinery products but are not moved by pipeline."
+48699,All other pipeline transportation,325130,Synthetic dye and pigment manufacturing,"BEA: ""Pipeline, NEC margins are applied to dyes, pigments, toners, ammonia, Urea and like products that would be transported through a pipeline."" This is the dyes and pigments term."
+48699,All other pipeline transportation,325910,Printing ink manufacturing,The toners term of BEA's NEC list.
+48699,All other pipeline transportation,325310,Fertilizer manufacturing,"The ammonia and urea term of BEA's NEC list; both are nitrogenous fertilizer products rolling up to 325310."

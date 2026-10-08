@@ -20,3 +20,6 @@ Known issues with existing FBA and FBS methods are shown in [method_status.yaml]
 
 Post-run plots and multi-run merges:
 [`analysis/README.md`](analysis/README.md).
+
+Nowcast Supply/Use table-match diagnostics moved to
+[`bedrock/analysis/nowcasting/`](../../analysis/nowcasting/README.md).

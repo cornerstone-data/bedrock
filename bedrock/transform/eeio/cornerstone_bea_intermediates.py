@@ -11,10 +11,10 @@ import functools
 
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import (
-    load_2017_Uimp_usa,
-    load_2017_Utot_usa,
-    load_2017_V_usa,
+from bedrock.extract.iot.detail_io import (
+    load_detail_Uimp_usa,
+    load_detail_Utot_usa,
+    load_detail_V_usa,
 )
 from bedrock.utils.math.formulas import (
     compute_A_matrix,
@@ -33,13 +33,13 @@ from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
 @functools.cache
 def bea_x() -> pd.Series[float]:
     """Industry total output in BEA 2017 space."""
-    return compute_x(V=load_2017_V_usa())
+    return compute_x(V=load_detail_V_usa())
 
 
 @functools.cache
 def bea_q() -> pd.Series[float]:
     """Commodity total output in BEA 2017 space."""
-    return compute_q(V=load_2017_V_usa())
+    return compute_q(V=load_detail_V_usa())
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ def bea_Vnorm_scrap_corrected() -> pd.DataFrame:
     divided by (1 − scrap_j / q_j), where scrap_j is the scrap output of the
     industry sharing code j.
     """
-    V = load_2017_V_usa()
+    V = load_detail_V_usa()
     q = bea_q()
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
     scrap = V.loc[:, 'S00401']
@@ -73,8 +73,8 @@ def bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
     x = bea_x()
     Vnorm = bea_Vnorm_scrap_corrected()
 
-    Utot = load_2017_Utot_usa()
-    Uimp = load_2017_Uimp_usa()
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
     Udom = handle_negative_matrix_values(Utot - Uimp)
     Uimp_clean = handle_negative_matrix_values(Uimp)
 

@@ -208,6 +208,53 @@ def _normalize_table(
     return (out.div(total_series, axis=1)).astype(float)
 
 
+def build_disagg_weights_from_long_format(
+    use_df: pd.DataFrame,
+    make_df: pd.DataFrame,
+    *,
+    year: int,
+    source_name: str,
+    original_code: str,
+    new_codes: list[str],
+    disagg_sectors: list[str],
+    va_row_codes: list[str] | None = None,
+    industry_subsectors: list[str] | None = None,
+) -> DisaggWeights:
+    """Build ``DisaggWeights`` from long-format Use/Make tables (Option B)."""
+    use_df = use_df.copy()
+    make_df = make_df.copy()
+    for frame, pct in ((use_df, "PercentUsed"), (make_df, "PercentMake")):
+        if pct not in frame.columns and pct == "PercentMake":
+            continue
+        frame["IndustryCode"] = frame["IndustryCode"].map(
+            lambda c: _normalize_code(str(c))
+        )
+        frame["CommodityCode"] = frame["CommodityCode"].map(
+            lambda c: _normalize_code(str(c))
+        )
+        if pct in frame.columns:
+            frame[pct] = pd.to_numeric(frame[pct], errors="coerce")
+
+    class _Cfg:
+        pass
+
+    cfg = _Cfg()
+    cfg.year = year  # type: ignore[attr-defined]
+    cfg.source_name = source_name  # type: ignore[attr-defined]
+    # Reuse load_disagg_weights body via temporary attribute injection — see below.
+    return _build_disagg_weights_from_frames(
+        use_df,
+        make_df,
+        cfg_year=year,
+        cfg_source_name=source_name,
+        original_code=original_code,
+        new_codes=new_codes,
+        disagg_sectors=disagg_sectors,
+        va_row_codes=va_row_codes,
+        industry_subsectors=industry_subsectors,
+    )
+
+
 def load_disagg_weights(
     cfg: DisaggConfig,
     *,
@@ -219,7 +266,31 @@ def load_disagg_weights(
 ) -> DisaggWeights:
     make_df = load_weights_csv(cfg.make_weights_file, "PercentMake")
     use_df = load_weights_csv(cfg.use_weights_file, "PercentUsed")
+    return _build_disagg_weights_from_frames(
+        use_df,
+        make_df,
+        cfg_year=cfg.year,
+        cfg_source_name=cfg.source_name,
+        original_code=original_code,
+        new_codes=new_codes,
+        disagg_sectors=disagg_sectors,
+        va_row_codes=va_row_codes,
+        industry_subsectors=industry_subsectors,
+    )
 
+
+def _build_disagg_weights_from_frames(
+    use_df: pd.DataFrame,
+    make_df: pd.DataFrame,
+    *,
+    cfg_year: int,
+    cfg_source_name: str,
+    original_code: str,
+    new_codes: list[str],
+    disagg_sectors: list[str],
+    va_row_codes: list[str] | None = None,
+    industry_subsectors: list[str] | None = None,
+) -> DisaggWeights:
     original = original_code
     new_codes_set = set(new_codes)
     va_rows_list = va_row_codes if va_row_codes is not None else list(VALUE_ADDEDS)
@@ -473,8 +544,8 @@ def load_disagg_weights(
         make_disagg_commodity_columns_all_rows=make_disagg_commodity_columns_all_rows,
         make_disagg_commodity_columns_specific_rows=make_disagg_commodity_columns_specific_rows,
         make_disagg_industry_rows_specific_columns=make_disagg_industry_rows_specific_columns,
-        year=cfg.year,
-        source_name=cfg.source_name,
+        year=cfg_year,
+        source_name=cfg_source_name,
     )
 
 

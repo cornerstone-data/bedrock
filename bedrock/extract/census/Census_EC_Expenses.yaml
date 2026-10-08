@@ -1,0 +1,104 @@
+author: US Census Bureau
+source_name: Economic Census, Expenses by Kind
+source_url: https://www.census.gov/programs-surveys/economic-census.html
+bib_id: Census_EC_Expenses
+
+# **The 2017 and 2022 anchor for the annual expense panel.**
+#
+# `Census_ASM_Expenses` (2018-2021) and `Census_AIES_Expenses` (2023) observe
+# manufacturing's non-materials intermediate cells annually, but neither runs in
+# an Economic Census year. This is those two years, and it publishes the cells
+# under **the same variable names ASM uses** - `CSTELEC`, `PCHRPR`, `PCHTEMP`
+# and the rest - so census and survey form one panel with no crosswalk:
+# 2017 census, ASM 2018-2021, 2022 census, AIES 2023.
+#
+# ✅ **The splice is continuous.** 2017 electricity is $47.5B here against ASM's
+# $51.0B in 2018, repair $52.7B against $55.2B, temporary staff $38.0B against
+# $39.3B - one year of growth apart, on 360 six-digit manufacturing industries
+# in both, which is the same industry count ASM publishes.
+#
+# ✅ **2017 is the point of this source.** It is the base year the benchmark Use
+# table is built on, so an expense cell can be indexed to its own 2017 value and
+# that index applied to BEA's 2017 cell. See the warning below for why the index
+# and not the level.
+#
+# ⚠️ **Do not substitute these as Use-table levels.** The survey and BEA disagree
+# about what these cells contain, at the 2017 base itself and by large factors:
+# purchased repair is $52.7B here against $13.8B across BEA's `811*` rows into
+# manufacturing, temporary staff $38.0B against $21.6B for `561300`, refuse
+# $14.7B against $6.6B for `562000`. In the other direction professional and
+# technical services is $34.6B against $83.1B, because Census asks one question
+# where BEA distinguishes legal, accounting, engineering and consulting.
+# Expensed software and computer hardware are the sharpest case: Census records
+# them as operating expense, BEA records them mostly as **investment**, so the
+# intermediate row is a fraction of the survey cell. Indexing cancels every one
+# of these; substituting the level would import them all.
+# `analysis/nowcasting/inputs_structure.py --services` measures each.
+#
+# ⚠️ **Manufacturing is not the whole table.** `ecnbasic` covers every Economic
+# Census sector, and the expense cells are populated well beyond 31-33. Only
+# manufacturing has been checked against ASM continuity and against BEA's Use
+# rows; treat any other sector as unvalidated.
+#
+# ⚠️ **Every NAICS level is published**, 3- through 6-digit, and each parent
+# covers all of its children. Filter to `^\d{6}$` before summing or the table
+# multiplies.
+#
+# ⚠️ **A zero is not always a real zero.** `ecnbasic` publishes some withheld
+# cells as `0` rather than as a null - 2017 `CSTELEC` is zero for a number of
+# food industries that plainly buy electricity. The `_S` relative-standard-error
+# companions that would disambiguate are not pulled, so zeros are kept and
+# counted rather than trusted, and a consumer should lean on the industry's
+# published total as a control.
+#
+# ⚠️ **Amounts are Thousand USD**, as everywhere in the Census API.
+#
+# ⚠️ **No `source_catalog.yaml` entry yet**, on the same reasoning as
+# `Census_ASM_Expenses`: nothing attributes this to sectors, it is read directly
+# by `analysis/nowcasting/inputs_structure.py`. Write a real entry when the
+# first FBS consumes it, rather than inheriting `Census_EC`'s.
+api_name: Census
+api_key_required: true
+format: json
+url:
+  base_url: https://api.census.gov/data/
+  api_path: __year__/ecnbasic?
+  url_params:
+    get: __variables__
+    # 2022 returns HTTP 400 without an explicit geography; both vintages are
+    # pulled at the national level, so set it for both.
+    for: "us:*"
+    key: __apiKey__
+  key_param: key
+url_replace_fxn: !script_function:Census_EC census_EC_cells_URL_helper
+call_response_fxn: !script_function:Census_EC census_EC_cells_call
+parse_response_fxn: !script_function:Census_EC census_EC_Expenses_parse
+
+years:
+- 2017
+- 2022
+
+# The expense cells, in the same names ASM publishes. `CSTMPRT`, `CSTFU` and
+# `CSTMTOT` are the materials side, kept as the control `Census_EC_MatFuel`
+# reconciles against; `PCHTT` totals the `PCH*` services.
+variables:
+- CSTELEC
+- CSTCNT
+- CSTRSL
+- PCHADVT
+- PCHCMPQ
+- PCHCSVC
+- PCHDAPR
+- PCHEXSO
+- PCHPRTE
+- PCHRFUS
+- PCHRPR
+- PCHTEMP
+- PCHOEXP
+- CSTMTOT
+- CSTMPRT
+- CSTFU
+- PCHTT
+- RCPTOT
+- VALADD
+- PCHTAX

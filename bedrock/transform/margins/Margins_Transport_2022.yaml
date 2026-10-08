@@ -1,0 +1,16 @@
+# The transportation margin for 2022, split by the mode that gives it up.
+#
+# Everything except the year lives in Margins_Transport_common.yaml; each source
+# inherits `year` from the method config, so a year is the whole per-year file.
+# See that file for the method, and bedrock/transform/margins/transport.py for
+# the split between what the yaml decides and what the module decides.
+#
+# 2022 is the last year with all five modes. SAS stops here, which ends
+# truck, pipeline, water and air; AIES miscsector carries 2023 and is
+# not wired yet, and 2024 is unpublished. Rail alone reaches 2024.
+#
+# SAS suppresses the pharmaceutical and chemical products group in 2022.
+# It is recovered by subtraction from the published Total Motor Carrier
+# Revenue - see load_truck_group_revenue.
+!include:Margins_Transport_common.yaml
+year: 2022

@@ -25,3 +25,8 @@ years:
   - 2021
   - 2022
   - 2023
+  # The zip carries 1910-2025; this list stopped at 2023 while the file
+  # already had 2024 and 2025. 2025 is an ERS FORECAST, not a realized
+  # estimate -- flag it rather than treating it as measured (#577).
+  - 2024
+  - 2025

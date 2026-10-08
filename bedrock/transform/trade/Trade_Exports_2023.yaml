@@ -1,0 +1,6 @@
+# Census goods + BEA IntlServTrade exports for 2023.
+#
+# Method body: Trade_Exports_common.yaml. Sources inherit this year; the 1:m
+# goods split stays on the published 2017 F04000 column (#701).
+!include:Trade_Exports_common.yaml
+year: 2023

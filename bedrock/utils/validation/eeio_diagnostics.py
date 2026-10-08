@@ -225,7 +225,7 @@ def validate_result(
     ----------
     name - string value identifying the diagnostic being run
     value - original value to check
-        Float series from e.g. ``derive_2017_q_usa``
+        Float series from e.g. ``derive_cornerstone_q``
     value_check - computed value to compare against original
         Float series obtained from calcualtion
     tolerance
@@ -296,9 +296,9 @@ def compare_commodity_output_to_domestics_use_plus_exports(
     Parameters
     ----------
     q
-        Float series from e.g. ``derive_2017_q_usa``
+        Float series from e.g. ``derive_cornerstone_q``
     U_d
-        Dataframe from e.g. ``derive_2017_U_set_usa().Udom
+        Dataframe from e.g. ``derive_cornerstone_U_set().Udom``
     y_d
         Float series from e.g. ``derive_ydom_and_yimp_usa().ydom``
     tolerance
@@ -352,7 +352,7 @@ def compare_output_vs_leontief_x_demand(
     Parameters
     ----------
     output
-        Float series. If commodity model, output = q from ``derive_2017_q_usa``; if industry model, output = x  from ``derive_2017_x_usa``
+        Float series. If commodity model, output = q from ``derive_cornerstone_q``; if industry model, output = x from ``derive_cornerstone_x``
     L
         Dataframe. Leontief inverse (total or domestic)
     y
@@ -479,7 +479,10 @@ def assert_eeio_year_alignment_precondition(
 
     Requires matching model/GHG years, GHG-year ``x`` in B
     (``use_ghg_year_x_in_B``), and no deflated-B path that introduces an
-    intermediate dollar year.
+    intermediate dollar year. Under ``usa_detail_io_source == 'nowcast'`` the
+    GHG-year-x requirement holds by construction: x is the nowcast Make row sum
+    at ``usa_base_io_data_year``, which the config validator pins to
+    ``usa_ghg_data_year``.
 
     Parameters
     ----------
@@ -495,7 +498,7 @@ def assert_eeio_year_alignment_precondition(
             f'model_base_year ({cfg.model_base_year}) != '
             f'usa_ghg_data_year ({cfg.usa_ghg_data_year})'
         )
-    if not cfg.use_ghg_year_x_in_B:
+    if cfg.usa_detail_io_source != 'nowcast' and not cfg.use_ghg_year_x_in_B:
         reasons.append(
             'use_ghg_year_x_in_B is False '
             '(need apply_io_year_adjustments or use_E_data_year_for_x_in_B)'

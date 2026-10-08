@@ -122,15 +122,17 @@ on. See the example below.
 ```
 
 ## API Keys
-Several extract data sources require API keys stored locally in `bedrock/extract/API_Keys.env`. 
+Several extract data sources require API keys stored locally in the project-root `.env` (gitignored).
 Data sources that require API Keys are identified within the method yaml with `api_key_required: true`.
 
 The `.env` should be set up as:
 
-BLS = "XXXXXX" \
-Census = "XXXXXX" \
-EIA = "XXXXXX" \
-USDA_Quickstats = "XXXXXX"
+```
+BLS_API_KEY=XXXXXX
+CENSUS_API_KEY=XXXXXX
+EIA_API_KEY=XXXXXX
+USDA_QUICKSTATS_API_KEY=XXXXXX
+```
 
 To generate API Keys for each data source, go to:
 1. [BLS](https://data.bls.gov/registrationEngine/)

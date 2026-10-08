@@ -1,0 +1,8 @@
+.cache/
+.DS_Store
+__pycache__/
+
+# Working artifacts of a local run — CSV exports and the diagnostic figures.
+# The figures that a committed document embeds live beside that document and
+# are re-included there explicitly; nothing written here is meant to be tracked.
+output/

@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import bedrock.transform.eeio.cornerstone_bea_intermediates as bea
+import bedrock.transform.iot.derived_gross_industry_output as go
+import bedrock.utils.validation.diagnostics_helpers as dh
 from bedrock.utils.config.usa_config import USAConfig
 from bedrock.utils.validation.diagnostics_helpers import (
     OldEfSet,
@@ -212,3 +215,58 @@ class TestInflationAdjust:
         assert result["1111A0"] == pytest.approx(10.0 * 100.0 / 110.0)
         # NaN in old year → ratio = NaN → fillna(1.0) → no change
         assert result["1111B0"] == pytest.approx(20.0)
+
+
+class TestNowcastEffectiveXComparison:
+    """Under nowcast the ``x_decomposition`` tab is Make x against BEA GO."""
+
+    def test_make_x_against_bea_go_under_nowcast(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cfg = USAConfig(
+            usa_detail_io_source='nowcast',
+            usa_base_io_data_year=2023,
+            model_base_year=2023,
+            usa_ghg_data_year=2023,
+        )
+        industries = ['I1', 'I2', 'I3']
+        seen: list[tuple[str, int]] = []
+
+        def after(year: int) -> pd.Series:
+            seen.append(('after', year))
+            return pd.Series([100.0, 200.0, 300.0], index=industries)
+
+        def before(year: int) -> pd.Series:
+            seen.append(('before', year))
+            return pd.Series([120.0, 180.0, 300.0], index=industries)
+
+        monkeypatch.setattr(dh, 'get_usa_config', lambda: cfg)
+        monkeypatch.setattr(
+            dh,
+            'get_aligned_sector_desc',
+            lambda: {'I1': 'one', 'I2': 'two', 'I3': 'three'},
+        )
+        monkeypatch.setattr(
+            bea, 'bea_x', lambda: pd.Series([110.0, 190.0, 300.0], index=industries)
+        )
+        monkeypatch.setattr(go, 'derive_gross_output_after_redefinition', after)
+        monkeypatch.setattr(go, 'derive_gross_output_before_redefinition', before)
+
+        comp = dh.compute_effective_x_comparison()
+
+        assert seen == [('after', 2023), ('before', 2023)]
+        assert list(comp.columns) == [
+            'sector_name',
+            'x_make_after_redef_2023',
+            'x_bea_go_after_redef_2023',
+            'x_bea_go_before_redef_2023',
+            'x_make_over_go_after_redef',
+        ]
+        # Sorted by the ratio: I2 (0.95) < I3 (1.0) < I1 (1.1).
+        assert list(comp.index) == ['I2', 'I3', 'I1']
+        np.testing.assert_allclose(
+            comp['x_make_over_go_after_redef'].to_numpy(dtype=float),
+            np.array([0.95, 1.0, 1.1]),
+        )
+        assert comp.loc['I1', 'sector_name'] == 'one'
+        assert comp.loc['I1', 'x_bea_go_before_redef_2023'] == 120.0

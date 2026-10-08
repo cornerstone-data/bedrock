@@ -695,3 +695,463 @@ PRICE_INDEX_SUMMARY_LINE_NUMBER_TO_NAME_MAPPING: ta.Dict[str, str] = {
     "LINE_NUMBER_96": "    General government",
     "LINE_NUMBER_97": "    Government enterprises",
 }
+
+
+# BEA's "underlying" industry detail - the 191-row frame shared by UGO205-A,
+# UII205-A and UVA205-A. Keys are the workbook's own ``Line`` numbers, values
+# are the BEA 2017 detail industry codes that aggregate to that line. Only the
+# 138 leaves of the 191-row hierarchy appear; the 50 parent rows and the three
+# addenda (lines 189-191) are omitted, so the values partition all 402 detail
+# industry codes exactly once.
+#
+# Derived, not hand-written: see
+# ``bedrock.extract.iot.gdp.derive_underlying_line_mapping``, which recovers it
+# from UGO205-A and UGO305-A by matching gross output over 1997-2024, and
+# ``--check-mapping`` on
+# ``bedrock/analysis/nowcasting/underlying_industry_coverage.py``.
+UNDERLYING_LINE_TO_BEA_2017_INDUSTRY_MAPPING: ta.Dict[int, ta.List[str]] = {
+    # Crop production
+    5: ["1111A0", "1111B0", "111200", "111300", "111400", "111900"],
+    # Animal production and aquaculture
+    6: ["112120", "1121A0", "112300", "112A00"],
+    # Forestry, fishing, and related activities
+    7: ["113000", "114000", "115000"],
+    # Oil and gas extraction
+    9: ["211000"],
+    # Mining, except oil and gas
+    10: ["212100", "212230", "2122A0", "212310", "2123A0"],
+    # Support activities for mining
+    11: ["213111", "21311A"],
+    # Electric power generation, transmission, and distribution
+    13: ["221100"],
+    # Natural gas distribution and water, sewage and other systems
+    14: ["221200", "221300"],
+    # Education, hospital, and health structures
+    16: ["233210", "233262"],
+    # Maintenance and repair construction
+    17: ["230301", "230302"],
+    # Office and commercial structures
+    18: ["2332A0"],
+    # Other residential construction
+    19: ["233412", "2334A0"],
+    # Other nonresidential structures
+    20: ["233230", "2332D0"],
+    # Power and communication structures
+    21: ["233240"],
+    # Single-family residential structures
+    22: ["233411"],
+    # Transportation structures and highways and streets
+    23: ["2332C0"],
+    # Wood products
+    26: ["321100", "321200", "321910", "3219A0"],
+    # Nonmetallic mineral products
+    27: [
+        "327100",
+        "327200",
+        "327310",
+        "327320",
+        "327330",
+        "327390",
+        "327400",
+        "327910",
+        "327991",
+        "327992",
+        "327993",
+        "327999",
+    ],
+    # Iron and steel mills and manufacturing from purchased steel
+    29: ["331110", "331200"],
+    # Nonferrous metal production and processing and foundries
+    30: [
+        "331313",
+        "331314",
+        "33131B",
+        "331410",
+        "331420",
+        "331490",
+        "331510",
+        "331520",
+    ],
+    # Fabricated metal products
+    31: [
+        "332114",
+        "332119",
+        "33211A",
+        "332200",
+        "332310",
+        "332320",
+        "332410",
+        "332420",
+        "332430",
+        "332500",
+        "332600",
+        "332710",
+        "332720",
+        "332800",
+        "332913",
+        "33291A",
+        "332991",
+        "332996",
+        "332999",
+        "33299A",
+    ],
+    # Agricultural implement manufacturing
+    33: ["333111", "333112"],
+    # Construction machinery manufacturing
+    34: ["333120"],
+    # Mining and oil and gas field machinery manufacturing
+    35: ["333130"],
+    # Other machinery
+    36: [
+        "333242",
+        "33329A",
+        "333314",
+        "333316",
+        "333318",
+        "333413",
+        "333414",
+        "333415",
+        "333511",
+        "333514",
+        "333517",
+        "33351B",
+        "333611",
+        "333612",
+        "333613",
+        "333618",
+        "333912",
+        "333914",
+        "333920",
+        "333991",
+        "333993",
+        "333994",
+        "33399A",
+        "33399B",
+    ],
+    # Computer and peripheral equipment manufacturing
+    38: ["334111", "334112", "334118"],
+    # Communications equipment manufacturing
+    39: ["334210", "334220", "334290"],
+    # Semiconductor and other electronic component manufacturing
+    40: ["334413", "334418", "33441A"],
+    # Navigational, measuring, electromedical, and control instruments manufacturing
+    41: [
+        "334510",
+        "334511",
+        "334512",
+        "334513",
+        "334514",
+        "334515",
+        "334516",
+        "334517",
+        "33451A",
+    ],
+    # Other computer and electronic product manufacturing
+    42: ["334300", "334610"],
+    # Electrical equipment, appliances, and components
+    43: [
+        "335110",
+        "335120",
+        "335210",
+        "335220",
+        "335311",
+        "335312",
+        "335313",
+        "335314",
+        "335911",
+        "335912",
+        "335920",
+        "335930",
+        "335991",
+        "335999",
+    ],
+    # Automobile manufacturing
+    45: ["336111"],
+    # Light truck and utility vehicle manufacturing
+    46: ["336112"],
+    # Heavy duty truck manufacturing
+    47: ["336120"],
+    # Motor vehicle body, trailer, and parts manufacturing
+    48: [
+        "336211",
+        "336212",
+        "336213",
+        "336214",
+        "336310",
+        "336320",
+        "336350",
+        "336360",
+        "336370",
+        "336390",
+        "3363A0",
+    ],
+    # Aerospace product and parts manufacturing
+    50: ["336411", "336412", "336413", "336414", "33641A"],
+    # All other transportation equipment manufacturing
+    51: ["336500", "336611", "336612", "336991", "336992", "336999"],
+    # Furniture and related products
+    52: [
+        "337110",
+        "337121",
+        "337122",
+        "337127",
+        "33712N",
+        "337215",
+        "33721A",
+        "337900",
+    ],
+    # Medical equipment and supplies manufacturing
+    54: ["339112", "339113", "339114", "339115", "339116"],
+    # Other miscellaneous manufacturing
+    55: ["339910", "339920", "339930", "339940", "339950", "339990"],
+    # Food manufacturing
+    58: [
+        "311111",
+        "311119",
+        "311210",
+        "311221",
+        "311224",
+        "311225",
+        "311230",
+        "311300",
+        "311410",
+        "311420",
+        "311513",
+        "311514",
+        "31151A",
+        "311520",
+        "311615",
+        "31161A",
+        "311700",
+        "311810",
+        "3118A0",
+        "311910",
+        "311920",
+        "311930",
+        "311940",
+        "311990",
+    ],
+    # Beverage manufacturing
+    59: ["312110", "312120", "312130", "312140"],
+    # Tobacco product manufacturing
+    60: ["312200"],
+    # Textile mills and textile product mills
+    61: ["313100", "313200", "313300", "314110", "314120", "314900"],
+    # Apparel and leather and allied products
+    62: ["315000", "316000"],
+    # Paper products
+    63: [
+        "322110",
+        "322120",
+        "322130",
+        "322210",
+        "322220",
+        "322230",
+        "322291",
+        "322299",
+    ],
+    # Printing and related support activities
+    64: ["323110", "323120"],
+    # Petroleum and coal products
+    65: ["324110", "324121", "324122", "324190"],
+    # Basic chemical manufacturing
+    67: ["325110", "325120", "325130", "325180", "325190"],
+    # Resin, rubber, and artificial fibers manufacturing
+    68: ["325211", "3252A0"],
+    # Pharmaceutical and medicine manufacturing
+    69: ["325411", "325412", "325413", "325414"],
+    # Other chemical manufacturing
+    70: [
+        "325310",
+        "325320",
+        "325510",
+        "325520",
+        "325610",
+        "325620",
+        "325910",
+        "3259A0",
+    ],
+    # Plastics and rubber products
+    71: [
+        "326110",
+        "326120",
+        "326130",
+        "326140",
+        "326150",
+        "326160",
+        "326190",
+        "326210",
+        "326220",
+        "326290",
+    ],
+    # Motor vehicle and motor vehicle parts and supplies merchant wholesalers
+    73: ["423100"],
+    # Professional and commercial equipment and supplies merchant wholesalers
+    74: ["423400"],
+    # Household appliances and electrical and electronic goods merchant wholesalers
+    75: ["423600"],
+    # Machinery, equipment, and supplies merchant wholesalers
+    76: ["423800"],
+    # Other durable goods merchant wholesalers
+    77: ["423A00"],
+    # Drugs and druggists sundries merchant wholesalers
+    78: ["424200"],
+    # Grocery and related products merchant wholesalers
+    79: ["424400"],
+    # Petroleum and petroleum products merchant wholesalers
+    80: ["424700"],
+    # Other nondurable goods merchant wholesalers
+    81: ["424A00"],
+    # Wholesale electronic markets and agents and brokers
+    82: ["425000"],
+    # Customs duties
+    83: ["4200ID"],
+    # Motor vehicle and parts dealers
+    85: ["441000"],
+    # Food and beverage stores
+    86: ["445000"],
+    # General merchandise stores
+    87: ["452000"],
+    # Building material and garden equipment and supplies dealers
+    89: ["444000"],
+    # Health and personal care stores
+    90: ["446000"],
+    # Gasoline stations
+    91: ["447000"],
+    # Clothing and clothing accessories stores
+    92: ["448000"],
+    # Nonstore retailers
+    93: ["454000"],
+    # All other retail
+    94: ["4B0000"],
+    # Air transportation
+    96: ["481000"],
+    # Rail transportation
+    97: ["482000"],
+    # Water transportation
+    98: ["483000"],
+    # Truck transportation
+    99: ["484000"],
+    # Transit and ground passenger transportation
+    100: ["485000"],
+    # Pipeline transportation
+    101: ["486000"],
+    # Scenic and sightseeing transportation and support activities
+    103: ["48A000"],
+    # Couriers and messengers
+    104: ["492000"],
+    # Warehousing and storage
+    105: ["493000"],
+    # Newspaper, periodical, book, and directory publishers
+    108: ["511110", "511120", "511130", "5111A0"],
+    # Software publishers
+    109: ["511200"],
+    # Motion picture and sound recording industries
+    110: ["512100", "512200"],
+    # Broadcasting (except Internet)
+    112: ["515100", "515200"],
+    # Wired telecommunications carriers
+    113: ["517110"],
+    # Wireless telecommunications carriers (except satellites)
+    114: ["517210"],
+    # Other telecommunications, including satellite
+    115: ["517A00"],
+    # Data processing, hosting, and related services
+    117: ["518200"],
+    # Other information services
+    118: ["519130", "5191A0"],
+    # Federal Reserve banks, credit intermediation, and related activities
+    121: ["522A00", "52A000"],
+    # Securities, commodity contracts, and investments
+    122: ["523900", "523A00"],
+    # Direct life insurance carriers
+    124: ["524113"],
+    # Insurance carriers, except direct life insurance
+    125: ["5241XX"],
+    # Agencies, brokerages, and other insurance related activities
+    126: ["524200"],
+    # Funds, trusts, and other financial vehicles
+    127: ["525000"],
+    # Owner-occupied housing
+    131: ["531HSO"],
+    # Tenant-occupied housing
+    132: ["531HST"],
+    # Other real estate
+    133: ["531ORE"],
+    # Rental and leasing services and lessors of intangible assets
+    134: ["532100", "532400", "532A00", "533000"],
+    # Legal services
+    137: ["541100"],
+    # Computer systems design and related services
+    138: ["541511", "541512", "54151A"],
+    # Accounting, tax preparation, bookkeeping, and payroll services
+    140: ["541200"],
+    # Architectural, engineering, and related services
+    141: ["541300"],
+    # Management, scientific, and technical consulting services
+    142: ["541610", "5416A0"],
+    # Scientific research and development services
+    143: ["541700"],
+    # Advertising, public relations, and related services
+    144: ["541800"],
+    # Specialized design services and other professional, scientific, and technical services
+    145: ["541400", "541920", "541940", "5419A0"],
+    # Management of companies and enterprises
+    146: ["550000"],
+    # Employment services
+    149: ["561300"],
+    # Services to buildings and dwellings
+    150: ["561700"],
+    # Other administrative and support services
+    151: ["561100", "561200", "561400", "561500", "561600", "561900"],
+    # Waste management and remediation services
+    152: ["562000"],
+    # Educational services
+    154: ["611100", "611A00", "611B00"],
+    # Offices of physicians
+    157: ["621100"],
+    # Offices of dentists
+    158: ["621200"],
+    # Offices of other health practitioners
+    159: ["621300"],
+    # Outpatient care centers
+    160: ["621400"],
+    # Other ambulatory health care services
+    161: ["621500", "621600", "621900"],
+    # Hospitals
+    162: ["622000"],
+    # Nursing and residential care facilities
+    163: ["623A00", "623B00"],
+    # Social assistance
+    164: ["624100", "624400", "624A00"],
+    # Performing arts, spectator sports, museums, and related activities
+    167: ["711100", "711200", "711500", "711A00", "712000"],
+    # Amusements, gambling, and recreation industries
+    168: ["713100", "713200", "713900"],
+    # Accommodation
+    170: ["721000"],
+    # Food services and drinking places
+    171: ["722110", "722211", "722A00"],
+    # Repair and maintenance
+    173: ["811100", "811200", "811300", "811400"],
+    # Personal and laundry services
+    174: ["812100", "812200", "812300", "812900"],
+    # Religious, grantmaking, civic, professional, and similar organizations
+    175: ["813100", "813A00", "813B00"],
+    # Private households
+    176: ["814000"],
+    # National defense
+    180: ["S00500"],
+    # Nondefense
+    181: ["S00600"],
+    # Government enterprises
+    182: ["491000", "S00101", "S00102"],
+    # State and local government educational services
+    185: ["GSLGE"],
+    # State and local government hospitals and health services
+    186: ["GSLGH"],
+    # State and local government other services
+    187: ["GSLGO"],
+    # Government enterprises
+    188: ["S00201", "S00202", "S00203"],
+}

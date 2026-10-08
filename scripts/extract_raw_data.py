@@ -9,6 +9,7 @@ from bedrock.utils.config.settings import extractpath
 
 FBA_RAW_DATA = (
     ('EIA_MECS_Energy', '2018'),
+    ('EIA_MECS_Energy', '2022'),
     ('USDA_CoA_Cropland', '2022'),
     ('USDA_CoA_Cropland_NAICS', '2022'),
 )

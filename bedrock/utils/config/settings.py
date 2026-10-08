@@ -46,6 +46,14 @@ NAME_SEP_CHAR = '.'
 # ^^^ Used to separate source/activity set names as part of 'full_name' attr
 
 
+#: Folder aliases for the name-prefix walk below. The walk derives a method's
+#: folder from its leading name tokens, so a family whose files live somewhere
+#: the walk cannot reach needs an explicit entry. ``detail`` -> ``iot``: the
+#: Detail_* SUT method yamls live beside the iot transform code they feed
+#: (``transform/iot/``), but their names necessarily start with ``Detail``.
+FOLDER_ALIASES: dict[str, str] = {'detail': 'iot'}
+
+
 def return_folder_path(base_path: Path | str, filename: str) -> Path:
     """
     Return the folder path of a file
@@ -62,6 +70,10 @@ def return_folder_path(base_path: Path | str, filename: str) -> Path:
         folder_path = base_path / folder
         if folder_path.is_dir():
             return folder_path
+
+        alias = FOLDER_ALIASES.get(folder)
+        if alias is not None and (base_path / alias).is_dir():
+            return base_path / alias
 
         if '_' not in folder:
             return base_path

@@ -1,0 +1,264 @@
+# Gross operating surplus - the SUT Use table's V00300 row.
+#
+# Step 2 of the nowcast (#535/#538). 7,873,013 in 2017, 41.6% of VABAS and the
+# second largest value-added row. Unlike V00100 it is a **seed only** in Step 5's
+# target set, deliberately unimposed so the income side stays out of sample -
+# which is what makes the deliberately plain construction below the right one
+# rather than a shortcut.
+#
+# ⚠️ ORIENTATION IS THE TRANSPOSE OF THE FINAL-DEMAND METHODS. See
+# NIPA_VA_othertax_2017.yaml, which documents the transpose and why both sector
+# columns are written only after attribution (#539).
+#
+# EIGHT CONTROLS, ONE INDUSTRY DISTRIBUTION.
+# V00300 has no NIPA table of its own; it is assembled from eight lines across
+# five tables. The 2017 figures below are what fixed the eight-line selection,
+# and there the assembly closes to **+13 on 7.87 trillion**; every later year
+# reads the same eight lines for its own `year`. All eight sit on the same line
+# numbers in all eight years 2017-2024, which is checked rather than assumed -
+# see value_added_control_totals.py:
+#
+#   T11000 W272RC  net interest and miscellaneous payments, domestic    720,494
+#   T70700 B029RC  business current transfer payments (net)             142,925
+#   T11000 A041RC  proprietors' income with IVA and CCAdj             1,428,634
+#   T70900 A048RC  rental income of persons with CCAdj                  642,028
+#   T61600D A445RC corporate profits with IVA/CCAdj, domestic         1,726,343
+#   T11000 A108RC  current surplus of government enterprises             -4,253
+#   T70500 A262RC  consumption of fixed capital, all sectors          3,148,953
+#   T11000 A030RC  statistical discrepancy                               67,902
+#
+# ⚠️ EACH OF THOSE NEEDS THE RIGHT LINE, NOT THE TABLE'S ROOT, THREE TIMES OVER.
+# Corporate profits must be the *domestic industries* line A445RC (T61600D's root
+# A051RC is 498,898 larger); net interest must include miscellaneous payments
+# (T11000 W272RC, not T61500D's root); consumption of fixed capital must be all
+# sectors (T70500 A262RC, since the Section 6 capital consumption tables are
+# business only). This is the same hazard #536 found across the compensation
+# tables - take the line, never the root.
+#
+# ⚠️ WHY NO COMPONENT-WISE INDUSTRY SPLIT, THOUGH FOUR COMPONENTS HAVE ONE.
+# The obvious build gives each component its own industry axis from its own "D"
+# table. It does not work, and the reason is arithmetic rather than effort: the
+# tables publish on **mutually incompatible partitions** - net interest 20
+# groups (T61500D), nonfarm proprietors 21 (T61200D), corporate profits
+# financial/nonfinancial plus 12 industries (T61600D), corporate capital
+# consumption 63 (T62200D) - and three components (business transfers, rental
+# income, the statistical discrepancy) have no industry axis at any scope. Their
+# common refinement is coarser than any one of them, so the components cannot be
+# reconciled to a single industry partition.
+#
+# And the cost of getting that wrong is now measured rather than guessed. The
+# same shape of mistake was made deliberately for compensation and priced:
+# splitting V00100 into wages (69 industry groups) and supplements (16) misplaces
+# **0.95% of that row**, because imposing a coarse group's rate on industries
+# whose own rates differ shifts real mass. A V00300 component build imposes four
+# different coarse partitions at once. See
+# analysis/nowcasting/compensation_allocation.py.
+#
+# ✅ THE ONE SOURCE THAT WOULD FIX IT EXISTS NOW - AND IT IS THE TEST SET.
+# BEA_GDPbyIndustry (table TVA113, Components of Value Added by Industry) does
+# state gross operating surplus by industry directly, annually, with no API key.
+# It is deliberately NOT used here.
+#
+# ⚠️ Measured: all 71 BEA summary industries' V003 match a TVA113 surplus row to
+# the dollar, and all 71 V001 match compensation the same way. BEA's industry
+# accounts and the SUTs are the same estimates published twice - so this is the
+# summary Use SUT by another door, and Step 5's Decision 3 holds the summary SUT
+# out of the target set precisely so it can grade the build.
+#
+# Wiring it in is a two-line change: swap this method's attribution source for
+# the TVA113 V00300 rows mapped to BEA detail. What that buys is a near-exact
+# V00300 seed at summary grain. What it costs is summary V003's ability to grade
+# that seed afterwards. That trade is a judgement about the testing strategy, not
+# about data availability, and it is left open rather than taken here. See
+# analysis/nowcasting/compensation_allocation.py and plan.md Step 5 Decision 3.
+#
+# ⚠️ NOTHING HERE MAY ASSUME POSITIVITY. S00201 state and local passenger transit
+# carries a V00300 of **-36,919** in the benchmark, and finance and insurance's
+# net interest is -156,707. A share method that clips at zero silently deletes
+# them.
+#
+# WHAT MAKES THIS THE LATER-YEAR FILE, AND WHY IT IS A SEED RATHER THAN A BUILD.
+# This is the year-2024 member of NIPA_VA_surplus_<year>. As in
+# NIPA_VA_othertax_<year>, the only thing that differs from the 2017 file is
+# `year`: the eight controls are read for this year, the benchmark attribution
+# source stays pinned at 2017, so the LEVEL moves on published NIPA and the
+# SHARES stay 2017's.
+#
+# ✅ THE LEVEL IS SOUND. The eight-line assembly reproduces the published
+# summary V003 row to $4M in 2017, 2018, 2023 and 2024, and grows 7,873,026 to
+# 12,388,445 (+57.4%) across the span.
+#
+# ⚠️ AND THE 2019-2022 "GAPS" ARE THE GRADER, NOT THE ASSEMBLY. Against the
+# summary SUT the assembly reads +0.23%, +1.01%, +2.37% and +2.64% too high in
+# 2019-2022 and exact either side, which looks like four bad years until the
+# same four are checked on a row this method does not touch: the summary
+# workbook's own VAPRO total sits below current-vintage UVA205-A by +0.09%,
+# +0.25%, +0.56% and +1.21% in exactly those years and matches to the dollar in
+# 2017, 2018, 2023 and 2024. The summary SUT workbooks for 2019-2022 are a
+# stale NIPA vintage. The assembly is on the current one, which is the same
+# vintage T18 pins VAPRO from, so it is the workbook that is behind. V00300
+# shows the discrepancy at roughly twice VAPRO's rate because it is the row a
+# NIPA revision lands in.
+#
+# ⚠️ THE FROZEN SHARES ARE MUCH WEAKER HERE THAN FOR T00OTOP - SIX TIMES SO.
+# Measured the same way, on the held-out summary SUT: composition drift against
+# 2017 is 4.19% in 2018 rising to 12.51% in 2022, where T00OTOP's is 1.01-2.10%.
+# That is not a bar this row passes, and it is not claimed to. Gross operating
+# surplus is a residual of residuals - it carries the statistical discrepancy,
+# corporate profits and consumption of fixed capital - so its industry mix moves
+# with the cycle in a way property tax does not. 2020 and 2021 are visible in
+# the series.
+#
+# ✅ WHY THAT IS ACCEPTABLE FOR THIS ROW AND WOULD NOT BE FOR T00OTOP.
+# Because T18 changed what this row is. With VAPRO pinned per industry
+# (nowcast_targets.industry_value_added_target), V00300 is the **residual the
+# balance solves for**: the T18 closer puts the whole per-industry value-added
+# discrepancy on it after each Use pass. So what Step 2 owes V00300 is a
+# starting point of the right sign and magnitude, not an estimate - the
+# distribution below is superseded by the balance, where T00OTOP's survives it.
+# A seed that is 12% off in composition and right in level is doing its job.
+#
+# ⚠️ WHICH IS ALSO WHY THIS FILE MUST NOT BE "IMPROVED" WITH TVA113.
+# TVA113 states gross operating surplus by summary industry annually and would
+# take that 12.51% to nearly nothing - it is the same estimate as the summary
+# V003 row this drift is measured against. That is exactly what makes it
+# unavailable: it is the grader. Decided 2026-08-26, and the decision is cheaper
+# to keep here than anywhere else in the family, because the seed this would
+# improve is the one row whose distribution the balance overwrites. See
+# analysis/nowcasting/value_added_timeseries.py.
+
+!include:BEA_detail_commodity_target.yaml
+year: &va_year 2024
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  # The 2017 benchmark V00300 row by industry, off the published Use SUT.
+  #
+  # ⚠️ WEIGHTS, NEVER LEVELS. The dollars come from the eight controls;
+  # `proportional` normalises within the attribution group, so the total holds by
+  # construction. With one industry group the weights are the benchmark shares,
+  # which is the whole of the industry structure this method claims to have.
+  #
+  # ⚠️ Expect "sector-like activity values not found in declared schema code
+  # lists - BEA: V00300", for the same reason NIPA_VA_compensation_2017.yaml
+  # documents: V00300 is a value-added row code reached through the
+  # BEA_2017_Code identity row in Sector_Crosswalk_BEA_2017_Detail.csv.
+  benchmark_V00300: &benchmark
+    # ⚠️ `year` stays 2017: this source IS the benchmark row, and 2017 is the
+    # only year BEA publishes a detail Use SUT for. The year being nowcast is
+    # the top-level `year` above, which is what the eight controls below read.
+    # Conflating the two would silently look for a table that does not exist.
+    year: 2017
+    activity_to_sector_mapping: BEA_2017_Detail
+    selection_fields:
+      ActivityProducedBy: V00300
+    exclusion_fields:
+      # The melted table carries the Use table's own totals alongside the 402
+      # industries, and they would double the row.
+      ActivityConsumedBy: ['T001', 'T004', 'T007', 'T019']
+    attribution_method: equal
+
+source_names:
+  BEA_NIPA:
+    geoscale: national
+    year: *va_year
+    data_format: FBA
+    clean_fba_before_activity_sets: !script_function:BEA_NIPA extract_table_info
+    clean_fba_w_sec: !script_function:BEA_NIPA drop_unassigned
+    activity_sets:
+
+      # One activity set per source table rather than one for all eight lines:
+      # selection_fields is an AND across columns, so a single set naming five
+      # tables and eight line numbers would take the cross product and pull the
+      # wrong lines from the wrong tables. Every set assigns the same alias, so
+      # they aggregate onto one V00300 row.
+
+      surplus_gross_domestic_income:
+        # The four T11000 (Table 1.10, Gross Domestic Income by Type of Income)
+        # lines. A030RC, the statistical discrepancy, is not allocable to any
+        # industry by any source - it rides the benchmark shares here and should
+        # be read as an artefact rather than a measurement.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00300
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T11000 # Table 1.10. Gross Domestic Income by Type of Income
+          Line: [11, # W272RC net interest and miscellaneous payments, domestic
+                 13, # A041RC proprietors' income with IVA and CCAdj
+                 20, # A108RC current surplus of government enterprises
+                 24] # A030RC statistical discrepancy
+        assign_fields:
+          ActivityProducedBy: V00300 all industries
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      surplus_business_transfers:
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00300
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T70700 # Table 7.7. Business Current Transfer Payments by Type
+          Line: 1 # B029RC, business current transfer payments (net)
+        assign_fields:
+          ActivityProducedBy: V00300 all industries
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      surplus_rental_income:
+        # ⚠️ 95.5% of this line is housing - T70405 B1035C is 612,969 of the
+        # 642,028 - so it is the component a lookup would improve most. That
+        # lookup is blocked by the same missing subtraction the T00OTOP housing
+        # lookup hit; see NIPA_VA_othertax_2017.yaml.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00300
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T70900 # Table 7.9. Rental Income of Persons by Legal Form
+          Line: 1 # A048RC, rental income of persons with CCAdj
+        assign_fields:
+          ActivityProducedBy: V00300 all industries
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      surplus_corporate_profits:
+        # ⚠️ Line 2, not line 1. A445RC is corporate profits for *domestic
+        # industries*; the root A051RC includes rest-of-world receipts less
+        # payments and is 498,898 larger. T61600D also restates B394RC on two
+        # lines (5 and 33), which is why #536 says select by line in this table.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00300
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T61600D # Table 6.16D. Corporate Profits by Industry
+          Line: 2 # A445RC, corporate profits with IVA and CCAdj, domestic industries
+        assign_fields:
+          ActivityProducedBy: V00300 all industries
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark
+
+      surplus_consumption_of_fixed_capital:
+        # ⚠️ All sectors, from Table 7.5 - the largest single component at 40% of
+        # the row. The Section 6 capital consumption tables (6.13D noncorporate,
+        # 6.22D corporate) are business only and do not sum to this.
+        activity_to_sector_mapping: BEA_NIPA_VA
+        clean_parameter: V00300
+        clean_fbs_after_aggregation: !clean_function:flowbyclean assign_use_row_from_clean_parameter
+        selection_fields:
+          Table: T70500 # Table 7.5. Consumption of Fixed Capital by Legal Form
+          Line: 1 # A262RC, consumption of fixed capital, all sectors
+        assign_fields:
+          ActivityProducedBy: V00300 all industries
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Use_SUT:
+            <<: *benchmark

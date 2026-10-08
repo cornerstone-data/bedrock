@@ -1,0 +1,272 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Note
+BTS_FAF,Alcoholic beverages,BEA_2017_Code,312120,,Alcoholic Beverages and Denatured Alcohol
+BTS_FAF,Alcoholic beverages,BEA_2017_Code,312130,,Alcoholic Beverages and Denatured Alcohol
+BTS_FAF,Alcoholic beverages,BEA_2017_Code,312140,,Alcoholic Beverages and Denatured Alcohol
+BTS_FAF,Animal feed,BEA_2017_Code,112300,,"Animal Feed, Eggs, Honey, and Other Products of Animal Origin"
+BTS_FAF,Animal feed,BEA_2017_Code,311111,,"Animal Feed, Eggs, Honey, and Other Products of Animal Origin"
+BTS_FAF,Animal feed,BEA_2017_Code,311119,,"Animal Feed, Eggs, Honey, and Other Products of Animal Origin"
+BTS_FAF,Articles-base metal,BEA_2017_Code,332114,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,33211A,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332200,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332310,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332320,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332410,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332420,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332430,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332500,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332600,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332710,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332720,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332800,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332913,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,33291A,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332991,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332996,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,332999,,Articles of Base Metal
+BTS_FAF,Articles-base metal,BEA_2017_Code,33299A,,Articles of Base Metal
+BTS_FAF,Base metals,BEA_2017_Code,331110,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331200,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331313,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,33131B,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331410,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331420,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331490,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331510,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Base metals,BEA_2017_Code,331520,,Base Metal in Primary or Semi-Finished Forms and in Finished Basic Shapes
+BTS_FAF,Basic chemicals,BEA_2017_Code,325110,,Basic Chemicals
+BTS_FAF,Basic chemicals,BEA_2017_Code,325120,,Basic Chemicals
+BTS_FAF,Basic chemicals,BEA_2017_Code,325130,,Basic Chemicals
+BTS_FAF,Basic chemicals,BEA_2017_Code,325180,,Basic Chemicals
+BTS_FAF,Basic chemicals,BEA_2017_Code,325190,,Basic Chemicals
+BTS_FAF,Building stone,BEA_2017_Code,212310,,Monumental or Building Stone
+BTS_FAF,Cereal grains,BEA_2017_Code,1111B0,,Cereal Grains (includes seed)
+BTS_FAF,Chemical prods.,BEA_2017_Code,325320,,Other Chemical Products and Preparations
+BTS_FAF,Chemical prods.,BEA_2017_Code,325510,,Other Chemical Products and Preparations
+BTS_FAF,Chemical prods.,BEA_2017_Code,325520,,Other Chemical Products and Preparations
+BTS_FAF,Chemical prods.,BEA_2017_Code,325610,,Other Chemical Products and Preparations
+BTS_FAF,Chemical prods.,BEA_2017_Code,325620,,Other Chemical Products and Preparations
+BTS_FAF,Chemical prods.,BEA_2017_Code,325910,,Other Chemical Products and Preparations
+BTS_FAF,Chemical prods.,BEA_2017_Code,3259A0,,Other Chemical Products and Preparations
+BTS_FAF,Coal,BEA_2017_Code,212100,,Coal
+BTS_FAF,Crude petroleum,BEA_2017_Code,211000,,Crude Petroleum
+BTS_FAF,Electronics,BEA_2017_Code,334111,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334112,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334118,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334210,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334220,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334290,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334300,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334413,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,334418,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,33441A,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335210,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335220,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335311,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335312,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335313,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335911,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335912,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335920,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335930,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335991,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,335999,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,336320,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,511200,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,512100,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,512200,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Electronics,BEA_2017_Code,S00402,,"Electronic and Other Electrical Equipment and Components, and Office Equipment"
+BTS_FAF,Fertilizers,BEA_2017_Code,325310,,Fertilizers
+BTS_FAF,Fuel oils,BEA_2017_Code,324110,,"Fuel Oils (includes Diesel, Bunker C, and Biodiesel)"
+BTS_FAF,Furniture,BEA_2017_Code,335110,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,335120,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,337110,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,337121,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,337122,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,337127,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,33712N,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,337215,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,33721A,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,337900,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,339950,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Furniture,BEA_2017_Code,S00402,,"Furniture, Mattresses and Mattress Supports, Lamps, Lighting Fittings, and Illuminated Signs"
+BTS_FAF,Gasoline,BEA_2017_Code,324110,,"Gasoline, Aviation Turbine Fuel, and Ethanol (includes Kerosene, and Fuel Alcohols)"
+BTS_FAF,Gasoline,BEA_2017_Code,324121,,"Gasoline, Aviation Turbine Fuel, and Ethanol (includes Kerosene, and Fuel Alcohols)"
+BTS_FAF,Gasoline,BEA_2017_Code,324122,,"Gasoline, Aviation Turbine Fuel, and Ethanol (includes Kerosene, and Fuel Alcohols)"
+BTS_FAF,Gravel,BEA_2017_Code,212310,,Gravel and Crushed Stone (excludes Dolomite and Slate)
+BTS_FAF,Live animals/fish,BEA_2017_Code,1121A0,,Animals and Fish (live)
+BTS_FAF,Live animals/fish,BEA_2017_Code,112A00,,Animals and Fish (live)
+BTS_FAF,Live animals/fish,BEA_2017_Code,114000,,Animals and Fish (live)
+BTS_FAF,Logs,BEA_2017_Code,113000,,Logs and Other Wood in the Rough
+BTS_FAF,Machinery,BEA_2017_Code,333111,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333112,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333120,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333130,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333242,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,33329A,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333314,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333316,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333318,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333413,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333414,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333415,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333511,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333514,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333517,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,33351B,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333611,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333612,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333613,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333618,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333912,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333914,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333920,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333991,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333993,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,333994,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,33399A,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,33399B,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,336310,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,336350,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,336412,,Machinery
+BTS_FAF,Machinery,BEA_2017_Code,S00402,,Machinery
+BTS_FAF,Meat/seafood,BEA_2017_Code,112300,,"Meat, Poultry, Fish, Seafood, and Their Preparations"
+BTS_FAF,Meat/seafood,BEA_2017_Code,311615,,"Meat, Poultry, Fish, Seafood, and Their Preparations"
+BTS_FAF,Meat/seafood,BEA_2017_Code,31161A,,"Meat, Poultry, Fish, Seafood, and Their Preparations"
+BTS_FAF,Meat/seafood,BEA_2017_Code,311700,,"Meat, Poultry, Fish, Seafood, and Their Preparations"
+BTS_FAF,Metallic ores,BEA_2017_Code,212230,,Metallic Ores and Concentrates
+BTS_FAF,Metallic ores,BEA_2017_Code,2122A0,,Metallic Ores and Concentrates
+BTS_FAF,Milled grain prods.,BEA_2017_Code,112120,,"Milled Grain Products and Preparations, and Bakery Products"
+BTS_FAF,Milled grain prods.,BEA_2017_Code,311210,,"Milled Grain Products and Preparations, and Bakery Products"
+BTS_FAF,Milled grain prods.,BEA_2017_Code,311221,,"Milled Grain Products and Preparations, and Bakery Products"
+BTS_FAF,Milled grain prods.,BEA_2017_Code,311230,,"Milled Grain Products and Preparations, and Bakery Products"
+BTS_FAF,Milled grain prods.,BEA_2017_Code,311810,,"Milled Grain Products and Preparations, and Bakery Products"
+BTS_FAF,Milled grain prods.,BEA_2017_Code,3118A0,,"Milled Grain Products and Preparations, and Bakery Products"
+BTS_FAF,Misc. mfg. prods.,BEA_2017_Code,336414,,Miscellaneous Manufactured Products
+BTS_FAF,Misc. mfg. prods.,BEA_2017_Code,339910,,Miscellaneous Manufactured Products
+BTS_FAF,Misc. mfg. prods.,BEA_2017_Code,339920,,Miscellaneous Manufactured Products
+BTS_FAF,Misc. mfg. prods.,BEA_2017_Code,339930,,Miscellaneous Manufactured Products
+BTS_FAF,Misc. mfg. prods.,BEA_2017_Code,339990,,Miscellaneous Manufactured Products
+BTS_FAF,Mixed freight,BEA_2017_Code,339940,,Mixed Freight
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336111,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336112,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336120,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336211,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336212,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336213,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336214,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336360,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336370,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336390,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,3363A0,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336991,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,336992,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Motorized vehicles,BEA_2017_Code,S00402,,Motorized and Other Vehicles (includes parts)
+BTS_FAF,Natural gas and other fossil products,BEA_2017_Code,324190,,"Other Coal and Petroleum Products, not elsewhere classified"
+BTS_FAF,Natural sands,BEA_2017_Code,212310,,Natural Sands
+BTS_FAF,Newsprint/paper,BEA_2017_Code,322110,,"Pulp, Newsprint, Paper, and Paperboard"
+BTS_FAF,Newsprint/paper,BEA_2017_Code,322120,,"Pulp, Newsprint, Paper, and Paperboard"
+BTS_FAF,Newsprint/paper,BEA_2017_Code,322130,,"Pulp, Newsprint, Paper, and Paperboard"
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327100,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327200,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327310,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327320,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327330,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327390,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327400,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327910,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327991,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327992,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327993,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,327999,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetal min. prods.,BEA_2017_Code,332119,,Non-Metallic Mineral Products
+BTS_FAF,Nonmetallic minerals,BEA_2017_Code,2123A0,,Other Non-Metallic Minerals not elsewhere classified
+BTS_FAF,Other ag prods.,BEA_2017_Code,1111A0,,"Agricultural Products (excludes Animal Feed, Cereal Grains, and Forage Products)"
+BTS_FAF,Other ag prods.,BEA_2017_Code,111200,,"Agricultural Products (excludes Animal Feed, Cereal Grains, and Forage Products)"
+BTS_FAF,Other ag prods.,BEA_2017_Code,111300,,"Agricultural Products (excludes Animal Feed, Cereal Grains, and Forage Products)"
+BTS_FAF,Other ag prods.,BEA_2017_Code,111400,,"Agricultural Products (excludes Animal Feed, Cereal Grains, and Forage Products)"
+BTS_FAF,Other ag prods.,BEA_2017_Code,111900,,"Agricultural Products (excludes Animal Feed, Cereal Grains, and Forage Products)"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311224,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311225,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311300,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311410,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311420,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311513,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311514,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,31151A,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311520,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311910,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311920,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311930,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311940,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,311990,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Other foodstuffs,BEA_2017_Code,312110,,"Other Prepared Foodstuffs, Fats and Oils"
+BTS_FAF,Paper articles,BEA_2017_Code,322210,,Paper or Paperboard Articles
+BTS_FAF,Paper articles,BEA_2017_Code,322220,,Paper or Paperboard Articles
+BTS_FAF,Paper articles,BEA_2017_Code,322230,,Paper or Paperboard Articles
+BTS_FAF,Paper articles,BEA_2017_Code,322291,,Paper or Paperboard Articles
+BTS_FAF,Paper articles,BEA_2017_Code,322299,,Paper or Paperboard Articles
+BTS_FAF,Pharmaceuticals,BEA_2017_Code,325411,,Pharmaceutical Products
+BTS_FAF,Pharmaceuticals,BEA_2017_Code,325412,,Pharmaceutical Products
+BTS_FAF,Pharmaceuticals,BEA_2017_Code,325413,,Pharmaceutical Products
+BTS_FAF,Pharmaceuticals,BEA_2017_Code,325414,,Pharmaceutical Products
+BTS_FAF,Plastics/rubber,BEA_2017_Code,325211,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,3252A0,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326110,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326120,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326130,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326140,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326150,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326160,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326190,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326210,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326220,,Plastics and Rubber
+BTS_FAF,Plastics/rubber,BEA_2017_Code,326290,,Plastics and Rubber
+BTS_FAF,Precision instruments,BEA_2017_Code,334510,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334511,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334512,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334513,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334514,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334515,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334516,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334517,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,33451A,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,334610,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,335314,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,339112,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,339113,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,339114,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,339115,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,339116,,Precision Instruments and Apparatus
+BTS_FAF,Precision instruments,BEA_2017_Code,S00402,,Precision Instruments and Apparatus
+BTS_FAF,Printed prods.,BEA_2017_Code,323110,,Printed Products
+BTS_FAF,Printed prods.,BEA_2017_Code,323120,,Printed Products
+BTS_FAF,Printed prods.,BEA_2017_Code,511110,,Printed Products
+BTS_FAF,Printed prods.,BEA_2017_Code,511120,,Printed Products
+BTS_FAF,Printed prods.,BEA_2017_Code,511130,,Printed Products
+BTS_FAF,Printed prods.,BEA_2017_Code,5111A0,,Printed Products
+BTS_FAF,Printed prods.,BEA_2017_Code,S00402,,Printed Products
+BTS_FAF,Textiles/leather,BEA_2017_Code,313100,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,313200,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,313300,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,314110,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,314120,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,314900,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,315000,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,316000,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Textiles/leather,BEA_2017_Code,S00402,,"Textiles, Leather, and Articles of Textiles or Leather"
+BTS_FAF,Tobacco prods.,BEA_2017_Code,312200,,Tobacco Products
+BTS_FAF,Transport equip.,BEA_2017_Code,336411,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,336413,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,336414,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,33641A,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,336500,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,336611,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,336612,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,336999,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Transport equip.,BEA_2017_Code,S00402,,"Transportation Equipment, not elsewhere classified"
+BTS_FAF,Waste/scrap,BEA_2017_Code,562000,,Waste and Scrap (excludes of agriculture or food)
+BTS_FAF,Waste/scrap,BEA_2017_Code,S00401,,Waste and Scrap (excludes of agriculture or food)
+BTS_FAF,Wood prods.,BEA_2017_Code,321100,,Wood Products
+BTS_FAF,Wood prods.,BEA_2017_Code,321200,,Wood Products
+BTS_FAF,Wood prods.,BEA_2017_Code,321910,,Wood Products
+BTS_FAF,Wood prods.,BEA_2017_Code,3219A0,,Wood Products

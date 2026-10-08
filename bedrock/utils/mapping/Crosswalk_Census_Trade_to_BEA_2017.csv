@@ -1,0 +1,31 @@
+kind,census_code,bea_2017_commodity,note
+wholesale,4231,423100,Motor vehicle and motor vehicle parts and supplies
+wholesale,4234,423400,Professional and commercial equipment and supplies
+wholesale,4236,423600,Household appliances and electrical and electronic goods
+wholesale,4238,423800,"Machinery, equipment, and supplies"
+wholesale,4232,423A00,Furniture and home furnishings
+wholesale,4233,423A00,Lumber and other construction materials
+wholesale,4235,423A00,Metal and mineral except petroleum
+wholesale,4237,423A00,Hardware and plumbing and heating equipment
+wholesale,4239,423A00,Miscellaneous durable goods
+wholesale,4242,424200,Drugs and druggists' sundries
+wholesale,4244,424400,Grocery and related products
+wholesale,4247,424700,Petroleum and petroleum products
+wholesale,4241,424A00,Paper and paper products
+wholesale,4243,424A00,"Apparel, piece goods and notions"
+wholesale,4245,424A00,Farm product raw materials
+wholesale,4246,424A00,Chemicals and allied products
+wholesale,4248,424A00,Beer and wine and distilled beverages
+wholesale,4249,424A00,Miscellaneous nondurable goods
+retail,441,441000,Motor vehicle and parts dealers
+retail,444,444000,Building material and garden equipment and supplies dealers
+retail,445,445000,Food and beverage stores
+retail,446,446000,Health and personal care stores
+retail,447,447000,Gasoline stations
+retail,448,448000,Clothing and clothing accessories stores
+retail,452,452000,General merchandise stores
+retail,454,454000,Nonstore retailers
+retail,442,4B0000,Furniture and home furnishings stores
+retail,443,4B0000,Electronics and appliance stores
+retail,451,4B0000,"Sporting goods, hobby, book and music stores"
+retail,453,4B0000,Miscellaneous store retailers

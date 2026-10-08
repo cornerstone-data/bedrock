@@ -1,0 +1,20 @@
+# v05_waterfall G2 — "Model reconciliation" rung: v0.5 less facility GHG, less
+# nowcasting and less the US data update. Bedrock methods on published BEA 2017
+# detail with 2023 UMD GHG / IO data, at IO@2024 producer footing.
+#
+# The flags resolve identically to v04_waterfall_g2_methods, on purpose: code and
+# method YAML that landed since v0.4 reach the rung without a flag, so this minus
+# v04's G2 snapshot is bedrock drift. The GHG side is the newest GCS parquet for
+# GHG_national_Cornerstone_2023.
+
+model_base_year: 2024
+price_type: producer
+
+usa_ghg_data_year: 2023
+
+use_cornerstone_ghg_model: true
+apply_io_year_adjustments: true
+implement_waste_disaggregation: true
+
+scale_a_matrix_with_useeio_method: false
+cornerstone_industry_avg_margins: true

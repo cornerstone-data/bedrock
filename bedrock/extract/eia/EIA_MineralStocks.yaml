@@ -1,0 +1,43 @@
+# EIA end-of-year mineral stocks - crude oil, natural gas and coal.
+#
+# The mining branch of `F03000` (#529/#660). Full reasoning, the route quirks and
+# the benchmark level check are in `EIA_MineralStocks.py`'s module docstring and
+# in `analysis/nowcasting/inventories_estimation_plan.md`.
+#
+# ⚠️ **Stock levels in physical units, not changes and not dollars.** Differencing
+# across years imports holding gains that CIPI excludes through the inventory
+# valuation adjustment, and converting to dollars needs a price that reintroduces
+# them. Structure from here, level from NIPA.
+#
+# ⚠️ **Class is `Other`, not `Money`.** These are MBBL, MMcf and thousand short
+# tons. A `Class: Money` selection must not reach them.
+#
+# ⚠️ **`url` is a placeholder.** The three commodities answer on three different
+# route shapes - crude annual, gas monthly-only, coal needing an explicit period
+# sort - so `eia_mineral_stocks_url_helper` builds all three and this template is
+# never called directly.
+
+author: US Energy Information Administration
+source_name: EIA end-of-year mineral stocks
+source_url: https://www.eia.gov/opendata/
+bib_id: eia_opendata
+api_name: EIA
+api_key_required: true
+format: json
+url:
+  # ⚠️ `__apiKey__` is substituted by generateflowbyactivity before the url
+  # helper runs, and the helper reads the key back out of this string.
+  base_url: "https://api.eia.gov/v2/?api_key=__apiKey__"
+url_replace_fxn: !script_function:EIA_MineralStocks eia_mineral_stocks_url_helper
+call_response_fxn: !script_function:EIA_MineralStocks eia_mineral_stocks_call
+parse_response_fxn: !script_function:EIA_MineralStocks eia_mineral_stocks_parse
+
+years:
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020
+- 2021
+- 2022
+- 2023

@@ -10,9 +10,13 @@ import pytest
 
 import bedrock.transform.eeio.derived_cornerstone as derived_cornerstone
 from bedrock.extract.disaggregation.egrid_generation import (
+    eia_table_2_14_export_mwh,
+    eia_table_2_14_year_for_egrid_year,
+    load_egrid_flowbyfacility,
     load_egrid_ggl,
     us_total_net_generation_mwh,
 )
+from bedrock.utils.validation.exceptions import FBANotAvailableError
 
 # eGRID 2022 workbook, US sheet: USNGENAN ("U.S. annual net generation (MWh)")
 _EGRID_2022_NET_GENERATION_MWH = 4_240_140_533
@@ -36,6 +40,78 @@ def test_derive_cornerstone_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
     assert out is not fake
 
 
+def _fake_flowbyfacility() -> pd.DataFrame:
+    return pd.DataFrame(
+        {'FlowName': ['Electricity'], 'FlowAmount': [1.0], 'Unit': ['MJ']}
+    )
+
+
+def test_load_egrid_flowbyfacility_uses_cache_or_remote_when_present() -> None:
+    fake = _fake_flowbyfacility()
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            return_value=fake,
+        ) as read,
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+    ):
+        out = load_egrid_flowbyfacility(2024, download_if_missing=True)
+    pd.testing.assert_frame_equal(out, fake)
+    read.assert_called_once()
+    generate.assert_not_called()
+
+
+def test_load_egrid_flowbyfacility_generates_from_source_after_remote_miss() -> None:
+    fake = _fake_flowbyfacility()
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            side_effect=[None, fake],
+        ) as read,
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+    ):
+        out = load_egrid_flowbyfacility(2024, download_if_missing=True)
+    pd.testing.assert_frame_equal(out, fake)
+    generate.assert_called_once_with('eGRID', 2024)
+    assert read.call_count == 2
+    assert read.call_args_list[0].kwargs['download_if_missing'] is True
+    assert read.call_args_list[1].kwargs['download_if_missing'] is False
+
+
+def test_load_egrid_flowbyfacility_does_not_generate_when_download_disabled() -> None:
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            return_value=None,
+        ),
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+        pytest.raises(FileNotFoundError, match='not available for 2024'),
+    ):
+        load_egrid_flowbyfacility(2024, download_if_missing=False)
+    generate.assert_not_called()
+
+
+def test_load_egrid_flowbyfacility_raises_if_generate_still_missing() -> None:
+    with (
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.read_inventory',
+            return_value=None,
+        ),
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.generate_inventory'
+        ) as generate,
+        pytest.raises(FileNotFoundError, match='not available for 2024'),
+    ):
+        load_egrid_flowbyfacility(2024, download_if_missing=True)
+    generate.assert_called_once_with('eGRID', 2024)
+
+
 @pytest.mark.eeio_integration
 def test_us_total_net_generation_mwh_2022_matches_stewi_egrid() -> None:
     """US net generation matches eGRID 2022 Excel US tab USNGENAN."""
@@ -54,3 +130,54 @@ def test_load_egrid_ggl_2018_us_grid_gross_loss() -> None:
     ggl = load_egrid_ggl(2018, download_if_missing=True)
     us_row = ggl.loc[ggl["region"] == "U.S.", "grid_gross_loss"].iloc[0]
     assert math.isclose(us_row, 0.048681, rel_tol=0, abs_tol=1e-6)
+
+
+def _table_2_14_fba(year: int, *, canada_mwh: float, mexico_mwh: float) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            'Year': [year, year],
+            'FlowName': ['electricity exports', 'electricity exports'],
+            'Description': ['Table 2.14 trade', 'Table 2.14 trade'],
+            'Location': ['Canada', 'Mexico'],
+            'FlowAmount': [canada_mwh, mexico_mwh],
+        }
+    )
+
+
+def test_eia_table_2_14_export_mwh_requires_exact_year() -> None:
+    def fake_epa(year: int) -> pd.DataFrame:
+        if year == 2024:
+            raise FBANotAvailableError(year=2024)
+        if year == 2022:
+            return _table_2_14_fba(2022, canada_mwh=100.0, mexico_mwh=50.0)
+        raise FBANotAvailableError(year=year)
+
+    eia_table_2_14_export_mwh.cache_clear()
+    try:
+        with patch(
+            'bedrock.extract.disaggregation.egrid_generation._epa_fba',
+            side_effect=fake_epa,
+        ):
+            with pytest.raises(FBANotAvailableError):
+                eia_table_2_14_export_mwh(2024)
+            assert eia_table_2_14_export_mwh(2022) == 150.0
+    finally:
+        eia_table_2_14_export_mwh.cache_clear()
+
+
+def test_eia_table_2_14_year_for_egrid_year_when_table_lags() -> None:
+    def fake_epa(year: int) -> pd.DataFrame:
+        if year == 2022:
+            return _table_2_14_fba(2022, canada_mwh=10.0, mexico_mwh=5.0)
+        raise FBANotAvailableError(year=year)
+
+    eia_table_2_14_year_for_egrid_year.cache_clear()
+    try:
+        with patch(
+            'bedrock.extract.disaggregation.egrid_generation._epa_fba',
+            side_effect=fake_epa,
+        ):
+            assert eia_table_2_14_year_for_egrid_year(2024) == 2022
+            assert eia_table_2_14_year_for_egrid_year(2022) == 2022
+    finally:
+        eia_table_2_14_year_for_egrid_year.cache_clear()

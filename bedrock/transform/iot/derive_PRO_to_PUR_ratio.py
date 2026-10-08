@@ -18,7 +18,10 @@ import functools
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.io_2017 import load_2017_margins_usa
+from bedrock.extract.iot.detail_io import (
+    load_detail_margins_by_sector_usa,
+    load_detail_margins_usa,
+)
 from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
@@ -29,6 +32,10 @@ from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_sector_commodity_price_ratio,
 )
 from bedrock.utils.taxonomy.bea.v2017_final_demand import USA_2017_FINAL_DEMAND_CODES
+from bedrock.utils.taxonomy.mappings.bea_v2017_sector__cornerstone_commodity import (
+    MARGIN_TYPE_TO_BEA_SECTOR_CODE,
+    load_margin_type_to_cornerstone_commodity,
+)
 from bedrock.utils.taxonomy.usa_taxonomy_correspondence_helpers import (
     USA_2017_COMMODITY_INDEX,
     load_usa_2017_commodity__cornerstone_commodity_correspondence,
@@ -185,7 +192,7 @@ def _margins_by_commodity(
     abs_negative_margin_columns: bool = False,
 ) -> pd.DataFrame:
     """Load raw margins, apply ``filters``, and sum to per-commodity totals."""
-    df = _apply_margins_filter(load_2017_margins_usa(), filters)
+    df = _apply_margins_filter(load_detail_margins_usa(), filters)
     df = _margin_negatives_treatment(
         df,
         abs_negative_producers_value=abs_negative_producers_value,
@@ -269,6 +276,76 @@ def derive_margins_cornerstone_usa() -> pd.DataFrame:
     return derive_margins_cornerstone_usa_at_year(get_usa_config().model_base_year)
 
 
+@functools.cache
+def derive_margin_sectors_cornerstone_usa_at_year(
+    target_year: int,
+) -> pd.DataFrame | None:
+    """Margin dollars by purchased commodity and margin commodity, Cornerstone codes.
+
+    Rows are purchased Cornerstone commodities, columns the Cornerstone margin
+    commodities (wholesale, retail and transport codes), in USD. It is the
+    per-sector counterpart of :func:`derive_margins_cornerstone_usa_at_year`,
+    built with the same filters, negatives treatment and inflation, so each
+    family's columns sum to that function's ``Wholesale``, ``Retail`` and
+    ``Transportation`` columns (#836).
+
+    ``None`` when the detail source has no per-sector split, which is the case
+    for BEA's published tables.
+    """
+    raw = load_detail_margins_by_sector_usa()
+    if raw is None:
+        return None
+    cfg = get_usa_config()
+    filters = _get_active_margins_filters()
+    df = _apply_margins_filter(raw, filters)
+    if cfg.cornerstone_industry_avg_margins:
+        # abs_negative_margin_columns flips a row's *type* total when it is
+        # negative. Flip that row's sector cells of the same type together, so
+        # they still sum to exactly the flipped total; taking each cell's
+        # absolute value would not, wherever a row mixes signs.
+        types = _apply_margins_filter(load_detail_margins_usa(), filters)
+        family: dict[str, str] = {
+            str(code): margin_type
+            for margin_type, codes in load_margin_type_to_cornerstone_commodity().items()
+            for code in codes
+        }
+        unknown = [c for c in df.columns if c not in family]
+        if unknown:
+            raise ValueError(f'margin commodities in no margin type: {unknown}')
+        df = df.copy()
+        for margin_type in MARGIN_TYPE_TO_BEA_SECTOR_CODE:
+            columns = [c for c in df.columns if family[c] == margin_type]
+            negative = (types[margin_type].reindex(df.index) < 0).to_numpy()
+            df.loc[negative, columns] = -df.loc[negative, columns]
+    by_commodity = (
+        df.groupby(level='Commodity Code')
+        .sum()
+        .reindex(USA_2017_COMMODITY_INDEX)
+        .fillna(0.0)
+    )
+    corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
+    to_margin = corresp.loc[:, list(by_commodity.columns)]
+    receiving = to_margin.index[to_margin.to_numpy().sum(axis=1) > 0]
+    out = (corresp @ by_commodity) @ to_margin.loc[receiving].T
+    if (cfg.useeio_margins or cfg.cornerstone_industry_avg_margins) and (
+        cfg.usa_base_io_data_year != target_year
+    ):
+        sector_pi = get_sector_commodity_price_ratio(
+            cfg.usa_base_io_data_year, target_year
+        )
+        for margin_type, codes in load_margin_type_to_cornerstone_commodity().items():
+            present = [c for c in codes if c in out.columns]
+            out[present] *= sector_pi[MARGIN_TYPE_TO_BEA_SECTOR_CODE[margin_type]]
+    return out
+
+
+def derive_margin_sectors_cornerstone_usa() -> pd.DataFrame | None:
+    """Per-sector margins at ``model_base_year``; see the ``_at_year`` form."""
+    return derive_margin_sectors_cornerstone_usa_at_year(
+        get_usa_config().model_base_year
+    )
+
+
 def _phi_from_margins(margins: pd.DataFrame) -> pd.Series[float]:
     return (margins["Producers' Value"] / margins["Purchasers' Value"]).replace(
         [np.inf, -np.inf, np.nan], 1.0
@@ -320,6 +397,44 @@ def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
     return pd.DataFrame(series_by_year)
 
 
+@functools.cache
+def derive_phi_cornerstone_usa_panel_published(
+    years: tuple[int, ...],
+) -> pd.DataFrame:
+    """Published Phi panel for snapshots and ``get_Phi``.
+
+    Builds the margin panel, applies electricity producer-price overrides
+    (G/T/D → 1.0 under disaggregation; ``221100`` → 1.0 under reaggregation),
+    and under reaggregation drops G/T/D and reindexes to
+    ``CORNERSTONE_COMMODITIES``.
+    """
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_reaggregation_enabled,
+    )
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        CORNERSTONE_COMMODITIES,
+        ELECTRICITY_DISAGG_SECTORS,
+    )
+
+    panel = derive_phi_cornerstone_usa_panel(years).astype(float)
+    cfg = get_usa_config()
+    if electricity_reaggregation_enabled():
+        panel = panel.drop(
+            index=[c for c in ELECTRICITY_DISAGG_SECTORS if c in panel.index],
+            errors='ignore',
+        )
+        panel.loc['221100'] = 1.0
+        out = panel.reindex(CORNERSTONE_COMMODITIES)
+    else:
+        out = panel.copy()
+        if cfg.implement_electricity_disaggregation:
+            for code in ELECTRICITY_DISAGG_SECTORS:
+                if code in out.index:
+                    out.loc[code] = 1.0
+    out.index.name = 'sector'
+    return out
+
+
 def margins_phi_active(cfg: USAConfig | None = None) -> bool:
     """Return whether margins-based Phi should be applied for *cfg*."""
     c = cfg or get_usa_config()
@@ -333,11 +448,20 @@ def phi_for_sectors(
 ) -> pd.Series[float]:
     """Phi aligned to *sector_index* at *year* USD; identity when margins inactive."""
     if not margins_phi_active():
-        return pd.Series(1.0, index=sector_index, dtype=float)
-    phi_year = year if year is not None else get_usa_config().model_base_year
-    return derive_phi_cornerstone_usa_at_year(phi_year).reindex(
-        sector_index, fill_value=1.0
-    )
+        phi = pd.Series(1.0, index=sector_index, dtype=float)
+    else:
+        phi_year = year if year is not None else get_usa_config().model_base_year
+        phi = derive_phi_cornerstone_usa_at_year(phi_year).reindex(
+            sector_index, fill_value=1.0
+        )
+    if get_usa_config().implement_electricity_disaggregation:
+        for code in ('221110', '221121', '221122'):
+            if code in phi.index:
+                phi.loc[code] = 1.0
+    if get_usa_config().implement_electricity_reaggregation:
+        if '221100' in phi.index:
+            phi.loc['221100'] = 1.0
+    return phi
 
 
 def apply_phi_to_ef_vector(

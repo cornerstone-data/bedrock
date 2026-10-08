@@ -1,0 +1,64 @@
+# Cornerstone 2025 model - v0.5 release config.
+#
+# The v0.4 configuration on the v0.5 nowcast build:
+#   - Detail MUT from the NowcastMUT after-redefinition build named by
+#     nowcast_mut_vintage: v0.3.0_3096818, the Steps 3-7 rebuild at
+#     30968183 (2026-09-30, #1056). It is the 6abf5c0 build plus the
+#     manufacturing expense seed smoothed across survey changes: each
+#     industry's share of a kind's survey total is benchmarked to the 2017 and
+#     2022 censuses and smoothed over the ASM years, with AIES chained (#1053).
+#     It keeps #1033's cement and ready-mix chain and data processing's
+#     electricity on LBNL (#1041), now the code default. All eight years
+#     balance (T11 0.0 $M) and T17 matches 6abf5c0.
+#     It carries the gross output and theta stack (#1014, #1016, #1018), the
+#     residential electricity constraint (#1011), the Step 5 closers (#950),
+#     the scrap price path (#1026), the census materials switch at 1.0 (#1020),
+#     and electricity on EIA (#1030): 221100 output rebased on EIA, its price
+#     carry on EIA's retail price, and the services seed chained across the
+#     SAS -> AIES change. It supersedes v0.3.0_6abf5c0 (the same build without
+#     the seed smoothing) and v0.3.0_fa85e78 (EIA rebase still off).
+#                                        -> usa_detail_io_source: nowcast, usa_base_io_data_year: 2024
+#   - Facility GHG attribution on the nowcast Use
+#                                        -> use_facility_ghg_attribution: True
+#     selects GHG_national_Cornerstone_nowcast_facilities_{year}.
+#     Waste disaggregation, industry-average margins,
+#     and no IO year adjustments as in v0.4.
+#
+# The GHG FBS is not pinned by this config: use_cornerstone_ghg_model with nowcast +
+# use_facility_ghg_attribution loads the newest GCS parquet for
+# GHG_national_Cornerstone_nowcast_facilities_2024. The v0.5 release FBS, built
+# from main 3a1dddc2 on the 3096818 tables (#1055, #1059; GHGRP sector floor and
+# ceiling, still gas, hydrogen and LNG carve-outs, #1061) with the stewi inputs
+# pinned in stewi_facility_pin.json (#1066), is
+#   GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
+#   sha256 7cc30cb922bb054e01122d4786b63d7ff23431121c934c22a8b8aa9c9b4f66c7
+# and the v0.5 snapshot (3a1dddc2) was cut on it. A newer upload for that stem
+# would change this config's output; check the vintage before reusing it.
+#
+# nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
+# reproducible even after newer nowcast builds are uploaded; move the pin only
+# when a new build is accepted for release.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_3096818'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+use_facility_ghg_attribution: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True

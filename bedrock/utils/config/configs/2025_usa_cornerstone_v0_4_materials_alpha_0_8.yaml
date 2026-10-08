@@ -1,0 +1,35 @@
+# Cornerstone v0.4 nowcast, census materials movement damped to alpha = 0.8.
+#
+# Atomic evaluation config: 2025_usa_cornerstone_v0_4 with one change,
+# census_materials_index_alpha 1.0 -> 0.8 (#988). The Step 3 materials and
+# mining seeds move each cell by (census_mix_t / census_mix_2017) ** 0.8, which
+# cuts manufacturing's 2022 mix movement from 9.7pp to 7.6pp.
+#
+# Note: a nowcast build stamps its tables v<version>_<git hash>, so an alpha 0.8
+# build from the same commit as the alpha 1.0 build writes the same vintage.
+# Build it in a separate worktree at that commit, copy extract/output_data in
+# first so the FBS cache stays warm, and do not upload it to GCS. Then set
+# nowcast_mut_vintage here to the local build before evaluating models.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_4276083'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+cornerstone_industry_avg_margins: True
+census_materials_index_alpha: 0.8

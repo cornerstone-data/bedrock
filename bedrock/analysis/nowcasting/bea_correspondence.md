@@ -1,0 +1,533 @@
+# BEA correspondence — method questions and answers
+
+Durable record of method questions put to BEA and the answers received. These
+answers are not in the published manuals, and several of them **contradict** the
+manual reading, so the exchange is kept here rather than surviving only as
+quoted fragments in the plan.
+
+Cited from
+[`margins_estimation_plan.md`](margins_estimation_plan.md) §Transportation and
+§Negative margins are inventory timing.
+
+---
+
+## 2026-08-11 — Transportation margin allocation across commodities
+
+**Question put:** 2026-08-05, recorded in commit `7488437` (branch
+`faf_transport_margins`, closed with
+[#627](https://github.com/cornerstone-data/bedrock/pull/627)). Three questions:
+whether transport cost is distributed on tons as the manual reads, or on
+ton-miles or a commodity-varying revenue rate; whether the distribution is
+per-mode or modes are combined; and how local delivery and small-shipment cost
+is handled, since our reconstruction under-allocated light high-value
+commodities by a factor of five to eight.
+
+**Answered by:** William Nicolls, Section Chief for distributive services,
+Bureau of Economic Analysis. Cc: Harvey Davis, Edward Morgan, William (Billy)
+Jolliff.
+
+### What BEA said
+
+On the **target of the exercise**:
+
+> We really aren't looking for a specific value since that is already measured
+> in margin output, we are simply trying to estimate the percentage of that
+> margin output that is distributed to each commodity. That said, we prefer to
+> have revenue data rather than relying on other measures.
+
+On **rail**:
+
+> For rail, we purchase the Freight Commodity Statistics from the American
+> Association of Railroads which gives us very detailed revenue by product
+> shipped by rail. The Surface Transportation Board also publishes this
+> information along with the Commodity Revenue Stratification Report. We receive
+> these data annually.
+
+On **truck**:
+
+> For truck, we use Service Annual Survey Table 8 which gives us revenue by
+> product shipped but at a very aggregated level (basically at a sector level).
+> We receive these data annually.
+
+On **water and air**:
+
+> For water and air, we do not have revenue by product so we estimate it by
+> other means. We use a similar methodology for both air and water where we use
+> ton-miles from the BTS/Census Commodity Flow Statistics. We do make
+> adjustments to the data, though. We have a multiplier of 1, 2 or 3 based on
+> the difficulty of transporting the commodity. For air, we only made one
+> adjustment for animals and fish. For water, we made many adjustments based on
+> the difficulty and expense of rearranging cargo after a delivery at port. For
+> example, products like grain or oil that sit free in the cargo hold stay
+> unadjusted. Products that don't sit free and are palletized, but are
+> rearranged fairly easily get a multiplier of 2 and heavy machinery receive a
+> multiplier of 3. These weights are only updated every 5 years.
+
+On **combining modes**:
+
+> We do not combine modes and we ignore multi-modal reported data since we
+> cannot differentiate those in margin output.
+
+On **local delivery and small shipments**:
+
+> We do not handle local or small shipments separately. We are looking to
+> distribute our margin data to commodities in order to estimate the total
+> margin for each commodity and distribute it proportionally to each purchase of
+> that commodity. High value commodities receive their portion of freight margin
+> based on the weights estimated from the source data. The specific cost of a
+> commodity doesn't figure in to the calculation, just the cost to ship it
+> reported in the data.
+
+### What it changed
+
+1. **Retired the ton-mile allocator and closed
+   [#627](https://github.com/cornerstone-data/bedrock/pull/627).** Rail and
+   truck — 84% of `TRANS` — are allocated on revenue by product, not on any
+   volume measure.
+2. **Explained the 5–8× under-allocation.** Not a missing local-delivery term.
+   Revenue per ton-mile is far higher for light high-value freight than for
+   bulk, so a pure ton-mile allocator starves exactly those commodities.
+3. **Confirmed the anchor-plus-growth construction** — BEA is estimating a
+   percentage split, not a level.
+4. **Confirmed the per-mode treatment** and that multi-modal data is discarded.
+5. **Demoted the unpublished water multiplier table** from apparent blocker to
+   2.3% of `TRANS`, and promoted truck's "Other goods" bucket to the largest
+   unknown in the chain.
+
+Note the multiplier weights ton-miles rather than replacing them, so water and
+air use a weighted ton-mile share, `m_c · tonmiles_c ÷ Σ m_i · tonmiles_i` with
+`m ∈ {1,2,3}`.
+
+---
+
+## 2026-08-17 — Follow-up answered: truck's "other goods", pipeline, the multipliers
+
+**Question put:** 2026-08-14, five questions, numbered as sent. Questions 1 and 2
+share a subject so they were grouped; strict order of value would put pipeline
+second.
+
+**Answered by:** William Nicolls, BEA, 2026-08-17. Cc: Harvey Davis, Edward
+Morgan, William (Billy) Jolliff.
+
+⚠️ **Four of the five are answered; question 4 is not.** Whether 2023 is
+continuous with the earlier series or rebased, and how BEA handles a year like
+2024 before the next AIES release, went unaddressed and remains the open item.
+
+1. **How is SAS Table 8's "Other goods" distributed?** It is 32–34% of Total
+   Motor Carrier Revenue in every year 2015–2023, and truck is ~68% of `TRANS`,
+   so it covers ~22% of the entire transport margin with no commodity identity.
+   Also asked: whether Table 8 is the right table (BEA described it as "basically
+   at a sector level", but its groups are commodity groups), and whether BEA uses
+   the eleven published groups or a more detailed tabulation.
+2. **Is the Table 8 group → I-O commodity concordance published, or internal**
+   like the NAPCS product-line concordance? The eleven groups are a bespoke
+   Census taxonomy, neither SCTG nor NAICS.
+3. **What is the pipeline (`486000`) allocation basis?** 11.9% of the 2017
+   transport margin, more than water and air combined, and not covered by the
+   first reply.
+4. **Is 2023 continuous with the earlier series, or rebased?** Commodity shares
+   move ~4× more across the SAS → AIES consolidation than in a normal year (mean
+   1.4pp against 0.3pp; "Used household and office goods" 4.4% → 6.9%). Also
+   asked how BEA handles a year like 2024 before the next AIES release.
+5. **The water and air difficulty multiplier table** — the 1/2/3 assignment by
+   commodity, or the rule at a finer grain than the examples given.
+
+Deliberately **not** asked: access to the AAR Freight Commodity Statistics. It
+is a commercial subscription BEA cannot grant, and the STB Commodity Revenue
+Stratification Report they named looks like a public substitute — to be tested
+before going back to them.
+
+### What BEA said
+
+On **"Other goods"** (question 1):
+
+> We do not use the "other" commodity from SAS Table 8 since we have no
+> information on what commodities it contains. Distributing it pro rata to the
+> other 10 would not change the result since we are creating weights with the
+> data to distribute our truck margins rather than explicitly using the values
+> from SAS table 8.
+
+On **which table, and the "sector" wording** (question 1, second part):
+
+> Sorry, using the term "sector" was confusing. At BEA, we use (mostly) the same
+> codes (NAICS) for both commodities and industries and refer to the level of
+> detail for each as sector, summary and detail to distinguish levels of
+> aggregation. When I used the term "sector," I was just referring to a very
+> aggregated level of detail rather than relating the data to industries. The
+> data are commodity data in SAS Table 8 and we do use the published data.
+
+On the **group → I-O concordance** (question 2):
+
+> The SAS group to IO items concordance is not published. It is internal to our
+> database. We remap it every 5 years and we are in that process now.
+
+On **pipeline** (question 3):
+
+> Pipeline is a bit different from our other transportation margins in that
+> there is no outside source that we need to tell us where to distribute the
+> pipeline margins. The margin values, like the other transportation margins,
+> come from Census and there are 4 pipeline margine items: crude oil pipe,
+> natural gas pipe, refined petroleum pipe, and pipeline, not elsewhere
+> classified (NEC). Natural gas pipelines margins go to natural gas commodity.
+> Crude pipelines margins go to any crude oil commodity. Those two are the
+> clearest. Refined petroleum margins go to refined fuels such as gasoline, jet
+> fuel, kerosene and other refined oils and waxes. Pipeline, NEC margins are
+> applied to dyes, pigments, toners, ammonia, Urea and like products that would
+> be transported through a pipeline. These margins are all distributed
+> proportionally to the commodities to which they are assigned.
+
+On the **difficulty multipliers** (question 5):
+
+> I can't share the table with you, but I can give you a push in the right
+> direction. Air is simple, everything except animal is a 1 (animals is 3). For
+> water, we see motorized vehicles and transport as the most difficult (highest
+> multiplier). For everything else, if it would be palletized or put in a
+> container, it would receive a 2 and if it sits loose on board, it receives a 1.
+> That should get you pretty close.
+
+### What it changed
+
+1. **Closed the largest unknown in the transport chain, and cheaply.** "Other
+   goods" — ~22% of all `TRANS` — is simply **not used**. BEA builds *weights*
+   from the ten identified groups rather than spending Table 8's values, so
+   dropping "other" and renormalising over the ten is not an approximation of
+   BEA's method, it **is** BEA's method. The alternative treatment we would
+   otherwise have had to choose between is confirmed equivalent: pro rata across
+   the ten "would not change the result".
+2. **Confirmed the source reading.** Table 8 is the right table, the eleven
+   published groups are what BEA uses, there is no finer internal tabulation, and
+   the data are commodity data. "Sector" was aggregation-level language, not an
+   industry/commodity distinction — so the doubt recorded on 2026-08-14 is
+   resolved in favour of what we already built.
+3. **Made pipeline fully reproducible**, from nothing. 11.9% of `TRANS` moves
+   from "no method stated" to a complete deterministic rule: four Census margin
+   items, each with a named destination set, distributed proportionally. No
+   external source is needed for it at all.
+4. **Made the multipliers reproducible without the table.** Air is 1 everywhere
+   except animals at 3. Water is 3 for motorized vehicles and transport, 2 for
+   palletized or containerized cargo, 1 for cargo loose in the hold. Note this
+   fixes air's value, which the first reply left unstated, and adds motorized
+   vehicles to the first reply's "heavy machinery" at the top of the water scale.
+5. **Left question 4 open**, which is now the only unanswered method question:
+   the 2023 AIES splice moves commodity shares ~4× a normal year, and nothing
+   here says whether that is real or a rebasing.
+
+With this, **every mode of `TRANS` has a stated method**. What remains is not
+method but sourcing: the group → I-O concordance BEA will not publish, rail's
+revenue source, and the 2023 splice.
+
+---
+
+## 2026-08-19 — Follow-up, sent, unanswered: the within-group weight, and rebalancing
+
+**Question put:** 2026-08-19, to William Nicolls. Two questions, both about truck,
+which is 67.8% of `TRANS` and the only mode whose commodity detail we cannot
+observe.
+
+1. **What weights allocate a SAS group's margin among the specific commodities
+   inside it?** BEA has an internal crosswalk from the SAS groups to Detail I-O
+   commodities, but the crosswalk only says *which* commodities are in a group,
+   not how the group's margin divides among them. Asked in the alternative:
+   **are certain commodities manually excluded from certain modes?**
+2. **Is there a rebalancing step at the end** - RAS-like or otherwise - that
+   forces the commodity totals to equal the total transport margin?
+
+**The evidence sent**, our 2017 results on BEA's own described methods, weighting
+within a group by each commodity's total published `TRANS`:
+
+| commodity | published | other 4 modes | truck | overshoot | truck % | SAS group |
+|---|---:|---:|---:|---:|---:|---|
+| Oil and gas extraction | 47,608 | 42,741 | 12,204 | −7,337 | 26% | Coal & petroleum |
+| Grain farming | 13,602 | 6,227 | 11,920 | −4,545 | **88%** | Grains/alcohol/tobacco |
+| Coal mining | 13,437 | **13,832** | 3,445 | −3,840 | 26% | Coal & petroleum |
+| Other nonmetallic mineral mining | 7,556 | 4,276 | 6,518 | −3,239 | **86%** | Stone/minerals/ores |
+| Iron and steel mills | 6,403 | 2,429 | 6,687 | −2,713 | **104%** | Base metal & machinery |
+| Other basic organic chemicals | 5,489 | 4,514 | 3,581 | −2,606 | 65% | Pharma & chemical |
+| Automobile manufacturing | 4,838 | 4,327 | 2,957 | −2,446 | 61% | Electronic/vehicles |
+| Sawmills | 3,237 | 1,568 | 2,918 | −1,249 | **90%** | Wood/textiles |
+| Paperboard mills | 2,782 | 1,498 | 2,508 | −1,224 | **90%** | Wood/textiles |
+
+Two failure shapes are visible in that table and they need different answers.
+Coal is over-allocated **before truck is added at all** - the other four modes
+already exceed the published column - which is a question about the other modes
+or about the column. Iron and steel is the opposite: truck alone claims 104% of
+everything published, leaving nothing for rail, which certainly hauls steel.
+
+### What turns on the answers
+
+**Question 1 governs 67.8% of `TRANS`.** Truck's commodity detail comes almost
+entirely from the within-group weight: ten identified groups span 258 receiving
+commodities, so Table 8 fixes the group totals and the weight does everything
+below that. Our default - each commodity's total published `TRANS` - is blind to
+which modes already occupy a commodity, which is exactly why rail-heavy
+commodities overshoot. An "excluded commodities" answer would work as well as a
+weight, and would be easier to reproduce.
+
+⚠️ **One group cannot hold its share on our mapping, so this may be upstream of
+the weight.** "Base metal and machinery" demands 104% of the entire published
+`TRANS` of every commodity we place in it, before any other mode takes a share,
+and four more groups sit at 86-90%. No within-group weight can fix that: either
+our group→commodity mapping is too narrow, or a group's revenue share is not
+meant to carry that share of the whole truck margin.
+
+**Question 2 decides whether a joint solve is ours to build.** Feasibility is
+proven - every subset of modes has non-negative slack against the published
+column, tested exactly over all 32 subsets - so a reconciled answer exists. What
+is unknown is whether BEA reaches it by construction or by a final balancing
+step. If they rebalance, we should rebalance the same way; if they do not, their
+within-group rule must avoid the collision in a way ours does not, and that rule
+is the thing to copy.
+
+⚠️ **One error in the message as sent:** it says "8 commodity groups". SAS Table 8
+publishes **eleven**, of which ten carry a commodity identity and "Other goods" is
+the eleventh that BEA discards. Worth watching for in the reply, in case the
+answer is framed around a different set.
+
+---
+
+## 2026-08-31 — Why couriers and messengers are not a margin sector
+
+**Question put by Wes:** why `492000` couriers and messengers is not considered
+a margin sector.
+
+**Answered:** reply received 2026-08-31 (forwarded by Wes; correspondent not
+named in the forward — same BEA distributive-services thread as above).
+
+### What BEA said
+
+> In response to your first question, courier transportation is not considered
+> margin. Couriers are paid to transport products that have already been
+> purchased so they don't affect the price of the good. It is considered a
+> separate transaction. That said, we do believe a portion of courier output
+> is, in fact, freight-related and therefore technically margin-related, but
+> the Economic Census does not give us specific freight product lines for
+> couriers so we don't know how much or little of the couriers output is
+> margin-related. Also, the imports/exports of couriers is actually related to
+> air freight transportation. Our international trade data estimates more
+> exports of air transportation than Census provides as revenue so we have to
+> convert a portion of air couriers as air freight in order to meet our export
+> controls. Imports also come from the international directorate, but those
+> data are treated as non-margin like all other courier revenue.
+
+### What it changed
+
+1. **Confirmed the courier exclusion from `TRANS`, and closed it as
+   unimprovable.** Couriers are non-margin **by convention** — payment for
+   transporting an already-purchased good is a separate transaction, not part
+   of the purchaser price. BEA itself believes a portion of courier output is
+   "technically margin-related" but cannot split it, because the Economic
+   Census publishes no freight product lines for couriers. So our margin modes
+   reproduce BEA exactly here, and no data source exists for either side to do
+   better — the gap is a property of the source, not of the method.
+2. **Explained the courier trade booking.** BEA *converts* a portion of air
+   courier exports into air freight (`481000`-side) because ITA's air
+   transport exports exceed Census's revenue reading — which supports the IEA
+   crosswalk mapping `TransportAirFreight` onto both `481000` and `492000`
+   rather than air carriers alone. Courier **imports** come from the
+   international directorate and are treated non-margin like all other courier
+   revenue — consistent with the small but nonzero published courier `MCIF`
+   (44 $M in 2017) that the never-imported mask set deliberately does not
+   cover.
+
+### What it was worth, measured
+
+The trade booking BEA describes is now the shipped one, and it has been graded
+rather than taken on the letter (#701). `492000` rolls to summary `487OS` with
+only `48A000` beside it, so the published annual summary is a real observation
+of a block that is 93% couriers — detail 9,411 + 685 = summary 10,096 at 2017,
+exactly. Moving the row on ITA air freight reproduces that published row to
+**1.68% mean absolute error over 2018–2024**, worst year 2.77%.
+
+The fit is not vacuous: every other IEA transport category was graded the same
+way, and the next best is sea freight at 17.8%, with air *passenger* — the
+intuitive sibling — at 41.5%. **2020–21 decides it.** Courier exports rose 39%
+from 2019 to 2021 while air passenger fell to a third of its 2017 level; only
+air freight moved the same way, because BEA's conversion makes it the same
+traffic.
+
+⚠️ **The import half of the same sentence does not hold up, and is left
+alone.** Published `487OS` `MCIF` runs 44, 44, 40, 43, 41, 46, 35, 30 while ITA
+air freight imports rise 74% by 2021, so a frozen level beats the mover 13.8%
+to 43.8%. The largest error the mover makes is **35 million dollars**, 0.04% of
+the courier row's own intermediate use, which does not justify carving one
+commodity out of a uniform bridge architecture. BEA's own wording predicts the
+asymmetry: exports are a *conversion out of* air freight made to meet an export
+control, imports "come from the international directorate" as their own series.
+
+Reproduce with `uv run python -m
+bedrock.analysis.nowcasting.trade_data.courier_air_freight --check`.
+
+**Answered by:** William (Billy) Jolliff, BEA.
+
+Negative entries in the margin columns are **inventory timing**, not errors.
+Margin is booked when inventory *builds*; a later drawdown carries an offsetting
+negative, because the margin was already counted in the earlier period while
+current-period commodity output is unchanged by the draw. All 31 negative rows
+in the 2017 table are buyer `F03000`, totalling −8,076 million.
+
+They must never be clipped, floored or absoluted, and rates must not be derived
+from `F03000` rows — a negative margin over a change-in-inventories base is a
+timing correction, not a rate. The verbatim quote and the three consequences are
+in the plan, §Negative margins are inventory timing — never clip them.
+
+---
+
+## 2026-09-04 — How BEA actually distributes margins: iteratively, on basic value
+
+**Question put by Wes:** what BEA uses as the distributor when it allocates
+transportation costs and trade margins across transactions.
+
+**Answered:** reply received 2026-09-04, forwarded by Wes. Same BEA
+distributive-services thread.
+
+### What BEA said
+
+> Margin and transportation cost (TC) distribution is iterative, and all margin
+> types are distributed simultaneously. For weighting, we use the basic value
+> for each transaction. However, our transactions and source data for
+> intermediates and final use initial value is at a purchaser valuation. So, for
+> the first iteration we use the purchaser value as the distributor to calculate
+> initial margin and TC values. We treat the initial purchaser valuation as
+> fixed and so we subtract off the distributed margins and transportation to
+> calculate a residual basic value. We then distribute again based on the newly
+> calced basic value, re-calc the basic value residual using the next set of
+> margin and TC values, then distribute again. I think that after 10-20
+> iterations things start to converge well, but we will typically run 500-2000
+> iterations depending on how quickly we converge on a stable solution. Using a
+> basic value transaction from our Use table would be a decent distributor as
+> that is where we finished our process.
+>
+> PUR – (Margin+TC) = BAS
+
+### Checked against what we do
+
+**✅ The accounting identity is ours exactly.** `PUR = PRO + TC + WHL + RET`
+holds on the published 2017 before-redefinitions margins table to **$2 million**
+— one rounding unit on a table published in millions — across all **18,380 rows
+that carry a nonzero margin**, covering 12.81 T USD of purchases and the whole
+4.07 T USD of distributed margin.
+
+⚠️ The identity does *not* hold on another 9,003 rows, and that is not a
+discrepancy: those are the rows whose **commodity is a margin supplier**.
+`F01000` buying `454000` nonstore retailers carries a producers' value of 252 bn
+against a purchasers' value of 5.97 bn, because the producers' value is the
+margin that commodity supplies to that buyer while the purchasers' value is only
+its small direct purchase. `481000`, `484000` and `425000` are the most frequent.
+Anyone testing the identity has to restrict to margin-carrying rows first.
+
+**The distributor looks different and is the same thing.** BEA distributes all
+margin types **simultaneously**, each weighted on the transaction's **basic
+value**. `nowcast_margins` expresses a rate per type on a **cascading base**,
+after the IO manual (2009) chapter 8 — transportation on producers' value,
+wholesale on producers' value plus transportation, retail on all three.
+
+⚠️ **Graded 2017 → 2012, the two are identical to 0.00003 of one dollar.** The
+cascade *telescopes*. For a row whose base is scaled by a single factor
+`s = PRO(t) / PRO(2017)`:
+
+```
+TC   = (TC17/PRO17)              x s.PRO17                     = TC17 . s
+WHL  = (WHL17/(PRO17+TC17))      x (s.PRO17 + TC17.s)          = WHL17 . s
+RET  = (RET17/(PRO17+TC17+WHL17)) x s.(PRO17+TC17+WHL17)       = RET17 . s
+```
+
+Both parameterisations collapse to `margin(2017) x PRO(t)/PRO(2017)`, so the
+choice of denominator is **immaterial as long as each row's base moves by one
+factor**, which is how the rates are applied. Our construction already *is*
+BEA's; the cascade is a re-parameterisation of it, not a rival.
+
+❌ **An earlier version of this note claimed the two "cannot agree past 2017".
+That was wrong** — asserted from the shape of the formulas without doing the
+arithmetic. Measured, they never disagree.
+
+### What the test found instead
+
+Carrying 2017 rates back to 2012 and scoring against published 2012 margins,
+over the 7,630 (buyer, commodity) rows usable in both years and carrying
+1,463 bn USD of margin:
+
+=========================  ==========  ==========
+arm                        gross bn    net bn
+=========================  ==========  ==========
+cascading base (current)        476.1       392.3
+basic value (BEA)               476.1       392.3
+frozen 2017 *level*             633.3       469.3
+=========================  ==========  ==========
+
+✅ Carrying a **rate** beats carrying a **level** by 25%, so the rate
+parameterisation earns its place.
+
+⚠️ **But the rates themselves are not stable, and that is the real exposure.**
+Value-weighted on basic value, between 2012 and 2017:
+
+- transportation **0.0421 → 0.0473**, +12.4%
+- wholesale **0.1805 → 0.2176**, +20.5%
+- retail **0.1614 → 0.2221**, **+37.6%**
+
+That drift is what leaves 476 bn gross and a systematic **+27% over-prediction**
+on a five-year carry. Freezing 2017 rates across 2018–2024 is a far larger
+exposure than the denominator ever was, and retail is the worst of it. Whether
+margin rates should move over the span, and on what, is the open question this
+reply actually surfaced.
+
+**✅ We do not need the iteration, and BEA's last sentence says so.** The 500–
+2000 iterations exist to *find* the basic value, because BEA's source
+transactions arrive at purchaser valuation and the distributor is unknown until
+the margins are known. We start from BEA's published margins table, which is the
+converged output of exactly that loop — the fixed point is already in hand.
+*"Using a basic value transaction from our Use table would be a decent
+distributor as that is where we finished our process"* is a direct instruction
+that the basic-value Use transaction is the right weight, and we hold that table.
+
+### ✅ The sentence that matters is "we treat the initial purchaser valuation as fixed"
+
+That is a different claim from the distributor, and it is **not** what we do.
+`nowcast_margins` anchors on producers' value and derives the purchaser value as
+`PRO + margins`. BEA anchors on the purchaser value and derives basic value as
+the residual. Tested the same way — 2017 rates, 2012 base, scored on published
+2012 margins over the 7,630 rows usable in both years:
+
+=====================================  ============  ==========  ==========  ==========
+arm                                    margin gross  margin net   PRO gross   PUR gross
+=====================================  ============  ==========  ==========  ==========
+A  anchor PRO, derive PUR (current)           476.1      +392.3         0.0       444.0
+B  anchor PUR, derive BAS (**BEA**)           286.8      +196.8       232.3         0.0
+=====================================  ============  ==========  ==========  ==========
+
+**B dominates A on every column that is not zero by construction.** Margin gross
+error falls **40%**, the systematic over-prediction halves, and the *derived*
+side is better too — anchoring on PUR leaves 232 bn of basic-value error where
+anchoring on PRO leaves 444 bn of purchaser-value error.
+
+The reason is that the share of purchaser value is the more stable parameter.
+Value-weighted across these rows, total margin **on PUR** moves 0.2775 → 0.3148
+between 2012 and 2017, a ratio of **1.134**; **on PRO** it moves 0.3840 → 0.4870,
+a ratio of **1.268**. Margins are a wedge *inside* the purchaser price, so
+expressing them as a share of it is roughly twice as stable as expressing them
+as a rate on the residual.
+
+✅ **The obvious risk does not materialise.** A PUR anchor can drive basic value
+negative if the margins overshoot; on this test it does so on **0 of 7,630**
+rows.
+
+⚠️ **And the win is where we can actually take it.** Splitting by buyer:
+
+===================  ======  =================  ==========  ==========  =========
+buyer                  rows   published margin   anchor PRO  anchor PUR      saved
+===================  ======  =================  ==========  ==========  =========
+final demand            371          1,042 bn        342.7       188.8      153.9
+industry              7,259            421 bn        133.5        98.1       35.4
+===================  ======  =================  ==========  ==========  =========
+
+**81% of the gain sits on final-demand buyers**, which is exactly where Step 1
+already holds an independent purchaser value: `derive_initial_Y_pur` builds Y
+at purchaser prices from NIPA, which is the same situation BEA describes —
+*"our transactions and source data for intermediates and final use initial value
+is at a purchaser valuation"*. Final demand also carries 1,042 bn of the 1,463 bn
+of margin on 371 rows, so the reachable part is the large part.
+
+⚠️ This is a published-to-published diagnostic over a five-year backward span.
+It establishes the direction, not the size of the nowcast gain, which depends on
+how good our `Y_pur` is against BEA's purchaser values.
+
+**Answered by:** BEA (same correspondent as the 2026-08-31 courier reply).

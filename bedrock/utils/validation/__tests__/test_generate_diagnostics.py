@@ -13,7 +13,7 @@ from bedrock.utils.config.usa_config import get_usa_config, reset_usa_config
 from bedrock.utils.validation.generate_diagnostics import generate_diagnostics
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True, scope='function')
 def reset_global_usa_config_before_test() -> Generator[None, None, None]:
     reset_usa_config(should_reset_env_var=True)
     yield
@@ -32,16 +32,17 @@ def test_generate_diagnostics_writes_baseline_snapshot_key_to_config_summary() -
         patch(
             'bedrock.utils.validation.generate_diagnostics.update_sheet_tab'
         ) as mock_update,
+        patch('bedrock.utils.validation.generate_diagnostics.delete_default_sheet1'),
     ):
         result = runner.invoke(
             generate_diagnostics,
             [
-                "--sheet_id",
-                "test_sheet",
-                "--config_name",
-                "test_usa_config_git_sha",
-                "--git_branch",
-                "test_branch",
+                '--sheet_id',
+                'test_sheet',
+                '--config_name',
+                'test_usa_config_git_sha',
+                '--git_branch',
+                'test_branch',
             ],
         )
 
@@ -79,6 +80,7 @@ def test_generate_diagnostics_pin_json_selects_useeio_baseline(tmp_path: Path) -
             'bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.calculate_national_accounting_balance_diagnostics'
         ),
         patch('bedrock.utils.validation.generate_diagnostics.update_sheet_tab'),
+        patch('bedrock.utils.validation.generate_diagnostics.delete_default_sheet1'),
     ):
         result = runner.invoke(
             generate_diagnostics,
@@ -123,6 +125,7 @@ def test_generate_diagnostics_diagnostics_baseline_source_overrides_pin_mode(
             'bedrock.utils.validation.calculate_national_accounting_balance_diagnostics.calculate_national_accounting_balance_diagnostics'
         ),
         patch('bedrock.utils.validation.generate_diagnostics.update_sheet_tab'),
+        patch('bedrock.utils.validation.generate_diagnostics.delete_default_sheet1'),
     ):
         result = runner.invoke(
             generate_diagnostics,

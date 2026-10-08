@@ -1,0 +1,11 @@
+# The transportation margin for 2017, split by the mode that gives it up.
+#
+# Everything except the year lives in Margins_Transport_common.yaml; each source
+# inherits `year` from the method config, so a year is the whole per-year file.
+# See that file for the method, and bedrock/transform/margins/transport.py for
+# the split between what the yaml decides and what the module decides.
+#
+# 2017 is the anchor: every mode's give-up is published, so each
+# activity set reproduces it exactly rather than estimating it.
+!include:Margins_Transport_common.yaml
+year: 2017

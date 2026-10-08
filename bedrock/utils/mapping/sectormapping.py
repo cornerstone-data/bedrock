@@ -29,8 +29,8 @@ def get_activitytosector_mapping(
     :return: a pandas df for a standard ActivitytoSector mapping
     """
 
-    # identify mapping file name
-    mapfn = f'NAICS_Crosswalk_{source}'
+    # identify mapping file name (mixed NAICS/BEA sector schemas)
+    mapfn = f'Sector_Crosswalk_{source}'
 
     # if FBS method file loaded from outside the flowsa directory, check if
     # there is also a crosswalk
@@ -94,35 +94,94 @@ def assign_technological_correlation(mapping: pd.DataFrame) -> pd.DataFrame:
         '8': '5',
     }
 
-    # load the sector length crosswalk
-    naics_crosswalk = load_crosswalk("Sector_Levels")
+    # load the sector level crosswalk
+    levels = load_crosswalk("Sector_Levels")
+    level_cols = ['SectorSourceName', 'Sector', 'SectorLevel']
 
-    # assign sector lengths to compare to assign tech correlation
-    # merge dfs
+    if 'SectorSourceName' in mapping.columns:
+        # Join levels within the same SectorSourceName vintage
+        mapping = (
+            mapping.merge(
+                levels[level_cols],
+                how='left',
+                left_on=['source_sector', 'SectorSourceName'],
+                right_on=['Sector', 'SectorSourceName'],
+            )
+            .drop(columns=['Sector'])
+            .rename(columns={'SectorLevel': 'sourceLength'})
+            .merge(
+                levels[level_cols],
+                how='left',
+                left_on=['target_sector', 'SectorSourceName'],
+                right_on=['Sector', 'SectorSourceName'],
+            )
+            .drop(columns=['Sector'])
+            .rename(columns={'SectorLevel': 'targetLength'})
+        )
+        for i in ['source', 'target']:
+            mapping[f'{i}Length'] = mapping[f'{i}Length'].fillna(
+                mapping[f'{i}_sector'].astype(str).str.len()
+            )
+        mapping = mapping.assign(
+            SectorDifference=mapping['targetLength'].astype(int)
+            - mapping['sourceLength'].astype(int)
+        )
+        mapping = mapping.assign(
+            TechnologicalCorrelation=mapping["SectorDifference"]
+            .astype(str)
+            .map(tech_dict)
+            .fillna(5)
+            .astype(int)
+        )
+        # BEA codes like 23 appear at both Sector and Summary in Sector_Levels;
+        # the merges above fan out one mapping row into two. Keep the coarsest
+        # source level (then best tech score) so proportional attribution does
+        # not double-count the same target sector.
+        mapping = (
+            mapping.sort_values(
+                ['sourceLength', 'TechnologicalCorrelation'],
+                ascending=[True, True],
+            )
+            .drop_duplicates(
+                subset=['source_sector', 'target_sector', 'SectorSourceName'],
+                keep='first',
+            )
+            .reset_index(drop=True)
+        )
+        return mapping.drop(
+            columns=['sourceLength', 'targetLength', 'SectorDifference'],
+            errors='ignore',
+        )
+
+    # Prefer NAICS levels when a code appears under multiple SectorSourceNames
+    levels = (
+        levels.assign(
+            _schema_rank=levels['SectorSourceName']
+            .str.startswith('NAICS_')
+            .map({True: 0, False: 1})
+        )
+        .sort_values('_schema_rank')
+        .drop_duplicates(subset=['Sector'], keep='first')
+        .drop(columns='_schema_rank')
+    )
+
+    # assign sector levels to compare to assign tech correlation
     for i in ['source', 'target']:
         mapping = (
             mapping.merge(
-                naics_crosswalk[['Sector', 'SectorLength']],
+                levels[['Sector', 'SectorLevel']],
                 how='left',
-                left_on=[f'{i}_naics'],
+                left_on=[f'{i}_sector'],
                 right_on=['Sector'],
             )
             .drop(columns=['Sector'])
-            .rename(columns={'SectorLength': f'{i}Length'})
+            .rename(columns={'SectorLevel': f'{i}Length'})
         )
-    # Sector_Levels does not register every code that can legitimately be a
-    # target. `non_naics` exists so a method can name an industry that is not a
-    # NAICS code at all, and industry_spec_key's docstring asks only for an
-    # activity-to-sector crosswalk in return - nothing tells the caller the code
-    # must also appear here. Left unfilled, the left merges above produce NaN
-    # lengths and the astype(int) below raises ValueError, which prepare_fbs
-    # catches and turns into an empty FlowBySector for the *whole* method, with
-    # no indication of the cause. Fall back to the code's own length: for the
-    # identity mappings non_naics creates, source and target lengths are equal
-    # either way, so SectorDifference is 0 and the score is unaffected.
+    # Sector_Levels may not list every target code. Fall back to the code's own
+    # string length so identity mappings still get a tech score.
     for i in ['source', 'target']:
         mapping[f'{i}Length'] = mapping[f'{i}Length'].fillna(
-            mapping[f'{i}_naics'].astype(str).str.len()
+            mapping[f'{i}_sector'].astype(str).str.len()
         )
     mapping = mapping.assign(
         SectorDifference=mapping['targetLength'].astype(int)
@@ -139,7 +198,7 @@ def assign_technological_correlation(mapping: pd.DataFrame) -> pd.DataFrame:
 
     # address special circumstances for BEA household/gov codes by dropping duplicates, keeping first assignment
     mapping = mapping.drop_duplicates(
-        subset=['source_naics', 'target_naics'], keep="first"
+        subset=['source_sector', 'target_sector'], keep="first"
     )
 
     return mapping.drop(columns=['sourceLength', 'targetLength', 'SectorDifference'])
@@ -286,10 +345,13 @@ def map_to_BEA_sectors(
     elif io_level == 'detail':
         mapping_col = f'BEA_{bea_year}_Detail_Code'
 
-    # determine naics year in df
-    naics_year = (
-        fbs_load['SectorSourceName'][0].lower().split("_", 1)[1].split("_", 1)[0]
+    # determine schema year from SectorSourceName
+    from bedrock.utils.mapping.sector import (  # noqa: PLC0415
+        parse_sector_source_name,
     )
+
+    sec_source_name = fbs_load['SectorSourceName']
+    naics_year = parse_sector_source_name(sec_source_name.iloc[0])[1]
 
     # Prepare NAICS:BEA mapping file
     mapping = load_crosswalk(f'NAICS_to_BEA_Crosswalk_{bea_year}').rename(
@@ -353,7 +415,13 @@ def map_to_BEA_sectors(
         fbs = fbs.assign(Sector=fbs['BEA'])
 
     fbs = fbs.drop(
-        columns=dq_fields + ['SectorSourceName', 'BEA', 'BEA_y', 'Allocation'],
+        columns=dq_fields
+        + [
+            'SectorSourceName',
+            'BEA',
+            'BEA_y',
+            'Allocation',
+        ],
         errors='ignore',
     )
 

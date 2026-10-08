@@ -2,6 +2,15 @@ on:
   workflow_call:
   workflow_dispatch:
   pull_request:
+  # ⚠️ GitHub scopes caches by branch: a cache written during a pull_request run
+  # is visible to that PR and to descendants of its base, but NOT to a sibling
+  # branch. With `pull_request` as the only trigger nothing ever writes a cache
+  # on nowcast, so every PR missed and rebuilt the sources from scratch - #742
+  # saved bedrock-data-c8253d6c and #743 missed the identical key minutes later.
+  # Running on pushes to nowcast gives the base branch a cache for PRs to
+  # restore, and gives nowcast its own signal after each merge.
+  push:
+    branches: [nowcast]
 
 env:
   FORCE_COLOR: 2
@@ -44,9 +53,36 @@ jobs:
       - name: Typecheck w/ mypy
         run: uv run mypy bedrock
 
+  # The hermetic tests, for feedback rather than for a shorter gate. They need no
+  # GCS credentials, so this job carries no id-token permission and no auth step,
+  # and it reports in about a minute while `test` is still fetching sources.
+  # `test` below still runs the whole suite, so a test classified wrongly in
+  # bedrock/conftest.py costs a minute here rather than a hole in the gate.
+  test-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Run the hermetic tests
+        run: uv run pytest -m 'not realdata'
+
+  # 30 rather than 15: Step 2's value-added block builds three NIPA FBS methods
+  # for each of 2017-2024, and that took the suite from 12.5 minutes to past the
+  # old ceiling - the job was still building NIPA_VA_surplus when it was killed.
+  # The time is source-building, not assertions, so the fix that actually pays is
+  # caching the FBA/FBS parquets between runs; this only stops the gate failing
+  # for the wrong reason in the meantime.
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 45 is headroom for a COLD cache, not a new normal. A warm run should be a
+    # small fraction of this; if warm runs approach it, the cache is not working
+    # and raising this again is the wrong fix.
+    timeout-minutes: 45
 
     permissions:
       contents: 'read'
@@ -58,6 +94,27 @@ jobs:
       - name: Set up Python and install dependencies
         uses: ./.github/actions/setup-python
 
+      # The suite's time is source-building, not assertions: it fetches and builds
+      # FBA/FBS parquets on every run, which took `test` from 12.5 minutes to over
+      # 30 as Steps 2 and 3 landed. These files are safe to cache because their
+      # names carry a version and a git hash (BLS_QCEW_2018_v2.0.4_1bc9c63.parquet)
+      # - if a method changes, the expected filename changes, the loader misses and
+      # downloads fresh. A stale entry can miss, but it cannot serve wrong data.
+      #
+      # The key tracks the source definitions so a changed method writes a new
+      # cache; restore-keys means even then the run starts from the newest
+      # existing one rather than cold.
+      - name: Cache the extracted and built data
+        uses: actions/cache@v4
+        with:
+          path: |
+            bedrock/extract/input_data
+            bedrock/extract/output_data
+            bedrock/transform/output_data
+          key: bedrock-data-${{ hashFiles('bedrock/extract/**/*.yaml', 'bedrock/transform/**/*.yaml', 'bedrock/utils/config/source_catalog.yaml') }}
+          restore-keys: |
+            bedrock-data-
+
       - name: Authenticate with Google Cloud
         uses: 'google-github-actions/auth@v2'
         with:
@@ -66,5 +123,11 @@ jobs:
           service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
 
       - name: Run tests
+        # The seed tests reach live Census endpoints. Without a key they skip
+        # rather than fail - see the skipif in test_nowcast_intermediate - so
+        # this job is green either way and the tests run in full the moment the
+        # secret is configured.
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
-          uv run pytest
+          uv run pytest --durations=25

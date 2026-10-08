@@ -145,7 +145,8 @@ def generate_snapshots(
     total_start = time.time()
     set_global_usa_config(config_name)
 
-    # If an FBA requires an API key to generate, download the FBA from GCS
+    # Prefer GCS-cached FBAs when generate would need a Census API key
+    # (see generateflowbyactivity.process_fba_config + download_fba_on_api_error).
     common.download_fba_on_api_error = True
 
     # Late-binding imports after config is set
@@ -159,7 +160,7 @@ def generate_snapshots(
     )
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
         default_phi_panel_years,
-        derive_phi_cornerstone_usa_panel,
+        derive_phi_cornerstone_usa_panel_published,
     )
 
     # Assert clean state
@@ -168,6 +169,17 @@ def generate_snapshots(
 
     logger.info(f'Generating snapshots for config: {config_name}')
     logger.info(f'Snapshot prefix: {snapshot_prefix_override or snapshot_prefix()}')
+
+    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        electricity_reaggregation_enabled,
+    )
+
+    reagg = electricity_reaggregation_enabled()
+    if reagg:
+        logger.info(
+            'implement_electricity_reaggregation: snapshots use published 405 '
+            '(G/T/D collapsed to 221100)'
+        )
 
     # Generate E_USA_ES
     t0 = time.time()
@@ -219,7 +231,7 @@ def generate_snapshots(
     t0 = time.time()
     logger.info('Generating Phi snapshot')
     write_snapshot(
-        derive_phi_cornerstone_usa_panel(default_phi_panel_years()),
+        derive_phi_cornerstone_usa_panel_published(default_phi_panel_years()),
         'Phi',
     )
     logger.info(f'[TIMING] Phi completed in {time.time() - t0:.1f}s')

@@ -1,0 +1,157 @@
+# The Supply table's transportation margin, split by the mode that gives it up
+# (#611, nowcast step 4c).
+#
+# Output is a BEA commodity matrix, not a NAICS industry vector:
+#   SectorProducedBy = the commodity that *receives* the margin
+#   SectorConsumedBy = the transport commodity that *gives it up*
+# Summed over SectorConsumedBy this is the Supply table's TRANS column; kept
+# apart it is the expanded margins file, one column per transport commodity.
+#
+# CAUTION: Only the positive side is here. The negative give-up on each of the five
+# transport commodities is the column's other half and is added by
+# transport_margin_column() in nowcast_transport_margins, which is also what
+# enforces sum(TRANS) = 0 (target T16).
+#
+# Each activity set is one mode, keyed by its clean_parameter. That single value
+# selects the allocator before mapping and the control total after aggregation -
+# see bedrock/transform/margins/transport.py for why the level and the
+# source-reading judgement stay in the module while the split lives here.
+!include:BEA_detail_commodity_target.yaml
+target_schema_year: 2017
+geoscale: national
+activity_schema: null
+
+_attribution_sources:
+  # The published 2017 transportation margin per commodity. This is the
+  # within-group weight: SAS publishes ten commodity groups and FAF 42, against
+  # 258 receiving commodities, so something has to say how a group's margin
+  # splits inside itself. BEA's own 2017 column is the least-assuming answer
+  # available, and it cannot push a commodity past a ceiling it defines.
+  #
+  # CAUTION: This is the weight BEA has not yet confirmed (bea_correspondence.md,
+  # 2026-08-19). Summed across modes it over-allocates 97 of 258 commodities by
+  # 10.9% in 2017, essentially all of it truck. In a nowcast year there is no
+  # published column to violate, so this does not block the build; whatever
+  # replaces it changes how the positive side is distributed, not its total.
+  #
+  # CAUTION: It has to be replaced by an external source (#672). 2017 is the only
+  # year with a published Supply table, and it is the table the nowcast exists to
+  # produce - so this weight can only reproduce detail BEA has already published,
+  # and it freezes the 2017 within-group commodity mix. The year is pinned below,
+  # so the build runs for any target year; the debt is methodological. 67.8% of
+  # the column rides on it, 62.7% of that truck; rail is near immune because
+  # STCC5 is one-to-one with BEA detail.
+  published_trans: &published_trans
+    year: 2017
+    selection_fields:
+      ActivityProducedBy: {'TRANS': ''}
+    exclusion_fields:
+      # the five transport commodities carry the *negative* give-up in this
+      # column; as a weight they would subtract rather than split
+      ActivityConsumedBy: ['481000', '482000', '483000', '484000', '486000']
+
+source_names:
+
+  Census_SAS:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: Census_SAS
+    activity_sets:
+
+      # Truck, 67.8% of the column. Table 8's commodity groups partition Total
+      # Motor Carrier Revenue; "Other goods" is dropped and the rest
+      # renormalised, which is BEA's own treatment rather than an approximation
+      # of it. The clean function does that, and recovers a suppressed group by
+      # subtraction from the published total.
+      truck:
+        clean_parameter: truck
+        selection_fields:
+          Description: 'Table 8: Estimated Revenue by Product and Class of Customer for Employer Firms'
+          ActivityProducedBy: {'484': ''}
+        clean_fba_before_mapping: !clean_function:margins.transport mode_allocator
+        clean_fbs_after_aggregation: !clean_function:margins.transport scale_to_control_total
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *published_trans
+
+      # Pipeline, 11.9%. The four "margin items" BEA names are the four detailed
+      # pipeline NAICS, and they partition NAICS 486 to the dollar in Table 2.
+      # 80.4% of the margin goes to 211000, whose commodity set holds a single
+      # code, so the within-set weight barely bites here.
+      pipeline:
+        clean_parameter: pipeline
+        selection_fields:
+          Description: 'Table 2: Estimated Revenue for Employer Firms by Detailed NAICS'
+          ActivityProducedBy: {'4861': '', '4862': '', '48691': '', '48699': ''}
+        clean_fba_before_mapping: !clean_function:margins.transport mode_allocator
+        clean_fbs_after_aggregation: !clean_function:margins.transport scale_to_control_total
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *published_trans
+
+  STB_CRSR:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: STB_CRSR
+    activity_sets:
+
+      # Rail, 16.5%. The CRSR gives revenue by product at 5-digit STCC, which is
+      # near one-to-one with BEA detail - so revenue *is* the allocation and the
+      # attribution below only has to resolve the handful of codes that name two
+      # commodities at once (37112, "motor trucks or truck tractors").
+      #
+      # CAUTION: Shares are computed on released revenue; 4.7% of 2017 revenue is
+      # redacted and published only as an all-data total, so this assumes the
+      # redacted freight has the released mix. The level does not depend on it -
+      # the control total uses the all-data figure.
+      rail:
+        clean_parameter: rail
+        clean_fba_before_mapping: !clean_function:margins.transport mode_allocator
+        clean_fbs_after_aggregation: !clean_function:margins.transport scale_to_control_total
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *published_trans
+
+  BTS_FAF:
+    geoscale: national
+    data_format: FBA
+    activity_to_sector_mapping: BTS_FAF
+    activity_sets:
+
+      # Water, 2.3%, and air, 1.5%. Allocated on ton-miles weighted by the 1/2/3
+      # "difficulty of handling" multiplier BEA described - vehicles and
+      # machinery at 3, palletised or containerised freight at 2, bulk that sits
+      # free in the hold at 1; air is 1 for everything except live animals.
+      # The multiplier is applied to ton-miles in the clean function, since it is
+      # a weight applied *before* attribution and the attribution model has no
+      # slot for one.
+      #
+      # CAUTION: Their coverage ratios are 0.478 and 0.584 rather than near 1, because
+      # freight revenue includes international legs while the margin is the
+      # domestic leg only. Bounded by their 3.8% share of the column.
+      water:
+        clean_parameter: water
+        selection_fields:
+          ActivityProducedBy: {'Water': ''}
+          Unit: ton-miles
+        clean_fba_before_mapping: !clean_function:margins.transport mode_allocator
+        clean_fbs_after_aggregation: !clean_function:margins.transport scale_to_control_total
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *published_trans
+
+      air:
+        clean_parameter: air
+        selection_fields:
+          ActivityProducedBy: {'Air (include truck-air)': ''}
+          Unit: ton-miles
+        clean_fba_before_mapping: !clean_function:margins.transport mode_allocator
+        clean_fbs_after_aggregation: !clean_function:margins.transport scale_to_control_total
+        attribution_method: proportional
+        attribution_source:
+          BEA_Detail_Supply:
+            <<: *published_trans

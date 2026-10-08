@@ -30,7 +30,7 @@ See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.
 ### Configuration files
 
 All configuration files are in [`bedrock/utils/config/configs/`](bedrock/utils/config/configs/), where:
-- A single *full-model* config represents a full set of methodology choices made for a data release. [`2025_usa_cornerstone_v0_3.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_3.yaml) is the default config in `get_usa_config()`. [`2025_usa_cornerstone_v0_2.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_2.yaml) is the v0.2 methodology stack for historical comparison.
+- A single *full-model* config represents a full set of methodology choices made for a data release. [`2025_usa_cornerstone_v0_4.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_4.yaml) is the default config in `get_usa_config()`. [`2025_usa_cornerstone_v0_3.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_3.yaml) and [`2025_usa_cornerstone_v0_2.yaml`](bedrock/utils/config/configs/2025_usa_cornerstone_v0_2.yaml) are the v0.3 and v0.2 methodology stacks for historical comparison.
 - Several *atomic configs* each isolate a single methodological change from the baseline so the impact of each choice can be measured independently (e.g. the `v03_waterfall_*` release-assessment configs).
 
 A separate `snapshot_version_or_git_sha` field specifies the baseline SHA, so diagnostic runs can compare current output against any released baseline.

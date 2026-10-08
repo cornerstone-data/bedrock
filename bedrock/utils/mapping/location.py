@@ -209,6 +209,113 @@ def apply_county_FIPS(
     )
 
 
+# =============================================================================
+# Model geography (BEA economic territory)
+# =============================================================================
+
+#: The 50 states and DC, by two-letter postal code.
+STATES_AND_DC = frozenset(
+    'AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT '
+    'NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split()
+)
+
+#: Non-state codes that are nevertheless **inside** the boundary. ``DM`` is the
+#: code EPA facility inventories give the US maritime zone: in NEI 2022 it is
+#: 1,321 facilities whose ``County`` is ``Federal Waters`` and whose ``City`` is
+#: ``Gulf of Mexico``, named by BOEM platform id, NAICS 211120/2111 (oil and gas
+#: extraction) and 486210 (gas pipelines). Offshore wind is not coded ``DM``
+#: today - eGRID files Block Island, South Fork and Coastal Virginia under the
+#: adjacent onshore state and county - but it is the same zone, so anything that
+#: does arrive under ``DM`` belongs here too.
+OFFSHORE_CODES = frozenset({'DM'})
+
+#: Codes inside BEA's economic territory: the 50 states, DC and offshore.
+BEA_ECONOMIC_TERRITORY = STATES_AND_DC | OFFSHORE_CODES
+
+
+def in_model_geography(state: pd.Series) -> pd.Series:
+    """Rows inside BEA's economic territory: the 50 states, DC and offshore.
+
+    ⚠️ **The boundary that governs is BEA's, not EPA's.** These emissions become
+    ``B = E / x``, and ``x`` is BEA gross output. BEA's economic territory for
+    the NIPAs and the industry accounts extends past the 50 states to everywhere
+    the US holds exclusive economic rights - the Exclusive Economic Zone and the
+    Outer Continental Shelf - so offshore oil, gas, wind and fishing **are** in
+    the denominator. Dropping them from the numerator would put the two on
+    different geographies and inflate the factor.
+
+    ⚠️ **So do not reduce this to "the 50 states and DC".** That reads like the
+    obvious tidy-up and it deletes ``DM``.
+
+    ⚠️ The same reasoning **excludes territories**. Puerto Rico, Guam and the
+    Virgin Islands sit outside BEA's NIPA economic territory, so they have no
+    ``x`` in this model to divide into, and emissions with no denominator would
+    inflate whatever sector they land in.
+
+    ⚠️ **Do not use "the FIPS lookup failed" as a proxy for this test.** A null
+    ``Location`` out of :func:`apply_county_FIPS` conflates three unrelated
+    things: outside the boundary (drop), inside it but with no county FIPS to
+    match - which is exactly what offshore looks like, ``County`` of ``Federal
+    Waters`` (keep), and plain missing data (a defect worth seeing). Ask the
+    question you mean.
+    """
+    return state.isin(BEA_ECONOMIC_TERRITORY)
+
+
+def filter_to_model_geography(
+    df: pd.DataFrame,
+    label: str = '',
+    state_col: str = 'State',
+    amount_col: str = 'FlowAmount',
+) -> pd.DataFrame:
+    """Keep rows inside BEA's economic territory, saying what went and why.
+
+    See :func:`in_model_geography` for the boundary and the reasoning. Rows with
+    no ``state_col`` value are dropped and logged separately - they are a data
+    defect, not a jurisdiction.
+
+    :param df: df with a state column of two-letter codes
+    :param label: str, what is being filtered, for the log line
+    :param state_col: str, name of the state column
+    :param amount_col: str, emissions column to total in the log line, if present
+    :return: df, rows inside the boundary
+    """
+    if state_col not in df.columns:
+        raise KeyError(
+            f'filter_to_model_geography requires a {state_col!r} column; '
+            f'got {list(df.columns)}'
+        )
+    # eGRID stores absent states as the literal string 'None', not NA
+    state = df[state_col].astype('string').str.strip()
+    state = state.mask(state.isin(['None', 'nan', 'NaN', '']), pd.NA)
+    keep = in_model_geography(state)
+    dropped = df[~keep]
+    if not dropped.empty:
+        amount = (
+            f", {dropped[amount_col].sum() / 1e9:.2f} Mt"
+            if amount_col in dropped.columns
+            else ''
+        )
+        log.info(
+            '%s: dropping %d rows%s outside BEA economic territory - no gross '
+            'output to divide them into. States: %s. Offshore is kept.',
+            label or 'model geography',
+            len(dropped),
+            amount,
+            sorted(state[~keep].dropna().unique()),
+        )
+        missing = int(state[~keep].isna().sum())
+        if missing:
+            log.warning(
+                '%s: %d of those rows have no %s at all - a source defect, '
+                'not a jurisdiction.',
+                label or 'model geography',
+                missing,
+                state_col,
+            )
+    return df[keep]
+
+
 def update_geoscale(df: pd.DataFrame, to_scale: str) -> pd.DataFrame:
     """
     Updates df['Location'] based on specified to_scale

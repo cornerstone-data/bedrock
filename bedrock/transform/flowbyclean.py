@@ -18,8 +18,9 @@ from bedrock.utils.mapping.geo import (
     filtered_fips as geo_filtered_fips,
 )
 from bedrock.utils.mapping.location import US_FIPS
-from bedrock.utils.mapping.naics import (
+from bedrock.utils.mapping.sector import (
     map_source_sectors_to_more_aggregated_sectors,
+    subset_sector_key,
 )
 from bedrock.utils.validation.validation import (
     compare_summation_at_sector_lengths_between_two_dfs,
@@ -162,6 +163,180 @@ def weighted_average(
     return wt_flow
 
 
+def _index_series_total(
+    name: str,
+    overrides: dict[str, Any] | None,
+    year: int,
+    external_config_path: str | None,
+    download_sources_ok: bool,
+) -> float:
+    """
+    Total FlowAmount of an ``index_source`` series in ``year``.
+
+    Only the ratio between two years of this series is used, so its units and
+    level need not match the series being scaled.
+    """
+    source_config = {**get_catalog_info(name), **(overrides or {}), 'year': year}
+    fb = get_flowby_from_config(
+        name=name,
+        config=source_config,
+        external_config_path=external_config_path,
+        download_sources_ok=download_sources_ok,
+    ).select_by_fields(selection_fields=source_config.get('selection_fields'))
+    total = float(fb['FlowAmount'].sum())
+    if total <= 0:
+        raise ValueError(
+            f'Index source {name} sums to {total} in {year}; check '
+            '`index_source.selection_fields`.'
+        )
+    return total
+
+
+def average_flowby(
+    config: dict[str, Any],
+    full_name: str,
+    external_config_path: str | None = None,
+    download_sources_ok: bool = True,
+    **_kwargs: Any,
+) -> FlowBySector:
+    """
+    Average FlowAmount across all ``datasource_*`` entries in the FBS config.
+
+    Each ``datasource_N`` is ``{source_name: overrides}`` (same shape as
+    ``clean_source``). Loads via ``get_flowby_from_config`` + ``prepare_fbs``.
+
+    An optional ``index_source`` (also ``{source_name: overrides}``) turns the
+    plain average into an indexed one: each source year is first moved onto the
+    target ``year`` by the index series' own ratio between the two years, and
+    only then averaged. Use it whenever the target year is not on the straight
+    line between the source years -- a plain average assumes it is.
+    """
+    ds_keys = sorted(
+        (k for k in config if str(k).startswith('datasource_')),
+        key=lambda k: int(str(k).rsplit('_', 1)[-1]),
+    )
+    method_keys = config.get('method_config_keys') or ()
+    prepared: list[_FlowBy] = []
+    for key in ds_keys:
+        ((name, overrides),) = config[key].items()
+        fb = get_flowby_from_config(
+            name=name,
+            config={
+                **{
+                    k: v
+                    for k, v in config.items()
+                    if k in method_keys or k == 'method_config_keys'
+                },
+                **get_catalog_info(name),
+                **(overrides or {}),
+            },
+            external_config_path=external_config_path,
+            download_sources_ok=download_sources_ok,
+        ).prepare_fbs(  # type: ignore[operator]
+            download_sources_ok=download_sources_ok
+        )
+        prepared.append(fb.reset_index(drop=True))
+
+    source_labels = [
+        (
+            f'{fb.full_name} ({year})'
+            if (year := fb.config.get('year')) is not None
+            else fb.full_name
+        )
+        for fb in prepared
+    ]
+    target_year = int(config['year'])
+
+    # Move each source year onto the target year with the index series' own
+    # year-over-year ratio, so the average carries the sources' composition
+    # but the index's timing.
+    factors = [1.0] * len(prepared)
+    index_config = config.get('index_source')
+    if index_config:
+        ((index_name, index_overrides),) = index_config.items()
+        index_target = _index_series_total(
+            index_name,
+            index_overrides,
+            target_year,
+            external_config_path,
+            download_sources_ok,
+        )
+        for i, fb in enumerate(prepared):
+            source_year = fb.config.get('year')
+            if source_year is None:
+                raise ValueError(
+                    f'{full_name}: `index_source` needs a `year` on every '
+                    f'datasource; {fb.full_name} has none.'
+                )
+            index_source_year = _index_series_total(
+                index_name,
+                index_overrides,
+                int(source_year),
+                external_config_path,
+                download_sources_ok,
+            )
+            factors[i] = index_target / index_source_year
+            log.info(
+                f'{full_name}: scaling {source_labels[i]} by {factors[i]:.4f} '
+                f'({index_name} {target_year}/{source_year} = {index_target:.6g}'
+                f'/{index_source_year:.6g}) before averaging.'
+            )
+
+    log.info(f'Averaging FlowAmounts across {source_labels} for {full_name}.')
+    # Same identity cols FlowBy uses to aggregate: non-float columns
+    # except Description / group_id; Year dropped.
+    join_cols = [c for c in prepared[0].groupby_cols if c != 'Year']
+    amounts = (
+        prepared[0].groupby(join_cols, dropna=False)['FlowAmount'].sum() * factors[0]
+    )
+    for fb, factor in zip(prepared[1:], factors[1:]):
+        amounts = amounts.add(
+            fb.groupby(join_cols, dropna=False)['FlowAmount'].sum() * factor,
+            fill_value=0,
+        )
+    averaged = (
+        amounts.div(len(prepared))
+        .rename('FlowAmount')
+        .reset_index()
+        .assign(Year=target_year)
+    )
+
+    scaled_totals = [
+        float(fb['FlowAmount'].sum()) * factor for fb, factor in zip(prepared, factors)
+    ]
+    # Each scaled source is an independent estimate of the target year, so a
+    # wide spread between them means the index is not carrying these sources.
+    if index_config and len(scaled_totals) > 1:
+        spread = (max(scaled_totals) - min(scaled_totals)) / (
+            sum(scaled_totals) / len(scaled_totals)
+        )
+        tolerance = float(config.get('index_agreement_tolerance', 0.05))
+        log.info(
+            f'{full_name}: indexed source estimates of {target_year} span '
+            f'{spread:.2%} (tolerance {tolerance:.2%}).'
+        )
+        if spread > tolerance:
+            log.warning(
+                f'{full_name}: indexed source estimates of {target_year} '
+                f'disagree by {spread:.2%}, above the {tolerance:.2%} '
+                f'tolerance: {dict(zip(source_labels, scaled_totals))}'
+            )
+    # Mean of totals cannot exceed the largest (scaled) source total
+    avg_total = float(averaged['FlowAmount'].sum())
+    max_source_total = max(scaled_totals)
+    if avg_total > max_source_total:
+        log.warning(
+            f'{full_name}: averaged FlowAmount sum {avg_total} exceeds max '
+            f'source sum {max_source_total}'
+        )
+    return FlowBySector(
+        averaged,
+        full_name=full_name,
+        config=config,
+        convert_df_to_flowby=True,
+    )
+
+
 def substitute_nonexistent_values(
     fb: FB, download_sources_ok: bool = True, **_kwargs: Any
 ) -> _FlowBy:
@@ -221,6 +396,99 @@ def substitute_nonexistent_values(
     return merged
 
 
+def interpolate_census_years(fba: FlowByActivity, **_: Any) -> FlowByActivity:
+    """Blend two census years linearly for a method year between them.
+
+    A ``clean_fba`` step, so it runs after suppressed cells are estimated and
+    units converted, on both census years alike. Configure on the source::
+
+        clean_fba: !clean_function:flowbyclean interpolate_census_years
+        census_interpolation:
+          years: [2017, 2022]
+          target_year: *ghgi_year
+
+    For a target year strictly between the two census years, every row of the
+    loaded year is weighted by its distance to the target, and the other
+    year's rows, prepared the same way, are added with the complementary
+    weight. A cell present in only one census counts as 0 in the other. At or
+    outside the census years the loaded data is returned unchanged, so the
+    method's ``year`` still picks the census it holds to.
+
+    With ``normalize: true`` the two years are blended as shares of their own
+    totals, and the result keeps the loaded year's total. Use it for a money
+    key, whose totals differ between census years on prices alone.
+
+    Why: the soils attribution switched from the 2017 to the 2022 Census of
+    Agriculture in one method year (2021), which moved grain farming's share
+    of cropland soils by 8.9 pp in that year alone (#934). The fertilizer
+    key, the nowcast Use table's ``325310`` row, carries each crop column's
+    revenue path, so it is blended between its 2017 and 2022 tables too.
+    """
+    settings = fba.config.get('census_interpolation') or {}
+    low, high = (int(y) for y in settings['years'])
+    target = int(settings['target_year'])
+    loaded = int(fba.config['year'])
+    if not low < target < high:
+        return fba
+    if loaded not in (low, high):
+        raise ValueError(
+            f'{fba.full_name}: census_interpolation years {low}, {high} '
+            f'do not include the loaded year {loaded}'
+        )
+    other = high if loaded == low else low
+
+    other_config = {
+        k: v
+        for k, v in fba.config.items()
+        if k not in ('clean_fba', 'census_interpolation')
+    }
+    other_config['year'] = other
+    other_fba = (
+        FlowByActivity.return_FBA(
+            full_name=fba.full_name, year=other, config=other_config
+        )
+        .function_socket('clean_fba_before_mapping')
+        .select_by_fields()
+        .function_socket('estimate_suppressed')
+        .select_by_fields(
+            selection_fields=other_config.get(
+                'selection_fields_after_data_suppression_estimation', 'null'
+            ),
+        )
+        .convert_units_and_flows()
+    )
+
+    weight_high = (target - low) / (high - low)
+    weight = {high: weight_high, low: 1.0 - weight_high}
+    this = pd.DataFrame(fba)
+    that = pd.DataFrame(other_fba)
+    if settings.get('normalize'):
+        # Blend shares, not levels, so a census year with a larger total (a
+        # money key in a year of higher prices) does not outweigh the other.
+        # The result keeps the loaded year's total.
+        scale = this['FlowAmount'].sum() / that['FlowAmount'].sum()
+        that = that.assign(FlowAmount=that['FlowAmount'] * scale)
+    this = this.assign(FlowAmount=lambda d: d['FlowAmount'] * weight[loaded])
+    that = that.assign(
+        FlowAmount=lambda d: d['FlowAmount'] * weight[other],
+        Year=this['Year'].iloc[0] if len(this) else loaded,
+    )
+    log.info(
+        '%s: census years %d x %.2f + %d x %.2f for %d',
+        fba.full_name,
+        loaded,
+        weight[loaded],
+        other,
+        weight[other],
+        target,
+    )
+    return FlowByActivity(
+        pd.concat([this, that], ignore_index=True),
+        full_name=fba.full_name,
+        config=fba.config,
+    )
+
+
 def estimate_suppressed_sectors_equal_attribution(
     fba: FlowByActivity,
 ) -> FlowByActivity:
@@ -229,7 +497,7 @@ def estimate_suppressed_sectors_equal_attribution(
     :param fba:
     :return:
     """
-    from bedrock.utils.mapping.naics import (  # noqa: PLC0415
+    from bedrock.utils.mapping.sector import (  # noqa: PLC0415
         map_source_sectors_to_less_aggregated_sectors,
     )
 
@@ -240,7 +508,7 @@ def estimate_suppressed_sectors_equal_attribution(
         'Estimating suppressed data by equally attributing parent to ' 'child sectors.'
     )
     naics_key = map_source_sectors_to_more_aggregated_sectors(
-        year=fba.config['target_naics_year']
+        year=fba.config['target_schema_year']
     )
     # forward fill
     naics_key = naics_key.T.ffill().T
@@ -250,21 +518,21 @@ def estimate_suppressed_sectors_equal_attribution(
     # determine if there are any 1:1 parent:child sectors that are missing,
     # if so, add them (true for usda_coa_cropland_naics df)
     cw_melt = map_source_sectors_to_less_aggregated_sectors(
-        fba.config['target_naics_year']
+        fba.config['target_schema_year']
     )
     cw_melt = cw_melt.assign(
         count=(
-            cw_melt.groupby(['source_naics', 'SectorLength'])['source_naics'].transform(
-                'count'
-            )
+            cw_melt.groupby(['source_sector', 'SectorLength'])[
+                'source_sector'
+            ].transform('count')
         )
     )
     cw = cw_melt.query("count==1").drop(columns=['SectorLength', 'count'])
     # create new df with activity col values reassigned to their child sectors
     fba2 = (
-        fba.merge(cw, left_on=col, right_on='source_naics', how='left')
+        fba.merge(cw, left_on=col, right_on='source_sector', how='left')
         .assign(**{f"{col}": lambda x: x.Sector})
-        .drop(columns=['source_naics', 'Sector'])
+        .drop(columns=['source_sector', 'Sector'])
         .query(f"~{col}.isna()")
         .drop_duplicates()  # duplicates if multiple generations of 1:1
     )
@@ -320,7 +588,7 @@ def estimate_suppressed_sectors_equal_attribution(
     # todo: All hyphenated sectors are currently dropped, modify code so
     #  they are not
     fba_m = (
-        fba3.merge(naics_key, how='left', left_on=col, right_on='source_naics')
+        fba3.merge(naics_key, how='left', left_on=col, right_on='source_sector')
         .assign(location=fba3.Location, category=fba3.FlowName)
         # .replace({'FlowAmount': {0: np.nan}  #,
         # col: {'1125 & 1129': '112X',
@@ -334,8 +602,8 @@ def estimate_suppressed_sectors_equal_attribution(
         # 'n4': {'1125': '112X', '1129': '112X'},
         # 'n5': {'11193': '1119X', '11194': '1119X', '11199': '1119X'}
         # })
-        .dropna(subset='source_naics')
-        .drop(columns='source_naics')
+        .dropna(subset='source_sector')
+        .drop(columns='source_sector')
     )
 
     indexed = fba_m.set_index(
@@ -506,13 +774,13 @@ def assign_sector_consumed_by_from_clean_parameter(
     """
     Assigns ``SectorConsumedBy`` directly from ``clean_parameter`` (issue
     #539). Intended as a ``clean_fbs_after_aggregation`` fxn: e.g. each
-    ``NIPA_FD_<year>.yaml`` activity_set targets exactly one official BEA
+    ``NIPA_final_dom_uses_<year>.yaml`` activity_set targets exactly one official BEA
     final-demand code (e.g. ``F06S00``, passed as that activity_set's
     ``clean_parameter``), which this assigns to every row of the fully
     attributed/aggregated FBS.
 
     This has to happen *after* attribution rather than via a crosswalk entry
-    for ``ActivityConsumedBy`` (as an earlier NIPA_FD attempt did): sources
+    for ``ActivityConsumedBy`` (as an earlier NIPA_final_dom_uses attempt did): sources
     like BEA_NIPA are ``FlowType='TECHNOSPHERE_FLOW'``, and
     ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy`` over
     ``...ProducedBy`` for that flow type, so populating ``SectorConsumedBy``
@@ -530,6 +798,53 @@ def assign_sector_consumed_by_from_clean_parameter(
             'in config to use assign_sector_consumed_by_from_clean_parameter'
         )
     return fbs.assign(SectorConsumedBy=code)
+
+
+def assign_use_row_from_clean_parameter(fbs: FlowBySector, **_: Any) -> FlowBySector:
+    """
+    The transpose of :func:`assign_sector_consumed_by_from_clean_parameter`,
+    for activity sets whose output is a Use table *row* rather than a Use
+    table *column* (issue #538).
+
+    The final-demand methods produce cells of the form (commodity consumed by
+    an ``F`` code), so the attributed sector is already in the right column and
+    only ``SectorConsumedBy`` has to be filled in. The value-added methods
+    produce cells of the form (``V00100`` produced by an industry): the
+    attributed sector is the **consuming industry** and ``clean_parameter``
+    names the row. So this moves the attributed sector from
+    ``SectorProducedBy`` to ``SectorConsumedBy`` and writes the row code into
+    ``SectorProducedBy``.
+
+    Why the sector arrives on the wrong side in the first place: an
+    ``activity_to_sector_mapping`` fills ``SectorProducedBy`` from
+    ``ActivityProducedBy``, and ``BEA_NIPA`` states its industry there. Leaving
+    it there through attribution is deliberate and is the same reasoning as
+    #539 - ``BEA_NIPA`` is a ``FlowType='TECHNOSPHERE_FLOW'`` source, so
+    ``add_primary_secondary_columns()`` prioritizes ``...ConsumedBy``, and any
+    value written to ``SectorConsumedBy`` before attribution would capture
+    ``PrimarySector`` and silently corrupt the weights. Both columns therefore
+    get their final values only here, after attribution and aggregation.
+
+    Refuses to run if ``SectorConsumedBy`` already holds anything, because that
+    would mean the activity set produced two-sided cells and the transpose
+    would discard one side rather than reorient it.
+    """
+    code = fbs.config.get('clean_parameter')
+    if code is None:
+        raise ValueError(
+            'clean_parameter (the target SectorProducedBy value, i.e. the Use '
+            'table row) is required in config to use '
+            'assign_use_row_from_clean_parameter'
+        )
+    occupied = fbs['SectorConsumedBy'].replace('', pd.NA).notna()
+    if occupied.any():
+        raise ValueError(
+            f'assign_use_row_from_clean_parameter would overwrite '
+            f'{int(occupied.sum())} populated SectorConsumedBy value(s) in '
+            f'{fbs.full_name}. It expects the attributed industry on '
+            f'SectorProducedBy and nothing on SectorConsumedBy.'
+        )
+    return fbs.assign(SectorConsumedBy=fbs['SectorProducedBy'], SectorProducedBy=code)
 
 
 def define_parentincompletechild_descendants(
@@ -656,13 +971,26 @@ def drop_parentincompletechild_descendants(
     the dataset, a row mapping 3112 to 311221 will not be dropped, since no
     more detailed information on 311221 is given. Further attribution/
     disaggregation should be done using another datatset such as the QCEW.
+
+    Also drops when the target is an ancestor of a published descendant (e.g.
+    parent residual mapped to NAICS-5 32511 while 325110 is published).
     '''
+
+    def _overlaps_published(target: str, descendants: str) -> bool:
+        t = str(target)
+        for d in descendants.split():
+            if not d:
+                continue
+            d = str(d)
+            if t.startswith(d) or d.startswith(t):
+                return True
+        return False
 
     fba2 = (
         fba.assign(
             to_keep=fba.apply(
-                lambda x: not any(
-                    [str(x[sector_col]).startswith(d) for d in x.descendants.split()]
+                lambda x: not _overlaps_published(
+                    str(x[sector_col]), str(x.descendants)
                 ),
                 axis='columns',
             )
@@ -672,6 +1000,73 @@ def drop_parentincompletechild_descendants(
     )
 
     return fba2
+
+
+def map_parentincompletechild_sectors(
+    fba: FlowByActivity,
+    *,
+    activity_col: str,
+    sector_col: str,
+    sector_type_col: str,
+    source_year: int,  # noqa: ARG001 — kept for caller API stability
+    primary_sector_key: pd.DataFrame,
+    secondary_sector_key: pd.DataFrame | None,
+    naics_key: pd.DataFrame,  # noqa: ARG001 — kept for caller API stability
+) -> FlowByActivity:
+    '''
+    Map parent-incompleteChild activities (MECS) at industry_spec resolution,
+    then drop rows whose sector target overlaps a published descendant
+    (bidirectional prefix check fixes ancestor rollup cases such as 32511 vs
+    published 325110).
+    '''
+    merge_on = [
+        'Class',
+        'Flowable',
+        'Context',
+        'ActivityProducedBy',
+        'ActivityConsumedBy',
+    ]
+    fba = define_parentincompletechild_descendants(fba, activity_col=activity_col)
+    crosswalk = subset_sector_key(
+        fba,
+        activity_col,
+        primary_sector_key=primary_sector_key,
+        secondary_sector_key=secondary_sector_key,
+    )
+    mapped = (
+        fba.merge(crosswalk, how='left', on=merge_on)
+        .rename(
+            columns={
+                'target_sector': sector_col,
+                'Sector': sector_col,
+                'SectorType': sector_type_col,
+            }
+        )
+        .drop(
+            columns=[
+                'ActivitySourceName',
+                'SectorSourceName',
+                'source_sector',
+                'Activity',
+            ],
+            errors='ignore',
+        )
+    )
+    for c in ['DataReliability', 'DataCollection']:
+        if f'{c}_y' in mapped.columns:
+            mapped.loc[mapped[f'{c}_y'].notnull(), f'{c}_x'] = mapped[f'{c}_y']
+            mapped = mapped.drop(columns=[f'{c}_y']).rename(columns={f'{c}_x': c})
+    mapped = drop_parentincompletechild_descendants(mapped, sector_col=sector_col)
+    if 'group_id' in mapped.columns and 'group_total' in mapped.columns:
+        mapped['group_total'] = mapped.groupby('group_id')['group_total'].transform(
+            'first'
+        )
+    return FlowByActivity(
+        mapped,
+        full_name=fba.full_name,
+        config=fba.config,
+        w_sector=True,
+    )
 
 
 @deprecated("No known use")
@@ -703,3 +1098,24 @@ def proxy_sector_data(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     fba3 = fba2.explode(col).reset_index(drop=True).reset_index(names='group_id')
 
     return fba3
+
+
+def negate_flows(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """
+    Flip the sign of every FlowAmount in an activity set.
+
+    For sources that report a quantity as a positive magnitude which the
+    surrounding table subtracts, where the data it is attributed against
+    already carries that quantity as negative.
+
+    Apply before attribution, so the attribution source's ratios distribute a
+    negative total rather than being applied and then flipped. That makes no
+    difference where a line maps to a single sector, but does where it splits.
+
+    To implement, use in an FBS method
+    clean_fba: !clean_function:flowbyclean negate_flows
+
+    :param fba: FlowByActivity whose FlowAmount should be negated
+    :return: the FlowByActivity with FlowAmount negated
+    """
+    return fba.assign(FlowAmount=-fba['FlowAmount'])
