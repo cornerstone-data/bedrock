@@ -102,9 +102,7 @@ def _download_summary_table(version: BeaDataVersion) -> None:
             GCS_GDP_DIR,
             f"GdpByInd_{version}",
         ),
-        pth=os.path.join(
-            _local_gdp_summary_dir(version), f"{version}_Summary{fname}"
-        ),
+        pth=os.path.join(_local_gdp_summary_dir(version), f"{version}_Summary{fname}"),
     )
 
 

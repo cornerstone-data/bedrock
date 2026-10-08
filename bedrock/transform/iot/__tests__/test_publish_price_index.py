@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +20,7 @@ _WIDE = pd.DataFrame(
 
 
 @pytest.fixture(autouse=True)
-def _toy_index():
+def _toy_index() -> Iterator[None]:
     with patch.object(module, 'derive_industry_price_index', return_value=_WIDE):
         yield
 

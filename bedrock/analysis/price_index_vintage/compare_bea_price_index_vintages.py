@@ -31,11 +31,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from bedrock.extract.iot.gdp import load_go_detail
+from bedrock.extract.iot.gdp import BeaDataVersion, load_go_detail
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
 from bedrock.transform.iot.helpers import map_detail_table
 
-OLD, NEW = '2025Q2', '2026Q2'
+OLD: BeaDataVersion = '2025Q2'
+NEW: BeaDataVersion = '2026Q2'
 FACTOR_BASE_YEAR = 2017
 WEIGHT_YEAR = 2024
 OUT_DIR = Path(__file__).parent / 'output'
@@ -70,7 +71,7 @@ def _summarise(revision: pd.DataFrame, weights: pd.Series) -> pd.DataFrame:
 def main() -> None:
     old = derive_industry_price_index(OLD)
     new = derive_industry_price_index(NEW)
-    years = [y for y in old.columns if y in new.columns]
+    years = [int(y) for y in old.columns if y in new.columns]
     old, new = old[years].astype(float), new[years].astype(float)
     weights = _go_weights()
 
@@ -100,7 +101,8 @@ def main() -> None:
     summary.to_csv(OUT_DIR / 'revision_summary_by_year.csv')
     factor_change.to_csv(OUT_DIR / 'factor_change_from_2017.csv')
 
-    pd.set_option('display.width', 160, 'display.precision', 2)
+    pd.set_option('display.width', 160)
+    pd.set_option('display.precision', 2)
     print(f'\nPrice index level revision, {NEW} vs {OLD} ({len(old)} sectors)')
     print(summary)
     print(f'\nChange in PI[year]/PI[{FACTOR_BASE_YEAR}] inflation factor')
