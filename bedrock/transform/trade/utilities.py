@@ -400,7 +400,7 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     )
 
 
-def _iea_category_totals(fba: FlowByActivity, flow: str) -> pd.Series:
+def _iea_category_totals(fba: pd.DataFrame, flow: str) -> pd.Series:
     """USD totals by IEA category for one trade direction."""
     frame = pd.DataFrame(fba)
     rows = frame[frame['FlowName'].astype(str) == flow]
