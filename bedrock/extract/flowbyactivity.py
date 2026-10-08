@@ -23,7 +23,7 @@ import pandas as pd
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
 from bedrock.transform.flowby import _FlowBy, flowby_config
 from bedrock.transform.flowbyfunctions import filter_by_geoscale
-from bedrock.utils.config import settings
+from bedrock.utils.config import common, settings
 from bedrock.utils.config.settings import (
     DEFAULT_DOWNLOAD_IF_MISSING,
     FBA_DIR,
@@ -1198,7 +1198,9 @@ def getFlowByActivity(
     :param geographic_level: str, a geographic level of the data.
                              Optional. E.g. 'national', 'state', 'county'.
     :param download_FBA_if_missing: bool, if True will attempt to load from
-        remote server prior to generating if file not found locally
+        remote server prior to generating if file not found locally.
+        ``common.download_fba_on_api_error`` has the same effect: a published
+        FlowByActivity parquet is loaded before any source API is called.
     :return: a pandas DataFrame in FlowByActivity format
     """
     fba = FlowByActivity.return_FBA(
@@ -1206,7 +1208,7 @@ def getFlowByActivity(
         config={},
         year=int(year),
         git_version=git_version,
-        download_ok=download_FBA_if_missing,
+        download_ok=download_FBA_if_missing or common.download_fba_on_api_error,
     )
 
     if len(fba) == 0:

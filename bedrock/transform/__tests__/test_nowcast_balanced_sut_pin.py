@@ -28,7 +28,11 @@ from bedrock.utils.snapshots.nowcast_balanced_sut_pin import (
 
 @pytest.fixture
 def nowcast_balanced_pin_inputs() -> Iterator[None]:
-    """v0.5 methodology flags and an empty FBS directory for one rebuild."""
+    """v0.5 methodology flags and an empty FBS directory for one rebuild.
+
+    Published FlowByActivity parquets are loaded from GCS before generation,
+    so the rebuild does not need Census, EIA, or BEA API keys.
+    """
     reset_usa_config(should_reset_env_var=True)
     set_global_usa_config(PIN_USA_CONFIG)
     common.download_fba_on_api_error = True
