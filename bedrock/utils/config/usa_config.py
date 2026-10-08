@@ -63,6 +63,17 @@ class USAConfig(BaseModel):
             'the configured year and redefinition stage.'
         ),
     )
+    bea_price_index_vintage: ta.Literal['2025Q2', '2026Q2'] = Field(
+        default='2025Q2',
+        description=(
+            'BEA GDP-by-industry release the derived industry price index '
+            '(derive_industry_price_index) reads: UGO304-A/UGO305-A detail '
+            'plus TGO104-Q quarterly summary. Moves the nowcast price carry '
+            'and apply_io_year_adjustments inflation; gross output, '
+            'intermediate inputs and value added stay on '
+            'gdp.BEA_DATA_VERSION, and the BEA_PriceIndex parquet is untouched.'
+        ),
+    )
     usa_base_io_data_year: ta.Literal[
         2012, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024
     ] = 2017  # BEA benchmark year (bea_published) or IO calendar year (nowcast)
