@@ -116,7 +116,7 @@ quote-style = "single"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-s -v -m 'not eeio_integration'"
+addopts = "-s -v -m 'not eeio_integration and not nowcast_integration'"
 norecursedirs = [
     ".*",
     "build",
@@ -131,6 +131,7 @@ norecursedirs = [
 ]
 markers = [
     "eeio_integration: integration tests for eeio model",
+    "nowcast_integration: weekday rebuild of the 2024 balanced nowcast Supply and Use",
     "realdata: needs real sources - FBAs, FBSs, GCS or the network. Applied automatically by bedrock/conftest.py to everything outside its hermetic allowlist.",
 ]
 filterwarnings = [

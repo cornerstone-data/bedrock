@@ -34,6 +34,7 @@ These are **independent** concepts and frequently point at different commits:
 | Allowed snapshot keys | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs diagnostics may load as `N_old` / `D_old`. Every released snapshot SHA must appear here. YAML default is `'v0'`; dispatch `--baseline` overrides for that run only. |
 | Canonical config | [`2025_usa_cornerstone_v0_5.yaml`](../config/configs/2025_usa_cornerstone_v0_5.yaml) | The single config used to generate the snapshots that back `.SNAPSHOT_KEY`. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
 | Cornerstone GHG FBS pin | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pins one `GHG_national_Cornerstone_nowcast_facilities_2024` parquet in `transform/output_data` (filename + SHA256). Guards FBS regeneration in [`test_fbs.py`](../../transform/__tests__/test_fbs.py). See "Cornerstone GHG FBS pin" below. |
+| Nowcast balanced SUT pin | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | Pins the 2024 balanced Supply and Use parquets in `flowsa/BalancedSUT` (filename + SHA256). Guards a `balance_year(2024)` rebuild in [`test_nowcast_balanced_sut_pin.py`](../../transform/iot/__tests__/test_nowcast_balanced_sut_pin.py). See "Nowcast balanced SUT pin" below. |
 
 ### Pins vs runtime loaders
 
@@ -41,6 +42,7 @@ These are **independent** concepts and frequently point at different commits:
 |---|---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | Full pipeline outputs at a git SHA | `test_usa.py` (`eeio_integration`) |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | One `GHG_national_Cornerstone_nowcast_facilities_2024` parquet | `test_fbs.py` (`eeio_integration`) |
+| [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | 2024 balanced Supply and Use | `test_nowcast_balanced_sut_pin.py` (`nowcast_integration`) |
 | `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Nothing — selects via `_select_cornerstone_ghg_fbs_base_name` (newest upload for that base_name) | `load_E_from_flowsa()` for Cornerstone GHG |
 
 The FBS pin and the runtime loader are independent: bumping the pin updates the regeneration test golden file; production still follows the latest GCS upload until `load_E_from_flowsa` is wired to the pin.
@@ -322,6 +324,38 @@ uv run pytest bedrock/transform/__tests__/test_fbs.py -m eeio_integration -v
 
 After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on the next run (newest `base_name` match) even before the pin bump merges; the pin bump aligns CI with the blessed file.
 
+## Nowcast balanced SUT pin
+
+[`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) pins the 2024 balanced Supply and Use tables under `gs://cornerstone-default/flowsa/BalancedSUT/`. Filename and SHA256 live in that file. The pin does not cover the Step 6 MUT or the after-redefinition MUT. v0.5 still loads the after-redefinition tables named by `nowcast_mut_vintage`.
+
+The pin is independent of `nowcast_mut_vintage` and `.SNAPSHOT_KEY`. [`test_nowcast_balanced_sut_pin.py`](../../transform/iot/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under `2025_usa_cornerstone_v0_5`, with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
+
+### When to bump the pin
+
+Bump the pin when a new balanced 2024 Supply and Use upload is the table the rebuild should match. Do not bump the pin to silence a failing test without diagnosing the diff. A red `test_balance_2024_matches_pinned_sut` means either regeneration is broken or the pin names a vintage the current code no longer reproduces.
+
+A pin bump is separate from a `.SNAPSHOT_KEY` bump and from the FBS pin bump. Do not point the test at `latest_nowcast_mut_vintage` or at `nowcast_mut_vintage`.
+
+### How to bump the pin
+
+The golden files are objects already on GCS. After the balanced Supply and Use for 2024 are uploaded:
+
+1. Set `filename` to the exact object names under `flowsa/BalancedSUT`.
+2. Set `sha256` to the digest of each parquet.
+3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT` and `usa_config` as `2025_usa_cornerstone_v0_5` unless the rebuild's methodology config changes.
+
+```powershell
+uv run python -c "import hashlib, sys; p=sys.argv[1]; print(hashlib.sha256(open(p,'rb').read()).hexdigest())" path\to\Balanced_Detail_Use_SUT_2024_....parquet
+```
+
+Verify:
+
+```powershell
+uv run pytest bedrock/transform/iot/__tests__/test_nowcast_balanced_sut_pin.py -m nowcast_integration -v
+```
+
+Merge the pin bump with the upload when they ship together. Keep the diff mechanical: the JSON pin file, unless the same change is what moved the balanced tables.
+
 ## File map
 
 | File | Role |
@@ -335,9 +369,12 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 | [`../validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) | Maps `--baseline` labels (`ceda-v0`, `v0.3`, …) to snapshot keys |
 | [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs |
 | [`../../../.github/workflows/generate_snapshots.yml`](../../../.github/workflows/generate_snapshots.yml) | `workflow_dispatch` CI that runs `generate_snapshots.py` |
-| [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Scheduled CI that diffs current pipeline output against `.SNAPSHOT_KEY` |
+| [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Weekday CI: `eeio_integration` against `.SNAPSHOT_KEY`, and `nowcast_integration` against the balanced SUT pin |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pinned `GHG_national_Cornerstone_nowcast_facilities_2024` parquet for FBS regen test |
 | [`fbs_pin.py`](fbs_pin.py) | Load pin JSON, download from GCS, verify SHA256 |
+| [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | Pinned 2024 balanced Supply and Use |
+| [`nowcast_balanced_sut_pin.py`](nowcast_balanced_sut_pin.py) | Load balanced SUT pin JSON, download from GCS, verify SHA256 |
+| [`../../transform/iot/__tests__/test_nowcast_balanced_sut_pin.py`](../../transform/iot/__tests__/test_nowcast_balanced_sut_pin.py) | `nowcast_integration` test: `balance_year(2024)` vs pinned Supply and Use |
 | [`stewi_facility_pin.json`](stewi_facility_pin.json) | Pinned stewi GHGRP/NEI + facilitymatcher outputs for facilities FBS |
 | [`stewi_facility_pin.py`](stewi_facility_pin.py) | Load pin, download from GCS, preflight check |
 | [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `eeio_integration` test: regen vs pinned FBS |
