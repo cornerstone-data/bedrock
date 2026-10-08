@@ -147,7 +147,7 @@ def rebase(parts: YearParts, *, old_year: int, new_year: int) -> YearParts:
     """
     if old_year == new_year:
         return parts
-    from bedrock.utils.economic.inflation_helpers_ceda import (  # noqa: PLC0415
+    from bedrock.utils.economic.inflation_helpers_bea import (  # noqa: PLC0415
         obtain_inflation_factors_from_reference_data,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415

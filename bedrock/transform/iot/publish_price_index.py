@@ -85,7 +85,8 @@ def save_price_index(
     df.to_parquet(parquet_path, index=False)
     meta = {
         'tool': 'bedrock',
-        'category': 'FlowByActivity',
+        # Not a FlowBy: the FlowBy loaders route any non-FBA category to FBS.
+        'category': 'PriceIndex',
         'name_data': f'{ARTIFACT_NAME}_{vintage}',
         'tool_version': PKG_VERSION_NUMBER,
         'git_hash': GIT_HASH,

@@ -66,12 +66,16 @@ class USAConfig(BaseModel):
     bea_price_index_vintage: ta.Literal['2025Q2', '2026Q2'] = Field(
         default='2025Q2',
         description=(
-            'BEA GDP-by-industry release the derived industry price index '
-            '(derive_industry_price_index) reads: UGO304-A/UGO305-A detail '
-            'plus TGO104-Q quarterly summary. Moves the nowcast price carry '
-            'and apply_io_year_adjustments inflation; gross output, '
-            'intermediate inputs and value added stay on '
-            'gdp.BEA_DATA_VERSION, and the BEA_PriceIndex parquet is untouched.'
+            'BEA GDP-by-industry release for the industry price index. '
+            'derive_industry_price_index (nowcast price carry, '
+            'apply_io_year_adjustments inflation) reads its UGO304-A/UGO305-A '
+            'detail and TGO104-Q summary. Every other reader (margin '
+            'inflation, the diagnostics EF dollar-year adjustment) goes '
+            'through obtain_inflation_factors_from_reference_data: 2025Q2 keeps the '
+            'Watershed-derived BEA_PriceIndex parquet, which is not the '
+            'derived 2025Q2 index; later vintages load the published index '
+            'CEDA pins (PUBLISHED_PRICE_INDEX_STEMS). Gross output, '
+            'intermediate inputs and value added stay on gdp.BEA_DATA_VERSION.'
         ),
     )
     usa_base_io_data_year: ta.Literal[

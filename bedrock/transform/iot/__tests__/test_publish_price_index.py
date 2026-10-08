@@ -43,7 +43,9 @@ def test_save_writes_parquet_and_sidecar(tmp_path: Path) -> None:
     parquet, meta = module.save_price_index('2026Q2', tmp_path)
     assert parquet.name == f'{module.artifact_stem("2026Q2")}.parquet'
     assert len(pd.read_parquet(parquet)) == _WIDE.size
-    tool_meta = json.loads(meta.read_text())['tool_meta']
+    sidecar = json.loads(meta.read_text())
+    assert sidecar['category'] == 'PriceIndex'
+    tool_meta = sidecar['tool_meta']
     assert tool_meta['bea_data_vintage'] == '2026Q2'
     assert tool_meta['years'] == [2024, 2025]
 
