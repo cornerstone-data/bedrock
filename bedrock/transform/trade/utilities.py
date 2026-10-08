@@ -323,14 +323,10 @@ if __name__ == '__main__':
 IEA_EXPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_export_bridge.csv'
 IEA_IMPORT_BRIDGE_CSV = 'bedrock/analysis/nowcasting/trade_data/iea_import_bridge.csv'
 
-#: The IEA extract for the anchor year, used for the growth denominators.
-IEA_EXPORTS_2017_CSV = (
-    'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Exports.csv'
-)
-
-IEA_IMPORTS_2017_CSV = (
-    'bedrock/extract/input_data/BEA_IEA/2017/BEA_IEA_2017_Imports.csv'
-)
+#: Growth denominators are this source's anchor-year FlowByActivity.
+#: Amounts are USD, the same unit as the frame being bridged.
+IEA_SOURCE = 'BEA_IEA'
+IEA_ANCHOR_YEAR = 2017
 
 #: The activity-to-sector crosswalk for IEA imports; `_bridge_iea_services`
 #: reads the S00300 rows off it so the noncomparable pass-through and the
@@ -367,7 +363,6 @@ def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         fba,
         flow='Imports',
         bridge_csv=IEA_IMPORT_BRIDGE_CSV,
-        base_csv=IEA_IMPORTS_2017_CSV,
         anchor_table='Supply_detail',
         anchor_column='MCIF',
         noncomparable_csv=IEA_IMPORTS_CROSSWALK_CSV,
@@ -400,9 +395,19 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         fba,
         flow='Exports',
         bridge_csv=IEA_EXPORT_BRIDGE_CSV,
-        base_csv=IEA_EXPORTS_2017_CSV,
         anchor_table='Use_SUT_detail',
         anchor_column='F04000',
+    )
+
+
+def _iea_category_totals(fba: FlowByActivity, flow: str) -> pd.Series:
+    """USD totals by IEA category for one trade direction."""
+    frame = pd.DataFrame(fba)
+    rows = frame[frame['FlowName'].astype(str) == flow]
+    return (
+        rows.groupby(rows['ActivityProducedBy'].astype(str))['FlowAmount']
+        .sum()
+        .astype(float)
     )
 
 
@@ -410,7 +415,6 @@ def _bridge_iea_services(
     fba: FlowByActivity,
     flow: str,
     bridge_csv: str,
-    base_csv: str,
     anchor_table: str,
     anchor_column: str,
     noncomparable_csv: str | None = None,
@@ -421,27 +425,21 @@ def _bridge_iea_services(
         return fba
 
     bridge = pd.read_csv(bridge_csv, dtype={'commodity': str})
-    base_raw = pd.read_csv(base_csv)
-    base = (
-        base_raw[
-            (base_raw['TradeDirection'] == flow)
-            & (base_raw['Affiliation'] == 'AllAffiliations')
-            & (base_raw['AreaOrCountry'] == 'AllCountries')
-        ]
-        .set_index('TypeOfService')['DataValue']
-        .astype(float)
-    )
+    now = _iea_category_totals(fba, flow)
+    frame_year = pd.to_numeric(pd.DataFrame(fba)['Year'], errors='coerce').dropna()
+    if set(frame_year.astype(int).unique()) == {IEA_ANCHOR_YEAR}:
+        # The frame being bridged is the anchor year, so it is its own base.
+        base = now
+    else:
+        from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
 
-    frame = pd.DataFrame(fba)
-    exports = frame[frame['FlowName'].astype(str) == flow]
-    now = (
-        exports.groupby(exports['ActivityProducedBy'].astype(str))['FlowAmount']
-        .sum()
-        .astype(float)
-    )
-    # FBA amounts are USD; the 2017 extract csv is $M — growth is a ratio, so
-    # only consistency within each side matters.
-    growth = (now / 1e6) / base.reindex(now.index)
+        base = _iea_category_totals(
+            getFlowByActivity(IEA_SOURCE, IEA_ANCHOR_YEAR),
+            flow,
+        )
+    # A 2017 cell BEA left unpublished is 0 on the FBA. Division by zero is
+    # cleared here; the category then keeps its 2017 weight (growth 1).
+    growth = now / base.reindex(now.index)
     growth = growth.replace([np.inf, -np.inf], np.nan)
 
     from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
