@@ -92,7 +92,8 @@ def _industry_price_index_levels() -> pd.DataFrame:
 
     ``useeio_margins``: USEEIOR v1.8.0 ``Detail_CPI_IO_17sch`` (GCS snapshot).
     ``apply_io_year_adjustments``: bedrock-derived industry PI.
-    Otherwise: bedrock BEA parquet (``BEA_PriceIndex``).
+    Otherwise: the BEA index for ``bea_price_index_vintage`` (2025Q2 keeps the
+    ``BEA_PriceIndex`` parquet; later vintages the published index CEDA pins).
     """
     cfg = get_usa_config()
     if cfg.useeio_margins:

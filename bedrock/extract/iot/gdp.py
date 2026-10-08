@@ -20,7 +20,13 @@ from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_buck
 # Consolidating them into one industry-accounts source is filed as #694; the
 # thing that must survive it is this pin, since the two archives are currently
 # different vintages.
-BEA_DATA_VERSION = "2025Q2"
+#
+# ⚠️ BEA_DATA_VERSION pins every loader here by default -- gross output,
+# intermediate inputs and value added included. Only the price-index path
+# (derived_price_index) passes ``USAConfig.bea_price_index_vintage`` instead,
+# so moving that config does not move the nowcast's output controls.
+BeaDataVersion = ta.Literal["2025Q2", "2026Q2"]
+BEA_DATA_VERSION: BeaDataVersion = "2025Q2"
 SECTOR_NAME_COL = "sector_name"
 
 SUMMARY_LINE_NUMBER_COL = "summary_line_no"
@@ -29,51 +35,53 @@ SECTOR_SUMMARY_CODE_COL = "sector_summary_code"
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "output_data")
 
-_LOCAL_GDP_SUMMARY_DIR = local_dir_for_gcs_sub_bucket(
-    posixpath.join(
-        gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
-        f"GdpByInd_{BEA_DATA_VERSION}",
+
+def _local_gdp_summary_dir(version: BeaDataVersion) -> str:
+    return local_dir_for_gcs_sub_bucket(
+        posixpath.join(
+            gcs_extract_input_path("BEA_Detail_GrossOutput_IO", version),
+            f"GdpByInd_{version}",
+        )
     )
-)
-_LOCAL_GDP_DETAIL_DIR = local_dir_for_gcs_sub_bucket(
-    posixpath.join(
-        gcs_extract_input_path("BEA_Detail_GrossOutput_IO", BEA_DATA_VERSION),
-        f"UGdpByInd_{BEA_DATA_VERSION}",
-    )
-)
 
 
-def load_pi_summary_annual() -> pd.DataFrame:
+def _local_gdp_detail_dir(version: BeaDataVersion) -> str:
+    return local_dir_for_gcs_sub_bucket(
+        posixpath.join(
+            gcs_extract_input_path("BEA_Detail_GrossOutput_IO", version),
+            f"UGdpByInd_{version}",
+        )
+    )
+
+
+_LOCAL_GDP_DETAIL_DIR = _local_gdp_detail_dir(BEA_DATA_VERSION)
+
+
+def load_pi_summary_annual(version: BeaDataVersion = BEA_DATA_VERSION) -> pd.DataFrame:
     """
     Download (if needed) and load the annual BEA summary gross output table,
     add 1-indexed summary line numbers, and index rows by those line numbers.
     """
-
-    _download_summary_table()
-    df = _load_from_excel(
-        fname=os.path.join(
-            _LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"
-        ),
-        sheet_name="TGO104-A",
-    )
-
-    df[SUMMARY_LINE_NUMBER_COL] = range(1, df.shape[0] + 1)  # 1-indexed
-    df.index = pd.Index("LINE_NUMBER_" + df[SUMMARY_LINE_NUMBER_COL].astype(str))
-    # NOTE: sector name can be not unique, because the original data has hierarchical structure
-    return df
+    return _load_summary_table("TGO104-A", version)
 
 
-def load_pi_summary_quarterly() -> pd.DataFrame:
+def load_pi_summary_quarterly(
+    version: BeaDataVersion = BEA_DATA_VERSION,
+) -> pd.DataFrame:
     """
     Download (if needed) and load the quarterly BEA summary gross output table,
     add 1-indexed summary line numbers, and index rows by those line numbers.
     """
-    _download_summary_table()
+    return _load_summary_table("TGO104-Q", version)
+
+
+def _load_summary_table(sheet_name: str, version: BeaDataVersion) -> pd.DataFrame:
+    _download_summary_table(version)
     df = _load_from_excel(
         fname=os.path.join(
-            _LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_SummaryGrossOutput.xlsx"
+            _local_gdp_summary_dir(version), f"{version}_SummaryGrossOutput.xlsx"
         ),
-        sheet_name="TGO104-Q",
+        sheet_name=sheet_name,
     )
 
     df[SUMMARY_LINE_NUMBER_COL] = range(1, df.shape[0] + 1)  # 1-indexed
@@ -82,48 +90,50 @@ def load_pi_summary_quarterly() -> pd.DataFrame:
     return df
 
 
-def _download_summary_table() -> None:
+def _download_summary_table(version: BeaDataVersion) -> None:
     """
-    Ensure the summary gross output Excel workbook for the configured BEA
-    version exists locally by downloading it from GCS if necessary.
+    Ensure the summary gross output Excel workbook for ``version`` exists
+    locally by downloading it from GCS if necessary.
     """
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
         sub_bucket=posixpath.join(
             GCS_GDP_DIR,
-            f"GdpByInd_{BEA_DATA_VERSION}",
+            f"GdpByInd_{version}",
         ),
-        pth=os.path.join(_LOCAL_GDP_SUMMARY_DIR, f"{BEA_DATA_VERSION}_Summary{fname}"),
+        pth=os.path.join(_local_gdp_summary_dir(version), f"{version}_Summary{fname}"),
     )
 
 
-def load_pi_detail() -> pd.DataFrame:
+def load_pi_detail(version: BeaDataVersion = BEA_DATA_VERSION) -> pd.DataFrame:
     """
-    Load the detail-level BEA price index table (UGO304-A) for the configured
-    BEA data vintage from the local Excel workbook.
+    Load the detail-level BEA price index table (UGO304-A) for ``version``
+    from the local Excel workbook.
     """
-    return _load_detail_table("UGO304-A")
+    return _load_detail_table("UGO304-A", version)
 
 
-def load_go_detail() -> pd.DataFrame:
+def load_go_detail(version: BeaDataVersion = BEA_DATA_VERSION) -> pd.DataFrame:
     """
-    Load the detail-level BEA gross output table (UGO305-A) for the configured
-    BEA data vintage from the local Excel workbook.
+    Load the detail-level BEA gross output table (UGO305-A) for ``version``
+    from the local Excel workbook.
     Unit is million USD
     """
-    return _load_detail_table("UGO305-A")
+    return _load_detail_table("UGO305-A", version)
 
 
-def _load_detail_table(sheet_name: GCS_GDP_DETAIL_TABLES) -> pd.DataFrame:
+def _load_detail_table(
+    sheet_name: GCS_GDP_DETAIL_TABLES, version: BeaDataVersion = BEA_DATA_VERSION
+) -> pd.DataFrame:
     """
     Download (if needed) and load a detail-level BEA price index or gross output
     table by sheet name, asserting that sector names remain unique.
     """
-    _download_detail_table()
+    _download_detail_table(version)
     df = _load_from_excel(
         fname=os.path.join(
-            _LOCAL_GDP_DETAIL_DIR, f"{BEA_DATA_VERSION}_DetailGrossOutput.xlsx"
+            _local_gdp_detail_dir(version), f"{version}_DetailGrossOutput.xlsx"
         ),
         sheet_name=sheet_name,
     )
@@ -132,19 +142,19 @@ def _load_detail_table(sheet_name: GCS_GDP_DETAIL_TABLES) -> pd.DataFrame:
     return df
 
 
-def _download_detail_table() -> None:
+def _download_detail_table(version: BeaDataVersion = BEA_DATA_VERSION) -> None:
     """
-    Ensure the detail gross output Excel workbook for the configured BEA
-    version exists locally by downloading it from GCS if necessary.
+    Ensure the detail gross output Excel workbook for ``version`` exists
+    locally by downloading it from GCS if necessary.
     """
     fname = "GrossOutput.xlsx"
     download_gcs_file_if_not_exists(
         name=fname,
         sub_bucket=posixpath.join(
             GCS_GDP_DIR,
-            f"UGdpByInd_{BEA_DATA_VERSION}",
+            f"UGdpByInd_{version}",
         ),
-        pth=os.path.join(_LOCAL_GDP_DETAIL_DIR, f"{BEA_DATA_VERSION}_Detail{fname}"),
+        pth=os.path.join(_local_gdp_detail_dir(version), f"{version}_Detail{fname}"),
     )
 
 
