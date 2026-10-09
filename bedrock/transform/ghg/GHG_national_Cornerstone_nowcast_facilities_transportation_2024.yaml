@@ -74,11 +74,33 @@
               Recreational Boats Gasoline: Recreational Boats
           attribution_method: direct
 
-        petroleum_fuels_diesel:
+        petroleum_fuels_diesel_trucks:
           selection_fields:
             PrimaryActivity:
               Medium- and Heavy-Duty Trucks Diesel Fuel: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: Diesel
+                FlowName: Trucks
+
+        petroleum_fuels_diesel_buses:
+          selection_fields:
+            PrimaryActivity:
               Buses Diesel Fuel: Buses - Distillate Fuel Oil
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: Diesel
+                FlowName: Buses
+
+        petroleum_fuels_diesel_automobiles:
+          selection_fields:
+            PrimaryActivity:
               Passenger Cars Diesel Fuel: Passenger Cars
               Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
           attribution_method: proportional
@@ -87,13 +109,25 @@
               <<: *highway_fuel_shares
               selection_fields:
                 Flowable: Diesel
+                FlowName: Automobiles
 
-        # On-road gasoline (cars / LDT / MHD) via highway shares.
-        petroleum_fuels_gasoline:
+        # On-road gasoline via highway shares (MV-7 autos/trucks; MV-10 buses).
+        petroleum_fuels_gasoline_automobiles:
           selection_fields:
             PrimaryActivity:
               Passenger Cars Gasoline: Passenger Cars
               Light-Duty Trucks Gasoline: Light-Duty Trucks
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: Gasoline
+                FlowName: Automobiles
+
+        petroleum_fuels_gasoline_trucks:
+          selection_fields:
+            PrimaryActivity:
               Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
           attribution_method: proportional
           attribution_source:
@@ -101,6 +135,7 @@
               <<: *highway_fuel_shares
               selection_fields:
                 Flowable: Gasoline
+                FlowName: Trucks
 
     UMD_GHGIA_T_3_9: &mobile # CH4 from mobile combustion
       year: 2024
@@ -140,6 +175,7 @@
               <<: *highway_fuel_shares
               selection_fields:
                 Flowable: Diesel
+                FlowName: Trucks
 
         petroleum_fuels_gasoline:
           selection_fields:
