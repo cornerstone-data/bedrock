@@ -686,6 +686,38 @@ BALANCED_ARTIFACT_NAMES = {
 GCS_BALANCED_SUT_DIR = 'flowsa/BalancedSUT'
 
 
+def prepared_balanced_blocks(
+    balance: YearBalance,
+) -> dict[str, tuple[pd.DataFrame, int]]:
+    """Frames ``save_balance`` writes, and how many Use cells the residue sweep zeroed.
+
+    The Use block is swept; Supply is the engine frame. Callers that compare a
+    rebuild to a pinned parquet use these frames, not ``balance.balanced``.
+    """
+    if balance.balanced is None:
+        raise ValueError('balance_year first; only a balanced result is prepared')
+    prepared: dict[str, tuple[pd.DataFrame, int]] = {}
+    use_pattern: pd.DataFrame | None = None
+    for block, frame in balance.balanced.items():
+        if block == 'use':
+            if 'use' not in balance.masks:
+                raise ValueError(
+                    'prepared_balanced_blocks needs balance.masks["use"] for residue sweep'
+                )
+            if use_pattern is None:
+                use_pattern = published_2017_panel('use')
+            cleaned, n_swept = sweep_offset_residue(
+                frame,
+                balance.masks['use'],
+                use_pattern,
+                RESIDUE_EPS_USD_M,
+            )
+        else:
+            cleaned, n_swept = frame, 0
+        prepared[block] = (cleaned, n_swept)
+    return prepared
+
+
 def save_balance(
     balance: YearBalance,
     out_dir: Path | None = None,
@@ -723,23 +755,7 @@ def save_balance(
         f'soft deferred {result.soft_deferred or "none"}'
     )
     written: list[Path] = []
-    use_pattern: pd.DataFrame | None = None
-    for block, frame in balance.balanced.items():
-        if block == 'use':
-            if 'use' not in balance.masks:
-                raise ValueError(
-                    'save_balance needs balance.masks["use"] for residue sweep'
-                )
-            if use_pattern is None:
-                use_pattern = published_2017_panel('use')
-            cleaned, n_swept = sweep_offset_residue(
-                frame,
-                balance.masks['use'],
-                use_pattern,
-                RESIDUE_EPS_USD_M,
-            )
-        else:
-            cleaned, n_swept = frame, 0
+    for block, (cleaned, n_swept) in prepared_balanced_blocks(balance).items():
         name = BALANCED_ARTIFACT_NAMES.get(block, f'Balanced_{block}')
         stem = f'{name}_{balance.year}_v{PKG_VERSION_NUMBER}'
         if GIT_HASH is not None:

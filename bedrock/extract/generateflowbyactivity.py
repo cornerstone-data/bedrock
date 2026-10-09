@@ -20,8 +20,8 @@ import pandas as pd
 from esupy.remote import make_url_request
 
 from bedrock.transform.dataclean import clean_df
+from bedrock.utils.config import common
 from bedrock.utils.config.common import (
-    download_fba_on_api_error,
     get_flowsa_base_name,
     load_env_file_key,
     load_yaml_dict,
@@ -343,7 +343,7 @@ def process_fba_config(
             # Prefer a cached FBA on GCS when diagnostics/snapshots ask for it —
             # avoids a live Census call (and empty-key JSONDecodeError) when the
             # parquet already exists under flowsa/FlowByActivity/.
-            if download_fba_on_api_error:
+            if common.download_fba_on_api_error:
                 try:
                     _download_fba_from_gcs(source, year)
                     continue
@@ -354,7 +354,7 @@ def process_fba_config(
                 urls = assemble_urls_for_query(source=source, year=year, config=config)
             except APIError:
                 # if API error, can download FBA instead of generating - used in diagnostics
-                if download_fba_on_api_error:
+                if common.download_fba_on_api_error:
                     _download_fba_from_gcs(source, year)
                     continue
                 raise
