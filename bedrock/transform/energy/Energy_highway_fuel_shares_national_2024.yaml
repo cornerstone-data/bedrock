@@ -1,0 +1,84 @@
+# National highway gasoline / diesel sector shares (Unit=share).
+# Fed / State-County-Municipal / private weights for GHG on-road petroleum.
+# Gasoline — FHWA MF-21 owner shares; federal nested with GSA FFR Civ+USPS;
+#   State, County and Municipal via Nowcast Use of 324110 (proportional).
+# Diesel — FFR Civ+USPS federal + MV-7 Method C State/County/Municipal +
+#   MF-21 special-fuel private; State/County/Municipal nest from Nowcast Use.
+
+!include:Cornerstone_2025_target.yaml
+year: &year 2024
+geoscale: national
+
+_attribution_sources:
+  Nowcast_Detail_Use_AfterRedef: &nowcast_use
+    year: *year
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00']
+    attribution_method: equal
+
+source_names:
+  FHWA_Highway_Statistics:
+    year: *year
+    activity_to_sector_mapping: FHWA
+    selection_fields:
+      Description: Table MF-21
+      FlowName:
+        - Gasoline highway
+        - Special fuel highway
+      ActivityConsumedBy:
+        - Federal Civilian
+        - State, County and Municipal
+        - Private and Commercial
+    activity_sets:
+      gasoline_state_county_municipal:
+        selection_fields:
+          FlowName: Gasoline highway
+          ActivityConsumedBy: State, County and Municipal
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast_use
+            selection_fields:
+              ActivityProducedBy: {'324110': ''}
+        clean_fba_after_attribution: !script_function:FHWA scale_attributed_to_owner_share
+        clean_source:
+          FHWA_Highway_Statistics:
+            year: *year
+            selection_fields:
+              Description: Table MF-21
+              FlowName: Gasoline highway
+
+      gasoline_federal_and_private:
+        selection_fields:
+          FlowName: Gasoline highway
+          ActivityConsumedBy:
+            - Federal Civilian
+            - Private and Commercial
+        attribution_method: direct
+        clean_fba_after_attribution: !script_function:FHWA gasoline_highway_fuel_shares
+        clean_source:
+          GSA_FFR:
+            year: *year
+          FHWA_Highway_Statistics:
+            year: *year
+            selection_fields:
+              Description: Table MF-21
+              FlowName: Gasoline highway
+
+      diesel:
+        selection_fields:
+          FlowName: Special fuel highway
+        attribution_method: direct
+        clean_fba_after_attribution: !script_function:FHWA diesel_highway_fuel_shares
+        clean_source:
+          GSA_FFR:
+            year: *year
+          FHWA_Highway_Statistics:
+            year: *year
+            selection_fields:
+              Description: Table MV-7
+              FlowName: Trucks
+          Nowcast_Detail_Use_AfterRedef:
+            year: *year
