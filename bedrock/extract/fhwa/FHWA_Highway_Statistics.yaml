@@ -1,5 +1,5 @@
 author: US Federal Highway Administration
-source_name: Highway Statistics (MF-21, MV-7, VM-1)
+source_name: Highway Statistics (MF-21, MV-7, MV-10, VM-1)
 source_url: https://www.fhwa.dot.gov/policyinformation/statistics/
 bib_id: FHWA_Highway_Statistics
 api_name: None
@@ -22,4 +22,5 @@ years:
 tables:
   - mf21
   - mv7
+  - mv10
   - vm1

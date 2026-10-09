@@ -43,6 +43,7 @@ def fhwa_parse(
     parsers: dict[str, Callable[..., pd.DataFrame]] = {
         'mf21': fhwa_mf21_parse,
         'mv7': fhwa_mv7_parse,
+        'mv10': fhwa_mv10_parse,
         'vm1': fhwa_vm1_parse,
     }
     return pd.concat(
@@ -226,8 +227,18 @@ def fhwa_vm1_parse(
 
 
 # ---------------------------------------------------------------------------
-# MV-7 — publicly owned vehicles (federal vs SCM truck stock)
+# MV-7 — publicly owned vehicles (federal vs SCM stock by class)
+# Columns: Federal autos/buses/trucks (1–3), SCM autos/buses/trucks (7–9).
 # ---------------------------------------------------------------------------
+
+_MV7_COLUMNS: list[tuple[int, str, str]] = [
+    (1, 'Automobiles', 'Federal'),
+    (2, 'Buses', 'Federal'),
+    (3, 'Trucks', 'Federal'),
+    (7, 'Automobiles', 'State, County and Municipal'),
+    (8, 'Buses', 'State, County and Municipal'),
+    (9, 'Trucks', 'State, County and Municipal'),
+]
 
 
 def fhwa_mv7_parse(
@@ -246,13 +257,10 @@ def fhwa_mv7_parse(
     records = [
         {
             'ActivityConsumedBy': owner,
-            'FlowName': 'Trucks',
+            'FlowName': flow_name,
             'FlowAmount': float(total_row[col]),
         }
-        for col, owner in (
-            (3, 'Federal'),
-            (9, 'State, County and Municipal'),
-        )
+        for col, flow_name, owner in _MV7_COLUMNS
         if col < len(total_row) and total_row[col] not in (None, '')
     ]
     df = pd.DataFrame.from_records(records)
@@ -269,11 +277,60 @@ def fhwa_mv7_parse(
 
 
 # ---------------------------------------------------------------------------
+# MV-10 — bus registrations (private / federal / SCM), national Total
+# https://www.fhwa.dot.gov/policyinformation/statistics/2024/mv10.cfm
+# ---------------------------------------------------------------------------
+
+_MV10_COLUMNS: list[tuple[int, str]] = [
+    (3, 'Private and Commercial'),
+    (4, 'Federal'),
+    (5, 'State, County and Municipal'),
+]
+
+
+def fhwa_mv10_parse(
+    *, df_list: list[pd.DataFrame], source: str, year: str, **_kwargs: Any
+) -> pd.DataFrame:
+    raw = df_list[0]
+    total_row = None
+    for _, series in raw.iterrows():
+        row = list(series.values)
+        if row and row[0] is not None and str(row[0]).strip() == 'Total':
+            total_row = row
+            break
+    if total_row is None:
+        raise ValueError(f'FHWA MV-10 Total row not found for {year}')
+
+    records = [
+        {
+            'ActivityConsumedBy': owner,
+            'FlowName': 'Buses',
+            'FlowAmount': float(total_row[col]),
+        }
+        for col, owner in _MV10_COLUMNS
+        if col < len(total_row) and total_row[col] not in (None, '')
+    ]
+    df = pd.DataFrame.from_records(records)
+    df['ActivityProducedBy'] = np.nan
+    return _attach_fba_meta(
+        df,
+        source=source,
+        year=year,
+        description='Table MV-10',
+        unit='vehicles',
+        cls='Other',
+        reliability=5,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Highway fuel sector shares (Energy_highway_fuel_shares_national_*.yaml)
 # ---------------------------------------------------------------------------
-# Federal nest: FFR Total Civilian + Total USPS.
-# State, County and Municipal nest: Nowcast Use of 324110 (YAML clean_source /
-# proportional attribution — never load_bea_use_table).
+# Federal nest: FFR Total Civilian + Total USPS (Buses: S00600 only; USPS
+# has no buses in FFR inventory).
+# Buses owner weights from MV-10 (private / federal / SCM registrations).
+# Autos/Trucks: Method C (FFR fuel × MV-7 SCM/fed stock) + MF-21 private.
+# State, County and Municipal nest: Nowcast Use of 324110.
 # Full priv weight on each private landing (Approach A).
 
 _FFR_CIV = 'Total Civilian Agencies'
@@ -335,6 +392,7 @@ def _emit_highway_shares(
     fba: pd.DataFrame,
     *,
     flowable: str,
+    vehicle_class: str,
     fed: float,
     state_county_municipal: float,
     priv: float,
@@ -342,7 +400,11 @@ def _emit_highway_shares(
     state_county_municipal_weights: dict[str, float] | None,
     include_state_county_municipal: bool,
 ) -> pd.DataFrame:
-    """Share rows: full priv on each private sector; no union-wide renorm."""
+    """Share rows: full priv on each private sector; no union-wide renorm.
+
+    ``Flowable`` is Gasoline/Diesel; ``FlowName`` is MV-7 class (Automobiles /
+    Buses / Trucks) so GHG can select the fed/SCM Method C nest by vehicle.
+    """
     sec_col = 'PrimarySector' if 'PrimarySector' in fba.columns else 'SectorConsumedBy'
     ssn_col = (
         'PrimarySectorSourceName'
@@ -368,7 +430,7 @@ def _emit_highway_shares(
                 'FlowAmount': float(weight),
                 'Unit': 'share',
                 'Class': 'Energy',
-                'FlowName': flowable,
+                'FlowName': vehicle_class,
                 'ActivityConsumedBy': activity,
                 sec_col: sec,
                 ssn_col: ssn,
@@ -476,50 +538,196 @@ def scale_attributed_to_owner_share(
     return FlowByActivity(out, full_name=fba.full_name, config=fba.config)
 
 
+_MV7_VEHICLE_CLASSES = ('Automobiles', 'Buses', 'Trucks')
+
+
+def _mv7_stock(mv7: pd.DataFrame, *, flow_name: str, owner: str) -> float:
+    return float(
+        mv7.loc[
+            (mv7['FlowName'] == flow_name) & (mv7['ActivityConsumedBy'] == owner),
+            'FlowAmount',
+        ].sum()
+    )
+
+
+def _method_c_owner_shares(
+    *,
+    fed_fuel: float,
+    civ_fuel: float,
+    mv_fed: float,
+    mv_scm: float,
+    priv_fuel: float,
+) -> dict[str, float]:
+    if mv_fed <= 0:
+        raise ValueError('MV-7 federal vehicle stock is zero; cannot run Method C')
+    return _normalize(
+        {
+            'fed': fed_fuel,
+            'state_county_municipal': civ_fuel / mv_fed * mv_scm,
+            'priv': priv_fuel,
+        }
+    )
+
+
+def _load_fhwa_table_from_clean(
+    clean: dict[str, Any],
+    *,
+    year: int,
+    download: bool,
+    description: str,
+    config_key: str,
+) -> pd.DataFrame:
+    cfg = clean.get(config_key) or clean.get('FHWA_Highway_Statistics') or {}
+    df = _load_fba(
+        'FHWA_Highway_Statistics',
+        int(cfg.get('year', year)),
+        download,
+    )
+    df = df[df['Description'].astype(str).eq(description)]
+    sel = cfg.get('selection_fields') or {}
+    for col, wanted in sel.items():
+        if col == 'Description':
+            continue
+        values = wanted if isinstance(wanted, list) else [wanted]
+        df = df[df[col].isin(values)]
+    return df
+
+
+def _mv10_bus_owner_shares(mv10: pd.DataFrame) -> dict[str, float]:
+    """Private / federal / SCM bus registration shares from MV-10 Total."""
+    return _normalize(
+        {
+            'fed': _mv7_stock(mv10, flow_name='Buses', owner='Federal'),
+            'state_county_municipal': _mv7_stock(
+                mv10, flow_name='Buses', owner=_STATE_COUNTY_MUNICIPAL
+            ),
+            'priv': _mv7_stock(mv10, flow_name='Buses', owner='Private and Commercial'),
+        }
+    )
+
+
+def _class_owner_shares(
+    *,
+    vehicle_class: str,
+    mv7: pd.DataFrame,
+    mv10: pd.DataFrame,
+    fed_fuel: float,
+    civ_fuel: float,
+    priv_fuel: float,
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Return (owner shares, federal agency nest) for one vehicle class."""
+    if vehicle_class == 'Buses':
+        # MV-10 has private+fed+SCM bus stocks; USPS has no buses → all fed
+        # weight to S00600 (do not apply FFR Civ/USPS fuel split).
+        return _mv10_bus_owner_shares(mv10), {'S00600': 1.0}
+    return (
+        _method_c_owner_shares(
+            fed_fuel=fed_fuel,
+            civ_fuel=civ_fuel,
+            mv_fed=_mv7_stock(mv7, flow_name=vehicle_class, owner='Federal'),
+            mv_scm=_mv7_stock(
+                mv7, flow_name=vehicle_class, owner=_STATE_COUNTY_MUNICIPAL
+            ),
+            priv_fuel=priv_fuel,
+        ),
+        {},  # filled by caller with FFR nest
+    )
+
+
 def gasoline_highway_fuel_shares(
     fba: pd.DataFrame, download_sources_ok: bool = True, **_kwargs: Any
 ) -> pd.DataFrame:
-    """Federal + private gasoline shares; federal nested with FFR Civ+USPS.
+    """Gasoline shares per vehicle class (FlowName=class, Flowable=Gasoline).
 
-    State, County and Municipal is a separate proportional Use activity set.
+    Automobiles/Trucks: Method C (FFR + MV-7) + MF-21 private.
+    Buses: MV-10 private/federal/SCM registration shares; federal → S00600.
+    SCM sector nest from Nowcast Use of 324110.
     """
     from bedrock.extract.flowbyactivity import FlowByActivity  # noqa: PLC0415
 
     year = int(fba.config.get('year', fba['Year'].iloc[0]))
     clean = fba.config.get('clean_source') or {}
+    if 'Nowcast_Detail_Use_AfterRedef' not in clean:
+        raise ValueError(
+            'gasoline_highway_fuel_shares requires clean_source.'
+            'Nowcast_Detail_Use_AfterRedef for State, County and Municipal nest'
+        )
     ffr = _load_fba(
         'GSA_FFR',
         int(clean.get('GSA_FFR', {}).get('year', year)),
         download_sources_ok,
     )
-    fhwa_cfg = clean.get('FHWA_Highway_Statistics') or {}
+    mf21_cfg = clean.get('FHWA_Highway_Statistics') or {}
     mf21 = _load_fba(
         'FHWA_Highway_Statistics',
-        int(fhwa_cfg.get('year', year)),
+        int(mf21_cfg.get('year', year)),
         download_sources_ok,
     )
-    for col, wanted in (fhwa_cfg.get('selection_fields') or {}).items():
+    for col, wanted in (mf21_cfg.get('selection_fields') or {}).items():
         values = wanted if isinstance(wanted, list) else [wanted]
         mf21 = mf21[mf21[col].isin(values)]
-    fed, state_county_municipal, priv, _total = _mf21_owner_totals(mf21)
-    shares = _normalize(
-        {
-            'fed': fed,
-            'state_county_municipal': state_county_municipal,
-            'priv': priv,
-        }
+    mv7 = _load_fhwa_table_from_clean(
+        clean,
+        year=year,
+        download=download_sources_ok,
+        description='Table MV-7',
+        config_key='FHWA_Highway_Statistics_MV7',
     )
+    mv10 = _load_fhwa_table_from_clean(
+        clean,
+        year=year,
+        download=download_sources_ok,
+        description='Table MV-10',
+        config_key='FHWA_Highway_Statistics_MV10',
+    )
+    use = _load_fba(
+        'Nowcast_Detail_Use_AfterRedef',
+        int(clean['Nowcast_Detail_Use_AfterRedef'].get('year', year)),
+        download_sources_ok,
+    )
+    _fed, _scm, priv, _total = _mf21_owner_totals(mf21)
+    civ_usps = set(_FFR_TO_SECTOR)
+    ffr_gas = float(
+        ffr.loc[
+            ffr['ActivityConsumedBy'].isin(civ_usps) & ffr['FlowName'].eq('Gasoline'),
+            'FlowAmount',
+        ].sum()
+    )
+    civ_gas = float(
+        ffr.loc[
+            (ffr['ActivityConsumedBy'] == _FFR_CIV) & ffr['FlowName'].eq('Gasoline'),
+            'FlowAmount',
+        ].sum()
+    )
+    ffr_fed_agency = _ffr_civ_usps_fuel_shares(ffr, fuels={'Gasoline'})
+    scm_weights = _state_county_municipal_use_weights(use)
+    parts: list[pd.DataFrame] = []
+    for vehicle_class in _MV7_VEHICLE_CLASSES:
+        shares, fed_agency = _class_owner_shares(
+            vehicle_class=vehicle_class,
+            mv7=mv7,
+            mv10=mv10,
+            fed_fuel=ffr_gas,
+            civ_fuel=civ_gas,
+            priv_fuel=priv,
+        )
+        if not fed_agency:
+            fed_agency = ffr_fed_agency
+        parts.append(
+            _emit_highway_shares(
+                fba,
+                flowable='Gasoline',
+                vehicle_class=vehicle_class,
+                fed=shares['fed'],
+                state_county_municipal=shares['state_county_municipal'],
+                priv=shares['priv'],
+                fed_agency=fed_agency,
+                state_county_municipal_weights=scm_weights,
+                include_state_county_municipal=True,
+            )
+        )
     return FlowByActivity(
-        _emit_highway_shares(
-            fba,
-            flowable='Gasoline',
-            fed=shares['fed'],
-            state_county_municipal=shares['state_county_municipal'],
-            priv=shares['priv'],
-            fed_agency=_ffr_civ_usps_fuel_shares(ffr, fuels={'Gasoline'}),
-            state_county_municipal_weights=None,
-            include_state_county_municipal=False,
-        ),
+        pd.concat(parts, ignore_index=True),
         full_name=fba.full_name,
         config=fba.config,
     )
@@ -528,9 +736,11 @@ def gasoline_highway_fuel_shares(
 def diesel_highway_fuel_shares(
     fba: pd.DataFrame, download_sources_ok: bool = True, **_kwargs: Any
 ) -> pd.DataFrame:
-    """Method C diesel: FFR Civ+USPS federal + MV-7 State/County/Municipal + SF private.
+    """Diesel shares per vehicle class (FlowName=class, Flowable=Diesel).
 
-    State/County/Municipal sector nest uses Nowcast Use from YAML clean_source.
+    Automobiles/Trucks: Method C (FFR + MV-7) + MF-21 special-fuel private.
+    Buses: MV-10 private/federal/SCM registration shares; federal → S00600.
+    SCM sector nest from Nowcast Use of 324110.
     """
     from bedrock.extract.flowbyactivity import FlowByActivity  # noqa: PLC0415
 
@@ -541,24 +751,28 @@ def diesel_highway_fuel_shares(
             'diesel_highway_fuel_shares requires clean_source.'
             'Nowcast_Detail_Use_AfterRedef for State, County and Municipal nest'
         )
-    fhwa_cfg = clean.get('FHWA_Highway_Statistics') or {}
-    use_cfg = clean['Nowcast_Detail_Use_AfterRedef']
     ffr = _load_fba(
         'GSA_FFR',
         int(clean.get('GSA_FFR', {}).get('year', year)),
         download_sources_ok,
     )
-    mv7 = _load_fba(
-        'FHWA_Highway_Statistics',
-        int(fhwa_cfg.get('year', year)),
-        download_sources_ok,
+    mv7 = _load_fhwa_table_from_clean(
+        clean,
+        year=year,
+        download=download_sources_ok,
+        description='Table MV-7',
+        config_key='FHWA_Highway_Statistics_MV7',
     )
-    for col, wanted in (fhwa_cfg.get('selection_fields') or {}).items():
-        values = wanted if isinstance(wanted, list) else [wanted]
-        mv7 = mv7[mv7[col].isin(values)]
+    mv10 = _load_fhwa_table_from_clean(
+        clean,
+        year=year,
+        download=download_sources_ok,
+        description='Table MV-10',
+        config_key='FHWA_Highway_Statistics_MV10',
+    )
     use = _load_fba(
         'Nowcast_Detail_Use_AfterRedef',
-        int(use_cfg.get('year', year)),
+        int(clean['Nowcast_Detail_Use_AfterRedef'].get('year', year)),
         download_sources_ok,
     )
 
@@ -583,34 +797,40 @@ def diesel_highway_fuel_shares(
             'FlowAmount',
         ].sum()
     )
-    mv_fed = float(mv7.loc[mv7['ActivityConsumedBy'] == 'Federal', 'FlowAmount'].sum())
-    mv_state = float(
-        mv7.loc[
-            mv7['ActivityConsumedBy'] == _STATE_COUNTY_MUNICIPAL, 'FlowAmount'
+    priv = float(
+        fba.loc[
+            fba['ActivityConsumedBy'] == 'Private and Commercial', 'FlowAmount'
         ].sum()
     )
-    shares = _normalize(
-        {
-            'fed': ffr_diesel,
-            'state_county_municipal': civ_diesel / mv_fed * mv_state,
-            'priv': float(
-                fba.loc[
-                    fba['ActivityConsumedBy'] == 'Private and Commercial', 'FlowAmount'
-                ].sum()
-            ),
-        }
-    )
+    ffr_fed_agency = _ffr_civ_usps_fuel_shares(ffr, fuels=diesel_fuels)
+    scm_weights = _state_county_municipal_use_weights(use)
+    parts: list[pd.DataFrame] = []
+    for vehicle_class in _MV7_VEHICLE_CLASSES:
+        shares, fed_agency = _class_owner_shares(
+            vehicle_class=vehicle_class,
+            mv7=mv7,
+            mv10=mv10,
+            fed_fuel=ffr_diesel,
+            civ_fuel=civ_diesel,
+            priv_fuel=priv,
+        )
+        if not fed_agency:
+            fed_agency = ffr_fed_agency
+        parts.append(
+            _emit_highway_shares(
+                fba,
+                flowable='Diesel',
+                vehicle_class=vehicle_class,
+                fed=shares['fed'],
+                state_county_municipal=shares['state_county_municipal'],
+                priv=shares['priv'],
+                fed_agency=fed_agency,
+                state_county_municipal_weights=scm_weights,
+                include_state_county_municipal=True,
+            )
+        )
     return FlowByActivity(
-        _emit_highway_shares(
-            fba,
-            flowable='Diesel',
-            fed=shares['fed'],
-            state_county_municipal=shares['state_county_municipal'],
-            priv=shares['priv'],
-            fed_agency=_ffr_civ_usps_fuel_shares(ffr, fuels=diesel_fuels),
-            state_county_municipal_weights=_state_county_municipal_use_weights(use),
-            include_state_county_municipal=True,
-        ),
+        pd.concat(parts, ignore_index=True),
         full_name=fba.full_name,
         config=fba.config,
     )

@@ -1,9 +1,9 @@
 # National highway gasoline / diesel sector shares (Unit=share).
-# Fed / State-County-Municipal / private weights for GHG on-road petroleum.
-# Gasoline — FHWA MF-21 owner shares; federal nested with GSA FFR Civ+USPS;
-#   State, County and Municipal via Nowcast Use of 324110 (proportional).
-# Diesel — FFR Civ+USPS federal + MV-7 Method C State/County/Municipal +
-#   MF-21 special-fuel private; State/County/Municipal nest from Nowcast Use.
+# Per vehicle class (FlowName=Automobiles|Buses|Trucks; Flowable=Gasoline|Diesel):
+#   Autos/Trucks — Method C (FFR fuel × MV-7 SCM/fed stock) + MF-21 private
+#   Buses — MV-10 private / federal / SCM bus registrations (no 491; USPS
+#     has no buses); federal → S00600
+# SCM sector nest: Nowcast Use of 324110.
 
 !include:Cornerstone_2025_target.yaml
 year: &year 2024
@@ -32,30 +32,13 @@ source_names:
         - State, County and Municipal
         - Private and Commercial
     activity_sets:
-      gasoline_state_county_municipal:
-        selection_fields:
-          FlowName: Gasoline highway
-          ActivityConsumedBy: State, County and Municipal
-        attribution_method: proportional
-        attribution_source:
-          Nowcast_Detail_Use_AfterRedef:
-            <<: *nowcast_use
-            selection_fields:
-              ActivityProducedBy: {'324110': ''}
-        clean_fba_after_attribution: !script_function:FHWA scale_attributed_to_owner_share
-        clean_source:
-          FHWA_Highway_Statistics:
-            year: *year
-            selection_fields:
-              Description: Table MF-21
-              FlowName: Gasoline highway
-
-      gasoline_federal_and_private:
+      gasoline:
         selection_fields:
           FlowName: Gasoline highway
           ActivityConsumedBy:
             - Federal Civilian
             - Private and Commercial
+            - State, County and Municipal
         attribution_method: direct
         clean_fba_after_attribution: !script_function:FHWA gasoline_highway_fuel_shares
         clean_source:
@@ -66,6 +49,21 @@ source_names:
             selection_fields:
               Description: Table MF-21
               FlowName: Gasoline highway
+          FHWA_Highway_Statistics_MV7:
+            year: *year
+            selection_fields:
+              Description: Table MV-7
+              FlowName:
+                - Automobiles
+                - Buses
+                - Trucks
+          FHWA_Highway_Statistics_MV10:
+            year: *year
+            selection_fields:
+              Description: Table MV-10
+              FlowName: Buses
+          Nowcast_Detail_Use_AfterRedef:
+            year: *year
 
       diesel:
         selection_fields:
@@ -75,10 +73,18 @@ source_names:
         clean_source:
           GSA_FFR:
             year: *year
-          FHWA_Highway_Statistics:
+          FHWA_Highway_Statistics_MV7:
             year: *year
             selection_fields:
               Description: Table MV-7
-              FlowName: Trucks
+              FlowName:
+                - Automobiles
+                - Buses
+                - Trucks
+          FHWA_Highway_Statistics_MV10:
+            year: *year
+            selection_fields:
+              Description: Table MV-10
+              FlowName: Buses
           Nowcast_Detail_Use_AfterRedef:
             year: *year
