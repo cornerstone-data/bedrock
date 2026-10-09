@@ -1,0 +1,15 @@
+{
+  "year": 2024,
+  "gcs_sub_bucket": "flowsa/BalancedSUT",
+  "usa_config": "2025_usa_cornerstone_v0_5",
+  "tables": {
+    "use": {
+      "filename": "Balanced_Detail_Use_SUT_2024_v0.3.0_3096818.parquet",
+      "sha256": "dc7bc9713fb500ed3ca5310384db57b1fb53fdeebc6a024ac9a799b0901f7f1d"
+    },
+    "supply": {
+      "filename": "Balanced_Detail_Supply_2024_v0.3.0_3096818.parquet",
+      "sha256": "9d7721004a71f21c876caccc36b0c407c9b1e5c66a945f61cb6aa002bc4fc55b"
+    }
+  }
+}

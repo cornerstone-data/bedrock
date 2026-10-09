@@ -32,11 +32,37 @@ jobs:
         run: |
           uv run pytest -v -m eeio_integration
 
+  test_nowcast_balance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Run tests (nowcast balance)
+        run: |
+          uv run pytest -v -m nowcast_integration
+
   notify_slack_failure:
-    needs: [test_cornerstone_usa]
+    needs: [test_cornerstone_usa, test_nowcast_balance]
     runs-on: ubuntu-latest
     # TODO: only alert for main (github.ref_name == 'main')
-    if: always() && (needs.test_cornerstone_usa.result == 'failure')
+    if: >-
+      always() &&
+      (needs.test_cornerstone_usa.result == 'failure' ||
+       needs.test_nowcast_balance.result == 'failure')
 
     steps:
       - name: Notify on Slack - failure
