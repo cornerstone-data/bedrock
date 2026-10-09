@@ -451,6 +451,13 @@ EIA_MECS_Land:
     naics:
       year: 2012
       hierarchy: parent-incompleteChild
+FHWA_Highway_Statistics:
+  data_format: FBA
+  class:
+  - Energy
+  - Other
+  activity_schema: null
+  sector_hierarchy: flat
 EIA_MER:
   data_format: FBA
   class:
@@ -485,6 +492,12 @@ GHGRP_NEI_Facilities:
     naics:
       year: 2017
       hierarchy: flat
+GSA_FFR:
+  data_format: FBA
+  class:
+  - Energy
+  activity_schema: null
+  sector_hierarchy: flat
 EPA_FactsAndFigures:
   data_format: FBA
   class:
