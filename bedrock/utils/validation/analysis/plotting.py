@@ -470,12 +470,18 @@ def plot_stacked_net_change(
     *,
     title: str,
     ylabel: str,
+    net_label_unit: str = "MMT CO2e",
+    net_label_format: str | None = None,
 ) -> None:
     """Single stacked bar from zero: positives up, negatives down, net scatter + label.
 
     ``df`` must have string ``sector`` and numeric ``value`` columns. Caller
     owns the figure — matches the ``(ax, data, ...)`` signature of
     ``percent_histogram`` and ``abs_change_histogram``.
+
+    ``net_label_unit`` is appended to the x-tick net annotation. When
+    ``net_label_format`` is omitted, magnitudes ≥ 1 use ``{:,.0f}`` and smaller
+    values use ``{:+.4g}`` so kg/USD waterfall contributions stay readable.
     """
     pos = _order_stack_for_net_bar(df.loc[df["value"] > 0], positive=True)
     neg = _order_stack_for_net_bar(df.loc[df["value"] < 0], positive=False)
@@ -483,7 +489,8 @@ def plot_stacked_net_change(
 
     pos_bottom = 0.0
     neg_bottom = 0.0
-    total_span = max(pos["value"].sum() - neg["value"].sum(), 1.0)
+    gross_span = float(pos["value"].sum() - neg["value"].sum())
+    total_span = max(gross_span, 1e-12)
     inside_label_threshold = total_span * 0.08
     callout_arrow = {
         "arrowstyle": "-",
@@ -567,7 +574,13 @@ def plot_stacked_net_change(
 
     ax.axhline(0, color="black", linewidth=1)
     ax.set_xticks([0])
-    ax.set_xticklabels([f"Net change = {net_total:,.0f} MMT CO2e"])
+    if net_label_format is not None:
+        net_text = net_label_format.format(net_total)
+    elif abs(net_total) >= 1.0:
+        net_text = f"{net_total:,.0f}"
+    else:
+        net_text = f"{net_total:+.4g}"
+    ax.set_xticklabels([f"Net change = {net_text} {net_label_unit}"])
     ax.set_ylabel(ylabel)
     ax.set_title(title, fontsize=TITLE_FONTSIZE, pad=12)
     y_formatter = mticker.ScalarFormatter(useOffset=False)
