@@ -74,7 +74,7 @@ def vius_parse(
             ].reset_index(drop=True)
             primary_val = df['Meaning of Primary value code']
             df['ActivityConsumedBy'] = primary_val.where(primary_val != 'X')
-            df['ActivityProducedBy'] = df['Meaning of Business use code']
+            body = df['Meaning of Business use code']
             fuel = pd.Series(np.nan, index=df.index)
 
         elif sheet == 'Table M2C':
@@ -85,13 +85,14 @@ def vius_parse(
             ].reset_index(drop=True)
             primary_val = df['Meaning of Primary value code']
             df['ActivityConsumedBy'] = df['Meaning of Business use code']
-            df['ActivityProducedBy'] = df['Meaning of Body type code']
+            body = df['Meaning of Body type code']
             fuel = primary_val.where(primary_val != 'X')
 
         else:
             continue
 
-        df['Description'] = sheet
+        df['Description'] = sheet + ' - ' + body
+        df['ActivityProducedBy'] = None
         id_cols = [
             'ActivityConsumedBy',
             'ActivityProducedBy',

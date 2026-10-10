@@ -259,6 +259,7 @@ BTS_VIUS:
   class:
     - Other
   activity_schema: null
+  sector_hierarchy: flat
 CalRecycle_WasteCharacterization:
   data_format: FBA
   class:
