@@ -1,6 +1,6 @@
 {
   "method": "GHG_national_Cornerstone_nowcast_facilities_2024",
   "gcs_sub_bucket": "transform/output_data",
-  "filename": "GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet",
-  "sha256": "7cc30cb922bb054e01122d4786b63d7ff23431121c934c22a8b8aa9c9b4f66c7"
+  "filename": "GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet",
+  "sha256": "d33e27f4adf8dd3720c45fc8aa2c095acc2ab073a6a4a5f90b4ac485f6e28e1a"
 }

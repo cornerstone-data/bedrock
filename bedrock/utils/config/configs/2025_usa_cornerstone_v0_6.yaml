@@ -1,19 +1,16 @@
 # Cornerstone 2025 model - v0.6.
 #
 # 2024 nowcast model. Detail MUT is the after-redefinition build named by
-# nowcast_mut_vintage. Facility GHG attribution on the nowcast Use selects
-# GHG_national_Cornerstone_nowcast_facilities_{year}. Waste disaggregation,
+# nowcast_mut_vintage: v0.5.0_a166975, the 2026Q2 price-index rebuild.
+# Both dollar years are 2024, so loading that MUT does not recompute Make
+# or Use from the index. Facility GHG attribution selects
+# GHG_national_Cornerstone_nowcast_facilities_2024. Waste disaggregation,
 # industry-average margins, and no IO year adjustments.
 #
-# TODO: nowcast_mut_vintage v0.3.0_3096818 is a placeholder. The Make/Use
-# tables for this config are the rebuild carried on bea_price_index_vintage
-# 2026Q2; set the pin to that vintage when those after-redefinition artifacts
-# are on GCS. Both dollar years are 2024, so loading the pinned MUT does not
-# recompute Make or Use from the index.
-#
-# The GHG FBS is not pinned. use_cornerstone_ghg_model with nowcast and
-# use_facility_ghg_attribution loads the newest GCS parquet for
-# GHG_national_Cornerstone_nowcast_facilities_2024.
+# cornerstone_ghg_fbs_filename pins that stem to
+# GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet,
+# built on the v0.5.0_a166975 Use and
+# Energy_manufacturing_national_nowcast_2024 of the same vintage.
 
 #####
 # Model base settings
@@ -25,7 +22,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v0.3.0_3096818'
+nowcast_mut_vintage: 'v0.5.0_a166975'
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
 bea_price_index_vintage: '2026Q2'
@@ -35,6 +32,7 @@ bea_price_index_vintage: '2026Q2'
 #####
 use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
