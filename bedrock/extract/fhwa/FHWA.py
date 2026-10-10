@@ -326,74 +326,24 @@ def _normalize(weights: dict[str, float]) -> dict[str, float]:
 
 def _ffr_civ_usps_fuel_shares(
     ffr: pd.DataFrame, *, fuels: set[str], gsa: pd.DataFrame
-) -> list[tuple[str, str, float]]:
-    """Split federal fuel across GSA-mapped civilian and Postal Service sectors"""
-    act_to = {
-        str(r.Activity): (str(r.SectorSourceName), str(r.Sector))
-        for r in gsa.itertuples(index=False)
-    }
+) -> list[tuple[str, float]]:
+    """Split federal fuel across GSA civilian and Postal Service activities"""
+    activities = set(gsa['Activity'].astype(str))
     sub = ffr.loc[
-        ffr['ActivityConsumedBy'].astype(str).isin(act_to) & ffr['FlowName'].isin(fuels)
-    ].copy()
+        ffr['ActivityConsumedBy'].astype(str).isin(activities)
+        & ffr['FlowName'].isin(fuels)
+    ]
     if sub.empty:
         raise ValueError('No GSA FFR fuel for crosswalked civilian/Postal activities')
-    mapped = sub['ActivityConsumedBy'].astype(str).map(act_to)
-    sub['SectorSourceName'] = mapped.map(lambda p: p[0])
-    sub['Sector'] = mapped.map(lambda p: p[1])
-    grouped = (
-        sub.groupby(['SectorSourceName', 'Sector'], sort=False)['FlowAmount']
-        .sum()
-        .reset_index(name='FlowAmount')
-    )
-    buckets: dict[tuple[str, str], float] = {}
-    for _, row in grouped.iterrows():
-        buckets[(str(row['SectorSourceName']), str(row['Sector']))] = float(
-            row['FlowAmount']
-        )
-    total = sum(buckets.values())
+    grouped = sub.groupby(sub['ActivityConsumedBy'].astype(str), sort=False)[
+        'FlowAmount'
+    ].sum()
+    total = float(grouped.sum())
     if total <= 0:
         raise ValueError('GSA FFR civilian/Postal fuel total is zero')
     return [
-        (sector_source_name, sec, amt / total)
-        for (sector_source_name, sec), amt in buckets.items()
+        (str(activity), float(amount) / total) for activity, amount in grouped.items()
     ]
-
-
-def _state_county_municipal_use_weights(
-    use: pd.DataFrame,
-    *,
-    use_commodity_for_sector_weights: str,
-) -> list[tuple[str, str, float]]:
-    """How to split state/county/municipal fuel across FHWA-mapped sectors"""
-    from bedrock.utils.mapping.sectormapping import (  # noqa: PLC0415
-        get_activitytosector_mapping,
-    )
-
-    cw = get_activitytosector_mapping('FHWA')
-    rows = cw.loc[cw['Activity'].astype(str).eq('State, County and Municipal')]
-    pairs = [
-        (str(r.SectorSourceName), str(r.Sector)) for r in rows.itertuples(index=False)
-    ]
-    codes = [sec for _sector_source_name, sec in pairs]
-    produced = use['ActivityProducedBy'].astype(str)
-    consumed = use['ActivityConsumedBy'].astype(str)
-    sub = use.loc[
-        produced.eq(use_commodity_for_sector_weights) & consumed.isin(codes),
-        ['ActivityConsumedBy', 'FlowAmount'],
-    ]
-    amounts = {
-        sec: float(
-            pd.to_numeric(
-                sub.loc[sub['ActivityConsumedBy'].astype(str).eq(sec), 'FlowAmount'],
-                errors='coerce',
-            )
-            .fillna(0.0)
-            .sum()
-        )
-        for _sector_source_name, sec in pairs
-    }
-    normed = _normalize(amounts)
-    return [(sector_source_name, sec, normed[sec]) for sector_source_name, sec in pairs]
 
 
 def _emit_highway_shares(
@@ -404,22 +354,15 @@ def _emit_highway_shares(
     fed: float,
     state_county_municipal: float,
     nonpublic: float,
-    fed_agency: list[tuple[str, str, float]],
-    state_county_municipal_weights: list[tuple[str, str, float]],
-    nonpublic_weights: list[tuple[str, str, float]],
+    fed_agency: list[tuple[str, float]],
+    private_activity: str,
 ) -> pd.DataFrame:
-    """Build share rows for one fuel and vehicle class"""
-    sec_col = 'PrimarySector' if 'PrimarySector' in fba.columns else 'SectorConsumedBy'
-    sec_source_name_col = (
-        'PrimarySectorSourceName'
-        if 'PrimarySectorSourceName' in fba.columns
-        else 'SectorSourceName'
-    )
+    """Owner shares for one fuel and vehicle class, before sector mapping"""
     template = fba.iloc[0].to_dict()
     flowable_class = f'{flowable}; {vehicle_class}'
     rows: list[dict[str, Any]] = []
 
-    def add(sec_source_name: str, sec: str, weight: float, activity: str) -> None:
+    def add(activity: str, weight: float) -> None:
         if weight <= 0:
             return
         row = dict(template)
@@ -429,33 +372,27 @@ def _emit_highway_shares(
                 'Unit': 'share',
                 'Class': 'Energy',
                 'Flowable': flowable_class,
+                'ActivityProducedBy': None,
                 'ActivityConsumedBy': activity,
-                sec_col: sec,
-                sec_source_name_col: sec_source_name,
             }
         )
         row.pop('FlowName', None)
-        for col, val in (
-            ('SectorConsumedBy', sec),
-            ('SectorSourceName', sec_source_name),
-            ('PrimarySector', sec),
-            ('PrimarySectorSourceName', sec_source_name),
+        for col in (
+            'SectorProducedBy',
+            'SectorConsumedBy',
+            'SectorSourceName',
+            'PrimarySector',
+            'PrimarySectorSourceName',
+            'ProducedBySectorType',
+            'ConsumedBySectorType',
         ):
-            if col in row:
-                row[col] = val
+            row.pop(col, None)
         rows.append(row)
 
-    for sec_source_name, sec, w in fed_agency:
-        add(sec_source_name, sec, fed * w, 'Federal Civilian')
-    for sec_source_name, sec, w in state_county_municipal_weights:
-        add(
-            sec_source_name,
-            sec,
-            state_county_municipal * w,
-            'State, County and Municipal',
-        )
-    for sec_source_name, sec, w in nonpublic_weights:
-        add(sec_source_name, sec, nonpublic * w, 'Private and Commercial')
+    for activity, w in fed_agency:
+        add(activity, fed * w)
+    add('State, County and Municipal', state_county_municipal)
+    add(private_activity, nonpublic)
 
     out = pd.DataFrame.from_records(rows).reset_index(drop=True)
     if 'FlowName' in out.columns:
@@ -493,17 +430,14 @@ def _class_owner_shares(
     civ_fuel: float,
     nonpublic_fuel: float,
     gsa: pd.DataFrame,
-) -> tuple[dict[str, float], list[tuple[str, str, float]]]:
-    """Owner shares and federal sector weights for one vehicle class"""
+) -> tuple[dict[str, float], list[tuple[str, float]]]:
+    """Owner shares and federal activity weights for one vehicle class"""
     if vehicle_class == 'Buses':
         # Buses use registration counts. Postal Service has no buses, so all
-        # federal bus fuel goes to GSA civilian (BEA) landings.
+        # federal bus fuel goes to GSA civilian activities.
         civ = gsa.loc[gsa['SectorSourceName'].eq('BEA_2017_Code')]
         n = len(civ)
-        fed_agency = [
-            (str(r.SectorSourceName), str(r.Sector), 1.0 / n)
-            for r in civ.itertuples(index=False)
-        ]
+        fed_agency = [(str(r.Activity), 1.0 / n) for r in civ.itertuples(index=False)]
         return (
             _normalize(
                 {
@@ -559,14 +493,14 @@ def _class_owner_shares(
                 'nonpublic': nonpublic_fuel,
             }
         ),
-        [],  # caller fills with GSA civilian vs Postal Service fuel shares
+        [],  # caller fills with GSA civilian vs Postal Service activities
     )
 
 
 def highway_fuel_shares(
     fba: pd.DataFrame, download_sources_ok: bool = True, **_kwargs: Any
 ) -> pd.DataFrame:
-    """Split highway fuel among sectors by vehicle class and owner"""
+    """Split highway fuel by vehicle class and owner, before sector mapping"""
     from bedrock.extract.flowbyactivity import (  # noqa: PLC0415
         FlowByActivity,
         getFlowByActivity,
@@ -579,10 +513,7 @@ def highway_fuel_shares(
     flowable = params['flowable']
     ffr_fuels_set = set(params['ffr_fuels'])
     nonpublic_source = params['nonpublic_source']
-    nonpublic_sectors = params['nonpublic_sectors']
-    use_commodity_for_sector_weights = str(params['use_commodity_for_sector_weights'])
     ffr_cfg = params['ffr']
-    use_cfg = params['use']
     mv7_cfg = params['mv7']
     mv10_cfg = params['mv10']
 
@@ -616,14 +547,6 @@ def highway_fuel_shares(
         values = wanted if isinstance(wanted, list) else [wanted]
         mv10 = mv10[mv10[col].isin(values)]
 
-    use = pd.DataFrame(
-        getFlowByActivity(
-            use_cfg['source_name'],
-            int(use_cfg['year']),
-            download_FBA_if_missing=download_sources_ok,
-        )
-    )
-
     if nonpublic_source == 'mf21':
         mf21_cfg = params['mf21']
         mf21 = pd.DataFrame(
@@ -654,14 +577,6 @@ def highway_fuel_shares(
         .astype(str)
         .drop_duplicates()
     )
-    fhwa_cw = get_activitytosector_mapping('FHWA')
-    nonpublic_cw = fhwa_cw.loc[
-        fhwa_cw['Activity'].astype(str).eq('Private and Commercial')
-    ]
-    sector_to_sec_source_name = {
-        str(r.Sector): str(r.SectorSourceName)
-        for r in nonpublic_cw.itertuples(index=False)
-    }
     gsa_acts = set(gsa['Activity'])
     civ_acts = set(gsa.loc[gsa['SectorSourceName'].eq('BEA_2017_Code'), 'Activity'])
     ffr_fed = float(
@@ -679,9 +594,6 @@ def highway_fuel_shares(
         ].sum()
     )
     ffr_fed_agency = _ffr_civ_usps_fuel_shares(ffr, fuels=ffr_fuels_set, gsa=gsa)
-    scm_weights = _state_county_municipal_use_weights(
-        use, use_commodity_for_sector_weights=use_commodity_for_sector_weights
-    )
     vehicle_classes = mv7_cfg['selection_fields']['FlowName']
 
     parts: list[pd.DataFrame] = []
@@ -697,35 +609,6 @@ def highway_fuel_shares(
         )
         if not fed_agency:
             fed_agency = ffr_fed_agency
-        codes = [str(sec) for sec in nonpublic_sectors[vehicle_class]]
-        pairs = [(sector_to_sec_source_name[sec], sec) for sec in codes]
-        if len(pairs) == 1:
-            nonpublic_weights = [(pairs[0][0], pairs[0][1], 1.0)]
-        else:
-            code_set = set(codes)
-            produced = use['ActivityProducedBy'].astype(str)
-            consumed = use['ActivityConsumedBy'].astype(str)
-            sub = use.loc[
-                produced.eq(use_commodity_for_sector_weights) & consumed.isin(code_set),
-                ['ActivityConsumedBy', 'FlowAmount'],
-            ]
-            amounts = {
-                sec: float(
-                    pd.to_numeric(
-                        sub.loc[
-                            sub['ActivityConsumedBy'].astype(str).eq(sec), 'FlowAmount'
-                        ],
-                        errors='coerce',
-                    )
-                    .fillna(0.0)
-                    .sum()
-                )
-                for _sec_source_name, sec in pairs
-            }
-            normed = _normalize(amounts)
-            nonpublic_weights = [
-                (sec_source_name, sec, normed[sec]) for sec_source_name, sec in pairs
-            ]
         parts.append(
             _emit_highway_shares(
                 fba,
@@ -735,8 +618,7 @@ def highway_fuel_shares(
                 state_county_municipal=shares['state_county_municipal'],
                 nonpublic=shares['nonpublic'],
                 fed_agency=fed_agency,
-                state_county_municipal_weights=scm_weights,
-                nonpublic_weights=nonpublic_weights,
+                private_activity=str(vehicle_class),
             )
         )
     return FlowByActivity(
