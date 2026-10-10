@@ -63,6 +63,19 @@ class USAConfig(BaseModel):
             'the configured year and redefinition stage.'
         ),
     )
+    cornerstone_ghg_fbs_filename: ta.Optional[str] = Field(
+        default=None,
+        description=(
+            'Exact Cornerstone GHG FlowBySector parquet, version and git hash '
+            'included (for example '
+            'GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc'
+            '.parquet). When set, the GHG loader reads that file from the '
+            'local FBS directory and, if it is absent, downloads that object '
+            'from gs://cornerstone-default/transform/output_data/. A newer '
+            'upload of the same stem is not a substitute. When omitted, the '
+            'loader uses the newest parquet for the stem the config selects.'
+        ),
+    )
     bea_price_index_vintage: ta.Literal['2025Q2', '2026Q2'] = Field(
         default='2025Q2',
         description=(

@@ -1,9 +1,10 @@
 # v05_waterfall G3 — "US data update" rung: G2 plus 2024 UMD GHG / IO data on
 # published BEA 2017 detail, at IO@2024 producer footing.
 #
-# The flags resolve identically to v04_waterfall_g3_data, on purpose; the GHG side
-# is the newest GCS parquet for GHG_national_Cornerstone_2024. The next rung,
-# v05_waterfall_g4_nowcast, differs only by the nowcast fields.
+# The flags resolve identically to v04_waterfall_g3_data, on purpose.
+# cornerstone_ghg_fbs_filename pins GHG_national_Cornerstone_2024 to
+# GHG_national_Cornerstone_2024_v0.3.0_c3a2acc.parquet. The next rung,
+# v05_waterfall_g4_nowcast, differs by the nowcast fields and its own FBS pin.
 
 model_base_year: 2024
 price_type: producer
@@ -11,6 +12,7 @@ price_type: producer
 usa_ghg_data_year: 2024
 
 use_cornerstone_ghg_model: true
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v0.3.0_c3a2acc.parquet
 apply_io_year_adjustments: true
 implement_waste_disaggregation: true
 
