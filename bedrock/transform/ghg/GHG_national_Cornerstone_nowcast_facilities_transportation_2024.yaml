@@ -1,6 +1,7 @@
-# Facilities GHG method with highway fuel allocated by vehicle class and
-# owner (Energy_highway_fuel_shares). Uses the transportation sector
-# crosswalk; otherwise inherits the facilities method.
+# Facilities GHG method. Truck, bus, and passenger-car rows use highway
+# fuel shares (private industries already attributed with VIUS in the
+# energy FBS). Uses the transportation sector crosswalk; otherwise
+# inherits the facilities method.
 # Modifies UMD GHGIA T_3_8 / T_3_9 / T_3_10
 
 
@@ -21,7 +22,7 @@
     UMD_GHGIA_T_3_8: !include:GHG_national_Cornerstone_nowcast_facilities_2024.yaml:source_names:UMD_GHGIA_T_3_8
       activity_to_sector_mapping: UMD_GHGIA_transportation
       activity_sets: !include:GHG_national_Cornerstone_nowcast_facilities_2024.yaml:source_names:UMD_GHGIA_T_3_8:activity_sets
-        # Non-road / motorcycle / buses; cars / LDT / MHD gas via highway shares.
+        # Non-road / motorcycle / buses; cars / LDT / MHD via highway shares.
         direct_gasoline:
           selection_fields:
             PrimaryActivity:
@@ -30,7 +31,6 @@
               Recreational Boats Gasoline: Recreational Boats
           attribution_method: direct
 
-        # Parent petroleum_fuels_diesel (Use of 324110) replaced by highway splits.
         petroleum_fuels_diesel:
           selection_fields:
             PrimaryActivity:
@@ -57,6 +57,16 @@
           selection_fields:
             PrimaryActivity:
               Passenger Cars Diesel Fuel: Passenger Cars
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: 'Diesel; Automobiles'
+
+        petroleum_fuels_diesel_light_duty_trucks:
+          selection_fields:
+            PrimaryActivity:
               Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
           attribution_method: proportional
           attribution_source:
@@ -65,11 +75,20 @@
               selection_fields:
                 Flowable: 'Diesel; Automobiles'
 
-        # Parent petroleum_fuels_gasoline (Use of 324110) → highway automobiles.
         petroleum_fuels_gasoline:
           selection_fields:
             PrimaryActivity:
               Passenger Cars Gasoline: Passenger Cars
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: 'Gasoline; Automobiles'
+
+        petroleum_fuels_gasoline_light_duty_trucks:
+          selection_fields:
+            PrimaryActivity:
               Light-Duty Trucks Gasoline: Light-Duty Trucks
           attribution_method: proportional
           attribution_source:
@@ -92,6 +111,13 @@
     UMD_GHGIA_T_3_9: &mobile !include:GHG_national_Cornerstone_nowcast_2024.yaml:source_names:UMD_GHGIA_T_3_9
       activity_to_sector_mapping: UMD_GHGIA_transportation
       activity_sets: !include:GHG_national_Cornerstone_nowcast_2024.yaml:source_names:UMD_GHGIA_T_3_9:activity_sets
+        direct_diesel:
+          selection_fields:
+            PrimaryActivity:
+              Passenger Cars Diesel On-Road: Passenger Cars - Households
+              Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Buses
+          attribution_method: direct
+
         petroleum_fuels_diesel:
           selection_fields:
             PrimaryActivity:
@@ -102,5 +128,33 @@
               <<: *highway_fuel_shares
               selection_fields:
                 Flowable: 'Diesel; Trucks'
+
+        light_duty_trucks_diesel:
+          selection_fields:
+            PrimaryActivity:
+              Light-Duty Trucks Diesel On-Road: Light-Duty Trucks
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: 'Diesel; Automobiles'
+
+        petroleum_fuels_gasoline:
+          selection_fields:
+            PrimaryActivity:
+              Passenger Cars Gasoline On-Road: Passenger Cars - Households
+          attribution_method: direct
+
+        light_duty_trucks_gasoline:
+          selection_fields:
+            PrimaryActivity:
+              Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks
+          attribution_method: proportional
+          attribution_source:
+            Energy_highway_fuel_shares_national_2024:
+              <<: *highway_fuel_shares
+              selection_fields:
+                Flowable: 'Gasoline; Automobiles'
 
     UMD_GHGIA_T_3_10: *mobile # N2O from mobile combustion duplicates method for CH4
