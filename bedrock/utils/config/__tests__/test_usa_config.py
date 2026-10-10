@@ -265,7 +265,11 @@ def test_v0_5_yearly_yamls_load(year: int) -> None:
     v4 = _load_usa_config_from_file_name(
         f'2025_usa_cornerstone_v0_4_nowcast_{year}.yaml'
     )
-    _v5_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
+    _v5_only = {
+        'nowcast_mut_vintage',
+        'use_facility_ghg_attribution',
+        'cornerstone_ghg_fbs_filename',
+    }
     assert cfg.model_dump(exclude=_v5_only) == v4.model_dump(exclude=_v5_only)
 
 
@@ -276,7 +280,11 @@ def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
     assert v05.nowcast_mut_vintage == 'v0.3.0_3096818'
     assert v05.use_facility_ghg_attribution
     assert not v04.use_facility_ghg_attribution
-    _v05_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
+    _v05_only = {
+        'nowcast_mut_vintage',
+        'use_facility_ghg_attribution',
+        'cornerstone_ghg_fbs_filename',
+    }
     assert v05.model_dump(exclude=_v05_only) == v04.model_dump(exclude=_v05_only)
 
 
@@ -328,12 +336,15 @@ def test_v0_4_waterfall_rungs_bracket_the_release_config() -> None:
 
 
 def test_v0_5_waterfall_rungs_bracket_the_release_config() -> None:
-    """G2 and G3 carry v0.4's rungs over; G3 -> G4 is nowcasting, G4 -> release
-    is facility GHG attribution alone."""
+    """G2 and G3 carry v0.4's rungs over, plus a GHG FBS filename pin.
+
+    G3 to G4 is nowcasting and a different pinned FBS. G4 to the release
+    config is facility GHG attribution and the facilities FBS pin.
+    """
     for rung in ('g2_methods', 'g3_data'):
-        assert (
-            _resolved_field_diff(f'v05_waterfall_{rung}', f'v04_waterfall_{rung}') == {}
-        )
+        diff = _resolved_field_diff(f'v05_waterfall_{rung}', f'v04_waterfall_{rung}')
+        assert set(diff) == {'cornerstone_ghg_fbs_filename'}
+        assert diff['cornerstone_ghg_fbs_filename'][1] is None
     assert set(
         _resolved_field_diff('v05_waterfall_g3_data', 'v05_waterfall_g4_nowcast')
     ) == {
@@ -342,10 +353,16 @@ def test_v0_5_waterfall_rungs_bracket_the_release_config() -> None:
         'usa_base_io_data_year',
         'apply_io_year_adjustments',
         'waste_weights_year',
+        'cornerstone_ghg_fbs_filename',
     }
-    assert _resolved_field_diff(
+    release = _resolved_field_diff(
         'v05_waterfall_g4_nowcast', '2025_usa_cornerstone_v0_5'
-    ) == {'use_facility_ghg_attribution': (False, True)}
+    )
+    assert set(release) == {
+        'use_facility_ghg_attribution',
+        'cornerstone_ghg_fbs_filename',
+    }
+    assert release['use_facility_ghg_attribution'] == (False, True)
 
 
 def test_electricity_reaggregation_config_parsing() -> None:

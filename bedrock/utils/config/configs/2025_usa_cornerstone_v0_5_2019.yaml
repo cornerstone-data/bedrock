@@ -11,11 +11,11 @@
 # x and q are row and column sums of that after-redef Make; B is not
 # year-scaled or inflated.
 #
-# use_facility_ghg_attribution selects the facility-attribution GHG FBS
-# (GHG_national_Cornerstone_nowcast_facilities_2019), unpinned: the loader
-# takes the newest GCS parquet for that stem. The v0.5 release FBS, built
-# from main 0e1b0f01 on the 3096818 tables (#1055, #1059), is
-# GHG_national_Cornerstone_nowcast_facilities_2019_v0.3.0_0e1b0f0.parquet
+# use_facility_ghg_attribution selects
+# GHG_national_Cornerstone_nowcast_facilities_2019. cornerstone_ghg_fbs_filename
+# pins that stem to the v0.5 release FBS, built from main 0e1b0f01 on the
+# 3096818 tables (#1055, #1059):
+#   GHG_national_Cornerstone_nowcast_facilities_2019_v0.3.0_0e1b0f0.parquet
 # sha256 ab78eebdadf7269e10f47cd7f17367ba9c1fad03e73fce214bacdc26fb982861
 
 #####
@@ -37,6 +37,7 @@ usa_ghg_data_year: 2019
 #####
 use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2019_v0.3.0_0e1b0f0.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
