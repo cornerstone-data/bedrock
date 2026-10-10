@@ -21,7 +21,7 @@ GCS_BALANCED_SUT_DIR = 'flowsa/BalancedSUT'
 
 #: Methodology flags the rebuild reads. The pin does not follow
 #: ``nowcast_mut_vintage`` or ``.SNAPSHOT_KEY``.
-PIN_USA_CONFIG = '2025_usa_cornerstone_v0_5'
+PIN_USA_CONFIG = '2025_usa_cornerstone_v0_6'
 PIN_YEAR = 2024
 PIN_BLOCKS = ('use', 'supply')
 
