@@ -1,0 +1,23 @@
+author: US General Services Administration
+source_name: Federal Fleet Report Open Data Set
+source_url: https://www.gsa.gov/policy-regulations/policy/motor-vehicle-management-policy/ffr-open-data-set-library
+bib_id: GSA_FFR
+api_name: None
+api_key_required: false
+format: xlsx
+url:
+  # Resolved per fiscal year in gsa_ffr_url_helper (filenames are irregular).
+  base_url: https://www.gsa.gov/system/files/
+url_replace_fxn: !script_function:GSA gsa_ffr_url_helper
+call_response_fxn: !script_function:GSA gsa_ffr_call
+parse_response_fxn: !script_function:GSA gsa_ffr_parse
+years:
+  # - 2017
+  # - 2018
+  # - 2019
+  # - 2020
+  # - 2021
+  # - 2022
+  # - 2023
+  - 2024
+  # - 2025

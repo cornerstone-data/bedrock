@@ -1,0 +1,33 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes
+FHWA,"State, County and Municipal",BEA_2017_Code,GSLGE,,MF-21
+FHWA,"State, County and Municipal",BEA_2017_Code,GSLGH,,MF-21
+FHWA,"State, County and Municipal",BEA_2017_Code,GSLGO,,MF-21
+FHWA,"State, County and Municipal",BEA_2017_Code,S00203,,MF-21
+FHWA,Automobiles - Private Use,BEA_2017_Code,F01000,,Highway private automobiles
+FHWA,Buses - Private Use,NAICS_2017_Code,485,,Highway private buses
+FHWA,Trucks - Private Use,BEA_2017_Code,F01000,,Highway private trucks - VIUS personal use
+FHWA,Trucks - Private Use,NAICS_2017_Code,11,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,21,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,22,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,23,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,31,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,32,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,33,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,42,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,44,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,45,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,48,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,49,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,51,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,52,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,53,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,54,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,55,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,56,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,61,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,62,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,71,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,72,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,81,,Highway private trucks - VIUS commercial use
+FHWA,Total Civilian Agencies,BEA_2017_Code,S00600,,GSA civilian federal fuel
+FHWA,Total U.S. Postal Service,NAICS_2017_Code,491,,GSA postal federal fuel
