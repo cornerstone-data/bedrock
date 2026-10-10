@@ -9,6 +9,13 @@ FHWA,Private and Commercial,NAICS_2017_Code,484,,Freight truck
 FHWA,Private and Commercial,NAICS_2017_Code,485,,Bus
 FHWA,Private and Commercial,NAICS_2017_Code,487,,Scenic/sightseeing (bus distillate)
 FHWA,Private and Commercial,NAICS_2017_Code,492,,Couriers (LDT)
+FHWA,Trucks - Private Use,NAICS_2017_Code,484,,Highway private trucks
+FHWA,Automobiles - Private Use,BEA_2017_Code,F01000,,Highway private automobiles
+FHWA,Automobiles - Private Use,NAICS_2017_Code,492,,Highway private automobiles
+FHWA,Buses - Private Use,NAICS_2017_Code,485,,Highway private buses
+FHWA,Buses - Private Use,NAICS_2017_Code,487,,Highway private buses
+FHWA,Total Civilian Agencies,BEA_2017_Code,S00600,,GSA civilian federal fuel
+FHWA,Total U.S. Postal Service,NAICS_2017_Code,491,,GSA postal federal fuel
 FHWA,Public Total,BEA_2017_Code,S00600,,Federal civilian + SCM
 FHWA,Public Total,BEA_2017_Code,GSLGE,,Federal civilian + SCM
 FHWA,Public Total,BEA_2017_Code,GSLGH,,Federal civilian + SCM

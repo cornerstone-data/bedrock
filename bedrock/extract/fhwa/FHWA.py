@@ -618,7 +618,7 @@ def highway_fuel_shares(
                 state_county_municipal=shares['state_county_municipal'],
                 nonpublic=shares['nonpublic'],
                 fed_agency=fed_agency,
-                private_activity=str(vehicle_class),
+                private_activity=f'{vehicle_class} - Private Use',
             )
         )
     return FlowByActivity(
