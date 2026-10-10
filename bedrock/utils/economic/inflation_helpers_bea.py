@@ -34,7 +34,9 @@ REFERENCE_PARQUET_VINTAGE: BeaDataVersion = "2025Q2"
 
 #: Published stem per later vintage, under ``extract/output-data``. Pinned, and
 #: the same stem CEDA pins in ``ceda/utils/inflation.py``, so both read one file.
-PUBLISHED_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {}
+PUBLISHED_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
+    "2026Q2": "BEA_PriceIndex_2026Q2_v0.5.0_a166975",
+}
 
 
 def obtain_inflation_factors_from_reference_data(
