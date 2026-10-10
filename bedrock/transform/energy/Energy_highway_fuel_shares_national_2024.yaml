@@ -1,9 +1,8 @@
-# National highway gasoline / diesel sector shares (Unit=share).
-# Per vehicle class (FlowName=Automobiles|Buses|Trucks; Flowable=Gasoline|Diesel):
-#   Autos/Trucks — Method C (FFR fuel × MV-7 SCM/fed stock) + MF-21 private
-#   Buses — MV-10 private / federal / SCM bus registrations (no 491; USPS
-#     has no buses); federal → S00600
-# SCM sector nest: Nowcast Use of 324110.
+# How much of highway gasoline or diesel each sector uses, by vehicle class.
+# Flowables:
+#   Gasoline; Automobiles, Gasoline; Buses, Gasoline; Trucks,
+#   Diesel; Automobiles, Diesel; Buses, Diesel; Trucks.
+# FlowAmount is a share (sums to 1 within each Flowable).
 
 !include:Cornerstone_2025_target.yaml
 year: &year 2024
