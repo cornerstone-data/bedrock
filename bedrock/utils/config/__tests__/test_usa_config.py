@@ -275,9 +275,34 @@ def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
     v04 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
     assert v05.nowcast_mut_vintage == 'v0.3.0_3096818'
     assert v05.use_facility_ghg_attribution
+    assert not v05.use_transportation_ghg_allocation
     assert not v04.use_facility_ghg_attribution
     _v05_only = {'nowcast_mut_vintage', 'use_facility_ghg_attribution'}
     assert v05.model_dump(exclude=_v05_only) == v04.model_dump(exclude=_v05_only)
+
+
+def test_v0_5_9_matches_v0_5_with_transportation_ghg_stem() -> None:
+    """v0.5.9 is v0.5 plus the transportation GHG FBS stem."""
+    from bedrock.transform.allocation.derived import (
+        _select_cornerstone_ghg_fbs_base_name,
+    )
+
+    v05 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5.yaml')
+    v059 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5_9.yaml')
+    assert v059.use_transportation_ghg_allocation
+    assert v059.model_dump(exclude={'use_transportation_ghg_allocation'}) == (
+        v05.model_dump(exclude={'use_transportation_ghg_allocation'})
+    )
+    set_global_usa_config('2025_usa_cornerstone_v0_5_9.yaml')
+    assert _select_cornerstone_ghg_fbs_base_name() == (
+        'GHG_national_Cornerstone_nowcast_facilities_transportation_2024'
+    )
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config('2025_usa_cornerstone_v0_5.yaml')
+    assert (
+        _select_cornerstone_ghg_fbs_base_name()
+        == 'GHG_national_Cornerstone_nowcast_facilities_2024'
+    )
 
 
 def test_v0_4_release_yaml_loads() -> None:

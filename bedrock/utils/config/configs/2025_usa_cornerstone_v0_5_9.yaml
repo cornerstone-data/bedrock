@@ -1,0 +1,31 @@
+# Cornerstone 2025 model - v0.5.9.
+#
+# Same settings as 2025_usa_cornerstone_v0_5, including the nowcast MUT pin
+# v0.3.0_3096818. use_transportation_ghg_allocation selects
+# GHG_national_Cornerstone_nowcast_facilities_transportation_2024 (newest GCS
+# parquet for that stem; not pinned here).
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.3.0_3096818'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+
+#####
+# Methodology selection
+#####
+use_cornerstone_ghg_model: True
+use_facility_ghg_attribution: True
+use_transportation_ghg_allocation: True
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True
