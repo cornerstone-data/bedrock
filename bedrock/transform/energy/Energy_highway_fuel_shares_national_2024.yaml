@@ -8,39 +8,11 @@
 year: &year 2024
 geoscale: national
 
-_attribution_sources:
-  Nowcast_Detail_Use_AfterRedef: &nowcast_use
-    year: *year
-    activity_to_sector_mapping: Cornerstone_2025
-    exclusion_fields:
-      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
-                           'F06E00', 'F07E00', 'F10E00', 'F02R00']
-    attribution_method: equal
-
 # Nonpublic landings by MV-7 vehicle class
 _nonpublic_sectors: &nonpublic_sectors
   Trucks: ['484']
   Automobiles: ['F01000', '492']
   Buses: ['485', '487']
-
-_highway_clean_source: &highway_clean_source
-  GSA_FFR:
-    year: *year
-  FHWA_Highway_Statistics_MV7:
-    year: *year
-    selection_fields:
-      Description: Table MV-7
-      FlowName:
-        - Automobiles
-        - Buses
-        - Trucks
-  FHWA_Highway_Statistics_MV10:
-    year: *year
-    selection_fields:
-      Description: Table MV-10
-      FlowName: Buses
-  Nowcast_Detail_Use_AfterRedef:
-    year: *year
 
 source_names:
   FHWA_Highway_Statistics:
@@ -70,9 +42,30 @@ source_names:
           ffr_fuels: [Gasoline]
           nonpublic_source: mf21
           nonpublic_sectors: *nonpublic_sectors
-        clean_source:
-          <<: *highway_clean_source
-          FHWA_Highway_Statistics:
+          use_commodity_for_sector_weights: &use_commodity_for_sector_weights '324110'
+          ffr: &highway_ffr
+            source_name: GSA_FFR
+            year: *year
+          use: &highway_use
+            source_name: Nowcast_Detail_Use_AfterRedef
+            year: *year
+          mv7: &highway_mv7
+            source_name: FHWA_Highway_Statistics
+            year: *year
+            selection_fields:
+              Description: Table MV-7
+              FlowName:
+                - Automobiles
+                - Buses
+                - Trucks
+          mv10: &highway_mv10
+            source_name: FHWA_Highway_Statistics
+            year: *year
+            selection_fields:
+              Description: Table MV-10
+              FlowName: Buses
+          mf21:
+            source_name: FHWA_Highway_Statistics
             year: *year
             selection_fields:
               Description: Table MF-21
@@ -90,7 +83,11 @@ source_names:
             - Biodiesel (B20)
             - Biodiesel (B100)
             - Renewable Diesel
-          nonpublic_source: attributed
+          # Private and Commercial gallons from this activity set's attributed FBA
+          nonpublic_source: attributed_nonpublic
           nonpublic_sectors: *nonpublic_sectors
-        clean_source:
-          <<: *highway_clean_source
+          use_commodity_for_sector_weights: *use_commodity_for_sector_weights
+          ffr: *highway_ffr
+          use: *highway_use
+          mv7: *highway_mv7
+          mv10: *highway_mv10
