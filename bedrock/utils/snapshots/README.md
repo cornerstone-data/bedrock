@@ -282,7 +282,7 @@ Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exis
 
 ## Cornerstone GHG FBS pin
 
-[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the `GHG_national_Cornerstone_nowcast_facilities_2024` FlowBySector parquet under `gs://cornerstone-default/transform/output_data/`. That is the method selected by `use_facility_ghg_attribution` on nowcast configs (v0.5). [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources (including the stewi facility pin) and asserts a byte-identical match to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
+[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins one `GHG_national_Cornerstone_nowcast_facilities_2024` FlowBySector parquet under `gs://cornerstone-default/transform/output_data/`. `use_facility_ghg_attribution` selects that method stem. This JSON is the weekday regeneration golden. A config's `cornerstone_ghg_fbs_filename`, when set, names the parquet that config loads. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources (including the stewi facility pin) and compares the frame to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
 
 ### When to bump the pin
 
