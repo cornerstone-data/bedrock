@@ -5,11 +5,11 @@
   "tables": {
     "use": {
       "filename": "Balanced_Detail_Use_SUT_2024_v0.5.0_a166975.parquet",
-      "sha256": "f5df6debeb2f01291ab2af220c98bb7e1a3e6c98787b4d096f64ab138cd70d87"
+      "sha256": "9f5cb91d4dc088e5651065ce1c8710bce72e3a8daf9f55d12d0a78f3a56ce7f4"
     },
     "supply": {
       "filename": "Balanced_Detail_Supply_2024_v0.5.0_a166975.parquet",
-      "sha256": "9ad1d4ec69bd797b64bf255cf2a498dd9b28d7687bce154920f339e8ba5e33e7"
+      "sha256": "df0d05ad8d0766cb150178ebcb3686f878a3aa5e0e89378506e5142fe2870f9d"
     }
   }
 }
