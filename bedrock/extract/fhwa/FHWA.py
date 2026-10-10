@@ -1,4 +1,4 @@
-"""FHWA Highway Statistics extracts (MF-21, VM-1, MV-7) and highway fuel shares."""
+"""Parse FHWA Highway Statistics tables and build highway fuel sector shares"""
 
 from __future__ import annotations
 
@@ -13,14 +13,11 @@ import pandas as pd
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.mapping.location import US_FIPS
 
-# ---------------------------------------------------------------------------
-# Multi-table load (MECS-style)
-# ---------------------------------------------------------------------------
-
 
 def fhwa_url_helper(
     *, build_url: str, config: dict[str, Any], year: str, **_kwargs: Any
 ) -> list[str]:
+    """Build download URLs for each configured FHWA table"""
     return [
         build_url.replace('__year__', str(year)).replace('__table__', str(table))
         for table in config['tables']
@@ -30,6 +27,7 @@ def fhwa_url_helper(
 def fhwa_call(
     *, resp: Any, url: str | None = None, **_kwargs: Any
 ) -> list[pd.DataFrame]:
+    """Read an Excel response and tag it with the table name"""
     df = pd.read_excel(BytesIO(resp.content), header=None)
     df.attrs['fhwa_table'] = (
         os.path.basename(urlparse(url or '').path).lower().rsplit('.', 1)[0]
@@ -40,6 +38,7 @@ def fhwa_call(
 def fhwa_parse(
     *, df_list: list[pd.DataFrame], source: str, year: str, **kwargs: Any
 ) -> pd.DataFrame:
+    """Concat data"""
     parsers: dict[str, Callable[..., pd.DataFrame]] = {
         'mf21': fhwa_mf21_parse,
         'mv7': fhwa_mv7_parse,
@@ -67,6 +66,7 @@ def _attach_fba_meta(
     unit: str | None = None,
     reliability: int = 3,
 ) -> pd.DataFrame:
+    """Add standard Flow-By-Activity metadata columns"""
     df['SourceName'] = source
     df['Year'] = int(year)
     df['Description'] = description
@@ -81,13 +81,8 @@ def _attach_fba_meta(
     return df
 
 
-# ---------------------------------------------------------------------------
-# MF-21 — motor-fuel use by ownership (national Total)
-# ---------------------------------------------------------------------------
-
-# (column, FlowName, ActivityConsumedBy owner).
-# Description = Table MF-21 only. Highway / nonhighway live in FlowName
-# (same table, not separate tables; not ActivityProducedBy).
+# MF-21 — motor fuel use by owner
+# (column index, FlowName, owner) — highway vs nonhighway is in FlowName
 _MF21_COLUMNS_LEGACY: list[tuple[int, str, str]] = [
     (1, 'Gasoline highway', 'Private and Commercial'),
     (2, 'Gasoline highway', 'Federal Civilian'),
@@ -103,7 +98,7 @@ _MF21_COLUMNS_LEGACY: list[tuple[int, str, str]] = [
     (13, 'Gasoline plus special fuel highway', 'Total'),
 ]
 
-# 2024+ MF-21: under each owner, GASOLINE then SPECIAL FUEL (interleaved).
+# 2024 onward: gasoline and special fuel columns alternate under each owner
 _MF21_COLUMNS_2024: list[tuple[int, str, str]] = [
     (1, 'Gasoline highway', 'Private and Commercial'),
     (2, 'Special fuel highway', 'Private and Commercial'),
@@ -131,6 +126,7 @@ _MF21_COLUMNS_2024: list[tuple[int, str, str]] = [
 def fhwa_mf21_parse(
     *, df_list: list[pd.DataFrame], source: str, year: str, **_kwargs: Any
 ) -> pd.DataFrame:
+    """Motor fuel use by owner"""
     raw = df_list[0]
     y = int(year)
     columns = _MF21_COLUMNS_2024 if y >= 2024 else _MF21_COLUMNS_LEGACY
@@ -170,10 +166,7 @@ def fhwa_mf21_parse(
     )
 
 
-# ---------------------------------------------------------------------------
-# VM-1 — national VMT, fuel, and mpg by vehicle type
-# ---------------------------------------------------------------------------
-
+# VM-1 — national miles, fuel, and mpg by vehicle type
 _VEHICLE_TYPES: list[tuple[int, str]] = [
     (2, 'Light Duty Vehicles Short WB'),
     (3, 'Motorcycles'),
@@ -197,6 +190,7 @@ _METRICS: list[tuple[str, str, str]] = [
 def fhwa_vm1_parse(
     *, df_list: list[pd.DataFrame], source: str, year: str, **_kwargs: Any
 ) -> pd.DataFrame:
+    """Vehicle miles, fuel, and mpg by vehicle type"""
     raw = df_list[0]
     y = int(year)
     records: list[dict[str, Any]] = []
@@ -226,11 +220,8 @@ def fhwa_vm1_parse(
     )
 
 
-# ---------------------------------------------------------------------------
-# MV-7 — publicly owned vehicles (federal vs SCM stock by class)
-# Columns: Federal autos/buses/trucks (1–3), SCM autos/buses/trucks (7–9).
-# ---------------------------------------------------------------------------
-
+# MV-7 — publicly owned autos, buses, and trucks
+# Federal in cols 1–3; state/county/municipal in 7–9
 _MV7_COLUMNS: list[tuple[int, str, str]] = [
     (1, 'Automobiles', 'Federal'),
     (2, 'Buses', 'Federal'),
@@ -244,6 +235,7 @@ _MV7_COLUMNS: list[tuple[int, str, str]] = [
 def fhwa_mv7_parse(
     *, df_list: list[pd.DataFrame], source: str, year: str, **_kwargs: Any
 ) -> pd.DataFrame:
+    """Publicly owned cars, buses, and trucks"""
     raw = df_list[0]
     total_row = None
     for _, series in raw.iterrows():
@@ -276,11 +268,8 @@ def fhwa_mv7_parse(
     )
 
 
-# ---------------------------------------------------------------------------
-# MV-10 — bus registrations (private / federal / SCM), national Total
+# MV-10 — bus registrations by owner
 # https://www.fhwa.dot.gov/policyinformation/statistics/2024/mv10.cfm
-# ---------------------------------------------------------------------------
-
 _MV10_COLUMNS: list[tuple[int, str]] = [
     (3, 'Private and Commercial'),
     (4, 'Federal'),
@@ -291,6 +280,7 @@ _MV10_COLUMNS: list[tuple[int, str]] = [
 def fhwa_mv10_parse(
     *, df_list: list[pd.DataFrame], source: str, year: str, **_kwargs: Any
 ) -> pd.DataFrame:
+    """Bus registrations by owner"""
     raw = df_list[0]
     total_row = None
     for _, series in raw.iterrows():
@@ -323,7 +313,6 @@ def fhwa_mv10_parse(
     )
 
 
-# ---------------------------------------------------------------------------
 # Highway fuel sector shares (Energy_highway_fuel_shares_national_*.yaml)
 # ---------------------------------------------------------------------------
 # Federal nest: FFR Total Civilian + Total USPS (Buses: S00600 only; USPS
@@ -341,6 +330,7 @@ _STATE_COUNTY_MUNICIPAL = 'State, County and Municipal'
 
 
 def _normalize(weights: dict[str, float]) -> dict[str, float]:
+    """Scale weights so they sum to 1"""
     total = sum(weights.values())
     if total <= 0:
         raise ValueError('Cannot normalize empty or zero highway-share weights')
@@ -483,18 +473,19 @@ def _load_fba(name: str, year: int, download: bool) -> pd.DataFrame:
 def _mf21_owner_totals(
     mf21: pd.DataFrame,
 ) -> tuple[float, float, float, float]:
+    """Federal, state/county/municipal, private, and total fuel from MF-21"""
     owners = {
         o: float(mf21.loc[mf21['ActivityConsumedBy'] == o, 'FlowAmount'].sum())
         for o in (
             'Federal Civilian',
-            _STATE_COUNTY_MUNICIPAL,
+            'State, County and Municipal',
             'Private and Commercial',
         )
     }
     total = sum(owners.values())
     return (
         owners['Federal Civilian'],
-        owners[_STATE_COUNTY_MUNICIPAL],
+        owners['State, County and Municipal'],
         owners['Private and Commercial'],
         total,
     )
@@ -503,7 +494,7 @@ def _mf21_owner_totals(
 def scale_attributed_to_owner_share(
     fba: pd.DataFrame, download_sources_ok: bool = True, **_kwargs: Any
 ) -> pd.DataFrame:
-    """After proportional Use peel, scale FlowAmounts to the owner share of MF-21."""
+    """Rescale attributed amounts to the MF-21 state/county/municipal share"""
     from bedrock.extract.flowbyactivity import FlowByActivity  # noqa: PLC0415
 
     year = int(fba.config.get('year', fba['Year'].iloc[0]))
@@ -538,10 +529,8 @@ def scale_attributed_to_owner_share(
     return FlowByActivity(out, full_name=fba.full_name, config=fba.config)
 
 
-_MV7_VEHICLE_CLASSES = ('Automobiles', 'Buses', 'Trucks')
-
-
 def _mv7_stock(mv7: pd.DataFrame, *, flow_name: str, owner: str) -> float:
+    """Vehicle count for one class and owner from MV-7 or MV-10"""
     return float(
         mv7.loc[
             (mv7['FlowName'] == flow_name) & (mv7['ActivityConsumedBy'] == owner),
@@ -558,8 +547,9 @@ def _method_c_owner_shares(
     mv_scm: float,
     priv_fuel: float,
 ) -> dict[str, float]:
+    """Owner shares for autos/trucks from federal fuel and public vehicle stock"""
     if mv_fed <= 0:
-        raise ValueError('MV-7 federal vehicle stock is zero; cannot run Method C')
+        raise ValueError('MV-7 federal vehicle stock is zero')
     return _normalize(
         {
             'fed': fed_fuel,
@@ -577,6 +567,7 @@ def _load_fhwa_table_from_clean(
     description: str,
     config_key: str,
 ) -> pd.DataFrame:
+    """Load one FHWA table from clean_source config"""
     cfg = clean.get(config_key) or clean.get('FHWA_Highway_Statistics') or {}
     df = _load_fba(
         'FHWA_Highway_Statistics',
@@ -599,7 +590,7 @@ def _mv10_bus_owner_shares(mv10: pd.DataFrame) -> dict[str, float]:
         {
             'fed': _mv7_stock(mv10, flow_name='Buses', owner='Federal'),
             'state_county_municipal': _mv7_stock(
-                mv10, flow_name='Buses', owner=_STATE_COUNTY_MUNICIPAL
+                mv10, flow_name='Buses', owner='State, County and Municipal'
             ),
             'priv': _mv7_stock(mv10, flow_name='Buses', owner='Private and Commercial'),
         }
@@ -637,11 +628,10 @@ def _class_owner_shares(
 def gasoline_highway_fuel_shares(
     fba: pd.DataFrame, download_sources_ok: bool = True, **_kwargs: Any
 ) -> pd.DataFrame:
-    """Gasoline shares per vehicle class (FlowName=class, Flowable=Gasoline).
+    """Split highway fuel among sectors by vehicle class and owner
 
-    Automobiles/Trucks: Method C (FFR + MV-7) + MF-21 private.
-    Buses: MV-10 private/federal/SCM registration shares; federal → S00600.
-    SCM sector nest from Nowcast Use of 324110.
+    ``clean_parameter`` must set ``flowable``, ``ffr_fuels``, ``private_from``
+    (``mf21`` or ``attributed``), and ``private_sectors`` (per vehicle class).
     """
     from bedrock.extract.flowbyactivity import FlowByActivity  # noqa: PLC0415
 
