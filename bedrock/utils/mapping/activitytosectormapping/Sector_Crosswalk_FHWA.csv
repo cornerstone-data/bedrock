@@ -1,75 +1,33 @@
 ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes
-FHWA,Federal Civilian,BEA_2017_Code,S00600,,MF-21
 FHWA,"State, County and Municipal",BEA_2017_Code,GSLGE,,MF-21
 FHWA,"State, County and Municipal",BEA_2017_Code,GSLGH,,MF-21
 FHWA,"State, County and Municipal",BEA_2017_Code,GSLGO,,MF-21
 FHWA,"State, County and Municipal",BEA_2017_Code,S00203,,MF-21
-FHWA,Private and Commercial,BEA_2017_Code,F01000,,Households (cars / LDT)
-FHWA,Private and Commercial,NAICS_2017_Code,484,,Freight truck
-FHWA,Private and Commercial,NAICS_2017_Code,485,,Bus
-FHWA,Private and Commercial,NAICS_2017_Code,487,,Scenic/sightseeing (bus distillate)
-FHWA,Private and Commercial,NAICS_2017_Code,492,,Couriers (LDT)
-FHWA,Trucks - Private Use,NAICS_2017_Code,484,,Highway private trucks
 FHWA,Automobiles - Private Use,BEA_2017_Code,F01000,,Highway private automobiles
-FHWA,Automobiles - Private Use,NAICS_2017_Code,492,,Highway private automobiles
 FHWA,Buses - Private Use,NAICS_2017_Code,485,,Highway private buses
-FHWA,Buses - Private Use,NAICS_2017_Code,487,,Highway private buses
+FHWA,Trucks - Private Use,BEA_2017_Code,F01000,,Highway private trucks - VIUS personal use
+FHWA,Trucks - Private Use,NAICS_2017_Code,11,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,21,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,22,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,23,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,31,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,32,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,33,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,42,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,44,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,45,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,48,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,49,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,51,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,52,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,53,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,54,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,55,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,56,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,61,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,62,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,71,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,72,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,NAICS_2017_Code,81,,Highway private trucks - VIUS commercial use
 FHWA,Total Civilian Agencies,BEA_2017_Code,S00600,,GSA civilian federal fuel
 FHWA,Total U.S. Postal Service,NAICS_2017_Code,491,,GSA postal federal fuel
-FHWA,Public Total,BEA_2017_Code,S00600,,Federal civilian + SCM
-FHWA,Public Total,BEA_2017_Code,GSLGE,,Federal civilian + SCM
-FHWA,Public Total,BEA_2017_Code,GSLGH,,Federal civilian + SCM
-FHWA,Public Total,BEA_2017_Code,GSLGO,,Federal civilian + SCM
-FHWA,Public Total,BEA_2017_Code,S00203,,Federal civilian + SCM
-FHWA,Total,NAICS_2017_Code,484,,Private + public
-FHWA,Total,BEA_2017_Code,S00600,,Private + public
-FHWA,Total,BEA_2017_Code,GSLGE,,Private + public
-FHWA,Total,BEA_2017_Code,GSLGH,,Private + public
-FHWA,Total,BEA_2017_Code,GSLGO,,Private + public
-FHWA,Total,BEA_2017_Code,S00203,,Private + public
-FHWA,Federal,BEA_2017_Code,S00600,,Method C intensity denominator
-FHWA,Federal,NAICS_2017_Code,491,,Method C intensity denominator
-FHWA,"State, County and Municipal",BEA_2017_Code,GSLGE,,Method C SCM diesel size
-FHWA,"State, County and Municipal",BEA_2017_Code,GSLGH,,Method C SCM diesel size
-FHWA,"State, County and Municipal",BEA_2017_Code,GSLGO,,Method C SCM diesel size
-FHWA,"State, County and Municipal",BEA_2017_Code,S00203,,Method C SCM diesel size
-FHWA,Single-Unit Trucks,NAICS_2017_Code,484,,UMD MHD Trucks Distillate
-FHWA,Single-Unit Trucks,NAICS_2017_Code,491,,UMD MHD Trucks Distillate
-FHWA,Single-Unit Trucks,BEA_2017_Code,GSLGO,,UMD MHD Trucks Distillate
-FHWA,Single-Unit Trucks,BEA_2017_Code,GSLGE,,UMD MHD Trucks Distillate
-FHWA,Single-Unit Trucks,BEA_2017_Code,GSLGH,,UMD MHD Trucks Distillate
-FHWA,Single-Unit Trucks,BEA_2017_Code,S00600,,UMD MHD Trucks Distillate
-FHWA,Single-Unit Trucks,BEA_2017_Code,S00203,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,NAICS_2017_Code,484,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,NAICS_2017_Code,491,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,BEA_2017_Code,GSLGO,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,BEA_2017_Code,GSLGE,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,BEA_2017_Code,GSLGH,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,BEA_2017_Code,S00600,,UMD MHD Trucks Distillate
-FHWA,Combination Trucks,BEA_2017_Code,S00203,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,NAICS_2017_Code,484,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,NAICS_2017_Code,491,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,BEA_2017_Code,GSLGO,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,BEA_2017_Code,GSLGE,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,BEA_2017_Code,GSLGH,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,BEA_2017_Code,S00600,,UMD MHD Trucks Distillate
-FHWA,Single-Unit 2-Axle 6-Tire or More and Combination Trucks,BEA_2017_Code,S00203,,UMD MHD Trucks Distillate
-FHWA,Buses,NAICS_2017_Code,485,,UMD Buses Distillate
-FHWA,Buses,NAICS_2017_Code,487,,UMD Buses Distillate
-FHWA,Light Duty Vehicles Short WB,BEA_2017_Code,F01000,,UMD Passenger Cars
-FHWA,Light Duty Vehicles Long WB,BEA_2017_Code,F01000,,UMD Light-Duty Trucks
-FHWA,Light Duty Vehicles Long WB,NAICS_2017_Code,492,,UMD Light-Duty Trucks
-FHWA,All Light Duty Vehicles,BEA_2017_Code,F01000,,Short + long WB
-FHWA,All Light Duty Vehicles,NAICS_2017_Code,492,,Short + long WB
-FHWA,Motorcycles,BEA_2017_Code,F01000,,UMD Motorcycles
-FHWA,All Motor Vehicles,BEA_2017_Code,F01000,,LD + MHD + bus
-FHWA,All Motor Vehicles,NAICS_2017_Code,492,,LD + MHD + bus
-FHWA,All Motor Vehicles,NAICS_2017_Code,484,,LD + MHD + bus
-FHWA,All Motor Vehicles,NAICS_2017_Code,491,,LD + MHD + bus
-FHWA,All Motor Vehicles,NAICS_2017_Code,485,,LD + MHD + bus
-FHWA,All Motor Vehicles,NAICS_2017_Code,487,,LD + MHD + bus
-FHWA,All Motor Vehicles,BEA_2017_Code,GSLGO,,LD + MHD + bus
-FHWA,All Motor Vehicles,BEA_2017_Code,GSLGE,,LD + MHD + bus
-FHWA,All Motor Vehicles,BEA_2017_Code,GSLGH,,LD + MHD + bus
-FHWA,All Motor Vehicles,BEA_2017_Code,S00600,,LD + MHD + bus
-FHWA,All Motor Vehicles,BEA_2017_Code,S00203,,LD + MHD + bus
