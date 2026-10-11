@@ -1341,6 +1341,43 @@ def prepare_pxi_for_attribution(fba: pd.DataFrame, **kwargs: Any) -> pd.DataFram
     return pxi_weights_for_year(prepared, int(target))
 
 
+#: ``Census_EC_MatFuel`` fuel code for diesel fuel consumed.
+MATFUEL_DIESEL_CODE = '32411021'
+
+
+def mining_diesel_gallons(fba: pd.DataFrame, **_: Any) -> pd.DataFrame:
+    """
+    Mining diesel from ``Census_EC_MatFuel``, converted from delivered cost to gallons.
+
+    clean_fba_before_mapping. Keeps the diesel fuel rows (``32411021``) for
+    NAICS sector 21 industries and divides the delivered cost by
+    ``clean_parameter.usd_per_gallon``, so mining sits in the same physical unit
+    as the EIA and MECS distillate volumes it is weighed against. The material
+    code is cleared from ``ActivityProducedBy`` because ``32411021`` would
+    otherwise map as refinery NAICS 324110.
+
+    The dataset publishes a physical quantity (``MATFUELQTY``) only in the
+    mining group ``EC__21MATFUEL``, which is not the group this source pulls,
+    hence the cost and a price.
+    """
+    usd_per_gallon = float(fba.config['clean_parameter']['usd_per_gallon'])
+    if usd_per_gallon <= 0:
+        raise ValueError('mining_diesel_gallons requires a positive usd_per_gallon')
+    keep = (fba['ActivityProducedBy'].astype(str) == MATFUEL_DIESEL_CODE) & fba[
+        'ActivityConsumedBy'
+    ].astype(str).str.startswith('21')
+    out = fba.loc[keep].reset_index(drop=True)
+    if out.empty:
+        raise ValueError('No mining diesel rows in Census_EC_MatFuel')
+    return out.assign(
+        FlowAmount=out['FlowAmount'] / usd_per_gallon,
+        FlowName='Distillate Fuel Oil',
+        Unit='gal',
+        Class='Energy',
+        ActivityProducedBy=None,
+    )
+
+
 if __name__ == "__main__":
     import bedrock
 

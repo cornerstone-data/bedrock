@@ -1,0 +1,33 @@
+author: US Energy Information Administration
+source_name: Fuel Oil and Kerosene Sales - Adjusted Sales of Distillate Fuel Oil by End Use
+source_url: https://www.eia.gov/dnav/pet/pet_cons_821dsta_dcu_nus_a.htm
+bib_id: EIA_FOKS
+api_name: None
+api_key_required: false
+format: csv
+
+# U.S. adjusted distillate sales by end use (thousand gallons), from Form
+# EIA-821. "Adjusted" means EIA scales the survey volumes to its published
+# products-supplied totals, so these are the volumes behind the inventory's
+# sector split of distillate.
+#
+# Farm and Off-Highway (construction and other off-road use) are the volumes
+# EIA counts in the industrial sector that are burned off-road, so they size
+# agriculture's and construction's share of table 3-11 industrial distillate.
+# On-Highway is kept as a check against table 3-8 highway diesel.
+#
+# The survey is suspended after the 2020 data year.
+#
+# ⚠️ Values are stored in data/EIA_FOKS_adjusted_distillate_sales.csv rather
+# than downloaded: eia.gov was not reachable from the environment the source
+# was added in, and the figures were transcribed from the EIA table above.
+# Check them against that page before relying on a new year.
+url: None
+parse_response_fxn: !script_function:EIA_FOKS eia_foks_parse
+years:
+- 2015
+- 2016
+- 2017
+- 2018
+- 2019
+- 2020

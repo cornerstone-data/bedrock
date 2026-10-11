@@ -1,0 +1,76 @@
+# Industrial-sector distillate fuel oil by using sector, in gallons. The
+# attribution source for table 3-11 "Petroleum Industrial - Distillate Fuel
+# Oil" in the transportation GHG method.
+#
+# The inventory sizes industrial distillate from EIA sales, and almost all of
+# it is burned off-road by farms, construction and mining. Weighting it by
+# refinery purchases in the Use table spread it by purchase dollars, which
+# include on-road truck fuel and refinery and petrochemical feedstocks. Each
+# group is instead sized by its own physical fuel volume:
+#   - agriculture: EIA farm distillate sales (Form EIA-821)
+#   - construction: EIA off-highway distillate sales
+#   - mining: Economic Census diesel cost by mining industry, converted at a
+#     delivered price
+#   - manufacturing: MECS distillate fuel use
+# Only the shares matter downstream; the tonnes stay the inventory's.
+#
+# Data years differ (EIA 2020, the last year of the survey; Census and MECS
+# 2022). Each group's volume is held at its latest observed year.
+
+!include:Cornerstone_2025_target.yaml
+year: &year 2024
+geoscale: national
+
+_attribution_sources:
+  Nowcast_Detail_Use_AfterRedef: &nowcast_petroleum
+    year: *year
+    activity_to_sector_mapping: Cornerstone_2025
+    selection_fields:
+      ActivityProducedBy: {'324110': ''}
+    exclusion_fields:
+      ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00']
+    attribution_method: equal
+
+source_names:
+  EIA_FOKS:
+    year: 2020
+    activity_to_sector_mapping: EIA_FOKS
+    standardize_units: False
+    selection_fields:
+      ActivityConsumedBy:
+        - Farm
+        - Off-Highway
+    # Farm splits across crop and animal production, off-highway across the
+    # construction sectors, by their refinery purchases.
+    attribution_method: proportional
+    attribution_source:
+      Nowcast_Detail_Use_AfterRedef: *nowcast_petroleum
+
+  Census_EC_MatFuel:
+    year: 2022
+    activity_to_sector_mapping: Cornerstone_2025
+    standardize_units: False
+    clean_fba_before_mapping: !script_function:Census_EC mining_diesel_gallons
+    clean_parameter:
+      # 2022 average U.S. No. 2 diesel price to end users, excluding taxes
+      # (EIA). Census reports delivered cost; mining buys untaxed off-road
+      # diesel, so the excluding-taxes price is the comparable one.
+      usd_per_gallon: 4.20
+    attribution_method: direct
+
+  EIA_MECS_Energy:
+    year: 2022
+    activity_to_sector_mapping: Cornerstone_2025
+    standardize_units: False
+    selection_fields:
+      Location: '00000'
+      Description: Table 3.2
+      FlowName: Distillate Fuel Oil
+    exclusion_fields:
+      ActivityConsumedBy: '31-33'
+    estimate_suppressed: !script_function:EIA_MECS estimate_suppressed_mecs_energy
+    clean_fba: !script_function:EIA_MECS mecs_distillate_to_gallons
+    attribution_method: proportional
+    attribution_source:
+      Nowcast_Detail_Use_AfterRedef: *nowcast_petroleum

@@ -1,0 +1,4 @@
+ActivitySourceName,Activity,SectorSourceName,Sector,SectorType,Notes
+EIA_FOKS,Farm,NAICS_2017_Code,111,,Farm distillate sales
+EIA_FOKS,Farm,NAICS_2017_Code,112,,Farm distillate sales
+EIA_FOKS,Off-Highway,BEA_2017_Code,23,,Off-highway distillate sales (construction and other off-road)

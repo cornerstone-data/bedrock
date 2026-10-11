@@ -116,6 +116,18 @@ source_names:
                         selection_fields:
                           Description: "Table M2E - All Vehicles Excluding Pickups, Minivans, Other Light Vans, and Sport Utility Vehicles"
                           FlowName: Vehicle miles
+                        # Farm trucks mostly burn farm diesel, which EIA
+                        # counts in industrial sales and the GHG method
+                        # attributes to agriculture through table 3-11.
+                        # USDA farm fuel and oil expenses ($15.6B, 2024F) are
+                        # roughly 40-45 Mt CO2 of all fuels; ~25 Mt of that
+                        # is table 3-11 farm distillate, leaving ~10 Mt for
+                        # on-road trucks against ~25 Mt from unscaled VIUS
+                        # miles.
+                        clean_fba: !script_function:BTS_VIUS scale_business_types
+                        clean_parameter:
+                          business_type_scale:
+                            Agriculture (Crop and Animal Production): 0.4
                         attribution_method: proportional
                         attribution_source:
                           Nowcast_Detail_Use_AfterRedef: *nowcast_petroleum
