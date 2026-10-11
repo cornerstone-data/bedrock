@@ -328,7 +328,7 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 
 [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) pins the 2024 balanced Supply and Use tables under `gs://cornerstone-default/flowsa/BalancedSUT/`. Filename and SHA256 live in that file. The pin does not cover the Step 6 MUT or the after-redefinition MUT. v0.5 still loads the after-redefinition tables named by `nowcast_mut_vintage`.
 
-The pin is independent of `nowcast_mut_vintage` and `.SNAPSHOT_KEY`. [`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under `2025_usa_cornerstone_v0_5`, with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. Missing FlowByActivity inputs are loaded from `flowsa/FlowByActivity` before any Census, EIA, or BEA call. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
+The pin is independent of `nowcast_mut_vintage` and `.SNAPSHOT_KEY`. [`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under `2025_usa_cornerstone_v0_6`, with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. Missing FlowByActivity inputs are loaded from `flowsa/FlowByActivity` before any Census, EIA, or BEA call. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
 
 ### When to bump the pin
 
@@ -342,7 +342,7 @@ The golden files are objects already on GCS. After the balanced Supply and Use f
 
 1. Set `filename` to the exact object names under `flowsa/BalancedSUT`.
 2. Set `sha256` to the digest of each parquet.
-3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT` and `usa_config` as `2025_usa_cornerstone_v0_5` unless the rebuild's methodology config changes.
+3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT` and `usa_config` as `2025_usa_cornerstone_v0_6` unless the rebuild's methodology config changes. `PIN_USA_CONFIG` in `nowcast_balanced_sut_pin.py` must match that name.
 
 ```powershell
 uv run python -c "import hashlib, sys; p=sys.argv[1]; print(hashlib.sha256(open(p,'rb').read()).hexdigest())" path\to\Balanced_Detail_Use_SUT_2024_....parquet

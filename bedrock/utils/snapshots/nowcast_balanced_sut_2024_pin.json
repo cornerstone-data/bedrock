@@ -1,15 +1,15 @@
 {
   "year": 2024,
   "gcs_sub_bucket": "flowsa/BalancedSUT",
-  "usa_config": "2025_usa_cornerstone_v0_5",
+  "usa_config": "2025_usa_cornerstone_v0_6",
   "tables": {
     "use": {
-      "filename": "Balanced_Detail_Use_SUT_2024_v0.3.0_3096818.parquet",
-      "sha256": "dc7bc9713fb500ed3ca5310384db57b1fb53fdeebc6a024ac9a799b0901f7f1d"
+      "filename": "Balanced_Detail_Use_SUT_2024_v0.5.0_a166975.parquet",
+      "sha256": "9f5cb91d4dc088e5651065ce1c8710bce72e3a8daf9f55d12d0a78f3a56ce7f4"
     },
     "supply": {
-      "filename": "Balanced_Detail_Supply_2024_v0.3.0_3096818.parquet",
-      "sha256": "9d7721004a71f21c876caccc36b0c407c9b1e5c66a945f61cb6aa002bc4fc55b"
+      "filename": "Balanced_Detail_Supply_2024_v0.5.0_a166975.parquet",
+      "sha256": "df0d05ad8d0766cb150178ebcb3686f878a3aa5e0e89378506e5142fe2870f9d"
     }
   }
 }
