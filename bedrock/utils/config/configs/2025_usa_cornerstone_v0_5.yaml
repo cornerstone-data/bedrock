@@ -24,16 +24,15 @@
 #     Waste disaggregation, industry-average margins,
 #     and no IO year adjustments as in v0.4.
 #
-# The GHG FBS is not pinned by this config: use_cornerstone_ghg_model with nowcast +
-# use_facility_ghg_attribution loads the newest GCS parquet for
-# GHG_national_Cornerstone_nowcast_facilities_2024. The v0.5 release FBS, built
-# from main 3a1dddc2 on the 3096818 tables (#1055, #1059; GHGRP sector floor and
-# ceiling, still gas, hydrogen and LNG carve-outs, #1061) with the stewi inputs
-# pinned in stewi_facility_pin.json (#1066), is
+# cornerstone_ghg_fbs_filename pins the facility-attribution GHG FBS. The stem
+# is GHG_national_Cornerstone_nowcast_facilities_2024. The pinned object is the
+# v0.5 release FBS, built from main 3a1dddc2 on the 3096818 tables (#1055,
+# #1059; GHGRP sector floor and ceiling, still gas, hydrogen and LNG
+# carve-outs, #1061) with the stewi inputs pinned in stewi_facility_pin.json
+# (#1066):
 #   GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
 #   sha256 7cc30cb922bb054e01122d4786b63d7ff23431121c934c22a8b8aa9c9b4f66c7
-# and the v0.5 snapshot (3a1dddc2) was cut on it. A newer upload for that stem
-# would change this config's output; check the vintage before reusing it.
+# The v0.5 snapshot (3a1dddc2) was cut on that file.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
 # reproducible even after newer nowcast builds are uploaded; move the pin only
@@ -58,6 +57,7 @@ usa_ghg_data_year: 2024
 #####
 use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io

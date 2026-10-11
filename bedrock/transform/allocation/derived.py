@@ -346,6 +346,55 @@ def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
         )
 
 
+def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
+    """Pinned parquet name for this stem, or ``None`` when the config omits it.
+
+    The pin is the full filename. It applies only when its stem is the stem
+    being loaded, so an electricity-disaggregation load of a different method
+    is not redirected at a facilities pin.
+    """
+    import os  # noqa: PLC0415
+
+    from bedrock.utils.io.gcp import parse_methodname  # noqa: PLC0415
+
+    raw = (get_usa_config().cornerstone_ghg_fbs_filename or '').strip()
+    if not raw:
+        return None
+    filename = os.path.basename(raw)
+    stem, extension, version, git_hash = parse_methodname(filename)
+    if extension != '.parquet' or version is None or git_hash is None:
+        raise ValueError(
+            'cornerstone_ghg_fbs_filename must be a parquet name with a '
+            f'version and git hash, got {raw!r}'
+        )
+    if stem != resolved_base_name:
+        raise ValueError(
+            f'cornerstone_ghg_fbs_filename {filename!r} does not match the '
+            f'selected FBS stem {resolved_base_name!r}'
+        )
+    return filename
+
+
+def _read_exact_fbs_parquet(filename: str) -> pd.DataFrame:
+    """Read one named FBS parquet from the local directory, or that GCS object.
+
+    Absence on GCS is an error. A newer object with the same stem is not read.
+    """
+    from bedrock.utils.config.settings import FBS_DIR  # noqa: PLC0415
+    from bedrock.utils.io.gcp import download_gcs_file  # noqa: PLC0415
+
+    local_path = FBS_DIR / filename
+    if not local_path.is_file():
+        download_gcs_file(filename, 'transform/output_data', str(local_path))
+    if not local_path.is_file():
+        raise FileNotFoundError(
+            f'Pinned FBS parquet {filename!r} is not in {FBS_DIR} and was '
+            'not downloaded from gs://cornerstone-default/transform/output_data/'
+        )
+    logger.info('Loaded pinned FBS from %s', filename)
+    return pd.read_parquet(local_path)
+
+
 def _load_cornerstone_ghg_fbs_from_gcs(
     year: int | None = None,
     *,
@@ -362,8 +411,10 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     name such as ``GHG_national_Cornerstone_2024``) are loaded directly
     instead (used by use_cornerstone_ghg_model).
 
-    Picks the most-recently-uploaded parquet whose ``base_name`` matches so we
-    follow the FBS regeneration cadence without pinning the version/hash here.
+    With ``USAConfig.cornerstone_ghg_fbs_filename`` set to a parquet of this
+    stem, that file is required: the local FBS directory first, then that
+    exact object on GCS. Otherwise the most recently uploaded parquet whose
+    ``base_name`` matches is the one loaded.
     """
     import os  # noqa: PLC0415
 
@@ -379,6 +430,10 @@ def _load_cornerstone_ghg_fbs_from_gcs(
         resolved_base_name = f'GHG_national_Cornerstone_{year}'
     else:
         resolved_base_name = base_name
+
+    pinned = _exact_cornerstone_ghg_fbs_name(resolved_base_name)
+    if pinned is not None:
+        return _read_exact_fbs_parquet(pinned)
 
     sub_bucket = 'transform/output_data'
     bucket_df = list_bucket_files(sub_bucket)
