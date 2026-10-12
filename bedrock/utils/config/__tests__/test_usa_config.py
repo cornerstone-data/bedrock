@@ -432,6 +432,40 @@ def test_v0_5_waterfall_rungs_bracket_the_release_config() -> None:
     assert release['use_facility_ghg_attribution'] == (False, True)
 
 
+def test_v0_6_waterfall_rungs_bracket_the_release_config() -> None:
+    """G2, G3, and G4 match the v0.5 rungs. G5 is v0.5.9.
+
+    G5 to the v0.6 release is transportation allocation and its GHG FBS pin.
+    """
+    for rung in ('g2_methods', 'g3_data', 'g4_nowcast'):
+        assert (
+            _resolved_field_diff(f'v06_waterfall_{rung}', f'v05_waterfall_{rung}') == {}
+        )
+    assert (
+        _resolved_field_diff(
+            'v06_waterfall_g5_facilities', '2025_usa_cornerstone_v0_5_9'
+        )
+        == {}
+    )
+    g4_to_g5 = _resolved_field_diff(
+        'v06_waterfall_g4_nowcast', 'v06_waterfall_g5_facilities'
+    )
+    assert set(g4_to_g5) == {
+        'nowcast_mut_vintage',
+        'bea_price_index_vintage',
+        'use_facility_ghg_attribution',
+        'cornerstone_ghg_fbs_filename',
+    }
+    release = _resolved_field_diff(
+        'v06_waterfall_g5_facilities', '2025_usa_cornerstone_v0_6'
+    )
+    assert set(release) == {
+        'use_transportation_ghg_allocation',
+        'cornerstone_ghg_fbs_filename',
+    }
+    assert release['use_transportation_ghg_allocation'] == (False, True)
+
+
 def test_electricity_reaggregation_config_parsing() -> None:
     config = _load_usa_config_from_file_name(
         'test_usa_config_waste_disagg_electricity_reaggregation.yaml'
