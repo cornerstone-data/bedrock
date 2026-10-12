@@ -18,10 +18,10 @@ format: csv
 #
 # The survey is suspended after the 2020 data year.
 #
-# ⚠️ Values are stored in data/EIA_FOKS_adjusted_distillate_sales.csv rather
-# than downloaded: eia.gov was not reachable from the environment the source
-# was added in, and the figures were transcribed from the EIA table above.
-# Check them against that page before relying on a new year.
+# Values are stored in data/EIA_FOKS_adjusted_distillate_sales.csv rather
+# than downloaded; the survey is suspended, so the table no longer changes.
+# All stored values were checked against the EIA table above on 2026-10-12
+# and match exactly.
 url: None
 parse_response_fxn: !script_function:EIA_FOKS eia_foks_parse
 years:
