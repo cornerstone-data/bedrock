@@ -3,7 +3,7 @@
 #
 # cornerstone_ghg_fbs_filename pins GHG_national_Cornerstone_nowcast_2024 to
 # GHG_national_Cornerstone_nowcast_2024_v0.3.0_0e1b0f0.parquet. The next rung,
-# v06_waterfall_g5_rebuild, is the 2026Q2 Use rebuild with facility GHG on.
+# v06_waterfall_g5_facilities, is the 2026Q2 Use with facility GHG on.
 
 #####
 # Model base settings

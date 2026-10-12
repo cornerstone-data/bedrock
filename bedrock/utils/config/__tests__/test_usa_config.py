@@ -442,11 +442,11 @@ def test_v0_6_waterfall_rungs_bracket_the_release_config() -> None:
             _resolved_field_diff(f'v06_waterfall_{rung}', f'v05_waterfall_{rung}') == {}
         )
     assert (
-        _resolved_field_diff('v06_waterfall_g5_rebuild', '2025_usa_cornerstone_v0_5_9')
+        _resolved_field_diff('v06_waterfall_g5_facilities', '2025_usa_cornerstone_v0_5_9')
         == {}
     )
     g4_to_g5 = _resolved_field_diff(
-        'v06_waterfall_g4_nowcast', 'v06_waterfall_g5_rebuild'
+        'v06_waterfall_g4_nowcast', 'v06_waterfall_g5_facilities'
     )
     assert set(g4_to_g5) == {
         'nowcast_mut_vintage',
@@ -455,7 +455,7 @@ def test_v0_6_waterfall_rungs_bracket_the_release_config() -> None:
         'cornerstone_ghg_fbs_filename',
     }
     release = _resolved_field_diff(
-        'v06_waterfall_g5_rebuild', '2025_usa_cornerstone_v0_6'
+        'v06_waterfall_g5_facilities', '2025_usa_cornerstone_v0_6'
     )
     assert set(release) == {
         'use_transportation_ghg_allocation',
