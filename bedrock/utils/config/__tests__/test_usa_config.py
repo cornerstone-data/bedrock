@@ -5,6 +5,7 @@ from typing import Generator
 import pytest
 
 from bedrock.utils.config.usa_config import (
+    CANONICAL_USA_CONFIG,
     USAConfig,
     _load_usa_config_from_file_name,
     get_usa_config,
@@ -342,6 +343,16 @@ def test_v0_5_9_transport_matches_v0_5_9_with_transportation_ghg() -> None:
         _select_cornerstone_ghg_fbs_base_name()
         == 'GHG_national_Cornerstone_nowcast_facilities_2024'
     )
+
+
+def test_v0_6_matches_v0_5_9_transport() -> None:
+    """v0.6 is the canonical config and matches v0.5.9 transport."""
+    assert CANONICAL_USA_CONFIG == '2025_usa_cornerstone_v0_6'
+    v06 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_6.yaml')
+    transport = _load_usa_config_from_file_name(
+        '2025_usa_cornerstone_v0_5_9_transport.yaml'
+    )
+    assert v06.model_dump() == transport.model_dump()
 
 
 def test_v0_4_release_yaml_loads() -> None:
