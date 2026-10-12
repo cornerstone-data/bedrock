@@ -1,24 +1,26 @@
 """Live reproducibility of dual-ladder waterfall configs (q-weighted N).
 
-Rebuilds early v0.3 footing rungs (G1 / G1a / G1b) plus the v0.5 US ladder
-(G2 -> G3 -> G4 -> FINAL) and checks that live ``1ᵀ B L``, weighted by
-canonical v0.5 ``scaled_q_USA``, matches each config's diagnostics sheet
+Rebuilds early v0.3 footing rungs (G1 / G1a / G1b) plus the v0.6 US ladder
+(G2 -> G3 -> G4 -> G5 -> FINAL) and checks that live ``1ᵀ B L``, weighted by
+canonical v0.6 ``scaled_q_USA``, matches each config's diagnostics sheet
 ``N_new``.
 
 Out of scope (no live rebuild)
 ------------------------------
-* Pinned USEEIO baseline (``N_old_inflated`` on the v05 G2 sheet)
+* Pinned USEEIO baseline (``N_old_inflated`` on the v06 G2 sheet)
 * Historical v03 G2 / G3 / FINAL (plot registries only)
+* Historical v05 US ladder G2 / G3 / G4 / FINAL (plot registries only)
 
 Configs under test
 ------------------
 * ``v03_waterfall_useeio_g1_schema_ghg``
 * ``v03_waterfall_ceda_g1a_schema_ghg``
 * ``v03_waterfall_ceda_g1b_waste_disagg``
-* ``v05_waterfall_g2_methods``
-* ``v05_waterfall_g3_data``
-* ``v05_waterfall_g4_nowcast``
-* ``2025_usa_cornerstone_v0_5``
+* ``v06_waterfall_g2_methods``
+* ``v06_waterfall_g3_data``
+* ``v06_waterfall_g4_nowcast``
+* ``v06_waterfall_g5_facilities``
+* ``2025_usa_cornerstone_v0_6``
 
 Expected floats are sheet ``N_new`` x canonical q (not assessment
 ``N_*_inflated`` columns). Recompute::
@@ -26,7 +28,7 @@ Expected floats are sheet ``N_new`` x canonical q (not assessment
     uv run python -m bedrock.utils.validation.waterfall_progression --sheet-n-new
 
 Optional: ``--assessment-useeio`` recomputes USEEIO-track bars (pin / G2 / G3 /
-G4 / FINAL) for plot alignment; that path does not rebuild.
+G4 / G5 / FINAL) for plot alignment; that path does not rebuild.
 """
 
 from __future__ import annotations
@@ -46,7 +48,7 @@ from bedrock.utils.validation.analysis import (
     release_v0_v03_useeio_groups as useeio_early,
 )
 from bedrock.utils.validation.analysis import (
-    release_v0_v05_us_waterfall_groups as us_waterfall,
+    release_v0_v06_us_waterfall_groups as us_waterfall,
 )
 
 # Early-rung sheets kept in CI (schema/GHG + waste footing). Not the full
@@ -69,7 +71,7 @@ class AssessmentNLevel:
     note: str
 
 
-# Keys / sheet IDs align with ``release_v0_v05_us_waterfall_groups``.
+# Keys / sheet IDs align with ``release_v0_v06_us_waterfall_groups``.
 # Pin and G2 share the G2 diagnostics sheet (USEEIO baseline is N_old_inflated).
 ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
     AssessmentNLevel(
@@ -101,26 +103,33 @@ ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
         note='US nowcast rung (facility GHG off)',
     ),
     AssessmentNLevel(
-        key='FINAL',
-        sheet_id=us_waterfall.FINAL_V05_USEEIO.sheet_id,
+        key='G5',
+        sheet_id=us_waterfall.G5_FACILITIES.sheet_id,
         n_column='N_new',
-        config_name=us_waterfall.FINAL_V05_USEEIO.config_name,
-        note='v0.5 release (facility GHG on)',
+        config_name=us_waterfall.G5_FACILITIES.config_name,
+        note='US facilities rung (facility GHG on, no transport allocation)',
+    ),
+    AssessmentNLevel(
+        key='FINAL',
+        sheet_id=us_waterfall.FINAL_V06_USEEIO.sheet_id,
+        n_column='N_new',
+        config_name=us_waterfall.FINAL_V06_USEEIO.config_name,
+        note='v0.6 release (transportation GHG allocation)',
     ),
 )
 
 
 def live_waterfall_configs() -> tuple[str, ...]:
-    """Dual-ladder config names: early G1* rungs, then v0.5 US ladder."""
+    """Dual-ladder config names: early G1* rungs, then v0.6 US ladder."""
     return (
         tuple(s.config_name for s in _EARLY_RUNG_SHEETS)
-        + us_waterfall.V05_WATERFALL_CONFIGS
+        + us_waterfall.V06_WATERFALL_CONFIGS
     )
 
 
 def _primary_sheet_id_for_config(config_name: str) -> str:
     """Diagnostics sheet used to pin live ``N_new`` for *config_name*."""
-    for sheet in (*_EARLY_RUNG_SHEETS, *us_waterfall.V0_V05_US_WATERFALL_GROUP_SHEETS):
+    for sheet in (*_EARLY_RUNG_SHEETS, *us_waterfall.V0_V06_US_WATERFALL_GROUP_SHEETS):
         if sheet.config_name == config_name:
             return sheet.sheet_id
     raise KeyError(f'no waterfall ProgressionSheet for config {config_name!r}')
@@ -140,12 +149,25 @@ def _series_from_snapshot_frame(frame: pd.DataFrame | pd.Series) -> pd.Series[fl
 def load_canonical_v0_5_q() -> pd.Series[float]:
     """Shipped v0.5 commodity ``q``: ``scaled_q_USA`` from the v0.5.0 release snapshot.
 
-    Pinned to ``releases.v0_5_0`` rather than ``.SNAPSHOT_KEY`` so the v0.5
-    waterfall keeps its own weights if the current snapshot key later moves.
+    Pinned to ``releases.v0_5_0`` rather than ``.SNAPSHOT_KEY`` so plot-only
+    v0.5 paths keep their own weights after the current snapshot key moves.
     """
     from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
 
     q = _series_from_snapshot_frame(load_snapshot('scaled_q_USA', releases.v0_5_0))
+    q.index = q.index.astype(str)
+    return q
+
+
+def load_canonical_v0_6_q() -> pd.Series[float]:
+    """Shipped v0.6 commodity ``q``: ``scaled_q_USA`` from the v0.6.0 release snapshot.
+
+    Pinned to ``releases.v0_6_0`` rather than ``.SNAPSHOT_KEY`` so the v0.6
+    waterfall keeps its own weights if the current snapshot key later moves.
+    """
+    from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
+
+    q = _series_from_snapshot_frame(load_snapshot('scaled_q_USA', releases.v0_6_0))
     q.index = q.index.astype(str)
     return q
 
@@ -202,7 +224,7 @@ def _n_series_from_diagnostics_tab(
 
 def sheet_n_new_levels(*, refresh: bool = False) -> dict[str, float]:
     """q-weighted sheet ``N_new`` for every live waterfall config."""
-    q = load_canonical_v0_5_q()
+    q = load_canonical_v0_6_q()
     return {
         config_name: weighted_avg_n_from_vectors(
             _n_series_from_diagnostics_tab(
@@ -224,7 +246,7 @@ def weighted_avg_n_from_assessment_level(
 ) -> float:
     """q-weighted N for one assessment bar, from the pinned diagnostics sheet."""
     if q is None:
-        q = load_canonical_v0_5_q()
+        q = load_canonical_v0_6_q()
     n = _n_series_from_diagnostics_tab(level.sheet_id, level.n_column, refresh=refresh)
     return weighted_avg_n_from_vectors(n, q)
 
@@ -234,7 +256,7 @@ def assessment_useeio_bedrock_levels(
     refresh: bool = False,
 ) -> dict[str, float]:
     """Recompute all bedrock-owned USEEIO-track assessment bars from sheets."""
-    q = load_canonical_v0_5_q()
+    q = load_canonical_v0_6_q()
     return {
         level.key: weighted_avg_n_from_assessment_level(level, q=q, refresh=refresh)
         for level in ASSESSMENT_USEEIO_BEDROCK_LEVELS
@@ -242,19 +264,20 @@ def assessment_useeio_bedrock_levels(
 
 
 def assert_useeio_track_sheet_ids_match_registry() -> None:
-    """Fail if ``ASSESSMENT_*`` sheet IDs drift from the v0.5 US waterfall registry."""
+    """Fail if ``ASSESSMENT_*`` sheet IDs drift from the v0.6 US waterfall registry."""
     expected = {
         'G2': us_waterfall.G2_METHODS.sheet_id,
         'G3': us_waterfall.G3_DATA.sheet_id,
         'G4': us_waterfall.G4_NOWCAST.sheet_id,
-        'FINAL': us_waterfall.FINAL_V05_USEEIO.sheet_id,
+        'G5': us_waterfall.G5_FACILITIES.sheet_id,
+        'FINAL': us_waterfall.FINAL_V06_USEEIO.sheet_id,
     }
     by_key = {lvl.key: lvl.sheet_id for lvl in ASSESSMENT_USEEIO_BEDROCK_LEVELS}
     for key, sheet_id in expected.items():
         if by_key[key] != sheet_id:
             raise AssertionError(
                 f'ASSESSMENT_USEEIO_BEDROCK_LEVELS[{key!r}].sheet_id='
-                f'{by_key[key]!r} != release_v0_v05_us_waterfall_groups {sheet_id!r}'
+                f'{by_key[key]!r} != release_v0_v06_us_waterfall_groups {sheet_id!r}'
             )
     pin = by_key['pinned_useeio_baseline']
     if pin != expected['G2']:
@@ -282,7 +305,7 @@ def _weighted_avg_n(
 
 
 def weighted_avg_n_for_config(config_name: str) -> float:
-    """Live ``1ᵀ B L`` for *config_name*, weighted by canonical v0.5 ``q``.
+    """Live ``1ᵀ B L`` for *config_name*, weighted by canonical v0.6 ``q``.
 
     Matches diagnostics sheet ``N_new`` for that config when the model is
     reproducible. Does not apply the diagnostics ``N_new_inflated`` PI rebase.
@@ -307,19 +330,19 @@ def weighted_avg_n_for_config(config_name: str) -> float:
         B=derive_B_usa_non_finetuned(),
         Adom=aq.Adom,
         Aimp=aq.Aimp,
-        q=load_canonical_v0_5_q(),
+        q=load_canonical_v0_6_q(),
     )
 
 
 def weighted_avg_n_v0_baseline() -> float:
-    """CEDA v0 snapshot N, weighted by canonical v0.5 ``q`` (pinned baseline)."""
+    """CEDA v0 snapshot N, weighted by canonical v0.6 ``q`` (pinned baseline)."""
     from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
 
     return _weighted_avg_n(
         B=load_snapshot('B_USA_non_finetuned', 'v0'),
         Adom=load_snapshot('Adom_USA', 'v0'),
         Aimp=load_snapshot('Aimp_USA', 'v0'),
-        q=load_canonical_v0_5_q(),
+        q=load_canonical_v0_6_q(),
     )
 
 
@@ -331,8 +354,8 @@ def main(argv: list[str] | None = None) -> int:
         '--v0-baseline',
         action='store_true',
         help=(
-            'N from frozen CEDA v0 snapshots, weighted by canonical v0.5 '
-            'scaled_q_USA (v0.5.0 release snapshot)'
+            'N from frozen CEDA v0 snapshots, weighted by canonical v0.6 '
+            'scaled_q_USA (v0.6.0 release snapshot)'
         ),
     )
     group.add_argument(

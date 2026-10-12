@@ -1,7 +1,7 @@
 """Live reproducibility of dual-ladder waterfall configs (except pinned baselines).
 
 Each live case rebuilds ``derive_Aq_usa`` + ``derive_B_usa_non_finetuned`` for
-one waterfall config, q-weights ``1ᵀ B L`` with canonical v0.5
+one waterfall config, q-weights ``1ᵀ B L`` with canonical v0.6
 ``scaled_q_USA``, and compares to the diagnostics sheet ``N_new`` pin.
 
 Configs covered:
@@ -9,16 +9,19 @@ Configs covered:
 * ``v03_waterfall_useeio_g1_schema_ghg``
 * ``v03_waterfall_ceda_g1a_schema_ghg``
 * ``v03_waterfall_ceda_g1b_waste_disagg``
-* ``v05_waterfall_g2_methods``
-* ``v05_waterfall_g3_data``
-* ``v05_waterfall_g4_nowcast``
-* ``2025_usa_cornerstone_v0_5``
+* ``v06_waterfall_g2_methods``
+* ``v06_waterfall_g3_data``
+* ``v06_waterfall_g4_nowcast``
+* ``v06_waterfall_g5_facilities``
+* ``2025_usa_cornerstone_v0_6``
 
-Not rebuilt: pinned USEEIO baseline; historical v03 G2 / G3 / FINAL.
+Not rebuilt: pinned USEEIO baseline; historical v03 G2 / G3 / FINAL;
+historical v05 US ladder G2 / G3 / G4 / FINAL (plot registries only).
 
 Pins are sheet ``N_new`` x canonical q (``waterfall_progression --sheet-n-new``).
 Early G1* sheets are the 2026-10-02 remint on ``main`` in the v0.5 Diagnostics
-Drive folder. US ladder sheets are the 2026-10-01 USEEIO cut on ``3a1dddc``.
+Drive folder. US ladder sheets are the 2026-10-12 USEEIO cut on ``dfe743bc``
+in the v0.6 Diagnostics Drive folder.
 
 Assessment plot bars are checked separately from sheets only -- see
 ``test_assessment_useeio_*``.
@@ -42,25 +45,27 @@ from bedrock.utils.validation.waterfall_progression import (
 )
 
 # q-weighted sheet N_new (kgCO2e/USD). Source: --sheet-n-new with
-# releases.v0_5_0 scaled_q_USA. Live 1^T B L matches these.
+# releases.v0_6_0 scaled_q_USA. Live 1^T B L matches these.
 EXPECTED_LIVE_N_NEW = {
-    'v03_waterfall_useeio_g1_schema_ghg': 0.3114421,
-    'v03_waterfall_ceda_g1a_schema_ghg': 0.2532428,
-    'v03_waterfall_ceda_g1b_waste_disagg': 0.2556327,
-    'v05_waterfall_g2_methods': 0.2386031,
-    'v05_waterfall_g3_data': 0.2395920,
-    'v05_waterfall_g4_nowcast': 0.2208994,
-    '2025_usa_cornerstone_v0_5': 0.2218014,
+    'v03_waterfall_useeio_g1_schema_ghg': 0.3114424,
+    'v03_waterfall_ceda_g1a_schema_ghg': 0.2532430,
+    'v03_waterfall_ceda_g1b_waste_disagg': 0.2556329,
+    'v06_waterfall_g2_methods': 0.2386033,
+    'v06_waterfall_g3_data': 0.2395922,
+    'v06_waterfall_g4_nowcast': 0.2208996,
+    'v06_waterfall_g5_facilities': 0.2218908,
+    '2025_usa_cornerstone_v0_6': 0.2247815,
 }
 
-# Assessment USEEIO-track bars (diagnostics columns x canonical v0.5 q).
+# Assessment USEEIO-track bars (diagnostics columns x canonical v0.6 q).
 # Pin uses N_old_inflated on the G2 sheet; G2–FINAL use N_new (= live pins).
 EXPECTED_ASSESSMENT_USEEIO_BEDROCK_N = {
-    'pinned_useeio_baseline': 0.2486566,
-    'G2': 0.2386031,
-    'G3': 0.2395920,
-    'G4': 0.2208994,
-    'FINAL': 0.2218014,
+    'pinned_useeio_baseline': 0.2486568,
+    'G2': 0.2386033,
+    'G3': 0.2395922,
+    'G4': 0.2208996,
+    'G5': 0.2218908,
+    'FINAL': 0.2247815,
 }
 
 ATOL_KG_PER_USD = 1e-4
@@ -118,6 +123,7 @@ def test_assessment_useeio_sheet_ids_match_registry() -> None:
     assert pin.n_column == 'N_old_inflated'
     assert g2.n_column == 'N_new'
     assert g2.key == 'G2'
+    assert any(lvl.key == 'G5' for lvl in ASSESSMENT_USEEIO_BEDROCK_LEVELS)
 
 
 @pytest.mark.eeio_integration

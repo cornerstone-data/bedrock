@@ -38,6 +38,9 @@ V03_WATERFALL_DRIVE_FOLDER_ID = "107RNHx1OUGN6roYdRi3BbdCSrMNFhl6u"
 # v0.4→v0.5 US waterfall rung diagnostics (G2/G3/G4).
 V05_WATERFALL_DRIVE_FOLDER_ID = "1wC8Ids_2TbJ2plgnHMitNgPEPIefMf7t"
 
+# v0.5→v0.6 US waterfall rung diagnostics (G2/G3/G4/G5/FINAL).
+V06_DIAGNOSTICS_DRIVE_FOLDER_ID = "1rtUHib1hUKNg58HOlXxDQKBt6OCetPD6"
+
 _DEFAULT_FEATURE_INDEX = (
     Path(__file__).resolve().parent / "output" / "ef_run_index_feature.csv"
 )
