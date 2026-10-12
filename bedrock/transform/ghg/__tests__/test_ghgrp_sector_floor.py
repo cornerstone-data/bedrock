@@ -293,3 +293,34 @@ def test_spill_before_the_anchor_year_follows_the_anchor_rate(
         fbs.groupby('MetaSources')['FlowAmount'].sum(),
         out.groupby('MetaSources')['FlowAmount'].sum(),
     )
+
+
+def test_ceiling_ignores_off_road_distillate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mining at its GHGRP CO2 with equipment diesel on top: the diesel is fuel
+    GHGRP does not see, so nothing is trimmed and nothing spills."""
+    distillate = 'UMD_GHGIA_T_3_11.petroleum_distillate'
+    fbs = pd.DataFrame(
+        [
+            _row('212', NG_MFG, 100.0),
+            _row('212', distillate, 30.0)
+            | {'AttributionSources': 'Energy_industrial_distillate_national_2024'},
+            _row('311', NG_MFG, 20.0),
+            _row('311', distillate, 5.0)
+            | {'AttributionSources': 'Energy_industrial_distillate_national_2024'},
+        ]
+    )
+    ghgrp = pd.Series({'212': 100.0})
+    monkeypatch.setattr(gf, 'ghgrp_co2e_by_naics', lambda year, gases=None: ghgrp)
+    cov = {'212': 1.0, '311': 0.5}
+    monkeypatch.setattr(
+        gf,
+        'median_coverage',
+        lambda codes: pd.Series([cov[c] for c in codes], index=codes),
+    )
+    out = gf.apply_ghgrp_sector_floor(fbs, gf.SPILL_ANCHOR_YEAR)
+    pd.testing.assert_series_equal(
+        fbs.groupby(['SectorProducedBy', 'MetaSources'])['FlowAmount'].sum(),
+        out.groupby(['SectorProducedBy', 'MetaSources'])['FlowAmount'].sum(),
+    )
