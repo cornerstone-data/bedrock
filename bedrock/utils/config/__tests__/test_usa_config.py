@@ -323,7 +323,7 @@ def test_v0_5_9_transport_matches_v0_5_9_with_transportation_ghg() -> None:
     assert transport.nowcast_mut_vintage == 'v0.5.0_a166975'
     assert transport.cornerstone_ghg_fbs_filename == (
         'GHG_national_Cornerstone_nowcast_facilities_transportation_2024_'
-        'v0.5.0_3744c93.parquet'
+        'v0.5.0_011f41f.parquet'
     )
     _transport_only = {
         'use_transportation_ghg_allocation',
