@@ -75,7 +75,11 @@ v0_4_1 = "0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0"  # config: 2025_usa_cornerst
 # GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc (#965, #1023,
 # #1055, #1059; GHGRP sector floor and ceiling, still gas, hydrogen and LNG
 # carve-outs, #1061), margin impacts by transaction (#1027), waste re-split (#1058).
-v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerstone_v0_5; matches .SNAPSHOT_KEY
+v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerstone_v0_5
+
+# Output change: transportation GHG allocation + nowcast MUT v0.5.0_a166975 /
+# 2026Q2 price indices (#1096); facilities rung retained as G5, transport is FINAL.
+v0_6_0 = "dfe743bc19df11913263839a797308d7bb344757"  # config: 2025_usa_cornerstone_v0_6; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -97,6 +101,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_4_0_pre_waste_match_io: 2024,
     v0_4_1: 2024,
     v0_5_0: 2024,
+    v0_6_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
 }
