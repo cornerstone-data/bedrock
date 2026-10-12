@@ -6,11 +6,12 @@
 # x and q are row and column sums of that after-redef Make; B is not
 # year-scaled or inflated.
 #
-# nowcast_mut_vintage omitted: loaders pick the most recent GCS Make upload for
-# this year/stage. Pin explicitly when a release needs a fixed build.
-#
-# After-redef tables for 2017 may be absent on GCS; a load then fails with a
-# clear missing-artifact error (useful probe of that path).
+# nowcast_mut_vintage is pinned to v0.5.0_011f41f, a clean 2017 rebuild on
+# main. The 2017 tables at v0.5.0_a166975 (#1089) carry almost no compensation
+# of employees: $18.7 bn against $10,435 bn, with all of value added in
+# surplus. Unpinned, this config followed that upload. The other v0.4
+# nowcast years still follow the most recent GCS Make upload; their
+# a166975 tables are correct.
 
 #####
 # Model base settings
@@ -22,6 +23,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.5.0_011f41f'
 usa_base_io_data_year: 2017
 usa_ghg_data_year: 2017
 

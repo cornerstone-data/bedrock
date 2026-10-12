@@ -246,6 +246,13 @@ def test_v0_4_nowcast_yamls_load(year: int) -> None:
     assert not cfg.deflate_x_to_detail_io_year_for_B
 
 
+def test_v0_4_nowcast_2017_pins_the_rebuilt_tables() -> None:
+    """The 2017 tables at v0.5.0_a166975 have no compensation of employees;
+    2017 is pinned to a clean rebuild instead of following the latest upload."""
+    cfg = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4_nowcast_2017.yaml')
+    assert cfg.nowcast_mut_vintage == 'v0.5.0_011f41f'
+
+
 @pytest.mark.parametrize('year', range(2017, 2025))
 def test_v0_5_yearly_yamls_load(year: int) -> None:
     """Same family as the v0.4 per-year nowcast configs, on the v0.5 build.
