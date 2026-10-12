@@ -19,7 +19,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v0.5.0_a166975'
+nowcast_mut_vintage: 'v0.5.0_a166975' # v0.5.0 is correct here because a model always uses a nowcast MUT snapshot from the previous version
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
 bea_price_index_vintage: '2026Q2'
