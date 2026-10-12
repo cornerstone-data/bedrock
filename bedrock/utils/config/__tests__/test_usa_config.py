@@ -279,6 +279,7 @@ def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
     v04 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
     assert v05.nowcast_mut_vintage == 'v0.3.0_3096818'
     assert v05.use_facility_ghg_attribution
+    assert not v05.use_transportation_ghg_allocation
     assert not v04.use_facility_ghg_attribution
     _v05_only = {
         'nowcast_mut_vintage',
@@ -286,6 +287,61 @@ def test_v0_5_release_yaml_pins_the_v0_5_build() -> None:
         'cornerstone_ghg_fbs_filename',
     }
     assert v05.model_dump(exclude=_v05_only) == v04.model_dump(exclude=_v05_only)
+
+
+def test_v0_5_9_pins_the_2026q2_rebuild() -> None:
+    """v0.5.9 loads the v0.5.0_a166975 MUT and the 2026Q2 price index."""
+    v059 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5_9.yaml')
+    v05 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5.yaml')
+    assert v059.nowcast_mut_vintage == 'v0.5.0_a166975'
+    assert v059.bea_price_index_vintage == '2026Q2'
+    assert v059.use_facility_ghg_attribution
+    assert not v059.use_transportation_ghg_allocation
+    assert v059.cornerstone_ghg_fbs_filename == (
+        'GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet'
+    )
+    _v059_only = {
+        'nowcast_mut_vintage',
+        'bea_price_index_vintage',
+        'cornerstone_ghg_fbs_filename',
+    }
+    assert v059.model_dump(exclude=_v059_only) == v05.model_dump(exclude=_v059_only)
+
+
+def test_v0_5_9_transport_matches_v0_5_9_with_transportation_ghg() -> None:
+    """v0.5.9 transport is v0.5.9 plus the transportation GHG FBS."""
+    from bedrock.transform.allocation.derived import (
+        _select_cornerstone_ghg_fbs_base_name,
+    )
+
+    v059 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_5_9.yaml')
+    transport = _load_usa_config_from_file_name(
+        '2025_usa_cornerstone_v0_5_9_transport.yaml'
+    )
+    assert transport.use_transportation_ghg_allocation
+    assert transport.bea_price_index_vintage == '2026Q2'
+    assert transport.nowcast_mut_vintage == 'v0.5.0_a166975'
+    assert transport.cornerstone_ghg_fbs_filename == (
+        'GHG_national_Cornerstone_nowcast_facilities_transportation_2024_'
+        'v0.5.0_3744c93.parquet'
+    )
+    _transport_only = {
+        'use_transportation_ghg_allocation',
+        'cornerstone_ghg_fbs_filename',
+    }
+    assert transport.model_dump(exclude=_transport_only) == v059.model_dump(
+        exclude=_transport_only
+    )
+    set_global_usa_config('2025_usa_cornerstone_v0_5_9_transport.yaml')
+    assert _select_cornerstone_ghg_fbs_base_name() == (
+        'GHG_national_Cornerstone_nowcast_facilities_transportation_2024'
+    )
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config('2025_usa_cornerstone_v0_5_9.yaml')
+    assert (
+        _select_cornerstone_ghg_fbs_base_name()
+        == 'GHG_national_Cornerstone_nowcast_facilities_2024'
+    )
 
 
 def test_v0_4_release_yaml_loads() -> None:

@@ -22,8 +22,17 @@ _FACILITY_FLOWABLES = (
 )
 
 
+def _facility_year_yamls() -> list[Path]:
+    """Year files only. ``_transportation_`` is a separate method stem."""
+    return sorted(
+        p
+        for p in _GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml')
+        if '_transportation_' not in p.name
+    )
+
+
 def test_facilities_yamls_wire_prep_and_activity_sets() -> None:
-    paths = sorted(_GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml'))
+    paths = _facility_year_yamls()
     assert [p.name for p in paths] == [
         f'GHG_national_Cornerstone_nowcast_facilities_{y}.yaml'
         for y in range(2017, 2025)
@@ -59,9 +68,7 @@ def test_still_gas_attributes_to_refineries_only() -> None:
     The cached facility source carries refineries as 32411 (industry spec); a
     selection on '324110' alone matched nothing and dropped all still gas (#1060).
     """
-    for path in sorted(
-        _GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml')
-    ):
+    for path in _facility_year_yamls():
         text = path.read_text(encoding='utf-8')
         block = text.split('petroleum_still_gas:', 1)[1].split(
             'petroleum_facility:', 1

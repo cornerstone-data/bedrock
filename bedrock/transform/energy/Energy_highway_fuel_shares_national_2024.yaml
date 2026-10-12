@@ -1,0 +1,154 @@
+# How much of highway gasoline or diesel each sector uses, by vehicle class.
+# Flowables:
+#   Gasoline; Automobiles, Gasoline; Buses, Gasoline; Trucks,
+#   Diesel; Automobiles, Diesel; Buses, Diesel; Trucks.
+# FlowAmount is a share (sums to 1 within each Flowable).
+# Private trucks are attributed by VIUS heavy-body vehicle miles: M2C splits
+# personal (households) and commercial use for each fuel, and M2E splits
+# commercial use across business types.
+
+!include:Cornerstone_2025_target.yaml
+year: &year 2024
+geoscale: national
+
+source_names:
+  FHWA_Highway_Statistics:
+    year: *year
+    activity_to_sector_mapping: FHWA
+    selection_fields:
+      Description: Table MF-21
+      FlowName:
+        - Gasoline highway
+        - Special fuel highway
+      ActivityConsumedBy:
+        - Federal Civilian
+        - State, County and Municipal
+        - Private and Commercial
+    activity_sets:
+      gasoline:
+        selection_fields:
+          FlowName: Gasoline highway
+          ActivityConsumedBy:
+            - Federal Civilian
+            - Private and Commercial
+            - State, County and Municipal
+        clean_fba_before_activity_sets: !script_function:FHWA highway_fuel_shares
+        clean_parameter:
+          flowable: Gasoline
+          ffr_fuels: [Gasoline]
+          nonpublic_source: mf21
+          ffr: &highway_ffr
+            source_name: GSA_FFR
+            year: *year
+          mv7: &highway_mv7
+            source_name: FHWA_Highway_Statistics
+            year: *year
+            selection_fields:
+              Description: Table MV-7
+              FlowName:
+                - Automobiles
+                - Buses
+                - Trucks
+          mv10: &highway_mv10
+            source_name: FHWA_Highway_Statistics
+            year: *year
+            selection_fields:
+              Description: Table MV-10
+              FlowName: Buses
+          mf21:
+            source_name: FHWA_Highway_Statistics
+            year: *year
+            selection_fields:
+              Description: Table MF-21
+              FlowName: Gasoline highway
+        activity_sets:
+          government: &government
+            # Explicit selection: after highway_fuel_shares, FlowName is gone
+            # (Flowable remains), so do not inherit the fuel FlowName filter.
+            selection_fields:
+              ActivityConsumedBy:
+                - Total Civilian Agencies
+                - Total U.S. Postal Service
+                - State, County and Municipal
+            attribution_method: proportional
+            attribution_source:
+              Nowcast_Detail_Use_AfterRedef: &nowcast_petroleum
+                year: *year
+                activity_to_sector_mapping: Cornerstone_2025
+                selection_fields:
+                  ActivityProducedBy: {'324110': ''}
+                exclusion_fields:
+                  ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
+                                       'F06E00', 'F07E00', 'F10E00', 'F02R00']
+                attribution_method: equal
+          private_automobiles_buses: &private_automobiles_buses
+            selection_fields:
+              ActivityConsumedBy:
+                - Automobiles - Private Use
+                - Buses - Private Use
+            attribution_method: direct
+          private_trucks:
+            selection_fields:
+              ActivityConsumedBy: Trucks - Private Use
+            attribution_method: proportional
+            attribution_source:
+              BTS_VIUS:
+                year: 2021
+                geoscale: national
+                activity_to_sector_mapping: BTS_VIUS
+                selection_fields:
+                  Description: "Table M2C - All Vehicles Excluding Pickups, Minivans, Other Light Vans, and Sport Utility Vehicles"
+                  FlowName: Vehicle miles - Gasoline
+                activity_sets: &vius_activity_sets
+                  personal:
+                    selection_fields:
+                      ActivityConsumedBy: Personal Use Only
+                    attribution_method: direct
+                  commercial:
+                    selection_fields:
+                      ActivityConsumedBy: Some Commercial Use
+                    attribution_method: proportional
+                    attribution_source:
+                      BTS_VIUS:
+                        year: 2021
+                        geoscale: national
+                        activity_to_sector_mapping: BTS_VIUS
+                        selection_fields:
+                          Description: "Table M2E - All Vehicles Excluding Pickups, Minivans, Other Light Vans, and Sport Utility Vehicles"
+                          FlowName: Vehicle miles
+                        attribution_method: proportional
+                        attribution_source:
+                          Nowcast_Detail_Use_AfterRedef: *nowcast_petroleum
+
+      diesel:
+        selection_fields:
+          FlowName: Special fuel highway
+        clean_fba_before_activity_sets: !script_function:FHWA highway_fuel_shares
+        clean_parameter:
+          flowable: Diesel
+          ffr_fuels:
+            - Diesel
+            - Biodiesel (B20)
+            - Biodiesel (B100)
+            - Renewable Diesel
+          # Private and Commercial gallons from this activity set's FBA
+          nonpublic_source: attributed_nonpublic
+          ffr: *highway_ffr
+          mv7: *highway_mv7
+          mv10: *highway_mv10
+        activity_sets:
+          government: *government
+          private_automobiles_buses: *private_automobiles_buses
+          private_trucks:
+            selection_fields:
+              ActivityConsumedBy: Trucks - Private Use
+            attribution_method: proportional
+            attribution_source:
+              BTS_VIUS:
+                year: 2021
+                geoscale: national
+                activity_to_sector_mapping: BTS_VIUS
+                selection_fields:
+                  Description: "Table M2C - All Vehicles Excluding Pickups, Minivans, Other Light Vans, and Sport Utility Vehicles"
+                  FlowName: Vehicle miles - Diesel
+                activity_sets: *vius_activity_sets

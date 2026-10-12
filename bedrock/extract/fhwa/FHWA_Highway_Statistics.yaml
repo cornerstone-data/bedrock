@@ -1,0 +1,26 @@
+author: US Federal Highway Administration
+source_name: Highway Statistics (MF-21, MV-7, MV-10, VM-1)
+source_url: https://www.fhwa.dot.gov/policyinformation/statistics/
+bib_id: FHWA_Highway_Statistics
+api_name: None
+api_key_required: false
+format: xlsx
+url:
+  base_url: https://www.fhwa.dot.gov/policyinformation/statistics/__year__/xls/__table__.xlsx
+url_replace_fxn: !script_function:FHWA fhwa_url_helper
+call_response_fxn: !script_function:FHWA fhwa_call
+parse_response_fxn: !script_function:FHWA fhwa_parse
+years:
+  # - 2017
+  # - 2018
+  # - 2019
+  # - 2020
+  # - 2021
+  # - 2022
+  # - 2023
+  - 2024
+tables:
+  - mf21
+  - mv7
+  - mv10
+  - vm1

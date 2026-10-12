@@ -312,6 +312,9 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     (``GHG_national_Cornerstone_nowcast_{year}``). With nowcast,
     ``use_facility_ghg_attribution`` selects the facility-attribution stem
     (``GHG_national_Cornerstone_nowcast_facilities_{year}``) instead.
+    ``use_transportation_ghg_allocation`` selects
+    ``GHG_national_Cornerstone_nowcast_facilities_transportation_{year}``
+    on top of that facility stem.
 
     Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
     instead of this helper.
@@ -321,6 +324,8 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     if usa.usa_detail_io_source == 'bea_published':
         return f'GHG_national_Cornerstone_{year}'
     if usa.use_facility_ghg_attribution:
+        if usa.use_transportation_ghg_allocation:
+            return f'GHG_national_Cornerstone_nowcast_facilities_transportation_{year}'
         return f'GHG_national_Cornerstone_nowcast_facilities_{year}'
     return f'GHG_national_Cornerstone_nowcast_{year}'
 

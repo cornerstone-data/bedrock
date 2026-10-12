@@ -1,7 +1,7 @@
 {
   "year": 2024,
   "gcs_sub_bucket": "flowsa/BalancedSUT",
-  "usa_config": "2025_usa_cornerstone_v0_6",
+  "usa_config": "2025_usa_cornerstone_v0_5_9",
   "tables": {
     "use": {
       "filename": "Balanced_Detail_Use_SUT_2024_v0.5.0_a166975.parquet",
