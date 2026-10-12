@@ -4,8 +4,9 @@
 #
 # The flags resolve identically to v04_waterfall_g2_methods, on purpose: code and
 # method YAML that landed since v0.4 reach the rung without a flag, so this minus
-# v04's G2 snapshot is bedrock drift. The GHG side is the newest GCS parquet for
-# GHG_national_Cornerstone_2023.
+# v04's G2 snapshot is bedrock drift. cornerstone_ghg_fbs_filename pins
+# GHG_national_Cornerstone_2023 to
+# GHG_national_Cornerstone_2023_v0.3.0_9030001.parquet.
 
 model_base_year: 2024
 price_type: producer
@@ -13,6 +14,7 @@ price_type: producer
 usa_ghg_data_year: 2023
 
 use_cornerstone_ghg_model: true
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2023_v0.3.0_9030001.parquet
 apply_io_year_adjustments: true
 implement_waste_disaggregation: true
 

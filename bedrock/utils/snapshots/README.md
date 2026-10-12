@@ -282,7 +282,7 @@ Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exis
 
 ## Cornerstone GHG FBS pin
 
-[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the `GHG_national_Cornerstone_nowcast_facilities_2024` FlowBySector parquet under `gs://cornerstone-default/transform/output_data/`. That is the method selected by `use_facility_ghg_attribution` on nowcast configs (v0.5). [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources (including the stewi facility pin) and asserts a byte-identical match to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
+[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins one `GHG_national_Cornerstone_nowcast_facilities_2024` FlowBySector parquet under `gs://cornerstone-default/transform/output_data/`. `use_facility_ghg_attribution` selects that method stem. This JSON is the weekday regeneration golden. A config's `cornerstone_ghg_fbs_filename`, when set, names the parquet that config loads. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates the method from YAML + GCS sources (including the stewi facility pin) and compares the frame to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
 
 ### When to bump the pin
 
@@ -328,7 +328,7 @@ After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on t
 
 [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) pins the 2024 balanced Supply and Use tables under `gs://cornerstone-default/flowsa/BalancedSUT/`. Filename and SHA256 live in that file. The pin does not cover the Step 6 MUT or the after-redefinition MUT. v0.5 still loads the after-redefinition tables named by `nowcast_mut_vintage`.
 
-The pin is independent of `nowcast_mut_vintage` and `.SNAPSHOT_KEY`. [`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under `2025_usa_cornerstone_v0_5`, with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. Missing FlowByActivity inputs are loaded from `flowsa/FlowByActivity` before any Census, EIA, or BEA call. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
+The pin is independent of `nowcast_mut_vintage` and `.SNAPSHOT_KEY`. [`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under `2025_usa_cornerstone_v0_5_9`, with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. Missing FlowByActivity inputs are loaded from `flowsa/FlowByActivity` before any Census, EIA, or BEA call. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
 
 ### When to bump the pin
 
@@ -342,7 +342,7 @@ The golden files are objects already on GCS. After the balanced Supply and Use f
 
 1. Set `filename` to the exact object names under `flowsa/BalancedSUT`.
 2. Set `sha256` to the digest of each parquet.
-3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT` and `usa_config` as `2025_usa_cornerstone_v0_5` unless the rebuild's methodology config changes.
+3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT` and `usa_config` as `2025_usa_cornerstone_v0_5_9` unless the rebuild's methodology config changes. `PIN_USA_CONFIG` in `nowcast_balanced_sut_pin.py` must match that name.
 
 ```powershell
 uv run python -c "import hashlib, sys; p=sys.argv[1]; print(hashlib.sha256(open(p,'rb').read()).hexdigest())" path\to\Balanced_Detail_Use_SUT_2024_....parquet
