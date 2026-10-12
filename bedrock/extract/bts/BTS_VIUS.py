@@ -157,3 +157,22 @@ def vius_parse(
     df['DataCollection'] = 5  # temp
 
     return df.drop(columns=['Geographic Area Name'], errors='ignore')
+
+
+def scale_business_types(fba: Any, **_: Any) -> Any:
+    """
+    clean_fba. Scale VIUS vehicle miles for selected kinds of business by the
+    factors in ``clean_parameter.business_type_scale``.
+
+    Used to keep a business type from being counted twice when another source
+    already holds part of its truck fuel: most farm truck fuel is bought as
+    farm diesel, which EIA counts in industrial sales (table 3-11) rather than
+    on-highway sales (table 3-8). The miles removed here go to the other kinds
+    of business through the proportional attribution.
+    """
+    scale: dict[str, float] = fba.config['clean_parameter']['business_type_scale']
+    unknown = set(scale) - set(fba['ActivityConsumedBy'].dropna().astype(str))
+    if unknown:
+        raise ValueError(f'VIUS kinds of business not in the data: {sorted(unknown)}')
+    factor = fba['ActivityConsumedBy'].map(scale).fillna(1.0)
+    return fba.assign(FlowAmount=fba['FlowAmount'] * factor)

@@ -78,6 +78,8 @@ FUEL_SETS: dict[str, tuple[str, ...]] = {
     'Petroleum': (
         'UMD_GHGIA_T_3_11.petroleum_facility',
         'UMD_GHGIA_T_3_11.petroleum_use',
+        # Transportation method: industrial distillate by physical fuel use.
+        'UMD_GHGIA_T_3_11.petroleum_distillate',
     ),
 }
 FUEL_OF_SET = {meta: fuel for fuel, metas in FUEL_SETS.items() for meta in metas}
@@ -108,8 +110,11 @@ EXCLUDED_SUBPARTS = frozenset({'D'})
 #: Sector scope of the floor (as in the facility FBS); 221100 is out.
 SCOPE_PREFIXES = ('21', '22', '31', '32', '33')
 #: FBS CO2 left out of the ceiling comparison: GHGRP does not report on-site
-#: vehicle and equipment fuel (Use-table petroleum) or non-energy use.
-NOT_COMPARABLE_ATTRIBUTION = 'Nowcast_Detail_Use'
+#: vehicle and equipment fuel or non-energy use. Industrial distillate is that
+#: fuel whether it is attributed by Use-table petroleum or, in the
+#: transportation method, by Energy_industrial_distillate (farm, off-highway
+#: and mining equipment diesel).
+NOT_COMPARABLE_ATTRIBUTION = ('Nowcast_Detail_Use', 'Energy_industrial_distillate')
 NOT_COMPARABLE_META = 'UMD_GHGIA_T_3_14'
 
 

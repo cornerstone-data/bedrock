@@ -675,6 +675,24 @@ def estimate_suppressed_mecs_energy(
     return unsuppressed.drop(columns='Suppressed')
 
 
+#: Gallons of distillate fuel oil per trillion Btu (0.138 MMBtu per gallon).
+GALLONS_DISTILLATE_PER_TBTU = 1e6 / 0.138
+
+
+def mecs_distillate_to_gallons(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    '''
+    clean_fba. Converts MECS Table 3.2 distillate fuel oil from
+    trillion Btu to gallons, so manufacturing sits in the same unit as the EIA
+    and Census distillate volumes it is weighed against.
+    '''
+    tbtu = fba['Unit'].str.lower() == 'trillion btu'
+    if not tbtu.all():
+        raise ValueError('mecs_distillate_to_gallons expects trillion Btu rows only')
+    return fba.assign(
+        FlowAmount=fba['FlowAmount'] * GALLONS_DISTILLATE_PER_TBTU, Unit='gal'
+    )
+
+
 def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     '''Keep MECS NAICS 325 (chemicals) and descendants. CEDA NEU NG is chemicals-only.'''
     return fba.query("ActivityConsumedBy.str.startswith('325')").reset_index(drop=True)

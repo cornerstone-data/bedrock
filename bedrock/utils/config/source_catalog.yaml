@@ -120,6 +120,17 @@ BEA_PEQBridge:
     bea:
       year: 2017
       hierarchy: flat
+Census_EC_MatFuel:
+  data_format: FBA
+  class:
+  - Money
+  - Energy
+  activity_schema:
+    naics:
+      hierarchy: flat
+      by_year:
+        2017: 2017
+        2022: 2022
 Census_EC_PxI:
   data_format: FBA
   class:
@@ -457,6 +468,12 @@ FHWA_Highway_Statistics:
   class:
   - Energy
   - Other
+  activity_schema: null
+  sector_hierarchy: flat
+EIA_FOKS:
+  data_format: FBA
+  class:
+  - Energy
   activity_schema: null
   sector_hierarchy: flat
 EIA_MER:
