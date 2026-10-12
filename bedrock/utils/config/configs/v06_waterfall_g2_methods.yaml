@@ -1,0 +1,19 @@
+# v06_waterfall G2 — bedrock methods on published BEA 2017 detail with 2023 UMD
+# GHG / IO data, at IO@2024 producer footing.
+#
+# Flags and the pinned GHG FBS match v05_waterfall_g2_methods.
+# cornerstone_ghg_fbs_filename pins GHG_national_Cornerstone_2023 to
+# GHG_national_Cornerstone_2023_v0.3.0_9030001.parquet.
+
+model_base_year: 2024
+price_type: producer
+
+usa_ghg_data_year: 2023
+
+use_cornerstone_ghg_model: true
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2023_v0.3.0_9030001.parquet
+apply_io_year_adjustments: true
+implement_waste_disaggregation: true
+
+scale_a_matrix_with_useeio_method: false
+cornerstone_industry_avg_margins: true
