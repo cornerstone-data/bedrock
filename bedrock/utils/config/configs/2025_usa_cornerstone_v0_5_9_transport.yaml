@@ -5,7 +5,7 @@
 # 2026Q2, the index that Use was built with. use_transportation_ghg_allocation
 # selects GHG_national_Cornerstone_nowcast_facilities_transportation_2024.
 # cornerstone_ghg_fbs_filename pins that stem to
-# GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_3744c93.parquet.
+# GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_011f41f.parquet.
 
 #####
 # Model base settings
@@ -28,7 +28,7 @@ bea_price_index_vintage: '2026Q2'
 use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
 use_transportation_ghg_allocation: True
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_3744c93.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_011f41f.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
