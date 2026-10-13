@@ -346,13 +346,21 @@ def test_v0_5_9_transport_matches_v0_5_9_with_transportation_ghg() -> None:
 
 
 def test_v0_6_matches_v0_5_9_transport() -> None:
-    """v0.6 is the canonical config and matches v0.5.9 transport."""
+    """v0.6 is the canonical config.
+
+    It matches v0.5.9 transport except the transportation GHG FBS pin.
+    """
     assert CANONICAL_USA_CONFIG == '2025_usa_cornerstone_v0_6'
     v06 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_6.yaml')
     transport = _load_usa_config_from_file_name(
         '2025_usa_cornerstone_v0_5_9_transport.yaml'
     )
-    assert v06.model_dump() == transport.model_dump()
+    assert v06.cornerstone_ghg_fbs_filename == (
+        'GHG_national_Cornerstone_nowcast_facilities_transportation_2024_'
+        'v0.5.0_82e24cd.parquet'
+    )
+    pin = {'cornerstone_ghg_fbs_filename'}
+    assert v06.model_dump(exclude=pin) == transport.model_dump(exclude=pin)
 
 
 def test_v0_4_release_yaml_loads() -> None:
