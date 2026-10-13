@@ -1,4 +1,4 @@
-"""Side-by-side margin SEF: Zenodo v1.4.0, Phoebe rebuild, Cornerstone v0.3.
+"""Side-by-side margin SEF: Zenodo v1.4.0, Phoebe rebuild, Cornerstone v0.3 and v0.6.
 
 Zenodo publishes NAICS-6 rows mapped to ``Reference USEEIO Code`` (BEA detail).
 Rows whose reference field lists **multiple** codes (comma-separated, e.g.
@@ -16,13 +16,17 @@ Usage (PowerShell, repo root)::
 Optional:
   --phoebe-sef-csv PATH (required; pinned SEF from a pre-retirement phoebe run)
   --v0-3-sef-csv PATH
+  --v0-6-sef-csv PATH
   --zenodo-xlsx PATH  (defaults to cached download under
                        ``bedrock/utils/snapshots/data/zenodo_sef_v1.4.0/``)
   --dollar_year 2024
   --output-csv PATH
+  --summary-csv PATH
 
 Outputs:
-  output/sef_margins_zenodo_phoebe_v0_3.csv
+  output/sef_margins_comparison.csv  (one row per commodity)
+  output/sef_margins_summary.csv     (one row per model pair)
+  output/plots/sef_margins_v0_6_vs_zenodo_hist.png  (margin % change, Zenodo -> v0.6)
 """
 
 from __future__ import annotations
@@ -30,9 +34,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import urllib.request
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -41,12 +47,21 @@ from bedrock.publish.cache_reset import clear_all_publish_caches
 from bedrock.publish.emission_factors.writer import write_emission_factors
 from bedrock.utils.config.settings import GIT_HASH_LONG
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.validation.analysis.plotting import (
+    DEFAULT_XLIM,
+    apply_axis_fonts,
+    percent_histogram,
+    save_and_close,
+    setup_mpl,
+)
 
 logger = logging.getLogger(__name__)
 
 _PKG_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _PKG_DIR.parents[3]
-_DEFAULT_OUTPUT = _PKG_DIR / 'output' / 'sef_margins_zenodo_phoebe_v0_3.csv'
+_DEFAULT_OUTPUT = _PKG_DIR / 'output' / 'sef_margins_comparison.csv'
+_DEFAULT_SUMMARY = _PKG_DIR / 'output' / 'sef_margins_summary.csv'
+_DEFAULT_HIST_PNG = 'sef_margins_v0_6_vs_zenodo_hist.png'
 
 _ZENODO_RECORD_ID = 17202747
 _ZENODO_FILENAME = 'SupplyChainGHGEmissionFactorsv1.4.0.xlsx'
@@ -64,6 +79,16 @@ COL_WITH = 'Supply Chain Emission Factors with Margins'
 SEF_VALUE_COLS: tuple[str, ...] = (COL_WITHOUT, COL_MARGINS, COL_WITH)
 
 _V0_3_CONFIG = '2025_usa_cornerstone_v0_3'
+_V0_6_CONFIG = '2025_usa_cornerstone_v0_6'
+
+# Model pairs summarized as (model, reference).
+_SUMMARY_PAIRS: tuple[tuple[str, str], ...] = (
+    ('phoebe', 'zenodo'),
+    ('v0_3', 'zenodo'),
+    ('v0_6', 'zenodo'),
+    ('v0_3', 'phoebe'),
+    ('v0_6', 'v0_3'),
+)
 
 
 def _zenodo_xlsx_cache_path() -> Path:
@@ -91,6 +116,38 @@ def ensure_zenodo_xlsx_local(path: Path | None = None) -> Path:
     with urllib.request.urlopen(download_url, timeout=600) as resp:
         local.write_bytes(resp.read())
     return local
+
+
+_UNIT_COL = 'Unit'
+_UNIT_PATTERN = re.compile(r'/\s*(\d{4})\s*USD,\s*(purchaser|producer) price')
+
+
+def parse_price_basis(units: pd.Series, source: str) -> tuple[int, str]:
+    """``(dollar_year, 'purchaser' | 'producer')`` shared by every ``Unit`` row.
+
+    Raises when a row does not parse or rows disagree, so a source can never be
+    compared on a mixed or unstated price basis.
+    """
+    parsed = units.astype(str).str.extract(_UNIT_PATTERN)
+    if parsed.isna().any().any():
+        bad = units[parsed.isna().any(axis=1)].unique()[:5].tolist()
+        raise ValueError(f'{source}: unparseable Unit values {bad!r}')
+    bases = {(int(y), p) for y, p in parsed.itertuples(index=False)}
+    if len(bases) != 1:
+        raise ValueError(f'{source}: mixed price bases {sorted(bases)!r}')
+    return bases.pop()
+
+
+def check_same_price_basis(models: dict[str, pd.DataFrame]) -> tuple[int, str]:
+    """Raise unless every model carries the same dollar year and price type."""
+    bases = {label: frame.attrs['price_basis'] for label, frame in models.items()}
+    if len(set(bases.values())) != 1:
+        raise ValueError(f'SEF sources are on different price bases: {bases!r}')
+    basis: tuple[int, str] = next(iter(bases.values()))
+    logger.info(
+        'price basis: %d USD, %s price for %s', basis[0], basis[1], ', '.join(bases)
+    )
+    return basis
 
 
 def _reference_code_lists_multiple_codes(value: object) -> bool:
@@ -129,6 +186,7 @@ def load_zenodo_sef_by_reference_code(
 
     out = df.groupby(REF_CODE_COL, sort=True)[list(value_cols)].mean().astype(float)
     out.index.name = 'useeio_code'
+    out.attrs['price_basis'] = parse_price_basis(raw[_UNIT_COL], 'zenodo')
     return out
 
 
@@ -152,8 +210,9 @@ def load_bedrock_sef(
             for col in value_cols
         },
         index=pd.Index(codes, name='useeio_code'),
-    )
-    return out.astype(float)
+    ).astype(float)
+    out.attrs['price_basis'] = parse_price_basis(table[_UNIT_COL], str(sef_csv))
+    return out
 
 
 def publish_sef(config_name: str, dollar_year: int) -> Path:
@@ -180,54 +239,134 @@ def _pct_diff(numer: pd.Series, denom: pd.Series) -> pd.Series:
     return (numer - denom) / denom.replace(0.0, np.nan)
 
 
-def _summarize_vs_zenodo(label: str, margins: pd.Series, zenodo: pd.Series) -> None:
-    common_codes = margins.index.intersection(zenodo.index)
-    paired = pd.concat(
-        [margins.reindex(common_codes), zenodo.reindex(common_codes)], axis=1
-    ).dropna()
+def summarize_pair(
+    label: str, reference: str, values: pd.Series, ref_values: pd.Series
+) -> dict[str, object]:
+    """Agreement of ``values`` with ``ref_values`` on the codes both carry."""
+    paired = pd.concat([values, ref_values], axis=1, join='inner').dropna()
     b = paired.iloc[:, 0].astype(float)
     r = paired.iloc[:, 1].astype(float)
     pct = _pct_diff(b, r).replace([np.inf, -np.inf], np.nan).dropna()
-    sum_ratio = float(b.sum() / r.sum()) if float(r.sum()) != 0.0 else float('nan')
-    logger.info(
-        '%s vs zenodo: joined=%d sum_ratio=%.4f corr=%.4f '
-        'median_pct=%.4f median_abs_pct=%.4f within_5pct=%d/%d',
-        label,
-        len(common_codes),
-        sum_ratio,
-        float(b.corr(r)) if len(common_codes) > 1 else float('nan'),
-        float(pct.median()) if not pct.empty else float('nan'),
-        float(pct.abs().median()) if not pct.empty else float('nan'),
-        int((pct.abs() <= 0.05).sum()) if not pct.empty else 0,
-        len(pct),
-    )
+    has_pct = not pct.empty
+    return {
+        'model': label,
+        'reference': reference,
+        'joined': len(paired),
+        'model_sum': float(b.sum()),
+        'reference_sum': float(r.sum()),
+        'sum_ratio': float(b.sum() / r.sum()) if r.sum() != 0.0 else np.nan,
+        'corr': float(b.corr(r)) if len(paired) > 1 else np.nan,
+        'median_pct': float(pct.median()) if has_pct else np.nan,
+        'median_abs_pct': float(pct.abs().median()) if has_pct else np.nan,
+        'within_5pct': int((pct.abs() <= 0.05).sum()),
+        'within_25pct': int((pct.abs() <= 0.25).sum()),
+        'n_pct': len(pct),
+    }
 
 
-def build_margins_comparison(
-    zenodo: pd.DataFrame,
-    phoebe: pd.DataFrame,
-    v0_3: pd.DataFrame,
-) -> pd.DataFrame:
-    """Wide table of margin (and without) SEF by USEEIO commodity code."""
-    codes = zenodo.index.union(phoebe.index).union(v0_3.index).sort_values()
-    out = pd.DataFrame({'useeio_code': codes})
-    out = out.set_index('useeio_code')
+def build_margins_comparison(models: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Wide table of margin and without-margin SEF by USEEIO commodity code.
 
-    out['zenodo_margins'] = zenodo.reindex(codes)[COL_MARGINS]
-    out['phoebe_margins'] = phoebe.reindex(codes)[COL_MARGINS]
-    out['v0_3_margins'] = v0_3.reindex(codes)[COL_MARGINS]
+    ``models`` maps a label (``zenodo``, ``phoebe``, ``v0_3``, ``v0_6``) to its
+    SEF frame; percent differences follow ``_SUMMARY_PAIRS``.
+    """
+    codes = pd.Index([], name='useeio_code')
+    for frame in models.values():
+        codes = codes.union(frame.index)
+    codes = codes.sort_values()
+    out = pd.DataFrame(index=pd.Index(codes, name='useeio_code'))
 
-    out['zenodo_without'] = zenodo.reindex(codes)[COL_WITHOUT]
-    out['phoebe_without'] = phoebe.reindex(codes)[COL_WITHOUT]
-    out['v0_3_without'] = v0_3.reindex(codes)[COL_WITHOUT]
-
-    out['pct_phoebe_vs_zenodo'] = _pct_diff(
-        out['phoebe_margins'], out['zenodo_margins']
-    )
-    out['pct_v0_3_vs_zenodo'] = _pct_diff(out['v0_3_margins'], out['zenodo_margins'])
-    out['pct_v0_3_vs_phoebe'] = _pct_diff(out['v0_3_margins'], out['phoebe_margins'])
-
+    for label, frame in models.items():
+        out[f'{label}_margins'] = frame.reindex(codes)[COL_MARGINS]
+    for label, frame in models.items():
+        out[f'{label}_without'] = frame.reindex(codes)[COL_WITHOUT]
+    for label, ref in _SUMMARY_PAIRS:
+        if label in models and ref in models:
+            out[f'pct_{label}_vs_{ref}'] = _pct_diff(
+                out[f'{label}_margins'], out[f'{ref}_margins']
+            )
     return out.reset_index()
+
+
+def build_margins_summary(comparison: pd.DataFrame) -> pd.DataFrame:
+    """One row per ``_SUMMARY_PAIRS`` entry, on margin SEF."""
+    wide = comparison.set_index('useeio_code')
+    rows = [
+        summarize_pair(label, ref, wide[f'{label}_margins'], wide[f'{ref}_margins'])
+        for label, ref in _SUMMARY_PAIRS
+        if f'{label}_margins' in wide and f'{ref}_margins' in wide
+    ]
+    return pd.DataFrame(rows)
+
+
+def plot_margins_change_histogram(
+    comparison: pd.DataFrame,
+    out_png: Path,
+    *,
+    model: str = 'v0_6',
+    reference: str = 'zenodo',
+    model_label: str = 'Cornerstone v0.6',
+    reference_label: str = 'USEEIO SEF v1.4.0 (Zenodo)',
+    top_n: int = 15,
+    price_basis: tuple[int, str] = (2024, 'purchaser'),
+) -> Path:
+    """EF-diagnostics-style histogram of margin SEF % change, ``reference`` -> ``model``.
+
+    Bins, median line, and +/-10/20% guides come from the diagnostics
+    ``percent_histogram``. Commodities with a zero reference margin have no
+    percent change and are left out; values past the x-limits are counted in
+    the text box rather than drawn.
+    """
+    setup_mpl()
+    wide = comparison.set_index('useeio_code')
+    m = wide[f'{model}_margins']
+    r = wide[f'{reference}_margins']
+    pct = (_pct_diff(m, r) * 100).replace([np.inf, -np.inf], np.nan).dropna()
+    paired = pd.concat([m, r], axis=1, join='inner').loc[pct.index]
+    sum_ratio_pct = (paired.iloc[:, 0].sum() / paired.iloc[:, 1].sum() - 1) * 100
+
+    lo, hi = DEFAULT_XLIM
+    n_below = int((pct < lo).sum())
+    n_above = int((pct > hi).sum())
+    top = pct.reindex(pct.abs().sort_values(ascending=False).index).head(top_n)
+    lines = [
+        f'Commodities: {len(pct)}',
+        f'Median: {pct.median():+.1f}%',
+        f'Median |%|: {pct.abs().median():.1f}%',
+        f'Sum of factors: {sum_ratio_pct:+.1f}%',
+        f'Within ±20%: {int((pct.abs() <= 20).sum())}',
+        f'Beyond x-range: {n_below} below, {n_above} above',
+        '',
+        f'Largest |%| (top {top_n}):',
+        *(f'{code}: {val:+.0f}%' for code, val in top.items()),
+    ]
+
+    fig, ax = plt.subplots(figsize=(14, 9))
+    percent_histogram(
+        ax,
+        pct,
+        xlim=DEFAULT_XLIM,
+        xlabel='Percentage Diff (%)',
+        ylabel='Count',
+        title=(
+            f'Margin emission factors: {reference_label} -> {model_label}\n'
+            f'kg CO2e per {price_basis[0]} USD, {price_basis[1]} price, both sides'
+        ),
+        text_box='\n'.join(lines),
+        text_box_fontsize=11,
+        legend_fontsize=13,
+    )
+    apply_axis_fonts(ax)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    save_and_close(fig, out_png)
+    return out_png
+
+
+def _resolve_sef(csv: Path | None, config: str, dollar_year: int) -> Path:
+    if csv is not None:
+        return csv
+    logger.info('publishing %s at dollar_year=%d', config, dollar_year)
+    return publish_sef(config, dollar_year)
 
 
 def main() -> int:
@@ -235,8 +374,10 @@ def main() -> int:
     parser.add_argument('--dollar_year', type=int, default=2024)
     parser.add_argument('--phoebe-sef-csv', type=Path, default=None)
     parser.add_argument('--v0-3-sef-csv', type=Path, default=None)
+    parser.add_argument('--v0-6-sef-csv', type=Path, default=None)
     parser.add_argument('--zenodo-xlsx', type=Path, default=None)
     parser.add_argument('--output-csv', type=Path, default=_DEFAULT_OUTPUT)
+    parser.add_argument('--summary-csv', type=Path, default=_DEFAULT_SUMMARY)
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
@@ -254,37 +395,46 @@ def main() -> int:
     logger.info('phoebe SEF: %s', phoebe_path)
     phoebe = load_bedrock_sef(phoebe_path)
 
-    if args.v0_3_sef_csv is None:
-        logger.info('publishing %s at dollar_year=%d', _V0_3_CONFIG, args.dollar_year)
-        v0_3_path = publish_sef(_V0_3_CONFIG, args.dollar_year)
-    else:
-        v0_3_path = args.v0_3_sef_csv
-    logger.info('v0.3 SEF: %s', v0_3_path)
-    v0_3 = load_bedrock_sef(v0_3_path)
+    models: dict[str, pd.DataFrame] = {'zenodo': zenodo, 'phoebe': phoebe}
+    for label, csv, config in (
+        ('v0_3', args.v0_3_sef_csv, _V0_3_CONFIG),
+        ('v0_6', args.v0_6_sef_csv, _V0_6_CONFIG),
+    ):
+        path = _resolve_sef(csv, config, args.dollar_year)
+        logger.info('%s SEF: %s', label, path)
+        models[label] = load_bedrock_sef(path)
 
-    comparison = build_margins_comparison(zenodo, phoebe, v0_3)
+    dollar_year, price_type = check_same_price_basis(models)
+    if dollar_year != args.dollar_year:
+        raise ValueError(
+            f'SEF sources are in {dollar_year} USD, not --dollar_year '
+            f'{args.dollar_year}'
+        )
+    comparison = build_margins_comparison(models)
+    summary = build_margins_summary(comparison)
 
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
     comparison.to_csv(args.output_csv, index=False)
+    args.summary_csv.parent.mkdir(parents=True, exist_ok=True)
+    summary.to_csv(args.summary_csv, index=False)
 
-    _summarize_vs_zenodo(
-        'phoebe',
-        comparison.set_index('useeio_code')['phoebe_margins'],
-        comparison.set_index('useeio_code')['zenodo_margins'],
-    )
-    _summarize_vs_zenodo(
-        'v0_3',
-        comparison.set_index('useeio_code')['v0_3_margins'],
-        comparison.set_index('useeio_code')['zenodo_margins'],
-    )
+    with pd.option_context('display.width', 200, 'display.max_columns', None):
+        logger.info('margin SEF summary:\n%s', summary.to_string(index=False))
     logger.info(
-        'rows=%d (zenodo=%d phoebe=%d v0_3=%d)',
+        'rows=%d (%s)',
         len(comparison),
-        int(comparison['zenodo_margins'].notna().sum()),
-        int(comparison['phoebe_margins'].notna().sum()),
-        int(comparison['v0_3_margins'].notna().sum()),
+        ' '.join(
+            f'{label}={int(comparison[f"{label}_margins"].notna().sum())}'
+            for label in models
+        ),
     )
-    logger.info('wrote %s', args.output_csv)
+    logger.info('wrote %s and %s', args.output_csv, args.summary_csv)
+    png = plot_margins_change_histogram(
+        comparison,
+        args.output_csv.parent / 'plots' / _DEFAULT_HIST_PNG,
+        price_basis=(dollar_year, price_type),
+    )
+    logger.info('wrote %s', png)
     logger.info('Zenodo source: https://doi.org/%s', ZENODO_DOI)
     return 0
 
