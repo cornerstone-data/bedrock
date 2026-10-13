@@ -3,8 +3,8 @@ BTS_VIUS,Accommodation or Food Services (for Immediate Consumption),NAICS_2017_C
 BTS_VIUS,Agriculture (Crop and Animal Production),NAICS_2017_Code,111,,
 BTS_VIUS,Agriculture (Crop and Animal Production),NAICS_2017_Code,112,,
 BTS_VIUS,"Arts, Entertainment, or Recreation Services",NAICS_2017_Code,71,,
-BTS_VIUS,Construction--Non-residential,NAICS_2017_Code,2362,,
-BTS_VIUS,Construction--Residential,NAICS_2017_Code,2361,,
+BTS_VIUS,Construction--Non-residential,BEA_2017_Code,23,,BEA construction is by structure type not NAICS
+BTS_VIUS,Construction--Residential,BEA_2017_Code,23,,BEA construction is by structure type not NAICS
 BTS_VIUS,"Fishing, Hunting, Trapping",NAICS_2017_Code,114,,
 BTS_VIUS,Forestry and Logging,NAICS_2017_Code,113,,
 BTS_VIUS,For-hire Transportation (of Goods or People),NAICS_2017_Code,484,,
@@ -31,8 +31,7 @@ BTS_VIUS,Other Administrative and Support and Waste Management and Remediation S
 BTS_VIUS,"Other Agriculture, Forestry, Fishing, and Hunting",NAICS_2017_Code,115,,
 BTS_VIUS,Other Business Type,NAICS_2017_Code,52,,
 BTS_VIUS,Other Business Type,NAICS_2017_Code,55,,
-BTS_VIUS,Other Construction,NAICS_2017_Code,237,,
-BTS_VIUS,Other Construction,NAICS_2017_Code,238,,
+BTS_VIUS,Other Construction,BEA_2017_Code,23,,BEA construction is by structure type not NAICS
 BTS_VIUS,"Other Services, including Advertising, Real Estate, Nonvehicle Leasing or Rental, etc.",NAICS_2017_Code,531,,
 BTS_VIUS,"Other Services, including Advertising, Real Estate, Nonvehicle Leasing or Rental, etc.",NAICS_2017_Code,5322,,
 BTS_VIUS,"Other Services, including Advertising, Real Estate, Nonvehicle Leasing or Rental, etc.",NAICS_2017_Code,5323,,
@@ -65,7 +64,7 @@ BTS_VIUS,Personal Use Only,BEA_2017_Code,F01000,,households
 BTS_VIUS,Some Commercial Use,NAICS_2017_Code,11,,
 BTS_VIUS,Some Commercial Use,NAICS_2017_Code,21,,
 BTS_VIUS,Some Commercial Use,NAICS_2017_Code,22,,
-BTS_VIUS,Some Commercial Use,NAICS_2017_Code,23,,
+BTS_VIUS,Some Commercial Use,BEA_2017_Code,23,,BEA construction is by structure type not NAICS
 BTS_VIUS,Some Commercial Use,NAICS_2017_Code,31,,
 BTS_VIUS,Some Commercial Use,NAICS_2017_Code,32,,
 BTS_VIUS,Some Commercial Use,NAICS_2017_Code,33,,

@@ -9,7 +9,7 @@ FHWA,Trucks - Private Use,BEA_2017_Code,F01000,,Highway private trucks - VIUS pe
 FHWA,Trucks - Private Use,NAICS_2017_Code,11,,Highway private trucks - VIUS commercial use
 FHWA,Trucks - Private Use,NAICS_2017_Code,21,,Highway private trucks - VIUS commercial use
 FHWA,Trucks - Private Use,NAICS_2017_Code,22,,Highway private trucks - VIUS commercial use
-FHWA,Trucks - Private Use,NAICS_2017_Code,23,,Highway private trucks - VIUS commercial use
+FHWA,Trucks - Private Use,BEA_2017_Code,23,,Highway private trucks - VIUS commercial use; BEA construction is by structure type not NAICS
 FHWA,Trucks - Private Use,NAICS_2017_Code,31,,Highway private trucks - VIUS commercial use
 FHWA,Trucks - Private Use,NAICS_2017_Code,32,,Highway private trucks - VIUS commercial use
 FHWA,Trucks - Private Use,NAICS_2017_Code,33,,Highway private trucks - VIUS commercial use
