@@ -571,6 +571,32 @@ def load_E_from_flowsa() -> pd.DataFrame:
         target_columns = [str(sector) for sector in CORNERSTONE_INDUSTRIES_ELEC]
     else:
         target_columns = [str(sector) for sector in INDUSTRIES]
+    _warn_on_sectors_outside_model(E_usa, target_columns)
     E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
 
     return E_usa
+
+
+def _warn_on_sectors_outside_model(
+    E_usa: pd.DataFrame, target_columns: list[str]
+) -> pd.Series[float]:
+    """Log emissions on sectors the model drops when E is reindexed.
+
+    Final demand columns (``F*``, e.g. household vehicles) are left out of
+    E by design. Any other sector outside the model, such as a NAICS code
+    with no Cornerstone mapping, loses its emissions.
+    """
+    outside = [
+        c
+        for c in E_usa.columns
+        if c not in set(target_columns) and not c.startswith('F')
+    ]
+    dropped = E_usa[outside].sum(axis=0)
+    dropped = dropped[dropped != 0].sort_values(ascending=False)
+    if not dropped.empty:
+        logger.warning(
+            'Dropping %.1f Mt CO2e on sectors outside the model: %s',
+            dropped.sum() / 1e9,
+            {k: round(v / 1e9, 2) for k, v in dropped.items()},
+        )
+    return dropped
