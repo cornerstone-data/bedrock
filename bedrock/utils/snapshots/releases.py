@@ -77,9 +77,11 @@ v0_4_1 = "0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0"  # config: 2025_usa_cornerst
 # carve-outs, #1061), margin impacts by transaction (#1027), waste re-split (#1058).
 v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerstone_v0_5
 
-# Output change: transportation GHG allocation + nowcast MUT v0.5.0_a166975 /
-# 2026Q2 price indices (#1096); facilities rung retained as G5, transport is FINAL.
-v0_6_0 = "dfe743bc19df11913263839a797308d7bb344757"  # config: 2025_usa_cornerstone_v0_6; matches .SNAPSHOT_KEY
+# Output change: transportation GHG allocation (#1096) with VIUS construction
+# business types mapped to BEA structure codes in
+# GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd
+# (#1103, #1105). Facilities rung is G5; transport is FINAL.
+v0_6_0 = "e10c75f542b0c9b24692f6524a53073e091d54dc"  # config: 2025_usa_cornerstone_v0_6; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (

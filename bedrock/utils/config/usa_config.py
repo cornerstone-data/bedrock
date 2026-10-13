@@ -519,7 +519,7 @@ class USAConfig(BaseModel):
         '1ca4453a7882ffbc70527bdaab32fcc835b7f84d',  # v0.4.1 local prior-weighted snapshot
         '0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0',  # v0.4.1 (CI Flip)
         '3a1dddc2030e5793b929888c1343cf5a14729f4c',  # v0.5.0
-        'dfe743bc19df11913263839a797308d7bb344757',  # v0.6.0 (current .SNAPSHOT_KEY)
+        'e10c75f542b0c9b24692f6524a53073e091d54dc',  # v0.6.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property

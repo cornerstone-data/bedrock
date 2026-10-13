@@ -20,8 +20,9 @@ historical v05 US ladder G2 / G3 / G4 / FINAL (plot registries only).
 
 Pins are sheet ``N_new`` x canonical q (``waterfall_progression --sheet-n-new``).
 Early G1* sheets are the 2026-10-02 remint on ``main`` in the v0.5 Diagnostics
-Drive folder. US ladder sheets are the 2026-10-12 USEEIO cut on ``dfe743bc``
-in the v0.6 Diagnostics Drive folder.
+Drive folder. US ladder G2-G5 sheets are the 2026-10-12 USEEIO cut on
+``dfe743bc`` in the v0.6 Diagnostics Drive folder. FINAL is the 2026-10-13
+USEEIO cut on ``e10c75f5``.
 
 Assessment plot bars are checked separately from sheets only -- see
 ``test_assessment_useeio_*``.
@@ -54,7 +55,7 @@ EXPECTED_LIVE_N_NEW = {
     'v06_waterfall_g3_data': 0.2395922,
     'v06_waterfall_g4_nowcast': 0.2208996,
     'v06_waterfall_g5_facilities': 0.2218908,
-    '2025_usa_cornerstone_v0_6': 0.2247815,
+    '2025_usa_cornerstone_v0_6': 0.2256090,
 }
 
 # Assessment USEEIO-track bars (diagnostics columns x canonical v0.6 q).
@@ -65,7 +66,7 @@ EXPECTED_ASSESSMENT_USEEIO_BEDROCK_N = {
     'G3': 0.2395922,
     'G4': 0.2208996,
     'G5': 0.2218908,
-    'FINAL': 0.2247815,
+    'FINAL': 0.2256090,
 }
 
 ATOL_KG_PER_USD = 1e-4
