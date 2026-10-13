@@ -11,13 +11,13 @@ url_replace_fxn: !script_function:FHWA fhwa_url_helper
 call_response_fxn: !script_function:FHWA fhwa_call
 parse_response_fxn: !script_function:FHWA fhwa_parse
 years:
-  # - 2017
-  # - 2018
-  # - 2019
-  # - 2020
-  # - 2021
-  # - 2022
-  # - 2023
+  - 2017
+  - 2018
+  - 2019
+  - 2020
+  - 2021
+  - 2022
+  - 2023
   - 2024
 tables:
   - mf21

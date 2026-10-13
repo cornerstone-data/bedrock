@@ -12,12 +12,12 @@ url_replace_fxn: !script_function:GSA gsa_ffr_url_helper
 call_response_fxn: !script_function:GSA gsa_ffr_call
 parse_response_fxn: !script_function:GSA gsa_ffr_parse
 years:
-  # - 2017
-  # - 2018
-  # - 2019
-  # - 2020
-  # - 2021
-  # - 2022
-  # - 2023
+  - 2017
+  - 2018
+  - 2019
+  - 2020
+  - 2021
+  - 2022
+  - 2023
   - 2024
   # - 2025
