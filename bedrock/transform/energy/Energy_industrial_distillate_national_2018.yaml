@@ -14,8 +14,8 @@
 #   - manufacturing: MECS distillate fuel use
 # Only the shares matter downstream; the tonnes stay the inventory's.
 #
-# Data years differ (EIA 2020, the last year of the survey; Census and MECS
-# 2022). Each group's volume is held at its latest observed year.
+# Data years: EIA FOKS 2018; Census MatFuel 2017; MECS 2018.
+# Each group's volume is held at its latest observed year.
 
 !include:Cornerstone_2025_target.yaml
 year: &year 2018
