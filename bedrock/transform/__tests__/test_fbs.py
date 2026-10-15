@@ -38,10 +38,10 @@ def isolated_fbs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterato
 
 
 @pytest.mark.eeio_integration
-def test_generate_nowcast_facilities_ghg_fbs_2024_matches_pinned_reference(
+def test_generate_cornerstone_ghg_fbs_matches_pinned_reference(
     isolated_fbs_dir: Path,
 ) -> None:
-    """Regenerated nowcast facilities 2024 FBS matches the pinned GCS parquet.
+    """Regenerated Cornerstone GHG FBS matches the pinned parquet.
 
     Relies on ``stewi_facility_pin`` (default on) for GHGRP/NEI + facilitymatcher
     and on the Energy FBS stems available via GCS / local cache for Hybrid.

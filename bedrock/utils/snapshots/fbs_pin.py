@@ -10,7 +10,7 @@ from bedrock.utils.io.gcp import download_gcs_file
 
 _SNAPSHOT_BASE = Path(__file__).resolve().parent
 
-#: Regen golden for ``GHG_national_Cornerstone_nowcast_facilities_2024``.
+#: Regen golden for the Cornerstone GHG FBS.
 DEFAULT_FBS_PIN = _SNAPSHOT_BASE / 'cornerstone_ghg_fbs_2024_pin.json'
 
 
