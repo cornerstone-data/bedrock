@@ -219,7 +219,7 @@ def test_multiply_bea_by_mecs_petroleum_energy_fraction(
         ),
         config={
             'activity_to_sector_mapping': 'Cornerstone_2025',
-            'target_naics_year': 2017,
+            'target_schema_year': 2017,
             'industry_spec': {'default': 'NAICS_3'},
             'clean_source': {
                 'EIA_MECS_Energy': {
@@ -297,44 +297,38 @@ def test_scale_household_petroleum_to_transport_share(
     assert by_activity['481000'] == pytest.approx(10.0)
 
 
-@pytest.mark.parametrize('year', [2018, 2022])
-def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
-    method = load_yaml_dict(f'Energy_manufacturing_national_{year}', 'FBS')
-    assert method['year'] == 2017
+@pytest.mark.parametrize(
+    ('year', 'split_year', 'umd_annex'),
+    [
+        (2018, 2017, 'UMD_GHGIA_T_A5_1_S6'),
+        (2022, 2022, 'UMD_GHGIA_T_A5_1_S2'),
+    ],
+)
+def test_energy_manufacturing_yaml_nowcast_hybrid_nests(
+    year: int, split_year: int, umd_annex: str
+) -> None:
+    method = load_yaml_dict(f'Energy_manufacturing_national_nowcast_{year}', 'FBS')
+    assert method['year'] == year
+    assert method['mecs_year'] == year
+    assert method['split_year'] == split_year
     energy_dir = Path(__file__).resolve().parents[1]
-    yaml_text = (energy_dir / f'Energy_manufacturing_national_{year}.yaml').read_text(
-        encoding='utf-8'
-    )
+    yaml_text = (
+        energy_dir / f'Energy_manufacturing_national_nowcast_{year}.yaml'
+    ).read_text(encoding='utf-8')
     assert 'allocation/' not in yaml_text
     assert 'BEA_Detail_Use_AfterRedef' not in yaml_text
 
-    nowcast = method['source_names']['Nowcast_Use_intermediate']
-    nowcast_sets = nowcast['activity_sets']
-    assert set(nowcast_sets) == {
-        'coal_energy',
-        'ng_energy',
-        'ng_neu_chemical',
-        'petrol',
-        'neu_coal_coke',
-        'neu_transport',
-    }
-    assert nowcast_sets['coal_energy']['attribution_method'] == 'direct'
-    assert nowcast_sets['coal_energy']['assign_fields'] == {
-        'FlowName': 'Coal',
-        'Class': 'Energy',
-    }
-    assert nowcast_sets['ng_energy']['assign_fields'] == {
-        'FlowName': 'Natural Gas',
-        'Class': 'Energy',
-    }
-    assert nowcast_sets['ng_neu_chemical']['clean_fba'] is keep_chemical_manufacturing
-    assert nowcast_sets['petrol']['clean_fba'] is keep_industrial_petroleum_consumers
+    use = method['source_names']['Nowcast_Detail_Use_AfterRedef']
+    assert use['year'] == year
+    use_sets = use['activity_sets']
+    assert set(use_sets) == {'petrol', 'neu_coal_coke', 'neu_transport'}
+    assert use_sets['petrol']['clean_fba'] is keep_industrial_petroleum_consumers
     assert (
-        nowcast_sets['petrol']['clean_fba_after_attribution']
+        use_sets['petrol']['clean_fba_after_attribution']
         is multiply_bea_by_mecs_petroleum_energy_fraction
     )
-    transport = nowcast_sets['neu_transport']
-    assert 'UMD_GHGIA_T_A5_1_S2' in transport['clean_source']
+    transport = use_sets['neu_transport']
+    assert umd_annex in transport['clean_source']
     assert (
         transport['clean_fba_after_attribution']
         is scale_household_petroleum_to_transport_share
@@ -343,14 +337,18 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
     mecs = method['source_names']['EIA_MECS_Energy']
     mecs_sets = mecs['activity_sets']
     assert set(mecs_sets) == {
-        'neu_petrol_asphalt',
-        'table_2_1_hgl',
-        'table_2_1_petrol',
+        'table_3_1_coal',
+        'table_3_1_ng',
+        'table_2_1',
+        'table_2_1_ng',
     }
+    assert mecs_sets['table_2_1_ng']['clean_fba'] is keep_chemical_manufacturing
     for set_name in mecs_sets:
-        attr = mecs_sets[set_name]['attribution_source']['Nowcast_Use_intermediate']
+        attr = mecs_sets[set_name]['attribution_source'][
+            'Nowcast_Detail_Use_AfterRedef'
+        ]
+        assert attr['year'] == split_year
         assert attr['attribution_method'] == 'equal'
-        assert attr['selection_fields']['ActivityProducedBy'] == {'324110': ''}
 
 
 def test_keep_chemical_manufacturing_resets_index() -> None:
