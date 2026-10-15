@@ -10,7 +10,9 @@ url:
   base_url: https://www.gsa.gov/system/files/
 url_replace_fxn: !script_function:GSA gsa_ffr_url_helper
 call_response_fxn: !script_function:GSA gsa_ffr_call
+gcs_fxn: !script_function:GSA gsa_ffr_load_gcs
 parse_response_fxn: !script_function:GSA gsa_ffr_parse
+extract_data_from_raw_sources: False
 years:
   - 2017
   - 2018
@@ -21,3 +23,6 @@ years:
   - 2023
   - 2024
   # - 2025
+
+sheets:
+  - '5-1'  # worldwide fuel consumption
