@@ -41,7 +41,7 @@ These are **independent** concepts and frequently point at different commits:
 | Artifact | Pins | Consumed by |
 |---|---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | Full pipeline outputs at a git SHA | `test_usa.py` (`eeio_integration`) |
-| [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | The Cornerstone GHG FBS parquet | `test_fbs.py` (`eeio_integration`) |
+| [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | The Cornerstone GHG FBS parquet | `test_fbs.py` (`fbs_regeneration`) |
 | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | 2024 balanced Supply and Use | `test_nowcast_balanced_sut_pin.py` (`nowcast_integration`) |
 | `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Nothing — selects via `_select_cornerstone_ghg_fbs_base_name` (newest upload for that base_name) | `load_E_from_flowsa()` for Cornerstone GHG |
 
@@ -282,7 +282,7 @@ Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exis
 
 ## Cornerstone GHG FBS pin
 
-[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the Cornerstone GHG FBS parquet under `gs://cornerstone-default/transform/output_data/`. `method` and `filename` in that JSON name the FlowBySector stem and the exact object. The canonical USA config loads the same file via `cornerstone_ghg_fbs_filename`. This JSON is the weekday regeneration golden. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates `method` from YAML + GCS sources (including the stewi facility pin) and compares the frame to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test runs on the weekday `test_integration` schedule alongside `test_usa.py`.
+[`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the Cornerstone GHG FBS parquet under `gs://cornerstone-default/transform/output_data/`. `method` and `filename` in that JSON name the FlowBySector stem and the exact object. The canonical USA config loads the same file via `cornerstone_ghg_fbs_filename`. This JSON is the weekday regeneration golden. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates `method` from YAML + GCS sources (including the stewi facility pin) and compares the frame to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test is marked `fbs_regeneration` and runs as its own job on the weekday `test_integration` schedule.
 
 ### When to bump the pin
 
@@ -318,7 +318,7 @@ uv run python -c "import hashlib, sys; p=sys.argv[1]; h=hashlib.sha256(open(p,'r
 **4. Verify** on the pin-bump branch:
 
 ```powershell
-uv run pytest bedrock/transform/__tests__/test_fbs.py -m eeio_integration -v
+uv run pytest bedrock/transform/__tests__/test_fbs.py -m fbs_regeneration -v
 ```
 
 **5. Merge** the pin bump — in the same PR as the FBS regen/upload when possible, or immediately after. Keep the diff mechanical: the JSON pin file (and any upload-related method changes) only.
@@ -370,7 +370,7 @@ Merge the pin bump with the upload when they ship together. Keep the diff mechan
 | [`../validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) | Maps `--baseline` labels (`ceda-v0`, `v0.3`, …) to snapshot keys |
 | [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs |
 | [`../../../.github/workflows/generate_snapshots.yml`](../../../.github/workflows/generate_snapshots.yml) | `workflow_dispatch` CI that runs `generate_snapshots.py` |
-| [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Weekday CI: `eeio_integration` against `.SNAPSHOT_KEY`, and `nowcast_integration` against the balanced SUT pin |
+| [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Weekday CI: `eeio_integration` against `.SNAPSHOT_KEY`, `fbs_regeneration` against the FBS pin, and `nowcast_integration` against the balanced SUT pin |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pinned Cornerstone GHG FBS parquet for the regen test |
 | [`fbs_pin.py`](fbs_pin.py) | Load pin JSON, download from GCS, verify SHA256 |
 | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | Pinned 2024 balanced Supply and Use |
@@ -378,7 +378,7 @@ Merge the pin bump with the upload when they ship together. Keep the diff mechan
 | [`../../transform/__tests__/test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) | `nowcast_integration` test: `balance_year(2024)` vs pinned Supply and Use |
 | [`stewi_facility_pin.json`](stewi_facility_pin.json) | Pinned stewi GHGRP/NEI + facilitymatcher outputs for facilities FBS |
 | [`stewi_facility_pin.py`](stewi_facility_pin.py) | Load pin, download from GCS, preflight check |
-| [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `eeio_integration` test: regen vs pinned FBS |
+| [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `fbs_regeneration` test: regen vs pinned FBS |
 
 ## Stewi + facilitymatcher pin
 
