@@ -144,6 +144,25 @@ class TestConstructEfDiffDataframe:
 
 
 class TestInflationAdjust:
+    def test_explicit_price_index_skips_bea_vintage(self) -> None:
+        """A passed price_index is used as-is; the BEA vintage is never read."""
+        sectors = pd.Index(["1111A0"])
+        old_ef = pd.Series([10.0], index=sectors)
+        price_index = pd.DataFrame({2017: [100.0], 2024: [125.0]}, index=sectors)
+
+        with patch(
+            "bedrock.utils.validation.diagnostics_helpers.obtain_inflation_factors_from_reference_data",
+            side_effect=AssertionError("BEA vintage must not be read"),
+        ):
+            result = inflation_adjust_ef_denom_to_new_base_year(
+                old_ef_vector=old_ef,
+                new_base_year=2024,
+                old_base_year=2017,
+                price_index=price_index,
+            )
+
+        assert result["1111A0"] == pytest.approx(10.0 * 100.0 / 125.0)
+
     def test_basic_adjustment(self) -> None:
         """Inflation adjustment scales EFs by old_price / new_price per sector."""
         sectors = pd.Index(["1111A0", "1111B0"])
