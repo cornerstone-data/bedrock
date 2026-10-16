@@ -22,7 +22,6 @@ nowcast_mut_vintage: 'v0.3.0_92b7a8a'
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io

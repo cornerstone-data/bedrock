@@ -370,7 +370,6 @@ def test_v0_4_release_yaml_loads() -> None:
     assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == 2024
     assert cfg.model_base_year == 2024
     assert cfg.iot_before_or_after_redefinition == 'after'
-    assert cfg.use_cornerstone_ghg_model
     assert cfg.implement_waste_disaggregation
     assert cfg.cornerstone_industry_avg_margins
     assert not cfg.apply_io_year_adjustments

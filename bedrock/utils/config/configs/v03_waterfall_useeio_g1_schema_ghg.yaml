@@ -12,7 +12,6 @@ implement_waste_disaggregation: true
 
 scale_a_matrix_with_useeio_method: true
 deflate_x_to_detail_io_year_for_B: true
-use_cornerstone_ghg_model: true
 
 useeio_margins: true
 cornerstone_industry_avg_margins: false

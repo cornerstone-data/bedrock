@@ -2,7 +2,6 @@
 # G/T/D to monetary 221100 (margins on to match production; no mixed units).
 model_base_year: 2024
 usa_ghg_data_year: 2024
-use_cornerstone_ghg_model: True
 apply_io_year_adjustments: True
 implement_waste_disaggregation: True
 cornerstone_industry_avg_margins: True

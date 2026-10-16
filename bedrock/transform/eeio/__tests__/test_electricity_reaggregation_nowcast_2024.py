@@ -192,7 +192,6 @@ def test_nowcast_2024_ladder_configs_flag_matrix(stem: str) -> None:
         assert cfg.nowcast_mut_vintage == 'v0.3.0_4276083'
         assert cfg.apply_io_year_adjustments is False
         assert cfg.implement_waste_disaggregation is True
-        assert cfg.use_cornerstone_ghg_model is True
         assert cfg.implement_electricity_mixed_units is False
         for field, value in expected.items():
             assert getattr(cfg, field) is value, field
