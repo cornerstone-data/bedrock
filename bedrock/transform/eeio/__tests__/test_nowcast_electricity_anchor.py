@@ -153,14 +153,14 @@ def test_reanchor_electricity_aq_at_year_skips_published_helpers(
     aimp = pd.DataFrame(0.0, index=codes, columns=codes)
     q = pd.Series({c: 10.0 for c in codes}, dtype=float)
     aq = SingleRegionAqMatrixSet(
-        Adom=adom,  # type: ignore[arg-type]
-        Aimp=aimp,  # type: ignore[arg-type]
+        Adom=adom,
+        Aimp=aimp,
         scaled_q=q,
     )
 
     sentinel = SingleRegionAqMatrixSet(
-        Adom=adom,  # type: ignore[arg-type]
-        Aimp=aimp,  # type: ignore[arg-type]
+        Adom=adom,
+        Aimp=aimp,
         scaled_q=q,
     )
     apply_mock = MagicMock(return_value=sentinel)

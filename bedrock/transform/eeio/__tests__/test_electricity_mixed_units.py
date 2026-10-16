@@ -172,7 +172,7 @@ def test_c_row_from_conversion_factors_is_flat_one_over_p(
         aimp = pd.DataFrame(0.0, index=cols, columns=cols)
         q = pd.Series({c: 1.0e9 for c in cols}, dtype=float)
         q[GENERATION_SECTOR] = 1.0e11
-        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)
         mwh = 4.0e9
         p_share = 0.4
         with (
@@ -376,7 +376,7 @@ def test_compute_mixed_unit_ef_vectors_not_cached() -> None:
     adom = pd.DataFrame([[0.0, 0.01], [0.0, 0.0]], index=cols, columns=cols)
     aimp = pd.DataFrame(0.0, index=cols, columns=cols)
     q = pd.Series({gen: 100.0, '1111A0': 50.0}, dtype=float)
-    aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+    aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)
     b = pd.DataFrame(10.0, index=cols, columns=cols)
     c_row_a = pd.Series({gen: 0.5, '1111A0': 0.5})
     c_row_b = pd.Series({gen: 0.8, '1111A0': 0.8})

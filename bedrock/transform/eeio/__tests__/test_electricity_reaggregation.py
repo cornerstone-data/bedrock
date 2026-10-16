@@ -206,7 +206,7 @@ def test_reaggregate_aq_is_noop_when_flag_off() -> None:
         adom = pd.DataFrame(0.01, index=cols, columns=cols)
         aimp = pd.DataFrame(0.0, index=cols, columns=cols)
         q = pd.Series({c: 10.0 for c in cols}, dtype=float)
-        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)
         out = reaggregate_electricity_children_aq(aq)
         pd.testing.assert_frame_equal(out.Adom, adom)
         pd.testing.assert_series_equal(out.scaled_q, q)
@@ -252,7 +252,7 @@ def test_reaggregate_raises_when_children_missing() -> None:
         adom = pd.DataFrame(0.01, index=codes, columns=codes)
         aimp = pd.DataFrame(0.0, index=codes, columns=codes)
         q = pd.Series({c: 10.0 for c in codes}, dtype=float)
-        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)
         with pytest.raises(ValueError, match='missing child sectors'):
             reaggregate_electricity_children_aq(aq)
     finally:
@@ -267,7 +267,7 @@ def test_reaggregate_aq_reconstructs_u_from_collapsed_block() -> None:
         adom = pd.DataFrame(0.02, index=codes, columns=codes)
         aimp = pd.DataFrame(0.01, index=codes, columns=codes)
         q = pd.Series({'221110': 10.0, '221121': 20.0, '221122': 30.0, '1111A0': 5.0})
-        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)  # type: ignore[arg-type]
+        aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)
         with patch(
             'bedrock.transform.eeio.cornerstone_disagg_pipeline.'
             'CORNERSTONE_COMMODITIES',
@@ -322,7 +322,7 @@ def test_get_U_commodity_axis_is_parent_not_children(
     uimp = pd.DataFrame(0.0, index=commodities, columns=industries)
     fd = pd.DataFrame(0.0, index=commodities, columns=list(FINAL_DEMANDS))
     va = pd.DataFrame(0.0, index=list(VALUE_ADDEDS), columns=industries)
-    uset = SingleRegionUMatrixSet(Udom=udom, Uimp=uimp)  # type: ignore[arg-type]
+    uset = SingleRegionUMatrixSet(Udom=udom, Uimp=uimp)
 
     monkeypatch.setattr(
         'bedrock.transform.eeio.cornerstone_disagg_pipeline.'

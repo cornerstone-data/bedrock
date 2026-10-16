@@ -12,7 +12,6 @@ from bedrock.utils.emissions.ghg import GHG_DETAILED
 from bedrock.utils.io.gcp import download_gcs_file_if_not_exists
 from bedrock.utils.io.gcp_paths import GCS_V5_INPUT_DIR
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
 from bedrock.utils.taxonomy.bea.v2012_commodity import (
     USA_2012_COMMODITY_CODES,
 )
@@ -34,8 +33,6 @@ USA_IO_MATRIX_NAMES = ta.Literal[
     "VR",
     "UR",
     "URdom",
-    "PI",
-    "PC",
     "YR",
 ]
 
@@ -45,8 +42,6 @@ USA_INDUSTRY_INDEX = pd.Index(USA_2012_INDUSTRY_CODES, name="industry")
 USA_COMMODITY_INDEX = pd.Index(USA_2012_COMMODITY_CODES, name="commodity")
 USA_FINAL_DEMAND_INDEX = pd.Index(USA_2012_FINAL_DEMAND_CODES, name="final_demand")
 GHG_DETAILED_INDEX = pd.Index(GHG_DETAILED)
-# PI/PC reduce 2012 detail onto the 400-code square used by 2017 weight math.
-_IO_2012_REDUCED_INDEX = pd.Index(CEDA_V7_SECTORS, name="sector", dtype=str)
 
 # 2012 tables label pump manufacturing ``33391A``; 2017+ detail tables use ``333914``.
 _IO_2012_TO_DETAIL_CODE = {"33391A": "333914"}
@@ -93,28 +88,6 @@ def load_2012_URdom_usa() -> pd.DataFrame:
     df = _load_usa_io_matrix("URdom") * MILLION_CURRENCY_TO_CURRENCY
     df.index = USA_COMMODITY_INDEX
     df.columns = USA_INDUSTRY_INDEX
-    return _relabel_2012_codes(df)
-
-
-@functools.cache
-def load_2012_PI_usa() -> pd.DataFrame:
-    """
-    400 industry X 405 industry matrix that reduces # of industry
-    """
-    df = _load_usa_io_matrix("PI")
-    df.columns = USA_INDUSTRY_INDEX
-    df.index = _IO_2012_REDUCED_INDEX
-    return _relabel_2012_codes(df)
-
-
-@functools.cache
-def load_2012_PC_usa() -> pd.DataFrame:
-    """
-    401 commodity X 400 commodity matrix that reduces # of commodity
-    """
-    df = _load_usa_io_matrix("PC")
-    df.index = USA_COMMODITY_INDEX
-    df.columns = _IO_2012_REDUCED_INDEX
     return _relabel_2012_codes(df)
 
 
