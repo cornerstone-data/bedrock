@@ -5,16 +5,6 @@ from collections.abc import Iterable
 
 import pandas as pd
 
-from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
-
-
-def get_allocation_sectors() -> list[str]:
-    """Return the allocation sector list: Cornerstone INDUSTRIES.
-
-    The Cornerstone frame matches the pinned allocation FBA parquets on GCS.
-    """
-    return list(INDUSTRIES)
-
 
 def parse_index_with_aggregates(
     idx: pd.Index[ta.Any], aggregates: ta.List[str]

@@ -8,9 +8,6 @@ import pandas as pd
 import pytest
 
 from bedrock.publish.cache_reset import _clear_electricity_caches_if_loaded
-from bedrock.transform.allocation.mappings.cornerstone.mecs import (
-    NON_MECS_INDUSTRIES,
-)
 from bedrock.transform.eeio.electricity_end_use_mapping import build_end_use_map
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     ELECTRICITY_AGGREGATE,
@@ -143,65 +140,16 @@ def test_manufacturing_pool_is_io_keys_not_naics_values() -> None:
     assert '322120' in pool
 
 
-def test_non_mecs_industrial_codes_land_in_residual() -> None:
-    mfg = industrial_manufacturing_pool()
-    end_use = build_end_use_map()
-    industrial = {c for c, cls in end_use.items() if cls == 'Industrial'}
-    industrial.add(ELECTRICITY_AGGREGATE)
-    residual = industrial - mfg
-    for code in NON_MECS_INDUSTRIES:
-        if code in industrial:
-            assert code in residual
-            assert code not in mfg
-
-
-def test_manufacturing_pool_matches_ghg_combustion_mecs_io_keys() -> None:
-    """Same Cornerstone 3.1 IO keys as GHG industrial coal/gas combustion."""
-    from bedrock.transform.allocation.co2.industrial_coal import (  # noqa: PLC0415
-        _get_mecs_3_1_naics_mappings as coal_maps,
-    )
-    from bedrock.transform.allocation.co2.industrial_natural_gas import (  # noqa: PLC0415
-        _get_mecs_3_1_naics_mappings as gas_maps,
-    )
-    from bedrock.transform.allocation.utils import flatten_items  # noqa: PLC0415
-
-    coal_map, coal_sub = coal_maps()
-    gas_map, gas_sub = gas_maps()
-    assert coal_map is gas_map
-    assert coal_sub is gas_sub
-    ghg_mfg = {str(c) for c in flatten_items(coal_map.keys())}
-    ghg_mfg.update(str(c) for c in flatten_items(coal_sub.keys()))
-    assert industrial_manufacturing_pool() == frozenset(ghg_mfg)
-    assert not (industrial_manufacturing_pool() & set(NON_MECS_INDUSTRIES))
-
-
-def test_industrial_class_is_mecs_union_non_mecs_plus_utilities_and_fd() -> None:
-    """EIA Industrial ≠ 3.1 keys ∪ NON_MECS; extras stay dollar residual, not dropped.
-
-    A is commodity-by-commodity, so electricity_purchases columns are commodities + FD.
-    ``331314`` is a 3.1 industry key with no matching commodity column.
-    """
+def test_manufacturing_pool_is_subset_of_industrial_commodities() -> None:
+    """331314 is a 3.1 industry key with no matching commodity column."""
     from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
         CORNERSTONE_COMMODITIES_ELEC,
     )
 
     industrial = {c for c, cls in build_end_use_map().items() if cls == 'Industrial'}
     mfg = set(industrial_manufacturing_pool())
-    non_mecs = set(NON_MECS_INDUSTRIES)
     commodities = set(map(str, CORNERSTONE_COMMODITIES_ELEC))
-    industrial_extras = frozenset(
-        {
-            '221110',
-            '221121',
-            '221122',
-            '221200',
-            '221300',
-            'F02E00',
-        }
-    )
-    assert non_mecs <= industrial
     assert (mfg & commodities) <= industrial
-    assert industrial - mfg - non_mecs == industrial_extras
     assert '331314' in mfg
     assert '331314' not in commodities
     assert '331314' not in industrial

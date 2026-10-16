@@ -11,11 +11,10 @@ not sector-attributed flows). An FBS pass would apply
 ``estimate_suppressed_mecs_energy`` and the generic NAICS crosswalk; this
 path needs 3-digit Q/D residual fill and the Cornerstone MECS 3.1 hand map.
 
-Manufacturing NAICS→BEA IO uses ``CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*``,
-the same maps as GHG industrial coal/gas combustion. Residual Industrial
-purchasers are ``NON_MECS_INDUSTRIES`` (electricity purchases here; BEA
-fuel Use in GHG). Multi-IO mapping keys split 7.7 kWh by electricity
-purchases; GHG splits fuel by BEA Use of that commodity.
+Manufacturing NAICS to Cornerstone industry uses
+``CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*``. Industries outside that map
+stay on dollar electricity-purchase shares. Multi-industry mapping keys
+split Table 7.7 kWh by those purchases.
 """
 
 from __future__ import annotations
