@@ -1,14 +1,7 @@
-"""Pandera schemas for cornerstone single-region IO matrices and vectors.
+"""Pandera schemas for Cornerstone single-region IO matrices and vectors.
 
-Mirrors the structure of single_region_schemas.py / base_schemas.py but
-validates against cornerstone commodity/industry sector codes instead of
-CEDA v7 sectors.
-
-Key difference from CEDA v7: industry and commodity indices are tracked
-separately. V is (industry × commodity), U is (commodity × industry),
-while A and L are (commodity × commodity).
-
-Will rename/replace single_region_schemas.py / base_schemas.py after fully merged model.
+Industry and commodity indices are tracked separately. V is (industry × commodity),
+U is (commodity × industry), and A is (commodity × commodity).
 """
 
 from __future__ import annotations

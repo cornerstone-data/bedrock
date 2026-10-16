@@ -8,7 +8,9 @@ import pandas as pd
 import pytest
 
 from bedrock.publish.cache_reset import _clear_electricity_caches_if_loaded
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import NON_MECS_INDUSTRIES
+from bedrock.transform.allocation.mappings.cornerstone.mecs import (
+    NON_MECS_INDUSTRIES,
+)
 from bedrock.transform.eeio.electricity_end_use_mapping import build_end_use_map
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     ELECTRICITY_AGGREGATE,
