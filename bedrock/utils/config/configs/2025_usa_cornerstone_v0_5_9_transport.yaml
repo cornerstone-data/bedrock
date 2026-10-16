@@ -26,7 +26,6 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
 use_transportation_ghg_allocation: True
 cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_011f41f.parquet

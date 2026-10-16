@@ -55,7 +55,6 @@ usa_ghg_data_year: 2024
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
 cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
 apply_io_year_adjustments: False

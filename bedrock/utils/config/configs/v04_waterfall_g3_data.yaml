@@ -5,8 +5,8 @@
 # The flags resolve identically to v03_waterfall_g3_data and to the
 # 2025_usa_cornerstone_v0_3 release config, on purpose. A config names
 # methodology choices; the pipeline behind each choice moves without a flag.
-# Re-run today this rung is v0.3.2, MECS included: use_cornerstone_ghg_model
-# at usa_ghg_data_year 2024 reads the newest GHG_national_Cornerstone_2024
+# Re-run today this rung is v0.3.2, MECS included: usa_ghg_data_year 2024
+# reads the newest GHG_national_Cornerstone_2024
 # parquet on GCS, which was regenerated after the MECS energy allocation
 # landed. That is why the pinned N for this rung moved in
 # test_waterfall_progression with no config diff. Code fixes shipped since
@@ -26,7 +26,6 @@ price_type: producer
 
 usa_ghg_data_year: 2024
 
-use_cornerstone_ghg_model: true
 apply_io_year_adjustments: true
 implement_waste_disaggregation: true
 

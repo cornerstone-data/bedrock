@@ -413,8 +413,7 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
     FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
     ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
-    name such as ``GHG_national_Cornerstone_2024``) are loaded directly
-    instead (used by use_cornerstone_ghg_model).
+    name such as ``GHG_national_Cornerstone_2024``) are loaded directly.
 
     With ``USAConfig.cornerstone_ghg_fbs_filename`` set to a parquet of this
     stem, that file is required: the local FBS directory first, then that
@@ -472,15 +471,9 @@ def load_E_from_flowsa() -> pd.DataFrame:
 
     The FBS is the pre-built Cornerstone GHG parquet from GCS via
     :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid`` when
-    electricity disaggregation is on). ``use_cornerstone_ghg_model`` must be
-    true.
+    electricity disaggregation is on).
     """
     usa = get_usa_config()
-    if not usa.use_cornerstone_ghg_model:
-        raise ValueError(
-            'use_cornerstone_ghg_model must be true. '
-            'The legacy CEDA GHG method is not available.'
-        )
     if usa.implement_electricity_disaggregation:
         fbs = _load_egrid_fbs_for_electricity_disagg()
     else:
