@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from io import BytesIO
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 import numpy as np
 import pandas as pd
 import xlrd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
+from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.mapping.location import US_FIPS
 
 # Filenames on the GSA library page are irregular by year.
@@ -38,24 +42,61 @@ def gsa_ffr_url_helper(
     return [config['url']['base_url'] + rel]
 
 
-def gsa_ffr_call(*, resp: Any, **_kwargs: Any) -> list[pd.DataFrame]:
-    raw = resp.content
+def _gsa_ffr_read_sheet(raw: bytes, sheet: str) -> pd.DataFrame:
     # xlsx vs legacy xls (FY2021/2024).
     if raw[:2] == b'PK':
-        df = pd.read_excel(BytesIO(raw), sheet_name='5-1', header=None)
-    else:
-        book = xlrd.open_workbook(file_contents=raw)
-        sh = book.sheet_by_name('5-1')
-        df = pd.DataFrame(
-            [[sh.cell_value(r, c) for c in range(sh.ncols)] for r in range(sh.nrows)]
-        )
-    return [df]
+        return pd.read_excel(BytesIO(raw), sheet_name=sheet, header=None)
+    book = xlrd.open_workbook(file_contents=raw)
+    sh = book.sheet_by_name(sheet)
+    return pd.DataFrame(
+        [[sh.cell_value(r, c) for c in range(sh.ncols)] for r in range(sh.nrows)]
+    )
+
+
+def gsa_ffr_call(
+    *,
+    resp: Any,
+    config: dict[str, Any],
+    url: str | None = None,
+    source: str,
+    year: str,
+    **_kwargs: Any,
+) -> list[pd.DataFrame]:
+    raw = resp.content
+    # Unquote so spaces in FY2024/2025 filenames match human-readable uploads.
+    table = unquote(os.path.basename(urlparse(url or '').path))
+    with open(os.path.join(local_extract_input_dir(source, year), table), 'wb') as f:
+        f.write(raw)
+    return [
+        _gsa_ffr_read_sheet(raw, sheet).assign(sheet=sheet)
+        for sheet in config['sheets']
+    ]
+
+
+def gsa_ffr_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load GSA FFR sheets from GCS extract-input (or local cache)"""
+    object_name = unquote(os.path.basename(urlparse(str(kwargs.get('url', ''))).path))
+    path = download_extract_input_from_gcs_if_not_exists(
+        kwargs, object_name=object_name
+    )
+    with open(path, 'rb') as f:
+        raw = f.read()
+    return [
+        _gsa_ffr_read_sheet(raw, sheet).assign(sheet=sheet)
+        for sheet in kwargs['config']['sheets']
+    ]
 
 
 def gsa_ffr_parse(
     *, df_list: list[pd.DataFrame], source: str, year: str, **_kwargs: Any
 ) -> pd.DataFrame:
-    raw = df_list[0]
+    for df in df_list:
+        if 'sheet' in df.columns and not df.empty and df['sheet'].iloc[0] != '5-1':
+            log.warning(
+                f"GSA FFR sheet {df['sheet'].iloc[0]!r} differs from '5-1'; "
+                f'check layout — parse only handles Table 5-1 '
+            )
+    raw = df_list[0].drop(columns=['sheet'], errors='ignore')
     header: list[str] | None = None
     records: list[dict[str, Any]] = []
     for _, series in raw.iterrows():
