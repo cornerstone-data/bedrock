@@ -19,6 +19,7 @@ source_names:
       Description: Table MF-21
       FlowName:
         - Gasoline highway
+        - Special fuel highway
       ActivityConsumedBy:
         - Federal Civilian
         - State, County and Municipal
@@ -131,24 +132,20 @@ source_names:
                           Nowcast_Detail_Use_AfterRedef: *nowcast_petroleum
 
       diesel:
-        # Pre-2024 MF-21 has no federal/state special-fuel columns; use
-        # gasoline MF-21 and FFR owner weights, emit Diesel Flowables.
         selection_fields:
-          FlowName: Gasoline highway
+          FlowName: Special fuel highway
         clean_fba_before_activity_sets: !script_function:FHWA highway_fuel_shares
         clean_parameter:
           flowable: Diesel
-          ffr_fuels: [Gasoline]
-          nonpublic_source: mf21
+          ffr_fuels:
+            - Diesel
+            - Biodiesel (B20)
+            - Biodiesel (B100)
+          # Private and Commercial gallons from this activity set's FBA
+          nonpublic_source: attributed_nonpublic
           ffr: *highway_ffr
           mv7: *highway_mv7
           mv10: *highway_mv10
-          mf21:
-            source_name: FHWA_Highway_Statistics
-            year: *year
-            selection_fields:
-              Description: Table MF-21
-              FlowName: Gasoline highway
         activity_sets:
           government: *government
           private_automobiles_buses: *private_automobiles_buses
