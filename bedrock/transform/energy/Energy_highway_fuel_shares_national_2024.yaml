@@ -119,10 +119,11 @@ source_names:
                         # Farm trucks mostly burn farm diesel, which EIA
                         # counts in industrial sales and the GHG method
                         # attributes to agriculture through table 3-11.
-                        # Agriculture scale (0.4) calibrated from USDA farm
-                        # fuel/oil vs table 3-11 farm distillate (2024F
-                        # reference: ~$15.6B implies ~10 Mt on-road vs ~25 Mt
-                        # unscaled VIUS miles). Same factor every model year.
+                        # USDA farm fuel and oil expenses ($15.6B, 2024F) are
+                        # roughly 40-45 Mt CO2 of all fuels; ~25 Mt of that
+                        # is table 3-11 farm distillate, leaving ~10 Mt for
+                        # on-road trucks against ~25 Mt from unscaled VIUS
+                        # miles.
                         clean_fba: !script_function:BTS_VIUS scale_business_types
                         clean_parameter:
                           business_type_scale:
