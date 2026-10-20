@@ -1,21 +1,19 @@
-"""Cornerstone IO data processing pipeline.
+"""Cornerstone-schema IO matrices (V, U, Y, A, B, q) and related helpers.
 
-Derives detail IO matrices (V, U, Y, A, B, g, q) using the Cornerstone 2026
-taxonomy (405 sectors), from the published BEA 2017 tables or a nowcast year's
-MUT via ``bedrock.extract.iot.detail_io``.
+Derives detail IO in the Cornerstone taxonomy (405 sectors) from published BEA
+2017 tables or a nowcast year's MUT via ``bedrock.extract.iot.detail_io``.
 
-**Core approach** — A is computed in the original BEA 2017 ~400-sector
-space and then *expanded* to 405 Cornerstone sectors by duplicating
-rows/columns for disaggregated codes. V, U, and Y are mapped via
-correspondence-matrix multiplication. B is computed directly in
-Cornerstone space from runtime `load_E_from_flowsa()`. Waste subsectors receive
-special intragroup treatment to prevent Leontief-inverse inflation.
+Published A/B/y entrypoints that honor electricity reaggregation live in
+``bedrock.transform.eeio.derived`` (``derive_*_usa``). This module holds the
+implementation those facades call, plus deep helpers (V, U, mixed-units, …)
+with no facade twin.
 
-Year-scaling logic (summary → detail disaggregation) uses the cornerstone
-summary correspondence instead of the CEDA v7 version.
-
-This module is self-contained: it does NOT modify or gate any existing CEDA v7
-code paths. The caller decides which pipeline to invoke based on config.
+**Core approach** — A is computed in BEA 2017 detail space and expanded to
+Cornerstone sectors by duplicating rows/columns for disaggregated codes.
+V, U, and Y are mapped via correspondence-matrix multiplication. B is computed
+in Cornerstone space from ``load_E_from_flowsa()``. Waste subsectors receive
+special intragroup treatment to prevent Leontief-inverse inflation. Year-scaling
+(summary → detail) uses the Cornerstone summary correspondence.
 
 Internal helpers live in sibling modules:
 - ``cornerstone_disagg_pipeline`` — waste/electricity sector-disaggregation orchestration
@@ -834,7 +832,7 @@ def derive_cornerstone_B_via_vnorm() -> pd.DataFrame:
 
 @functools.cache
 def derive_cornerstone_B_non_finetuned() -> pd.DataFrame:
-    """Year-scaled + inflated B, derived self-contained from CEDA v7 → cornerstone.
+    """Year-scaled + inflated B in Cornerstone sector space.
 
     When ``use_ghg_year_x_in_B`` is true, B is already on the GHG-year footing
     and stays on vnorm only. On the legacy footing, B is scaled 2017 →
@@ -1081,7 +1079,7 @@ def _disaggregate_ytot_matrix_set(
 
 
 def derive_cornerstone_detail_Ytot_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
-    """Year-scaled detail Ytot (equivalent of derive_v7_detail_Ytot_usa_matrix_set)."""
+    """Year-scaled detail Ytot and trade vectors."""
     return _disaggregate_ytot_matrix_set(
         summary_Y=derive_summary_Ytot_usa_matrix_set(year=2022),
         detail_weights=derive_cornerstone_Ytot_matrix_set(),
