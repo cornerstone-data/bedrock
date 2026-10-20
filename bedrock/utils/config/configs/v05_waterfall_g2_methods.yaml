@@ -1,5 +1,5 @@
-# v05_waterfall G2 — "Model reconciliation" rung: v0.5 less facility GHG, less
-# nowcasting and less the US data update. Bedrock methods on published BEA 2017
+# v05_waterfall G2 — "Model reconciliation" rung: v0.5 less nowcasting and less
+# the US data update. Bedrock methods on published BEA 2017
 # detail with 2023 UMD GHG / IO data, at IO@2024 producer footing.
 #
 # The flags resolve identically to v04_waterfall_g2_methods, on purpose: code and

@@ -45,7 +45,7 @@ SECTOR_LABELS: dict[str, str] = {
     '336111': 'Automobiles',
 }
 
-# Every calendar year with an after-redef NowcastMUT and a nowcast GHG FBS on
+# Every calendar year with an after-redef NowcastMUT and a Cornerstone GHG FBS on
 # GCS. 2017 is the BEA benchmark year rebuilt through the nowcast pipeline.
 NOWCAST_YEARS: tuple[int, ...] = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
 COMPARE_DOLLAR_YEAR = 2024
@@ -54,7 +54,7 @@ COMPARE_DOLLAR_YEAR = 2024
 # v0.3 EFs are in 2024$, so the 2024 nowcast compares without inflation.
 NOWCAST_COMPARE_YEAR = 2024
 # Git-SHA key of a CI snapshot cut from the compare-year config
-# (``generate_snapshots.yml`` with ``2025_usa_cornerstone_v0_4_nowcast_2024``).
+# (``generate_snapshots.yml`` with ``2025_usa_cornerstone_v0_5_2024``).
 # ``None`` derives B + A live from that YAML instead.
 NOWCAST_COMPARE_SNAPSHOT: str | None = None
 # v0.3.2, not v0.3.1: the MECS Energy methodology (#688, ported to the nowcast
@@ -85,7 +85,7 @@ def clear_year_caches() -> None:
 
 
 def config_stem(year: int) -> str:
-    return f'2025_usa_cornerstone_v0_4_nowcast_{year}'
+    return f'2025_usa_cornerstone_v0_5_{year}'
 
 
 def resolved_mut_vintage() -> str:

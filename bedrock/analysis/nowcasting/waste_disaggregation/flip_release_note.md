@@ -37,7 +37,7 @@ Follow-on BR→FBS work, §11 hardening, and who-buys SAS-scale of 2017 EC are *
 Canonical nowcast YAMLs now set `waste_weights_year: match_io` (resolves to `usa_base_io_data_year`):
 
 - `2025_usa_cornerstone_v0_4.yaml` (canonical snapshot config) — **v0.4.1** story
-- `2025_usa_cornerstone_v0_4_nowcast_{2017–2024}.yaml` (+ 2024 electricity diagnostic variants that enable waste disaggregation)
+- `2025_usa_cornerstone_v0_5_{2017–2024}.yaml` (+ 2024 electricity diagnostic variants that enable waste disaggregation)
 - `2025_usa_cornerstone_v0_5.yaml` and `2025_usa_cornerstone_v0_5_{2017–2024}.yaml`
 
 USAConfig field default remains `2017` for non-nowcast / unset configs. Analysis-only control YAMLs under `waste_disaggregation/configs/` stay on `2017` for A/B comparison.

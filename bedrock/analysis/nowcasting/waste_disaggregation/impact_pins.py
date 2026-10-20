@@ -22,8 +22,8 @@ IMPACT_YEARS = tuple(range(2018, 2025))
 # Analysis-only YAMLs (GCS year-aligned vs 2017); not under utils/config/configs.
 ANALYSIS_CONFIG_DIR = Path(__file__).resolve().parent / "configs"
 
-CONTROL_CONFIG_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_control"
-TREATMENT_CONFIG_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_match_io"
+CONTROL_CONFIG_FMT = "2025_usa_cornerstone_v0_5_{year}_waste_weights_control"
+TREATMENT_CONFIG_FMT = "2025_usa_cornerstone_v0_5_{year}_waste_weights_match_io"
 
 
 def control_config_name(year: int) -> str:

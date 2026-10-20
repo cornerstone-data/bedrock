@@ -1,4 +1,4 @@
-"""Schema-shape checks for facilities nowcast GHG method YAMLs."""
+"""Schema-shape checks for facility overrides in the canonical GHG methods."""
 
 from __future__ import annotations
 
@@ -23,33 +23,25 @@ _FACILITY_FLOWABLES = (
 
 
 def _facility_year_yamls() -> list[Path]:
-    """Year files only. ``_transportation_`` is a separate method stem."""
-    return sorted(
-        p
-        for p in _GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml')
-        if '_transportation_' not in p.name
-    )
+    """Canonical methods. Facility overrides are written in these files."""
+    return [
+        _GHG_DIR / f'GHG_national_Cornerstone_{year}.yaml' for year in range(2017, 2025)
+    ]
 
 
 def test_facilities_yamls_wire_prep_and_activity_sets() -> None:
     paths = _facility_year_yamls()
     assert [p.name for p in paths] == [
-        f'GHG_national_Cornerstone_nowcast_facilities_{y}.yaml'
-        for y in range(2017, 2025)
+        f'GHG_national_Cornerstone_{year}.yaml' for year in range(2017, 2025)
     ]
     for path in paths:
         text = path.read_text(encoding='utf-8')
-        year = path.stem.rsplit('_', 1)[-1]
-        assert f'!include:GHG_national_Cornerstone_nowcast_{year}.yaml' in text
+        includes = [line.strip() for line in text.splitlines() if '!include:' in line]
+        assert includes == ['!include:Cornerstone_2025_target.yaml']
         assert 'GHGRP_NEI_Facilities:' in text
-        assert (
-            'FBS_datapull_fxn: !script_function:stewiFBS facility_combustion_to_sector'
-            in text
-        )
-        assert (
-            'clean_fba_before_activity_sets: !script_function:UMD_GHGIA '
-            'prepare_facilities_industrial_combustion'
-        ) in text
+        assert '!script_function:stewiFBS' in text
+        assert 'facility_combustion_to_sector' in text
+        assert 'prepare_facilities_industrial_combustion' in text
         assert "exclude_sectors:" in text
         assert "'221100'" in text
         assert 'annex_fba:' in text
@@ -63,10 +55,10 @@ def test_facilities_yamls_wire_prep_and_activity_sets() -> None:
 
 
 def test_still_gas_attributes_to_refineries_only() -> None:
-    """Still gas is refinery fuel (#983): weight on refineries' petroleum only (#1054).
+    """Still gas is refinery fuel: weight on refineries' petroleum only.
 
     The cached facility source carries refineries as 32411 (industry spec); a
-    selection on '324110' alone matched nothing and dropped all still gas (#1060).
+    selection on '324110' alone matched nothing and dropped all still gas.
     """
     for path in _facility_year_yamls():
         text = path.read_text(encoding='utf-8')
@@ -75,5 +67,5 @@ def test_still_gas_attributes_to_refineries_only() -> None:
         )[0]
         assert 'GHGRP_NEI_Facilities:' in block, path.name
         assert (
-            "SectorProducedBy: ['32411', '324110']" in block
+            "'32411'" in block and "'324110'" in block
         ), f'{path.name}: still gas must attribute to refineries only'

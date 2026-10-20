@@ -8,7 +8,7 @@ Compares three runs of ``B_change_diagnostics`` over 2017-2024, all on real
 - ``control``: the v0.5 tables with the purchase-based GHG FBS
   (``v0.3.0_0e1b0f0``), so the step from ``baseline`` is the new tables and
   the other emissions changes, without facility data.
-- ``final``: the v0.5 tables with the facility GHG FBS, including the 2024
+- ``final``: the v0.5 release tables, including the 2024
   spill anchor (#1074), so the step from ``control`` is the facility data.
 
 Each run is an output folder (``B_change_real.csv``) and the cache folder it

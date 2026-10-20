@@ -25,8 +25,8 @@ ROOT = Path(__file__).resolve().parents[5]
 REBUILD = Path(__file__).resolve().parents[1] / "cache" / "local_mut_rebuild.json"
 INDEX = Path(__file__).resolve().parents[1] / "cache" / "local_impact_index.json"
 
-CONTROL_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_control_local"
-TREATMENT_FMT = "2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_match_io_local"
+CONTROL_FMT = "2025_usa_cornerstone_v0_5_{year}_waste_weights_control_local"
+TREATMENT_FMT = "2025_usa_cornerstone_v0_5_{year}_waste_weights_match_io_local"
 
 
 def _local_vintage() -> tuple[str, list[int]]:

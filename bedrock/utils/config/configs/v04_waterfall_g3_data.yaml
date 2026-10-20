@@ -16,10 +16,9 @@
 # The next rung is the release config 2025_usa_cornerstone_v0_4, which differs
 # only by the nowcast fields (usa_detail_io_source, nowcast_mut_vintage,
 # usa_base_io_data_year, apply_io_year_adjustments). FINAL minus G3 is the
-# nowcasting bucket: the 2024 nowcast MUT replacing published 2017 detail, and
-# with it the GHG FBS attributed on nowcast Use
-# (GHG_national_Cornerstone_nowcast_2024) instead of published 2017 Use
-# (GHG_national_Cornerstone_2024).
+# nowcasting bucket: the 2024 nowcast MUT replacing published 2017 detail.
+# The GHG FBS is GHG_national_Cornerstone_2024. Published BEA detail uses
+# GHG_national_Cornerstone_v03_2024.
 
 model_base_year: 2024
 price_type: producer

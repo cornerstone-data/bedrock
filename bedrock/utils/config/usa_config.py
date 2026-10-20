@@ -68,7 +68,7 @@ class USAConfig(BaseModel):
         description=(
             'Exact Cornerstone GHG FlowBySector parquet, version and git hash '
             'included (for example '
-            'GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc'
+            'GHG_national_Cornerstone_2024_v0.5.0_82e24cd'
             '.parquet). When set, the GHG loader reads that file from the '
             'local FBS directory and, if it is absent, downloads that object '
             'from gs://cornerstone-default/transform/output_data/. A newer '
@@ -310,17 +310,6 @@ class USAConfig(BaseModel):
     # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
     # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
     use_cornerstone_ghg_model: bool = False
-    # When True with usa_detail_io_source=nowcast, load the facility-attribution
-    # GHG FBS stem (GHG_national_Cornerstone_nowcast_facilities_{year}) instead
-    # of the MECS/Use nowcast stem. Ignored when the detail source is
-    # bea_published.
-    use_facility_ghg_attribution: bool = False
-    # When True with facility attribution, load
-    # GHG_national_Cornerstone_nowcast_facilities_transportation_{year}
-    # (on-road gasoline and diesel via highway fuel shares). False keeps the
-    # facility stem. Electricity disaggregation loads the eGRID FBS and does
-    # not read this flag.
-    use_transportation_ghg_allocation: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -419,28 +408,6 @@ class USAConfig(BaseModel):
                 'implement_electricity_reaggregation requires '
                 'implement_electricity_disaggregation'
             )
-        if self.use_transportation_ghg_allocation:
-            if (
-                self.usa_detail_io_source != 'nowcast'
-                or not self.use_facility_ghg_attribution
-            ):
-                raise ValueError(
-                    'use_transportation_ghg_allocation requires '
-                    "usa_detail_io_source 'nowcast' and "
-                    'use_facility_ghg_attribution'
-                )
-            if self.usa_ghg_data_year != 2024:
-                raise ValueError(
-                    'use_transportation_ghg_allocation is defined for '
-                    'usa_ghg_data_year 2024 only; '
-                    f'got {self.usa_ghg_data_year}'
-                )
-            if self.implement_electricity_disaggregation:
-                raise ValueError(
-                    'use_transportation_ghg_allocation is not used when '
-                    'implement_electricity_disaggregation is on; that path '
-                    'loads the eGRID FBS'
-                )
         if (
             self.implement_electricity_reaggregation
             and self.implement_electricity_mixed_units

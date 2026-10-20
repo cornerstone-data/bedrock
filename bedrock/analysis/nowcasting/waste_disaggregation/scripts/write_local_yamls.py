@@ -82,11 +82,11 @@ def main(argv: list[str] | None = None) -> int:
     for year in years:
         c = (
             CONFIG_DIR
-            / f"2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_control_local.yaml"
+            / f"2025_usa_cornerstone_v0_5_{year}_waste_weights_control_local.yaml"
         )
         t = (
             CONFIG_DIR
-            / f"2025_usa_cornerstone_v0_4_nowcast_{year}_waste_weights_match_io_local.yaml"
+            / f"2025_usa_cornerstone_v0_5_{year}_waste_weights_match_io_local.yaml"
         )
         c.write_text(_yaml(year, vintage=vintage, treatment=False), encoding="utf-8")
         t.write_text(_yaml(year, vintage=vintage, treatment=True), encoding="utf-8")

@@ -7,11 +7,11 @@ Group definitions (cumulative):
   G2 — ``v06_waterfall_g2_methods`` — bedrock methods on published BEA detail,
        2023 UMD GHG (same as v0.5 G2)
   G3 — ``v06_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data (same as v0.5 G3)
-  G4 — ``v06_waterfall_g4_nowcast`` — G3 + nowcast MUT, facility GHG off
+  G4 — ``v06_waterfall_g4_nowcast`` — G3 + nowcast MUT
        (same as v0.5 G4)
-  G5 — ``v06_waterfall_g5_facilities`` — G4 + facility GHG attribution
+  G5 — ``v06_waterfall_g5_facilities`` — G4 + the v0.5.9 Use and price index
        (≡ ``2025_usa_cornerstone_v0_5_9``)
-  FINAL — ``2025_usa_cornerstone_v0_6`` — G5 + transportation GHG allocation
+  FINAL — ``2025_usa_cornerstone_v0_6`` — G5 + the v0.6 GHG FBS pin
 
 Sheet IDs point at diagnostics spreadsheets in the v0.6 Diagnostics Drive
 folder. G2-G5 are the 2026-10-12 USEEIO cut on ``dfe743bc``. FINAL is the
@@ -54,7 +54,7 @@ G3_DATA = ProgressionSheet(
 )
 
 G4_NOWCAST = ProgressionSheet(
-    step_label="G4: Nowcasting (MUT, facility GHG off)",
+    step_label="G4: Nowcasting (MUT)",
     sheet_id="1k5lbEmatm3tTxAJnezPomHGi910JoD7lvBdRFUbtIf8",
     config_name="v06_waterfall_g4_nowcast",
     sheet_title=(
@@ -64,7 +64,7 @@ G4_NOWCAST = ProgressionSheet(
 )
 
 G5_FACILITIES = ProgressionSheet(
-    step_label="G5: Facility GHG attribution",
+    step_label="G5: v0.5.9 Use and price index",
     sheet_id="1eFDud33FtKVrwcmTDAhWR-6ikPYZT8GMblEaMkilsnU",
     config_name="v06_waterfall_g5_facilities",
     sheet_title=(
@@ -74,7 +74,7 @@ G5_FACILITIES = ProgressionSheet(
 )
 
 FINAL_V06_USEEIO = ProgressionSheet(
-    step_label="FINAL v0.6 (transportation GHG allocation)",
+    step_label="FINAL v0.6",
     sheet_id="1NTeXoNNcSwwroee6F884mYPlMvqniMHRIcW1f5GVKuY",
     config_name="2025_usa_cornerstone_v0_6",
     sheet_title=(

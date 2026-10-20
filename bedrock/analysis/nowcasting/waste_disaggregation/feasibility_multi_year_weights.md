@@ -40,7 +40,7 @@ Cornerstone is a national environmentally extended input-output (EEIO) model of 
 
 Today’s production path builds an **annual** detail Make/Use/Import/Margins (MUT) table for each year 2018–2024 at BEA 2017 Detail taxonomy, then feeds that table into the same Cornerstone EEIO build used for published benchmarks.
 
-- Config pattern: `2025_usa_cornerstone_v0_4_nowcast_{year}.yaml`
+- Config pattern: `2025_usa_cornerstone_v0_5_{year}.yaml`
 - Detail IO router: `usa_detail_io_source: nowcast` (`bedrock/extract/iot/detail_io.py`)
 - **No** summary IO year-scaling (`apply_io_year_adjustments: False`) — dollars already live in the calendar year
 
@@ -359,7 +359,7 @@ Work through these in order. **Proceed with is last.** Decision 7 is **LOCKED: P
 ### Locked
 
 1. **Pilot year — LOCKED: 2024 first.** builds and runs control vs treatment impact for nowcast **2024**. Extension to 2018–2023 is deferred until after 2024 impact review (Decision 7).  
-   *See §4.1.4; `2025_usa_cornerstone_v0_4_nowcast_2024.yaml`.*
+   *See §4.1.4; `2025_usa_cornerstone_v0_5_2024.yaml`.*
 
 2. **Industry mix primary source — LOCKED: SAS Table 3 for ≤2022; AIES for 2023–2024.** Use SAS **Table 3 total Expenses** by waste child NAICS through 2022 (workbook method); use AIES **`EXPS_TOT_DVAL`** by waste child NAICS for 2023 (**EXP01**) and 2024 (**BASIC**; EXP01 not published). Table 2 revenue remains secondary. Still reject purchaser `EXPS_REFUSE_VAL` / nowcast refuse seed for this slice.  
    *See §4.1.2 workbook Step 2 / matrix; §4.1.3 items 1, 6–7; `cache/aies_probe/aies_vs_sas_table3_probe.json`.*

@@ -23,8 +23,8 @@ an extraction NAICS), so a flag is a sector to read, not a verdict.
     uv run python -m bedrock.analysis.time_series_B_matrix.fbs_vs_ghgrp_totals \\
         --vintage v0.3.0_0e1b0f0 --label release_v0.5
     uv run python -m bedrock.analysis.time_series_B_matrix.fbs_vs_ghgrp_totals \\
-        --vintage v0.3.0_99655e9 --stem GHG_national_Cornerstone_nowcast_{year} \\
-        --config 2025_usa_cornerstone_v0_4_nowcast_{year} --label v0.4 --check
+        --vintage v0.3.0_99655e9 --stem GHG_national_Cornerstone_{year} \\
+        --config 2025_usa_cornerstone_v0_5_{year} --label v0.5 --check
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
 logger = logging.getLogger(__name__)
 
 YEARS = tuple(range(2017, 2025))
-FACILITY_STEM = 'GHG_national_Cornerstone_nowcast_facilities_{year}'
+FACILITY_STEM = 'GHG_national_Cornerstone_{year}'
 V05_CONFIG = '2025_usa_cornerstone_v0_5_{year}'
 #: GHGRP subparts not compared: D is electric power, outside the scope.
 EXCLUDED_SUBPARTS = frozenset({'D'})

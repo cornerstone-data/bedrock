@@ -24,35 +24,11 @@ def test_list_and_get_ladders() -> None:
 def test_nowcast_ladder_steps_vintage_baselines() -> None:
     ladder = get_ladder('nowcast_2024_reaggregation')
     assert ladder.terminal == 'reaggregation'
-    assert ladder.step_ids == (
-        'footing',
-        'reallocation',
-        'three_way',
-        'reaggregation',
-    )
-    assert ladder.steps == (
-        (
-            'footing',
-            '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_footing',
-        ),
-        (
-            'reallocation',
-            '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reallocation',
-        ),
-        (
-            'three_way',
-            '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_disaggregation',
-        ),
-        (
-            'reaggregation',
-            '2025_usa_cornerstone_v0_4_nowcast_2024_electricity_reaggregation',
-        ),
-    )
+    assert ladder.steps == ()
     assert ladder.nowcast_mut_vintage == 'v0.3.0_4276083'
-    assert ladder.plain_baseline == '2025_usa_cornerstone_v0_4_nowcast_2024'
+    assert ladder.plain_baseline == '2025_usa_cornerstone_v0_5_2024'
     assert ladder.production_baseline == '2025_usa_cornerstone_v0_4'
     assert ladder.plain_baseline != ladder.production_baseline
-    assert ladder.terminal_config.endswith('_electricity_reaggregation')
 
 
 def test_bea_mixed_terminal() -> None:

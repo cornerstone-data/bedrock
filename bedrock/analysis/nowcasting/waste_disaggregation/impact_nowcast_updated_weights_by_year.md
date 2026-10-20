@@ -33,8 +33,8 @@ Results below come from a paired A/B for every year: same GCS MUT on both arms, 
 
 **Configs** (under [`configs/`](configs/)):
 
-- `2025_usa_cornerstone_v0_4_nowcast_{Y}_waste_weights_control.yaml`
-- `2025_usa_cornerstone_v0_4_nowcast_{Y}_waste_weights_match_io.yaml`
+- `2025_usa_cornerstone_v0_5_{Y}_waste_weights_control.yaml`
+- `2025_usa_cornerstone_v0_5_{Y}_waste_weights_match_io.yaml`
 
 For each year we report percent differences (treatment − control) / control for N and D across sectors, plus focused waste-child charts. Artifacts: `cache/impact_{Y}_v0.3.0_92b7a8a/`. Figures: [issue #1031](https://github.com/cornerstone-data/bedrock/issues/1031) (local PNGs untracked).
 

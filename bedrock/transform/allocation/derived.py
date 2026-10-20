@@ -261,16 +261,16 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
 _EGRID_FBS_METHOD_BY_SOURCE_YEAR: dict[tuple[str, int], str] = {
     ('bea_published', 2023): 'GHG_national_Cornerstone_2023_egrid',
     ('bea_published', 2024): 'GHG_national_Cornerstone_2024_egrid',
-    ('nowcast', 2024): 'GHG_national_Cornerstone_nowcast_2024',
+    ('nowcast', 2024): 'GHG_national_Cornerstone_2024',
 }
 
 
 def egrid_fbs_method_for_config() -> str:
     """Return the eGRID-backed Cornerstone GHG FBS method for the active config.
 
-    Branches on ``usa_detail_io_source`` and ``usa_ghg_data_year`` so electricity
-    disaggregation composes with nowcast Use attribution instead of always
-    selecting the published ``*_egrid`` stem.
+    Branches on ``usa_detail_io_source`` and ``usa_ghg_data_year``. Published
+    BEA years load the ``*_egrid`` stem. A nowcast detail source in 2024 loads
+    ``GHG_national_Cornerstone_2024``.
     """
     usa = get_usa_config()
     key = (usa.usa_detail_io_source, usa.usa_ghg_data_year)
@@ -307,14 +307,8 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
 
     ``usa_ghg_data_year`` selects the inventory-year method stem.
-    ``usa_detail_io_source`` distinguishes published BEA Use attribution
-    (``GHG_national_Cornerstone_{year}``) from nowcast Use attribution
-    (``GHG_national_Cornerstone_nowcast_{year}``). With nowcast,
-    ``use_facility_ghg_attribution`` selects the facility-attribution stem
-    (``GHG_national_Cornerstone_nowcast_facilities_{year}``) instead.
-    ``use_transportation_ghg_allocation`` selects
-    ``GHG_national_Cornerstone_nowcast_facilities_transportation_{year}``
-    on top of that facility stem.
+    Published BEA Use attribution is ``GHG_national_Cornerstone_v03_{year}``.
+    Every other detail source is ``GHG_national_Cornerstone_{year}``.
 
     Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
     instead of this helper.
@@ -322,12 +316,8 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
     if usa.usa_detail_io_source == 'bea_published':
-        return f'GHG_national_Cornerstone_{year}'
-    if usa.use_facility_ghg_attribution:
-        if usa.use_transportation_ghg_allocation:
-            return f'GHG_national_Cornerstone_nowcast_facilities_transportation_{year}'
-        return f'GHG_national_Cornerstone_nowcast_facilities_{year}'
-    return f'GHG_national_Cornerstone_nowcast_{year}'
+        return f'GHG_national_Cornerstone_v03_{year}'
+    return f'GHG_national_Cornerstone_{year}'
 
 
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
@@ -356,7 +346,7 @@ def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
 
     The pin is the full filename. It applies only when its stem is the stem
     being loaded, so an electricity-disaggregation load of a different method
-    is not redirected at a facilities pin.
+    is not redirected at another method's pin.
     """
     import os  # noqa: PLC0415
 

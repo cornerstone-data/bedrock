@@ -1,6 +1,6 @@
 {
-  "method": "GHG_national_Cornerstone_nowcast_facilities_transportation_2024",
+  "method": "GHG_national_Cornerstone_2024",
   "gcs_sub_bucket": "transform/output_data",
-  "filename": "GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd.parquet",
+  "filename": "GHG_national_Cornerstone_2024_v0.5.0_82e24cd.parquet",
   "sha256": "f88b3fe92840c3deccefa1a12cf401b18bfb875012874420a9180a218f8a9177"
 }

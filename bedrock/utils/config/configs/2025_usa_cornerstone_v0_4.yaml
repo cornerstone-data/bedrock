@@ -7,11 +7,8 @@
 #     x and q are the row and column sums of that Make, so B is not year-scaled
 #     or inflated and the v0.3 IO year adjustments stay off (they are rejected
 #     when the detail source is nowcast)  -> apply_io_year_adjustments: False
-#   - MECS adjustment + UMD GHG data     -> use_cornerstone_ghg_model at usa_ghg_data_year=2024.
-#                                           With a nowcast detail source this selects
-#                                           GHG_national_Cornerstone_nowcast_2024 (UMD GHGIA 2024
-#                                           inventory + 2022 MECS, attributed on the 2024 nowcast
-#                                           after-redef Use rather than published BEA 2017 Use).
+#   - MECS adjustment + UMD GHG data     -> use_cornerstone_ghg_model at usa_ghg_data_year=2024
+#                                           selects GHG_national_Cornerstone_2024.
 #                                           Loaded from the newest GCS parquet for that stem.
 #   - Waste disaggregation and industry-average margins as in v0.3.
 #

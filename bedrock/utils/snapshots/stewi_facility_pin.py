@@ -1,4 +1,4 @@
-"""Pinned stewi + facilitymatcher outputs for facilities FBS builds."""
+"""Pinned stewi + facilitymatcher outputs for Cornerstone GHG FBS builds."""
 
 from __future__ import annotations
 

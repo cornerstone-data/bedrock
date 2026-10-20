@@ -100,21 +100,21 @@ ASSESSMENT_USEEIO_BEDROCK_LEVELS: tuple[AssessmentNLevel, ...] = (
         sheet_id=us_waterfall.G4_NOWCAST.sheet_id,
         n_column='N_new',
         config_name=us_waterfall.G4_NOWCAST.config_name,
-        note='US nowcast rung (facility GHG off)',
+        note='US nowcast rung',
     ),
     AssessmentNLevel(
         key='G5',
         sheet_id=us_waterfall.G5_FACILITIES.sheet_id,
         n_column='N_new',
         config_name=us_waterfall.G5_FACILITIES.config_name,
-        note='US facilities rung (facility GHG on, no transport allocation)',
+        note='US v0.5.9 rung',
     ),
     AssessmentNLevel(
         key='FINAL',
         sheet_id=us_waterfall.FINAL_V06_USEEIO.sheet_id,
         n_column='N_new',
         config_name=us_waterfall.FINAL_V06_USEEIO.config_name,
-        note='v0.6 release (transportation GHG allocation)',
+        note='v0.6 release',
     ),
 )
 

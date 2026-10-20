@@ -1,6 +1,6 @@
 """Table 3-11 industrial distillate weighted by physical fuel volumes.
 
-The transportation GHG method attributes industrial distillate by
+The Cornerstone GHG method attributes industrial distillate by
 ``Energy_industrial_distillate_national_2024`` (EIA farm and off-highway
 sales, Economic Census mining diesel, MECS) instead of refinery purchases, and
 scales farm VIUS truck miles so farm fuel is not counted on-road as well.
@@ -128,7 +128,7 @@ def test_scale_business_types_rejects_unknown_type() -> None:
 
 def test_transportation_method_splits_industrial_petroleum() -> None:
     method = load_yaml_dict(
-        'GHG_national_Cornerstone_nowcast_facilities_transportation_2024',
+        'GHG_national_Cornerstone_2024',
         flowbytype='FBS',
     )
     sets = method['source_names']['UMD_GHGIA_T_3_11']['activity_sets']

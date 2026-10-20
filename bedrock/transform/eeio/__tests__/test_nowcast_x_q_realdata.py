@@ -1,6 +1,6 @@
 """Real-data acceptance: the nowcast x source at the 2017 anchor.
 
-Under ``2025_usa_cornerstone_v0_4_nowcast_2017`` the router loads the 2017
+Under ``2025_usa_cornerstone_v0_5_2017`` the router loads the 2017
 after-redefinition Make from the NowcastMUT store. That table is the
 **balanced pipeline product**, not the published table: the balance holds
 published totals and identities while its cells deviate where the seeds'
@@ -44,7 +44,7 @@ ATOL_USD = 1.0 * MILLION_CURRENCY_TO_CURRENCY
 def nowcast_2017_config() -> Iterator[None]:
     reset_usa_config(should_reset_env_var=True)
     clear_all_publish_caches()
-    set_global_usa_config('2025_usa_cornerstone_v0_4_nowcast_2017.yaml')
+    set_global_usa_config('2025_usa_cornerstone_v0_5_2017.yaml')
     try:
         yield
     finally:

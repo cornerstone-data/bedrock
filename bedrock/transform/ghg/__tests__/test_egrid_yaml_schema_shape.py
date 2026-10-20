@@ -12,7 +12,7 @@ _CATALOG = (
 )
 
 _PUBLISHED_2024 = _GHG_DIR / 'GHG_national_Cornerstone_2024_egrid.yaml'
-_NOWCAST_BASE_2024 = _GHG_DIR / 'GHG_national_Cornerstone_nowcast_2024.yaml'
+_CANONICAL_2024 = _GHG_DIR / 'GHG_national_Cornerstone_2024.yaml'
 
 
 def test_egrid_catalog_activity_schema() -> None:
@@ -24,20 +24,21 @@ def test_egrid_catalog_activity_schema() -> None:
     assert 'NAICS_2017_Code' not in catalog_text
 
 
-def test_nowcast_2024_base_uses_catalog_egrid() -> None:
-    text = _NOWCAST_BASE_2024.read_text(encoding='utf-8')
+def test_canonical_2024_uses_catalog_egrid() -> None:
+    text = _CANONICAL_2024.read_text(encoding='utf-8')
     assert 'EPA_eGRID_electric:' in text
     assert 'UMD_GHGIA_T_3_7' not in text
     assert 'Electric Power Sector: Electric Power' not in text
+    egrid = text.split('EPA_eGRID_electric:', 1)[1].split('UMD_GHGIA_T_3_11:', 1)[0]
     # Static schema lives in source_catalog, not the method YAML.
-    assert 'activity_schema:' not in text
-    assert 'data_format: FBS_outside_flowsa' not in text
-    assert 'eGRID: *ghgi_year' in text
+    assert 'activity_schema:' not in egrid
+    assert 'data_format:' not in egrid
+    assert 'eGRID: 2024' in egrid
 
 
 def test_published_2024_egrid_overlay_uses_catalog() -> None:
     text = _PUBLISHED_2024.read_text(encoding='utf-8')
-    assert '!include:GHG_national_Cornerstone_2024.yaml' in text
+    assert '!include:GHG_national_Cornerstone_v03_2024.yaml' in text
     assert 'industry_spec:' not in text
     assert 'activity_schema:' not in text
     assert 'data_format: FBS_outside_flowsa' not in text

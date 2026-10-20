@@ -5,7 +5,7 @@ and they reach their direct-requirements matrix two different ways.  The configs
 say so outright:
 
 ===========================  ================================  =====================
-                             ``2025_usa_cornerstone_v0_3``     ``..._v0_4_nowcast_2024``
+                             ``2025_usa_cornerstone_v0_3``     ``..._v0_5_2024``
 ===========================  ================================  =====================
 detail IO source             published BEA 2017 benchmark      ``nowcast``
 base IO year                 2017                              2024

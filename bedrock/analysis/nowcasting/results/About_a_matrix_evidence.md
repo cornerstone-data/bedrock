@@ -6,7 +6,7 @@ nowcast MUT vintage `v0.3.0_c71ce5f` and snapshot `v0_3_1`
 
 Both models are stamped 2024 and reach `A` two different ways:
 
-| | `2025_usa_cornerstone_v0_3` | `..._v0_4_nowcast_2024` |
+| | `2025_usa_cornerstone_v0_3` | `..._v0_5_2024` |
 |---|---|---|
 | detail IO source | published BEA 2017 benchmark | `nowcast` |
 | base IO year | 2017 | 2024 |

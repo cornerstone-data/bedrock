@@ -376,19 +376,19 @@ Merge the pin bump with the upload when they ship together. Keep the diff mechan
 | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | Pinned 2024 balanced Supply and Use |
 | [`nowcast_balanced_sut_pin.py`](nowcast_balanced_sut_pin.py) | Load balanced SUT pin JSON, download from GCS, verify SHA256 |
 | [`../../transform/__tests__/test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) | `nowcast_integration` test: `balance_year(2024)` vs pinned Supply and Use |
-| [`stewi_facility_pin.json`](stewi_facility_pin.json) | Pinned stewi GHGRP/NEI + facilitymatcher outputs for facilities FBS |
+| [`stewi_facility_pin.json`](stewi_facility_pin.json) | Pinned stewi GHGRP/NEI + facilitymatcher outputs for the Cornerstone GHG FBS |
 | [`stewi_facility_pin.py`](stewi_facility_pin.py) | Load pin, download from GCS, preflight check |
 | [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `eeio_integration` test: regen vs pinned FBS |
 
 ## Stewi + facilitymatcher pin
 
-[`stewi_facility_pin.json`](stewi_facility_pin.json) pins the **produced** stewi inventory parquets (`flowbyprocess`, `facility`) and facilitymatcher outputs (`FacilityMatchList_forStEWI`, `FRS_NAICSforStEWI`) used by facilities GHG FBS builds. It does not pin the FRS national zip or other matcher raw inputs.
+[`stewi_facility_pin.json`](stewi_facility_pin.json) pins the **produced** stewi inventory parquets (`flowbyprocess`, `facility`) and facilitymatcher outputs (`FacilityMatchList_forStEWI`, `FRS_NAICSforStEWI`) used by Cornerstone GHG FBS builds. It does not pin the FRS national zip or other matcher raw inputs.
 
 Objects live under `gs://cornerstone-default/stewi/` and `gs://cornerstone-default/facilitymatcher/`. [`stewi_facility_pin.py`](stewi_facility_pin.py) downloads missing pinned files before `build_facility_combustion` when `BEDROCK_STEWI_FACILITY_PIN` is enabled (default on; set to `off` to skip).
 
 ### When to bump the pin
 
-Bump when the team intentionally adopts new stewi inventory stems or a new facilitymatcher build for release facilities FBS work. Upload the new parquets (and metadata JSON) to GCS first, then edit the pin JSON stems.
+Bump when the team intentionally adopts new stewi inventory stems or a new facilitymatcher build for a Cornerstone GHG FBS release. Upload the new parquets (and metadata JSON) to GCS first, then edit the pin JSON stems.
 
 ### How to bump / verify
 

@@ -7,12 +7,12 @@ Group definitions (cumulative):
   G2 — ``v05_waterfall_g2_methods`` — bedrock methods on published BEA detail,
        2023 UMD GHG
   G3 — ``v05_waterfall_g3_data`` — G2 + 2024 UMD GHG / IO data
-  G4 — ``v05_waterfall_g4_nowcast`` — G3 + v0.5 nowcast MUT (facility GHG off)
-  FINAL — ``2025_usa_cornerstone_v0_5`` — G4 + facility GHG attribution
+  G4 — ``v05_waterfall_g4_nowcast`` — G3 + v0.5 nowcast MUT
+  FINAL — ``2025_usa_cornerstone_v0_5`` — G4 + the v0.5 GHG FBS pin
 
 Sheet IDs point at diagnostics spreadsheets in the v0.5 Diagnostics Drive
 folder (G2–G4) and v0.4 Diagnostics (FINAL release sheet cut with the
-``3a1dddc`` facilities FBS). Each ``sheet_title`` records the date and
+``3a1dddc`` GHG FBS). Each ``sheet_title`` records the date and
 release the sheet was generated for.
 
 When a snapshot bump moves a config's ``N_new``, mint a fresh sheet and repoint
@@ -51,7 +51,7 @@ G3_DATA = ProgressionSheet(
 )
 
 G4_NOWCAST = ProgressionSheet(
-    step_label="G4: Nowcasting (v0.5 MUT, facility GHG off)",
+    step_label="G4: Nowcasting (v0.5 MUT)",
     sheet_id="1KBn9lFI-_AcT_6nL-dMcv9sB3dcBdyw3Q81Xzbgs8Bw",
     config_name="v05_waterfall_g4_nowcast",
     sheet_title=(
@@ -61,7 +61,7 @@ G4_NOWCAST = ProgressionSheet(
 )
 
 FINAL_V05_USEEIO = ProgressionSheet(
-    step_label="FINAL v0.5 (facility GHG)",
+    step_label="FINAL v0.5",
     sheet_id="1m1bC80uaomBu8VAL9TabvLisjqHuqqBtxBdgH32hlMA",
     config_name="2025_usa_cornerstone_v0_5",
     sheet_title=(

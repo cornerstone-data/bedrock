@@ -51,8 +51,8 @@ v0_3_0 = "c60bdf4308cb660eee80a246214901cff9122820"  # config: 2025_usa_cornerst
 # Output change: waste Use-intersection orientation fix (#563).
 v0_3_1 = "00524c3c8ba122a7a5b7f2139ff7ea6de08947bb"  # config: 2025_usa_cornerstone_v0_3
 
-# Output change: MECS Energy methodology in Cornerstone GHG (#688), ported to the
-# nowcast GHG configs (#858). Moves manufacturing B; largest cell CO2 @ 325320.
+# Output change: MECS Energy methodology in Cornerstone GHG. Moves
+# manufacturing B; largest cell CO2 @ 325320.
 v0_3_2 = "7d0cb92af43882ee9496b5932e1893bb9ffcbdd7"  # config: 2025_usa_cornerstone_v0_3
 
 # Output change: detail IO read from the 2024 nowcast MUT (after redefinition,
@@ -71,16 +71,11 @@ v0_4_1 = "0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0"  # config: 2025_usa_cornerst
 
 # Output change: nowcast build v0.3.0_3096818 (AIES-chained gross output, theta = 1,
 # electricity on EIA, smoothed manufacturing expense seed; #1014, #1030, #1056,
-# pinned by #1057), facility GHG attribution with the release FBS
-# GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc (#965, #1023,
-# #1055, #1059; GHGRP sector floor and ceiling, still gas, hydrogen and LNG
-# carve-outs, #1061), margin impacts by transaction (#1027), waste re-split (#1058).
+# pinned by #1057), margin impacts by transaction (#1027), waste re-split (#1058).
 v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerstone_v0_5
 
-# Output change: transportation GHG allocation (#1096) with VIUS construction
-# business types mapped to BEA structure codes in
-# GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd
-# (#1103, #1105). Facilities rung is G5; transport is FINAL.
+# Output change: VIUS construction business types mapped to BEA structure
+# codes in GHG_national_Cornerstone_2024_v0.5.0_82e24cd.
 v0_6_0 = "e10c75f542b0c9b24692f6524a53073e091d54dc"  # config: 2025_usa_cornerstone_v0_6; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)

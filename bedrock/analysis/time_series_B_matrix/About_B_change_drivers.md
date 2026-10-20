@@ -896,7 +896,7 @@ halves mislead if read as a category:
   combustion, and on non-combustion fugitives.
 
 What the tables are, from `UMD_GHGIA.yaml` and the activity-set comments in
-`GHG_national_Cornerstone_nowcast_<year>.yaml`:
+`GHG_national_Cornerstone_<year>.yaml`:
 
 | UMD table | what it covers |
 |---|---|

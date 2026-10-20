@@ -1,5 +1,5 @@
 {
-  "description": "Pinned stewi inventory and facilitymatcher outputs for facilities FBS builds. Produced parquet stems only (not FRS zip raw inputs).",
+  "description": "Pinned stewi inventory and facilitymatcher outputs for Cornerstone GHG FBS builds. Produced parquet stems only (not FRS zip raw inputs).",
   "gcs_bucket": "cornerstone-default",
   "facilitymatcher": {
     "gcs_prefix": "facilitymatcher",

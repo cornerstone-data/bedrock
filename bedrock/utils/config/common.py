@@ -134,7 +134,7 @@ def load_yaml_dict(
     # drop, but return warning that we might be loading a revised version of
     # the config file. The pattern looks for a "_v" followed by a number
     # between [0-9] followed by a decimal
-    pattern = '_v[0-9].*'
+    pattern = r'_v\d+\.\d+.*'
     if re.search(pattern, filename):
         log.warning(
             'Filename includes a github version and githash. Dropping '

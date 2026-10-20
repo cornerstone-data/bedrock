@@ -1,7 +1,7 @@
 """N/D % histograms: nowcast compare-year model vs the v0.3 release.
 
 Nowcast side: ``NOWCAST_COMPARE_SNAPSHOT`` when a CI snapshot of the
-``2025_usa_cornerstone_v0_4_nowcast_<year>`` config has been cut, otherwise
+``2025_usa_cornerstone_v0_5_<year>`` config has been cut, otherwise
 B + A derived live from that YAML. The v0.3 EFs are in 2024$, so the default
 2024 compare year needs no inflation; other years are inflated to the v0.3
 dollar year first. Writes CSV + PNGs next to this file (gitignored).

@@ -5,7 +5,7 @@
 ``B = (E / x) @ Vnorm``, so the direct intensity ``E / x`` is where a rocky B
 trend comes from: a year in which emissions and gross output move by different
 amounts. This module builds the span on the **nowcast** models - one
-``2025_usa_cornerstone_v0_4_nowcast_<year>`` config per calendar year, so ``E``,
+``2025_usa_cornerstone_v0_5_<year>`` config per calendar year, so ``E``,
 ``x`` and ``Vnorm`` all sit on the same year's detail MUT - and then attributes
 the ``E``-versus-``x`` gap to the FBS rows that produced it.
 
@@ -80,7 +80,7 @@ letting the totals quietly come up short against an inventory.
 Running it
 ----------
 
-Every artifact this reads - the eight nowcast GHG FBS parquets and the eight
+Every artifact this reads - the eight Cornerstone GHG FBS parquets and the eight
 after-redefinition nowcast MUTs - is resolved **local-first** from
 ``transform/output_data``, at one vintage pinned across the whole span. A
 span-wide pin is not tidiness: a cross-year comparison assembled from mixed
@@ -154,11 +154,11 @@ NEI_LAST_YEAR = 2022
 
 #: One config per calendar year; each pins usa_base_io_data_year ==
 #: usa_ghg_data_year, so E and the detail MUT share a year by construction.
-CONFIG_TEMPLATE = '2025_usa_cornerstone_v0_4_nowcast_{year}'
+CONFIG_TEMPLATE = '2025_usa_cornerstone_v0_5_{year}'
 
 #: Artifact stems. Both live flat in ``transform/output_data`` as
 #: ``<stem>_<vintage>.parquet``.
-FBS_STEM = 'GHG_national_Cornerstone_nowcast_{year}'
+FBS_STEM = 'GHG_national_Cornerstone_{year}'
 MUT_STEM = 'Nowcast_Detail_Make_after_redef_{year}'
 
 #: Modules holding ``@functools.cache`` results that are config-dependent and
@@ -190,11 +190,9 @@ ATTRIBUTION_CLASS: dict[str, str] = {
     'BEA_Detail_GrossOutput_IO': 'io_gross_output',
     'Energy_manufacturing_national_nowcast': 'energy_survey',
     'Direct': 'direct',
-    # Facility-attribution FBS only (use_facility_ghg_attribution): #928's 80%
-    # coverage gate and #1023's hybrid blend. GHGRP_NEI_Facilities is the
-    # sector's own reported emissions; Hybrid_Facility_MECS backfills the
-    # under-80%-coverage remainder from the energy survey. ~8.5-9.0% of CO2e
-    # across 2017-2024 on the facilities FBS (all 8 years, checked 2026-09-29).
+    # GHGRP_NEI_Facilities is the sector's own reported emissions.
+    # Hybrid_Facility_MECS backfills the under-80%-coverage remainder
+    # from the energy survey.
     'GHGRP_NEI_Facilities': 'facility_direct',
     'Hybrid_Facility_MECS': 'facility_hybrid',
 }
@@ -503,7 +501,7 @@ GAS_MAP: dict[str, str] = {
 
 
 def load_fbs(year: int, vintage: str) -> pd.DataFrame:
-    """The nowcast GHG FBS for *year* at *vintage*, local-first.
+    """The Cornerstone GHG FBS for *year* at *vintage*, local-first.
 
     ⚠️ Deliberately **not** ``load_E_from_flowsa``. That function lists the GCS
     bucket even when the parquet is already on disk, and it returns a
@@ -4862,7 +4860,7 @@ if __name__ == '__main__':
             'run the #928 attribution-coverage comparison alone and exit: '
             'simulate the residual rule at coverage gates 50%%, 80%% and 95%% '
             'for one year (default 2022, the last NEI CO2 year). Needs GHGRP '
-            'and NEI through stewi, plus a local nowcast GHG FBS for that year'
+            'and NEI through stewi, plus a local Cornerstone GHG FBS for that year'
         ),
     )
     args = parser.parse_args()
