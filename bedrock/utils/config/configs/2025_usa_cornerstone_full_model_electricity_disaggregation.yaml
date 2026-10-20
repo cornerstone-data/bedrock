@@ -1,4 +1,7 @@
 # Fully implemented Cornerstone 2025 model + waste + electricity reallocation + disaggregation.
+# Published BEA, GHG year 2024. Pin is the newest 2024 eGRID parquet on GCS.
+usa_ghg_data_year: 2024
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_egrid_v0.3.0_672c37c.parquet
 use_E_data_year_for_x_in_B: True
 implement_waste_disaggregation: True
 implement_electricity_reallocation: True

@@ -458,8 +458,8 @@ def load_E_from_flowsa() -> pd.DataFrame:
     ``derive_E_usa``.
 
     The FBS is the pre-built Cornerstone GHG parquet from GCS via
-    :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid`` when
-    electricity disaggregation is on).
+    :func:`_select_cornerstone_ghg_fbs_base_name` (or
+    :func:`egrid_fbs_method_for_config` when electricity disaggregation is on).
     """
     usa = get_usa_config()
     if usa.implement_electricity_disaggregation:

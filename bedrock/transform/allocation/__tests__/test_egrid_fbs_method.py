@@ -106,7 +106,7 @@ def test_load_egrid_fbs_selects_method_by_ghg_year(
     expected_method: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Default USAConfig is bea_published, so stems are the published overlays.
+    # Default USAConfig is bea_published, so stems are the published eGRID methods.
     cfg = USAConfig(
         usa_ghg_data_year=year,  # type: ignore[arg-type]
         implement_waste_disaggregation=True,
