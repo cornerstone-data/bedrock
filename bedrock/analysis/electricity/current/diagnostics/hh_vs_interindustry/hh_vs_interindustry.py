@@ -32,11 +32,11 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     electricity_conversion_factors,
 )
+from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,
     derive_Aq_scaled,
 )
-from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.utils.config.usa_config import (
     CONFIG_DIR,
     USAConfig,

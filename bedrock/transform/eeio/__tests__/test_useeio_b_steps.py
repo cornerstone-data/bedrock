@@ -53,9 +53,7 @@ def test_useeio_b_adjust_divide_transform_steps(
     )
     monkeypatch.setattr(dc, "validate_cornerstone", lambda df, kind: None)
     monkeypatch.setattr(dc, "load_E_from_flowsa", lambda: e)
-    monkeypatch.setattr(
-        dc, "derive_x_after_redefinition", lambda: x_nominal
-    )
+    monkeypatch.setattr(dc, "derive_x_after_redefinition", lambda: x_nominal)
     monkeypatch.setattr(
         dc,
         "get_cornerstone_industry_price_ratio",

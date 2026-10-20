@@ -37,6 +37,7 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_B_mixed_units,
     derive_B_non_finetuned,
     derive_B_reaggregated,
+    derive_disagg_Ytot_reaggregated,
     derive_q,
     derive_U_set,
     derive_U_set_reaggregated,
@@ -53,7 +54,6 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_y_nab_mixed_units,
     derive_y_nab_reaggregated,
     derive_Ytot_matrix_set,
-    derive_disagg_Ytot_reaggregated,
 )
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     derive_margin_sectors_cornerstone_usa_at_year,

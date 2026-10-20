@@ -495,11 +495,7 @@ class TestPipelineB:
             cfg = get_usa_config()
             actual = derive_B_via_vnorm()
 
-            x = (
-                derive_x_after_redefinition()
-                if cfg.use_ghg_year_x_in_B
-                else derive_x()
-            )
+            x = derive_x_after_redefinition() if cfg.use_ghg_year_x_in_B else derive_x()
             expected = (
                 load_E_from_flowsa().divide(x, axis=1).fillna(0.0)
                 @ derive_Vnorm_scrap_corrected()

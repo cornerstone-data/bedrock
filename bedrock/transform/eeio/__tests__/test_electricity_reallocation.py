@@ -11,23 +11,13 @@ import pytest
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
-    derive_V_after_waste,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    derive_V_after_waste,
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
-)
-from bedrock.transform.eeio.usa_matrices import (
-    derive_Aq,
-    derive_Aq_scaled,
-    derive_U_set,
-    derive_U_with_negatives,
-    derive_V,
-    derive_VA,
-    derive_Vnorm_scrap_corrected,
-    derive_Ytot_matrix_set,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     BALANCE_TOLERANCE,
@@ -38,6 +28,16 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     _make_diagonal,
     apply_single_coproduction_transfer,
     build_coproduction_transfer_schedule,
+)
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_Ytot_matrix_set,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (

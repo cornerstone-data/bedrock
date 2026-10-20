@@ -33,12 +33,22 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     reaggregate_electricity_children_aq,
     reaggregate_electricity_children_b,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    ELECTRICITY_AGGREGATE,
+    ELECTRICITY_DISAGG_SECTORS,
+    _derive_post_reallocation_checkpoint_for_disagg,
+    build_electricity_disagg_go_weights,
+    build_electricity_disagg_use_intersection_weights,
+    get_eia_purchaser_allocation,
+)
+from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_reaggregated,
     derive_Aq_scaled,
     derive_B_non_finetuned,
     derive_B_reaggregated,
+    derive_disagg_Ytot_reaggregated,
     derive_U_set,
     derive_U_set_reaggregated,
     derive_U_with_negatives,
@@ -52,17 +62,7 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x_reaggregated,
     derive_y_nab,
     derive_y_nab_reaggregated,
-    derive_disagg_Ytot_reaggregated,
 )
-from bedrock.transform.eeio.electricity_disaggregation import (
-    ELECTRICITY_AGGREGATE,
-    ELECTRICITY_DISAGG_SECTORS,
-    _derive_post_reallocation_checkpoint_for_disagg,
-    build_electricity_disagg_go_weights,
-    build_electricity_disagg_use_intersection_weights,
-    get_eia_purchaser_allocation,
-)
-from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     clear_cornerstone_inflation_caches,
@@ -223,15 +223,9 @@ def test_usa_derives_route_to_reaggregated_when_flag_on(
     sentinel_b = object()
     sentinel_y = object()
     monkeypatch.setattr(derived_mod, '_reaggregation_published', lambda: True)
-    monkeypatch.setattr(
-        derived_mod, 'derive_Aq_reaggregated', lambda: sentinel_aq
-    )
-    monkeypatch.setattr(
-        derived_mod, 'derive_B_reaggregated', lambda: sentinel_b
-    )
-    monkeypatch.setattr(
-        derived_mod, 'derive_y_nab_reaggregated', lambda: sentinel_y
-    )
+    monkeypatch.setattr(derived_mod, 'derive_Aq_reaggregated', lambda: sentinel_aq)
+    monkeypatch.setattr(derived_mod, 'derive_B_reaggregated', lambda: sentinel_b)
+    monkeypatch.setattr(derived_mod, 'derive_y_nab_reaggregated', lambda: sentinel_y)
     derived_mod.derive_Aq_usa.cache_clear()
     derived_mod.derive_B_usa_non_finetuned.cache_clear()
     derived_mod.derive_y_for_national_accounting_balance_usa.cache_clear()
@@ -330,8 +324,7 @@ def test_get_U_commodity_axis_is_parent_not_children(
         lambda: True,
     )
     monkeypatch.setattr(
-        'bedrock.transform.eeio.usa_matrices.'
-        'derive_U_set_reaggregated',
+        'bedrock.transform.eeio.usa_matrices.' 'derive_U_set_reaggregated',
         lambda: uset,
     )
     monkeypatch.setattr(

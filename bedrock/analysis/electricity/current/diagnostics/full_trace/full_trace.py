@@ -29,6 +29,7 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
+from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_scaled,
     derive_U_set,
@@ -37,7 +38,6 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_Vnorm_scrap_corrected,
     derive_x_after_redefinition,
 )
-from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,

@@ -9,10 +9,10 @@ import pandas as pd
 
 from bedrock.publish.model_objects import apply_loc_suffix, assemble_extended_U
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    derive_disagg_Ytot_with_trade,
     derive_U_after_waste,
     derive_V_after_waste,
     derive_VA_after_waste,
-    derive_disagg_Ytot_with_trade,
 )
 from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
 from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS

@@ -31,9 +31,7 @@ def test_derive_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
         patch.object(
             usa_matrices, "cornerstone_sector_disagg_active", return_value=True
         ),
-        patch.object(
-            usa_matrices, "derive_disagg_Ytot_with_trade", return_value=fake
-        ),
+        patch.object(usa_matrices, "derive_disagg_Ytot_with_trade", return_value=fake),
     ):
         out = usa_matrices.derive_Ytot_full_cs_matrix()
     pd.testing.assert_frame_equal(out, fake)

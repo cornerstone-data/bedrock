@@ -436,8 +436,7 @@ def test_derive_step_first_three_dn_match_mecs_and_write_x(
         _fake_scaled,
     )
     monkeypatch.setattr(
-        'bedrock.transform.eeio.usa_matrices.'
-        'derive_Aq_reaggregated',
+        'bedrock.transform.eeio.usa_matrices.' 'derive_Aq_reaggregated',
         _fake_reagg,
     )
     monkeypatch.setattr(

@@ -26,15 +26,15 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    GENERATION_SECTOR,
+    get_electricity_commodity_row_weights,
+)
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,
     derive_Aq_scaled,
     derive_Vnorm_scrap_corrected,
     derive_x_after_redefinition,
-)
-from bedrock.transform.eeio.electricity_disaggregation import (
-    GENERATION_SECTOR,
-    get_electricity_commodity_row_weights,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -188,9 +188,7 @@ def _analyze_y_nab_block(
     _clear_model_caches()
     set_global_usa_config(config)
 
-    aq = (
-        derive_Aq_mixed_units() if mixed else derive_Aq_scaled()
-    )
+    aq = derive_Aq_mixed_units() if mixed else derive_Aq_scaled()
     q = aq.scaled_q
     adom = aq.Adom
     adom_q = adom.multiply(q, axis=1).sum(axis=1)

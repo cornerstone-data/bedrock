@@ -31,11 +31,11 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_V_after_waste,
     derive_VA_after_waste,
 )
-from bedrock.transform.eeio.usa_matrices import (
-    derive_Vnorm_scrap_corrected,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     build_coproduction_transfer_schedule,
+)
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Vnorm_scrap_corrected,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.math.formulas import compute_q
