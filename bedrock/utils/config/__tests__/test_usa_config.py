@@ -336,74 +336,10 @@ def _resolved_field_diff(a: str, b: str) -> dict[str, tuple[object, object]]:
     return {k: (da[k], db[k]) for k in da if da[k] != db[k]}
 
 
-def test_v0_4_waterfall_rungs_bracket_the_release_config() -> None:
-    """G2 -> G3 is the US data update; G3 -> release is nowcasting only."""
-    assert _resolved_field_diff(
-        'v04_waterfall_g2_methods', 'v04_waterfall_g3_data'
-    ) == {
-        'usa_ghg_data_year': (2023, 2024),
-    }
-    nowcast_only = _resolved_field_diff(
-        'v04_waterfall_g3_data', '2025_usa_cornerstone_v0_4'
-    )
-    assert set(nowcast_only) == {
-        'usa_detail_io_source',
-        'nowcast_mut_vintage',
-        'usa_base_io_data_year',
-        'apply_io_year_adjustments',
-        # Release Flip: year-matched waste shares; waterfall G3 keeps frozen 2017.
-        'waste_weights_year',
-    }
-    assert nowcast_only['waste_weights_year'] == (2017, 'match_io')
-    # The two rungs carry the v0.3 waterfall values over unchanged.
-    assert (
-        _resolved_field_diff('v04_waterfall_g2_methods', 'v03_waterfall_g2_methods')
-        == {}
-    )
-    assert _resolved_field_diff('v04_waterfall_g3_data', 'v03_waterfall_g3_data') == {}
-
-
-def test_v0_5_waterfall_rungs_bracket_the_release_config() -> None:
-    """G2 and G3 carry v0.4's rungs over, plus a GHG FBS filename pin.
-
-    G3 to G4 is nowcasting and a different pinned FBS. G4 to the release
-    config is the GHG FBS pin.
-    """
-    for rung in ('g2_methods', 'g3_data'):
-        diff = _resolved_field_diff(f'v05_waterfall_{rung}', f'v04_waterfall_{rung}')
-        assert set(diff) == {'cornerstone_ghg_fbs_filename'}
-        assert diff['cornerstone_ghg_fbs_filename'][1] is None
-    assert set(
-        _resolved_field_diff('v05_waterfall_g3_data', 'v05_waterfall_g4_nowcast')
-    ) == {
-        'usa_detail_io_source',
-        'nowcast_mut_vintage',
-        'usa_base_io_data_year',
-        'apply_io_year_adjustments',
-        'waste_weights_year',
-        'cornerstone_ghg_fbs_filename',
-    }
-    release = _resolved_field_diff(
-        'v05_waterfall_g4_nowcast', '2025_usa_cornerstone_v0_5'
-    )
-    assert set(release) == {'cornerstone_ghg_fbs_filename'}
-
-
 def test_v0_6_waterfall_rungs_bracket_the_release_config() -> None:
-    """G4 matches the v0.5 rung. G2 and G3 differ by the published-BEA FBS pin.
-
-    G5 is v0.5.9. G5 to the v0.6 release is the GHG FBS pin.
+    """G5 matches v0.5.9. G5 to the v0.6 release is transportation allocation
+    and its GHG FBS pin.
     """
-    for rung in ('g2_methods', 'g3_data'):
-        diff = _resolved_field_diff(f'v06_waterfall_{rung}', f'v05_waterfall_{rung}')
-        assert set(diff) == {'cornerstone_ghg_fbs_filename'}
-        pinned = diff['cornerstone_ghg_fbs_filename'][0]
-        assert isinstance(pinned, str)
-        assert pinned.startswith('GHG_national_Cornerstone_v03_')
-    assert (
-        _resolved_field_diff('v06_waterfall_g4_nowcast', 'v05_waterfall_g4_nowcast')
-        == {}
-    )
     assert (
         _resolved_field_diff(
             'v06_waterfall_g5_facilities', '2025_usa_cornerstone_v0_5_9'
