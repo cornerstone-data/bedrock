@@ -470,36 +470,28 @@ def load_E_from_flowsa() -> pd.DataFrame:
     before q-weighted reaggregation. Published E (405 under reaggregation) is
     ``derive_E_usa``.
 
-    FBS selection ("GHG model allocation" bucket + data-year knob):
-    - use_cornerstone_ghg_model → pre-built Cornerstone GHG FBS parquet from
-      GCS via :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid``
-      when electricity disaggregation is on). Inventory/attribution vintages
-      live in ``bedrock/transform/ghg/`` method files.
-    - otherwise → GHG_national_CEDA_{year}, the flowsa implementation of the
-      legacy CEDA allocation methodology (method files exist for 2023 only).
+    The FBS is the pre-built Cornerstone GHG parquet from GCS via
+    :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid`` when
+    electricity disaggregation is on). ``use_cornerstone_ghg_model`` must be
+    true.
     """
     usa = get_usa_config()
-    year = usa.usa_ghg_data_year
-    if usa.use_cornerstone_ghg_model:
-        if usa.implement_electricity_disaggregation:
-            fbs = _load_egrid_fbs_for_electricity_disagg()
-        else:
-            # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
-            # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
-            # FBS) fail there. Load the pre-built FBS parquet from GCS at
-            # `transform/output_data/` directly so the year-Y diagnostics get
-            # year-Y GHG data.
-            fbs = _load_cornerstone_ghg_fbs_from_gcs(
-                base_name=_select_cornerstone_ghg_fbs_base_name()
-            )
+    if not usa.use_cornerstone_ghg_model:
+        raise ValueError(
+            'use_cornerstone_ghg_model must be true. '
+            'The legacy CEDA GHG method is not available.'
+        )
+    if usa.implement_electricity_disaggregation:
+        fbs = _load_egrid_fbs_for_electricity_disagg()
     else:
-        if year != 2023:
-            raise ValueError(
-                f'usa_ghg_data_year={year} is incompatible with '
-                'use_cornerstone_ghg_model=False — the CEDA-methodology FBS '
-                '(GHG_national_CEDA_{year}) only exists for 2023.'
-            )
-        fbs = getFlowBySector(methodname=f'GHG_national_CEDA_{year}')
+        # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
+        # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
+        # FBS) fail there. Load the pre-built FBS parquet from GCS at
+        # `transform/output_data/` directly so the year-Y diagnostics get
+        # year-Y GHG data.
+        fbs = _load_cornerstone_ghg_fbs_from_gcs(
+            base_name=_select_cornerstone_ghg_fbs_base_name()
+        )
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
     fbs = resplit_waste_use_emissions(fbs)

@@ -307,9 +307,9 @@ class USAConfig(BaseModel):
     # configs/2025_usa_cornerstone_v0_4_materials_alpha_0_8.yaml.
     census_materials_index_alpha: float = 1.0  # DRI: WesIngwersen
     ### GHG Methodology selection
-    # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
-    # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
-    use_cornerstone_ghg_model: bool = False
+    # Cornerstone GHG FBS (pre-built parquet at usa_ghg_data_year).
+    # False is rejected by load_E_from_flowsa.
+    use_cornerstone_ghg_model: bool = True
     # When True with usa_detail_io_source=nowcast, load the facility-attribution
     # GHG FBS stem (GHG_national_Cornerstone_nowcast_facilities_{year}) instead
     # of the MECS/Use nowcast stem. Ignored when the detail source is

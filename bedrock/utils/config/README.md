@@ -45,9 +45,9 @@ Steps 1–2 use the `diff_methods` CLI (no FBS run). Step 3 you run yourself: ge
 ### Setup
 
 - **Baseline method:** A method name whose YAML is the “before” state (e.g. a copy of the test YAML before edits, with a different filename).
-- **Test method:** The method you edited (e.g. `GHG_national_CEDA_2023_new`). Use `!include` for shared config and override only what you change.
+- **Test method:** The method you edited (e.g. `GHG_national_Cornerstone_2023_new`). Use `!include` for shared config and override only what you change.
 
-Method name = filename without `.yaml` (e.g. `GHG_national_CEDA_2023_new` → `transform/ghg/GHG_national_CEDA_2023_new.yaml`).
+Method name = filename without `.yaml` (e.g. `GHG_national_Cornerstone_2023_new` → `transform/ghg/GHG_national_Cornerstone_2023_new.yaml`).
 
 ### CLI: diff_methods
 

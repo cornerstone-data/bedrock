@@ -134,13 +134,13 @@ Live US Table 7.7 `Electricity total`:
 
 We need that leftover because manufacturing G/T/D MWh shares are normalized 7.7 kWh weights. Losing a whole 3-digit industry would reassign its electricity to every other manufacturer. Recovering it from `31-33` keeps the withheld industry in the manufacturing pool with the quantity EIA implied.
 
-C) Mapping: Using a default `FBS` map (`BEA_2017_Detail`) would not apply the 3.1 subtraction (e.g. `331313` = `3313` − `331314`/`331315`/`331318`) and could attach parent rows like `31-33` unless they are explicitly excluded. GHG combustion already uses the Cornerstone 3.1 hand map, not that generic crosswalk, which means that table 7.7 must use that same hand map, which the usual FBS path would not provide.
+C) Mapping: Using a default `FBS` map (`BEA_2017_Detail`) would not apply the 3.1 subtraction (e.g. `331313` = `3313` − `331314`/`331315`/`331318`) and could attach parent rows like `31-33` unless they are explicitly excluded. Table 7.7 uses the Cornerstone 3.1 hand map, not that generic crosswalk, which the usual FBS path would not provide.
 
 ## MECS NAICS/BEA vs GHG industrial combustion
 
 ### Summary of comparison
 
-The treatment of table 7.7 here and MECS for GHG interpret the *same* MECS industry pool onto BEA the *same way*. On that, the methods align: same 3.1 hand map, same manufacturing vs `NON_MECS` split. We are not inventing a second NAICS story for electricity.
+The treatment of table 7.7 here and MECS for GHG interpret the *same* MECS industry pool onto BEA the *same way*. On that, the methods align: same 3.1 hand map, same manufacturing vs residual-industrial split. We are not inventing a second NAICS story for electricity.
 
 What *is* different is GHG’s table-specific mechanics (static 2018 survey year use, `Q`/`D`→0, split by fuel Use). Those would be the wrong analogue for purchased kWh.
 
@@ -153,9 +153,9 @@ The electricity method is: map with the Cornerstone 3.1 dictionaries (same); spl
 | What | Method |
 |---|---|
 | Hand map | Which NAICS belong to which BEA, including 3.1 subtraction |
-| Industry pools | Manufacturing vs `NON_MECS` membership |
+| Industry pools | Manufacturing vs residual industrial |
 
-The hand map of MECS across NAICS is consistent between the GHG MECS allocation and the table 7.7 allocation. Both paths use `CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*` (plus `NON_MECS_INDUSTRIES` for residual industrial). The use of the 2022 survey requires the `MECS_7_7_NAICS_OVERLAY`, which relabels four 2018 NAICS codes so 2022 Table 7.7 can be read.
+The hand map of MECS across NAICS is consistent between the GHG MECS allocation and the table 7.7 allocation. Both paths use `CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*`. Residual industrial purchasers stay outside that map. The use of the 2022 survey requires the `MECS_7_7_NAICS_OVERLAY`, which relabels four 2018 NAICS codes so 2022 Table 7.7 can be read.
 
 **Different**
 
@@ -171,7 +171,7 @@ The hand map of MECS across NAICS is consistent between the GHG MECS allocation 
 
 **Suppression treatment:** Align only if you value cross-method identity over this table. `load_mecs_3_1` zeroes `Q`/`D`. On 7.7 that would set 2022 `337` to 0 and dump 9,224 million kWh onto every other manufacturer, even though `31-33` still implies furniture’s total. The leftover fill makes sense for this table.
 
-**Split weights:** No. GHG does not have a generic “use BEA fuel Use” rule. It splits a MECS coal (or gas) total by BEA Use of that fuel. The parallel for 7.7 is BEA Use of electricity (purchaser electricity purchases on 221100), which is what this path already does. Splitting purchased kWh by coal/gas Use would assign furniture vs chemicals electricity with the wrong commodity. Residual `NON_MECS` is the same idea: leftover industrial electricity should follow electricity purchases, not fuel Use.
+**Split weights:** No. GHG does not have a generic “use BEA fuel Use” rule. It splits a MECS coal (or gas) total by BEA Use of that fuel. The parallel for 7.7 is BEA Use of electricity (purchaser electricity purchases on 221100), which is what this path already does. Splitting purchased kWh by coal/gas Use would assign furniture vs chemicals electricity with the wrong commodity. Residual industrial purchasers are the same idea: leftover industrial electricity should follow electricity purchases, not fuel Use.
 
 ## Census electricity cost vs Table 7.7 kWh
 
