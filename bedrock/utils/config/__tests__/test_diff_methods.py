@@ -258,8 +258,8 @@ def test_parse_output_path_short_flag() -> None:
 
 
 def test_default_output_path() -> None:
-    out = _default_output_path('CEDA_2023_national', 'GHG_national_m1')
-    assert out == 'CEDA_2023_national_vs_GHG_national_m1_diffs.yaml'
+    out = _default_output_path('CEDA_2023_national', 'GHG_national_Cornerstone_2024')
+    assert out == 'CEDA_2023_national_vs_GHG_national_Cornerstone_2024_diffs.yaml'
 
 
 def test_default_output_path_sanitize() -> None:

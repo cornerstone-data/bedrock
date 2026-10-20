@@ -540,16 +540,3 @@ def append_material_code(
         df = df.drop(columns=['Material', 'Abbr'])
 
     return df
-
-
-if __name__ == "__main__":
-    import bedrock.transform.flowbysector
-
-    df = map_to_BEA_sectors(
-        bedrock.transform.flowbysector.getFlowBySector('GHG_national_2019_m1').rename(
-            columns={'SectorProducedBy': 'Sector'}
-        ),
-        region='national',
-        io_level='summary',
-        output_year=2019,
-    )
