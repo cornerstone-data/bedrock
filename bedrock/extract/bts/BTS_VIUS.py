@@ -7,31 +7,57 @@ Pulls BTS/Census VIUS national estimates with New Hampshire.
 Not state level data, as the state level data
 source does not include New Hampshire - can be addressed later
 """
+import os
 import re
 from io import BytesIO
 from typing import Any
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS
 
 
-def vius_call(*, resp: Any, config: dict[str, Any], **_: Any) -> list[pd.DataFrame]:
+def vius_call(
+    *,
+    resp: Any,
+    config: dict[str, Any],
+    url: str | None = None,
+    source: str,
+    year: str,
+    **_: Any,
+) -> list[pd.DataFrame]:
     """
     Convert url based data to pandas dataframe,
     begin parsing df into FBA format
     :param resp: df, response from url call
     :return: pandas dataframe of original source data
     """
+    raw = resp.content
+    table = os.path.basename(urlparse(url or '').path) or 'modeled-data.xlsx'
+    with open(os.path.join(local_extract_input_dir(source, year), table), 'wb') as f:
+        f.write(raw)
     df_list = []
     for sheet in config['sheets']:
-        df = pd.read_excel(BytesIO(resp.content), sheet_name=sheet, header=3).assign(
-            sheet=sheet
-        )
+        df = pd.read_excel(BytesIO(raw), sheet_name=sheet, header=3).assign(sheet=sheet)
         df_list.append(df)
+    return df_list
 
+
+def vius_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load VIUS modeled-data workbook from GCS extract-input (or local cache)"""
+    path = download_extract_input_from_gcs_if_not_exists(kwargs)
+    with open(path, 'rb') as f:
+        raw = f.read()
+    config = kwargs['config']
+    df_list = []
+    for sheet in config['sheets']:
+        df = pd.read_excel(BytesIO(raw), sheet_name=sheet, header=3).assign(sheet=sheet)
+        df_list.append(df)
     return df_list
 
 

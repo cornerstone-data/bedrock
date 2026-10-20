@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
+from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS
 
 
@@ -25,12 +27,30 @@ def fhwa_url_helper(
 
 
 def fhwa_call(
-    *, resp: Any, url: str | None = None, **_kwargs: Any
+    *,
+    resp: Any,
+    url: str | None = None,
+    source: str,
+    year: str,
+    **_kwargs: Any,
 ) -> list[pd.DataFrame]:
-    """Read an Excel response and tag it with the table name"""
+    """Read an Excel response, cache raw bytes locally, and tag the table name"""
+    table = os.path.basename(urlparse(url or '').path)
+    with open(os.path.join(local_extract_input_dir(source, year), table), 'wb') as f:
+        f.write(resp.content)
     df = pd.read_excel(BytesIO(resp.content), header=None)
+    df.attrs['fhwa_table'] = table.lower().rsplit('.', 1)[0]
+    return [df]
+
+
+def fhwa_load_gcs(**kwargs: Any) -> list[pd.DataFrame]:
+    """Load one FHWA table workbook from GCS extract-input (or local cache)"""
+    path = download_extract_input_from_gcs_if_not_exists(kwargs)
+    df = pd.read_excel(path, header=None)
     df.attrs['fhwa_table'] = (
-        os.path.basename(urlparse(url or '').path).lower().rsplit('.', 1)[0]
+        os.path.basename(urlparse(str(kwargs.get('url', ''))).path)
+        .lower()
+        .rsplit('.', 1)[0]
     )
     return [df]
 

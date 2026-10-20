@@ -11,6 +11,8 @@ sheets:
   - Table M2E # kind of business × body type
   - Table M2C # business use × body type × fuel
 call_response_fxn: !script_function:BTS_VIUS vius_call
+gcs_fxn: !script_function:BTS_VIUS vius_load_gcs
 parse_response_fxn: !script_function:BTS_VIUS vius_parse
+extract_data_from_raw_sources: False
 years:
   - 2021
