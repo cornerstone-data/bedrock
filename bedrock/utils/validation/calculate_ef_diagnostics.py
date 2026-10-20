@@ -268,9 +268,9 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_B_usa_non_finetuned,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_Aq_scaled,
-        derive_cornerstone_B_non_finetuned,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_Aq_scaled,
+        derive_B_non_finetuned,
     )
     from bedrock.utils.validation.diagnostics_helpers import (  # noqa: PLC0415
         MIXED_VS_MONETARY_TAB_COLUMNS,
@@ -280,8 +280,8 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
 
     if electricity_mixed_units_enabled():
         t0 = time.time()
-        aq_mon = derive_cornerstone_Aq_scaled()
-        b_mon = derive_cornerstone_B_non_finetuned()
+        aq_mon = derive_Aq_scaled()
+        b_mon = derive_B_non_finetuned()
         b_live = derive_B_usa_non_finetuned()
         d_mon = ta.cast(
             'pd.Series[float]',
@@ -416,12 +416,12 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
             electricity_mixed_units_enabled,
         )
         from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_mixed_units,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_mixed_units,
         )
 
         if electricity_mixed_units_enabled():
-            Aq_set = derive_cornerstone_Aq_mixed_units()
+            Aq_set = derive_Aq_mixed_units()
         else:
             Aq_set = derive_Aq_usa()
         L_new = compute_L_matrix(A=Aq_set.Adom + Aq_set.Aimp)

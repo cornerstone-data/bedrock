@@ -21,16 +21,16 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_io_bundle,
     electricity_disaggregation_enabled,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_q,
-    derive_cornerstone_V,
-    derive_cornerstone_x,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_q,
+    derive_V,
+    derive_x,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     adjust_summary_A_dollar_year,
     clear_cornerstone_inflation_caches,
-    derive_cornerstone_q_and_vnorm_for_year,
+    derive_q_and_vnorm_for_year,
     get_summary_commodity_price_index,
     get_summary_commodity_price_ratio,
 )
@@ -46,9 +46,9 @@ def _reset_config_and_caches() -> Iterator[None]:
         electricity_disaggregation_enabled,
         derive_disagg_io_bundle,
         cornerstone_sector_disagg_active,
-        derive_cornerstone_V,
-        derive_cornerstone_x,
-        derive_cornerstone_q_and_vnorm_for_year,
+        derive_V,
+        derive_x,
+        derive_q_and_vnorm_for_year,
     ):
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
@@ -61,14 +61,14 @@ def _reset_config_and_caches() -> Iterator[None]:
     reset_usa_config(should_reset_env_var=True)
 
 
-def test_ita_q_at_2017_matches_derive_cornerstone_q() -> None:
+def test_ita_q_at_2017_matches_derive_q() -> None:
     """Under ITA, ``q[y] = C_m[2017] @ x[y]`` is exact when ``y == 2017``
     (because C_m and x are then both from the 2017 V). The result must
-    therefore agree with ``derive_cornerstone_q()`` (which is V.sum(axis=0)
+    therefore agree with ``derive_q()`` (which is V.sum(axis=0)
     directly off 2017 V) within numerical noise.
     """
-    q_ita = derive_cornerstone_q_and_vnorm_for_year(2017)[0]
-    q_truth = derive_cornerstone_q()
+    q_ita = derive_q_and_vnorm_for_year(2017)[0]
+    q_truth = derive_q()
 
     aligned_ita = q_ita.reindex(q_truth.index, fill_value=0.0)
     # The BEA detail x for 2017 may differ slightly from V.sum(axis=1) due to
@@ -78,14 +78,14 @@ def test_ita_q_at_2017_matches_derive_cornerstone_q() -> None:
     rel_dev = ((aligned_ita - q_truth).abs() / q_truth.abs())[nonzero]
     assert (
         rel_dev.median() < 0.01
-    ), f"ITA q at 2017 deviates from derive_cornerstone_q (median rel dev {rel_dev.median():.2%})"
+    ), f"ITA q at 2017 deviates from derive_q (median rel dev {rel_dev.median():.2%})"
 
 
 def test_ita_vnorm_columns_are_stochastic() -> None:
     """Each column of V_norm[y] should sum to ~1 (market shares of industries
     supplying each commodity). Excludes commodities with zero coverage.
     """
-    vnorm = derive_cornerstone_q_and_vnorm_for_year(2022)[1]
+    vnorm = derive_q_and_vnorm_for_year(2022)[1]
     col_sums = vnorm.sum(axis=0)
     covered = col_sums > 1e-9
     deviations = (col_sums[covered] - 1.0).abs()

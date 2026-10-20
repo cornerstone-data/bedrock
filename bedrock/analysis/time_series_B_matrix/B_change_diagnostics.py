@@ -117,10 +117,10 @@ from bedrock.transform.allocation.derived import (
     map_fbs_sectors_to_model_schema,
     resplit_waste_use_emissions,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_scaled,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
 )
 from bedrock.transform.ghg import ghgrp_self_supplied, ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
@@ -164,7 +164,7 @@ MUT_STEM = 'Nowcast_Detail_Make_after_redef_{year}'
 #: Modules holding ``@functools.cache`` results that are config-dependent and
 #: must not leak from one year's config into the next.
 CACHE_BEARING_MODULES: tuple[str, ...] = (
-    'bedrock.transform.eeio.derived_cornerstone',
+    'bedrock.transform.eeio.usa_matrices',
     'bedrock.transform.allocation.derived',
     'bedrock.extract.iot.nowcast_mut_storage',
     'bedrock.extract.iot.io_2017',
@@ -702,9 +702,9 @@ def build_span(
             nowcast_mut_vintage=pinned.mut,
         ):
             E_year = stratified_E(year, pinned.fbs)
-            x_year = derive_cornerstone_x()
-            Vnorm[year] = derive_cornerstone_Vnorm_scrap_corrected()
-            aq = derive_cornerstone_Aq_scaled()
+            x_year = derive_x()
+            Vnorm[year] = derive_Vnorm_scrap_corrected()
+            aq = derive_Aq_scaled()
             L[year] = compute_L_matrix(A=aq.Adom + aq.Aimp)
             q_parts[year] = aq.scaled_q
         E_parts.append(E_year)

@@ -19,25 +19,25 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_reaggregated,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_B_reaggregated,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_set_reaggregated,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_V_reaggregated,
-    derive_cornerstone_VA,
-    derive_cornerstone_VA_reaggregated,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_x_reaggregated,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_y_nab_reaggregated,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_reaggregated,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_B_reaggregated,
+    derive_U_set,
+    derive_U_set_reaggregated,
+    derive_U_with_negatives,
+    derive_V,
+    derive_V_reaggregated,
+    derive_VA,
+    derive_VA_reaggregated,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_x_reaggregated,
+    derive_y_nab,
+    derive_y_nab_reaggregated,
     derive_disagg_Ytot_reaggregated,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
@@ -106,25 +106,25 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_eia_purchaser_allocation,
     mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
-    derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_U_set,
-    derive_cornerstone_VA,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_Aq_reaggregated,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_B_reaggregated,
-    derive_cornerstone_V_reaggregated,
-    derive_cornerstone_U_set_reaggregated,
-    derive_cornerstone_VA_reaggregated,
-    derive_cornerstone_x_reaggregated,
+    derive_V,
+    derive_Vnorm_scrap_corrected,
+    derive_U_with_negatives,
+    derive_U_set,
+    derive_VA,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_Aq_reaggregated,
+    derive_B_non_finetuned,
+    derive_B_reaggregated,
+    derive_V_reaggregated,
+    derive_U_set_reaggregated,
+    derive_VA_reaggregated,
+    derive_x_reaggregated,
     derive_disagg_Ytot_reaggregated,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_y_nab_reaggregated,
+    derive_y_nab,
+    derive_y_nab_reaggregated,
 ]
 
 
@@ -220,7 +220,7 @@ def test_nowcast_aq_scaled_sets_reanchored_allocation() -> None:
     _setup(_NOWCAST_REAGG_CONFIG)
     try:
         with _dollar_industrial_weights():
-            derive_cornerstone_Aq_scaled()
+            derive_Aq_scaled()
             alloc = get_reanchored_eia_purchaser_allocation()
         assert alloc is not None
     finally:
@@ -250,7 +250,7 @@ def test_nowcast_aq_scaled_skips_published_reanchor_helpers() -> None:
                 '._scaled_export_fd_electricity_purchases',
             ) as p_export,
         ):
-            derive_cornerstone_Aq_scaled()
+            derive_Aq_scaled()
         p_reanchor_scaled.assert_not_called()
         p_summary.assert_not_called()
         p_from_aq.assert_not_called()
@@ -264,7 +264,7 @@ def test_nowcast_va_g_non_negative_after_reanchor() -> None:
     _setup(_NOWCAST_REAGG_CONFIG)
     try:
         with _dollar_industrial_weights():
-            aq = derive_cornerstone_Aq_scaled()
+            aq = derive_Aq_scaled()
         g = GENERATION_SECTOR
         q = aq.scaled_q.astype(float)
         udom = aq.Adom.multiply(q, axis=1)

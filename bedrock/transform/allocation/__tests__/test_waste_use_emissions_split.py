@@ -54,7 +54,7 @@ def waste_on(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cdp, 'get_waste_disagg_weights', lambda: object())
     monkeypatch.setattr(
         cdp,
-        'derive_cornerstone_U_after_waste',
+        'derive_U_after_waste',
         lambda: (_use(), pd.DataFrame(0.0, index=_use().index, columns=CHILDREN)),
     )
 

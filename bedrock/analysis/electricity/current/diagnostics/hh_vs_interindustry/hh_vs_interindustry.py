@@ -32,9 +32,9 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     electricity_conversion_factors,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_mixed_units,
-    derive_cornerstone_Aq_scaled,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_mixed_units,
+    derive_Aq_scaled,
 )
 from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.utils.config.usa_config import (
@@ -127,9 +127,9 @@ def analyze() -> dict[str, Any]:
     _clear_model_caches()
     cfg = _install_mixed_config()
 
-    aq_scaled = derive_cornerstone_Aq_scaled()
+    aq_scaled = derive_Aq_scaled()
     c_col, _ = electricity_conversion_factors(aq_scaled)
-    aq = derive_cornerstone_Aq_mixed_units()
+    aq = derive_Aq_mixed_units()
     q = aq.scaled_q.astype(float)
     q.index = q.index.astype(str)
     Adom = aq.Adom.copy()

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.transform.eeio.derived_cornerstone import (
+from bedrock.transform.eeio.usa_matrices import (
     _a_margin_from_sector_margins,
     _a_margin_from_type_margins,
 )

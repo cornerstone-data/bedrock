@@ -15,17 +15,17 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     _derive_post_reallocation_checkpoint_for_disagg,
@@ -73,16 +73,16 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_eia_purchaser_allocation,
     mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
-    derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_U_set,
-    derive_cornerstone_VA,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
+    derive_V,
+    derive_Vnorm_scrap_corrected,
+    derive_U_with_negatives,
+    derive_U_set,
+    derive_VA,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
 ]
 
 
@@ -143,7 +143,7 @@ def test_vnorm_commodity_price_ratio_is_identity_at_year_to_self() -> None:
     1.0 everywhere, so the V-norm-weighted commodity-level ratio must also
     be 1.0 for every commodity (modulo floating-point noise).
 
-    Regression guard: ``derive_cornerstone_Vnorm_scrap_corrected`` applies a
+    Regression guard: ``derive_Vnorm_scrap_corrected`` applies a
     row-axis scaling that leaves V_norm columns drifting >1, so a naive
     `V_norm.T @ r_ind` would return ~1.05–1.07 instead of 1 here. The helper
     must column-normalize V_norm before applying as weights.
@@ -159,7 +159,7 @@ def test_v_inflation_uses_industry_row_axis(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Regression guard: V inflation in
-    ``derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=True)`` must
+    ``derive_Vnorm_scrap_corrected(apply_inflation=True)`` must
     scale industry rows of V by their own price ratio (axis=0), not commodity
     columns (axis=1). Cornerstone industry & commodity codes overlap on
     ~404/405 string values, so axis=1 silently aligns by name and "works"
@@ -189,10 +189,10 @@ def test_v_inflation_uses_industry_row_axis(
         # commodity-indexed values for the legacy A-matrix flow.
         monkeypatch.setattr(get_usa_config(), 'apply_io_year_adjustments', True)
 
-        Vnorm_True = derive_cornerstone_Vnorm_scrap_corrected(
+        Vnorm_True = derive_Vnorm_scrap_corrected(
             apply_inflation=True, target_year=2024
         )
-        Vnorm_False = derive_cornerstone_Vnorm_scrap_corrected(apply_inflation=False)
+        Vnorm_False = derive_Vnorm_scrap_corrected(apply_inflation=False)
     finally:
         _teardown()
 
@@ -261,7 +261,7 @@ def test_industry_pi_under_elec_is_industries_elec_indexed() -> None:
                 load_bea_v2017_industry_to_bea_v2017_summary,
             )
 
-            x_y = derive_cornerstone_x()
+            x_y = derive_x()
             bea_fixed: dict[str, list[str]] = {
                 str(k): [str(s) for s in v]
                 for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()

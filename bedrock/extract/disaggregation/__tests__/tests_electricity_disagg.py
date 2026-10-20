@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-import bedrock.transform.eeio.derived_cornerstone as derived_cornerstone
+import bedrock.transform.eeio.usa_matrices as usa_matrices
 from bedrock.extract.disaggregation.egrid_generation import (
     eia_table_2_14_export_mwh,
     eia_table_2_14_year_for_egrid_year,
@@ -22,20 +22,20 @@ from bedrock.utils.validation.exceptions import FBANotAvailableError
 _EGRID_2022_NET_GENERATION_MWH = 4_240_140_533
 
 
-def test_derive_cornerstone_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
+def test_derive_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
     # Electricity disaggregation step 1 (PR1): export of waste-disaggregated matrices.
     # This test guards the thin wrapper used to produce cornerstone_Ytot_full_cs.csv
     # (full commodity x FD Y matrix in cornerstone space, including trade columns).
     fake = pd.DataFrame({"F1": [1.0, 2.0]}, index=["c1", "c2"])
     with (
         patch.object(
-            derived_cornerstone, "cornerstone_sector_disagg_active", return_value=True
+            usa_matrices, "cornerstone_sector_disagg_active", return_value=True
         ),
         patch.object(
-            derived_cornerstone, "derive_disagg_Ytot_with_trade", return_value=fake
+            usa_matrices, "derive_disagg_Ytot_with_trade", return_value=fake
         ),
     ):
-        out = derived_cornerstone.derive_cornerstone_Ytot_full_cs_matrix()
+        out = usa_matrices.derive_Ytot_full_cs_matrix()
     pd.testing.assert_frame_equal(out, fake)
     assert out is not fake
 

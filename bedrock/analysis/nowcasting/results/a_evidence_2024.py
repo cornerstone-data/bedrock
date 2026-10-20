@@ -167,12 +167,12 @@ def published_benchmark_A() -> pd.DataFrame:
     clear_all_publish_caches()
     reset_usa_config()
     force_set_usa_config('2025_usa_cornerstone_v0_3', apply_io_year_adjustments=False)
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_Aq,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_Aq,
     )
 
-    derive_cornerstone_Aq.cache_clear()
-    aq = derive_cornerstone_Aq()
+    derive_Aq.cache_clear()
+    aq = derive_Aq()
     return aq.Adom + aq.Aimp
 
 

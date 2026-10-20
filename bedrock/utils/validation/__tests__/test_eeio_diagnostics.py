@@ -11,18 +11,18 @@ import pytest
 
 import bedrock.utils.math.formulas as formulas
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_q,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_Y_and_trade_scaled,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_Ytot_matrix_set,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_q,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_Y_and_trade_scaled,
+    derive_y_nab,
+    derive_Ytot_matrix_set,
 )
 from bedrock.utils.config.usa_config import (
     CANONICAL_USA_CONFIG,
@@ -349,16 +349,16 @@ def test_compare_Uset_y_dom_and_q_usa() -> None:
     # across children without preserving the national-accounts identity
     # sector-by-sector. Near-zero q on special codes (e.g. S00402) is a
     # separate issue from the L·y atol fix in validate_result.
-    U_set = derive_cornerstone_U_with_negatives()
-    y_set = derive_cornerstone_Ytot_matrix_set()
-    # No derive_cornerstone_y_imp wrapper; inline compute_y_imp as in
-    # derive_cornerstone_y_nab(). Uimp from derive_cornerstone_U_set() (negatives
+    U_set = derive_U_with_negatives()
+    y_set = derive_Ytot_matrix_set()
+    # No derive_y_imp wrapper; inline compute_y_imp as in
+    # derive_y_nab(). Uimp from derive_U_set() (negatives
     # handled), not U_with_negatives().Uimp.
     y_imp = compute_y_imp(
         imports=y_set.imports,
-        Uimp=derive_cornerstone_U_set().Uimp,
+        Uimp=derive_U_set().Uimp,
     )
-    q = derive_cornerstone_q()
+    q = derive_q()
     U_d = U_set.Udom
     y_d = y_set.ytot - y_imp + y_set.exports
 
@@ -389,17 +389,17 @@ def test_compare_output_and_L_y(
     modelType: str,
     use_domestic: bool,
 ) -> None:
-    Aq = derive_cornerstone_Aq_scaled()
-    # Output must match Aq scaling (scaled_q), not derive_cornerstone_q() from V.
-    output = Aq.scaled_q if modelType == "Commodity" else derive_cornerstone_x()
+    Aq = derive_Aq_scaled()
+    # Output must match Aq scaling (scaled_q), not derive_q() from V.
+    output = Aq.scaled_q if modelType == "Commodity" else derive_x()
     if use_domestic:
         # y_nab from backcompute_y_from_A_and_q(Adom, scaled_q); unclipped.
-        y = derive_cornerstone_y_nab()
+        y = derive_y_nab()
         L = formulas.compute_L_matrix(A=Aq.Adom)
     else:
-        # Total L·y still uses y from derive_cornerstone_Y_and_trade_scaled
+        # Total L·y still uses y from derive_Y_and_trade_scaled
         # (summary-disaggregated BEA Y/trade), not IO-balanced y_nab.
-        y_trade = derive_cornerstone_Y_and_trade_scaled()
+        y_trade = derive_Y_and_trade_scaled()
         y = y_trade.ytot + y_trade.exports - y_trade.imports
         L = formulas.compute_L_matrix(A=Aq.Adom + Aq.Aimp)
 
@@ -510,16 +510,16 @@ def test_domestic_lci_equals_e(canonical_usa_config: None) -> None:
     """Live domestic LCI≈E under the canonical config (Vnorm path, χ=1)."""
     assert_eeio_year_alignment_precondition()
 
-    Aq = derive_cornerstone_Aq_scaled()
+    Aq = derive_Aq_scaled()
     L_d = compute_L_matrix(A=Aq.Adom)
-    y_d = derive_cornerstone_y_nab()
+    y_d = derive_y_nab()
     result = compare_E_and_LCI_result(
-        B=derive_cornerstone_B_non_finetuned(),
+        B=derive_B_non_finetuned(),
         L=L_d,
         y=y_d,
         E_ind=derive_E_usa(),
-        x=derive_cornerstone_x_after_redefinition(),
-        Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
+        x=derive_x_after_redefinition(),
+        Vnorm=derive_Vnorm_scrap_corrected(),
         q=Aq.scaled_q,
         tolerance=0.01,
         include_details=True,
@@ -542,17 +542,17 @@ def test_total_lci_equals_e(canonical_usa_config: None) -> None:
     """Live total LCI≈E under the canonical config (Vnorm; L_tot / y_trade)."""
     assert_eeio_year_alignment_precondition()
 
-    Aq = derive_cornerstone_Aq_scaled()
+    Aq = derive_Aq_scaled()
     L_tot = compute_L_matrix(A=Aq.Adom + Aq.Aimp)
-    y_trade = derive_cornerstone_Y_and_trade_scaled()
+    y_trade = derive_Y_and_trade_scaled()
     y_tot = y_trade.ytot + y_trade.exports - y_trade.imports
     result = compare_E_and_LCI_result(
-        B=derive_cornerstone_B_non_finetuned(),
+        B=derive_B_non_finetuned(),
         L=L_tot,
         y=y_tot,
         E_ind=derive_E_usa(),
-        x=derive_cornerstone_x_after_redefinition(),
-        Vnorm=derive_cornerstone_Vnorm_scrap_corrected(),
+        x=derive_x_after_redefinition(),
+        Vnorm=derive_Vnorm_scrap_corrected(),
         q=Aq.scaled_q,
         tolerance=0.01,
         include_details=True,

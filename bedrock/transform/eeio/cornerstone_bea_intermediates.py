@@ -1,7 +1,7 @@
 """BEA 2017 ~400-sector intermediate matrices used by the Cornerstone pipeline.
 
 These computations live entirely in the original BEA detail space.  Results are
-consumed by ``derived_cornerstone`` which expands them to the 405-sector
+consumed by ``usa_matrices`` which expands them to the 405-sector
 Cornerstone taxonomy.
 """
 
