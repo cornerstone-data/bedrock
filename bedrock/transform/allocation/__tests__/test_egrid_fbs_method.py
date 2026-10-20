@@ -60,7 +60,6 @@ def test_egrid_fbs_method_for_config(
             model_base_year=2024,
             usa_ghg_data_year=2024,
             apply_io_year_adjustments=False,
-            use_cornerstone_ghg_model=True,
             implement_waste_disaggregation=True,
             implement_electricity_reallocation=True,
             implement_electricity_disaggregation=True,
@@ -69,7 +68,6 @@ def test_egrid_fbs_method_for_config(
         cfg = USAConfig(
             usa_detail_io_source='bea_published',
             usa_ghg_data_year=year,  # type: ignore[arg-type]
-            use_cornerstone_ghg_model=True,
             implement_waste_disaggregation=True,
             implement_electricity_reallocation=True,
             implement_electricity_disaggregation=True,
@@ -87,7 +85,6 @@ def test_egrid_fbs_method_for_config_unsupported(
         model_base_year=2023,
         usa_ghg_data_year=2023,
         apply_io_year_adjustments=False,
-        use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
         implement_electricity_reallocation=True,
         implement_electricity_disaggregation=True,
@@ -112,7 +109,6 @@ def test_load_egrid_fbs_selects_method_by_ghg_year(
     # Default USAConfig is bea_published, so stems are the published overlays.
     cfg = USAConfig(
         usa_ghg_data_year=year,  # type: ignore[arg-type]
-        use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
         implement_electricity_reallocation=True,
         implement_electricity_disaggregation=True,
@@ -152,7 +148,6 @@ def test_load_egrid_fbs_selects_nowcast_method(
         model_base_year=2024,
         usa_ghg_data_year=2024,
         apply_io_year_adjustments=False,
-        use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
         implement_electricity_reallocation=True,
         implement_electricity_disaggregation=True,
@@ -188,7 +183,6 @@ def test_load_egrid_fbs_falls_back_to_flowsa(
 ) -> None:
     cfg = USAConfig(
         usa_ghg_data_year=2024,
-        use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
         implement_electricity_reallocation=True,
         implement_electricity_disaggregation=True,

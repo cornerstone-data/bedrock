@@ -35,7 +35,6 @@ usa_ghg_data_year: 2020
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
 use_facility_ghg_attribution: True
 cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2020_v0.3.0_0e1b0f0.parquet
 apply_io_year_adjustments: False

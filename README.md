@@ -22,7 +22,7 @@ These flags are grouped into themes:
 |---|---|
 | Schema / taxonomy | `implement_waste_disaggregation`, `implement_electricity_reallocation` |
 | Economic IOT (input-output tables) | `apply_io_year_adjustments`, `iot_before_or_after_redefinition` |
-| GHG attribution | `use_cornerstone_ghg_model` |
+| GHG attribution | `use_facility_ghg_attribution` |
 | Data vintage | `model_base_year`, `usa_base_io_data_year`, `ipcc_ar_version` |
 
 See [`USAConfig`](bedrock/utils/config/usa_config.py) for the full list.

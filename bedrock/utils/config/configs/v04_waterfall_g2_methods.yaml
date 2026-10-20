@@ -10,15 +10,13 @@
 # orientation fix, the MECS energy allocation in the Cornerstone GHG method
 # YAMLs — is code or method YAML, so every rung picks it up when re-run. The
 # GHG side is whatever the newest GCS parquet for the selected FBS stem holds:
-# use_cornerstone_ghg_model at usa_ghg_data_year 2023 reads the newest
-# GHG_national_Cornerstone_2023 upload.
+# usa_ghg_data_year 2023 reads the newest GHG_national_Cornerstone_2023 upload.
 
 model_base_year: 2024
 price_type: producer
 
 usa_ghg_data_year: 2023
 
-use_cornerstone_ghg_model: true
 apply_io_year_adjustments: true
 implement_waste_disaggregation: true
 

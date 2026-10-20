@@ -47,7 +47,6 @@ def test_apply_purchaser_allocation_to_y_uses_usa_base_io_data_year(
         model_base_year=2024,
         usa_ghg_data_year=2024,
         apply_io_year_adjustments=False,
-        use_cornerstone_ghg_model=True,
         implement_waste_disaggregation=True,
         implement_electricity_reallocation=True,
         implement_electricity_disaggregation=True,

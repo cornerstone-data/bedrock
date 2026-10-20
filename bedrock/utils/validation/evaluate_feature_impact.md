@@ -126,8 +126,8 @@ Optional inputs: `pr_url`, `model_base_year`, `usa_ghg_data_year`,
 
 Leave year overrides empty when the YAML already sets the correct
 `model_base_year` / `usa_ghg_data_year`. Overriding a year a flag forbids
-fails at validation (for example `use_cornerstone_ghg_model=False` with an incompatible
-`usa_ghg_data_year`).
+fails at validation (for example `use_transportation_ghg_allocation` with
+`usa_ghg_data_year` other than 2024).
 
 Watch: `gh run list --workflow generate_diagnostics.yml`.
 
