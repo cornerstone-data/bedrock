@@ -32,7 +32,6 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
-import pandera.typing as pt
 
 from bedrock.extract.iot.detail_io import (
     load_detail_Uimp_usa,
@@ -119,7 +118,6 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_DISAGG_SECTORS,
     validate_cornerstone,
 )
-from bedrock.utils.schemas.single_region_schemas import AMatrix, UMatrix
 from bedrock.utils.schemas.single_region_types import (
     SingleRegionAqMatrixSet,
     SingleRegionUMatrixSet,
@@ -148,11 +146,9 @@ def _cornerstone_aq_matrix_set(
     validate_cornerstone(Adom, 'A')
     validate_cornerstone(Aimp, 'A')
     validate_cornerstone(scaled_q, 'Q')
-    # Cornerstone A uses 405/407-sector taxonomy; cast only for mypy — do not
-    # use pt.DataFrame[AMatrix](...) which runs CEDA v7 Pandera validation.
     return SingleRegionAqMatrixSet(
-        Adom=cast(pt.DataFrame[AMatrix], Adom),
-        Aimp=cast(pt.DataFrame[AMatrix], Aimp),
+        Adom=Adom,
+        Aimp=Aimp,
         scaled_q=scaled_q,
     )
 
@@ -375,8 +371,8 @@ def derive_cornerstone_U_with_negatives() -> SingleRegionUMatrixSet:
     validate_cornerstone(Udom_cs, 'U')
     validate_cornerstone(Uimp_cs, 'U')
     return SingleRegionUMatrixSet(
-        Udom=cast(pt.DataFrame[UMatrix], Udom_cs),
-        Uimp=cast(pt.DataFrame[UMatrix], Uimp_cs),
+        Udom=Udom_cs,
+        Uimp=Uimp_cs,
     )
 
 
@@ -390,8 +386,8 @@ def derive_cornerstone_U_set() -> SingleRegionUMatrixSet:
     validate_cornerstone(Udom, 'U')
     validate_cornerstone(Uimp, 'U')
     return SingleRegionUMatrixSet(
-        Udom=cast(pt.DataFrame[UMatrix], Udom),
-        Uimp=cast(pt.DataFrame[UMatrix], Uimp),
+        Udom=Udom,
+        Uimp=Uimp,
     )
 
 
@@ -904,8 +900,8 @@ def derive_cornerstone_U_set_reaggregated() -> SingleRegionUMatrixSet:
     udom = reaggregate_electricity_children_u(uset.Udom)
     uimp = reaggregate_electricity_children_u(uset.Uimp)
     return SingleRegionUMatrixSet(
-        Udom=cast(pt.DataFrame[UMatrix], udom),
-        Uimp=cast(pt.DataFrame[UMatrix], uimp),
+        Udom=udom,
+        Uimp=uimp,
     )
 
 
