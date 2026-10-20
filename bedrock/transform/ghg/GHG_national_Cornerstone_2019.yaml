@@ -14,6 +14,11 @@ epa_ghgi_year: &epa_ghgi_year 2019
 sources_to_cache:
   USDA_CoA_Cropland_NAICS:
     year: *coa_year
+    # Between censuses, blend 2017 and 2022 linearly.
+    clean_fba: !clean_function:flowbyclean interpolate_census_years
+    census_interpolation:
+      years: [2017, 2022]
+      target_year: *ghgi_year
     selection_fields:
       Class: Land
       FlowName:
@@ -23,20 +28,17 @@ sources_to_cache:
 
 _attribution_sources:
   # Nested EPA_GHGI_T_3_25 below is inventory, not UMD T_3_25 (petroleum-systems CH4).
-  Energy_manufacturing_national_2018: &mecs_energy_alloc
+  Energy_manufacturing_national_nowcast_2019: &mecs_energy_alloc
     data_format: FBS
     geoscale: national
 
-  BEA: &bea # 2017 Make and Use tables
-    year: 2017
+  Nowcast: &nowcast # NowcastMUT after-redef Use at inventory year
+    year: *ghgi_year
     activity_to_sector_mapping: Cornerstone_2025
     exclusion_fields:
-      # Drop irrelevant final demand and total sectors
+      # Drop FD columns that should not take intermediate attribution
       ActivityConsumedBy: ['F03000', 'F04000', 'F05000', 'F02E00',
-                           'F06E00', 'F07E00', 'F10E00', 'F02R00',
-                           'T001', 'T004', 'T007', 'T019']
-      ActivityProducedBy: ['T007', 'T013', 'T015', 'T016', 'TOP',
-                           'MCIF']
+                           'F06E00', 'F07E00', 'F10E00', 'F02R00']
     attribution_method: equal
 
 source_names:
@@ -82,19 +84,13 @@ source_names:
            FlowName: SF6
          attribution_method: direct
 
-       electric_power:
-         selection_fields:
-           PrimaryActivity:
-             Electric Power Sector: Electric Power # CO2
-         attribution_method: direct
-
        liming: # liming of agricultural soils
          selection_fields:
            PrimaryActivity: Liming #CO2
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
                ActivityProducedBy: {'327400': ''} # Lime and Gypsum Products
 
@@ -104,8 +100,8 @@ source_names:
              - Urea Consumption for Non-Agricultural Purposes # CO2
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
                ActivityProducedBy: {'325310': ''} # Fertilizers
 
@@ -114,8 +110,16 @@ source_names:
            PrimaryActivity: Urea Fertilization # CO2
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
+             # Each crop's fertilizer purchases follow its revenue year to
+             # year; blend the census-year tables instead.
+             year: *coa_year
+             clean_fba: !clean_function:flowbyclean interpolate_census_years
+             census_interpolation:
+               years: [2017, 2022]
+               target_year: *ghgi_year
+               normalize: true
              selection_fields:
                ActivityProducedBy: {'325310': ''} # Fertilizers
 
@@ -124,8 +128,8 @@ source_names:
            PrimaryActivity: Other Process Uses of Carbonates # CO2
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
                ActivityProducedBy: {'325180': ''} # Other Basic Inorganic Chemicals
 
@@ -134,8 +138,8 @@ source_names:
            PrimaryActivity: N2O from Product Uses # N2O
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
                ActivityProducedBy: {'325120': ''} # Industrial gases
 
@@ -260,8 +264,16 @@ source_names:
                     - Synthetic Fertilizer Cropland
                 attribution_method: proportional
                 attribution_source:
-                  BEA_Detail_Use_AfterRedef:
-                    <<: *bea
+                  Nowcast_Detail_Use_AfterRedef:
+                    <<: *nowcast
+                    # Each crop's fertilizer purchases follow its revenue year to
+                    # year; blend the census-year tables instead.
+                    year: *coa_year
+                    clean_fba: !clean_function:flowbyclean interpolate_census_years
+                    census_interpolation:
+                      years: [2017, 2022]
+                      target_year: *ghgi_year
+                      normalize: true
                     selection_fields:
                       ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
@@ -274,6 +286,10 @@ source_names:
                 attribution_source:
                   USDA_CoA_Cropland:
                     year: *coa_year
+                    clean_fba: !clean_function:flowbyclean interpolate_census_years
+                    census_interpolation:
+                      years: [2017, 2022]
+                      target_year: *ghgi_year
                     selection_fields:
                       Class: Land
                       FlowName:
@@ -313,8 +329,16 @@ source_names:
                     - Surface Leaching & Run-Off Cropland
                 attribution_method: proportional
                 attribution_source:
-                  BEA_Detail_Use_AfterRedef:
-                    <<: *bea
+                  Nowcast_Detail_Use_AfterRedef:
+                    <<: *nowcast
+                    # Each crop's fertilizer purchases follow its revenue year to
+                    # year; blend the census-year tables instead.
+                    year: *coa_year
+                    clean_fba: !clean_function:flowbyclean interpolate_census_years
+                    census_interpolation:
+                      years: [2017, 2022]
+                      target_year: *ghgi_year
+                      normalize: true
                     selection_fields:
                       ActivityProducedBy: {'325310': ''} # fertilizer sectors
 
@@ -393,8 +417,8 @@ source_names:
             Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
@@ -405,8 +429,8 @@ source_names:
             Light-Duty Trucks Gasoline: Light-Duty Trucks
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
@@ -444,8 +468,8 @@ source_names:
             Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'324110': ''}  # purchases of refinery products
 
@@ -461,8 +485,8 @@ source_names:
           PrimaryActivity: Construction/Mining Equipment Non-Road
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'333120': ''} # purchases of construction/mining equipment
 
@@ -471,8 +495,8 @@ source_names:
           PrimaryActivity: Agricultural Equipment Non-Road
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'333111': ''} # purchases of farm machinery
 
@@ -481,8 +505,8 @@ source_names:
           PrimaryActivity: Other Non-Road
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
@@ -492,8 +516,8 @@ source_names:
             All activities Alternative Fuel On-Road: Alternative Fuel On-Road
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
@@ -520,8 +544,8 @@ source_names:
             - Coal Commercial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'212100': ''} # purchases of coal
 
@@ -531,8 +555,8 @@ source_names:
             - Natural Gas Commercial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'221200': ''} # purchases of natural gas
 
@@ -542,26 +566,21 @@ source_names:
             - Petroleum Commercial
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'324110': ''} # purchases of refinery products
 
-  UMD_GHGIA_T_3_7:  # stationary combustion - electricity
+  EPA_eGRID_electric:  # stationary combustion - electricity (plant-level eGRID; replaces UMD T_2_S1 electric_power + T_3_7)
+    activity_to_sector_mapping: EPA_eGRID
+    FBS_datapull_fxn: !script_function:stewiFBS egrid_to_sector
+    inventory_dict:
+      eGRID: *ghgi_year
     year: *ghgi_year
-    activity_to_sector_mapping: UMD_GHGIA
-    fedefl_mapping: UMD_GHGIA_AR5_100
-    activity_sets:
-     electric_power:
-       selection_fields:
-         FlowName: [CH4, N2O]  # exclude co2 - counted in T 2-S1
-         PrimaryActivity:
-           Coal Electric Power: Coal Electric Power
-           Natural Gas Electric Power: Natural Gas Electric Power
-           Natural gas Electric Power: Natural Gas Electric Power # fix capitalization
-           Petroleum Electric Power: Petroleum Electric Power
-           Wood Electric Power: Wood Electric Power
-       attribution_method: direct
+    include_flow_names:
+      - Carbon dioxide
+      - Methane
+      - Nitrous oxide
 
   UMD_GHGIA_T_3_11:  # Stationary combustion - industrial
      year: *ghgi_year
@@ -583,7 +602,7 @@ source_names:
              - Petroleum Industrial
          attribution_method: proportional
          attribution_source:
-           Energy_manufacturing_national_2018:
+           Energy_manufacturing_national_nowcast_2019:
              <<: *mecs_energy_alloc
              selection_fields:
                Flowable: Petroleum
@@ -595,8 +614,8 @@ source_names:
             - Natural Gas Industrial
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
                ActivityProducedBy: {'221200': ''}  # purchases of natural gas
 
@@ -606,7 +625,7 @@ source_names:
              - Natural Gas Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           Energy_manufacturing_national_2018:
+           Energy_manufacturing_national_nowcast_2019:
              <<: *mecs_energy_alloc
              selection_fields:
                Flowable: Natural Gas
@@ -618,8 +637,8 @@ source_names:
             - Coal Industrial
          attribution_method: proportional
          attribution_source:
-           BEA_Detail_Use_AfterRedef:
-             <<: *bea
+           Nowcast_Detail_Use_AfterRedef:
+             <<: *nowcast
              selection_fields:
                ActivityProducedBy: {'212100': ''}  # purchases of coal
 
@@ -629,7 +648,7 @@ source_names:
             - Coal Industrial - Manufacturing
          attribution_method: proportional
          attribution_source:
-           Energy_manufacturing_national_2018:
+           Energy_manufacturing_national_nowcast_2019:
              <<: *mecs_energy_alloc
              selection_fields:
                Flowable: Coal
@@ -706,7 +725,7 @@ source_names:
                     'Industry Asphalt & Road Oil': Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_2018:
+                  Energy_manufacturing_national_nowcast_2019:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Petroleum
@@ -722,7 +741,7 @@ source_names:
                     Industry HGL: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_2018:
+                  Energy_manufacturing_national_nowcast_2019:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: HGL
@@ -743,7 +762,7 @@ source_names:
                     Industry Natural Gasoline: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_2018:
+                  Energy_manufacturing_national_nowcast_2019:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Petroleum
@@ -760,7 +779,7 @@ source_names:
                   PrimaryActivity: Industry Natural Gas to Chemical Plants
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_2018:
+                  Energy_manufacturing_national_nowcast_2019:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Natural Gas
@@ -771,7 +790,7 @@ source_names:
                   PrimaryActivity: Transportation Lubricants
                 attribution_method: proportional
                 attribution_source:
-                  Energy_manufacturing_national_2018:
+                  Energy_manufacturing_national_nowcast_2019:
                     <<: *mecs_energy_alloc
                     selection_fields:
                       Flowable: Transport
@@ -815,6 +834,7 @@ source_names:
       PrimaryActivity: Magnesium Production
     attribution_method: proportional
     attribution_source:
+      # Flag: published BEA GO; could update to newer Cornerstone GO data when available
       BEA_Detail_GrossOutput_IO:
         year: *ghgi_year
         geoscale: national
@@ -861,8 +881,8 @@ source_names:
             - Industrial Process Refrigeration
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
@@ -872,8 +892,8 @@ source_names:
             - Commercial Stationary Air Conditioning
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy: {'333415': ''} # Air conditioning equipment
 
@@ -883,8 +903,8 @@ source_names:
             - Foams
         attribution_method: proportional
         attribution_source:
-          BEA_Detail_Use_AfterRedef:
-            <<: *bea
+          Nowcast_Detail_Use_AfterRedef:
+            <<: *nowcast
             selection_fields:
               ActivityProducedBy:
                 '326140': '' # Polystyrene foam
