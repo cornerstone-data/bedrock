@@ -1,7 +1,8 @@
 # v06_waterfall G3 — G2 plus 2024 UMD GHG / IO data on published BEA 2017
 # detail, at IO@2024 producer footing.
 #
-# Flags and the pinned GHG FBS match v05_waterfall_g3_data.
+# usa_ghg_data_year 2024, apply_io_year_adjustments, waste disaggregation,
+# industry-average margins.
 # cornerstone_ghg_fbs_filename pins GHG_national_Cornerstone_2024 to
 # GHG_national_Cornerstone_2024_v0.3.0_c3a2acc.parquet. The next rung,
 # v06_waterfall_g4_nowcast, differs by the nowcast fields and its own FBS pin.
