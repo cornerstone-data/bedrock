@@ -64,6 +64,8 @@ __pycache__/
 !bedrock/extract/bls/data/bls_ppi_scrap_annual.csv
 # Waste disaggregation weight fixtures (small; required for CI tests)
 !bedrock/extract/disaggregation/waste_disagg_inputs/WasteDisaggregationDetail2017_*.csv
+# Local extract cache (zips, CSVs, download notes). Nothing in git should live here.
+bedrock/extract/input_data/
 # Electricity disagg diagnostics local Excel exports (download from Sheets; keep dir via .gitkeep)
 bedrock/analysis/electricity/current/diagnostics/local_data/*
 !bedrock/analysis/electricity/current/diagnostics/local_data/.gitkeep
