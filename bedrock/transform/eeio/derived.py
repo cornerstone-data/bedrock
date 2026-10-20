@@ -1,3 +1,19 @@
+"""Published USA derive entrypoints (A, B, y, C, D).
+
+Two lanes:
+
+- **Published** — functions in this module (``derive_*_usa``). Snapshots,
+  waterfall, EF diagnostics, and other callers that want the configured
+  electricity-reaggregation switch use these.
+- **Deep helpers** — ``bedrock.transform.eeio.derived_cornerstone``
+  (``derive_cornerstone_*``). V, U, VA, x, q, mixed-units A/B, and other
+  intermediates with no facade twin. Naming cleanup for that module is a
+  later phase of the #599 epic.
+
+There is no parallel CEDA / USEEIO full-matrix derive path behind these
+facades; they always call the Cornerstone-schema implementation.
+"""
+
 from __future__ import annotations
 
 import functools
@@ -9,7 +25,6 @@ from bedrock.transform.eeio.derived_cornerstone import (
     derive_cornerstone_Aq_scaled,
     derive_cornerstone_B_non_finetuned,
     derive_cornerstone_B_reaggregated,
-    derive_cornerstone_detail_Ytot_matrix_set,
     derive_cornerstone_Y_and_trade_scaled,
     derive_cornerstone_y_nab,
     derive_cornerstone_y_nab_reaggregated,
@@ -122,9 +137,3 @@ def derive_D_usa() -> pd.DataFrame:
     D = derive_C_usa() @ derive_B_usa_non_finetuned()
     D.columns.name = 'sector'
     return D
-
-
-@functools.cache
-def derive_v7_detail_Ytot_usa_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
-    """US Ytot and trade vectors (non-negative ytot, used to ABSR other countries)."""
-    return derive_cornerstone_detail_Ytot_matrix_set()
