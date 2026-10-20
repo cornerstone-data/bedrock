@@ -158,7 +158,7 @@ def test_b_via_vnorm_divides_e_by_make_x_even_with_legacy_flags(
     # the internal pre-reaggregation matrix, so that is what B reads.
     monkeypatch.setattr(dc, 'load_E_from_flowsa', lambda: E)
     monkeypatch.setattr(dc, 'derive_Vnorm_scrap_corrected', lambda *a, **k: identity)
-    monkeypatch.setattr(dc, 'get_cornerstone_industry_price_ratio', _refuse)
+    monkeypatch.setattr(dc, 'get_industry_price_ratio', _refuse)
 
     B = dc.derive_B_via_vnorm()
 
@@ -172,8 +172,8 @@ def test_b_non_finetuned_is_the_vnorm_b(
     """No summary-ratio scaling to usa_io_data_year, no PI inflation, under nowcast."""
     marker = pd.DataFrame([[1.0]], index=['CO2'], columns=['C1'])
     monkeypatch.setattr(dc, 'derive_B_via_vnorm', lambda: marker)
-    monkeypatch.setattr(dc, 'scale_cornerstone_B', _refuse)
-    monkeypatch.setattr(dc, 'inflate_cornerstone_B_matrix_with_industry_pi', _refuse)
+    monkeypatch.setattr(dc, 'scale_B', _refuse)
+    monkeypatch.setattr(dc, 'inflate_B_matrix_with_industry_pi', _refuse)
 
     assert dc.derive_B_non_finetuned() is marker
 
@@ -197,8 +197,8 @@ def test_b_non_finetuned_keeps_the_legacy_footing_when_published(
         return B
 
     monkeypatch.setattr(dc, 'derive_B_via_vnorm', lambda: marker)
-    monkeypatch.setattr(dc, 'scale_cornerstone_B', scale)
-    monkeypatch.setattr(dc, 'inflate_cornerstone_B_matrix_with_industry_pi', inflate)
+    monkeypatch.setattr(dc, 'scale_B', scale)
+    monkeypatch.setattr(dc, 'inflate_B_matrix_with_industry_pi', inflate)
 
     assert dc.derive_B_non_finetuned() is marker
     assert seen == ['scale 2017->2022', 'inflate 2022->2023']

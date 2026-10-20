@@ -194,7 +194,7 @@ conversion and redefinition steps need is already loadable** — no new extract 
 **Existing machinery to reuse, not rebuild:**
 - [`derive_PRO_to_PUR_ratio.py`](../../transform/iot/derive_PRO_to_PUR_ratio.py) — margins-based
   PRO↔PUR ratios (`phi`), with margin filters, negative-margin treatment, and
-  `derive_margins_cornerstone_usa_at_year(year)` / `_inflate_margins_to_year` already inflating margin
+  `derive_margins_usa_at_year(year)` / `_inflate_margins_to_year` already inflating margin
   components to a target year. Directly relevant to both the Supply-table margin columns and the
   PUR→PRO conversion.
 - [`derived_gross_industry_output.py`](../../transform/iot/derived_gross_industry_output.py) —
@@ -202,7 +202,7 @@ conversion and redefinition steps need is already loadable** — no new extract 
   movement ratio from the benchmark year's before/after Make tables and carry it forward. **This is
   the template for Step 7 redefinitions**, and the board already names it as the pattern for the VA
   before→after transform.
-- [`inflation_helpers_cornerstone.py`](../../utils/economic/inflation_helpers_cornerstone.py) —
+- [`inflation_helpers_usa.py`](../../utils/economic/inflation_helpers_usa.py) —
   bedrock's own commodity-inflation approach, referenced by #497.
 - [`Detail_Supply_Mix.yaml`](../../transform/iot/Detail_Supply_Mix.yaml) /
   [`Detail_Use_SUT.yaml`](../../transform/iot/Detail_Use_SUT.yaml) — existing FBS methods that
@@ -2206,7 +2206,7 @@ Still in BEA_2017_Detail schema, still before redefinitions. Four outputs:
   redefinitions, not part of this step; see the Phase 2 work items.
 
 ### Step 8 — Cornerstone schema conversion
-- `industry_corresp()` / `commodity_corresp()` from `cornerstone_expansion.py`, honoring
+- `industry_corresp()` / `commodity_corresp()` from `usa_expansion.py`, honoring
   `cfg.iot_before_or_after_redefinition` (which by this point should be `after`).
 
 ### Step 9 — Storage and pipeline integration
@@ -2638,7 +2638,7 @@ loaders are deliberately built today.
 `_load_usa_summary_mut` pins older years to the oldest file containing them
 ([io_2017.py:730-739](../../extract/iot/io_2017.py#L730-L739)) — *"BEA revises historical data in
 each new release. We pin older years to the oldest file containing them so values stay stable across
-releases."* That convention exists to protect consumers like `scale_cornerstone_B`, and it is the
+releases."* That convention exists to protect consumers like `scale_B`, and it is the
 right default for them. **A deliberate historical refresh is the opposite behaviour**, so Phase 2 needs
 a way to say "use the newest vintage for every year" without silently moving the ground under the
 model-build consumers that depend on stability.

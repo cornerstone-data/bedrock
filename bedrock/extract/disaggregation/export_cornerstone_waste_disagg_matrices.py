@@ -12,7 +12,7 @@ import pathlib
 
 from bedrock.publish.model_objects import clear_publish_caches
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import get_waste_disagg_weights
+from bedrock.transform.eeio.sector_disagg_pipeline import get_waste_disagg_weights
 from bedrock.transform.eeio.usa_matrices import (
     derive_U_set,
     derive_V,

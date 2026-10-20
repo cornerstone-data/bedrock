@@ -67,7 +67,7 @@ def assemble_extended_U(
 
 
 def _mixed_units_efs_active() -> bool:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
     )
 
@@ -75,7 +75,7 @@ def _mixed_units_efs_active() -> bool:
 
 
 def _reaggregation_efs_active() -> bool:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_reaggregation_enabled,
     )
 
@@ -114,7 +114,7 @@ def get_U() -> pd.DataFrame:
             fd=fd_block,
             va=derive_VA_reaggregated(),
         )
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+    from bedrock.transform.eeio.sector_disagg_pipeline import (
         derive_disagg_Ytot_with_trade,
     )
     from bedrock.transform.eeio.usa_matrices import (
@@ -340,7 +340,7 @@ def get_Phi() -> pd.DataFrame | None:
     """Producer-to-purchaser ratio panel per sector (Excel ``Phi`` sheet)."""
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
         default_phi_panel_years,
-        derive_phi_cornerstone_usa_panel_published,
+        derive_phi_usa_panel_published,
         margins_phi_active,
     )
 
@@ -348,7 +348,7 @@ def get_Phi() -> pd.DataFrame | None:
         return None
     sectors = get_N().columns
     out = (
-        derive_phi_cornerstone_usa_panel_published(default_phi_panel_years())
+        derive_phi_usa_panel_published(default_phi_panel_years())
         .reindex(sectors)
         .astype(float)
     )
@@ -360,7 +360,7 @@ def get_Phi() -> pd.DataFrame | None:
 def get_Rho() -> pd.DataFrame | None:
     """useeior-style Rho panel per sector (Excel ``Rho`` sheet)."""
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import margins_phi_active
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (
+    from bedrock.utils.economic.inflation_helpers_usa import (
         default_price_index_panel_years,
         derive_price_index_panel,
     )

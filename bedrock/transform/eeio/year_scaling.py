@@ -20,7 +20,7 @@ from bedrock.transform.eeio.derived_2017 import (
     derive_summary_q_usa,
 )
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
+from bedrock.utils.economic.inflation_helpers_usa import (
     adjust_summary_A_dollar_year,
     adjust_summary_q_dollar_year,
 )
@@ -73,12 +73,11 @@ def get_summary_year_scaled_aq(
     key = (int(original_year), int(target_year))
     if key not in _SUMMARY_YEAR_SCALED_A:
         raise RuntimeError(
-            'summary-year-scaled Adom intercept missing; '
-            'scale_cornerstone_A(dom) must run first'
+            'summary-year-scaled Adom intercept missing; ' 'scale_A(dom) must run first'
         )
     if key not in _SUMMARY_YEAR_SCALED_Q:
         raise RuntimeError(
-            'summary-year-scaled q intercept missing; scale_cornerstone_q must run first'
+            'summary-year-scaled q intercept missing; scale_q must run first'
         )
     return SummaryYearScaledAq(
         Adom=_SUMMARY_YEAR_SCALED_A[key], q=_SUMMARY_YEAR_SCALED_Q[key]
@@ -126,7 +125,7 @@ def _apply_summary_ratio_to_sectors(
     return result
 
 
-def scale_cornerstone_A(
+def scale_A(
     A: pd.DataFrame,
     target_year: USA_SUMMARY_MUT_YEARS,
     original_year: USA_SUMMARY_MUT_YEARS,
@@ -191,7 +190,7 @@ def scale_cornerstone_A(
         compute_total_industry_inputs(A=A_scaled) <= 1
     ).all(), 'A column sums exceed 1 after scaling.'
 
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_disaggregation_enabled,
     )
 
@@ -210,7 +209,7 @@ def scale_cornerstone_A(
     return A_scaled
 
 
-def scale_cornerstone_q(
+def scale_q(
     q: pd.Series[float],
     target_year: USA_SUMMARY_MUT_YEARS,
     original_year: USA_SUMMARY_MUT_YEARS,
@@ -235,7 +234,7 @@ def scale_cornerstone_q(
         _apply_summary_ratio_to_sectors(ratio, q, axis='rows'),
     )
 
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_disaggregation_enabled,
     )
 
@@ -252,7 +251,7 @@ def scale_cornerstone_q(
     return q_scaled
 
 
-def scale_cornerstone_B(
+def scale_B(
     B: pd.DataFrame,
     target_year: USA_SUMMARY_MUT_YEARS,
     original_year: USA_SUMMARY_MUT_YEARS,

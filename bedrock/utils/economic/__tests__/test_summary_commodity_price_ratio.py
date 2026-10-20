@@ -16,10 +16,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    cornerstone_sector_disagg_active,
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_disagg_io_bundle,
     electricity_disaggregation_enabled,
+    sector_disagg_active,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_q,
@@ -27,9 +27,9 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
+from bedrock.utils.economic.inflation_helpers_usa import (
     adjust_summary_A_dollar_year,
-    clear_cornerstone_inflation_caches,
+    clear_usa_inflation_caches,
     derive_q_and_vnorm_for_year,
     get_summary_commodity_price_index,
     get_summary_commodity_price_ratio,
@@ -45,19 +45,19 @@ def _reset_config_and_caches() -> Iterator[None]:
     for fn in (
         electricity_disaggregation_enabled,
         derive_disagg_io_bundle,
-        cornerstone_sector_disagg_active,
+        sector_disagg_active,
         derive_V,
         derive_x,
         derive_q_and_vnorm_for_year,
     ):
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     reset_usa_config(should_reset_env_var=True)
     set_global_usa_config('2025_usa_cornerstone_v0_3.yaml')
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     yield
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     reset_usa_config(should_reset_env_var=True)
 
 

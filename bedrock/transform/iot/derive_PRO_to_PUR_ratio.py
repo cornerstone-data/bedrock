@@ -26,7 +26,7 @@ from bedrock.transform.iot.derived_gross_industry_output import (
     available_gross_output_years,
 )
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
+from bedrock.utils.economic.inflation_helpers_usa import (
     default_price_index_panel_years,
     get_price_index_ratio,
     get_sector_commodity_price_ratio,
@@ -244,7 +244,7 @@ def _inflate_margins_to_year(df: pd.DataFrame, *, target_year: int) -> pd.DataFr
 
 
 @functools.cache
-def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
+def derive_margins_usa_at_year(target_year: int) -> pd.DataFrame:
     """
     Margins aggregated to Cornerstone commodity taxonomy, summed over all industries.
 
@@ -271,20 +271,20 @@ def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
     return df
 
 
-def derive_margins_cornerstone_usa() -> pd.DataFrame:
-    """Margins at ``model_base_year`` (alias for :func:`derive_margins_cornerstone_usa_at_year`)."""
-    return derive_margins_cornerstone_usa_at_year(get_usa_config().model_base_year)
+def derive_margins_usa() -> pd.DataFrame:
+    """Margins at ``model_base_year`` (alias for :func:`derive_margins_usa_at_year`)."""
+    return derive_margins_usa_at_year(get_usa_config().model_base_year)
 
 
 @functools.cache
-def derive_margin_sectors_cornerstone_usa_at_year(
+def derive_margin_sectors_usa_at_year(
     target_year: int,
 ) -> pd.DataFrame | None:
     """Margin dollars by purchased commodity and margin commodity, Cornerstone codes.
 
     Rows are purchased Cornerstone commodities, columns the Cornerstone margin
     commodities (wholesale, retail and transport codes), in USD. It is the
-    per-sector counterpart of :func:`derive_margins_cornerstone_usa_at_year`,
+    per-sector counterpart of :func:`derive_margins_usa_at_year`,
     built with the same filters, negatives treatment and inflation, so each
     family's columns sum to that function's ``Wholesale``, ``Retail`` and
     ``Transportation`` columns (#836).
@@ -339,11 +339,9 @@ def derive_margin_sectors_cornerstone_usa_at_year(
     return out
 
 
-def derive_margin_sectors_cornerstone_usa() -> pd.DataFrame | None:
+def derive_margin_sectors_usa() -> pd.DataFrame | None:
     """Per-sector margins at ``model_base_year``; see the ``_at_year`` form."""
-    return derive_margin_sectors_cornerstone_usa_at_year(
-        get_usa_config().model_base_year
-    )
+    return derive_margin_sectors_usa_at_year(get_usa_config().model_base_year)
 
 
 def _phi_from_margins(margins: pd.DataFrame) -> pd.Series[float]:
@@ -353,18 +351,18 @@ def _phi_from_margins(margins: pd.DataFrame) -> pd.Series[float]:
 
 
 @functools.cache
-def derive_phi_cornerstone_usa_at_year(target_year: int) -> pd.Series[float]:
+def derive_phi_usa_at_year(target_year: int) -> pd.Series[float]:
     """
     Phi (PRO:PUR) per Cornerstone commodity for *target_year* USD margins.
 
     Rows where purchaser price is zero (``inf`` / ``nan``) are set to ``1.0``.
     """
-    return _phi_from_margins(derive_margins_cornerstone_usa_at_year(target_year))
+    return _phi_from_margins(derive_margins_usa_at_year(target_year))
 
 
-def derive_phi_cornerstone_usa() -> pd.Series[float]:
+def derive_phi_usa() -> pd.Series[float]:
     """Phi at ``model_base_year``."""
-    return derive_phi_cornerstone_usa_at_year(get_usa_config().model_base_year)
+    return derive_phi_usa_at_year(get_usa_config().model_base_year)
 
 
 def default_phi_panel_years() -> tuple[int, ...]:
@@ -387,18 +385,16 @@ def default_phi_panel_years() -> tuple[int, ...]:
 
 
 @functools.cache
-def derive_phi_cornerstone_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
+def derive_phi_usa_panel(years: tuple[int, ...]) -> pd.DataFrame:
     """Sector × year Phi panel; column labels are year strings."""
     if not years:
         raise ValueError('years must be non-empty')
-    series_by_year = {
-        str(year): derive_phi_cornerstone_usa_at_year(year) for year in years
-    }
+    series_by_year = {str(year): derive_phi_usa_at_year(year) for year in years}
     return pd.DataFrame(series_by_year)
 
 
 @functools.cache
-def derive_phi_cornerstone_usa_panel_published(
+def derive_phi_usa_panel_published(
     years: tuple[int, ...],
 ) -> pd.DataFrame:
     """Published Phi panel for snapshots and ``get_Phi``.
@@ -408,7 +404,7 @@ def derive_phi_cornerstone_usa_panel_published(
     and under reaggregation drops G/T/D and reindexes to
     ``CORNERSTONE_COMMODITIES``.
     """
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_reaggregation_enabled,
     )
     from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
@@ -416,7 +412,7 @@ def derive_phi_cornerstone_usa_panel_published(
         ELECTRICITY_DISAGG_SECTORS,
     )
 
-    panel = derive_phi_cornerstone_usa_panel(years).astype(float)
+    panel = derive_phi_usa_panel(years).astype(float)
     cfg = get_usa_config()
     if electricity_reaggregation_enabled():
         panel = panel.drop(
@@ -451,9 +447,7 @@ def phi_for_sectors(
         phi = pd.Series(1.0, index=sector_index, dtype=float)
     else:
         phi_year = year if year is not None else get_usa_config().model_base_year
-        phi = derive_phi_cornerstone_usa_at_year(phi_year).reindex(
-            sector_index, fill_value=1.0
-        )
+        phi = derive_phi_usa_at_year(phi_year).reindex(sector_index, fill_value=1.0)
     if get_usa_config().implement_electricity_disaggregation:
         for code in ('221110', '221121', '221122'):
             if code in phi.index:

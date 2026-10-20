@@ -55,7 +55,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         with (
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                "bedrock.transform.eeio.sector_disagg_pipeline.electricity_mixed_units_enabled",
                 return_value=False,
             ),
             patch(
@@ -220,7 +220,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         with (
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                "bedrock.transform.eeio.sector_disagg_pipeline.electricity_mixed_units_enabled",
                 return_value=True,
             ),
             patch(
@@ -289,7 +289,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         with (
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                "bedrock.transform.eeio.sector_disagg_pipeline.electricity_mixed_units_enabled",
                 return_value=True,
             ),
             patch(

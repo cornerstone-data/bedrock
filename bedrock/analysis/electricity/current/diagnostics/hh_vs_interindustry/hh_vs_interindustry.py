@@ -28,11 +28,11 @@ from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace impo
 )
 from bedrock.analysis.electricity.current.diagnostics.paths import OUT_DIR
 from bedrock.publish.model_objects import get_B, get_D, get_Ldom
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     electricity_conversion_factors,
 )
-from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,
     derive_Aq_scaled,

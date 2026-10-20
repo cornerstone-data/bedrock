@@ -21,18 +21,6 @@ from bedrock.publish.model_objects import (
     get_V,
     get_x,
 )
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    collapse_electricity_children_square,
-    cornerstone_sector_disagg_active,
-    derive_disagg_io_bundle,
-    derive_disagg_Ytot_with_trade,
-    electricity_disaggregation_enabled,
-    electricity_reaggregation_enabled,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
-    reaggregate_electricity_children_aq,
-    reaggregate_electricity_children_b,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
@@ -42,6 +30,18 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    collapse_electricity_children_square,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
+    electricity_reallocation_enabled,
+    get_waste_disagg_weights,
+    reaggregate_electricity_children_aq,
+    reaggregate_electricity_children_b,
+    sector_disagg_active,
+)
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_reaggregated,
@@ -64,8 +64,8 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_y_nab_reaggregated,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    clear_cornerstone_inflation_caches,
+from bedrock.utils.economic.inflation_helpers_usa import (
+    clear_usa_inflation_caches,
 )
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_L_matrix
 from bedrock.utils.schemas.cornerstone_schemas import (
@@ -87,7 +87,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
-    cornerstone_sector_disagg_active,
+    sector_disagg_active,
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
@@ -120,24 +120,24 @@ def _clear_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     clear_all_publish_caches()
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_summary_year_scaled_aq,
-    )
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         clear_reanchored_electricity_q,
+    )
+    from bedrock.transform.eeio.year_scaling import (  # noqa: PLC0415
+        clear_summary_year_scaled_aq,
     )
 
     clear_summary_year_scaled_aq()
     clear_reanchored_electricity_q()
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: PLC0415
-        derive_phi_cornerstone_usa_panel,
-        derive_phi_cornerstone_usa_panel_published,
+        derive_phi_usa_panel,
+        derive_phi_usa_panel_published,
     )
 
-    derive_phi_cornerstone_usa_panel.cache_clear()
-    derive_phi_cornerstone_usa_panel_published.cache_clear()
+    derive_phi_usa_panel.cache_clear()
+    derive_phi_usa_panel_published.cache_clear()
 
 
 @contextmanager
@@ -263,8 +263,7 @@ def test_reaggregate_aq_reconstructs_u_from_collapsed_block() -> None:
         q = pd.Series({'221110': 10.0, '221121': 20.0, '221122': 30.0, '1111A0': 5.0})
         aq = SingleRegionAqMatrixSet(Adom=adom, Aimp=aimp, scaled_q=q)
         with patch(
-            'bedrock.transform.eeio.cornerstone_disagg_pipeline.'
-            'CORNERSTONE_COMMODITIES',
+            'bedrock.transform.eeio.sector_disagg_pipeline.' 'CORNERSTONE_COMMODITIES',
             ['221100', '1111A0'],
         ):
             out = reaggregate_electricity_children_aq(aq)
@@ -291,8 +290,7 @@ def test_reaggregate_b_is_q_weighted() -> None:
         )
         q = pd.Series({'221110': 1.0, '221121': 1.0, '221122': 2.0, '1111A0': 5.0})
         with patch(
-            'bedrock.transform.eeio.cornerstone_disagg_pipeline.'
-            'CORNERSTONE_COMMODITIES',
+            'bedrock.transform.eeio.sector_disagg_pipeline.' 'CORNERSTONE_COMMODITIES',
             ['221100', '1111A0'],
         ):
             out = reaggregate_electricity_children_b(b, q)
@@ -319,7 +317,7 @@ def test_get_U_commodity_axis_is_parent_not_children(
     uset = SingleRegionUMatrixSet(Udom=udom, Uimp=uimp)
 
     monkeypatch.setattr(
-        'bedrock.transform.eeio.cornerstone_disagg_pipeline.'
+        'bedrock.transform.eeio.sector_disagg_pipeline.'
         'electricity_reaggregation_enabled',
         lambda: True,
     )
@@ -466,7 +464,7 @@ def test_reagg_phi_rho_on_product_yaml() -> None:
         assert phi is not None
         assert rho is not None
         from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
-        from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
             default_price_index_panel_years,
             derive_price_index_panel,
         )

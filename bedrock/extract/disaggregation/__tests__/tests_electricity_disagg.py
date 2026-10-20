@@ -28,9 +28,7 @@ def test_derive_ytot_full_cs_matrix_is_copy_of_underlying() -> None:
     # (full commodity x FD Y matrix in cornerstone space, including trade columns).
     fake = pd.DataFrame({"F1": [1.0, 2.0]}, index=["c1", "c2"])
     with (
-        patch.object(
-            usa_matrices, "cornerstone_sector_disagg_active", return_value=True
-        ),
+        patch.object(usa_matrices, "sector_disagg_active", return_value=True),
         patch.object(usa_matrices, "derive_disagg_Ytot_with_trade", return_value=fake),
     ):
         out = usa_matrices.derive_Ytot_full_cs_matrix()

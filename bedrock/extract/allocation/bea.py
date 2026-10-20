@@ -6,7 +6,7 @@ from collections.abc import Sequence
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa
-from bedrock.transform.eeio.cornerstone_expansion import (
+from bedrock.transform.eeio.usa_expansion import (
     commodity_corresp,
     industry_corresp,
 )
