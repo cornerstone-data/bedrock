@@ -1,0 +1,1127 @@
+# Cornerstone GHG national methods, inventory year 2023.
+# Nowcast Use attribution, facility overrides, and transportation overrides.
+!include:Cornerstone_2025_target.yaml
+year: 2023
+target_schema_year: 2017
+geoscale: national
+mecs_year: 2022
+coa_year: 2022
+epa_ghgi_year: 2023
+sources_to_cache:
+  USDA_CoA_Cropland_NAICS:
+    year: 2022
+    selection_fields:
+      Class: Land
+      FlowName:
+      - FARM OPERATIONS
+      - AG LAND, CROPLAND, HARVESTED
+    estimate_suppressed: !clean_function:flowbyclean 'estimate_suppressed_sectors_equal_attribution'
+  GHGRP_NEI_Facilities:
+    data_format: FBS_outside_flowsa
+    FBS_datapull_fxn: !script_function:stewiFBS 'facility_combustion_to_sector'
+    year: 2023
+    inventory_dict:
+      GHGRP: 2023
+      NEI: 2022
+    sector_prefixes:
+    - '21'
+    - '22'
+    - '31'
+    - '32'
+    - '33'
+    exclude_sectors:
+    - '221100'
+    keep_flowables:
+    - Petroleum
+    - Natural Gas
+    - Coal
+  Hybrid_Facility_MECS:
+    data_format: FBS_outside_flowsa
+    FBS_datapull_fxn: !script_function:stewiFBS 'hybrid_facility_mecs_to_sector'
+    year: 2023
+    inventory_dict:
+      GHGRP: 2023
+      NEI: 2022
+    min_coverage: 0.8
+    sector_prefixes:
+    - '21'
+    - '22'
+    - '31'
+    - '32'
+    - '33'
+    exclude_sectors:
+    - '221100'
+    mecs_method: Energy_manufacturing_national_nowcast_2023
+    flowables:
+      Natural Gas: Energy
+      Coal: Energy
+      Petroleum: Money
+    keep_flowables:
+    - Natural Gas
+    - Coal
+    - Petroleum
+_attribution_sources:
+  Energy_manufacturing_national_nowcast_2023:
+    data_format: FBS
+    geoscale: national
+  Nowcast:
+    year: 2023
+    activity_to_sector_mapping: Cornerstone_2025
+    exclusion_fields:
+      ActivityConsumedBy:
+      - F03000
+      - F04000
+      - F05000
+      - F02E00
+      - F06E00
+      - F07E00
+      - F10E00
+      - F02R00
+    attribution_method: equal
+  Energy_highway_fuel_shares_national_2023:
+    data_format: FBS
+    geoscale: national
+source_names:
+  UMD_GHGIA_T_2_S1:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      direct:
+        selection_fields:
+          PrimaryActivity:
+          - Abandoned Oil and Gas Wells
+          - Abandoned Underground Coal Mines
+          - Adipic Acid Production
+          - Aluminum Production
+          - Ammonia Production
+          - Anaerobic Digestion at Biogas Facilities
+          - Caprolactam, Glyoxal, and Glyoxylic Acid Production
+          - Carbide Production and Consumption
+          - Cement Production
+          - Coal Mining
+          - Composting
+          - Ferroalloy Production
+          - Glass Production
+          - Landfills
+          - Lead Production
+          - Incineration of Waste
+          - Lime Production
+          - Iron and Steel Production & Metallurgical Coke Production
+          - Nitric Acid Production
+          - Phosphoric Acid Production
+          - Rice Cultivation
+          - Soda Ash Production
+          - Titanium Dioxide Production
+          - Wastewater Treatment
+          - Zinc Production
+          FlowName:
+          - CO2
+          - CH4
+          - N2O
+        attribution_method: direct
+      electricity_transmission:
+        selection_fields:
+          PrimaryActivity:
+          - Electrical Equipment
+          FlowName: SF6
+        attribution_method: direct
+      liming:
+        selection_fields:
+          PrimaryActivity: Liming
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: &id001
+              ActivityConsumedBy:
+              - F03000
+              - F04000
+              - F05000
+              - F02E00
+              - F06E00
+              - F07E00
+              - F10E00
+              - F02R00
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '327400': ''
+      urea:
+        selection_fields:
+          PrimaryActivity:
+          - Urea Consumption for Non-Agricultural Purposes
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '325310': ''
+      urea_fertilizer:
+        selection_fields:
+          PrimaryActivity: Urea Fertilization
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2022
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            clean_fba: !clean_function:flowbyclean 'interpolate_census_years'
+            census_interpolation:
+              years:
+              - 2017
+              - 2022
+              target_year: 2023
+              normalize: true
+            selection_fields:
+              ActivityProducedBy:
+                '325310': ''
+      carbonate_use:
+        selection_fields:
+          PrimaryActivity: Other Process Uses of Carbonates
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '325180': ''
+      nitrous_oxide_use:
+        selection_fields:
+          PrimaryActivity: N2O from Product Uses
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '325120': ''
+      field_burning_n2O:
+        selection_fields:
+          PrimaryActivity:
+          - Field Burning of Agricultural Residues
+          FlowName:
+          - N2O
+        attribution_method: proportional
+        attribution_source:
+          UMD_GHGIA_T_5_15:
+            year: 2023
+            activity_to_sector_mapping: UMD_GHGIA
+            selection_fields:
+              PrimaryActivity:
+              - Chickpeas
+              - Cotton
+              - Maize
+              - Rice
+              - Soybeans
+              - Wheat
+              - Lentils
+              - Sugarcane
+              FlowName:
+                CH4: N2O
+            attribution_method: direct
+      field_burning_ch4:
+        selection_fields:
+          PrimaryActivity:
+          - Field Burning of Agricultural Residues
+          FlowName:
+          - CH4
+        attribution_method: proportional
+        attribution_source:
+          UMD_GHGIA_T_5_15:
+            year: 2023
+            activity_to_sector_mapping: UMD_GHGIA
+            selection_fields:
+              PrimaryActivity:
+              - Chickpeas
+              - Cotton
+              - Maize
+              - Rice
+              - Soybeans
+              - Wheat
+              - Lentils
+              - Sugarcane
+              FlowName:
+              - CH4
+            attribution_method: direct
+  UMD_GHGIA_T_3_28: &id002
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity:
+      - Distribution
+      - Post-Meter
+      - Exploration
+      - Processing
+      - Production
+      - Transmission and Storage
+    attribution_method: direct
+  UMD_GHGIA_T_3_29: *id002
+  UMD_GHGIA_T_3_30: *id002
+  UMD_GHGIA_T_3_25: &id003
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity:
+      - Transportation
+      - Exploration
+      - Production
+      - Refineries
+    attribution_method: direct
+  UMD_GHGIA_T_3_26: *id003
+  UMD_GHGIA_T_3_27: *id003
+  UMD_GHGIA_T_5_3: &id004
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity:
+      - American Bison
+      - Beef Cattle
+      - Dairy Cattle
+      - Goats
+      - Horses
+      - Mules and Asses
+      - Sheep
+      - Swine
+      - Poultry
+    attribution_method: direct
+  UMD_GHGIA_T_5_6: *id004
+  UMD_GHGIA_T_5_10:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      direct:
+        selection_fields:
+          PrimaryActivity: Direct Agricultural Soil Management
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_5_18:
+            year: 2023
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              fertilizer_use:
+                selection_fields:
+                  PrimaryActivity:
+                  - Organic Amendment Cropland
+                  - Residue N Cropland
+                  - Synthetic Fertilizer Cropland
+                attribution_method: proportional
+                attribution_source:
+                  Nowcast_Detail_Use_AfterRedef:
+                    year: 2022
+                    activity_to_sector_mapping: Cornerstone_2025
+                    exclusion_fields: *id001
+                    attribution_method: equal
+                    clean_fba: !clean_function:flowbyclean 'interpolate_census_years'
+                    census_interpolation:
+                      years:
+                      - 2017
+                      - 2022
+                      target_year: 2023
+                      normalize: true
+                    selection_fields:
+                      ActivityProducedBy:
+                        '325310': ''
+              cropland:
+                selection_fields:
+                  PrimaryActivity:
+                  - Mineralization and Asymbiotic Fixation Cropland
+                  - Drained Organic Soils Cropland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland:
+                    year: 2022
+                    selection_fields:
+                      Class: Land
+                      FlowName:
+                      - AREA HARVESTED
+                      - AREA BEARING & NON-BEARING
+                      - AREA GROWN
+                    attribution_method: proportional
+                    attribution_source:
+                      USDA_CoA_Cropland_NAICS:
+                        selection_fields:
+                          Flowable: AG LAND, CROPLAND, HARVESTED
+              pasture:
+                selection_fields:
+                  PrimaryActivity:
+                  - All activities Grassland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland_NAICS:
+                    selection_fields:
+                      Flowable: FARM OPERATIONS
+      indirect:
+        selection_fields:
+          PrimaryActivity: Indirect Agricultural Soil Management
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_5_19:
+            year: 2023
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              fertilizer_use:
+                selection_fields:
+                  PrimaryActivity:
+                  - Volatilization & Atm. Deposition Cropland
+                  - Surface Leaching & Run-Off Cropland
+                attribution_method: proportional
+                attribution_source:
+                  Nowcast_Detail_Use_AfterRedef:
+                    year: 2022
+                    activity_to_sector_mapping: Cornerstone_2025
+                    exclusion_fields: *id001
+                    attribution_method: equal
+                    clean_fba: !clean_function:flowbyclean 'interpolate_census_years'
+                    census_interpolation:
+                      years:
+                      - 2017
+                      - 2022
+                      target_year: 2023
+                      normalize: true
+                    selection_fields:
+                      ActivityProducedBy:
+                        '325310': ''
+              pasture:
+                selection_fields:
+                  PrimaryActivity:
+                  - All activities Grassland
+                attribution_method: proportional
+                attribution_source:
+                  USDA_CoA_Cropland_NAICS:
+                    selection_fields:
+                      Flowable: FARM OPERATIONS
+  UMD_GHGIA_T_3_8:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA_transportation
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      direct_residual_fuel_oil:
+        selection_fields:
+          PrimaryActivity:
+            Ships & Boats Residual Fuel Oil: Ships and Boats
+        attribution_method: direct
+      direct_lpg:
+        selection_fields:
+          PrimaryActivity:
+            Buses LPG: Buses
+            Medium- and Heavy-Duty Trucks LPG: Medium- and Heavy-Duty Trucks
+            Light-Duty Trucks LPG: Light-Duty Trucks - Households
+            Passenger Cars LPG: Passenger Cars - Households
+        attribution_method: direct
+      direct_jet:
+        selection_fields:
+          PrimaryActivity:
+            General Aviation Aircraft Aviation Gasoline: General Aviation Aircraft
+            General Aviation Aircraft Jet Fuel: General Aviation Aircraft
+            Commercial Aircraft Jet Fuel: Commercial Aircraft
+            Military Aircraft Jet Fuel: Military Aircraft
+        attribution_method: direct
+      direct_ng:
+        selection_fields:
+          PrimaryActivity:
+            Buses Natural Gas: Buses
+            Pipeline Natural Gas: Pipeline Natural Gas
+            Medium- and Heavy-Duty Trucks Natural Gas: Medium- and Heavy-Duty Trucks
+        attribution_method: direct
+      direct_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Rail Diesel Fuel: Rail
+            Recreational Boats Diesel Fuel: Recreational Boats
+            Ships and Non-Recreational Boats Diesel Fuel: Ships and Non-Recreational Boats
+        attribution_method: direct
+      direct_gasoline:
+        selection_fields:
+          PrimaryActivity:
+            Buses Gasoline: Buses
+            Motorcycles Gasoline: Motorcycles
+            Recreational Boats Gasoline: Recreational Boats
+        attribution_method: direct
+      petroleum_fuels_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Medium- and Heavy-Duty Trucks Diesel Fuel: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Diesel; Trucks
+      petroleum_fuels_gasoline:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Gasoline: Passenger Cars
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Gasoline; Automobiles
+      lng_liquefaction:
+        selection_fields:
+          PrimaryActivity:
+          - Pipeline Natural Gas - LNG Liquefaction
+        attribution_method: proportional
+        attribution_source:
+          GHGRP_NEI_Facilities:
+            selection_fields:
+              Flowable: Natural Gas - LNG liquefaction
+      petroleum_fuels_diesel_buses:
+        selection_fields:
+          PrimaryActivity:
+            Buses Diesel Fuel: Buses - Distillate Fuel Oil
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Diesel; Buses
+      petroleum_fuels_diesel_automobiles:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Diesel Fuel: Passenger Cars
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Diesel; Automobiles
+      petroleum_fuels_diesel_light_duty_trucks:
+        selection_fields:
+          PrimaryActivity:
+            Light-Duty Trucks Diesel Fuel: Light-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Diesel; Automobiles
+      petroleum_fuels_gasoline_light_duty_trucks:
+        selection_fields:
+          PrimaryActivity:
+            Light-Duty Trucks Gasoline: Light-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Gasoline; Automobiles
+      petroleum_fuels_gasoline_trucks:
+        selection_fields:
+          PrimaryActivity:
+            Medium- and Heavy-Duty Trucks Gasoline: Medium- and Heavy-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Gasoline; Trucks
+    clean_fba_before_activity_sets: !script_function:UMD_GHGIA 'prepare_facilities_mobile_combustion'
+    clean_parameter:
+      year: 2023
+  UMD_GHGIA_T_3_9: &id006
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA_transportation
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      direct_gasoline:
+        selection_fields:
+          PrimaryActivity:
+            Motorcycles Gasoline On-Road: Motorcycles
+            Medium- and Heavy-Duty Trucks and Buses Gasoline On-Road: Medium- and Heavy-Duty Trucks and Buses
+        attribution_method: direct
+      direct_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Diesel On-Road: Passenger Cars - Households
+            Medium- and Heavy-Duty Buses Diesel On-Road: Medium- and Heavy-Duty Buses
+        attribution_method: direct
+      direct_non_road:
+        selection_fields:
+          PrimaryActivity:
+            Rail Non-Road: Rail
+            Ships and Boats Non-Road: Ships and Boats
+            Aircraft Non-Road: General Aviation Aircraft
+        attribution_method: direct
+      petroleum_fuels_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Medium- and Heavy-Duty Trucks Diesel On-Road: Medium- and Heavy-Duty Trucks - Distillate Fuel Oil
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Diesel; Trucks
+      petroleum_fuels_gasoline:
+        selection_fields:
+          PrimaryActivity:
+            Passenger Cars Gasoline On-Road: Passenger Cars - Households
+        attribution_method: direct
+      construction_and_mining:
+        selection_fields:
+          PrimaryActivity: Construction/Mining Equipment Non-Road
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: &id005
+              ActivityConsumedBy:
+              - F03000
+              - F04000
+              - F05000
+              - F02E00
+              - F06E00
+              - F07E00
+              - F10E00
+              - F02R00
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '333120': ''
+      farm_non_road:
+        selection_fields:
+          PrimaryActivity: Agricultural Equipment Non-Road
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id005
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '333111': ''
+      other_non_road:
+        selection_fields:
+          PrimaryActivity: Other Non-Road
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id005
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '324110': ''
+      alt_fuel_on_road:
+        selection_fields:
+          PrimaryActivity:
+            All activities Alternative Fuel On-Road: Alternative Fuel On-Road
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id005
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '221200': ''
+      light_duty_trucks_diesel:
+        selection_fields:
+          PrimaryActivity:
+            Light-Duty Trucks Diesel On-Road: Light-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Diesel; Automobiles
+      light_duty_trucks_gasoline:
+        selection_fields:
+          PrimaryActivity:
+            Light-Duty Trucks Gasoline On-Road: Light-Duty Trucks
+        attribution_method: proportional
+        attribution_source:
+          Energy_highway_fuel_shares_national_2023:
+            data_format: FBS
+            geoscale: national
+            selection_fields:
+              Flowable: Gasoline; Automobiles
+  UMD_GHGIA_T_3_10: *id006
+  UMD_GHGIA_T_3_4: &id007
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      residential_commercial_co2:
+        selection_fields:
+          FlowName: CO2
+          PrimaryActivity:
+          - Coal Residential
+          - Natural Gas Residential
+          - Petroleum Residential
+        attribution_method: direct
+      non_manufacturing_coal:
+        selection_fields:
+          PrimaryActivity:
+          - Coal Commercial
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '212100': ''
+      non_manufacturing_natural_gas:
+        selection_fields:
+          PrimaryActivity:
+          - Natural Gas Commercial
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '221200': ''
+      petroleum_commercial:
+        selection_fields:
+          PrimaryActivity:
+          - Petroleum Commercial
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '324110': ''
+  EPA_eGRID_electric:
+    activity_to_sector_mapping: EPA_eGRID
+    FBS_datapull_fxn: !script_function:stewiFBS 'egrid_to_sector'
+    inventory_dict:
+      eGRID: 2023
+    year: 2023
+    include_flow_names:
+    - Carbon dioxide
+    - Methane
+    - Nitrous oxide
+  UMD_GHGIA_T_3_11:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    clean_fba_before_activity_sets: !script_function:UMD_GHGIA 'prepare_facilities_industrial_combustion'
+    clean_parameter:
+      year: 2023
+      nei_year: 2022
+      annex_fba: UMD_GHGIA_T_A5_1_S1
+      annex_year: 2023
+      exclude_sectors:
+      - '221100'
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      petroleum_still_gas:
+        selection_fields:
+          PrimaryActivity:
+          - Petroleum Industrial - Still Gas
+        attribution_method: proportional
+        attribution_source:
+          GHGRP_NEI_Facilities:
+            selection_fields:
+              Flowable: Petroleum
+              SectorProducedBy:
+              - '32411'
+              - '324110'
+      petroleum_facility:
+        selection_fields:
+          PrimaryActivity:
+          - Petroleum Industrial - Petroleum Coke
+          - Petroleum Industrial - HGL
+          - Petroleum Industrial - Kerosene
+        attribution_method: proportional
+        attribution_source:
+          Hybrid_Facility_MECS:
+            selection_fields:
+              Flowable: Petroleum
+      petroleum_use:
+        selection_fields:
+          PrimaryActivity:
+          - Petroleum Industrial - Motor Gasoline
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            selection_fields:
+              ActivityProducedBy:
+                '324110': ''
+            clean_fba: !script_function:EIA_MECS 'keep_industrial_petroleum_consumers'
+            attribution_method: equal
+      natural_gas_lease_plant:
+        selection_fields:
+          PrimaryActivity:
+          - Natural Gas Industrial - Lease and Plant
+        attribution_method: proportional
+        attribution_source:
+          GHGRP_NEI_Facilities:
+            selection_fields:
+              Flowable: Natural Gas - lease and plant
+      natural_gas_hydrogen:
+        selection_fields:
+          PrimaryActivity:
+          - Natural Gas Industrial - Hydrogen Production
+        attribution_method: proportional
+        attribution_source:
+          GHGRP_NEI_Facilities:
+            selection_fields:
+              Flowable: Natural Gas - hydrogen production
+      natural_gas_nonmanufacturing:
+        selection_fields:
+          PrimaryActivity:
+          - Natural Gas Industrial
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            selection_fields:
+              ActivityProducedBy:
+                '221200': ''
+            attribution_method: equal
+      ng_manufacturing:
+        selection_fields:
+          PrimaryActivity:
+          - Natural Gas Industrial - Manufacturing
+        attribution_method: proportional
+        attribution_source:
+          Hybrid_Facility_MECS:
+            selection_fields:
+              Flowable: Natural Gas
+      coal:
+        selection_fields:
+          PrimaryActivity:
+          - Coal Industrial
+          - Coal Industrial - Manufacturing
+        attribution_method: proportional
+        attribution_source:
+          Hybrid_Facility_MECS:
+            selection_fields:
+              Flowable: Coal
+      petroleum_distillate:
+        selection_fields:
+          PrimaryActivity:
+          - Petroleum Industrial - Distillate Fuel Oil
+        attribution_method: proportional
+        attribution_source:
+          Energy_industrial_distillate_national_2023:
+            data_format: FBS
+            geoscale: national
+  UMD_GHGIA_T_3_12:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      residential_non_co2_direct:
+        selection_fields:
+          FlowName:
+          - CH4
+          - N2O
+          PrimaryActivity:
+          - Wood Residential and Commercial
+        attribution_method: direct
+      residential_commercial_non_co2:
+        selection_fields:
+          FlowName:
+          - CH4
+          - N2O
+          PrimaryActivity:
+          - Coal Residential and Commercial
+          - Natural Gas Residential and Commercial
+          - Petroleum Residential and Commercial
+        attribution_method: proportional
+        attribution_source:
+          UMD_GHGIA_T_3_4: *id007
+  UMD_GHGIA_T_4_31:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity:
+      - Acrylonitrile
+      - Carbon Black
+      - Ethylene
+      - Ethylene Dichloride
+      - Ethylene Oxide
+      - Methanol
+    attribution_method: direct
+  UMD_GHGIA_T_3_14:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      emissions:
+        selection_fields:
+          PrimaryActivity: Emissions NEU Fossil Fuel Consumption
+        attribution_method: proportional
+        attribution_source:
+          EPA_GHGI_T_3_25:
+            year: 2023
+            activity_to_sector_mapping: EPA_GHGI_Cornerstone
+            fedefl_mapping: GHGI_AR5_100
+            activity_sets:
+              coal:
+                selection_fields:
+                  PrimaryActivity:
+                  - Industry Industrial Coking Coal
+                  - Industry Industrial Other Coal
+                attribution_method: direct
+              petroleum_neu_asphalt:
+                selection_fields:
+                  PrimaryActivity:
+                    Industry Asphalt & Road Oil: Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_nowcast_2023:
+                    data_format: FBS
+                    geoscale: national
+                    selection_fields:
+                      Flowable: Petroleum
+                      Class: Other
+                      SectorConsumedBy:
+                      - '324121'
+                      - '324122'
+              petroleum_neu_hgl:
+                selection_fields:
+                  PrimaryActivity:
+                    Industry HGL: Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_nowcast_2023:
+                    data_format: FBS
+                    geoscale: national
+                    selection_fields:
+                      Flowable: HGL
+                      Class: Other
+              petroleum_neu:
+                selection_fields:
+                  PrimaryActivity:
+                    Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
+                    Industry Lubricants: Industry Petroleum Products Non-energy
+                    Industry Miscellaneous Products: Industry Petroleum Products Non-energy
+                    Industry Naphtha (<401 F): Industry Petroleum Products Non-energy
+                    Industry Other Oil (>401 F): Industry Petroleum Products Non-energy
+                    Industry Petroleum Coke: Industry Petroleum Products Non-energy
+                    Industry Special Naphtha: Industry Petroleum Products Non-energy
+                    Industry Still Gas: Industry Petroleum Products Non-energy
+                    Industry Waxes: Industry Petroleum Products Non-energy
+                    Industry Natural Gasoline: Industry Petroleum Products Non-energy
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_nowcast_2023:
+                    data_format: FBS
+                    geoscale: national
+                    selection_fields:
+                      Flowable: Petroleum
+                      Class: Other
+                    exclusion_fields:
+                      SectorConsumedBy:
+                      - '324121'
+                      - '324122'
+              natural_gas_neu:
+                selection_fields:
+                  PrimaryActivity: Industry Natural Gas to Chemical Plants
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_nowcast_2023:
+                    data_format: FBS
+                    geoscale: national
+                    selection_fields:
+                      Flowable: Natural Gas
+                      Class: Other
+              transportation_lubricants:
+                selection_fields:
+                  PrimaryActivity: Transportation Lubricants
+                attribution_method: proportional
+                attribution_source:
+                  Energy_manufacturing_national_nowcast_2023:
+                    data_format: FBS
+                    geoscale: national
+                    selection_fields:
+                      Flowable: Transport
+                      Class: Money
+  UMD_GHGIA_T_4_33:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity: HCFC-22 Production
+    attribution_method: direct
+  UMD_GHGIA_T_4_35:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity: Fluorochemical Production
+      FlowName:
+      - Other PFCs
+      - Other HFCs
+    attribution_method: direct
+  EPA_GHGI_T_4_64:
+    year: 2023
+    activity_to_sector_mapping: EPA_GHGI_Cornerstone
+    fedefl_mapping: GHGI_AR5_100
+    selection_fields:
+      PrimaryActivity: Fluorochemical Production
+    exclusion_fields:
+      FlowName:
+      - Other PFCs
+      - Other HFCs
+    attribution_method: direct
+  UMD_GHGIA_T_4_52:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      FlowName:
+      - SF6
+      - HFC-134a
+      - CO2
+      PrimaryActivity: Magnesium Production
+    attribution_method: proportional
+    attribution_source:
+      BEA_Detail_GrossOutput_IO:
+        year: 2023
+        geoscale: national
+        activity_to_sector_mapping: BEA_2017_Detail
+        attribution_method: equal
+  UMD_GHGIA_T_4_57:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity:
+      - Electronics Industry
+      - Semiconductors
+      - PV
+      - MEMS
+    attribution_method: direct
+  UMD_GHGIA_T_4_62:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    attribution_method: direct
+  UMD_GHGIA_T_4_60:
+    activity_to_sector_mapping: UMD_GHGIA
+    clean_fba_before_activity_sets: !script_function:EPA_GHGI 'split_HFCs_by_type'
+    clean_parameter:
+      flow_fba: UMD_GHGIA_T_4_59
+    year: 2023
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    activity_sets:
+      households:
+        selection_fields:
+          PrimaryActivity:
+          - Domestic Refrigeration
+          - Residential Stationary Air Conditioning
+        attribution_method: direct
+      refrigerants:
+        selection_fields:
+          PrimaryActivity:
+          - Commercial Refrigeration
+          - Industrial Process Refrigeration
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '333415': ''
+      air_conditioning:
+        selection_fields:
+          PrimaryActivity:
+          - Commercial Stationary Air Conditioning
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '333415': ''
+      foams:
+        selection_fields:
+          PrimaryActivity:
+          - Foams
+        attribution_method: proportional
+        attribution_source:
+          Nowcast_Detail_Use_AfterRedef:
+            year: 2023
+            activity_to_sector_mapping: Cornerstone_2025
+            exclusion_fields: *id001
+            attribution_method: equal
+            selection_fields:
+              ActivityProducedBy:
+                '326140': ''
+                '326150': ''
+  UMD_GHGIA_T_A5_5_2:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    clean_fba_before_mapping: !script_function:EPA_GHGI 'split_HFCs_by_type'
+    clean_parameter:
+      flow_fba: UMD_GHGIA_T_4_59
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity:
+        Mobile AC - Passenger Cars: Passenger Cars - Households
+        Mobile AC - Light-Duty Trucks: Light-Duty Trucks - Households
+        Mobile AC - Heavy-Duty Vehicles: Heavy-Duty Vehicles
+        Comfort Cooling for Trains and Buses - School and Tour Buses: School and Tour Buses
+        Comfort Cooling for Trains and Buses - Transit Buses: Transit Buses
+        Comfort Cooling for Trains and Buses - Rail: Rail
+        Refrigerated Transport - Medium- and Heavy-Duty Trucks: Medium- and Heavy-Duty Trucks
+        Refrigerated Transport - Rail: Rail
+        Refrigerated Transport - Ships and Boats: Ships and Boats
+    attribution_method: direct
+  UMD_GHGIA_T_4_50:
+    year: 2023
+    activity_to_sector_mapping: UMD_GHGIA
+    fedefl_mapping: UMD_GHGIA_AR5_100
+    selection_fields:
+      PrimaryActivity: Aluminum Production
+    exclusion_fields:
+      FlowName: CO2
+    attribution_method: direct
+ghgrp_sector_floor: 2023
