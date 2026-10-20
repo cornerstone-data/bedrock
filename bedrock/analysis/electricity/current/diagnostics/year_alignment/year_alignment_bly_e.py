@@ -39,14 +39,14 @@ from bedrock.transform.allocation.derived import derive_E_usa, load_E_from_flows
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    GENERATION_SECTOR,
+    split_electricity_e_for_disaggregated_b,
+)
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,
     derive_Aq_scaled,
     derive_x_after_redefinition,
-)
-from bedrock.transform.eeio.electricity_disaggregation import (
-    GENERATION_SECTOR,
-    split_electricity_e_for_disaggregated_b,
 )
 from bedrock.utils.config.usa_config import (
     CONFIG_DIR,

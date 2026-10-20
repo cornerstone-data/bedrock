@@ -21,20 +21,6 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.cornerstone_year_scaling import scale_cornerstone_q
-from bedrock.transform.eeio.usa_matrices import (
-    derive_Aq,
-    derive_Aq_reaggregated,
-    derive_Aq_scaled,
-    derive_B_non_finetuned,
-    derive_B_reaggregated,
-    derive_U_set,
-    derive_U_with_negatives,
-    derive_V,
-    derive_VA,
-    derive_Vnorm_scrap_corrected,
-    derive_x,
-    derive_x_after_redefinition,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
@@ -51,6 +37,20 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_reaggregated,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_B_reaggregated,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
+)
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     clear_cornerstone_inflation_caches,

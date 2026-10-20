@@ -19,12 +19,26 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
+from bedrock.transform.eeio.electricity_disaggregation import (
+    ELECTRICITY_AGGREGATE,
+    ELECTRICITY_DISAGG_SECTORS,
+    GENERATION_SECTOR,
+    _derive_post_reallocation_checkpoint_for_disagg,
+    build_electricity_disagg_go_weights,
+    build_electricity_disagg_use_intersection_weights,
+    get_eia_purchaser_allocation,
+)
+from bedrock.transform.eeio.electricity_gtd_allocation import (
+    get_reanchored_eia_purchaser_allocation,
+    mecs_purchased_kwh,
+)
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_reaggregated,
     derive_Aq_scaled,
     derive_B_non_finetuned,
     derive_B_reaggregated,
+    derive_disagg_Ytot_reaggregated,
     derive_U_set,
     derive_U_set_reaggregated,
     derive_U_with_negatives,
@@ -38,20 +52,6 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x_reaggregated,
     derive_y_nab,
     derive_y_nab_reaggregated,
-    derive_disagg_Ytot_reaggregated,
-)
-from bedrock.transform.eeio.electricity_disaggregation import (
-    ELECTRICITY_AGGREGATE,
-    ELECTRICITY_DISAGG_SECTORS,
-    GENERATION_SECTOR,
-    _derive_post_reallocation_checkpoint_for_disagg,
-    build_electricity_disagg_go_weights,
-    build_electricity_disagg_use_intersection_weights,
-    get_eia_purchaser_allocation,
-)
-from bedrock.transform.eeio.electricity_gtd_allocation import (
-    get_reanchored_eia_purchaser_allocation,
-    mecs_purchased_kwh,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,

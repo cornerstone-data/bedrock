@@ -12,12 +12,12 @@ from typing import Any
 import pandas as pd
 
 from bedrock.publish.cache_reset import clear_all_publish_caches
-from bedrock.transform.eeio.usa_matrices import derive_Aq_scaled
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     EIAPurchaserAllocation,
     _class_mwh_targets,
     get_reanchored_eia_purchaser_allocation,
 )
+from bedrock.transform.eeio.usa_matrices import derive_Aq_scaled
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
