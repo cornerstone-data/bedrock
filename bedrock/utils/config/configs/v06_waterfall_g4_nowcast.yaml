@@ -1,5 +1,5 @@
-# v06_waterfall G4 — nowcasting rung. Flags match v05_waterfall_g4_nowcast:
-# the v0.3.0_3096818 Use, facility GHG off.
+# v06_waterfall G4 — nowcasting rung: nowcast MUT v0.3.0_3096818, facility GHG
+# off, waste weights match IO, apply_io_year_adjustments off.
 #
 # cornerstone_ghg_fbs_filename pins GHG_national_Cornerstone_nowcast_2024 to
 # GHG_national_Cornerstone_nowcast_2024_v0.3.0_0e1b0f0.parquet. The next rung,
