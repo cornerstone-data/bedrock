@@ -65,20 +65,27 @@ _PIN_JSON_TO_CONFIG: dict[str, str] = {
     'sha256': 'useeio_baseline_xlsx_sha256',
     'model_version_label': 'useeio_model_version_label',
 }
+# Optional pin keys: omitted → the USAConfig default applies.
+_OPTIONAL_PIN_JSON_TO_CONFIG: dict[str, str] = {
+    'price_index': 'useeio_baseline_price_index',
+}
 
 
 def load_useeio_baseline_pin_overrides(pin_json_path: str) -> dict[str, str]:
     """Load committed pin file → keys accepted by ``diagnostics_cli_overrides`` / ``USAConfig``.
 
-    JSON must contain ``gs_uri``, ``sha256`` (64 hex), and ``model_version_label``.
+    JSON must contain ``gs_uri``, ``sha256`` (64 hex), and ``model_version_label``;
+    ``price_index`` is optional (see ``USAConfig.useeio_baseline_price_index``).
     """
     path = Path(pin_json_path)
     raw = json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(raw, dict):
         raise ValueError(f'USEEIO pin JSON must be an object, got {type(raw).__name__}')
     out: dict[str, str] = {}
-    for jk, ck in _PIN_JSON_TO_CONFIG.items():
+    for jk, ck in {**_PIN_JSON_TO_CONFIG, **_OPTIONAL_PIN_JSON_TO_CONFIG}.items():
         if jk not in raw:
+            if jk in _OPTIONAL_PIN_JSON_TO_CONFIG:
+                continue
             raise ValueError(f'Missing key {jk!r} in USEEIO pin JSON {pin_json_path!r}')
         val = raw[jk]
         if val is None or (isinstance(val, str) and not str(val).strip()):
@@ -296,6 +303,41 @@ def load_useeio_baseline_bundle(cfg: USAConfig | None = None) -> UseeioBaselineB
         source_gs_uri=gs_uri,
         file_sha256=file_sha,
     )
+
+
+def useeio_baseline_price_index_levels(
+    cfg: USAConfig | None = None,
+) -> pd.DataFrame | None:
+    """Sector × year price index for converting the USEEIO baseline EFs.
+
+    Returns ``None`` under ``bea_price_index_vintage`` (callers fall back to the
+    run's BEA vintage). Otherwise returns the pinned useeior index, which does
+    not move with ``bea_price_index_vintage`` (#1102). Cornerstone-only child
+    sectors (the split-out waste sectors) take their BEA parent's row, as in
+    ``get_cornerstone_industry_price_ratio``.
+    """
+    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+        _cornerstone_to_bea_price_parent,
+    )
+    from bedrock.utils.economic.inflation_helpers_useeio import (  # noqa: PLC0415
+        obtain_useeior_detail_industry_cpi_levels,
+    )
+
+    c = cfg or get_usa_config()
+    if c.useeio_baseline_price_index == 'bea_price_index_vintage':
+        return None
+    levels = obtain_useeior_detail_industry_cpi_levels()
+    children = {
+        child: parent
+        for child, parent in _cornerstone_to_bea_price_parent().items()
+        if child not in levels.index and parent in levels.index
+    }
+    if not children:
+        return levels
+    child_rows = levels.loc[list(children.values())].set_axis(
+        pd.Index(list(children.keys()), name=levels.index.name)
+    )
+    return pd.concat([levels, child_rows])
 
 
 def derive_useeio_excel_y_nab_scaled_to_model_base_year(

@@ -34,6 +34,7 @@ DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
         'useeio_baseline_xlsx_gs_uri',
         'useeio_baseline_xlsx_sha256',
         'useeio_model_version_label',
+        'useeio_baseline_price_index',
         'model_base_year',
         'usa_ghg_data_year',
     }
@@ -346,6 +347,18 @@ class USAConfig(BaseModel):
         default=None,
         description=(
             'Short label for config_summary / auditing. Typically set in useeio_baseline_pin.json.'
+        ),
+    )
+    useeio_baseline_price_index: ta.Literal[
+        'useeior_v1.8.0', 'bea_price_index_vintage'
+    ] = Field(
+        default='useeior_v1.8.0',
+        description=(
+            'Price index that converts the USEEIO baseline EFs from their dollar '
+            'year to model_base_year. useeior_v1.8.0 is the pinned useeior '
+            'Detail_CPI_IO_17sch, so the baseline stays fixed across releases '
+            "(#1102). bea_price_index_vintage reuses the run's BEA vintage, "
+            'which moves the baseline whenever that vintage moves.'
         ),
     )
 
