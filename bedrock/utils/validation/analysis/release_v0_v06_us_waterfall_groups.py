@@ -11,7 +11,7 @@ Group definitions (cumulative):
        (same as v0.5 G4)
   G5 — ``v06_waterfall_g5_facilities`` — G4 + facility GHG attribution
        (≡ ``2025_usa_cornerstone_v0_5_9``)
-  FINAL — ``2025_usa_cornerstone_v0_6`` — G5 + transportation GHG allocation
+  FINAL — ``2026_usa_cornerstone_v0_6`` — G5 + transportation GHG allocation
 
 Sheet IDs point at diagnostics spreadsheets in the v0.6 Diagnostics Drive
 folder. G2-G5 are the 2026-10-12 USEEIO cut on ``dfe743bc``. FINAL is the
@@ -76,7 +76,7 @@ G5_FACILITIES = ProgressionSheet(
 FINAL_V06_USEEIO = ProgressionSheet(
     step_label="FINAL v0.6 (transportation GHG allocation)",
     sheet_id="1NTeXoNNcSwwroee6F884mYPlMvqniMHRIcW1f5GVKuY",
-    config_name="2025_usa_cornerstone_v0_6",
+    config_name="2026_usa_cornerstone_v0_6",
     sheet_title=(
         "[2026-10-13, bedrock repo, 2024, useeio, "
         "2025_usa_cornerstone_v0_6] EFs diagnostics"

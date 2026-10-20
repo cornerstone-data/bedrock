@@ -13,7 +13,7 @@ Configs covered:
 * ``v06_waterfall_g3_data``
 * ``v06_waterfall_g4_nowcast``
 * ``v06_waterfall_g5_facilities``
-* ``2025_usa_cornerstone_v0_6``
+* ``2026_usa_cornerstone_v0_6``
 
 Not rebuilt: pinned USEEIO baseline; historical v03 G2 / G3 / FINAL;
 historical v05 US ladder G2 / G3 / G4 / FINAL (plot registries only).
@@ -55,7 +55,7 @@ EXPECTED_LIVE_N_NEW = {
     'v06_waterfall_g3_data': 0.2395922,
     'v06_waterfall_g4_nowcast': 0.2208996,
     'v06_waterfall_g5_facilities': 0.2218908,
-    '2025_usa_cornerstone_v0_6': 0.2256090,
+    '2026_usa_cornerstone_v0_6': 0.2256090,
 }
 
 # Assessment USEEIO-track bars (diagnostics columns x canonical v0.6 q).

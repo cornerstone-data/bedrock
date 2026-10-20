@@ -350,8 +350,8 @@ def test_v0_6_matches_v0_5_9_transport() -> None:
 
     It matches v0.5.9 transport except the transportation GHG FBS pin.
     """
-    assert CANONICAL_USA_CONFIG == '2025_usa_cornerstone_v0_6'
-    v06 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_6.yaml')
+    assert CANONICAL_USA_CONFIG == '2026_usa_cornerstone_v0_6'
+    v06 = _load_usa_config_from_file_name('2026_usa_cornerstone_v0_6.yaml')
     transport = _load_usa_config_from_file_name(
         '2025_usa_cornerstone_v0_5_9_transport.yaml'
     )
@@ -402,7 +402,7 @@ def test_v0_6_waterfall_rungs_bracket_the_release_config() -> None:
         'cornerstone_ghg_fbs_filename',
     }
     release = _resolved_field_diff(
-        'v06_waterfall_g5_facilities', '2025_usa_cornerstone_v0_6'
+        'v06_waterfall_g5_facilities', '2026_usa_cornerstone_v0_6'
     )
     assert set(release) == {
         'use_transportation_ghg_allocation',

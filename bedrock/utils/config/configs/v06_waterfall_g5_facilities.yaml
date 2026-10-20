@@ -4,7 +4,7 @@
 # GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet.
 # This rung does not use the transportation GHG FBS
 # (GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd).
-# use_transportation_ghg_allocation is off. 2025_usa_cornerstone_v0_6 pins that file.
+# use_transportation_ghg_allocation is off. 2026_usa_cornerstone_v0_6 pins that file.
 #
 # Relative to v06_waterfall_g4_nowcast this rung changes the Use pin, the
 # price-index vintage, facility attribution, and the GHG FBS pin together.

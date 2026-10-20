@@ -20,7 +20,7 @@ Configs under test
 * ``v06_waterfall_g3_data``
 * ``v06_waterfall_g4_nowcast``
 * ``v06_waterfall_g5_facilities``
-* ``2025_usa_cornerstone_v0_6``
+* ``2026_usa_cornerstone_v0_6``
 
 Expected floats are sheet ``N_new`` x canonical q (not assessment
 ``N_*_inflated`` columns). Recompute::
