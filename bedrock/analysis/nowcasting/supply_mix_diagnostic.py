@@ -51,9 +51,9 @@ from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     YEARS,
     stratified_E,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_V,
+    derive_Vnorm_scrap_corrected,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
@@ -88,8 +88,8 @@ def load_build(year: int, mut: str, E_sector: pd.Series) -> Build:
         cache_bearing_modules=CACHE_BEARING_MODULES,
         nowcast_mut_vintage=mut,
     ):
-        V = derive_cornerstone_V()
-        Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+        V = derive_V()
+        Vnorm = derive_Vnorm_scrap_corrected()
     x = V.sum(axis=1)
     b = (
         (E_sector.reindex(V.index).fillna(0.0) / x)

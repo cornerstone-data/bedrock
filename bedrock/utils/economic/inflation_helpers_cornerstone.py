@@ -297,17 +297,17 @@ def get_vnorm_adjusted_commodity_price_ratio(
     V-norm weights reflect supplier mix at ``cfg.usa_base_io_data_year``.
     """
     # local import to avoid a circular dependency on transform.eeio
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_Vnorm_scrap_corrected,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_Vnorm_scrap_corrected,
     )
 
     industry_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    Vnorm = derive_Vnorm_scrap_corrected()
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
     # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted
     # *average*, not a weighted *sum*. Scrap correction in
-    # `derive_cornerstone_Vnorm_scrap_corrected` is a row-axis scaling that
+    # `derive_Vnorm_scrap_corrected` is a row-axis scaling that
     # leaves column sums slightly > 1 — using the un-renormalized form would
     # produce a non-1 ratio at year=year (off by the column-sum drift, ~5–7%).
     # Done locally here rather than upstream because A/B matrix consumers want
@@ -371,7 +371,7 @@ def inflate_cornerstone_q_or_y_with_commodity_pi(
 # Summary commodity PI is built ITA-style (Industry-Technology Assumption):
 # the 2017 commodity-mix matrix C_m = V/x is held fixed, and BEA's published
 # year-y industry gross output drives year-specificity for q and V_norm. See
-# `derive_cornerstone_q_and_vnorm_for_year` below.
+# `derive_q_and_vnorm_for_year` below.
 # ---------------------------------------------------------------------------
 
 
@@ -484,15 +484,15 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
     ``\"22\"`` membership at runtime so expand+drop-``221100`` does not orphan
     electricity in summary industry PI.
     """
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_x,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_x,
     )
     from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (  # noqa: PLC0415
         load_bea_v2017_industry_to_bea_v2017_summary,
     )
 
     pi_ind_detail = _cornerstone_indexed_industry_pi(year)
-    x_y = derive_cornerstone_x()
+    x_y = derive_x()
     bea_map: dict[str, list[str]] = {
         str(k): [str(s) for s in v]
         for k, v in load_bea_v2017_industry_to_bea_v2017_summary().items()
@@ -564,7 +564,7 @@ def _cornerstone_commodity_pi_for_year(year: int) -> tuple[pd.Series, pd.Series]
     ``get_sector_commodity_price_index``.
     """
     pi_year_industry = _cornerstone_indexed_industry_pi(year)
-    q_y, V_norm_y = derive_cornerstone_q_and_vnorm_for_year(year)
+    q_y, V_norm_y = derive_q_and_vnorm_for_year(year)
     pi_ind_aligned = pi_year_industry.reindex(V_norm_y.index, fill_value=100.0)
     pi_com_detail = V_norm_y.T @ pi_ind_aligned  # (cornerstone commodities,)
     return q_y, pi_com_detail
@@ -582,7 +582,7 @@ def get_summary_commodity_price_index(year: int) -> pd.Series[float]:
         PI_commodity_summary[K, y] = (q[y]-weighted mean of PI_commodity_detail
                                       over cornerstone children of K)
 
-    `V_norm[y]` and `q[y]` come from ``derive_cornerstone_q_and_vnorm_for_year``
+    `V_norm[y]` and `q[y]` come from ``derive_q_and_vnorm_for_year``
     — constructed under ITA (2017 commodity-mix matrix held fixed, year-y
     industry GO drives year-specificity). See that helper's docstring for what's
     frozen vs. year-specific.
@@ -636,7 +636,7 @@ def get_sector_commodity_price_ratio(
 
 
 @functools.cache
-def derive_cornerstone_q_and_vnorm_for_year(
+def derive_q_and_vnorm_for_year(
     year: int,
 ) -> tuple[pd.Series[float], pd.DataFrame]:
     """Year-y ``(q, V_norm)`` at cornerstone detail granularity.
@@ -660,21 +660,21 @@ def derive_cornerstone_q_and_vnorm_for_year(
     At ``year == cfg.usa_base_io_data_year`` both reduce to their 2017
     counterparts (regression-tested).
     """
-    # Local import: derived_cornerstone imports from this module, mirroring the
+    # Local import: usa_matrices imports from this module, mirroring the
     # existing pattern at the top of `get_vnorm_adjusted_commodity_price_ratio`.
     from bedrock.transform.eeio.cornerstone_expansion import (  # noqa: PLC0415
         expand_industry_output_vector,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
         _distribute_waste_parent_x_using_v_row_shares,
-        derive_cornerstone_V,
+        derive_V,
     )
     from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
         derive_gross_output,
     )
 
     cfg = get_usa_config()
-    V_2017 = derive_cornerstone_V()
+    V_2017 = derive_V()
     x_2017 = compute_x(V=V_2017)
     # C_m: commodity × industry, each row sums to 1 (within-industry split).
     C_m = compute_commodity_mix_matrix(V=V_2017, x=x_2017)
@@ -751,7 +751,7 @@ _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
     _get_summary_industry_price_index,
     get_summary_industry_price_ratio,
     _get_summary_commodity_price_ratio_cached,
-    derive_cornerstone_q_and_vnorm_for_year,
+    derive_q_and_vnorm_for_year,
     obtain_useeior_detail_industry_cpi_levels,
 )
 

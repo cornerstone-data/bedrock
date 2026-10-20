@@ -39,10 +39,10 @@ from bedrock.transform.allocation.derived import derive_E_usa, load_E_from_flows
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_mixed_units,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_x_after_redefinition,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_mixed_units,
+    derive_Aq_scaled,
+    derive_x_after_redefinition,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
@@ -219,9 +219,9 @@ def run_scenario(
             entered.append(p)
             p.start()
 
-        aq_scaled = derive_cornerstone_Aq_scaled()
+        aq_scaled = derive_Aq_scaled()
         c_col, _c_row = electricity_conversion_factors(aq_scaled)
-        aq = derive_cornerstone_Aq_mixed_units()
+        aq = derive_Aq_mixed_units()
         q = aq.scaled_q.astype(float)
         q.index = q.index.astype(str)
         Adom = aq.Adom
@@ -229,7 +229,7 @@ def run_scenario(
         E.columns = E.columns.astype(str)
         B = get_B()
         D = _series_d_total(get_D())
-        x = derive_cornerstone_x_after_redefinition().astype(float)
+        x = derive_x_after_redefinition().astype(float)
         x.index = x.index.astype(str)
 
         national = _collect_scope(

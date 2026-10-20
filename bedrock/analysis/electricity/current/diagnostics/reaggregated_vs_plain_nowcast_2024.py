@@ -56,7 +56,7 @@ Both use nowcast MUT vintage `{vintage}` when pinned.
 ## Analyses that should read pre-collapse 407 derives in-process
 
 - Any G/T/D-level D/N / class-MWh diagnostics before reaggregation.
-- Spill / VA_G checks on `derive_cornerstone_Aq_scaled()` (407 path).
+- Spill / VA_G checks on `derive_Aq_scaled()` (407 path).
 - Purchaser-allocation tables that keep child commodity rows.
 
 Placeholder: expand with numeric attribution once residual CSVs are reviewed.

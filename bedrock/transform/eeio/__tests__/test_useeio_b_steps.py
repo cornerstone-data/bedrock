@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from bedrock.transform.eeio import derived_cornerstone as dc
+from bedrock.transform.eeio import usa_matrices as dc
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
     electricity_reallocation_enabled,
@@ -54,17 +54,17 @@ def test_useeio_b_adjust_divide_transform_steps(
     monkeypatch.setattr(dc, "validate_cornerstone", lambda df, kind: None)
     monkeypatch.setattr(dc, "load_E_from_flowsa", lambda: e)
     monkeypatch.setattr(
-        dc, "derive_cornerstone_x_after_redefinition", lambda: x_nominal
+        dc, "derive_x_after_redefinition", lambda: x_nominal
     )
     monkeypatch.setattr(
         dc,
         "get_cornerstone_industry_price_ratio",
         lambda original_year, target_year: ratio,
     )
-    monkeypatch.setattr(dc, "derive_cornerstone_Vnorm_scrap_corrected", lambda: vnorm)
+    monkeypatch.setattr(dc, "derive_Vnorm_scrap_corrected", lambda: vnorm)
 
     try:
-        out = dc.derive_cornerstone_B_via_vnorm()
+        out = dc.derive_B_via_vnorm()
     finally:
         electricity_reallocation_enabled.cache_clear()
         cornerstone_sector_disagg_active.cache_clear()

@@ -20,9 +20,9 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
 )
 from bedrock.transform.eeio.cornerstone_expansion import industry_corresp
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_U_with_negatives,
+    derive_V,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
@@ -539,25 +539,25 @@ def weights_2017() -> DisaggWeights:
 
 @pytest.fixture(scope="module")
 def real_V() -> pd.DataFrame:
-    """Cornerstone Make matrix (industry x commodity) from derived_cornerstone.
+    """Cornerstone Make matrix (industry x commodity) from usa_matrices.
     May already have waste disaggregated (7 subsectors, no 562000) via correspondence.
     """
-    return derive_cornerstone_V()
+    return derive_V()
 
 
 @pytest.fixture(scope="module")
 def real_U() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Cornerstone Use (Udom, Uimp), commodity x industry, from derived_cornerstone.
+    """Cornerstone Use (Udom, Uimp), commodity x industry, from usa_matrices.
     May already have waste disaggregated (7 subsectors, no 562000).
     """
-    uset = derive_cornerstone_U_with_negatives()
+    uset = derive_U_with_negatives()
     return pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp)
 
 
 @pytest.fixture(scope="module")
 def real_va() -> pd.DataFrame:
     """Cornerstone Value Added (VA rows x industry columns).
-    Built as BEA VA @ industry_corresp().T to match derived_cornerstone sector space.
+    Built as BEA VA @ industry_corresp().T to match usa_matrices sector space.
     May already have waste as 7 subsector columns (no 562000).
     """
     va_bea = load_2017_value_added_usa()
@@ -566,7 +566,7 @@ def real_va() -> pd.DataFrame:
 
 @pytest.fixture(scope="module")
 def real_Ytot() -> pd.DataFrame:
-    """Cornerstone Final Demand (commodity x FD columns) from derived_cornerstone.
+    """Cornerstone Final Demand (commodity x FD columns) from usa_matrices.
     May already have waste disaggregated (7 subsectors, no 562000 in index).
     """
     return derive_disagg_Ytot_with_trade()

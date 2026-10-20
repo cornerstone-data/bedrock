@@ -49,9 +49,9 @@ def _compute_bly_series(
 
 
 def _cornerstone_y_nab_dollar_year(cfg: USAConfig) -> int:
-    """Dollar year of ``derive_cornerstone_y_nab()`` under the active A/q path.
+    """Dollar year of ``derive_y_nab()`` under the active A/q path.
 
-    ``y_nab`` is backcomputed from ``derive_cornerstone_Aq_scaled()``. When
+    ``y_nab`` is backcomputed from ``derive_Aq_scaled()``. When
     ``scale_a_matrix_with_useeio_method`` is on, that path returns the 2017
     detail base unchanged, so ``y`` stays in ``usa_detail_original_year``
     dollars even if ``model_base_year`` is later. Other scale/inflate paths
@@ -130,7 +130,7 @@ def calculate_national_accounting_balance_diagnostics(
       baseline (parquet ``B_USA_non_finetuned`` / ``Adom_USA`` / ``y_nab_USA`` at
       the configured snapshot key, or USEEIO Excel synthetic ``B`` / ``A_d``
       when in Excel baseline mode). For USEEIO, ``y_old`` is Cornerstone
-      ``derive_cornerstone_y_nab()`` reindexed to the USEEIO sector axis
+      ``derive_y_nab()`` reindexed to the USEEIO sector axis
       (USEEIO-only sectors such as ``S00300`` / ``S00401`` / ``S00900`` zeroed).
       Workbook ``B`` intensities are rebased from workbook ``dollar_year`` to
       the dollar year of that ``y_old`` (see ``_cornerstone_y_nab_dollar_year``),
@@ -147,13 +147,13 @@ def calculate_national_accounting_balance_diagnostics(
         derive_B_usa_non_finetuned,
         derive_y_for_national_accounting_balance_usa,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (
-        derive_cornerstone_Aq_mixed_units,
-        derive_cornerstone_Aq_reaggregated,
-        derive_cornerstone_B_mixed_units,
-        derive_cornerstone_B_reaggregated,
-        derive_cornerstone_y_nab_mixed_units,
-        derive_cornerstone_y_nab_reaggregated,
+    from bedrock.transform.eeio.usa_matrices import (
+        derive_Aq_mixed_units,
+        derive_Aq_reaggregated,
+        derive_B_mixed_units,
+        derive_B_reaggregated,
+        derive_y_nab_mixed_units,
+        derive_y_nab_reaggregated,
     )
     from bedrock.utils.validation.diagnostics_helpers import (
         apply_mixed_units_bly_diff_exemptions,
@@ -162,13 +162,13 @@ def calculate_national_accounting_balance_diagnostics(
     logger.info("------ Calculating national accounting balance diagnostics ------")
 
     if electricity_mixed_units_enabled():
-        B_new = derive_cornerstone_B_mixed_units()
-        Aq_set = derive_cornerstone_Aq_mixed_units()
-        y_new = derive_cornerstone_y_nab_mixed_units()
+        B_new = derive_B_mixed_units()
+        Aq_set = derive_Aq_mixed_units()
+        y_new = derive_y_nab_mixed_units()
     elif electricity_reaggregation_enabled():
-        B_new = derive_cornerstone_B_reaggregated()
-        Aq_set = derive_cornerstone_Aq_reaggregated()
-        y_new = derive_cornerstone_y_nab_reaggregated()
+        B_new = derive_B_reaggregated()
+        Aq_set = derive_Aq_reaggregated()
+        y_new = derive_y_nab_reaggregated()
     else:
         B_new = derive_B_usa_non_finetuned()
         Aq_set = derive_Aq_usa()
@@ -223,7 +223,7 @@ def calculate_national_accounting_balance_diagnostics(
 
     logger.info("4. Loading baseline B, Adom, y_nab; computing BLy_old...")
     if cfg.diagnostics_baseline_source == "gcs_useeio_xlsx":
-        from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_y_nab
+        from bedrock.transform.eeio.usa_matrices import derive_y_nab
         from bedrock.utils.validation.useeio_excel_baseline import (
             load_useeio_baseline_bundle,
         )
@@ -236,7 +236,7 @@ def calculate_national_accounting_balance_diagnostics(
             to_year=y_dollar_year,
         )
         Adom_old = ub.adom_old
-        y_cornerstone = derive_cornerstone_y_nab()
+        y_cornerstone = derive_y_nab()
         baseline_axis = Adom_old.index
         missing_in_cornerstone = sorted(
             set(baseline_axis.astype(str)) - set(y_cornerstone.index.astype(str))

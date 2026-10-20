@@ -6,8 +6,8 @@ commodity space. For sectors where industry ≈ commodity (e.g. electricity
 
 We compare:
 - E: live derive_E_usa() vs v0 E_USA_ES snapshot
-- x: live x (flag ON, derive_cornerstone_x_after_redefinition) vs live x
-  (flag OFF, derive_cornerstone_x()). v0 predates the flag, so flag-off x
+- x: live x (flag ON, derive_x_after_redefinition) vs live x
+  (flag OFF, derive_x()). v0 predates the flag, so flag-off x
   computed today is the closest approximation to the x v0 used.
 
 Additive log decomposition:
@@ -34,16 +34,16 @@ from bedrock.utils.config.usa_config import set_global_usa_config  # noqa: E402
 set_global_usa_config('2025_usa_cornerstone_v0_3')
 
 from bedrock.transform.allocation.derived import derive_E_usa  # noqa: E402
-from bedrock.transform.eeio.derived_cornerstone import (  # noqa: E402
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
+from bedrock.transform.eeio.usa_matrices import (  # noqa: E402
+    derive_x,
+    derive_x_after_redefinition,
 )
 from bedrock.utils.snapshots.loader import load_configured_snapshot  # noqa: E402
 
 log.info("computing live E, both x's...")
 E_new = derive_E_usa()
-x_new = derive_cornerstone_x_after_redefinition()  # flag ON (live convention)
-x_old = derive_cornerstone_x()  # flag OFF (v0 convention approximation)
+x_new = derive_x_after_redefinition()  # flag ON (live convention)
+x_old = derive_x()  # flag OFF (v0 convention approximation)
 log.info('E_new=%s  x_new=%s  x_old=%s', E_new.shape, x_new.shape, x_old.shape)
 
 log.info('loading v0 E_USA_ES snapshot...')

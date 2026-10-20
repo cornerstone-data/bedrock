@@ -207,15 +207,15 @@ class TestCalculateEfDiagnostics:
                 return_value=pd.DataFrame(np.eye(n), index=idx, columns=idx),
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_scaled",
+                "bedrock.transform.eeio.usa_matrices.derive_Aq_scaled",
                 return_value=mock_Aq,
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_B_non_finetuned",
+                "bedrock.transform.eeio.usa_matrices.derive_B_non_finetuned",
                 return_value=pd.DataFrame(np.eye(n), index=idx, columns=idx),
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_Aq_mixed_units",
                 return_value=mock_Aq,
             ),
             patch(

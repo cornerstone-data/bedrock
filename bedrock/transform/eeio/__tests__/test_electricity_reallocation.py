@@ -11,7 +11,7 @@ import pytest
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     cornerstone_sector_disagg_active,
-    derive_cornerstone_V_after_waste,
+    derive_V_after_waste,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     electricity_disaggregation_enabled,
@@ -19,15 +19,15 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_Ytot_matrix_set,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_Ytot_matrix_set,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     BALANCE_TOLERANCE,
@@ -52,15 +52,15 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
     cornerstone_sector_disagg_active,
-    derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_U_set,
-    derive_cornerstone_VA,
+    derive_V,
+    derive_Vnorm_scrap_corrected,
+    derive_U_with_negatives,
+    derive_U_set,
+    derive_VA,
     derive_disagg_Ytot_with_trade,
-    derive_cornerstone_Ytot_matrix_set,
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
+    derive_Ytot_matrix_set,
+    derive_Aq,
+    derive_Aq_scaled,
 ]
 
 
@@ -162,14 +162,14 @@ class TestElectricityReallocationIntegration:
 
     def test_post_reallocation_diagonal_values(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
-        V_pre = derive_cornerstone_V_after_waste()
+        V_pre = derive_V_after_waste()
         expected = _expected_post_reallocation_diagonals(V_pre)
         touched = {t.source for t in build_coproduction_transfer_schedule(V_pre)} | {
             t.target for t in build_coproduction_transfer_schedule(V_pre)
         }
 
         _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        V_post = derive_cornerstone_V()
+        V_post = derive_V()
         for industry in touched:
             np.testing.assert_allclose(
                 _make_diagonal(V_post, industry),
@@ -180,9 +180,9 @@ class TestElectricityReallocationIntegration:
 
     def test_make_use_commodity_balance(self) -> None:
         _setup_config("test_usa_config_waste_disagg.yaml")
-        V_pre = derive_cornerstone_V_after_waste()
-        uset_pre = derive_cornerstone_U_with_negatives()
-        y_pre = derive_cornerstone_Ytot_matrix_set().ytot
+        V_pre = derive_V_after_waste()
+        uset_pre = derive_U_with_negatives()
+        y_pre = derive_Ytot_matrix_set().ytot
         q_make_pre = float(V_pre[ELECTRICITY_AGGREGATE].sum())
         q_use_pre = float(
             (uset_pre.Udom + uset_pre.Uimp).loc[ELECTRICITY_AGGREGATE].sum()
@@ -190,9 +190,9 @@ class TestElectricityReallocationIntegration:
         )
 
         _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        V = derive_cornerstone_V()
-        uset = derive_cornerstone_U_with_negatives()
-        y = derive_cornerstone_Ytot_matrix_set().ytot
+        V = derive_V()
+        uset = derive_U_with_negatives()
+        y = derive_Ytot_matrix_set().ytot
         q_make = float(V[ELECTRICITY_AGGREGATE].sum())
         q_use = float(
             (uset.Udom + uset.Uimp).loc[ELECTRICITY_AGGREGATE].sum()
@@ -224,16 +224,16 @@ class TestElectricityReallocationIntegration:
 
     def test_pipeline_aq_dimensions(self) -> None:
         _setup_config("test_usa_config_waste_disagg_electricity.yaml")
-        aq = derive_cornerstone_Aq_scaled()
+        aq = derive_Aq_scaled()
         assert aq.Adom.shape == (405, 405)
         assert aq.Aimp.shape == (405, 405)
 
     def test_feature_off_regression(self) -> None:
         _setup_config("2025_usa_cornerstone_v0_3.yaml")
         assert electricity_reallocation_enabled() is False
-        V_full = derive_cornerstone_V()
+        V_full = derive_V()
         _setup_config("test_usa_config_waste_disagg.yaml")
-        V_waste = derive_cornerstone_V()
+        V_waste = derive_V()
         square_labels = V_full.index.intersection(V_full.columns)
         unrelated = [
             c

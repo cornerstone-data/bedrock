@@ -131,7 +131,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
     Returns:
         ``(True, "")`` to emit adjusted vectors, or ``(False, reason)`` to skip
         (leaving optional fields ``None``) and avoid double-applying inflation when
-        ``derive_cornerstone_B_non_finetuned`` already inflates ``B`` to
+        ``derive_B_non_finetuned`` already inflates ``B`` to
         ``model_base_year``.
     """
     if cfg.deflate_x_to_detail_io_year_for_B:
@@ -151,7 +151,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
         )
     return (
         False,
-        'derive_cornerstone_B_non_finetuned already applies '
+        'derive_B_non_finetuned already applies '
         'inflate_cornerstone_B_matrix_with_industry_pi to model_base_year; '
         'skipping second denominator inflation pass (would double-apply)',
     )
@@ -727,11 +727,11 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_Aq_mixed_units,
-        derive_cornerstone_Aq_reaggregated,
-        derive_cornerstone_B_mixed_units,
-        derive_cornerstone_B_reaggregated,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_Aq_mixed_units,
+        derive_Aq_reaggregated,
+        derive_B_mixed_units,
+        derive_B_reaggregated,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
@@ -748,11 +748,11 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
 
     t0 = time.time()
     if electricity_mixed_units_enabled():
-        B_new = derive_cornerstone_B_mixed_units()
-        Aq_set = derive_cornerstone_Aq_mixed_units()
+        B_new = derive_B_mixed_units()
+        Aq_set = derive_Aq_mixed_units()
     elif electricity_reaggregation_enabled():
-        B_new = derive_cornerstone_B_reaggregated()
-        Aq_set = derive_cornerstone_Aq_reaggregated()
+        B_new = derive_B_reaggregated()
+        Aq_set = derive_Aq_reaggregated()
     else:
         B_new = derive_B_usa_non_finetuned()
         Aq_set = derive_Aq_usa()

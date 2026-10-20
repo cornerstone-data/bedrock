@@ -166,10 +166,10 @@ def derive_step(
         electricity_mixed_units_enabled,
         electricity_reaggregation_enabled,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_Aq_mixed_units,
-        derive_cornerstone_Aq_reaggregated,
-        derive_cornerstone_Aq_scaled,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_Aq_mixed_units,
+        derive_Aq_reaggregated,
+        derive_Aq_scaled,
     )
     from bedrock.utils.config.usa_config import (  # noqa: PLC0415
         reset_usa_config,
@@ -184,14 +184,14 @@ def derive_step(
     clear_all_publish_caches()
     set_global_usa_config(config)
     if electricity_mixed_units_enabled():
-        aq_mon = derive_cornerstone_Aq_scaled()
+        aq_mon = derive_Aq_scaled()
         c_col, _c_row = electricity_conversion_factors(aq_mon)
-        aq = derive_cornerstone_Aq_mixed_units()
+        aq = derive_Aq_mixed_units()
     elif electricity_reaggregation_enabled():
-        aq = derive_cornerstone_Aq_reaggregated()
+        aq = derive_Aq_reaggregated()
         c_col = None
     else:
-        aq = derive_cornerstone_Aq_scaled()
+        aq = derive_Aq_scaled()
         c_col = None
     efs = pull_efs_for_diagnostics()
     x = get_x()

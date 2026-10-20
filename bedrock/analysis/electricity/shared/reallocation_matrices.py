@@ -9,9 +9,9 @@ import pandas as pd
 
 from bedrock.publish.model_objects import apply_loc_suffix, assemble_extended_U
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    derive_cornerstone_U_after_waste,
-    derive_cornerstone_V_after_waste,
-    derive_cornerstone_VA_after_waste,
+    derive_U_after_waste,
+    derive_V_after_waste,
+    derive_VA_after_waste,
     derive_disagg_Ytot_with_trade,
 )
 from bedrock.utils.math.handle_negatives import handle_negative_matrix_values
@@ -111,9 +111,9 @@ def write_electricity_reallocation_intermediate_outputs(
     """Write before/after reallocation V, extended U, and totals summaries to Excel."""
     y_fd = derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)]
 
-    v_before = derive_cornerstone_V_after_waste()
-    udom_before, uimp_before = derive_cornerstone_U_after_waste()
-    va_before = derive_cornerstone_VA_after_waste()
+    v_before = derive_V_after_waste()
+    udom_before, uimp_before = derive_U_after_waste()
+    va_before = derive_VA_after_waste()
     u_before, intermediate_before = _extended_use_tables(
         udom=udom_before,
         uimp=uimp_before,
