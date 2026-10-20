@@ -29,15 +29,15 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_U_set,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x_after_redefinition,
-)
 from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_scaled,
+    derive_U_set,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_x_after_redefinition,
+)
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
@@ -120,7 +120,7 @@ def _clear_model_caches() -> None:
     import bedrock.transform.allocation.derived as allocation_derived  # noqa: PLC0415
     import bedrock.transform.eeio.cornerstone_disagg_pipeline as disagg_pipeline  # noqa: PLC0415
     import bedrock.transform.eeio.derived as eeio_derived  # noqa: PLC0415
-    import bedrock.transform.eeio.derived_cornerstone as derived_cornerstone  # noqa: PLC0415
+    import bedrock.transform.eeio.usa_matrices as usa_matrices  # noqa: PLC0415
     from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
         clear_cornerstone_inflation_caches,
     )
@@ -133,7 +133,7 @@ def _clear_model_caches() -> None:
         allocation_derived,
         disagg_pipeline,
         eeio_derived,
-        derived_cornerstone,
+        usa_matrices,
     ):
         _clear_module_caches(mod)
 
@@ -193,26 +193,26 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
     sectors = _active_electricity_sectors()
     mixed = electricity_mixed_units_enabled()
 
-    V = derive_cornerstone_V()
-    uset = derive_cornerstone_U_set()
+    V = derive_V()
+    uset = derive_U_set()
     Udom, Uimp = uset.Udom, uset.Uimp
-    VA = derive_cornerstone_VA()
+    VA = derive_VA()
     Y = derive_disagg_Ytot_with_trade()
     x = compute_x(V=V)
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    Vnorm = derive_Vnorm_scrap_corrected()
 
-    aq_monetary = derive_cornerstone_Aq_scaled()
+    aq_monetary = derive_Aq_scaled()
     c_col: float | None = None
     monetary_q = aq_monetary.scaled_q
     if mixed:
         c_col, _ = electricity_conversion_factors(aq_monetary)
-        aq = derive_cornerstone_Aq_scaled()
+        aq = derive_Aq_scaled()
         if electricity_mixed_units_enabled():
-            from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-                derive_cornerstone_Aq_mixed_units,
+            from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+                derive_Aq_mixed_units,
             )
 
-            aq = derive_cornerstone_Aq_mixed_units()
+            aq = derive_Aq_mixed_units()
     else:
         aq = aq_monetary
 
@@ -220,7 +220,7 @@ def collect_config_trace(label: str, config_name: str) -> ConfigTrace:
     B = get_B()
     L = get_L()
     E = derive_E_usa()
-    x_b = derive_cornerstone_x_after_redefinition()
+    x_b = derive_x_after_redefinition()
 
     A = aq.Adom + aq.Aimp
     q_usd = _q_usd_total(q, sectors=sectors, monetary_q=monetary_q, _c_col=c_col)

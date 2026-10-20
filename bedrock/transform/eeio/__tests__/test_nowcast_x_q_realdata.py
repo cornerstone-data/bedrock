@@ -30,9 +30,9 @@ from bedrock.extract.iot.detail_io import load_detail_V_usa
 from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa
 from bedrock.publish.cache_reset import clear_all_publish_caches
 from bedrock.transform.eeio.cornerstone_expansion import commodity_corresp
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_x,
+    derive_x_after_redefinition,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
@@ -87,9 +87,9 @@ def test_nowcast_2017_cornerstone_x_is_the_make_row_sum(
     make = _router_make_or_skip()
     x_bea = make.sum(axis=1)
 
-    x_cs = derive_cornerstone_x_after_redefinition()
+    x_cs = derive_x_after_redefinition()
 
-    pd.testing.assert_series_equal(x_cs, derive_cornerstone_x())
+    pd.testing.assert_series_equal(x_cs, derive_x())
     # Schema expansion re-partitions industries (waste children, government
     # enterprises into 221100/485000) without creating or destroying output,
     # net of the one deliberate drop: commodity-correspondence weights below

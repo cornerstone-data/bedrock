@@ -432,12 +432,11 @@ def test_derive_step_first_three_dn_match_mecs_and_write_x(
     )
     monkeypatch.setattr(sources, '_write_class_mwh', lambda _folder: None)
     monkeypatch.setattr(
-        'bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_scaled',
+        'bedrock.transform.eeio.usa_matrices.derive_Aq_scaled',
         _fake_scaled,
     )
     monkeypatch.setattr(
-        'bedrock.transform.eeio.derived_cornerstone.'
-        'derive_cornerstone_Aq_reaggregated',
+        'bedrock.transform.eeio.usa_matrices.' 'derive_Aq_reaggregated',
         _fake_reagg,
     )
     monkeypatch.setattr(

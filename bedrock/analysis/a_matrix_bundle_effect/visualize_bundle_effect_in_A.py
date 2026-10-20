@@ -3,9 +3,9 @@ detail-level commodities, organized by summary bundle.
 
 Compares bedrock's two derived Detail A matrices:
   * 2017 Detail A             — BEA 2017 benchmark, before scale+inflate
-                                (``derive_cornerstone_Aq()``)
+                                (``derive_Aq()``)
   * <model_base_year> Detail A — after scale+inflate to the target year, default 2023
-                                (``derive_cornerstone_Aq_scaled()``)
+                                (``derive_Aq_scaled()``)
 
 For each detail commodity j it reads the electricity (221100) input coefficient
 A[221100, j] in both matrices, and groups commodities by their parent BEA 2017
@@ -36,9 +36,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_scaled,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
@@ -94,10 +94,10 @@ def load_distortion_data() -> DistortionData:
     cfg = get_usa_config()
     scaled_year = int(cfg.model_base_year)
 
-    base = derive_cornerstone_Aq()
+    base = derive_Aq()
     adom_2017 = base.Adom
     q_2017 = base.scaled_q
-    scaled = derive_cornerstone_Aq_scaled()
+    scaled = derive_Aq_scaled()
     adom_scaled = scaled.Adom
     q_scaled = scaled.scaled_q
 

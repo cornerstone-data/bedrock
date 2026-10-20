@@ -12,12 +12,12 @@ from typing import Any
 import pandas as pd
 
 from bedrock.publish.cache_reset import clear_all_publish_caches
-from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_Aq_scaled
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     EIAPurchaserAllocation,
     _class_mwh_targets,
     get_reanchored_eia_purchaser_allocation,
 )
+from bedrock.transform.eeio.usa_matrices import derive_Aq_scaled
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
@@ -50,12 +50,12 @@ def load_reanchored_allocation(config: str = MIXED_CONFIG) -> EIAPurchaserAlloca
     reset_usa_config()
     clear_all_publish_caches()
     set_global_usa_config(config)
-    derive_cornerstone_Aq_scaled()
+    derive_Aq_scaled()
     alloc = get_reanchored_eia_purchaser_allocation()
     if alloc is None:
         raise RuntimeError(
             'get_reanchored_eia_purchaser_allocation() is None after '
-            f'derive_cornerstone_Aq_scaled under {config!r}. Need a 3-way/mixed '
+            f'derive_Aq_scaled under {config!r}. Need a 3-way/mixed '
             'YAML with apply_io_year_adjustments=True and USEEIO A-scale off.'
         )
     return alloc
@@ -356,7 +356,7 @@ def render_purchaser_tables_md(
         '',
         'Allocator source: `get_reanchored_eia_purchaser_allocation()` after '
         '`reset_usa_config` -> `clear_all_publish_caches` -> '
-        '`set_global_usa_config` -> `derive_cornerstone_Aq_scaled`.',
+        '`set_global_usa_config` -> `derive_Aq_scaled`.',
         '',
         '## Class MWh vs class targets',
         '',

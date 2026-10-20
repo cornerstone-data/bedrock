@@ -123,7 +123,7 @@ class USAConfig(BaseModel):
         description=(
             'Deflate BEA gross-output industry x at usa_ghg_data_year to '
             'usa_detail_original_year chain dollars before E/x in B '
-            '(derive_cornerstone_B_via_vnorm). Requires '
+            '(derive_B_via_vnorm). Requires '
             'use_E_data_year_for_x_in_B to be true.'
         ),
     )

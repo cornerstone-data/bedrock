@@ -1084,8 +1084,8 @@ def _scaled_export_fd_electricity_purchases(
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
         derive_disagg_Ytot_with_trade,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-        derive_cornerstone_Aq,
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+        derive_Aq,
     )
     from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
         inflate_cornerstone_q_or_y_with_commodity_pi,
@@ -1097,7 +1097,7 @@ def _scaled_export_fd_electricity_purchases(
     if EXPORT_FD_CODE not in y_detail.columns:
         raise ValueError(f'{EXPORT_FD_CODE} missing from 2017 Y')
     slice_detail = y_detail.loc[elec, EXPORT_FD_CODE].astype(float)
-    q_detail = derive_cornerstone_Aq().scaled_q.astype(float).reindex(elec)
+    q_detail = derive_Aq().scaled_q.astype(float).reindex(elec)
     pre = pre_q.astype(float).reindex(elec)
     ratio = (pre / q_detail.replace(0.0, np.nan)).fillna(1.0)
     scaled = slice_detail * ratio

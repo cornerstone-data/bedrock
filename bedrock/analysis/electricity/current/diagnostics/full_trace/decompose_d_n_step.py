@@ -26,15 +26,15 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_mixed_units,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x_after_redefinition,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
     get_electricity_commodity_row_weights,
+)
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_mixed_units,
+    derive_Aq_scaled,
+    derive_Vnorm_scrap_corrected,
+    derive_x_after_redefinition,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -63,8 +63,8 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
     set_global_usa_config(config)
 
     E = derive_E_usa()
-    x = derive_cornerstone_x_after_redefinition()
-    Vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    x = derive_x_after_redefinition()
+    Vnorm = derive_Vnorm_scrap_corrected()
     B = get_B()
     L = get_L()
     D_vec = compute_d(B=B)
@@ -72,13 +72,13 @@ def _analyze(config: str, label: str, sectors: list[str]) -> dict[str, Any]:
     N_vec = compute_n(M=M)
     D_pub = get_D()
     N_pub = get_N()
-    aq_monetary = derive_cornerstone_Aq_scaled()
+    aq_monetary = derive_Aq_scaled()
     monetary_q = aq_monetary.scaled_q
     mixed = electricity_mixed_units_enabled()
     c_col: float | None = None
     if mixed:
         c_col, _ = electricity_conversion_factors(aq_monetary)
-        aq = derive_cornerstone_Aq_mixed_units()
+        aq = derive_Aq_mixed_units()
     else:
         aq = aq_monetary
     q = get_q()
@@ -188,9 +188,7 @@ def _analyze_y_nab_block(
     _clear_model_caches()
     set_global_usa_config(config)
 
-    aq = (
-        derive_cornerstone_Aq_mixed_units() if mixed else derive_cornerstone_Aq_scaled()
-    )
+    aq = derive_Aq_mixed_units() if mixed else derive_Aq_scaled()
     q = aq.scaled_q
     adom = aq.Adom
     adom_q = adom.multiply(q, axis=1).sum(axis=1)
@@ -424,14 +422,14 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
         "These tables report two different output concepts. They are not required to match.",
         "",
         "- **`q (scaled USD)`** is **commodity** output from "
-        "`derive_cornerstone_Aq_scaled()` (`scaled_q`). On the v0.3.1 electricity footing "
+        "`derive_Aq_scaled()` (`scaled_q`). On the v0.3.1 electricity footing "
         "(`model_base_year=2024`, `usa_ghg_data_year=2024`, "
         "`apply_io_year_adjustments=True`, detail IO year **2017**), detail Make-based "
         "`q` is year-scaled and inflated onto the 2024 model year. "
         '"Scaled" means that A/q year-scaling/inflation pipeline — **not** the later '
         "mixed-units (MWh) conversion.",
         "- **`x (B denominator)`** is **industry** gross output used in `E / x` for B, "
-        "from `derive_cornerstone_x_after_redefinition()` at **`usa_ghg_data_year` = 2024** "
+        "from `derive_x_after_redefinition()` at **`usa_ghg_data_year` = 2024** "
         "(BEA gross-output time series expanded into Cornerstone under "
         "`apply_io_year_adjustments`). It is **year-selected industry GO**, not the same "
         "summary-ratio `scale_cornerstone_q` path as `q`.",
@@ -765,7 +763,7 @@ def _conversion_factor_detail(config: str) -> dict[str, Any]:
     reset_usa_config()
     _clear_model_caches()
     set_global_usa_config(config)
-    aq = derive_cornerstone_Aq_scaled()
+    aq = derive_Aq_scaled()
     cfg = get_usa_config()
     c_col, c_row = electricity_conversion_factors(aq)
     q_usd = float(aq.scaled_q[GENERATION_SECTOR])

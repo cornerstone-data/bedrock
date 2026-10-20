@@ -768,14 +768,14 @@ def _derive_post_reallocation_checkpoint_for_disagg() -> (
 ):
     """Post-reallocation V/U/VA before the G/T/D Make/Use split (production path)."""
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
-        derive_cornerstone_U_after_waste,
-        derive_cornerstone_V_after_waste,
-        derive_cornerstone_VA_after_waste,
+        derive_U_after_waste,
+        derive_V_after_waste,
+        derive_VA_after_waste,
     )
 
-    v = derive_cornerstone_V_after_waste()
-    udom, uimp = derive_cornerstone_U_after_waste()
-    va = derive_cornerstone_VA_after_waste()
+    v = derive_V_after_waste()
+    udom, uimp = derive_U_after_waste()
+    va = derive_VA_after_waste()
     return reallocate_electricity_coproduction(v, udom, uimp, va)
 
 
