@@ -369,8 +369,8 @@ def test_keep_chemical_manufacturing_resets_index() -> None:
 @pytest.mark.parametrize(
     ('method', 'energy'),
     [
-        ('GHG_national_Cornerstone_v03_2018', 'Energy_manufacturing_national_2018'),
-        ('GHG_national_Cornerstone_v03_2024', 'Energy_manufacturing_national_2022'),
+        ('GHG_national_Cornerstone_2018', 'Energy_manufacturing_national_2018'),
+        ('GHG_national_Cornerstone_2024', 'Energy_manufacturing_national_2022'),
     ],
 )
 def test_ghg_nests_point_at_energy_cornerstone(method: str, energy: str) -> None:

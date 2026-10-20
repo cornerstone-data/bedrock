@@ -108,8 +108,7 @@ def _patch_load_e_use_year_fbs_not_egrid() -> Any:
     def _patched_load_E_from_flowsa() -> pd.DataFrame:
         usa = get_usa_config()
         if not (
-            usa.use_cornerstone_ghg_model
-            and usa.implement_electricity_disaggregation
+            usa.implement_electricity_disaggregation
             and int(usa.usa_ghg_data_year) == 2017
         ):
             return load_E_from_flowsa()

@@ -37,11 +37,17 @@ def isolated_fbs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterato
     yield fbs_dir
 
 
+@pytest.mark.fbs_regeneration
 @pytest.mark.eeio_integration
 def test_generate_cornerstone_ghg_fbs_matches_pinned_reference(
     isolated_fbs_dir: Path,
 ) -> None:
     """Regenerated Cornerstone GHG FBS matches the pinned parquet.
+
+    ``fbs_regeneration`` selects the weekday job that runs this rebuild.
+    ``eeio_integration`` applies the extract and transform conftest fixtures
+    that pin the USA config and allow FBA download from GCS. The cornerstone
+    job selects ``eeio_integration and not fbs_regeneration``.
 
     Relies on ``stewi_facility_pin`` (default on) for GHGRP/NEI + facilitymatcher
     and on the Energy FBS stems available via GCS / local cache for Hybrid.

@@ -34,6 +34,7 @@ DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
         'useeio_baseline_xlsx_gs_uri',
         'useeio_baseline_xlsx_sha256',
         'useeio_model_version_label',
+        'useeio_baseline_price_index',
         'model_base_year',
         'usa_ghg_data_year',
     }
@@ -68,7 +69,7 @@ class USAConfig(BaseModel):
         description=(
             'Exact Cornerstone GHG FlowBySector parquet, version and git hash '
             'included (for example '
-            'GHG_national_Cornerstone_2024_v0.5.0_82e24cd'
+            'GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc'
             '.parquet). When set, the GHG loader reads that file from the '
             'local FBS directory and, if it is absent, downloads that object '
             'from gs://cornerstone-default/transform/output_data/. A newer '
@@ -307,9 +308,17 @@ class USAConfig(BaseModel):
     # configs/2025_usa_cornerstone_v0_4_materials_alpha_0_8.yaml.
     census_materials_index_alpha: float = 1.0  # DRI: WesIngwersen
     ### GHG Methodology selection
-    # "GHG model allocation" bucket: Cornerstone GHG FBS (pre-built parquet at
-    # usa_ghg_data_year) vs the legacy CEDA-methodology FBS (2023 only).
-    use_cornerstone_ghg_model: bool = False
+    # When True with usa_detail_io_source=nowcast, load the facility-attribution
+    # GHG FBS stem (GHG_national_Cornerstone_nowcast_facilities_{year}) instead
+    # of the MECS/Use nowcast stem. Ignored when the detail source is
+    # bea_published.
+    use_facility_ghg_attribution: bool = False
+    # When True with facility attribution, load
+    # GHG_national_Cornerstone_nowcast_facilities_transportation_{year}
+    # (on-road gasoline and diesel via highway fuel shares). False keeps the
+    # facility stem. Electricity disaggregation loads the eGRID FBS and does
+    # not read this flag.
+    use_transportation_ghg_allocation: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -338,6 +347,18 @@ class USAConfig(BaseModel):
         default=None,
         description=(
             'Short label for config_summary / auditing. Typically set in useeio_baseline_pin.json.'
+        ),
+    )
+    useeio_baseline_price_index: ta.Literal[
+        'useeior_v1.8.0', 'bea_price_index_vintage'
+    ] = Field(
+        default='useeior_v1.8.0',
+        description=(
+            'Price index that converts the USEEIO baseline EFs from their dollar '
+            'year to model_base_year. useeior_v1.8.0 is the pinned useeior '
+            'Detail_CPI_IO_17sch, so the baseline stays fixed across releases '
+            "(#1102). bea_price_index_vintage reuses the run's BEA vintage, "
+            'which moves the baseline whenever that vintage moves.'
         ),
     )
 
@@ -408,6 +429,28 @@ class USAConfig(BaseModel):
                 'implement_electricity_reaggregation requires '
                 'implement_electricity_disaggregation'
             )
+        if self.use_transportation_ghg_allocation:
+            if (
+                self.usa_detail_io_source != 'nowcast'
+                or not self.use_facility_ghg_attribution
+            ):
+                raise ValueError(
+                    'use_transportation_ghg_allocation requires '
+                    "usa_detail_io_source 'nowcast' and "
+                    'use_facility_ghg_attribution'
+                )
+            if self.usa_ghg_data_year != 2024:
+                raise ValueError(
+                    'use_transportation_ghg_allocation is defined for '
+                    'usa_ghg_data_year 2024 only; '
+                    f'got {self.usa_ghg_data_year}'
+                )
+            if self.implement_electricity_disaggregation:
+                raise ValueError(
+                    'use_transportation_ghg_allocation is not used when '
+                    'implement_electricity_disaggregation is on; that path '
+                    'loads the eGRID FBS'
+                )
         if (
             self.implement_electricity_reaggregation
             and self.implement_electricity_mixed_units

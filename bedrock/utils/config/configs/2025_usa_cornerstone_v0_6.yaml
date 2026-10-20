@@ -1,10 +1,12 @@
 # Cornerstone 2025 model - v0.6.
 #
-# Detail MUT is the after-redefinition build named by
+# 2024 nowcast model. Detail MUT is the after-redefinition build named by
 # nowcast_mut_vintage: v0.5.0_a166975, the 2026Q2 price-index rebuild.
 # bea_price_index_vintage 2026Q2 is the index those tables were built with.
-# cornerstone_ghg_fbs_filename pins GHG_national_Cornerstone_2024 to
-# GHG_national_Cornerstone_2024_v0.5.0_82e24cd.parquet.
+# Transportation GHG allocation selects
+# GHG_national_Cornerstone_nowcast_facilities_transportation_2024.
+# cornerstone_ghg_fbs_filename pins that stem to
+# GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd.parquet.
 # Waste disaggregation, industry-average margins, and no IO year adjustments.
 
 #####
@@ -25,8 +27,9 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v0.5.0_82e24cd.parquet # v0.5.0 is correct here because a model always uses a FBS from the previous version
+use_facility_ghg_attribution: True
+use_transportation_ghg_allocation: True
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd.parquet # v0.5.0 is correct here because a model always uses a FBS from the previous version
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io

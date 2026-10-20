@@ -1,9 +1,14 @@
-# v06_waterfall G5. Settings match 2025_usa_cornerstone_v0_5_9: Use
-# v0.5.0_a166975 and price index 2026Q2.
-# 2025_usa_cornerstone_v0_6 changes the GHG FBS pin.
+# v06_waterfall G5 — facilities. Settings match
+# 2025_usa_cornerstone_v0_5_9: Use v0.5.0_a166975, price index 2026Q2,
+# facility GHG on, and
+# GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet.
+# This rung does not use the transportation GHG FBS
+# (GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd).
+# use_transportation_ghg_allocation is off. 2025_usa_cornerstone_v0_6 pins that file.
 #
 # Relative to v06_waterfall_g4_nowcast this rung changes the Use pin, the
-# price-index vintage, and the GHG FBS pin together.
+# price-index vintage, facility attribution, and the GHG FBS pin together.
+# The facility-only step on the v0.5 Use is 2025_usa_cornerstone_v0_5.
 
 #####
 # Model base settings
@@ -23,8 +28,8 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v0.5.0_a166975.parquet
+use_facility_ghg_attribution: True
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2024_v0.5.0_a166975.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io

@@ -1,18 +1,369 @@
-"""
-Cornerstone industry-to-MECS mappings.
+"""Cornerstone industry-to-MECS 3.1 mappings.
 
-Same as CEDA 2.1 and 3.1 NAICS except 331313 uses subtraction: mapped value 3313
-minus 331314, 331315, and 331318. Cornerstone has aggregate 335220 (major household
-appliances) but not 335221, 335222, 335224, 335228; we exclude the four and map
-335220 -> MECS 335 so the aggregate receives allocation.
+331313 uses subtraction: mapped value 3313 minus 331314, 331315, and 331318.
+Cornerstone has aggregate 335220 (major household appliances) and not
+335221, 335222, 335224, 335228. Those four are dropped, and 335220 maps to
+MECS 335 so the aggregate receives allocation.
+
+Electricity generation, transmission, and distribution purchaser allocation
+uses these maps to put MECS Table 7.7 purchased kWh on Cornerstone industries.
 """
 
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
-    CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
-)
+from __future__ import annotations
+
+_MECS_3_1: dict[tuple[str, ...], tuple[str, ...]] = {
+    # 1:1 CEDA industry to energy distribution
+    ("321100",): ("321113",),
+    ("321200",): ("3212",),  # CEDA 321200 covers all sub-industries under NAICS 3212
+    ("327310",): ("327310",),
+    ("331110",): ("331110",),
+    ("331200",): ("3312",),
+    ("331313",): ("3313",),  # CEDA 331313 covers all sub-industries under NAICS 3313
+    ("331410",): ("331410",),
+    ("331510",): ("331511",),
+    ("334413",): ("334413",),
+    ("336111",): ("336111",),
+    ("336112",): ("336112",),
+    ("336411",): ("336411",),
+    ("339115",): ("339",),
+    ("339116",): ("339",),
+    ("339910",): ("339",),
+    ("339920",): ("339",),
+    ("339930",): ("339",),
+    ("339940",): ("339",),
+    ("339950",): ("339",),
+    ("339990",): ("339",),
+    ("311221",): ("311221",),
+    ("311300",): ("31131",),
+    ("312200",): ("3122",),
+    ("315000",): ("315",),
+    ("316000",): ("316",),
+    ("322110",): ("322110",),
+    ("322130",): ("322130",),
+    ("324110",): ("324110",),
+    ("324121",): ("324121",),
+    ("324122",): ("324122",),
+    ("325110",): ("325110",),
+    ("325120",): ("325120",),
+    ("325180",): ("325180",),
+    ("325211",): ("325211",),
+    ("325412",): ("325412",),
+    ("3259A0",): ("325992",),
+    ("327100",): ("327120",),
+    ("327993",): ("327993",),
+    # Multi mappings 1:many, many: 1 or many:many, but no subtraction
+    # These industries are aggregated on the RHS into a total and allocated
+    # using the BEA Use table
+    ("323110", "323120"): ("323",),
+    ("321910", "3219A0"): ("3219",),
+    ("327200",): (
+        "327211",
+        "327212",
+        "327213",
+        "327215",
+    ),
+    ("327400",): ("327410", "327420"),
+    (
+        "332114",
+        "33211A",
+        "332119",
+        "332200",
+        "332310",
+        "332320",
+        "332410",
+        "332420",
+        "332430",
+        "332500",
+        "332600",
+        "332710",
+        "332720",
+        "332800",
+        "332913",
+        "33291A",
+        "332991",
+        "332996",
+        "33299A",
+        "332999",
+    ): ("332",),
+    ("331520",): ("331523", "331524"),
+    (
+        "333111",
+        "333112",
+        "333120",
+        "333130",
+        "333242",
+        "33329A",
+        "333314",
+        "333316",
+        "333318",
+        "333414",
+        "333415",
+        "333413",
+        "333511",
+        "333514",
+        "333517",
+        "33351B",
+        "333611",
+        "333612",
+        "333613",
+        "333618",
+        "333912",
+        "333914",
+        "333920",
+        "333991",
+        "333993",
+        "333994",
+        "33399A",
+        "33399B",
+    ): ("333",),
+    (
+        "335110",
+        "335120",
+        "335210",
+        "335221",
+        "335222",
+        "335224",
+        "335228",
+        "335311",
+        "335312",
+        "335313",
+        "335314",
+        "335911",
+        "335912",
+        "335920",
+        "335930",
+        "335991",
+        "335999",
+    ): ("335",),
+    (
+        "337110",
+        "337121",
+        "337122",
+        "337127",
+        "33712N",
+        "337215",
+        "33721A",
+        "337900",
+    ): ("337",),
+    (
+        "339112",
+        "339113",
+        "339114",
+        "339115",
+        "339116",
+        "339910",
+        "339920",
+        "339930",
+        "339940",
+        "339950",
+        "339990",
+    ): ("339",),
+    (
+        "311410",
+        "311420",
+    ): ("3114",),
+    (
+        "311513",
+        "311514",
+        "31151A",
+        "311520",
+    ): ("3115",),
+    (
+        "311615",
+        "31161A",
+    ): ("3116",),
+    (
+        "312110",
+        "312120",
+        "312130",
+        "312140",
+    ): ("3121",),
+    ("313100", "313200", "313300"): ("313",),
+    (
+        "314110",
+        "314120",
+        "314900",
+    ): ("314",),
+    ("322120",): (
+        "322121",
+        "322122",
+    ),
+    ("324190",): (
+        "324191",
+        "324199",
+    ),
+    ("325190",): (
+        "325193",
+        "325194",
+        "325199",
+    ),
+    ("3252A0",): ("325212", "325220"),
+    ("325310",): (
+        "325311",
+        "325312",
+    ),
+    (
+        "326110",
+        "326120",
+        "326130",
+        "326140",
+        "326150",
+        "326160",
+        "326190",
+        "326210",
+        "326220",
+        "326290",
+    ): ("326",),
+}
+
+_MECS_3_1_SUBTRACTION: dict[
+    tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]
+] = {
+    # For each of these industries, they map to a subset of the total
+    # energy distribution from MECS 3.1
+    # The ordering is {(CEDA industries): ((mapped values), (subtract values))}
+    ("327320", "327330", "327390", "327910", "327991", "327992", "327999"): (
+        ("327",),
+        (
+            "327120",
+            "327211",
+            "327212",
+            "327213",
+            "327215",
+            "327310",
+            "327410",
+            "327420",
+            "327993",
+        ),
+    ),
+    ("331420", "331490"): (("3314",), ("331410",)),
+    (
+        "334111",
+        "334112",
+        "334118",
+        "334210",
+        "334220",
+        "334290",
+        "334418",
+        "33441A",
+        "334510",
+        "334511",
+        "334512",
+        "334513",
+        "334514",
+        "334515",
+        "334516",
+        "334517",
+        "33451A",
+        "334300",
+        "334610",
+    ): (("334",), ("334413",)),
+    (
+        "336120",
+        "336211",
+        "336212",
+        "336213",
+        "336214",
+        "336310",
+        "336320",
+        "336350",
+        "336360",
+        "336370",
+        "336390",
+        "3363A0",
+        "336500",
+        "336611",
+        "336612",
+        "336991",
+        "336992",
+        "336999",
+    ): (
+        ("336",),
+        (
+            "336111",
+            "336112",
+            "3364",
+        ),
+    ),
+    (
+        "336412",
+        "336413",
+        "336414",
+        "33641A",
+    ): (("3364",), ("336411",)),
+    (
+        "311111",
+        "311119",
+        "311700",
+        "311810",
+        "3118A0",
+        "311910",
+        "311920",
+        "311930",
+        "311940",
+        "311990",
+    ): (
+        ("311",),
+        (
+            "3112",
+            "31131",
+            "3114",
+            "3115",
+            "3116",
+        ),
+    ),
+    (
+        "311210",
+        "311225",
+        "311224",
+        "311230",
+    ): (("3112",), ("311221",)),
+    (
+        "322210",
+        "322220",
+        "322230",
+        "322291",
+        "322299",
+    ): (
+        ("322",),
+        (
+            "322110",
+            "322121",
+            "322122",
+            "322130",
+        ),
+    ),
+    (
+        "325130",
+        "325320",
+        "325510",
+        "325520",
+        "325610",
+        "325620",
+        "325910",
+    ): (
+        ("325",),
+        (
+            "325110",
+            "325120",
+            "325180",
+            "325193",
+            "325194",
+            "325199",
+            "325211",
+            "325212",
+            "325220",
+            "325311",
+            "325312",
+            "3254",
+        ),
+    ),
+    (
+        "325411",
+        "325413",
+        "325414",
+    ): (("3254",), ("325412",)),
+}
 
 # Single-sector keys to drop (Cornerstone has aggregate 335220 instead).
 _CORNERSTONE_MECS_EXCLUDED = (
@@ -33,49 +384,21 @@ def _cornerstone_key(k: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(s for s in k if s not in _APPLIANCE_SUBS) + (_APPLIANCE_AGGREGATE,)
 
 
-# CORNERSTONE 2.1 NAICS: same as CEDA except 331313 uses subtraction (3313 minus 331314, 331315, 331318),
-# we add 331314 and 33131B (BEA aggregate of 331315+331318), exclude _CORNERSTONE_MECS_EXCLUDED,
-# and in any key containing the appliance sub-sectors use 335220 instead.
-CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING: dict[
-    tuple[str, ...], tuple[str, ...]
-] = {
-    _cornerstone_key(k): v
-    for k, v in CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING.items()
-    if k != ("331313",) and k not in _CORNERSTONE_MECS_EXCLUDED
-}
-CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING[("331314",)] = ("331314",)
-CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING[("33131B",)] = ("331315", "331318")
-
-# CORNERSTONE 2.1 NAICS subtraction: same as CEDA plus 331313 -> 3313 minus 331314, 331315, 331318; exclude _CORNERSTONE_MECS_EXCLUDED; use 335220 in keys that had the four.
-CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING: dict[
-    tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]
-] = {
-    _cornerstone_key(k): v
-    for k, v in CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING.items()
-    if k not in _CORNERSTONE_MECS_EXCLUDED
-}
-CORNERSTONE_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING[("331313",)] = (
-    ("3313",),
-    ("331314", "331315", "331318"),
-)
-
-# CORNERSTONE 3.1 NAICS: same as CEDA except 331313 uses subtraction, we add 331314 and 33131B, exclude _CORNERSTONE_MECS_EXCLUDED, and use 335220 in keys that had the four.
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING: dict[
     tuple[str, ...], tuple[str, ...]
 ] = {
     _cornerstone_key(k): v
-    for k, v in CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.items()
+    for k, v in _MECS_3_1.items()
     if k != ("331313",) and k not in _CORNERSTONE_MECS_EXCLUDED
 }
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING[("331314",)] = ("331314",)
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING[("33131B",)] = ("331315", "331318")
 
-# CORNERSTONE 3.1 NAICS subtraction: same as CEDA plus 331313; exclude _CORNERSTONE_MECS_EXCLUDED; use 335220 in keys that had the four.
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING: dict[
     tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]
 ] = {
     _cornerstone_key(k): v
-    for k, v in CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.items()
+    for k, v in _MECS_3_1_SUBTRACTION.items()
     if k not in _CORNERSTONE_MECS_EXCLUDED
 }
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING[("331313",)] = (

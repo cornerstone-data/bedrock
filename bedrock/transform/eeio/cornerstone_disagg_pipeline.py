@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import pandas as pd
-import pandera.typing as pt
 
 from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
@@ -55,7 +54,6 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
 )
-from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
 from bedrock.utils.taxonomy.cornerstone.value_added import VALUE_ADDEDS
@@ -516,8 +514,8 @@ def build_electricity_mixed_units_aq(
     )
     scaled_q = apply_electricity_unit_conversion_to_q(aq_scaled.scaled_q, c_col)
     return SingleRegionAqMatrixSet(
-        Adom=cast(pt.DataFrame[AMatrix], Adom),
-        Aimp=cast(pt.DataFrame[AMatrix], Aimp),
+        Adom=Adom,
+        Aimp=Aimp,
         scaled_q=scaled_q,
     )
 
@@ -698,8 +696,8 @@ def reaggregate_electricity_children_aq(
     adom = udom.divide(q, axis=1).fillna(0.0)
     aimp = uimp.divide(q, axis=1).fillna(0.0)
     return SingleRegionAqMatrixSet(
-        Adom=cast(pt.DataFrame[AMatrix], adom),
-        Aimp=cast(pt.DataFrame[AMatrix], aimp),
+        Adom=adom,
+        Aimp=aimp,
         scaled_q=q,
     )
 

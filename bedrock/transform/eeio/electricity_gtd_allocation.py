@@ -11,11 +11,10 @@ not sector-attributed flows). An FBS pass would apply
 ``estimate_suppressed_mecs_energy`` and the generic NAICS crosswalk; this
 path needs 3-digit Q/D residual fill and the Cornerstone MECS 3.1 hand map.
 
-Manufacturing NAICS→BEA IO uses ``CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*``,
-the same maps as GHG industrial coal/gas combustion. Residual Industrial
-purchasers are ``NON_MECS_INDUSTRIES`` (electricity purchases here; BEA
-fuel Use in GHG). Multi-IO mapping keys split 7.7 kWh by electricity
-purchases; GHG splits fuel by BEA Use of that commodity.
+Manufacturing NAICS to Cornerstone industry uses
+``CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_*``. Industries outside that map
+stay on dollar electricity-purchase shares. Multi-industry mapping keys
+split Table 7.7 kWh by those purchases.
 """
 
 from __future__ import annotations
@@ -29,7 +28,6 @@ from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
-import pandera.typing as pt
 
 from bedrock.extract.disaggregation.egrid_generation import (
     egrid_mwh_for_io_year,
@@ -39,7 +37,6 @@ from bedrock.extract.disaggregation.egrid_generation import (
 )
 from bedrock.transform.eeio.electricity_end_use_mapping import build_end_use_map
 from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DISAGG_SECTORS
-from bedrock.utils.schemas.single_region_schemas import AMatrix
 from bedrock.utils.schemas.single_region_types import SingleRegionAqMatrixSet
 from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
@@ -1282,8 +1279,8 @@ def _apply_eia_purchaser_allocation_to_aq(
     aimp_out = uimp.divide(q_safe, axis=1).fillna(0.0)
     set_reanchored_electricity_q(q)
     return SingleRegionAqMatrixSet(
-        Adom=cast(pt.DataFrame[AMatrix], adom_out),
-        Aimp=cast(pt.DataFrame[AMatrix], aimp_out),
+        Adom=adom_out,
+        Aimp=aimp_out,
         scaled_q=q,
     )
 

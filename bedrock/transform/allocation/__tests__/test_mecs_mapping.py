@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 import pytest
 
 from bedrock.extract.allocation.mecs import load_mecs_3_1
@@ -9,78 +7,56 @@ from bedrock.transform.allocation.mappings.cornerstone.mecs import (
     CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
     CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
 )
-from bedrock.transform.allocation.mappings.v7.ceda_mecs import (
-    CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
-    CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
-    NON_MECS_INDUSTRIES,
-)
 from bedrock.transform.allocation.utils import flatten_items
-from bedrock.utils.taxonomy.bea.ceda_v7 import CEDA_V7_SECTORS
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
 
-logger = logging.getLogger(__name__)
 
-CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING = (
-    set(flatten_items(CEDA_INDUSTRY_TO_MECS_2_1_NAICS_MAPPING.keys()))
-    | set(flatten_items(CEDA_INDUSTRY_TO_MECS_2_1_NAICS_SUBTRACTION_MAPPING.keys()))
-    | set(NON_MECS_INDUSTRIES)
-)
+def _covered(
+    mapping: dict[tuple[str, ...], tuple[str, ...]],
+    subtraction: dict[tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]],
+) -> set[str]:
+    return set(flatten_items(mapping.keys())) | set(flatten_items(subtraction.keys()))
 
-CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING = (
-    set(flatten_items(CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.keys()))
-    | set(flatten_items(CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.keys()))
-    | set(NON_MECS_INDUSTRIES)
-)
 
-CEDA_INDUSTRIAL_SECTORS_DEFAULT = {
-    # We define industrial sectors to be Ag (1), Mining (21), Construction (23), and Manufacturing (31-33)
-    s
-    for s in CEDA_V7_SECTORS
-    if s.startswith(("1", "21", "23", "3"))
-}
+# Manufacturing (31-33). Agriculture, mining, and construction are not in MECS 3.1.
+CORNERSTONE_MANUFACTURING_INDUSTRIES = {s for s in INDUSTRIES if s.startswith("3")}
 
-NAICS_IN_OUR_MECS_3_1_MAPPING = (
-    set(flatten_items(CEDA_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.values()))
-    | set(flatten_items(CEDA_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.values()))
-    | {"321219", "331314", "331315", "331318"}  # parent codes were used
+NAICS_IN_CORNERSTONE_MECS_3_1_MAPPING = (
+    set(flatten_items(CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING.values()))
+    | set(
+        flatten_items(
+            CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING.values()
+        )
+    )
+    | {"321219"}  # parent code was used
     | {"312", "324", "331", "321", "3315"}  # child codes were used
 )
 
 
-def test_all_industrial_ceda_codes_covered_in_2_1_mapping() -> None:
-    """
-    Ensure all industrial CEDA codes are included in CEDA to MECS 2.1 mapping
-    """
-    assert (
-        CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING == CEDA_INDUSTRIAL_SECTORS_DEFAULT
-    ), (
-        f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT.difference(CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING)} are CEDA industrial codes but not in CEDA <> MECS mapping; "
-        f"{CEDA_INDUSTRIAL_SECTORS_IN_MECS_2_1_MAPPING.difference(CEDA_INDUSTRIAL_SECTORS_DEFAULT)} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
+def test_all_manufacturing_codes_covered_in_3_1_mapping() -> None:
+    """Every manufacturing Cornerstone industry is in the MECS 3.1 mapping."""
+    covered = _covered(
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING,
+        CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING,
     )
-
-
-def test_all_industrial_ceda_codes_covered_in_3_1_mapping() -> None:
-    """
-    Ensure all industrial CEDA codes are included in CEDA to MECS 3.1 mapping
-    """
-    assert (
-        CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING == CEDA_INDUSTRIAL_SECTORS_DEFAULT
-    ), (
-        f"{CEDA_INDUSTRIAL_SECTORS_DEFAULT.difference(CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING)} are CEDA industrial codes but not in CEDA <> MECS mapping; "
-        f"{CEDA_INDUSTRIAL_SECTORS_IN_MECS_3_1_MAPPING.difference(CEDA_INDUSTRIAL_SECTORS_DEFAULT)} are CEDA codes in CEDA <> MECS mapping but not in CEDA industrial codes."
+    assert covered == CORNERSTONE_MANUFACTURING_INDUSTRIES, (
+        f"{CORNERSTONE_MANUFACTURING_INDUSTRIES.difference(covered)} are "
+        f"manufacturing codes missing from the MECS 3.1 mapping; "
+        f"{covered.difference(CORNERSTONE_MANUFACTURING_INDUSTRIES)} are in the "
+        f"mapping but are not manufacturing Cornerstone industries."
     )
 
 
 @pytest.mark.eeio_integration
 def test_all_naics_codes_in_mecs_covered_in_mapping() -> None:
-    """
-    Ensure all NAICS codes in MECS 3.1 are covered in CEDA to MECS mapping
-    """
+    """Every NAICS code in MECS 3.1 is referenced by the Cornerstone 3.1 mapping."""
     naics_in_mecs = set(load_mecs_3_1().index.drop("Total"))
-    assert (
-        NAICS_IN_OUR_MECS_3_1_MAPPING == naics_in_mecs
-    ), f"{naics_in_mecs - NAICS_IN_OUR_MECS_3_1_MAPPING} are NAICS codes in MECS tables but not in CEDA <> MECS mapping; {NAICS_IN_OUR_MECS_3_1_MAPPING - naics_in_mecs} are NAICS codes in CEDA <> MECS mapping but not in MECS tables."
+    assert NAICS_IN_CORNERSTONE_MECS_3_1_MAPPING == naics_in_mecs, (
+        f"{naics_in_mecs - NAICS_IN_CORNERSTONE_MECS_3_1_MAPPING} are NAICS codes "
+        f"in MECS tables but not in the Cornerstone mapping; "
+        f"{NAICS_IN_CORNERSTONE_MECS_3_1_MAPPING - naics_in_mecs} are NAICS codes "
+        f"in the Cornerstone mapping but not in MECS tables."
+    )
 
 
 @pytest.mark.eeio_integration

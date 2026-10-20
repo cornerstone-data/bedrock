@@ -558,6 +558,7 @@ def inflation_adjust_ef_denom_to_new_base_year(
     old_ef_vector: pd.Series[float],
     new_base_year: int,
     old_base_year: int,
+    price_index: pd.DataFrame | None = None,
 ) -> pd.Series[float]:
     """Adjust emission factor denominators for inflation between base years.
 
@@ -571,11 +572,14 @@ def inflation_adjust_ef_denom_to_new_base_year(
         old_ef_vector: Old emission factor values (indexed by sector)
         new_base_year: Target base year for the denominator
         old_base_year: Original base year of the old EF values
+        price_index: Sector × year price levels. Defaults to the run's BEA
+            vintage (``obtain_inflation_factors_from_reference_data``).
 
     Returns:
         Inflation-adjusted emission factor values
     """
-    price_index = obtain_inflation_factors_from_reference_data()
+    if price_index is None:
+        price_index = obtain_inflation_factors_from_reference_data()
 
     # Calculate price ratio between base years for each sector
     price_ratio = (price_index[old_base_year] / price_index[new_base_year]).fillna(1.0)
@@ -801,15 +805,19 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         )
 
     t0 = time.time()
+    # None → the run's BEA vintage (the CEDA snapshot baseline always uses it).
+    old_price_index: pd.DataFrame | None = None
     if config.diagnostics_baseline_source == 'gcs_useeio_xlsx':
         from bedrock.utils.validation.useeio_excel_baseline import (
             load_useeio_baseline_bundle,
+            useeio_baseline_price_index_levels,
         )
 
         bundle = load_useeio_baseline_bundle(config)
         old_base_year = bundle.dollar_year
         D_old_raw = bundle.d_ghg_direct
         N_old_raw = bundle.n_ghg_total
+        old_price_index = useeio_baseline_price_index_levels(config)
         logger.info(
             f'[TIMING] USEEIO Excel baseline loaded (dollar_year={old_base_year}) '
             f'in {time.time() - t0:.1f}s'
@@ -839,11 +847,13 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         old_ef_vector=D_old_raw,
         new_base_year=new_base_year,
         old_base_year=old_base_year,
+        price_index=old_price_index,
     )
     N_old_inflated = inflation_adjust_ef_denom_to_new_base_year(
         old_ef_vector=N_old_raw,
         new_base_year=new_base_year,
         old_base_year=old_base_year,
+        price_index=old_price_index,
     )
     logger.info(
         f'[TIMING] Inflation adjustment ({old_base_year}→{new_base_year} $) '

@@ -1,5 +1,6 @@
 # Cornerstone 2025 model - v0.5 release config.
 #
+# The v0.4 configuration on the v0.5 nowcast build:
 #   - Detail MUT from the NowcastMUT after-redefinition build named by
 #     nowcast_mut_vintage: v0.3.0_3096818, the Steps 3-7 rebuild at
 #     30968183 (2026-09-30, #1056). It is the 6abf5c0 build plus the
@@ -17,8 +18,21 @@
 #     SAS -> AIES change. It supersedes v0.3.0_6abf5c0 (the same build without
 #     the seed smoothing) and v0.3.0_fa85e78 (EIA rebase still off).
 #                                        -> usa_detail_io_source: nowcast, usa_base_io_data_year: 2024
-#   - Waste disaggregation, industry-average margins,
+#   - Facility GHG attribution on the nowcast Use
+#                                        -> use_facility_ghg_attribution: True
+#     selects GHG_national_Cornerstone_nowcast_facilities_{year}.
+#     Waste disaggregation, industry-average margins,
 #     and no IO year adjustments as in v0.4.
+#
+# cornerstone_ghg_fbs_filename pins the facility-attribution GHG FBS. The stem
+# is GHG_national_Cornerstone_nowcast_facilities_2024. The pinned object is the
+# v0.5 release FBS, built from main 3a1dddc2 on the 3096818 tables (#1055,
+# #1059; GHGRP sector floor and ceiling, still gas, hydrogen and LNG
+# carve-outs, #1061) with the stewi inputs pinned in stewi_facility_pin.json
+# (#1066):
+#   GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
+#   sha256 7cc30cb922bb054e01122d4786b63d7ff23431121c934c22a8b8aa9c9b4f66c7
+# The v0.5 snapshot (3a1dddc2) was cut on that file.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
 # reproducible even after newer nowcast builds are uploaded; move the pin only
@@ -41,8 +55,8 @@ usa_ghg_data_year: 2024
 #####
 # Methodology selection
 #####
-use_cornerstone_ghg_model: True
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v0.3.0_3a1dddc.parquet
+use_facility_ghg_attribution: True
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io

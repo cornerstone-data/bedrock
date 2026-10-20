@@ -10,12 +10,12 @@ factors. All outputs land in `output/`, which is gitignored
 | ------ | ------- | ------- |
 | `compare_phi_to_reference.py` | Bedrock Phi vs the pinned USEEIO workbook (IO year + 2024) and the CEDA 2025 workbook (IO year only) | `output/plots/phi_comparison.png`, `output/phi_comparison_useeio_<year>.csv`, `output/phi_comparison_ceda.csv` |
 | `compare_margin_approaches.py` | PRO:PUR across useeior / Cornerstone / CEDA margin configs at IO year and 2024 | `output/plots/margin_approach_comparison_<year>.png`, `output/margin_approach_comparison.csv` |
-| `compare_sef_margins_sources.py` | Margin (and without-margin) SEF side-by-side vs [Zenodo v1.4.0](https://doi.org/10.5281/zenodo.17202747): `useeio_phoebe_23`, `2025_usa_cornerstone_v0_3` (2024 purchaser), joined on Reference USEEIO Code | `output/sef_margins_zenodo_phoebe_v0_3.csv` |
+| `compare_sef_margins_sources.py` | Margin (and without-margin) SEF side-by-side vs [Zenodo v1.4.0](https://doi.org/10.5281/zenodo.17202747): `useeio_phoebe_23`, `2025_usa_cornerstone_v0_3`, `2025_usa_cornerstone_v0_6` (2024 purchaser), joined on Reference USEEIO Code. The summary compares each model's margin SEF with Zenodo, v0.3 with phoebe, and v0.6 with v0.3 | `output/sef_margins_comparison.csv`, `output/sef_margins_summary.csv` |
 
 ```powershell
 uv run python -m bedrock.analysis.margins.compare_phi_to_reference
 uv run python -m bedrock.analysis.margins.compare_margin_approaches
-uv run python -m bedrock.analysis.margins.compare_sef_margins_sources --dollar_year 2024
+uv run python -m bedrock.analysis.margins.compare_sef_margins_sources --dollar_year 2024 --phoebe-sef-csv <pinned phoebe SEF CSV>
 ```
 
 `compare_sef_margins_sources.py` is self-contained: it owns the Zenodo download and
@@ -23,9 +23,10 @@ loaders, the SEF CSV loader, and `publish_sef`.
 
 ## Notes
 
-- `compare_sef_margins_sources.py` publishes both configs at the target dollar year
-  when no CSV path is passed; pass `--phoebe-sef-csv` / `--v0-3-sef-csv` to reuse an
-  existing export instead of republishing.
+- `compare_sef_margins_sources.py` needs a pinned phoebe SEF CSV (`--phoebe-sef-csv`),
+  because the `useeio_phoebe_23` config is retired. It publishes v0.3 and v0.6 at the
+  target dollar year unless `--v0-3-sef-csv` / `--v0-6-sef-csv` point to existing
+  exports.
 - The Zenodo workbook is downloaded on first use and cached under
   `bedrock/utils/snapshots/data/zenodo_sef_v1.4.0/`; override with `--zenodo-xlsx`.
 - Zenodo rows whose Reference USEEIO Code lists multiple codes are dropped; the rest
