@@ -307,27 +307,16 @@ def _select_cornerstone_ghg_fbs_base_name() -> str:
     """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
 
     ``usa_ghg_data_year`` selects the inventory-year method stem.
-    ``usa_detail_io_source`` distinguishes published BEA Use attribution
-    (``GHG_national_Cornerstone_{year}``) from nowcast Use attribution
-    (``GHG_national_Cornerstone_nowcast_{year}``). With nowcast,
-    ``use_facility_ghg_attribution`` selects the facility-attribution stem
-    (``GHG_national_Cornerstone_nowcast_facilities_{year}``) instead.
-    ``use_transportation_ghg_allocation`` selects
-    ``GHG_national_Cornerstone_nowcast_facilities_transportation_{year}``
-    on top of that facility stem.
+    Returns FBS methods based on year (``GHG_national_Cornerstone_{year}``).
+    A published config may still pin the older versions parquet
+    by filename.
 
     Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
     instead of this helper.
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
-    if usa.usa_detail_io_source == 'bea_published':
-        return f'GHG_national_Cornerstone_{year}'
-    if usa.use_facility_ghg_attribution:
-        if usa.use_transportation_ghg_allocation:
-            return f'GHG_national_Cornerstone_nowcast_facilities_transportation_{year}'
-        return f'GHG_national_Cornerstone_nowcast_facilities_{year}'
-    return f'GHG_national_Cornerstone_nowcast_{year}'
+    return f'GHG_national_Cornerstone_{year}'
 
 
 def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
@@ -354,9 +343,8 @@ def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
 def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
     """Pinned parquet name for this stem, or ``None`` when the config omits it.
 
-    The pin is the full filename. It applies only when its stem is the stem
-    being loaded, so an electricity-disaggregation load of a different method
-    is not redirected at a facilities pin.
+    The pin is the full filename. It is loaded only when its stem is the stem
+    being loaded.
     """
     import os  # noqa: PLC0415
 

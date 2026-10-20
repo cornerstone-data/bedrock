@@ -1,11 +1,10 @@
 # Cornerstone 2025 model - v0.5.9 transportation.
 #
-# v0.5.9 settings with transportation GHG allocation on.
-# These settings are the v0.6 config (2025_usa_cornerstone_v0_6).
+# Same nowcast 2024 settings as 2025_usa_cornerstone_v0_6.
 # nowcast_mut_vintage is v0.5.0_a166975 and bea_price_index_vintage is
-# 2026Q2, the index that Use was built with. use_transportation_ghg_allocation
-# selects GHG_national_Cornerstone_nowcast_facilities_transportation_2024.
-# cornerstone_ghg_fbs_filename pins that stem to
+# 2026Q2, the index that Use was built with. The GHG loader returns
+# GHG_national_Cornerstone_2024. cornerstone_ghg_fbs_filename still pins the
+# older parquet
 # GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_011f41f.parquet.
 
 #####
@@ -27,7 +26,6 @@ bea_price_index_vintage: '2026Q2'
 # Methodology selection
 #####
 use_facility_ghg_attribution: True
-use_transportation_ghg_allocation: True
 cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_011f41f.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
