@@ -260,13 +260,13 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
         f'[TIMING] Write D_and_diffs to Google Sheets in {time.time() - t0:.1f}s'
     )
 
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
+        derive_B_usa_non_finetuned,
+    )
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         compute_mixed_unit_ef_vectors,
         electricity_end_use_retail_prices_cents_kwh,
         electricity_mixed_units_enabled,
-    )
-    from bedrock.transform.eeio.derived import (  # noqa: PLC0415
-        derive_B_usa_non_finetuned,
     )
     from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
         derive_Aq_scaled,
@@ -412,10 +412,10 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     # Compare output contribution (parquet baseline only; omitted for gcs_useeio_xlsx)
     if config.diagnostics_baseline_source != 'gcs_useeio_xlsx':
         t0 = time.time()
-        from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+        from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
+        from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
             electricity_mixed_units_enabled,
         )
-        from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
         from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
             derive_Aq_mixed_units,
         )

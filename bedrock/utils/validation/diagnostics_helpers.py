@@ -152,7 +152,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
     return (
         False,
         'derive_B_non_finetuned already applies '
-        'inflate_cornerstone_B_matrix_with_industry_pi to model_base_year; '
+        'inflate_B_matrix_with_industry_pi to model_base_year; '
         'skipping second denominator inflation pass (would double-apply)',
     )
 
@@ -595,7 +595,7 @@ def apply_mixed_units_ef_diff_exemptions(
     ef_name: str,
 ) -> pd.DataFrame:
     """NaN out 221110 old-vs-new percent diff when units are incommensurate."""
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
     )
 
@@ -613,7 +613,7 @@ def apply_mixed_units_ef_diff_exemptions(
 
 def apply_mixed_units_bly_diff_exemptions(df: pd.DataFrame) -> pd.DataFrame:
     """NaN 221110 BLy percent diff vs monetary snapshot baseline."""
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
     )
 
@@ -719,13 +719,13 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         EfsForDiagnostics with new and old EF data for comparison
     """
     # Late-binding imports - these depend on global config
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
-        electricity_mixed_units_enabled,
-        electricity_reaggregation_enabled,
-    )
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
+    )
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+        electricity_reaggregation_enabled,
     )
     from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
         derive_Aq_mixed_units,
@@ -917,7 +917,7 @@ def compute_effective_x_comparison() -> pd.DataFrame:
 
     Returns a DataFrame indexed by BEA detail industry code, sorted by x_ratio.
     """
-    from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
+    from bedrock.transform.eeio.bea_intermediates import (  # noqa: PLC0415
         bea_x,
     )
     from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
@@ -926,8 +926,8 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415
         derive_gross_output_after_redefinition,
     )
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-        get_cornerstone_industry_price_ratio,
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
+        get_industry_price_ratio,
     )
     from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (  # noqa: PLC0415
         load_bea_v2017_commodity_to_bea_v2017_summary,
@@ -957,7 +957,7 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     )
 
     # PI_target / PI_original — inflation from IO data year to model base year
-    pi_scale = get_cornerstone_industry_price_ratio(
+    pi_scale = get_industry_price_ratio(
         cfg.usa_io_data_year, cfg.model_base_year
     ).reindex(x_2017.index, fill_value=1.0)
 
@@ -995,7 +995,7 @@ def _nowcast_make_x_vs_bea_go_comparison(cfg: USAConfig) -> pd.DataFrame:
     it by the source's; the two agree at 2017 and diverge elsewhere. The ratio
     column is that divergence, one number per industry.
     """
-    from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
+    from bedrock.transform.eeio.bea_intermediates import (  # noqa: PLC0415
         bea_x,
     )
     from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415

@@ -1081,15 +1081,15 @@ def _scaled_export_fd_electricity_purchases(
     use_commodity_pi: bool,
     pre_q: pd.Series,
 ) -> float:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         derive_disagg_Ytot_with_trade,
     )
     from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
         derive_Aq,
     )
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-        inflate_cornerstone_q_or_y_with_commodity_pi,
-        inflate_cornerstone_q_or_y_with_industry_pi,
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
+        inflate_q_or_y_with_commodity_pi,
+        inflate_q_or_y_with_industry_pi,
     )
 
     y_detail = derive_disagg_Ytot_with_trade()
@@ -1102,11 +1102,11 @@ def _scaled_export_fd_electricity_purchases(
     ratio = (pre / q_detail.replace(0.0, np.nan)).fillna(1.0)
     scaled = slice_detail * ratio
     if use_commodity_pi:
-        inflated = inflate_cornerstone_q_or_y_with_commodity_pi(
+        inflated = inflate_q_or_y_with_commodity_pi(
             scaled, original_year=original_year, target_year=model_year
         )
     else:
-        inflated = inflate_cornerstone_q_or_y_with_industry_pi(
+        inflated = inflate_q_or_y_with_industry_pi(
             scaled, original_year=target_year, target_year=model_year
         )
     return float(pd.Series(inflated).sum())
@@ -1119,29 +1119,29 @@ def _inflate_summary_year_scaled_aq(
     model_year: int,
     use_commodity_pi: bool,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
+    from bedrock.transform.eeio.year_scaling import (  # noqa: PLC0415
         get_summary_year_scaled_aq,
     )
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-        inflate_cornerstone_A_matrix_with_commodity_pi,
-        inflate_cornerstone_A_matrix_with_industry_pi,
-        inflate_cornerstone_q_or_y_with_commodity_pi,
-        inflate_cornerstone_q_or_y_with_industry_pi,
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
+        inflate_A_matrix_with_commodity_pi,
+        inflate_A_matrix_with_industry_pi,
+        inflate_q_or_y_with_commodity_pi,
+        inflate_q_or_y_with_industry_pi,
     )
 
     pre = get_summary_year_scaled_aq(original_year, target_year)
     if use_commodity_pi:
-        adom = inflate_cornerstone_A_matrix_with_commodity_pi(
+        adom = inflate_A_matrix_with_commodity_pi(
             pre.Adom, original_year=original_year, target_year=model_year
         )
-        q = inflate_cornerstone_q_or_y_with_commodity_pi(
+        q = inflate_q_or_y_with_commodity_pi(
             pre.q, original_year=original_year, target_year=model_year
         )
     else:
-        adom = inflate_cornerstone_A_matrix_with_industry_pi(
+        adom = inflate_A_matrix_with_industry_pi(
             pre.Adom, original_year=target_year, target_year=model_year
         )
-        q = inflate_cornerstone_q_or_y_with_industry_pi(
+        q = inflate_q_or_y_with_industry_pi(
             pre.q, original_year=target_year, target_year=model_year
         )
     return adom, q
@@ -1151,7 +1151,7 @@ def _purchaser_electricity_purchases_from_aq(
     adom: pd.DataFrame,
     q: pd.Series,
 ) -> pd.Series:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         derive_disagg_Ytot_with_trade,
     )
     from bedrock.utils.math.formulas import backcompute_y_from_A_and_q  # noqa: PLC0415
@@ -1324,7 +1324,7 @@ def reanchor_electricity_aq_after_year_scaling(
         model_year=model_year,
         use_commodity_pi=use_commodity_pi,
     )
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
+    from bedrock.transform.eeio.year_scaling import (  # noqa: PLC0415
         get_summary_year_scaled_aq,
     )
 

@@ -161,7 +161,7 @@ def derive_step(
     """Live-derive one config and write the deck cache."""
     from bedrock.publish.cache_reset import clear_all_publish_caches  # noqa: PLC0415
     from bedrock.publish.model_objects import get_x  # noqa: PLC0415
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_conversion_factors,
         electricity_mixed_units_enabled,
         electricity_reaggregation_enabled,

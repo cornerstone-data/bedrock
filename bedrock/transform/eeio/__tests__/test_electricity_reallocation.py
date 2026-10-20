@@ -9,16 +9,6 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    cornerstone_sector_disagg_active,
-    derive_disagg_io_bundle,
-    derive_disagg_Ytot_with_trade,
-    derive_V_after_waste,
-    electricity_disaggregation_enabled,
-    electricity_reaggregation_enabled,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     BALANCE_TOLERANCE,
     ELECTRICITY_AGGREGATE,
@@ -28,6 +18,16 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     _make_diagonal,
     apply_single_coproduction_transfer,
     build_coproduction_transfer_schedule,
+)
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    derive_V_after_waste,
+    electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
+    electricity_reallocation_enabled,
+    get_waste_disagg_weights,
+    sector_disagg_active,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
@@ -40,8 +40,8 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_Ytot_matrix_set,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    clear_cornerstone_inflation_caches,
+from bedrock.utils.economic.inflation_helpers_usa import (
+    clear_usa_inflation_caches,
 )
 from bedrock.utils.validation.diagnostics_helpers import pull_efs_for_diagnostics
 
@@ -51,7 +51,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
-    cornerstone_sector_disagg_active,
+    sector_disagg_active,
     derive_V,
     derive_Vnorm_scrap_corrected,
     derive_U_with_negatives,
@@ -68,7 +68,7 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
 
 
 def _setup_config(config_name: str) -> None:

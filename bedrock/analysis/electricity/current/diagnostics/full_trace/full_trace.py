@@ -24,12 +24,12 @@ from bedrock.analysis.electricity.current.diagnostics.paths import (
 )
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     electricity_conversion_factors,
     electricity_mixed_units_enabled,
 )
-from bedrock.transform.eeio.electricity_disaggregation import GENERATION_SECTOR
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_scaled,
     derive_U_set,
@@ -118,16 +118,16 @@ def _scalar_float(value: object) -> float:
 def _clear_model_caches() -> None:
     import bedrock.publish.model_objects as model_objects  # noqa: PLC0415
     import bedrock.transform.allocation.derived as allocation_derived  # noqa: PLC0415
-    import bedrock.transform.eeio.cornerstone_disagg_pipeline as disagg_pipeline  # noqa: PLC0415
     import bedrock.transform.eeio.derived as eeio_derived  # noqa: PLC0415
+    import bedrock.transform.eeio.sector_disagg_pipeline as disagg_pipeline  # noqa: PLC0415
     import bedrock.transform.eeio.usa_matrices as usa_matrices  # noqa: PLC0415
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-        clear_cornerstone_inflation_caches,
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
+        clear_usa_inflation_caches,
     )
 
     # Inflation helpers are year-keyed only; must clear when switching
     # apply_io / electricity flags (405 ↔ 407 axes).
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     for mod in (
         model_objects,
         allocation_derived,

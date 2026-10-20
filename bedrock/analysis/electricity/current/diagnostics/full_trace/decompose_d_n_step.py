@@ -22,13 +22,13 @@ from bedrock.analysis.electricity.current.diagnostics.ladders.registry import (
 from bedrock.analysis.electricity.current.diagnostics.paths import DEFAULT_LADDER_ID
 from bedrock.publish.model_objects import get_B, get_D, get_L, get_N, get_q
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    electricity_conversion_factors,
-    electricity_mixed_units_enabled,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
     get_electricity_commodity_row_weights,
+)
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    electricity_conversion_factors,
+    electricity_mixed_units_enabled,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,
@@ -432,7 +432,7 @@ def render_walkthrough_md(realloc: dict[str, Any], split: dict[str, Any]) -> str
         "from `derive_x_after_redefinition()` at **`usa_ghg_data_year` = 2024** "
         "(BEA gross-output time series expanded into Cornerstone under "
         "`apply_io_year_adjustments`). It is **year-selected industry GO**, not the same "
-        "summary-ratio `scale_cornerstone_q` path as `q`.",
+        "summary-ratio `scale_q` path as `q`.",
         "",
         "Both values are therefore on a **2024** footing, but from different sources: "
         "commodity Make → scale/inflate vs industry BEA GO@GHG year. A small gap "

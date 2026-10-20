@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import bedrock.transform.eeio.cornerstone_bea_intermediates as bea
+import bedrock.transform.eeio.bea_intermediates as bea
 import bedrock.transform.iot.derived_gross_industry_output as go
 import bedrock.utils.validation.diagnostics_helpers as dh
 from bedrock.utils.config.usa_config import USAConfig

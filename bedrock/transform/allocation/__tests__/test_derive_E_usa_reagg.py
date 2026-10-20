@@ -14,7 +14,7 @@ from bedrock.utils.schemas.cornerstone_schemas import (
 
 
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_reaggregation_enabled',
+    'bedrock.transform.eeio.sector_disagg_pipeline.electricity_reaggregation_enabled',
     return_value=True,
 )
 @patch('bedrock.transform.allocation.derived.load_E_from_flowsa')
@@ -36,7 +36,7 @@ def test_derive_E_usa_collapses_children_when_reagg(
 
 
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_reaggregation_enabled',
+    'bedrock.transform.eeio.sector_disagg_pipeline.electricity_reaggregation_enabled',
     return_value=False,
 )
 @patch('bedrock.transform.allocation.derived.load_E_from_flowsa')

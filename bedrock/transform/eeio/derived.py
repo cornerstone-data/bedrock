@@ -39,7 +39,7 @@ from bedrock.utils.schemas.single_region_types import (
 
 
 def _reaggregation_published() -> bool:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_reaggregation_enabled,
     )
 
@@ -47,7 +47,7 @@ def _reaggregation_published() -> bool:
 
 
 def _collapse_commodity_vector(values: pd.Series[float]) -> pd.Series[float]:
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         collapse_electricity_children_vector,
     )
     from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415

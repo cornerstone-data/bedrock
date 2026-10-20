@@ -6,9 +6,9 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.eeio import usa_matrices as dc
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    cornerstone_sector_disagg_active,
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     electricity_reallocation_enabled,
+    sector_disagg_active,
 )
 
 
@@ -56,7 +56,7 @@ def test_useeio_b_adjust_divide_transform_steps(
     monkeypatch.setattr(dc, "derive_x_after_redefinition", lambda: x_nominal)
     monkeypatch.setattr(
         dc,
-        "get_cornerstone_industry_price_ratio",
+        "get_industry_price_ratio",
         lambda original_year, target_year: ratio,
     )
     monkeypatch.setattr(dc, "derive_Vnorm_scrap_corrected", lambda: vnorm)
@@ -65,7 +65,7 @@ def test_useeio_b_adjust_divide_transform_steps(
         out = dc.derive_B_via_vnorm()
     finally:
         electricity_reallocation_enabled.cache_clear()
-        cornerstone_sector_disagg_active.cache_clear()
+        sector_disagg_active.cache_clear()
 
     # Step 1: adjusted x = x_nominal / ratio = [125, 160]
     # Step 2: Bi = E / adjusted x = [0.08, 0.125]

@@ -10,7 +10,7 @@ from bedrock.transform.allocation.derived import (
     resplit_waste_use_emissions,
     waste_child_shares,
 )
-from bedrock.transform.eeio import cornerstone_disagg_pipeline as cdp
+from bedrock.transform.eeio import sector_disagg_pipeline as cdp
 from bedrock.utils.taxonomy.cornerstone.industries import WASTE_DISAGG_INDUSTRIES
 
 CHILDREN = [str(code) for code in WASTE_DISAGG_INDUSTRIES['562000']]
