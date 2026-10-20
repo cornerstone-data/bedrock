@@ -6,6 +6,7 @@ price_type: producer
 iot_before_or_after_redefinition: before
 
 usa_ghg_data_year: 2023
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2023_v0.3.0_9030001.parquet
 
 use_E_data_year_for_x_in_B: true
 implement_waste_disaggregation: true
