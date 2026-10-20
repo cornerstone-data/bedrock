@@ -26,13 +26,13 @@ from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace impo
 )
 from bedrock.publish.model_objects import get_D, get_V, get_x
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.electricity_disaggregation import (
+    build_coproduction_transfer_schedule,
+)
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_U_after_waste,
     derive_V_after_waste,
     derive_VA_after_waste,
-)
-from bedrock.transform.eeio.electricity_disaggregation import (
-    build_coproduction_transfer_schedule,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_Vnorm_scrap_corrected,

@@ -138,14 +138,14 @@ def calculate_national_accounting_balance_diagnostics(
       unchanged: snapshot ``B`` and ``y_nab`` already share one dollar year.
     """
     # Late-binding imports - depend on global config
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
-        electricity_mixed_units_enabled,
-        electricity_reaggregation_enabled,
-    )
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
         derive_y_for_national_accounting_balance_usa,
+    )
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
+        electricity_mixed_units_enabled,
+        electricity_reaggregation_enabled,
     )
     from bedrock.transform.eeio.usa_matrices import (
         derive_Aq_mixed_units,

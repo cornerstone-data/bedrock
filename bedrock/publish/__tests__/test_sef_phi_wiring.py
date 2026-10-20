@@ -14,7 +14,7 @@ from bedrock.publish.emission_factors.table import (
 from bedrock.publish.model_objects import get_N
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import phi_for_sectors
 from bedrock.utils.config.usa_config import get_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
+from bedrock.utils.economic.inflation_helpers_usa import (
     get_vnorm_adjusted_commodity_price_ratio,
 )
 from bedrock.utils.emissions.characterization import GREENHOUSE_GASES_INDICATOR

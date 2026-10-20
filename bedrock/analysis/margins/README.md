@@ -38,4 +38,4 @@ loaders, the SEF CSV loader, and `publish_sef`.
 ## Related CI
 
 - `bedrock/publish/__tests__/test_sef_vs_useeio_baseline.py` — Phi@2017 vs phoebe workbook
-- `bedrock/utils/economic/__tests__/test_inflation_helpers_cornerstone.py` — Rho ratio helper
+- `bedrock/utils/economic/__tests__/test_inflation_helpers_usa.py` — Rho ratio helper

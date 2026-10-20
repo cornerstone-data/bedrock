@@ -135,7 +135,7 @@ def test_reanchor_electricity_aq_at_year_skips_published_helpers(
 
     summary_scaled = MagicMock(side_effect=AssertionError('forbidden'))
     monkeypatch.setattr(
-        'bedrock.transform.eeio.cornerstone_year_scaling.get_summary_year_scaled_aq',
+        'bedrock.transform.eeio.year_scaling.get_summary_year_scaled_aq',
         summary_scaled,
         raising=False,
     )

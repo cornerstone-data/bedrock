@@ -36,7 +36,7 @@ from bedrock.extract.iot.detail_io import (
     load_detail_value_added_usa,
     load_detail_Ytot_usa,
 )
-from bedrock.transform.eeio.cornerstone_expansion import (
+from bedrock.transform.eeio.usa_expansion import (
     commodity_corresp,
     industry_corresp,
 )
@@ -87,7 +87,7 @@ def _resolve_waste_cfg_paths(cfg: EEIOWasteDisaggConfig) -> EEIOWasteDisaggConfi
 
 
 @functools.cache
-def cornerstone_sector_disagg_active() -> bool:
+def sector_disagg_active() -> bool:
     """True when sector disaggregation (waste and/or electricity) is enabled.
 
     Electricity disaggregation requires waste (``USAConfig`` validator), so
@@ -381,7 +381,7 @@ def electricity_end_use_retail_prices_cents_kwh(
     """Lazy re-export of ``electricity_end_use_mapping.electricity_end_use_retail_prices_cents_kwh``.
 
     Kept as a module-level callable so
-    ``@patch('…cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh')`` continues
+    ``@patch('…sector_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh')`` continues
     to intercept calls from ``electricity_conversion_factors``.
     """
     from bedrock.transform.eeio import (  # noqa: PLC0415

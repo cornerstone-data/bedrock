@@ -254,7 +254,7 @@ def collapse_to_bea(
     ⚠️ Weighted-mean, not sum, is the whole correctness of this function.  Summing
     would multiply a disaggregated group's intensity by its member count.
     """
-    from bedrock.transform.eeio.cornerstone_expansion import (  # noqa: PLC0415
+    from bedrock.transform.eeio.usa_expansion import (  # noqa: PLC0415
         cs_commodity_to_bea_map,
     )
 
@@ -269,7 +269,7 @@ def collapse_output_to_bea(
     q: pd.Series[float], *, bea_index: pd.Index
 ) -> pd.Series[float]:
     """Carry commodity **output** to BEA detail -- a sum, because it is a level."""
-    from bedrock.transform.eeio.cornerstone_expansion import (  # noqa: PLC0415
+    from bedrock.transform.eeio.usa_expansion import (  # noqa: PLC0415
         cs_commodity_to_bea_map,
     )
 
@@ -289,7 +289,7 @@ def bea_use_pieces() -> tuple[pd.DataFrame, pd.DataFrame]:
         load_detail_Utot_usa,
         load_detail_V_usa,
     )
-    from bedrock.transform.eeio.cornerstone_bea_intermediates import (  # noqa: PLC0415
+    from bedrock.transform.eeio.bea_intermediates import (  # noqa: PLC0415
         bea_Vnorm_scrap_corrected,
         bea_x,
     )

@@ -767,7 +767,7 @@ def _derive_post_reallocation_checkpoint_for_disagg() -> (
     tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
 ):
     """Post-reallocation V/U/VA before the G/T/D Make/Use split (production path)."""
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         derive_U_after_waste,
         derive_V_after_waste,
         derive_VA_after_waste,
@@ -781,7 +781,7 @@ def _derive_post_reallocation_checkpoint_for_disagg() -> (
 
 def _derive_y_before_electricity_disagg_lazy() -> pd.DataFrame:
     """Lazy wrapper — Y after waste disagg, before electricity row split."""
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         _derive_y_before_electricity_disagg,
     )
 
@@ -959,14 +959,14 @@ def applied_utilities_summary_q_growth_ratio(
 ) -> float:
     """Summary Utilities ``\"22\"`` q growth used when painting detail under scale.
 
-    Matches ``scale_cornerstone_q``: with ``apply_io_year_adjustments``, the
+    Matches ``scale_q``: with ``apply_io_year_adjustments``, the
     target-year summary q is ITA-rebased into ``original_year`` USD before the
     ratio; otherwise this is the raw MUT ratio.
     """
     if not get_usa_config().apply_io_year_adjustments:
         return utilities_summary_q_growth_ratio(original_year, target_year)
 
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
         adjust_summary_q_dollar_year,
     )
 

@@ -31,7 +31,7 @@ factor of the [v0.2 US methods paper](https://github.com/cornerstone-data/papers
 base-year price index over target-year price index, per sector. It is what
 `derive_price_index_panel` publishes as the Excel `Rho` panel and what
 `get_rho_inflation_ratio` returns. ⚠️ **It is the reciprocal of the forward
-ratio** `get_cornerstone_industry_price_ratio` gives — the repo test
+ratio** `get_industry_price_ratio` gives — the repo test
 `test_rho_inflation_ratio_is_inverse_of_industry_price_ratio` pins that — so
 these formulas divide where a forward ratio would multiply.
 

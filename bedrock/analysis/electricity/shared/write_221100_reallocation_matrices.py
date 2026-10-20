@@ -17,7 +17,7 @@ import bedrock.utils.config.common as common
 from bedrock.analysis.electricity.shared.reallocation_matrices import (
     write_electricity_reallocation_intermediate_outputs,
 )
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_disagg_io_bundle,
     electricity_reallocation_enabled,
 )

@@ -16,10 +16,10 @@ from bedrock.extract.disaggregation.disagg_weights import (
 )
 from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
 from bedrock.extract.iot.io_2017 import load_2017_value_added_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
 )
-from bedrock.transform.eeio.cornerstone_expansion import industry_corresp
+from bedrock.transform.eeio.usa_expansion import industry_corresp
 from bedrock.transform.eeio.usa_matrices import (
     derive_U_with_negatives,
     derive_V,

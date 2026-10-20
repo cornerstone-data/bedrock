@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 import bedrock.utils.economic.inflation_helpers_bea as bea
-import bedrock.utils.economic.inflation_helpers_cornerstone as cornerstone
+import bedrock.utils.economic.inflation_helpers_usa as cornerstone
 from bedrock.extract.iot.gdp import BeaDataVersion
 from bedrock.transform.iot import publish_price_index
 from bedrock.utils.config.usa_config import get_usa_config, reset_usa_config
@@ -25,9 +25,9 @@ _WIDE = pd.DataFrame(
 @pytest.fixture(autouse=True)
 def _fresh() -> Iterator[None]:
     reset_usa_config(should_reset_env_var=True)
-    cornerstone.clear_cornerstone_inflation_caches()
+    cornerstone.clear_usa_inflation_caches()
     yield
-    cornerstone.clear_cornerstone_inflation_caches()
+    cornerstone.clear_usa_inflation_caches()
     reset_usa_config(should_reset_env_var=True)
 
 

@@ -70,7 +70,7 @@ _StrKey = ta.TypeVar("_StrKey", bound=str)
 
 
 @functools.cache
-def _cornerstone_to_bea_price_parent() -> dict[str, str]:
+def _usa_to_bea_price_parent() -> dict[str, str]:
     """Map Cornerstone-only codes back to their BEA 2017 parent for price lookup.
 
     Built from the BEA 2017 → Cornerstone commodity mapping. For any BEA code
@@ -104,9 +104,7 @@ def _industry_price_index_levels() -> pd.DataFrame:
 
 
 @functools.cache
-def get_cornerstone_industry_price_ratio(
-    original_year: int, target_year: int
-) -> pd.Series[float]:
+def get_industry_price_ratio(original_year: int, target_year: int) -> pd.Series[float]:
     """Price ratio on the axis needed by the active inflate path.
 
     Under ``apply_io_year_adjustments``: cornerstone **industry** codes (405,
@@ -132,7 +130,7 @@ def get_cornerstone_industry_price_ratio(
     ratio = pi_ratio.reindex(target_codes, fill_value=np.nan)
 
     # Fill Cornerstone-only children with their BEA parent's ratio
-    parent_map = _cornerstone_to_bea_price_parent()
+    parent_map = _usa_to_bea_price_parent()
     for child, parent_code in parent_map.items():
         if child in ratio.index and pd.isna(ratio[child]):
             if parent_code in pi_ratio.index:
@@ -163,14 +161,14 @@ def get_rho_inflation_ratio(original_year: int, target_year: int) -> pd.Series[f
     Matches useeior ``Rho[target] / Rho[original]`` when ``Rho[y]`` is the
     per-sector ``IO_year / y`` ratio from the model commodity CPI table
     (``calculateProducerbyPurchaserPriceRatio``). Implemented on the same
-    1:1 sector index as ``get_cornerstone_industry_price_ratio``.
+    1:1 sector index as ``get_industry_price_ratio``.
 
     The ``useeio_margins`` branch of ``get_price_index_ratio``; also feeds the
     Excel ``Rho`` panel.
     """
     if original_year == target_year:
-        return get_cornerstone_industry_price_ratio(original_year, target_year)
-    forward = get_cornerstone_industry_price_ratio(original_year, target_year)
+        return get_industry_price_ratio(original_year, target_year)
+    forward = get_industry_price_ratio(original_year, target_year)
     ratio = 1.0 / forward
     return ratio.where(np.isfinite(ratio), 1.0).fillna(1.0)
 
@@ -226,10 +224,10 @@ def get_price_index_ratio(original_year: int, target_year: int) -> pd.Series[flo
     )
 
 
-def inflate_cornerstone_A_matrix_with_industry_pi(
+def inflate_A_matrix_with_industry_pi(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
-    price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    price_ratio = get_industry_price_ratio(original_year, target_year)
     return pd.DataFrame(
         (np.diag(price_ratio) @ A @ np.diag(1 / price_ratio)).values,
         index=A.index,
@@ -237,22 +235,22 @@ def inflate_cornerstone_A_matrix_with_industry_pi(
     )
 
 
-def inflate_cornerstone_q_or_y_with_industry_pi(
+def inflate_q_or_y_with_industry_pi(
     q_or_y: pd.Series[float], original_year: int, target_year: int
 ) -> pd.Series[float]:
-    price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    price_ratio = get_industry_price_ratio(original_year, target_year)
     return q_or_y * price_ratio.reindex(q_or_y.index, fill_value=1.0)
 
 
-def inflate_cornerstone_B_matrix_with_industry_pi(
+def inflate_B_matrix_with_industry_pi(
     B: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
     """Inflate B's monetary denominators via the industry PI (legacy footing)."""
-    price_ratio = get_cornerstone_industry_price_ratio(target_year, original_year)
+    price_ratio = get_industry_price_ratio(target_year, original_year)
     return B * price_ratio.reindex(B.columns, fill_value=1.0).values
 
 
-def inflate_cornerstone_V_with_industry_pi(
+def inflate_V_with_industry_pi(
     V: pd.DataFrame,
     *,
     target_year: int,
@@ -265,7 +263,7 @@ def inflate_cornerstone_V_with_industry_pi(
         raise ValueError("target_year must be positive")
     cfg = get_usa_config()
     original_year = cfg.usa_base_io_data_year
-    price_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    price_ratio = get_industry_price_ratio(original_year, target_year)
     price_ratio = price_ratio.reindex(V.index, fill_value=1.0)
     return pd.DataFrame(
         V.multiply(price_ratio, axis=0).values,
@@ -280,7 +278,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
 ) -> pd.Series[float]:
     """V-norm-weighted commodity price ratio.
 
-    The price index is industry-level. ``get_cornerstone_industry_price_ratio``
+    The price index is industry-level. ``get_industry_price_ratio``
     reindexes those industry ratios onto cornerstone commodity codes 1:1,
     treating each industry as its own primary commodity. This helper instead
     produces a commodity ratio that reflects the actual mix of industries
@@ -301,7 +299,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
         derive_Vnorm_scrap_corrected,
     )
 
-    industry_ratio = get_cornerstone_industry_price_ratio(original_year, target_year)
+    industry_ratio = get_industry_price_ratio(original_year, target_year)
     Vnorm = derive_Vnorm_scrap_corrected()
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
@@ -319,7 +317,7 @@ def get_vnorm_adjusted_commodity_price_ratio(
     # Commodities with no industry coverage (V_norm column ≈ 0, e.g. S00402
     # used goods) yield a 0 weighted-average, which would inject zeros into
     # diag(p) @ A @ diag(1/p). Fall back to the industry ratio, mirroring the
-    # neutral 1.0 default in get_cornerstone_industry_price_ratio.
+    # neutral 1.0 default in get_industry_price_ratio.
     no_coverage = column_sums < 1e-9
     fallback = industry_ratio.reindex(commodity_ratio.index, fill_value=1.0)
     commodity_ratio = commodity_ratio.where(~no_coverage, fallback)
@@ -327,10 +325,10 @@ def get_vnorm_adjusted_commodity_price_ratio(
     return commodity_ratio.reindex(active_cornerstone_commodities(), fill_value=1.0)
 
 
-def inflate_cornerstone_A_matrix_with_commodity_pi(
+def inflate_A_matrix_with_commodity_pi(
     A: pd.DataFrame, original_year: int, target_year: int
 ) -> pd.DataFrame:
-    """Same `diag(p) @ A @ diag(1/p)` form as ``inflate_cornerstone_A_matrix``,
+    """Same `diag(p) @ A @ diag(1/p)` form as ``inflate_A_matrix_with_industry_pi``,
     but with the V-norm-derived commodity price ratio.
 
     Aligns ``p`` to ``A`` labels fail-loud (no ``fill_value=1.0``) so a 405
@@ -350,7 +348,7 @@ def inflate_cornerstone_A_matrix_with_commodity_pi(
     )
 
 
-def inflate_cornerstone_q_or_y_with_commodity_pi(
+def inflate_q_or_y_with_commodity_pi(
     q_or_y: pd.Series[float], original_year: int, target_year: int
 ) -> pd.Series[float]:
     price_ratio = get_vnorm_adjusted_commodity_price_ratio(original_year, target_year)
@@ -361,8 +359,8 @@ def inflate_cornerstone_q_or_y_with_commodity_pi(
 # Summary-level commodity price ratio + summary A/q dollar-year adjustment
 #
 # Used to rebase a BEA summary A (or q) from one dollar-year basis to another
-# before forming the structural cross-year ratio in scale_cornerstone_A /
-# scale_cornerstone_q. Without this, the ratio mixes inter-sector relative
+# before forming the structural cross-year ratio in scale_A /
+# scale_q. Without this, the ratio mixes inter-sector relative
 # price changes with real input-share changes.
 #
 # The adjustment is direction-agnostic: deflating when from_year > to_year,
@@ -491,7 +489,7 @@ def _get_summary_industry_price_index(year: int) -> pd.Series[float]:
         load_bea_v2017_industry_to_bea_v2017_summary,
     )
 
-    pi_ind_detail = _cornerstone_indexed_industry_pi(year)
+    pi_ind_detail = _indexed_industry_pi(year)
     x_y = derive_x()
     bea_map: dict[str, list[str]] = {
         str(k): [str(s) for s in v]
@@ -557,13 +555,13 @@ def _aggregate_industry_pi(
     return out
 
 
-def _cornerstone_commodity_pi_for_year(year: int) -> tuple[pd.Series, pd.Series]:
+def _commodity_pi_for_year(year: int) -> tuple[pd.Series, pd.Series]:
     """Return ``(q_y, pi_com_detail)`` — the two inputs needed for aggregation.
 
     Shared by ``get_summary_commodity_price_index`` and
     ``get_sector_commodity_price_index``.
     """
-    pi_year_industry = _cornerstone_indexed_industry_pi(year)
+    pi_year_industry = _indexed_industry_pi(year)
     q_y, V_norm_y = derive_q_and_vnorm_for_year(year)
     pi_ind_aligned = pi_year_industry.reindex(V_norm_y.index, fill_value=100.0)
     pi_com_detail = V_norm_y.T @ pi_ind_aligned  # (cornerstone commodities,)
@@ -592,7 +590,7 @@ def get_summary_commodity_price_index(year: int) -> pd.Series[float]:
     summary blocks where all children have zero ``q[y]`` weight fall back to
     an unweighted mean of children's PI.
     """
-    q_y, pi_com_detail = _cornerstone_commodity_pi_for_year(year)
+    q_y, pi_com_detail = _commodity_pi_for_year(year)
     out = _aggregate_commodity_pi(
         pi_com_detail, q_y, load_bea_v2017_summary_to_cornerstone()
     )
@@ -610,7 +608,7 @@ def get_sector_commodity_price_index(year: int) -> pd.Series[float]:
     Useful for inflating margin components: Transportation (48TW),
     Wholesale (42), Retail (44RT).
     """
-    q_y, pi_com_detail = _cornerstone_commodity_pi_for_year(year)
+    q_y, pi_com_detail = _commodity_pi_for_year(year)
     out = _aggregate_commodity_pi(
         pi_com_detail, q_y, load_bea_v2017_sector_commodity_to_cornerstone_commodity()
     )
@@ -662,7 +660,7 @@ def derive_q_and_vnorm_for_year(
     """
     # Local import: usa_matrices imports from this module, mirroring the
     # existing pattern at the top of `get_vnorm_adjusted_commodity_price_ratio`.
-    from bedrock.transform.eeio.cornerstone_expansion import (  # noqa: PLC0415
+    from bedrock.transform.eeio.usa_expansion import (  # noqa: PLC0415
         expand_industry_output_vector,
     )
     from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
@@ -703,10 +701,10 @@ def derive_q_and_vnorm_for_year(
 
 
 @functools.cache
-def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
+def _indexed_industry_pi(year: int) -> pd.Series[float]:
     """Cornerstone-industry-indexed PI for one year, with CEDA-v7-parent
     fallback for cornerstone-only codes (mirrors the per-year half of
-    ``get_cornerstone_industry_price_ratio``).
+    ``get_industry_price_ratio``).
 
     Indexed on ``active_cornerstone_industries()`` (405, or industries-elec when
     electricity is disaggregated). V_norm.T @ pi_industry in the ITA flow needs
@@ -719,7 +717,7 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
 
     pi_year: pd.Series[float] = price_index[year]
     series = pi_year.reindex(CORNERSTONE_INDUSTRIES).astype(float)
-    parent_map = _cornerstone_to_bea_price_parent()
+    parent_map = _usa_to_bea_price_parent()
     for child, parent_code in parent_map.items():
         if (
             child in series.index
@@ -740,12 +738,12 @@ def _cornerstone_indexed_industry_pi(year: int) -> pd.Series[float]:
 # Config-sensitive ``@functools.cache`` helpers (omit config from cache keys).
 _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
     _industry_price_index_levels,
-    get_cornerstone_industry_price_ratio,
+    get_industry_price_ratio,
     get_rho_inflation_ratio,
     derive_price_index_panel,
     get_price_index_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
-    _cornerstone_indexed_industry_pi,
+    _indexed_industry_pi,
     get_summary_commodity_price_index,
     get_sector_commodity_price_index,
     _get_summary_industry_price_index,
@@ -756,7 +754,7 @@ _CONFIG_SENSITIVE_INFLATION_CACHES: tuple[ta.Callable[..., object], ...] = (
 )
 
 
-def clear_cornerstone_inflation_caches() -> None:
+def clear_usa_inflation_caches() -> None:
     """Clear inflation helpers that depend on ``get_usa_config()`` dispatch."""
     for fn in _CONFIG_SENSITIVE_INFLATION_CACHES:
         fn.cache_clear()  # type: ignore[attr-defined]

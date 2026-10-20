@@ -12,11 +12,11 @@ one identity, written in the house price term ``rho``.
 
 ``rho`` is the useeior/Cornerstone price ratio: ``rho_j = PI_j[base] / PI_j[y]``
 for commodity *j* in year *y*, the same quantity
-:func:`~bedrock.utils.economic.inflation_helpers_cornerstone.derive_price_index_panel`
+:func:`~bedrock.utils.economic.inflation_helpers_usa.derive_price_index_panel`
 publishes as the Excel ``Rho`` panel and
-:func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_rho_inflation_ratio`
+:func:`~bedrock.utils.economic.inflation_helpers_usa.get_rho_inflation_ratio`
 returns. ⚠️ It is the **reciprocal** of the forward ratio
-``get_cornerstone_industry_price_ratio`` gives, so every formula below divides
+``get_industry_price_ratio`` gives, so every formula below divides
 where a forward ratio would multiply.
 
 A real coefficient is ``a_real[i, j] = a[i, j] * rho_i / rho_j`` - deflate the
@@ -375,7 +375,7 @@ def check(span: Span) -> None:
 
     # 4. the deflator choice is not load-bearing
     # rho read straight onto the commodity axis, 1:1 by code - the reciprocal
-    # of what get_cornerstone_industry_price_ratio does on the nowcast path
+    # of what get_industry_price_ratio does on the nowcast path
     rho_ind = span.x_real / span.x
     rho_flat = pd.DataFrame(
         {y: rho_ind[y].reindex(span.L[base].index).fillna(1.0) for y in years}

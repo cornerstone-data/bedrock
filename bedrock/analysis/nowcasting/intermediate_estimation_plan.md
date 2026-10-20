@@ -1326,7 +1326,7 @@ independently-computed 0.0949, which is the construction checking out.
 - **`S00401` Scrap** (49,126 $M) and **`S00402` Used and secondhand goods**
   (33,816 $M) — both live in the intermediate block, both have a Supply-side
   counterpart, and neither has a price index (`S00402` gets a neutral 1.0 in
-  `get_cornerstone_industry_price_ratio`). Now [#703](https://github.com/cornerstone-data/bedrock/issues/703).
+  `get_industry_price_ratio`). Now [#703](https://github.com/cornerstone-data/bedrock/issues/703).
   `Used` also has the largest margin-rate movement of any summary commodity
   (6.87 → 8.18 between 2017 and 2024), so it interacts with §Margins.
 - **`S00102` / `S00203` government enterprises** — 1,234 and 34,545 $M as

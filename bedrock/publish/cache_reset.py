@@ -11,22 +11,22 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_margins_before_redef_usa,
 )
 from bedrock.publish.model_objects import clear_publish_caches
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    clear_waste_disagg_weights_cache,
-    cornerstone_sector_disagg_active,
-    derive_disagg_io_bundle,
-    derive_disagg_Ytot_with_trade,
-    electricity_disaggregation_enabled,
-    electricity_mixed_units_enabled,
-    electricity_reaggregation_enabled,
-    electricity_reallocation_enabled,
-)
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
     derive_B_usa_non_finetuned,
     derive_C_usa,
     derive_D_usa,
     derive_y_for_national_accounting_balance_usa,
+)
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    clear_waste_disagg_weights_cache,
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_mixed_units_enabled,
+    electricity_reaggregation_enabled,
+    electricity_reallocation_enabled,
+    sector_disagg_active,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_A_margin,
@@ -56,14 +56,14 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_Ytot_matrix_set,
 )
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
-    derive_margin_sectors_cornerstone_usa_at_year,
-    derive_margins_cornerstone_usa_at_year,
-    derive_phi_cornerstone_usa_at_year,
-    derive_phi_cornerstone_usa_panel,
-    derive_phi_cornerstone_usa_panel_published,
+    derive_margin_sectors_usa_at_year,
+    derive_margins_usa_at_year,
+    derive_phi_usa_at_year,
+    derive_phi_usa_panel,
+    derive_phi_usa_panel_published,
 )
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    clear_cornerstone_inflation_caches,
+from bedrock.utils.economic.inflation_helpers_usa import (
+    clear_usa_inflation_caches,
     derive_price_index_panel,
     get_price_index_ratio,
 )
@@ -87,7 +87,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_D_usa,
     derive_Aq_usa,
     derive_y_for_national_accounting_balance_usa,
-    cornerstone_sector_disagg_active,
+    sector_disagg_active,
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
     electricity_mixed_units_enabled,
@@ -121,11 +121,11 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_y_nab_reaggregated,
     load_2017_margins_before_redef_usa,
     load_2017_margins_after_redef_usa,
-    derive_margins_cornerstone_usa_at_year,
-    derive_margin_sectors_cornerstone_usa_at_year,
-    derive_phi_cornerstone_usa_at_year,
-    derive_phi_cornerstone_usa_panel,
-    derive_phi_cornerstone_usa_panel_published,
+    derive_margins_usa_at_year,
+    derive_margin_sectors_usa_at_year,
+    derive_phi_usa_at_year,
+    derive_phi_usa_panel,
+    derive_phi_usa_panel_published,
     derive_price_index_panel,
     get_price_index_ratio,
 ]
@@ -172,7 +172,7 @@ def _clear_electricity_caches_if_loaded() -> None:
                 'electricity_end_use_retail_prices_cents_kwh',
             ),
         )
-    cys = sys.modules.get('bedrock.transform.eeio.cornerstone_year_scaling')
+    cys = sys.modules.get('bedrock.transform.eeio.year_scaling')
     if cys is not None and hasattr(cys, 'clear_summary_year_scaled_aq'):
         cys.clear_summary_year_scaled_aq()
     egrid = sys.modules.get('bedrock.extract.disaggregation.egrid_generation')
@@ -191,7 +191,7 @@ def _clear_electricity_caches_if_loaded() -> None:
 
 
 def clear_all_publish_caches() -> None:
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     clear_waste_disagg_weights_cache()
     for fn in UPSTREAM_CACHED_DERIVES:
         if hasattr(fn, 'cache_clear'):

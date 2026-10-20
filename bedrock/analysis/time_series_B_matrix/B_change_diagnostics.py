@@ -620,7 +620,7 @@ def deflate_x(x: pd.DataFrame, base_year: int) -> pd.DataFrame:
     path uses, read at detail and reindexed to the 405 Cornerstone industries -
     all 405 are present, so nothing falls back to 1.0.
     """
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
         _industry_price_index_levels,
     )
 
@@ -1035,14 +1035,14 @@ def commodity_rho(span: Span, weight_year: int | None = None) -> pd.DataFrame:
     ``rho`` is the house inflation adjustment factor — the Excel ``Rho`` panel,
     ``get_rho_inflation_ratio``, and the ``rho_ty = PI_by / PI_ty`` of the US
     methods paper. ⚠️ It is the **reciprocal** of the forward ratio
-    ``get_cornerstone_industry_price_ratio`` returns.
+    ``get_industry_price_ratio`` returns.
 
     ``x_real / x`` recovers the industry-axis ``rho`` the span was built with,
     so this cannot drift from the one :func:`deflate_x` already applies to
     ``B``. ``A`` and ``L`` are commodity x commodity, so it has to be carried
     across: each commodity takes the average of its supplying industries,
     weighted by their base-year shares of its supply, the same form as
-    :func:`~bedrock.utils.economic.inflation_helpers_cornerstone.get_vnorm_adjusted_commodity_price_ratio`
+    :func:`~bedrock.utils.economic.inflation_helpers_usa.get_vnorm_adjusted_commodity_price_ratio`
     but built from the span so no ``functools.cache`` can carry a stale config
     across a year switch.
 
