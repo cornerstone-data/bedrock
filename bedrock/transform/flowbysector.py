@@ -269,6 +269,13 @@ class FlowBySector(_FlowBy):
                         )
                     )
 
+        # SourceName, Description, and Suppressed are appended when
+        # retain_activity_columns is true. They are always empty and are not needed.
+        fbs = fbs.drop(
+            columns=['SourceName', 'Description', 'Suppressed'],
+            errors='ignore',
+        )
+
         # Save fbs and metadata
         log.info(f'FBS generation complete, saving {method} to file')
         if fbs.columns.duplicated().any():
