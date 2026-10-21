@@ -27,6 +27,16 @@ NOWCAST_IO_YEARS: frozenset[int] = frozenset(
 )
 NowcastDetailIoYear = ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
 
+# (usa_detail_io_source, usa_ghg_data_year) pairs allowed when
+# implement_electricity_disaggregation is on. Year GHG methods embed eGRID.
+ELECTRICITY_DISAGG_SUPPORTED_IO_YEAR: frozenset[tuple[str, int]] = frozenset(
+    {
+        ('bea_published', 2023),
+        ('bea_published', 2024),
+        ('nowcast', 2024),
+    }
+)
+
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         'diagnostics_baseline_source',
@@ -72,7 +82,8 @@ class USAConfig(BaseModel):
             'GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc'
             '.parquet). When set, the GHG loader reads that file from the '
             'local FBS directory and, if it is absent, downloads that object '
-            'from gs://cornerstone-default/transform/output_data/. A newer '
+            'from gs://cornerstone-default/transform/output_data/, even when '
+            'the filename stem differs from the selected method stem. A newer '
             'upload of the same stem is not a substitute. When omitted, the '
             'loader uses the newest parquet for the stem the config selects.'
         ),
@@ -313,12 +324,6 @@ class USAConfig(BaseModel):
     # of the MECS/Use nowcast stem. Ignored when the detail source is
     # bea_published.
     use_facility_ghg_attribution: bool = False
-    # When True with facility attribution, load
-    # GHG_national_Cornerstone_nowcast_facilities_transportation_{year}
-    # (on-road gasoline and diesel via highway fuel shares). False keeps the
-    # facility stem. Electricity disaggregation loads the eGRID FBS and does
-    # not read this flag.
-    use_transportation_ghg_allocation: bool = False
 
     #####
     # Diagnostics baseline (parquet snapshots vs USEEIO Excel on GCS)
@@ -429,28 +434,6 @@ class USAConfig(BaseModel):
                 'implement_electricity_reaggregation requires '
                 'implement_electricity_disaggregation'
             )
-        if self.use_transportation_ghg_allocation:
-            if (
-                self.usa_detail_io_source != 'nowcast'
-                or not self.use_facility_ghg_attribution
-            ):
-                raise ValueError(
-                    'use_transportation_ghg_allocation requires '
-                    "usa_detail_io_source 'nowcast' and "
-                    'use_facility_ghg_attribution'
-                )
-            if self.usa_ghg_data_year != 2024:
-                raise ValueError(
-                    'use_transportation_ghg_allocation is defined for '
-                    'usa_ghg_data_year 2024 only; '
-                    f'got {self.usa_ghg_data_year}'
-                )
-            if self.implement_electricity_disaggregation:
-                raise ValueError(
-                    'use_transportation_ghg_allocation is not used when '
-                    'implement_electricity_disaggregation is on; that path '
-                    'loads the eGRID FBS'
-                )
         if (
             self.implement_electricity_reaggregation
             and self.implement_electricity_mixed_units
@@ -459,6 +442,19 @@ class USAConfig(BaseModel):
                 'implement_electricity_reaggregation is mutually exclusive with '
                 'implement_electricity_mixed_units'
             )
+        if self.implement_electricity_disaggregation:
+            key = (self.usa_detail_io_source, self.usa_ghg_data_year)
+            if key not in ELECTRICITY_DISAGG_SUPPORTED_IO_YEAR:
+                supported = ', '.join(
+                    f'{src}/{yr}'
+                    for src, yr in sorted(ELECTRICITY_DISAGG_SUPPORTED_IO_YEAR)
+                )
+                raise ValueError(
+                    'implement_electricity_disaggregation requires '
+                    f'(usa_detail_io_source, usa_ghg_data_year) in {{{supported}}}; '
+                    f'got usa_detail_io_source={self.usa_detail_io_source!r}, '
+                    f'usa_ghg_data_year={self.usa_ghg_data_year}'
+                )
         return self
 
     @model_validator(mode='after')

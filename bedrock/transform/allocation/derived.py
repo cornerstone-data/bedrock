@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 
-from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
+from bedrock.transform.flowbysector import FlowBySector
 from bedrock.transform.iot.derived_gross_industry_output import derive_gross_output
 from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
@@ -257,106 +257,26 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(FlowBySector(fbs2).aggregate_flowby())
 
 
-# (usa_detail_io_source, usa_ghg_data_year) → eGRID-backed Cornerstone GHG FBS stem.
-_EGRID_FBS_METHOD_BY_SOURCE_YEAR: dict[tuple[str, int], str] = {
-    ('bea_published', 2023): 'GHG_national_Cornerstone_2023_egrid',
-    ('bea_published', 2024): 'GHG_national_Cornerstone_2024_egrid',
-    ('nowcast', 2024): 'GHG_national_Cornerstone_nowcast_2024',
-}
-
-
-def egrid_fbs_method_for_config() -> str:
-    """Return the eGRID-backed Cornerstone GHG FBS method for the active config.
-
-    Branches on ``usa_detail_io_source`` and ``usa_ghg_data_year`` so electricity
-    disaggregation composes with nowcast Use attribution instead of always
-    selecting the published ``*_egrid`` stem.
-    """
-    usa = get_usa_config()
-    key = (usa.usa_detail_io_source, usa.usa_ghg_data_year)
-    try:
-        return _EGRID_FBS_METHOD_BY_SOURCE_YEAR[key]
-    except KeyError as exc:
-        supported = ', '.join(
-            f'{src}/{yr}' for src, yr in sorted(_EGRID_FBS_METHOD_BY_SOURCE_YEAR)
-        )
-        raise ValueError(
-            f'usa_detail_io_source={usa.usa_detail_io_source!r}, '
-            f'usa_ghg_data_year={usa.usa_ghg_data_year} is unsupported for the '
-            f'electricity-disaggregation eGRID FBS; supported: {supported}'
-        ) from exc
-
-
-def egrid_fbs_method_for_year(year: int) -> str:
-    """Published-BEA alias: eGRID FBS stem for *year* (``bea_published`` only)."""
-    key = ('bea_published', year)
-    try:
-        return _EGRID_FBS_METHOD_BY_SOURCE_YEAR[key]
-    except KeyError as exc:
-        published_years = sorted(
-            yr for src, yr in _EGRID_FBS_METHOD_BY_SOURCE_YEAR if src == 'bea_published'
-        )
-        supported = ', '.join(str(y) for y in published_years)
-        raise ValueError(
-            f'usa_ghg_data_year={year} is unsupported for the electricity-'
-            f'disaggregation eGRID FBS; supported years: {supported}'
-        ) from exc
-
-
 def _select_cornerstone_ghg_fbs_base_name() -> str:
     """Resolve Cornerstone GHG FBS ``base_name`` from the active USAConfig.
 
-    ``usa_ghg_data_year`` selects the inventory-year method stem.
-    ``usa_detail_io_source`` distinguishes published BEA Use attribution
-    (``GHG_national_Cornerstone_{year}``) from nowcast Use attribution
-    (``GHG_national_Cornerstone_nowcast_{year}``). With nowcast,
-    ``use_facility_ghg_attribution`` selects the facility-attribution stem
-    (``GHG_national_Cornerstone_nowcast_facilities_{year}``) instead.
-    ``use_transportation_ghg_allocation`` selects
-    ``GHG_national_Cornerstone_nowcast_facilities_transportation_{year}``
-    on top of that facility stem.
-
-    Electricity-disaggregation configs use :func:`egrid_fbs_method_for_config`
-    instead of this helper.
+    ``usa_ghg_data_year`` selects the inventory-year method stem
+    (``GHG_national_Cornerstone_{year}``). Year methods embed plant-level
+    eGRID for electric power. A config may still pin an older parquet by
+    filename via ``cornerstone_ghg_fbs_filename``.
     """
     usa = get_usa_config()
     year = usa.usa_ghg_data_year
-    if usa.usa_detail_io_source == 'bea_published':
-        return f'GHG_national_Cornerstone_{year}'
-    if usa.use_facility_ghg_attribution:
-        if usa.use_transportation_ghg_allocation:
-            return f'GHG_national_Cornerstone_nowcast_facilities_transportation_{year}'
-        return f'GHG_national_Cornerstone_nowcast_facilities_{year}'
-    return f'GHG_national_Cornerstone_nowcast_{year}'
+    return f'GHG_national_Cornerstone_{year}'
 
 
-def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
-    """Load the eGRID-based national GHG FBS for electricity disaggregation.
+def _exact_cornerstone_ghg_fbs_name() -> str | None:
+    """Pinned parquet filename, or ``None`` when the config omits it.
 
-    Selects the method stem via :func:`egrid_fbs_method_for_config` so nowcast
-    and published electricity configs stay year- and IO-source-matched.
-    """
-    method = egrid_fbs_method_for_config()
-    try:
-        return _load_cornerstone_ghg_fbs_from_gcs(base_name=method)
-    except FileNotFoundError:
-        logger.info(
-            'eGRID FBS parquet not in transform/output_data; '
-            'loading via getFlowBySector (%s)',
-            method,
-        )
-        return getFlowBySector(
-            methodname=method,
-            download_FBS_if_missing=True,
-        )
-
-
-def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
-    """Pinned parquet name for this stem, or ``None`` when the config omits it.
-
-    The pin is the full filename. It applies only when its stem is the stem
-    being loaded, so an electricity-disaggregation load of a different method
-    is not redirected at a facilities pin.
+    The pin is the full filename (version + git hash required). When set, that
+    exact object is loaded even if its stem differs from the selected method
+    stem, so release and waterfall configs can keep historical parquet pins
+    after method YAML stems consolidate.
     """
     import os  # noqa: PLC0415
 
@@ -366,16 +286,11 @@ def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
     if not raw:
         return None
     filename = os.path.basename(raw)
-    stem, extension, version, git_hash = parse_methodname(filename)
+    _, extension, version, git_hash = parse_methodname(filename)
     if extension != '.parquet' or version is None or git_hash is None:
         raise ValueError(
             'cornerstone_ghg_fbs_filename must be a parquet name with a '
             f'version and git hash, got {raw!r}'
-        )
-    if stem != resolved_base_name:
-        raise ValueError(
-            f'cornerstone_ghg_fbs_filename {filename!r} does not match the '
-            f'selected FBS stem {resolved_base_name!r}'
         )
     return filename
 
@@ -407,18 +322,19 @@ def _load_cornerstone_ghg_fbs_from_gcs(
 ) -> pd.DataFrame:
     """Download a pre-built Cornerstone GHG FBS parquet from GCS.
 
-    Bypasses ``getFlowBySector`` for the time-series case. The flowsa
-    regen path goes through `EPA_GHGI` loaders that are hard-capped at
-    `{2022, 2023}` (`bedrock/extract/allocation/epa.py:_get_epa_data_year`),
-    so years like 2019–2021 (and the 2024 UMD FBS) fail there. The pre-built
-    FBS parquets in ``gs://cornerstone-default/transform/output_data/`` whose
-    ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
-    name such as ``GHG_national_Cornerstone_2024``) are loaded directly.
+    Bypasses ``getFlowBySector`` for the time-series case. Nested
+    ``EPA_GHGI`` loaders only allow ``usa_ghg_data_year`` in ``{2022, 2023}``
+    (``epa.py:_get_epa_data_year``), so regenerating year-2024 (and other
+    non-2022/2023) Cornerstone FBS via ``getFlowBySector`` can hit those
+    sources and fail. The pre-built FBS parquets in
+    ``gs://cornerstone-default/transform/output_data/`` whose ``base_name``
+    is ``GHG_national_Cornerstone_<year>`` (or a method-specific name such as
+    ``GHG_national_Cornerstone_2024``) are loaded directly.
 
-    With ``USAConfig.cornerstone_ghg_fbs_filename`` set to a parquet of this
-    stem, that file is required: the local FBS directory first, then that
-    exact object on GCS. Otherwise the most recently uploaded parquet whose
-    ``base_name`` matches is the one loaded.
+    With ``USAConfig.cornerstone_ghg_fbs_filename`` set, that exact file is
+    required (local FBS directory first, then that GCS object), including when
+    its stem differs from ``base_name`` / year. Otherwise the most recently
+    uploaded parquet whose ``base_name`` matches is the one loaded.
     """
     import os  # noqa: PLC0415
 
@@ -428,16 +344,16 @@ def _load_cornerstone_ghg_fbs_from_gcs(
         list_bucket_files,
     )
 
+    pinned = _exact_cornerstone_ghg_fbs_name()
+    if pinned is not None:
+        return _read_exact_fbs_parquet(pinned)
+
     if base_name is None:
         if year is None:
             raise ValueError('Either year or base_name must be provided')
         resolved_base_name = f'GHG_national_Cornerstone_{year}'
     else:
         resolved_base_name = base_name
-
-    pinned = _exact_cornerstone_ghg_fbs_name(resolved_base_name)
-    if pinned is not None:
-        return _read_exact_fbs_parquet(pinned)
 
     sub_bucket = 'transform/output_data'
     bucket_df = list_bucket_files(sub_bucket)
@@ -470,21 +386,16 @@ def load_E_from_flowsa() -> pd.DataFrame:
     ``derive_E_usa``.
 
     The FBS is the pre-built Cornerstone GHG parquet from GCS via
-    :func:`_select_cornerstone_ghg_fbs_base_name` (or ``*_egrid`` when
-    electricity disaggregation is on).
+    :func:`_select_cornerstone_ghg_fbs_base_name` (year method; eGRID is
+    embedded when present). Prefer that over flowsa regen: nested
+    ``EPA_GHGI`` loaders only allow ``usa_ghg_data_year`` in ``{2022, 2023}``
+    (``epa.py:_get_epa_data_year``), so regenerating year-2024 FBS via
+    ``getFlowBySector`` can hit those sources and fail.
     """
     usa = get_usa_config()
-    if usa.implement_electricity_disaggregation:
-        fbs = _load_egrid_fbs_for_electricity_disagg()
-    else:
-        # Bypass flowsa regen: the EPA loader behind `getFlowBySector` is
-        # hard-capped at {2022, 2023}, so other years (incl. the 2024 UMD
-        # FBS) fail there. Load the pre-built FBS parquet from GCS at
-        # `transform/output_data/` directly so the year-Y diagnostics get
-        # year-Y GHG data.
-        fbs = _load_cornerstone_ghg_fbs_from_gcs(
-            base_name=_select_cornerstone_ghg_fbs_base_name()
-        )
+    fbs = _load_cornerstone_ghg_fbs_from_gcs(
+        base_name=_select_cornerstone_ghg_fbs_base_name()
+    )
 
     fbs = map_fbs_sectors_to_model_schema(fbs)
     fbs = resplit_waste_use_emissions(fbs)

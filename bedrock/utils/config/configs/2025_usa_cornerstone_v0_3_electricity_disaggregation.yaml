@@ -1,6 +1,7 @@
 # v0.3.1 electricity footing + reallocation + 3-way split (margins off; no mixed units).
 model_base_year: 2024
 usa_ghg_data_year: 2024
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_egrid_v0.3.0_672c37c.parquet
 apply_io_year_adjustments: True
 implement_waste_disaggregation: True
 cornerstone_industry_avg_margins: False

@@ -5,6 +5,7 @@ model_base_year: 2024
 price_type: producer
 
 usa_ghg_data_year: 2023
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2023_v0.3.0_9030001.parquet
 
 apply_io_year_adjustments: false
 implement_waste_disaggregation: true

@@ -112,13 +112,24 @@ def test_omitted_pin_uses_the_newest_upload(
     assert loaded['marker'].tolist() == [newer]
 
 
-def test_pin_for_a_different_stem_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pin_wins_when_stem_differs_from_selected_base_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Historical pins may use a retired stem while selection is year-only."""
     name = 'GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc.parquet'
+    _frame('pinned').to_parquet(tmp_path / name)
     monkeypatch.setattr(derived, 'get_usa_config', lambda: _config(name))
-    with pytest.raises(ValueError, match='does not match'):
-        derived._load_cornerstone_ghg_fbs_from_gcs(
-            base_name='GHG_national_Cornerstone_nowcast_facilities_2023'
-        )
+    monkeypatch.setattr('bedrock.utils.config.settings.FBS_DIR', tmp_path)
+
+    def _no_download(*_a: object, **_k: object) -> None:
+        raise AssertionError('pinned file is already local')
+
+    monkeypatch.setattr('bedrock.utils.io.gcp.download_gcs_file', _no_download)
+
+    loaded = derived._load_cornerstone_ghg_fbs_from_gcs(
+        base_name='GHG_national_Cornerstone_2024'
+    )
+    assert loaded['marker'].tolist() == ['pinned']
 
 
 def test_pin_without_a_git_hash_raises(monkeypatch: pytest.MonkeyPatch) -> None:

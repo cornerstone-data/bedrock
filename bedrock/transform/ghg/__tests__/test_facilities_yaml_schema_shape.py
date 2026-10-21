@@ -1,10 +1,13 @@
-"""Schema-shape checks for facilities nowcast GHG method YAMLs."""
+"""Schema-shape checks for year Cornerstone GHG methods."""
 
 from __future__ import annotations
 
-from pathlib import Path
+import pytest
 
-_GHG_DIR = Path(__file__).resolve().parents[1]
+from bedrock.extract.stewifbs.stewiFBS import facility_combustion_to_sector
+from bedrock.extract.umd.UMD_GHGIA import prepare_facilities_industrial_combustion
+from bedrock.utils.config.common import load_yaml_dict
+
 _REQUIRED_SETS = (
     'petroleum_still_gas',
     'petroleum_facility',
@@ -14,66 +17,51 @@ _REQUIRED_SETS = (
     'ng_manufacturing',
     'coal',
 )
-_FACILITY_FLOWABLES = (
-    'Flowable: Petroleum',
-    'Flowable: Natural Gas',
-    'Flowable: Coal',
-    'Flowable: Natural Gas - lease and plant',
-)
 
 
-def _facility_year_yamls() -> list[Path]:
-    """Year files only. ``_transportation_`` is a separate method stem."""
-    return sorted(
-        p
-        for p in _GHG_DIR.glob('GHG_national_Cornerstone_nowcast_facilities_*.yaml')
-        if '_transportation_' not in p.name
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_cornerstone_year_wires_facility_activity_sets(year: int) -> None:
+    method = load_yaml_dict(f'GHG_national_Cornerstone_{year}', 'FBS')
+    facilities = method['sources_to_cache']['GHGRP_NEI_Facilities']
+    assert facilities['FBS_datapull_fxn'] is facility_combustion_to_sector
+    assert '221100' in facilities['exclude_sectors']
+    assert {'Petroleum', 'Natural Gas', 'Coal'} <= set(facilities['keep_flowables'])
+    industrial = method['source_names']['UMD_GHGIA_T_3_11']
+    assert (
+        industrial['clean_fba_before_activity_sets']
+        is prepare_facilities_industrial_combustion
+    )
+    assert '221100' in industrial['clean_parameter']['exclude_sectors']
+    assert industrial['clean_parameter']['annex_fba']
+    sets = industrial['activity_sets']
+    for name in _REQUIRED_SETS:
+        assert name in sets, f'{year} missing activity set {name}'
+    lease = sets['natural_gas_lease_plant']['attribution_source'][
+        'GHGRP_NEI_Facilities'
+    ]['selection_fields']
+    assert lease['Flowable'] == 'Natural Gas - lease and plant'
+    petroleum_use = sets['petroleum_use']
+    assert 'Nowcast_Detail_Use_AfterRedef' in petroleum_use['attribution_source']
+    assert (
+        'Petroleum Industrial - Motor Gasoline'
+        in petroleum_use['selection_fields']['PrimaryActivity']
+    )
+    assert (
+        'Petroleum Industrial - Distillate Fuel Oil'
+        in sets['petroleum_distillate']['selection_fields']['PrimaryActivity']
     )
 
 
-def test_facilities_yamls_wire_prep_and_activity_sets() -> None:
-    paths = _facility_year_yamls()
-    assert [p.name for p in paths] == [
-        f'GHG_national_Cornerstone_nowcast_facilities_{y}.yaml'
-        for y in range(2017, 2025)
-    ]
-    for path in paths:
-        text = path.read_text(encoding='utf-8')
-        year = path.stem.rsplit('_', 1)[-1]
-        assert f'!include:GHG_national_Cornerstone_nowcast_{year}.yaml' in text
-        assert 'GHGRP_NEI_Facilities:' in text
-        assert (
-            'FBS_datapull_fxn: !script_function:stewiFBS facility_combustion_to_sector'
-            in text
-        )
-        assert (
-            'clean_fba_before_activity_sets: !script_function:UMD_GHGIA '
-            'prepare_facilities_industrial_combustion'
-        ) in text
-        assert "exclude_sectors:" in text
-        assert "'221100'" in text
-        assert 'annex_fba:' in text
-        for name in _REQUIRED_SETS:
-            assert f'{name}:' in text, f'{path.name} missing activity set {name}'
-        for flowable in _FACILITY_FLOWABLES:
-            assert flowable in text, f'{path.name} missing {flowable}'
-        assert 'Nowcast_Detail_Use_AfterRedef:' in text
-        assert 'Petroleum Industrial - Distillate Fuel Oil' in text
-        assert 'Petroleum Industrial - Motor Gasoline' in text
-
-
-def test_still_gas_attributes_to_refineries_only() -> None:
-    """Still gas is refinery fuel (#983): weight on refineries' petroleum only (#1054).
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_still_gas_attributes_to_refineries_only(year: int) -> None:
+    """Still gas is refinery fuel: weight on refineries' petroleum only.
 
     The cached facility source carries refineries as 32411 (industry spec); a
-    selection on '324110' alone matched nothing and dropped all still gas (#1060).
+    selection on '324110' alone matched nothing and dropped all still gas.
     """
-    for path in _facility_year_yamls():
-        text = path.read_text(encoding='utf-8')
-        block = text.split('petroleum_still_gas:', 1)[1].split(
-            'petroleum_facility:', 1
-        )[0]
-        assert 'GHGRP_NEI_Facilities:' in block, path.name
-        assert (
-            "SectorProducedBy: ['32411', '324110']" in block
-        ), f'{path.name}: still gas must attribute to refineries only'
+    method = load_yaml_dict(f'GHG_national_Cornerstone_{year}', 'FBS')
+    still_gas = method['source_names']['UMD_GHGIA_T_3_11']['activity_sets'][
+        'petroleum_still_gas'
+    ]
+    fields = still_gas['attribution_source']['GHGRP_NEI_Facilities']['selection_fields']
+    assert fields['SectorProducedBy'] == ['32411', '324110']

@@ -12,7 +12,7 @@
 #                                           GHG_national_Cornerstone_nowcast_2024 (UMD GHGIA 2024
 #                                           inventory + 2022 MECS, attributed on the 2024 nowcast
 #                                           after-redef Use rather than published BEA 2017 Use).
-#                                           Loaded from the newest GCS parquet for that stem.
+#                                           Pinned by cornerstone_ghg_fbs_filename.
 #   - Waste disaggregation and industry-average margins as in v0.3.
 #
 # nowcast_mut_vintage pins one GCS build so the snapshot cut from this config is
@@ -32,6 +32,7 @@ usa_detail_io_source: nowcast
 nowcast_mut_vintage: 'v0.3.0_4276083'
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_2024_v0.3.0_0e1b0f0.parquet
 
 #####
 # Methodology selection
