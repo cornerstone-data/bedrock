@@ -340,11 +340,13 @@ def _load_egrid_fbs_for_electricity_disagg() -> pd.DataFrame:
         )
 
 
-def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
-    """Pinned parquet name for this stem, or ``None`` when the config omits it.
+def _exact_cornerstone_ghg_fbs_name() -> str | None:
+    """Pinned parquet filename, or ``None`` when the config omits it.
 
-    The pin is the full filename. It is loaded only when its stem is the stem
-    being loaded.
+    The pin is the full filename (version + git hash required). When set, that
+    exact object is loaded even if its stem differs from the selected method
+    stem, so release and waterfall configs can keep historical parquet pins
+    after method YAML stems consolidate.
     """
     import os  # noqa: PLC0415
 
@@ -354,16 +356,11 @@ def _exact_cornerstone_ghg_fbs_name(resolved_base_name: str) -> str | None:
     if not raw:
         return None
     filename = os.path.basename(raw)
-    stem, extension, version, git_hash = parse_methodname(filename)
+    _, extension, version, git_hash = parse_methodname(filename)
     if extension != '.parquet' or version is None or git_hash is None:
         raise ValueError(
             'cornerstone_ghg_fbs_filename must be a parquet name with a '
             f'version and git hash, got {raw!r}'
-        )
-    if stem != resolved_base_name:
-        raise ValueError(
-            f'cornerstone_ghg_fbs_filename {filename!r} does not match the '
-            f'selected FBS stem {resolved_base_name!r}'
         )
     return filename
 
@@ -403,10 +400,10 @@ def _load_cornerstone_ghg_fbs_from_gcs(
     ``base_name`` is ``GHG_national_Cornerstone_<year>`` (or a method-specific
     name such as ``GHG_national_Cornerstone_2024``) are loaded directly.
 
-    With ``USAConfig.cornerstone_ghg_fbs_filename`` set to a parquet of this
-    stem, that file is required: the local FBS directory first, then that
-    exact object on GCS. Otherwise the most recently uploaded parquet whose
-    ``base_name`` matches is the one loaded.
+    With ``USAConfig.cornerstone_ghg_fbs_filename`` set, that exact file is
+    required (local FBS directory first, then that GCS object), including when
+    its stem differs from ``base_name`` / year. Otherwise the most recently
+    uploaded parquet whose ``base_name`` matches is the one loaded.
     """
     import os  # noqa: PLC0415
 
@@ -416,16 +413,16 @@ def _load_cornerstone_ghg_fbs_from_gcs(
         list_bucket_files,
     )
 
+    pinned = _exact_cornerstone_ghg_fbs_name()
+    if pinned is not None:
+        return _read_exact_fbs_parquet(pinned)
+
     if base_name is None:
         if year is None:
             raise ValueError('Either year or base_name must be provided')
         resolved_base_name = f'GHG_national_Cornerstone_{year}'
     else:
         resolved_base_name = base_name
-
-    pinned = _exact_cornerstone_ghg_fbs_name(resolved_base_name)
-    if pinned is not None:
-        return _read_exact_fbs_parquet(pinned)
 
     sub_bucket = 'transform/output_data'
     bucket_df = list_bucket_files(sub_bucket)

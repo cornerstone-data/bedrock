@@ -72,7 +72,8 @@ class USAConfig(BaseModel):
             'GHG_national_Cornerstone_nowcast_facilities_2024_v0.3.0_3a1dddc'
             '.parquet). When set, the GHG loader reads that file from the '
             'local FBS directory and, if it is absent, downloads that object '
-            'from gs://cornerstone-default/transform/output_data/. A newer '
+            'from gs://cornerstone-default/transform/output_data/, even when '
+            'the filename stem differs from the selected method stem. A newer '
             'upload of the same stem is not a substitute. When omitted, the '
             'loader uses the newest parquet for the stem the config selects.'
         ),
