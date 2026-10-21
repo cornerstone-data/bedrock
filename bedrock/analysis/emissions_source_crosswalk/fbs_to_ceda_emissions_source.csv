@@ -1,0 +1,212 @@
+meta_source,activity,flowable,ceda_source,status,note
+eGRID,*,Carbon dioxide,co2_electricity_generation,mapped,
+eGRID,*,Methane,ch4_stationary_combustion_electric,mapped,
+eGRID,*,Nitrous oxide,n2o_stationary_combustion_electric,mapped,
+UMD_GHGIA_T_2_S1.direct,Abandoned Oil and Gas Wells,Methane,ch4_abandoned_oil_and_gas_wells,mapped,
+UMD_GHGIA_T_2_S1.direct,Abandoned Underground Coal Mines,Methane,ch4_abandoned_underground_coal_mines,mapped,
+UMD_GHGIA_T_2_S1.direct,Adipic Acid Production,Nitrous oxide,n2o_adipic_acid_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Aluminum Production,Carbon dioxide,co2_aluminum_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Ammonia Production,Carbon dioxide,co2_ammonia_production,mapped,
+UMD_GHGIA_T_2_S1.direct,"Caprolactam, Glyoxal, and Glyoxylic Acid Production",Nitrous oxide,n2o_caprolactam_glyoxal_and_glyoxylic_acid_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Carbide Production and Consumption,Carbon dioxide,co2_silicon_carbide_production_and_consumption,mapped,
+UMD_GHGIA_T_2_S1.direct,Carbide Production and Consumption,Methane,ch4_silicon_carbide_production_and_consumption,mapped,
+UMD_GHGIA_T_2_S1.direct,Cement Production,Carbon dioxide,co2_cement_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Coal Mining,Methane,ch4_coal_mining,mapped,
+UMD_GHGIA_T_2_S1.direct,Composting,Methane,ch4_composting,mapped,
+UMD_GHGIA_T_2_S1.direct,Composting,Nitrous oxide,n2o_composting,mapped,
+UMD_GHGIA_T_2_S1.direct,Ferroalloy Production,Carbon dioxide,co2_ferroalloy_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Ferroalloy Production,Methane,ch4_ferroalloy_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Glass Production,Carbon dioxide,co2_glass_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Incineration of Waste,Carbon dioxide,co2_incineration_of_waste,mapped,
+UMD_GHGIA_T_2_S1.direct,Incineration of Waste,Methane,ch4_incineration_of_waste,mapped,
+UMD_GHGIA_T_2_S1.direct,Incineration of Waste,Nitrous oxide,n2o_incineration_of_waste,mapped,
+UMD_GHGIA_T_2_S1.direct,Iron and Steel Production & Metallurgical Coke Production,Carbon dioxide,co2_iron_and_steel_production_and_metallurgical_coke_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Iron and Steel Production & Metallurgical Coke Production,Methane,ch4_iron_and_steel_production_and_metallurgical_coke_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Landfills,Methane,ch4_landfills,mapped,
+UMD_GHGIA_T_2_S1.direct,Lead Production,Carbon dioxide,co2_lead_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Lime Production,Carbon dioxide,co2_lime_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Nitric Acid Production,Nitrous oxide,n2o_nitric_acid_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Phosphoric Acid Production,Carbon dioxide,co2_phosphoric_acid_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Rice Cultivation,Methane,ch4_rice_cultivation,mapped,
+UMD_GHGIA_T_2_S1.direct,Soda Ash Production,Carbon dioxide,co2_soda_ash_production_and_consumption,mapped,
+UMD_GHGIA_T_2_S1.direct,Titanium Dioxide Production,Carbon dioxide,co2_titanium_dioxide_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Wastewater Treatment,Methane,ch4_wastewater_treatment,mapped,
+UMD_GHGIA_T_2_S1.direct,Wastewater Treatment,Nitrous oxide,n2o_wastewater_treatment,mapped,
+UMD_GHGIA_T_2_S1.direct,Zinc Production,Carbon dioxide,co2_zinc_production,mapped,
+UMD_GHGIA_T_2_S1.direct,Anaerobic Digestion at Biogas Facilities,Methane,ch4_composting,mapped,ceda has no anaerobic-digestion source; GHGI reports it beside composting
+UMD_GHGIA_T_2_S1.direct,Abandoned Oil and Gas Wells,Carbon dioxide,,no_ceda_source,ceda has CH4 only
+UMD_GHGIA_T_2_S1.direct,Coal Mining,Carbon dioxide,,no_ceda_source,ceda has CH4 only
+UMD_GHGIA_T_2_S1.carbonate_use,*,Carbon dioxide,co2_other_process_uses_of_carbonates,mapped,
+UMD_GHGIA_T_2_S1.electricity_transmission,*,Sulfur hexafluoride,sf6_electrical_transmission_and_distribution,mapped,
+UMD_GHGIA_T_2_S1.field_burning_ch4,*,Methane,ch4_field_burning_of_agricultural_residues,mapped,
+UMD_GHGIA_T_2_S1.field_burning_n2O,*,Nitrous oxide,n2o_field_burning_of_agricultural_residues,mapped,
+UMD_GHGIA_T_2_S1.liming,*,Carbon dioxide,co2_liming_of_agricultural_soils,mapped,
+UMD_GHGIA_T_2_S1.nitrous_oxide_use,*,Nitrous oxide,n2o_from_product_uses,mapped,
+UMD_GHGIA_T_2_S1.urea,*,Carbon dioxide,co2_urea_consumption_for_nonagricultural_purposes,mapped,
+UMD_GHGIA_T_2_S1.urea_fertilizer,*,Carbon dioxide,co2_urea_fertilization,mapped,
+UMD_GHGIA_T_3_9.construction_and_mining,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.construction_and_mining,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.direct_non_road,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.direct_non_road,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.farm_non_road,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.farm_non_road,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.light_duty_trucks_gasoline,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.light_duty_trucks_gasoline,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.other_non_road,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.other_non_road,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.petroleum_fuels_diesel,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.petroleum_fuels_diesel,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.petroleum_fuels_gasoline,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.petroleum_fuels_gasoline,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.alt_fuel_on_road,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.alt_fuel_on_road,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.direct_diesel,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.direct_diesel,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.direct_gasoline,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.direct_gasoline,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_9.light_duty_trucks_diesel,*,Methane,ch4_mobile_combustion,mapped,
+UMD_GHGIA_T_3_10.light_duty_trucks_diesel,*,Nitrous oxide,n2o_mobile_combustion,mapped,
+UMD_GHGIA_T_3_8.direct_diesel,*,Carbon dioxide,co2_transportation_distillate_fuel_oil,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_diesel,*,Carbon dioxide,co2_transportation_distillate_fuel_oil,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_diesel_automobiles,*,Carbon dioxide,co2_transportation_distillate_fuel_oil,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_diesel_buses,*,Carbon dioxide,co2_transportation_distillate_fuel_oil,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_diesel_light_duty_trucks,*,Carbon dioxide,co2_transportation_distillate_fuel_oil,mapped,
+UMD_GHGIA_T_3_8.direct_gasoline,*,Carbon dioxide,co2_transportation_motor_gasoline,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_gasoline,*,Carbon dioxide,co2_transportation_motor_gasoline,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_gasoline_light_duty_trucks,*,Carbon dioxide,co2_transportation_motor_gasoline,mapped,
+UMD_GHGIA_T_3_8.petroleum_fuels_gasoline_trucks,*,Carbon dioxide,co2_transportation_motor_gasoline,mapped,
+UMD_GHGIA_T_3_8.direct_jet,Commercial Aircraft,Carbon dioxide,co2_transportation_jet_fuel,mapped,
+UMD_GHGIA_T_3_8.direct_jet,Military Aircraft,Carbon dioxide,co2_transportation_jet_fuel,mapped,
+UMD_GHGIA_T_3_8.direct_jet,General Aviation Aircraft,Carbon dioxide,co2_transportation_jet_fuel; co2_transportation_aviation_gasoline,bundled,method YAML renames both GA jet fuel and GA aviation gasoline to General Aviation Aircraft
+UMD_GHGIA_T_3_8.direct_lpg,*,Carbon dioxide,co2_transportation_lpg,mapped,
+UMD_GHGIA_T_3_8.direct_ng,*,Carbon dioxide,co2_transportation_natural_gas,mapped,includes pipeline fuel
+UMD_GHGIA_T_3_8.lng_liquefaction,*,Carbon dioxide,co2_transportation_natural_gas,mapped,check: LNG liquefaction may sit outside ceda transport NG
+UMD_GHGIA_T_3_8.direct_residual_fuel_oil,*,Carbon dioxide,co2_transportation_residual_fuel,mapped,
+UMD_GHGIA_T_3_11.coal,*,Carbon dioxide,co2_industrial_coal,mapped,
+UMD_GHGIA_T_3_11.coal,*,Methane,ch4_stationary_combustion_industrial_coal,mapped,
+UMD_GHGIA_T_3_11.coal,*,Nitrous oxide,n2o_stationary_combustion_industrial_coal,mapped,
+UMD_GHGIA_T_3_11.natural_gas_hydrogen,*,Carbon dioxide,co2_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_hydrogen,*,Methane,ch4_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_hydrogen,*,Nitrous oxide,n2o_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_lease_plant,*,Carbon dioxide,co2_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_lease_plant,*,Methane,ch4_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_lease_plant,*,Nitrous oxide,n2o_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_nonmanufacturing,*,Carbon dioxide,co2_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_nonmanufacturing,*,Methane,ch4_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.natural_gas_nonmanufacturing,*,Nitrous oxide,n2o_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.ng_manufacturing,*,Carbon dioxide,co2_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.ng_manufacturing,*,Methane,ch4_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.ng_manufacturing,*,Nitrous oxide,n2o_stationary_combustion_industrial_natural_gas,mapped,
+UMD_GHGIA_T_3_11.petroleum_distillate,*,Carbon dioxide,co2_industrial_petrol,mapped,
+UMD_GHGIA_T_3_11.petroleum_distillate,*,Methane,ch4_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_distillate,*,Nitrous oxide,n2o_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_facility,*,Carbon dioxide,co2_industrial_petrol,mapped,
+UMD_GHGIA_T_3_11.petroleum_facility,*,Methane,ch4_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_facility,*,Nitrous oxide,n2o_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_still_gas,*,Carbon dioxide,co2_industrial_petrol,mapped,
+UMD_GHGIA_T_3_11.petroleum_still_gas,*,Methane,ch4_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_still_gas,*,Nitrous oxide,n2o_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_use,*,Carbon dioxide,co2_industrial_petrol,mapped,
+UMD_GHGIA_T_3_11.petroleum_use,*,Methane,ch4_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_11.petroleum_use,*,Nitrous oxide,n2o_stationary_combustion_industrial_fuel_oil,mapped,
+UMD_GHGIA_T_3_4.residential_commercial_co2,*,Carbon dioxide,co2_residential,mapped,
+UMD_GHGIA_T_3_4.non_manufacturing_coal,*,Carbon dioxide,co2_commercial_coal,mapped,
+UMD_GHGIA_T_3_4.non_manufacturing_natural_gas,*,Carbon dioxide,co2_commercial_natural_gas,mapped,
+UMD_GHGIA_T_3_4.petroleum_commercial,*,Carbon dioxide,co2_commercial_petrol,mapped,
+UMD_GHGIA_T_3_12.residential_non_co2_direct,*,Methane,ch4_stationary_combustion_residential,mapped,"wood, residential and commercial"
+UMD_GHGIA_T_3_12.residential_non_co2_direct,*,Nitrous oxide,n2o_stationary_combustion_residential,mapped,"wood, residential and commercial"
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Residential and Commercial,Methane,ch4_stationary_combustion_residential; ch4_stationary_combustion_commercial_natural_gas,bundled,residential and commercial in one line
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Residential and Commercial,Methane,ch4_stationary_combustion_residential; ch4_stationary_combustion_commercial_fuel_oil,bundled,residential and commercial in one line
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Residential and Commercial,Nitrous oxide,n2o_stationary_combustion_residential; n2o_stationary_combustion_commercial_natural_gas,bundled,residential and commercial in one line
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Residential and Commercial,Nitrous oxide,n2o_stationary_combustion_residential; n2o_stationary_combustion_commercial_fuel_oil,bundled,residential and commercial in one line
+UMD_GHGIA_T_3_14.emissions,*,Carbon dioxide,co2_non_energy_fuels_coal_coke; co2_non_energy_fuels_natural_gas; co2_non_energy_fuels_petrol; co2_non_energy_fuels_transport,bundled,NEU is one line; ceda splits by fuel
+UMD_GHGIA_T_3_25,*,Methane,ch4_petroleum_systems,mapped,
+UMD_GHGIA_T_3_26,*,Carbon dioxide,co2_petroleum_systems,mapped,
+UMD_GHGIA_T_3_28,*,Methane,ch4_natural_gas_systems,mapped,
+UMD_GHGIA_T_3_28,Post-Meter,Methane,ch4_natural_gas_systems,mapped,check: ceda v7 inventory may predate post-meter
+UMD_GHGIA_T_3_29,*,Carbon dioxide,co2_natural_gas_systems,mapped,
+UMD_GHGIA_T_5_3,*,Methane,ch4_enteric_fermentation,mapped,
+UMD_GHGIA_T_5_6,*,Methane,ch4_manure_management,mapped,
+UMD_GHGIA_T_5_6,*,Nitrous oxide,n2o_manure_management,mapped,
+UMD_GHGIA_T_5_10.direct,*,Nitrous oxide,n2o_agricultural_soil_management_cropland_fertilizer; n2o_agricultural_soil_management_cropland_mineralization_and_other; n2o_agricultural_soil_management_grassland,bundled,"split lives in nested attribution (EPA_GHGI_T_5_18), not in MetaSources"
+UMD_GHGIA_T_5_10.indirect,*,Nitrous oxide,n2o_agricultural_soil_management_cropland_fertilizer; n2o_agricultural_soil_management_cropland_mineralization_and_other; n2o_agricultural_soil_management_grassland,bundled,"split lives in nested attribution (EPA_GHGI_T_5_19), not in MetaSources"
+UMD_GHGIA_T_4_31,*,Carbon dioxide,co2_petrochemical_production,mapped,
+UMD_GHGIA_T_4_33,*,HFC-23,hfc_23_hcfc_22_production,mapped,
+UMD_GHGIA_T_4_50,*,Carbon tetrafluoride,pfc_cf4_aluminum_production,mapped,
+UMD_GHGIA_T_4_50,*,Hexafluoroethane,pfc_c2f6_aluminum_production,mapped,
+UMD_GHGIA_T_4_52,*,Carbon dioxide,co2_magnesium_production_and_processing,mapped,
+UMD_GHGIA_T_4_52,*,HFC-134a,hfc_134a_magnesium_production_and_processing,mapped,
+UMD_GHGIA_T_4_52,*,Sulfur hexafluoride,sf6_magnesium_production_and_processing,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Carbon tetrafluoride,pfc_cf4_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Hexafluoroethane,pfc_c2f6_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Perfluoropropane,pfc_c3f8_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Perfluorocyclobutane,pfc_c4f8_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,HFC-23,hfc_23_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Nitrogen trifluoride,nf3_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Nitrous oxide,n2o_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,Semiconductors,Sulfur hexafluoride,sf6_semiconductor_manufacture,mapped,
+EPA_GHGI_T_4_64,*,*,,no_ceda_source,fluorochemical production has no ceda source
+UMD_GHGIA_T_4_62,*,Sulfur hexafluoride,,no_ceda_source,"other product use (AWACs, accelerators)"
+UMD_GHGIA_T_4_60.air_conditioning,*,HFC-32,hfc_32_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.air_conditioning,*,HFC-125,hfc_125_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.air_conditioning,*,HFC-134a,hfc_134a_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.air_conditioning,*,HFC-143a,hfc_143a_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.air_conditioning,*,HFC-236fa,hfc_236fa_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.households,*,HFC-32,hfc_32_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.households,*,HFC-125,hfc_125_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.households,*,HFC-134a,hfc_134a_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.households,*,HFC-143a,hfc_143a_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.households,*,HFC-236fa,hfc_236fa_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.refrigerants,*,HFC-32,hfc_32_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.refrigerants,*,HFC-125,hfc_125_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.refrigerants,*,HFC-134a,hfc_134a_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.refrigerants,*,HFC-143a,hfc_143a_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.refrigerants,*,HFC-236fa,hfc_236fa_substitution_of_ozone_depleting_substances_others,mapped,
+UMD_GHGIA_T_4_60.foams,*,HFC-32,hfc_32_foams,mapped,
+UMD_GHGIA_T_A5_5_2,*,HFC-32,hfc_32_substitution_of_ozone_depleting_substances_transport,mapped,
+UMD_GHGIA_T_4_60.foams,*,HFC-125,hfc_125_foams,mapped,
+UMD_GHGIA_T_A5_5_2,*,HFC-125,hfc_125_substitution_of_ozone_depleting_substances_transport,mapped,
+UMD_GHGIA_T_4_60.foams,*,HFC-134a,hfc_134a_foams,mapped,
+UMD_GHGIA_T_A5_5_2,*,HFC-134a,hfc_134a_substitution_of_ozone_depleting_substances_transport,mapped,
+UMD_GHGIA_T_4_60.foams,*,HFC-143a,hfc_143a_foams,mapped,
+UMD_GHGIA_T_A5_5_2,*,HFC-143a,hfc_143a_substitution_of_ozone_depleting_substances_transport,mapped,
+UMD_GHGIA_T_4_60.foams,*,HFC-236fa,hfc_236fa_foams,mapped,
+UMD_GHGIA_T_A5_5_2,*,HFC-236fa,hfc_236fa_substitution_of_ozone_depleting_substances_transport,mapped,
+*,*,"HFCs and PFCs, unspecified",,no_species,already CO2e with no species
+*,*,HFC-227ea,,no_ceda_source,not a ceda gas
+UMD_GHGIA_T_4_60.air_conditioning,*,HFC-23,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.air_conditioning,*,Carbon tetrafluoride,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.air_conditioning,*,Carbon dioxide,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.households,*,HFC-23,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.households,*,Carbon tetrafluoride,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.households,*,Carbon dioxide,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.refrigerants,*,HFC-23,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.refrigerants,*,Carbon tetrafluoride,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.refrigerants,*,Carbon dioxide,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.foams,*,HFC-23,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.foams,*,Carbon tetrafluoride,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_4_60.foams,*,Carbon dioxide,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_A5_5_2,*,HFC-23,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_A5_5_2,*,Carbon tetrafluoride,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_A5_5_2,*,Carbon dioxide,,no_ceda_source,no ceda ODS source for this gas
+UMD_GHGIA_T_5_10.direct,EPA_GHGI_T_5_18.fertilizer_use,Nitrous oxide,n2o_agricultural_soil_management_cropland_fertilizer,mapped,"synthetic fertilizer, organic amendment, residue N"
+UMD_GHGIA_T_5_10.direct,EPA_GHGI_T_5_18.cropland,Nitrous oxide,n2o_agricultural_soil_management_cropland_mineralization_and_other,mapped,mineralization and drained organic soils
+UMD_GHGIA_T_5_10.direct,EPA_GHGI_T_5_18.pasture,Nitrous oxide,n2o_agricultural_soil_management_grassland,mapped,
+UMD_GHGIA_T_5_10.indirect,EPA_GHGI_T_5_19.fertilizer_use,Nitrous oxide,n2o_agricultural_soil_management_cropland_fertilizer,mapped,"check: indirect cropland N2O (volatilization, leaching) assumed to sit in ceda cropland fertilizer"
+UMD_GHGIA_T_5_10.indirect,EPA_GHGI_T_5_19.pasture,Nitrous oxide,n2o_agricultural_soil_management_grassland,mapped,
+UMD_GHGIA_T_3_14.emissions,EPA_GHGI_T_3_25.coal,Carbon dioxide,co2_non_energy_fuels_coal_coke,mapped,
+UMD_GHGIA_T_3_14.emissions,EPA_GHGI_T_3_25.petroleum_neu_asphalt,Carbon dioxide,co2_non_energy_fuels_petrol,mapped,
+UMD_GHGIA_T_3_14.emissions,EPA_GHGI_T_3_25.petroleum_neu_hgl,Carbon dioxide,co2_non_energy_fuels_petrol,mapped,
+UMD_GHGIA_T_3_14.emissions,EPA_GHGI_T_3_25.petroleum_neu,Carbon dioxide,co2_non_energy_fuels_petrol,mapped,
+UMD_GHGIA_T_3_14.emissions,EPA_GHGI_T_3_25.natural_gas_neu,Carbon dioxide,co2_non_energy_fuels_natural_gas,mapped,
+UMD_GHGIA_T_3_14.emissions,EPA_GHGI_T_3_25.transportation_lubricants,Carbon dioxide,co2_non_energy_fuels_transport,mapped,
+UMD_GHGIA_T_3_8.direct_jet,General Aviation Aircraft Aviation Gasoline,Carbon dioxide,co2_transportation_aviation_gasoline,mapped,
+UMD_GHGIA_T_3_8.direct_jet,General Aviation Aircraft Jet Fuel,Carbon dioxide,co2_transportation_jet_fuel,mapped,
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Residential,Methane,ch4_stationary_combustion_residential,mapped,household sectors (F01*)
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Commercial,Methane,ch4_stationary_combustion_commercial_natural_gas,mapped,non-household sectors
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Residential,Methane,ch4_stationary_combustion_residential,mapped,household sectors (F01*)
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Commercial,Methane,ch4_stationary_combustion_commercial_fuel_oil,mapped,non-household sectors
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Residential,Nitrous oxide,n2o_stationary_combustion_residential,mapped,household sectors (F01*)
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Commercial,Nitrous oxide,n2o_stationary_combustion_commercial_natural_gas,mapped,non-household sectors
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Residential,Nitrous oxide,n2o_stationary_combustion_residential,mapped,household sectors (F01*)
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Commercial,Nitrous oxide,n2o_stationary_combustion_commercial_fuel_oil,mapped,non-household sectors
