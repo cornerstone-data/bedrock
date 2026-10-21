@@ -154,6 +154,13 @@ class FlowBySector(_FlowBy):
             method, 'FBS', external_config_path, **kwargs
         )
 
+        # Method YAML may set retain_activity_columns (e.g. Cornerstone GHG
+        # keeps GHGI ActivityProducedBy for emissions-source export). The
+        # explicit kwarg still wins when True so callers can force retention.
+        retain_activity_columns = retain_activity_columns or bool(
+            method_config.pop('retain_activity_columns', False)
+        )
+
         # Cache one or more sources by attaching to method_config
         to_cache = method_config.pop('sources_to_cache', {})
         if 'cache' in method_config:
@@ -261,6 +268,13 @@ class FlowBySector(_FlowBy):
                             }
                         )
                     )
+
+        # SourceName, Description, and Suppressed are appended when
+        # retain_activity_columns is true. They are always empty and are not needed.
+        fbs = fbs.drop(
+            columns=['SourceName', 'Description', 'Suppressed'],
+            errors='ignore',
+        )
 
         # Save fbs and metadata
         log.info(f'FBS generation complete, saving {method} to file')

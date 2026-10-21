@@ -14,10 +14,18 @@ from bedrock.utils.snapshots.fbs_pin import download_pinned_fbs, load_fbs_pin
 _SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
 # Pinned parquet may store these as object/None; regen uses float64/NaN per schema.
 _NUMERIC_FBS_COMPARE_COLUMNS = ('Spread', 'Min', 'Max')
+_ACTIVITY_COLUMNS = ('ActivityProducedBy', 'ActivityConsumedBy')
 
 
-def _prepare_fbs_for_pin_compare(df: pd.DataFrame) -> pd.DataFrame:
+def _prepare_fbs_for_pin_compare(
+    df: pd.DataFrame, *, collapse_activity: bool = False
+) -> pd.DataFrame:
     out = df.drop(columns=_SKIP_FBS_COMPARE_COLUMNS, errors='ignore').copy()
+    if collapse_activity:
+        # Pre-retain golden pins lack activity columns; sum them away so regen
+        # with retain_activity_columns=True can still match until the pin bumps.
+        out = out.drop(columns=list(_ACTIVITY_COLUMNS), errors='ignore')
+        out = pd.DataFrame(FlowBySector(out).aggregate_flowby())
     for col in _NUMERIC_FBS_COMPARE_COLUMNS:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors='coerce').fillna(0.0)
@@ -62,8 +70,18 @@ def test_generate_cornerstone_ghg_fbs_matches_pinned_reference(
     FlowBySector.generateFlowBySector(method, download_sources_ok=True)
     fbs_regenerated = getFlowBySector(method)
 
+    regen_has_activity = 'ActivityProducedBy' in fbs_regenerated.columns
+    ref_has_activity = 'ActivityProducedBy' in fbs_reference.columns
+    if regen_has_activity:
+        assert fbs_regenerated['ActivityProducedBy'].notna().any()
+
     assert_frame_equal(
-        _prepare_fbs_for_pin_compare(fbs_reference),
-        _prepare_fbs_for_pin_compare(fbs_regenerated),
+        _prepare_fbs_for_pin_compare(
+            fbs_reference, collapse_activity=ref_has_activity and not regen_has_activity
+        ),
+        _prepare_fbs_for_pin_compare(
+            fbs_regenerated,
+            collapse_activity=regen_has_activity and not ref_has_activity,
+        ),
         check_like=True,
     )

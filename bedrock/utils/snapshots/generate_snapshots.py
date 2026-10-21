@@ -150,7 +150,11 @@ def generate_snapshots(
     common.download_fba_on_api_error = True
 
     # Late-binding imports after config is set
-    from bedrock.transform.allocation.derived import derive_E_usa
+    from bedrock.transform.allocation.emissions_source_E import (
+        derive_E_usa_emissions_sources,
+        derive_E_usa_es_long,
+        derive_E_usa_gas,
+    )
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
         derive_B_usa_non_finetuned,
@@ -181,11 +185,21 @@ def generate_snapshots(
             '(G/T/D collapsed to 221100)'
         )
 
-    # Generate E_USA_ES
+    # E matrices: gas (former E_USA_ES), source-resolved ES, long table for GWP
+    t0 = time.time()
+    logger.info('Generating E_USA_GAS snapshot')
+    write_snapshot(derive_E_usa_gas(), 'E_USA_GAS')
+    logger.info(f'[TIMING] E_USA_GAS completed in {time.time() - t0:.1f}s')
+
     t0 = time.time()
     logger.info('Generating E_USA_ES snapshot')
-    write_snapshot(derive_E_usa(), 'E_USA_ES')
+    write_snapshot(derive_E_usa_emissions_sources(), 'E_USA_ES')
     logger.info(f'[TIMING] E_USA_ES completed in {time.time() - t0:.1f}s')
+
+    t0 = time.time()
+    logger.info('Generating E_USA_ES_LONG snapshot')
+    write_snapshot(derive_E_usa_es_long(), 'E_USA_ES_LONG')
+    logger.info(f'[TIMING] E_USA_ES_LONG completed in {time.time() - t0:.1f}s')
 
     # Generate B_USA_non_finetuned
     t0 = time.time()

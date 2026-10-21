@@ -7,6 +7,8 @@
 # When running generateFlowBySector(), set download_sources_ok=True.
 
 !include:Cornerstone_2025_target.yaml
+# Keep GHGI ActivityProducedBy so source-resolved E can map inventory lines.
+retain_activity_columns: true
 year: &ghgi_year 2017
 target_schema_year: 2017
 geoscale: national
