@@ -48,17 +48,19 @@ wants them in pieces:
 - **HFCs and PFCs with no species named.** Part of each refrigerant, foam and
   vehicle air-conditioning line comes only as a CO2e total.
 
-For soils and non-energy use, we build those EPA tables separately and start
-from each sector's own mix. For soils that is already the whole answer: the
-national totals come out matching CEDA's to within 1%. For non-energy use it
-is not. Bedrock spreads the line over sectors with different weights from the
-EPA table, so the sector-by-sector mixes add up to too much natural gas
-nationally (27.9% instead of the EPA table's 11.1%). We therefore adjust the
-mixes until two things hold at once: every sector keeps its bedrock total, and
-the fuels add up to the EPA table's national shares. That brings natural gas
-to 10.7 Mt against CEDA's 11.9, from 26.8 before. For general aviation, both fuels go to the same air
-transportation sector, so we split by the two fuels' national totals (3.4% aviation gasoline,
-96.6% jet fuel).
+For soils and non-energy use, we build those EPA tables separately and split
+each sector's emissions by that sector's own mix. With the current method this
+already adds up to the EPA table's national mix, and the soils totals match
+CEDA's to within 1%. As a safeguard, the split is then adjusted until two
+things hold at once: every sector keeps its bedrock total, and the parts add
+up to the EPA table's national shares. Today that adjustment changes nothing.
+It matters if bedrock ever spreads a line over sectors with different weights
+from the EPA table. An earlier build did that for non-energy use, and without
+the adjustment natural gas came out at 27.9% instead of 11.1%.
+
+For general aviation, both fuels go to the same air transportation sector, so
+we split by the two fuels' national totals (3.4% aviation gasoline, 96.6% jet
+fuel).
 
 For residential and commercial, the FBS already puts the household part on
 the household sector and the rest on commercial sectors, so the sector tells
@@ -106,11 +108,9 @@ them. In the table they are marked "check:" or explained in the note.
   indirect N2O.
 - **Unnamed HFCs and PFCs** are assumed to have the same species mix as the
   named ones beside them, and to be in AR5 CO2e.
-- **Non-energy use by fuel** follows the EPA table's national mix, not each
-  sector's own mix. Individual sectors can move a long way. For example,
-  fertilizer manufacturing ends up 48% natural gas.
-- **Refineries' non-energy use** (8% of that line) isn't covered by the EPA
-  table, so it borrows the mix of the other petroleum-product sectors.
+- **Non-energy use by fuel** follows each sector's own EPA mix. A sector the
+  EPA table doesn't cover would borrow the mix of related sectors (the
+  longest shared NAICS prefix); none needs to with the current method.
 - **Small folds into the nearest category:**
   - anaerobic digestion into composting
   - LNG liquefaction and pipeline fuel into transportation natural gas

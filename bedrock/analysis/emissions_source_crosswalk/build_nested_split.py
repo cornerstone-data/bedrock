@@ -11,12 +11,13 @@ each group ``G`` is attributed on its own, so sector ``s`` in ``G`` gets
 
 Splitting ``UMD(s)`` by ``EPA_k(s) / EPA(s)`` decomposes it by activity set
 ``k`` without changing any sector total. When the group weights differ from
-the EPA table's own (non-energy use), that per-sector mix no longer adds up to
-the table's national mix: sectors the UMD groups weight up carry their own
-fuel mix with them. So the per-sector mix is only the starting point, and is
-then fitted by iterative proportional scaling so that each sector keeps its
-FBS total and each activity set matches the EPA table's national share. Where
-the group weights equal the table's (soils), the fit changes nothing.
+the EPA table's own, that per-sector mix no longer adds up to the table's
+national mix: sectors the UMD groups weight up carry their own fuel mix with
+them. So the per-sector mix is only the starting point, and is then fitted by
+iterative proportional scaling so that each sector keeps its FBS total and
+each activity set matches the EPA table's national share. Where the group
+weights equal the table's, as for all three lines in
+``GHG_national_Cornerstone_2024``, the fit changes nothing.
 
 This module builds those EPA tables on their own (``nested_split_*.yaml``,
 with activity columns kept) and writes the fitted shares for every sector of
