@@ -84,6 +84,41 @@ def test_pools_keep_their_totals_and_direct_emissions_stay_put() -> None:
     assert direct['SectorProducedBy'].tolist() == ['562212']
 
 
+@pytest.mark.usefixtures('waste_on')
+def test_retained_activities_stay_separate_within_a_use_pool() -> None:
+    """Two ActivityProducedBy values in one MetaSources x gas pool keep names."""
+    rows = []
+    for child in CHILDREN:
+        rows.append(
+            {
+                'Flowable': 'Carbon dioxide',
+                'MetaSources': 'UMD_GHGIA_T_3_4.non_manufacturing_natural_gas',
+                'ActivityProducedBy': 'Commercial Natural Gas',
+                'AttributionSources': derived.USE_ATTRIBUTION_SOURCE,
+                'SectorProducedBy': child,
+                'FlowAmount': 1.0,
+            }
+        )
+        rows.append(
+            {
+                'Flowable': 'Carbon dioxide',
+                'MetaSources': 'UMD_GHGIA_T_3_4.non_manufacturing_natural_gas',
+                'ActivityProducedBy': 'Residential Natural Gas',
+                'AttributionSources': derived.USE_ATTRIBUTION_SOURCE,
+                'SectorProducedBy': child,
+                'FlowAmount': 2.0,
+            }
+        )
+    before = pd.DataFrame(rows)
+    after = resplit_waste_use_emissions(before)
+    assert after['FlowAmount'].sum() == pytest.approx(before['FlowAmount'].sum())
+    by_activity = after.groupby('ActivityProducedBy')['FlowAmount'].sum()
+    assert by_activity['Commercial Natural Gas'] == pytest.approx(float(len(CHILDREN)))
+    assert by_activity['Residential Natural Gas'] == pytest.approx(
+        2.0 * float(len(CHILDREN))
+    )
+
+
 def test_nothing_changes_without_waste_disaggregation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

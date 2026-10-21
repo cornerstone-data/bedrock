@@ -165,11 +165,16 @@ def resplit_waste_use_emissions(fbs: pd.DataFrame) -> pd.DataFrame:
     U.index = U.index.astype(str)
     U.columns = U.columns.astype(str)
 
+    # Keep ActivityProducedBy in the pool key when present so a retained-
+    # activity FBS does not collapse distinct GHGI lines onto the first row.
+    pool_keys = ['MetaSources', 'Flowable']
+    if 'ActivityProducedBy' in fbs.columns:
+        pool_keys.append('ActivityProducedBy')
+
     parts = [fbs.loc[~selected]]
-    for (meta, _gas), pool in fbs.loc[selected].groupby(
-        ['MetaSources', 'Flowable'], observed=True
-    ):
-        shares = waste_child_shares(U, children, str(meta))
+    for _, pool in fbs.loc[selected].groupby(pool_keys, observed=True):
+        meta = str(pool['MetaSources'].iloc[0])
+        shares = waste_child_shares(U, children, meta)
         template = pool.iloc[[0]]
         rows = pd.concat([template] * len(children), ignore_index=True)
         rows['SectorProducedBy'] = children

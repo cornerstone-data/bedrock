@@ -4,6 +4,8 @@
 # tables remain for soils / NEU allocation and fluorochemical MT detail.
 
 !include:Cornerstone_2025_target.yaml
+# Keep GHGI ActivityProducedBy so source-resolved E can map inventory lines.
+retain_activity_columns: true
 year: &ghgi_year 2024
 target_schema_year: 2017
 geoscale: national
