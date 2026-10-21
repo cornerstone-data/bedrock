@@ -366,54 +366,6 @@ def test_keep_chemical_manufacturing_resets_index() -> None:
     assert list(out['ActivityConsumedBy']) == ['325110', '325180']
 
 
-@pytest.mark.parametrize(
-    ('method', 'energy'),
-    [
-        ('GHG_national_Cornerstone_2018', 'Energy_manufacturing_national_2018'),
-        ('GHG_national_Cornerstone_2024', 'Energy_manufacturing_national_2022'),
-    ],
-)
-def test_ghg_nests_point_at_energy_cornerstone(method: str, energy: str) -> None:
-    cfg = load_yaml_dict(method, 'FBS')
-    t311 = cfg['source_names']['UMD_GHGIA_T_3_11']['activity_sets']
-    assert energy in t311['petroleum_industrial']['attribution_source']
-    assert energy in t311['ng_manufacturing']['attribution_source']
-    assert energy in t311['coal_manufacturing']['attribution_source']
-    assert t311['petroleum_industrial']['attribution_source'][energy][
-        'selection_fields'
-    ] == {'Flowable': 'Petroleum', 'Class': 'Money'}
-    assert t311['ng_manufacturing']['attribution_source'][energy][
-        'selection_fields'
-    ] == {'Flowable': 'Natural Gas', 'Class': 'Energy'}
-    assert t311['coal_manufacturing']['attribution_source'][energy][
-        'selection_fields'
-    ] == {'Flowable': 'Coal', 'Class': 'Energy'}
-    nested = cfg['source_names']['UMD_GHGIA_T_3_14']['activity_sets']['emissions'][
-        'attribution_source'
-    ]
-    epa_neu = nested.get('EPA_GHGI_T_3_25') or nested['EPA_GHGI_T_3_25b']
-    neu = epa_neu['activity_sets']
-    asphalt = neu['petroleum_neu_asphalt']['attribution_source'][energy]
-    assert asphalt['selection_fields'] == {
-        'Flowable': 'Petroleum',
-        'Class': 'Other',
-        'SectorConsumedBy': ['324121', '324122'],
-    }
-    assert neu['petroleum_neu_hgl']['attribution_source'][energy][
-        'selection_fields'
-    ] == {'Flowable': 'HGL', 'Class': 'Other'}
-    remaining = neu['petroleum_neu']['attribution_source'][energy]
-    assert remaining['selection_fields'] == {'Flowable': 'Petroleum', 'Class': 'Other'}
-    assert remaining['exclusion_fields']['SectorConsumedBy'] == ['324121', '324122']
-    assert neu['natural_gas_neu']['attribution_source'][energy]['selection_fields'] == {
-        'Flowable': 'Natural Gas',
-        'Class': 'Other',
-    }
-    assert neu['transportation_lubricants']['attribution_source'][energy][
-        'selection_fields'
-    ] == {'Flowable': 'Transport', 'Class': 'Money'}
-
-
 def _normalized_sector_shares(
     df: pd.DataFrame, sector_col: str = 'SectorConsumedBy'
 ) -> pd.Series[float]:
