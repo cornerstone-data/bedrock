@@ -137,14 +137,14 @@ UMD_GHGIA_T_4_50,*,Hexafluoroethane,pfc_c2f6_aluminum_production,mapped,
 UMD_GHGIA_T_4_52,*,Carbon dioxide,co2_magnesium_production_and_processing,mapped,
 UMD_GHGIA_T_4_52,*,HFC-134a,hfc_134a_magnesium_production_and_processing,mapped,
 UMD_GHGIA_T_4_52,*,Sulfur hexafluoride,sf6_magnesium_production_and_processing,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Carbon tetrafluoride,pfc_cf4_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Hexafluoroethane,pfc_c2f6_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Perfluoropropane,pfc_c3f8_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Perfluorocyclobutane,pfc_c4f8_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,HFC-23,hfc_23_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Nitrogen trifluoride,nf3_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Nitrous oxide,n2o_semiconductor_manufacture,mapped,
-UMD_GHGIA_T_4_57,Semiconductors,Sulfur hexafluoride,sf6_semiconductor_manufacture,mapped,
+UMD_GHGIA_T_4_57,*,Carbon tetrafluoride,pfc_cf4_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,Hexafluoroethane,pfc_c2f6_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,Perfluoropropane,pfc_c3f8_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,Perfluorocyclobutane,pfc_c4f8_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,HFC-23,hfc_23_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,Nitrogen trifluoride,nf3_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,Nitrous oxide,n2o_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
+UMD_GHGIA_T_4_57,*,Sulfur hexafluoride,sf6_semiconductor_manufacture,mapped,"Semiconductors, Electronics Industry, PV and MEMS"
 EPA_GHGI_T_4_64,*,*,,no_ceda_source,fluorochemical production has no ceda source
 UMD_GHGIA_T_4_62,*,Sulfur hexafluoride,,no_ceda_source,"other product use (AWACs, accelerators)"
 UMD_GHGIA_T_4_60.air_conditioning,*,HFC-32,hfc_32_substitution_of_ozone_depleting_substances_others,mapped,
@@ -210,3 +210,7 @@ UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Residential,Nitrous 
 UMD_GHGIA_T_3_12.residential_commercial_non_co2,Natural Gas Commercial,Nitrous oxide,n2o_stationary_combustion_commercial_natural_gas,mapped,non-household sectors
 UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Residential,Nitrous oxide,n2o_stationary_combustion_residential,mapped,household sectors (F01*)
 UMD_GHGIA_T_3_12.residential_commercial_non_co2,Petroleum Commercial,Nitrous oxide,n2o_stationary_combustion_commercial_fuel_oil,mapped,non-household sectors
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Coal Residential and Commercial,Methane,ch4_stationary_combustion_residential,mapped,"CEDA has no commercial coal source for this gas, so the commercial part goes to residential too"
+UMD_GHGIA_T_3_12.residential_commercial_non_co2,Coal Residential and Commercial,Nitrous oxide,n2o_stationary_combustion_residential,mapped,"CEDA has no commercial coal source for this gas, so the commercial part goes to residential too"
+UMD_GHGIA_T_3_27,*,Nitrous oxide,,no_ceda_source,CEDA has no N2O source for oil and gas systems
+UMD_GHGIA_T_3_30,*,Nitrous oxide,,no_ceda_source,CEDA has no N2O source for oil and gas systems
