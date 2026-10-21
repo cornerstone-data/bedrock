@@ -27,6 +27,16 @@ NOWCAST_IO_YEARS: frozenset[int] = frozenset(
 )
 NowcastDetailIoYear = ta.Literal[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
 
+# (usa_detail_io_source, usa_ghg_data_year) pairs allowed when
+# implement_electricity_disaggregation is on. Year GHG methods embed eGRID.
+ELECTRICITY_DISAGG_SUPPORTED_IO_YEAR: frozenset[tuple[str, int]] = frozenset(
+    {
+        ('bea_published', 2023),
+        ('bea_published', 2024),
+        ('nowcast', 2024),
+    }
+)
+
 DIAGNOSTICS_CLI_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         'diagnostics_baseline_source',
@@ -432,6 +442,19 @@ class USAConfig(BaseModel):
                 'implement_electricity_reaggregation is mutually exclusive with '
                 'implement_electricity_mixed_units'
             )
+        if self.implement_electricity_disaggregation:
+            key = (self.usa_detail_io_source, self.usa_ghg_data_year)
+            if key not in ELECTRICITY_DISAGG_SUPPORTED_IO_YEAR:
+                supported = ', '.join(
+                    f'{src}/{yr}'
+                    for src, yr in sorted(ELECTRICITY_DISAGG_SUPPORTED_IO_YEAR)
+                )
+                raise ValueError(
+                    'implement_electricity_disaggregation requires '
+                    f'(usa_detail_io_source, usa_ghg_data_year) in {{{supported}}}; '
+                    f'got usa_detail_io_source={self.usa_detail_io_source!r}, '
+                    f'usa_ghg_data_year={self.usa_ghg_data_year}'
+                )
         return self
 
     @model_validator(mode='after')

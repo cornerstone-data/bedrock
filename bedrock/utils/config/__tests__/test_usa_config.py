@@ -164,6 +164,66 @@ def test_electricity_disaggregation_requires_reallocation_and_waste() -> None:
         )
 
 
+def test_electricity_disaggregation_rejects_unsupported_io_year() -> None:
+    with pytest.raises(
+        ValueError,
+        match=r'implement_electricity_disaggregation requires '
+        r'\(usa_detail_io_source, usa_ghg_data_year\)',
+    ):
+        USAConfig.model_validate(
+            {
+                'usa_detail_io_source': 'nowcast',
+                'usa_base_io_data_year': 2023,
+                'model_base_year': 2023,
+                'usa_ghg_data_year': 2023,
+                'apply_io_year_adjustments': False,
+                'implement_waste_disaggregation': True,
+                'implement_electricity_reallocation': True,
+                'implement_electricity_disaggregation': True,
+            },
+            strict=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ('usa_detail_io_source', 'year', 'extra'),
+    [
+        ('bea_published', 2023, {}),
+        ('bea_published', 2024, {}),
+        (
+            'nowcast',
+            2024,
+            {
+                'usa_base_io_data_year': 2024,
+                'model_base_year': 2024,
+                'apply_io_year_adjustments': False,
+            },
+        ),
+    ],
+)
+def test_electricity_disaggregation_allows_supported_io_year(
+    usa_detail_io_source: str,
+    year: int,
+    extra: dict[str, object],
+) -> None:
+    cfg = USAConfig.model_validate(
+        {
+            'usa_detail_io_source': usa_detail_io_source,
+            'usa_ghg_data_year': year,
+            'implement_waste_disaggregation': True,
+            'implement_electricity_reallocation': True,
+            'implement_electricity_disaggregation': True,
+            **extra,
+        },
+        strict=True,
+    )
+    assert cfg.implement_electricity_disaggregation is True
+    assert (cfg.usa_detail_io_source, cfg.usa_ghg_data_year) == (
+        usa_detail_io_source,
+        year,
+    )
+
+
 def test_electricity_disagg_requires_waste() -> None:
     with pytest.raises(
         ValueError,

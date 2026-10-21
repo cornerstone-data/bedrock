@@ -452,8 +452,9 @@ def render_report(baseline: dict[str, Any], y2017: dict[str, Any]) -> str:
         "",
         "1. `usa_ghg_data_year` Literal excludes 2017 (breaks "
         "`reconciling_data_years/model1.yaml`)",
-        "2. Electricity-disagg eGRID FBS is only defined for 2023/2024 "
-        "(`egrid_fbs_method_for_year`); 2017 has no eGRID-backed FBS",
+        "2. Electricity disaggregation only allows "
+        "(bea_published, 2023|2024) and (nowcast, 2024) on USAConfig; "
+        "2017 is outside that allow-list",
         "3. USEEIO A-scale (`scale_a_matrix_with_useeio_method=True`) returns 2017 "
         "base A and never calls `reanchor_electricity_aq_after_year_scaling`",
         "",
