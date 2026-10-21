@@ -392,6 +392,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     (``epa.py:_get_epa_data_year``), so regenerating year-2024 FBS via
     ``getFlowBySector`` can hit those sources and fail.
     """
+    usa = get_usa_config()
     fbs = _load_cornerstone_ghg_fbs_from_gcs(
         base_name=_select_cornerstone_ghg_fbs_base_name()
     )
