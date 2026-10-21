@@ -42,7 +42,7 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent
 OUTPUT_DIR = HERE / 'output'
-HELPER_METHOD = 'nested_split_nowcast_facilities_transportation_2024'
+HELPER_METHOD = 'nested_split_GHG_national_Cornerstone_2024'
 SHARES_PATH = OUTPUT_DIR / f'{HELPER_METHOD}_shares.csv'
 
 # Production MetaSources → the EPA table its sector pattern comes from.

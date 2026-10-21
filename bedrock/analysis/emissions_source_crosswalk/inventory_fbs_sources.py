@@ -29,7 +29,7 @@ crosswalk.
 Usage::
 
     python -m bedrock.analysis.emissions_source_crosswalk.inventory_fbs_sources \
-        [--method GHG_national_Cornerstone_nowcast_2024] [--ceda-root ../ceda]
+        [--method GHG_national_Cornerstone_2024] [--ceda-root ../ceda]
 """
 
 from __future__ import annotations
@@ -400,12 +400,8 @@ def _load_fbs(method: str) -> pd.DataFrame:
 def _method_for_active_config() -> str:
     from bedrock.transform.allocation.derived import (  # noqa: PLC0415
         _select_cornerstone_ghg_fbs_base_name,
-        egrid_fbs_method_for_config,
     )
-    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    if get_usa_config().implement_electricity_disaggregation:
-        return egrid_fbs_method_for_config()
     return _select_cornerstone_ghg_fbs_base_name()
 
 

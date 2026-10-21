@@ -143,7 +143,7 @@ from petrochemicals.
 ```
 python -m bedrock.analysis.emissions_source_crosswalk.build_nested_split $F
 python -m bedrock.analysis.emissions_source_crosswalk.apply_crosswalk $F \
-    --shares bedrock/analysis/emissions_source_crosswalk/output/nested_split_nowcast_facilities_transportation_2024_shares.csv \
+    --shares bedrock/analysis/emissions_source_crosswalk/output/nested_split_GHG_national_Cornerstone_2024_shares.csv \
     --speciate-hfcs --ceda-root ../ceda
 ```
 
@@ -173,7 +173,7 @@ other, is flagged.
 
 ```
 python -m bedrock.analysis.emissions_source_crosswalk.compare_with_ceda $F \
-    --shares bedrock/analysis/emissions_source_crosswalk/output/nested_split_nowcast_facilities_transportation_2024_shares.csv \
+    --shares bedrock/analysis/emissions_source_crosswalk/output/nested_split_GHG_national_Cornerstone_2024_shares.csv \
     --ceda-root ../ceda
 ```
 
@@ -189,7 +189,7 @@ once households are added.
 | `fbs_to_ceda_emissions_source.csv` | the crosswalk table |
 | `apply_crosswalk.py` | splits the unnamed HFCs by species, tags each FBS line with its CEDA source, and writes the review tables |
 | `build_nested_split.py` | works out the soils, non-energy use, aviation and residential/commercial splits |
-| `nested_split_nowcast_facilities_transportation_2024.yaml` | builds the EPA tables behind the soils and non-energy use splits |
+| `nested_split_GHG_national_Cornerstone_2024.yaml` | builds the EPA tables behind the soils and non-energy use splits |
 | `trial_retained_activity_fbs.py` | rebuilds the FBS with inventory line names kept, and checks totals |
 | `compare_with_ceda.py` | compares each CEDA source's total with CEDA's own v7.1 and v8.1 figures |
 | `inventory_fbs_sources.py` | the first rough pass, matching by name; superseded by the table |
