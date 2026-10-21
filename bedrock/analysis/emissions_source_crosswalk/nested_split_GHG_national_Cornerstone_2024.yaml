@@ -1,0 +1,21 @@
+# Nested attribution sources of the canonical GHG FBS, built on their own.
+# GHG_national_Cornerstone_2024 attributes agricultural soils (UMD T_5_10) and
+# non-energy use (UMD T_3_14) in proportion to EPA GHGI tables whose activity
+# sets the FBS never records.
+# Building those tables as top-level sources keeps the activity-set names in
+# MetaSources, so each sector's UMD total can be split by sub-activity.
+# Everything else (target schema, caches, attribution sources) is inherited.
+
+!include:GHG_national_Cornerstone_2024.yaml
+  # The GHGRP floor moves combustion CO2 between sectors and needs the
+  # combustion sources, which are not built here. It does not move soils N2O
+  # or non-energy-use CO2 (NOT_COMPARABLE_META), so their patterns are the same.
+  ghgrp_sector_floor: null
+  # Only the soils tables read a cached source; the facility caches feed
+  # combustion and would only slow the build.
+  sources_to_cache:
+    USDA_CoA_Cropland_NAICS: !include:GHG_national_Cornerstone_2024.yaml:sources_to_cache:USDA_CoA_Cropland_NAICS
+  source_names:
+    EPA_GHGI_T_5_18: !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_5_10:activity_sets:direct:attribution_source:EPA_GHGI_T_5_18
+    EPA_GHGI_T_5_19: !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_5_10:activity_sets:indirect:attribution_source:EPA_GHGI_T_5_19
+    EPA_GHGI_T_3_25: !include:GHG_national_Cornerstone_2024.yaml:source_names:UMD_GHGIA_T_3_14:activity_sets:emissions:attribution_source:EPA_GHGI_T_3_25
