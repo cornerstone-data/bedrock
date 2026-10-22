@@ -423,6 +423,74 @@ def test_v0_6_matches_v0_5_9_transport() -> None:
     reset_usa_config(should_reset_env_var=True)
 
 
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_v1_0_yearly_yamls_load(year: int) -> None:
+    """v1.0 year series: v0.6 methodology on retained-activity year FBS.
+
+    Named ``2026_usa_cornerstone_v1_0_{year}``. Live canonical
+    ``2025_usa_cornerstone_v0_6`` keeps the facilities-transportation 2024
+    pin; this family pins ``GHG_national_Cornerstone_{year}_v0.6.0_635777c``.
+    The unsuffixed ``2026_usa_cornerstone_v1_0`` matches the 2024 series member.
+    """
+    from bedrock.transform.allocation.derived import (
+        _select_cornerstone_ghg_fbs_base_name,
+    )
+
+    cfg = _load_usa_config_from_file_name(f'2026_usa_cornerstone_v1_0_{year}.yaml')
+    release = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_6.yaml')
+    assert cfg.usa_detail_io_source == 'nowcast'
+    assert cfg.usa_base_io_data_year == cfg.usa_ghg_data_year == year
+    assert cfg.model_base_year == year
+    assert cfg.usa_detail_original_year == year
+    assert not cfg.deflate_x_to_detail_io_year_for_B
+    assert cfg.bea_price_index_vintage == '2026Q2'
+    assert cfg.cornerstone_ghg_fbs_filename == (
+        f'GHG_national_Cornerstone_{year}_v0.6.0_635777c.parquet'
+    )
+    if year == 2017:
+        assert cfg.nowcast_mut_vintage == 'v0.5.0_011f41f'
+    else:
+        assert cfg.nowcast_mut_vintage == 'v0.5.0_a166975'
+
+    exclude = {
+        'model_base_year',
+        'usa_base_io_data_year',
+        'usa_ghg_data_year',
+        'cornerstone_ghg_fbs_filename',
+        'nowcast_mut_vintage',
+    }
+    assert cfg.model_dump(exclude=exclude) == release.model_dump(exclude=exclude)
+
+    assert release.cornerstone_ghg_fbs_filename == (
+        'GHG_national_Cornerstone_nowcast_facilities_transportation_2024_'
+        'v0.5.0_82e24cd.parquet'
+    )
+
+    set_global_usa_config(f'2026_usa_cornerstone_v1_0_{year}.yaml')
+    assert _select_cornerstone_ghg_fbs_base_name() == (
+        f'GHG_national_Cornerstone_{year}'
+    )
+    reset_usa_config(should_reset_env_var=True)
+
+
+def test_v1_0_release_yaml_matches_2024_series_member() -> None:
+    """Unsuffixed v1.0 is the 2024 model; same dump as ``…_v1_0_2024``."""
+    from bedrock.transform.allocation.derived import (
+        _select_cornerstone_ghg_fbs_base_name,
+    )
+
+    base = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0.yaml')
+    y2024 = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_2024.yaml')
+    assert base.model_dump() == y2024.model_dump()
+    assert base.cornerstone_ghg_fbs_filename == (
+        'GHG_national_Cornerstone_2024_v0.6.0_635777c.parquet'
+    )
+    set_global_usa_config('2026_usa_cornerstone_v1_0.yaml')
+    assert _select_cornerstone_ghg_fbs_base_name() == 'GHG_national_Cornerstone_2024'
+    reset_usa_config(should_reset_env_var=True)
+    assert CANONICAL_USA_CONFIG == '2025_usa_cornerstone_v0_6'
+
+
 def test_v0_4_release_yaml_loads() -> None:
     cfg = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
     assert cfg.usa_detail_io_source == 'nowcast'

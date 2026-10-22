@@ -154,7 +154,7 @@ NEI_LAST_YEAR = 2022
 
 #: One config per calendar year; each pins usa_base_io_data_year ==
 #: usa_ghg_data_year, so E and the detail MUT share a year by construction.
-CONFIG_TEMPLATE = '2025_usa_cornerstone_v0_4_nowcast_{year}'
+CONFIG_TEMPLATE = '2026_usa_cornerstone_v1_0_{year}'
 
 #: Artifact stems. Both live flat in ``transform/output_data`` as
 #: ``<stem>_<vintage>.parquet``.
