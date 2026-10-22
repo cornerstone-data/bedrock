@@ -485,3 +485,51 @@ def test_the_guard_names_a_new_insolvency() -> None:
 
     with pytest.raises(ValueError, match='445000'):
         tr.check_giveup_solvency(output, trade, 2099)
+
+
+# --- the commodity prior (#1140) -------------------------------------------
+
+
+def test_the_commodity_prior_refuses_a_year_other_than_2017() -> None:
+    """2022 retail is on NAICS 2022 kinds of business the crosswalk lacks."""
+    with pytest.raises(ValueError, match='NAICS 2022'):
+        tr.trade_commodity_prior('retail', 2022)
+
+
+def test_a_split_residual_goes_to_the_industry_that_sells_the_family() -> None:
+    """Grain withheld at a grain and a furniture wholesaler lands on grain."""
+    fba = pd.DataFrame(
+        {
+            'naics': ['424510', '423220', '424510', '423220'],
+            'product': ['grains', 'grains', 'oilseeds', 'sofas'],
+            'FlowAmount': [50.0, 50.0, 30.0, 40.0],
+            'SuppressionRecovery': ['split', 'split', None, None],
+        }
+    )
+    concordance = pd.DataFrame(
+        {
+            'product': ['grains', 'oilseeds', 'sofas'],
+            'commodity': ['1111B0', '1111A0', '337121'],
+        }
+    )
+    out = tr._resplit_by_affinity(fba, concordance)
+
+    grains = out[out['product'] == 'grains'].set_index('naics')['FlowAmount']
+    assert grains['424510'] == pytest.approx(100.0)
+    assert grains['423220'] == pytest.approx(0.0)
+    assert out.loc[out['product'] != 'grains', 'FlowAmount'].tolist() == [30.0, 40.0]
+
+
+def test_a_split_residual_with_no_affinity_keeps_the_equal_split() -> None:
+    fba = pd.DataFrame(
+        {
+            'naics': ['424510', '423220'],
+            'product': ['grains', 'grains'],
+            'FlowAmount': [50.0, 50.0],
+            'SuppressionRecovery': ['split', 'split'],
+        }
+    )
+    concordance = pd.DataFrame({'product': ['grains'], 'commodity': ['1111B0']})
+    out = tr._resplit_by_affinity(fba, concordance)
+
+    assert out['FlowAmount'].tolist() == [50.0, 50.0]

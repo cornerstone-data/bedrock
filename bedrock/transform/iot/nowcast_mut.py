@@ -71,6 +71,7 @@ from bedrock.transform.iot.margin_rates import (
     goods_commodities,
 )
 from bedrock.transform.iot.mut_use_to_import_matrix import import_matrix_from_use
+from bedrock.transform.iot.nowcast_trade_margins import trade_commodity_prior
 from bedrock.transform.iot.nowcast_transport_margins import transport_commodity_prior
 from bedrock.transform.iot.nowcast_va_taxes import va_tax_rows
 from bedrock.transform.iot.supply_to_make import make_from_sut
@@ -217,10 +218,15 @@ def margin_commodity_prior() -> dict[str, pd.DataFrame]:
 
     The prior :func:`margins_table` places margin by (#1140), so the
     per-margin-commodity columns follow the commodity purchased rather than
-    repeating each buyer's split. Transport only for now; wholesale and retail
-    keep the buyer split until their product-line prior lands.
+    repeating each buyer's split. Transport is the 2017 mode x commodity fit;
+    wholesale and retail are the 2017 Economic Census product lines by kind of
+    business.
     """
-    return {'transport': transport_commodity_prior()}
+    return {
+        'transport': transport_commodity_prior(),
+        'wholesale': trade_commodity_prior('wholesale'),
+        'retail': trade_commodity_prior('retail'),
+    }
 
 
 def margins_table(

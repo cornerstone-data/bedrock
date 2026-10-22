@@ -128,8 +128,13 @@ import functools
 from collections.abc import Iterable
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
+from bedrock.extract.census.Census_EC import (
+    estimate_suppressed_ec_pxi,
+    normalize_pxi_product,
+)
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.extract.iot.io_2017 import (
     _load_2017_detail_supply_use_usa,
@@ -1250,3 +1255,237 @@ def control_total_table(
             for kind in TRADE_KINDS
         }
     ).rename_axis('year')
+
+
+# --- the commodity prior for the per-margin-commodity split (#1140) -------
+
+#: Product line -> BEA 2017 commodity. The concordance #529 built for the
+#: inventories trade rule, keyed on the normalised product description.
+PXI_PRODUCT_CROSSWALK_PATH = (
+    Path(__file__).parents[2]
+    / 'utils'
+    / 'mapping'
+    / 'activitytosectormapping'
+    / 'Sector_Crosswalk_Census_EC_PxI.csv'
+)
+
+#: Goods lines the #529 concordance leaves out, mapped here for the margin
+#: prior only. Light trucks are sold
+#: through the same dealers and wholesalers as automobiles, which the product
+#: lines record directly once the line is mapped. Adding these to the shared
+#: concordance would also move the inventories attribution, so they stay local
+#: until that is reviewed on its own.
+PXI_PRODUCT_SUPPLEMENT: tuple[tuple[str, str], ...] = (
+    (
+        'new and used light trucks, 14,000 lb. or less, including vans, cargo '
+        'vans, and suvs',
+        '336112',
+    ),
+    ('nonprescription drugs and over-the-counter medications', '325412'),
+    # The retail drug line: pharmacies, grocery and general merchandise stores
+    # all report it, which is what places pharma's retail margin.
+    ('medicines, vitamins, minerals, and supplements', '325412'),
+    ('medicines, vitamins, minerals, and supplements', '325411'),
+    ('pet foods and supplies', '311111'),
+)
+
+
+#: Column of :func:`trade_sales_by_giver_and_commodity` carrying each giver's
+#: sales of every product line, mapped or not.
+ALL_PRODUCTS = 'all_products'
+
+
+def _check_prior_year(year: int) -> None:
+    """The prior is anchored on the 2017 Economic Census, and only there.
+
+    ⚠️ 2022 is not a drop-in. Retail moved to NAICS 2022 - ``449`` and
+    ``455``-``459`` replace ``442``/``443``/``446``/``447``/``448``/``451``/
+    ``452``/``453`` - which :data:`TRADE_CROSSWALK_PATH` does not cover, and
+    electronic shopping was folded into the store kinds of business, so
+    ``454000`` nonstore cannot be observed as its own kind of business and
+    ``4B0000`` would need re-mapping. Product descriptions also drift: the
+    concordance reaches 64-69% of 2022 value against 92-93% in 2017. Which
+    trade code handles which good is the slow-moving part of the margin, so
+    2017 is the anchor, as it is for the transport prior (``joint_mode_fit``).
+    """
+    if year != ANCHOR_YEAR:
+        raise ValueError(
+            f'trade_commodity_prior is anchored on the {ANCHOR_YEAR} Economic '
+            f'Census; {year} retail is on NAICS 2022 kinds of business the trade '
+            f'crosswalk does not cover, and 454000 is not observable on its own.'
+        )
+
+
+@functools.cache
+def trade_sales_by_giver_and_commodity(year: int = ANCHOR_YEAR) -> pd.DataFrame:
+    """Economic Census product-line sales, trade giver x BEA commodity. USD.
+
+    ``Census_EC_PxI`` (product lines by kind of business, suppressed cells
+    recovered by :func:`estimate_suppressed_ec_pxi`), each 6-digit kind of
+    business mapped to its giver by :func:`load_trade_crosswalk` and each
+    product line to its BEA commodity by the #529 concordance plus
+    :data:`PXI_PRODUCT_SUPPLEMENT`, plus an :data:`ALL_PRODUCTS` column with
+    the giver's sales of every line. A line that maps to several commodities
+    splits on their published receipts of that kind's margin. Lines with no
+    goods commodity (services, "not elsewhere classified") drop out. ``425``
+    has no giver in the crosswalk and drops out too;
+    :func:`trade_commodity_prior` fills it.
+    """
+    _check_prior_year(year)
+    raw = pd.DataFrame(
+        getFlowByActivity('Census_EC_PxI', year, download_FBA_if_missing=True)
+    )
+    fba = pd.DataFrame(estimate_suppressed_ec_pxi(raw))
+    naics = fba['ActivityProducedBy'].astype(str).str.strip()
+    keep = naics.str.fullmatch(r'(42|44|45)\d{4}')
+    fba = fba.loc[keep].assign(naics=naics[keep])
+
+    crosswalk = load_trade_crosswalk()
+    to_giver = dict(zip(crosswalk['census_code'], crosswalk['bea_2017_commodity']))
+    kind_of = dict(zip(crosswalk['bea_2017_commodity'], crosswalk['kind']))
+    fba['giver'] = fba['naics'].map(
+        lambda code: to_giver.get(code[:4]) or to_giver.get(code[:3])
+    )
+    fba['product'] = normalize_pxi_product(fba['Description'])
+
+    concordance = (
+        pd.read_csv(PXI_PRODUCT_CROSSWALK_PATH, dtype=str)[['Activity', 'Sector']]
+        .rename(columns={'Activity': 'product', 'Sector': 'commodity'})
+        .pipe(
+            lambda df: pd.concat(
+                [
+                    df,
+                    pd.DataFrame(
+                        list(PXI_PRODUCT_SUPPLEMENT), columns=['product', 'commodity']
+                    ),
+                ],
+                ignore_index=True,
+            )
+        )
+        .drop_duplicates()
+    )
+    fba = _resplit_by_affinity(fba, concordance).dropna(subset=['giver'])
+    # Every line, mapped or not, is in the giver's sales: the margin rate in
+    # trade_commodity_prior divides by it.
+    all_lines = fba.groupby('giver')['FlowAmount'].sum().rename(ALL_PRODUCTS)
+    joined = fba[['giver', 'product', 'FlowAmount']].merge(concordance, on='product')
+
+    received = published_trade_received_by_kind().clip(lower=0.0)
+    joined['weight'] = [
+        float(received[kind_of[giver]].get(commodity, 0.0))
+        for giver, commodity in zip(joined['giver'], joined['commodity'])
+    ]
+    keys = [joined['giver'], joined['product']]
+    weight_total = joined.groupby(keys)['weight'].transform('sum')
+    targets = joined.groupby(keys)['commodity'].transform('size')
+    joined['sales'] = joined['FlowAmount'].astype(float) * np.where(
+        weight_total > 0,
+        joined['weight'] / weight_total.where(weight_total > 0, 1.0),
+        1.0 / targets,
+    )
+    return joined.pivot_table(
+        index='giver',
+        columns='commodity',
+        values='sales',
+        aggfunc='sum',
+        fill_value=0.0,
+    ).join(all_lines)
+
+
+def _resplit_by_affinity(fba: pd.DataFrame, concordance: pd.DataFrame) -> pd.DataFrame:
+    """Re-place each product's equally-split suppressed residual by affinity.
+
+    :func:`estimate_suppressed_ec_pxi` shares a product's withheld residual
+    equally among its withheld industries (``SuppressionRecovery == 'split'``).
+    That lands the mass on the right product, which is all #529 needs, but here
+    the industry is the answer: grain's 2017 residual went to furniture,
+    machinery and petroleum wholesalers in equal 13.3 $bn shares.
+
+    The residual is re-shared in proportion to each withheld industry's
+    observed sales (published or exactly recovered) of goods in the same
+    commodity family - the first three digits of the BEA code - as
+    :func:`estimate_suppressed_ec_matfuel` shares by economy-wide cost rather
+    than equally. A product whose withheld industries show no such sales keeps
+    the equal split.
+    """
+    families = concordance.assign(family=concordance['commodity'].str[:3])[
+        ['product', 'family']
+    ].drop_duplicates()
+    observed = fba[fba['SuppressionRecovery'].astype(str) != 'split']
+    affinity = (
+        observed[['naics', 'product', 'FlowAmount']]
+        .merge(families, on='product')
+        .groupby(['naics', 'family'])['FlowAmount']
+        .sum()
+    )
+    split = fba['SuppressionRecovery'].astype(str) == 'split'
+    cells = fba.loc[split, ['naics', 'product', 'FlowAmount']].merge(
+        families, on='product', how='left'
+    )
+    cells['affinity'] = [
+        float(affinity.get((naics, family), 0.0)) if isinstance(family, str) else 0.0
+        for naics, family in zip(cells['naics'], cells['family'])
+    ]
+    weight = cells.groupby(['naics', 'product'])['affinity'].sum()
+    residual = fba.loc[split].groupby('product')['FlowAmount'].sum()
+    weight_total = weight.groupby(level='product').sum()
+
+    out = fba.copy()
+    keys = list(zip(out.loc[split, 'naics'], out.loc[split, 'product']))
+    resplit = [
+        (
+            residual[product] * weight[(naics, product)] / weight_total[product]
+            if weight_total.get(product, 0.0) > 0
+            else amount
+        )
+        for (naics, product), amount in zip(keys, out.loc[split, 'FlowAmount'])
+    ]
+    out.loc[split, 'FlowAmount'] = resplit
+    return out
+
+
+@functools.cache
+def trade_commodity_prior(kind: str, year: int = ANCHOR_YEAR) -> pd.DataFrame:
+    """*kind*'s giver x purchased commodity margin, 2017 USD (#1140).
+
+    How each purchased commodity's wholesale (or retail) margin splits across
+    the trade codes: the prior
+    :func:`~bedrock.transform.iot.use_price_bridge.commodity_placement` fits
+    each buyer's cells to. Built like BEA's product-line method, simplified to
+    one margin rate per giver: its published 2017 give-up over its sales of
+    every product line, applied to its sales of each good
+    (:func:`trade_sales_by_giver_and_commodity`).
+
+    ⚠️ **Not fitted to the published per-commodity margin.** A giver's mapped
+    lines carry only part of its sales, and a biproportional fit to both the
+    give-up and the per-commodity totals pushes the unmapped part onto
+    whatever small columns the giver touches: drug wholesale took 69% of pet
+    food's wholesale margin that way. Step 6 already fits each buyer's cells
+    to the totals that matter; the prior only has to rank the givers within
+    a commodity.
+
+    ``425000`` (agents and brokers) books commissions on goods it never owns,
+    so it has no margin-bearing product lines; it takes its give-up on the
+    shape of the rest of wholesale.
+    """
+    _check_kind(kind)
+    _check_prior_year(year)
+    givers = list(GIVER_COMMODITIES[kind])
+    table = trade_sales_by_giver_and_commodity(year).reindex(index=givers)
+    sales = table.drop(columns=ALL_PRODUCTS).fillna(0.0)
+    all_sales = table[ALL_PRODUCTS].fillna(0.0)
+    give_up = -published_trade_by_commodity().reindex(givers).fillna(0.0)
+
+    rate = (give_up / all_sales.where(all_sales > 0)).fillna(0.0)
+    prior = sales.mul(rate, axis=0)
+    if UNSOURCED_GIVER in givers:
+        rest = prior.drop(index=UNSOURCED_GIVER).sum()
+        others = float(give_up.drop(index=UNSOURCED_GIVER).sum())
+        prior.loc[UNSOURCED_GIVER] = rest * float(give_up[UNSOURCED_GIVER]) / others
+    coverage = prior.sum(axis=1) / give_up.where(give_up > 0)
+    log.info(
+        f'trade_commodity_prior {kind}: product lines carry '
+        f'{prior.to_numpy().sum() / give_up.sum():.1%} of the published give-up '
+        f'(lowest giver {coverage.idxmin()} {coverage.min():.1%})'
+    )
+    return prior.loc[:, prior.sum(axis=0) > 0]
