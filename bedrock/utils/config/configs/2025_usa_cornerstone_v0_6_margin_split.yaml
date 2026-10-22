@@ -1,0 +1,33 @@
+# Cornerstone 2025 model - v0.6 with the margin split by commodity (#1140).
+#
+# 2025_usa_cornerstone_v0_6 with one change: nowcast_mut_vintage is
+# v0.6.0_5d40d42, the Steps 6-7 rebuild of v0.5.0_a166975 from the same
+# balanced 2024 SUT. Make, Use and Import are identical to v0.5.0_a166975
+# (Use within $1), so A, q, x and N are v0.6's. The Margins table's
+# per-margin-commodity columns now follow the commodity purchased rather than
+# each buyer's split, which changes A_margin only. Built to hand CEDA a
+# corrected A_margin; v0.6.0_5d40d42 is otherwise the first v0.7 input.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v0.6.0_5d40d42'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+bea_price_index_vintage: '2026Q2'
+
+#####
+# Methodology selection
+#####
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd.parquet
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True

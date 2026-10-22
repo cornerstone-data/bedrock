@@ -746,9 +746,11 @@ def derive_cornerstone_A_margin() -> pd.DataFrame:
     (:func:`_a_margin_from_type_margins`), which is also what BEA's published
     tables allow, since they carry only the three margin types.
     """
-    margins = derive_margins_cornerstone_usa()
+    # Change in private inventories is left out (#1140): its 2017 placement
+    # nets offsetting signs and books pipeline margin onto goods inventories.
+    margins = derive_margins_cornerstone_usa(exclude_inventories=True)
     sector_margins = (
-        derive_margin_sectors_cornerstone_usa()
+        derive_margin_sectors_cornerstone_usa(exclude_inventories=True)
         if get_usa_config().margin_impacts_from_transaction_sectors
         else None
     )

@@ -1227,7 +1227,14 @@ def mode_allocations(
 
 @functools.cache
 def joint_mode_shares() -> pd.DataFrame:
-    """The mode x commodity fit the module docstring calls for (#772).
+    """:func:`joint_mode_fit` as **within-mode shares** (rows sum to 1)."""
+    fitted = joint_mode_fit()
+    return fitted.div(fitted.sum(axis=1), axis=0)
+
+
+@functools.cache
+def joint_mode_fit() -> pd.DataFrame:
+    """The mode x commodity fit the module docstring calls for (#772). USD, 2017.
 
     Fitted once at 2017: row margins are the five modes' own totals, column
     margins the published Transportation column (rescaled by their 0.24%
@@ -1240,6 +1247,10 @@ def joint_mode_shares() -> pd.DataFrame:
     freight bill sitting on the wrong rows with a tonnage-shaped bias — the
     published column pulls each mode's inferred detail onto BEA's own
     distribution wherever the modes' evidence is weaker than the benchmark's.
+
+    Read down a commodity's column it is how that commodity's transport margin
+    splits across the modes: the transport prior of the per-commodity margin
+    split (#1140).
     """
     allocations = mode_allocations(ANCHOR_YEAR)
     seed = pd.DataFrame(allocations).T.fillna(0.0)  # modes x commodities
@@ -1265,7 +1276,28 @@ def joint_mode_shares() -> pd.DataFrame:
             f'published column on the modes\' combined support - the mode '
             f'crosswalks exclude commodities BEA says receive transport margin.'
         )
-    return fitted.div(fitted.sum(axis=1), axis=0)
+    return fitted
+
+
+#: Each freight mode's BEA 2017 margin commodity.
+MODE_COMMODITY: dict[str, str] = {
+    'truck': TRUCK_COMMODITY,
+    'rail': RAIL_COMMODITY,
+    'pipeline': PIPELINE_COMMODITY,
+    'water': VOLUME_MODES['water'][1],
+    'air': VOLUME_MODES['air'][1],
+}
+
+
+def transport_commodity_prior() -> pd.DataFrame:
+    """Transport margin commodity x purchased commodity, 2017 USD (#1140).
+
+    :func:`joint_mode_fit` with each mode named by its margin commodity: how
+    each purchased commodity's transport margin splits across the modes, the
+    prior :func:`~bedrock.transform.iot.use_price_bridge.commodity_placement`
+    fits each buyer's cells to.
+    """
+    return joint_mode_fit().rename(index=MODE_COMMODITY)
 
 
 def transport_margin_column(

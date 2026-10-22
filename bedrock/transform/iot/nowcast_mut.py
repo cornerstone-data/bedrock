@@ -71,6 +71,8 @@ from bedrock.transform.iot.margin_rates import (
     goods_commodities,
 )
 from bedrock.transform.iot.mut_use_to_import_matrix import import_matrix_from_use
+from bedrock.transform.iot.nowcast_trade_margins import trade_commodity_prior
+from bedrock.transform.iot.nowcast_transport_margins import transport_commodity_prior
 from bedrock.transform.iot.nowcast_va_taxes import va_tax_rows
 from bedrock.transform.iot.supply_to_make import make_from_sut
 from bedrock.transform.iot.sut_use_to_mut_use import (
@@ -211,8 +213,26 @@ def _supply_block(supply: pd.DataFrame) -> pd.DataFrame:
 # --- the margins table ------------------------------------------------------
 
 
+def margin_commodity_prior() -> dict[str, pd.DataFrame]:
+    """Per family, how a purchased commodity's margin splits across its codes.
+
+    The prior :func:`margins_table` places margin by (#1140), so the
+    per-margin-commodity columns follow the commodity purchased rather than
+    repeating each buyer's split. Transport is the 2017 mode x commodity fit;
+    wholesale and retail are the 2017 Economic Census product lines by kind of
+    business.
+    """
+    return {
+        'transport': transport_commodity_prior(),
+        'wholesale': trade_commodity_prior('wholesale'),
+        'retail': trade_commodity_prior('retail'),
+    }
+
+
 def margins_table(
-    use_sut: pd.DataFrame, panel: RatePanel | None = None
+    use_sut: pd.DataFrame,
+    panel: RatePanel | None = None,
+    prior: ta.Mapping[str, pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
     """The year's hyper-detailed Margins table, USD, from the purchaser Use.
 
@@ -223,7 +243,10 @@ def margins_table(
     Goods rows: ``Producers' Value`` is the panel's ``pro`` rate on the cell's
     purchaser value, the margin columns are :func:`margin_columns`' placement
     (tax-inclusive), and the identity ``PRO + T + W + R = PUR`` closes cell by
-    cell because the rate components sum to one. Margin-commodity rows follow
+    cell because the rate components sum to one. *prior* (default
+    :func:`margin_commodity_prior`) splits each family by commodity purchased,
+    fitted so what each margin commodity earns from each buyer - and so its
+    Use row - is the anchor placement's, gated below. Margin-commodity rows follow
     the published convention: ``Purchasers' Value`` is the buyer's direct
     purchase of the margin service, ``Producers' Value`` adds the margin
     routed onto that commodity, and the margin columns are zero.
@@ -239,8 +262,32 @@ def margins_table(
     # to the live buyers before anything is stored.
     placed = {
         code: frame.reindex(index=goods, columns=buyers).fillna(0.0)
-        for code, frame in margin_columns(purchaser, rates, None).items()
+        for code, frame in margin_columns(
+            purchaser,
+            rates,
+            None,
+            margin_commodity_prior() if prior is None else prior,
+        ).items()
     }
+    # The commodity split moves margin between a buyer's goods only: what each
+    # margin commodity earns from each buyer, which books its Use row, must
+    # be exactly the buyer split's.
+    buyer_split = margin_columns(purchaser, rates, None)
+    earnings_gap = max(
+        float(
+            (
+                placed[code].sum(axis=0)
+                - buyer_split[code]
+                .reindex(index=goods, columns=buyers)
+                .fillna(0.0)
+                .sum(axis=0)
+            )
+            .abs()
+            .max()
+        )
+        for code in MARGIN_COMMODITIES
+    )
+    _gate('margin commodity earnings per buyer (worst cell)', earnings_gap)
 
     wide: dict[str, pd.DataFrame] = {_PRO: pro * purchaser, _PUR: purchaser}
     for family, codes in MARGIN_FAMILIES.items():
