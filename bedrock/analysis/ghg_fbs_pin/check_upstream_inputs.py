@@ -53,9 +53,7 @@ def _stem_rivals(directory: Path, stem: str, pinned_name: str) -> list[str]:
     if not directory.is_dir():
         return []
     return sorted(
-        p.name
-        for p in directory.glob(f'{stem}_v*.parquet')
-        if p.name != pinned_name
+        p.name for p in directory.glob(f'{stem}_v*.parquet') if p.name != pinned_name
     )
 
 
@@ -114,7 +112,9 @@ def _local_nowcast_fbas(year: int) -> list[Path]:
     """Cached Nowcast Use FBAs for *year* under FBA_DIR (poison for MUT pin)."""
     if not Path(FBA_DIR).is_dir():
         return []
-    return sorted(Path(FBA_DIR).glob(f'Nowcast_Detail_Use_AfterRedef_{year}_v*.parquet'))
+    return sorted(
+        Path(FBA_DIR).glob(f'Nowcast_Detail_Use_AfterRedef_{year}_v*.parquet')
+    )
 
 
 def _mut_rivals(year: int, stage: str, table: str, pinned_name: str) -> list[str]:
@@ -123,9 +123,7 @@ def _mut_rivals(year: int, stage: str, table: str, pinned_name: str) -> list[str
     if not directory.is_dir():
         return []
     return sorted(
-        p.name
-        for p in directory.glob(f'{stem}_v*.parquet')
-        if p.name != pinned_name
+        p.name for p in directory.glob(f'{stem}_v*.parquet') if p.name != pinned_name
     )
 
 
@@ -145,7 +143,7 @@ def check_nowcast_mut(
     directory = Path(FBS_DIR)
 
     try:
-        latest = latest_nowcast_mut_vintage(year=year, stage=stage)  # type: ignore[arg-type]
+        latest = latest_nowcast_mut_vintage(year=year, stage=stage)
     except Exception as exc:
         problems.append(
             f'{method}: could not resolve latest NowcastMUT vintage for '
@@ -161,9 +159,9 @@ def check_nowcast_mut(
 
     for table in spec['tables']:
         filename = nowcast_mut_artifact_name(
-            table,  # type: ignore[arg-type]
+            table,
             year=year,
-            stage=stage,  # type: ignore[arg-type]
+            stage=stage,
             vintage=vintage,
         )
         dest = directory / filename
@@ -365,9 +363,9 @@ def quarantine_rivals(
         vintage = mut['vintage']
         for table in mut['tables']:
             pinned = nowcast_mut_artifact_name(
-                table,  # type: ignore[arg-type]
+                table,
                 year=year,
-                stage=stage,  # type: ignore[arg-type]
+                stage=stage,
                 vintage=vintage,
             )
             for rival in _mut_rivals(year, stage, table, pinned):
