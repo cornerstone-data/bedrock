@@ -27,6 +27,7 @@ import argparse
 import sys
 import typing as ta
 
+import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.io_2017 import load_benchmark_margins_before_redef_usa
@@ -89,13 +90,23 @@ def price_bridge(
 
 
 def margin_columns(
-    purchaser: pd.DataFrame, panel: RatePanel, fiscal: FiscalLayer | None = None
+    purchaser: pd.DataFrame,
+    panel: RatePanel,
+    fiscal: FiscalLayer | None = None,
+    prior: ta.Mapping[str, pd.DataFrame] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Margin per transaction, one goods x buyer frame per margin commodity. USD.
 
     Each cell's transport, wholesale and retail margin comes from the rate
     panel, then each family's amount is spread over *its own* codes by
     :func:`family_placement`.
+
+    Pass *prior* (family -> its codes x goods commodity) to split by the
+    commodity purchased instead (#1140): :func:`commodity_placement` fits each
+    buyer's cells to the prior while holding what each margin code earns from
+    that buyer, so the margin rows of Use do not move. A family missing from
+    *prior* keeps the buyer split, under which every commodity a buyer
+    purchases gets that buyer's split.
 
     Pass *fiscal* for the contract's **tax-free** columns - the sales tax is
     lifted out of the trade pair before placing. Leave it off for BEA's own
@@ -123,9 +134,101 @@ def margin_columns(
     out: dict[str, pd.DataFrame] = {}
     for family, commodities in MARGIN_FAMILIES.items():
         amount = amounts[family]
+        if prior is not None and family in prior:
+            out.update(commodity_placement(amount, shares[family], prior[family]))
+            continue
         for commodity in commodities:
             out[commodity] = amount.mul(shares[family].loc[commodity], axis=1)
     return out
+
+
+#: Weight of the buyer split mixed into the commodity prior's seed. It gives
+#: every (code, commodity, buyer) cell the buyer split already places a little
+#: support, so the fit always has a solution; the prior decides wherever it
+#: has support of its own.
+PRIOR_FLOOR = 1e-3
+
+
+def commodity_placement(
+    amount: pd.DataFrame,
+    shares: pd.DataFrame,
+    prior: pd.DataFrame,
+    floor: float = PRIOR_FLOOR,
+    iterations: int = 1000,
+    tolerance: float = 1.0,
+) -> dict[str, pd.DataFrame]:
+    """One family's margin split by commodity purchased, per buyer. USD.
+
+    *amount* is goods x buyer (the family's margin per transaction), *shares*
+    the family's codes x buyer (:func:`family_placement`, columns summing to
+    1) and *prior* the family's codes x goods: how a commodity's margin of this
+    family splits across the codes, in any positive unit.
+
+    Per buyer the cells are fitted biproportionally (RAS) to two sets of
+    totals, each already in the table:
+
+    * each commodity's family margin, ``amount`` (the five-column view)
+    * each code's earnings from the buyer, ``shares x amount.sum()`` - the
+      buyer's anchor placement, which books the code's Use row
+
+    seeded with the prior plus :data:`PRIOR_FLOOR` of the buyer split, and
+    iterated until every code's earnings are within *tolerance* USD. With the
+    prior empty this returns the buyer split exactly.
+
+    Give-back cells (negative amounts; inventory draw-downs) are fitted
+    separately from the positive cells, each sign against the buyer's
+    placement of its own total, so both fits are one-signed and the code's
+    earnings still sum to ``shares x amount.sum()``. A buyer with a negative
+    share keeps the buyer split.
+    """
+    codes = list(shares.index)
+    goods = list(amount.index)
+    buyers = list(amount.columns)
+    # A buyer absent from the purchaser frame arrives as an all-NaN column.
+    a = amount.fillna(0.0).to_numpy(dtype=float)  # goods x buyer
+    s = shares.reindex(columns=buyers).to_numpy(dtype=float)  # code x buyer
+    p = prior.reindex(index=codes, columns=goods).fillna(0.0).to_numpy(dtype=float)
+    p_total = p.sum(axis=0, keepdims=True)
+    p = np.divide(p, p_total, out=np.zeros_like(p), where=p_total > 0)
+
+    placed = s[:, None, :] * a[None, :, :]  # code x goods x buyer
+    fit_ok = (s >= 0).all(axis=0)
+    share = s[:, fit_ok]
+    signed = a[:, fit_ok]
+    for sign in (1.0, -1.0):
+        magnitude = np.clip(sign * signed, 0.0, None)
+        placed[:, :, fit_ok] += sign * (
+            _ras(magnitude, share, p, floor, iterations, tolerance)
+            - share[:, None, :] * magnitude[None, :, :]
+        )
+    return {
+        code: pd.DataFrame(placed[k], index=goods, columns=buyers)
+        for k, code in enumerate(codes)
+    }
+
+
+def _ras(
+    row: np.ndarray,
+    share: np.ndarray,
+    prior: np.ndarray,
+    floor: float,
+    iterations: int,
+    tolerance: float,
+) -> np.ndarray:
+    """Code x goods x buyer cells summing to *row* over codes and to
+    ``share x row.sum()`` over goods. *row* is goods x buyer, non-negative."""
+    column = share * row.sum(axis=0)
+    cells = (prior[:, :, None] + floor * share[:, None, :]) * row[None, :, :]
+    for _ in range(iterations):
+        got = cells.sum(axis=1)
+        cells *= np.divide(column, got, out=np.ones_like(got), where=got > 0)[
+            :, None, :
+        ]
+        got = cells.sum(axis=0)
+        cells *= np.divide(row, got, out=np.zeros_like(got), where=got > 0)[None]
+        if np.abs(cells.sum(axis=1) - column).max(initial=0.0) <= tolerance:
+            break
+    return cells
 
 
 def family_placement(panel: RatePanel) -> dict[str, pd.DataFrame]:
