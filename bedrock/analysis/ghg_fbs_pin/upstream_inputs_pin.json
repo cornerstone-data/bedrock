@@ -1,0 +1,111 @@
+{
+  "require_stewi_facility_pin": true,
+  "gcs_sub_bucket_fbs": "transform/output_data",
+  "gcs_sub_bucket_mut": "flowsa/NowcastMUT",
+  "methods": {
+    "GHG_national_Cornerstone_2017": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2017": "Energy_manufacturing_national_nowcast_2017_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2017": "Energy_highway_fuel_shares_national_2017_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2017": "Energy_industrial_distillate_national_2017_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2017,
+        "stage": "after",
+        "vintage": "v0.5.0_011f41f",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2018": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2018": "Energy_manufacturing_national_nowcast_2018_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2018": "Energy_highway_fuel_shares_national_2018_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2018": "Energy_industrial_distillate_national_2018_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2018,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2019": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2019": "Energy_manufacturing_national_nowcast_2019_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2019": "Energy_highway_fuel_shares_national_2019_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2019": "Energy_industrial_distillate_national_2019_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2019,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2020": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2020": "Energy_manufacturing_national_nowcast_2020_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2020": "Energy_highway_fuel_shares_national_2020_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2020": "Energy_industrial_distillate_national_2020_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2020,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2021": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2021": "Energy_manufacturing_national_nowcast_2021_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2021": "Energy_highway_fuel_shares_national_2021_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2021": "Energy_industrial_distillate_national_2021_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2021,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2022": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2022": "Energy_manufacturing_national_nowcast_2022_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2022": "Energy_highway_fuel_shares_national_2022_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2022": "Energy_industrial_distillate_national_2022_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2022,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2023": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2023": "Energy_manufacturing_national_nowcast_2023_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2023": "Energy_highway_fuel_shares_national_2023_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2023": "Energy_industrial_distillate_national_2023_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2023,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    },
+    "GHG_national_Cornerstone_2024": {
+      "fbs": {
+        "Energy_manufacturing_national_nowcast_2024": "Energy_manufacturing_national_nowcast_2024_v0.5.0_a166975.parquet",
+        "Energy_highway_fuel_shares_national_2024": "Energy_highway_fuel_shares_national_2024_v0.6.0_635777c.parquet",
+        "Energy_industrial_distillate_national_2024": "Energy_industrial_distillate_national_2024_v0.6.0_635777c.parquet"
+      },
+      "nowcast_mut": {
+        "year": 2024,
+        "stage": "after",
+        "vintage": "v0.5.0_a166975",
+        "tables": ["Make", "Use", "Import", "Margins"]
+      }
+    }
+  }
+}
