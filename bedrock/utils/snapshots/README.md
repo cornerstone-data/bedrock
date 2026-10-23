@@ -288,9 +288,11 @@ When a new name is added to [`SNAPSHOT_NAMES`](names.py) before the next full sn
 
 `<object_name>` is not a git SHA (examples: `phi`, `a_margin`), so it does not collide with snapshot keys. `<usa_pin_sha>` is the `.SNAPSHOT_KEY` / release USA pin the object accompanies. Build with the matching `derive_*` under the canonical USA config, then `gsutil cp`. Delete the sidecar once a top-level `snapshots/<new_sha>/<object_name>.parquet` exists from a full `generate_snapshots` run.
 
-`A_margin` interim path for the v0.6 USA pin:
+CEDA handoff interim (commodity-split margins under `2025_usa_cornerstone_v0_6_margin_split` / MUT `v0.6.0_5d40d42`; see #1144):
 
-`gs://cornerstone-default/snapshots/a_margin/e10c75f542b0c9b24692f6524a53073e091d54dc/A_margin.parquet`
+`gs://cornerstone-default/snapshots/a_margin/v0.6.0_5d40d42/A_margin.parquet`
+
+An earlier interim under the v0.6 `.SNAPSHOT_KEY` (`…/a_margin/e10c75f542b0c9b24692f6524a53073e091d54dc/`) is buyer-split and is not the CEDA load path. Delete sidecars once a top-level `snapshots/<sha>/A_margin.parquet` exists from a full `generate_snapshots` run.
 
 ## Cornerstone GHG FBS pin
 
