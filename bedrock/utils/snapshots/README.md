@@ -25,7 +25,7 @@ These are **independent** concepts and frequently point at different commits:
 
 | Thing | Where | What it is |
 |---|---|---|
-| Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The 11 parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
+| Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
 | Package version | [`pyproject.toml`](../../../pyproject.toml) `[project].version` | Same number as the release tag without the `v` prefix (e.g. tag `v0.5.0` → `0.5.0`). `return_pkg_version` in [`settings.py`](../config/settings.py) stamps FBA/FBS filenames (`{method}_v{tool_version}_{git_hash}.parquet`) from this value. Bumped in Phase B before the tag. |
@@ -280,6 +280,20 @@ The `generate_snapshots.py` script supports `--adhoc`, which uploads to `gs://co
 
 Adhoc snapshots are never wired into `.SNAPSHOT_KEY` or `releases.py`. They exist for ad-hoc diagnostic comparisons only.
 
+## Interim object sidecars
+
+When a new name is added to [`SNAPSHOT_NAMES`](names.py) before the next full snapshot cut, upload that single parquet under a **named** prefix so it does not rewrite an immutable SHA folder:
+
+`gs://cornerstone-default/snapshots/<object_name>/<usa_pin_sha>/<object_name>.parquet`
+
+`<object_name>` is not a git SHA (examples: `phi`, `a_margin`), so it does not collide with snapshot keys. `<usa_pin_sha>` is the `.SNAPSHOT_KEY` / release USA pin the object accompanies. Build with the matching `derive_*` under the canonical USA config, then `gsutil cp`. Delete the sidecar once a top-level `snapshots/<new_sha>/<object_name>.parquet` exists from a full `generate_snapshots` run.
+
+CEDA handoff interim (commodity-split margins under `2025_usa_cornerstone_v0_6_margin_split` / MUT `v0.6.0_5d40d42`; see #1144):
+
+`gs://cornerstone-default/snapshots/a_margin/v0.6.0_5d40d42/A_margin.parquet`
+
+An earlier interim under the v0.6 `.SNAPSHOT_KEY` (`…/a_margin/e10c75f542b0c9b24692f6524a53073e091d54dc/`) is buyer-split and is not the CEDA load path. Delete sidecars once a top-level `snapshots/<sha>/A_margin.parquet` exists from a full `generate_snapshots` run.
+
 ## Cornerstone GHG FBS pin
 
 [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) pins the Cornerstone GHG FBS parquet under `gs://cornerstone-default/transform/output_data/`. `method` and `filename` in that JSON name the FlowBySector stem and the exact object. The canonical USA config loads the same file via `cornerstone_ghg_fbs_filename`. This JSON is the weekday regeneration golden. [`test_fbs.py`](../../transform/__tests__/test_fbs.py) regenerates `method` from YAML + GCS sources (including the stewi facility pin) and compares the frame to the pinned file (via [`fbs_pin.py`](fbs_pin.py)). The test is marked `fbs_regeneration` and runs as its own job on the weekday `test_integration` schedule.
@@ -363,7 +377,7 @@ Merge the pin bump with the upload when they ship together. Keep the diff mechan
 |---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The pinned SHA that integration tests load |
 | [`../../../pyproject.toml`](../../../pyproject.toml) | `[project].version` stamped onto FBA/FBS artifacts; bump in Phase B to match the tag |
-| [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the 11 parquet snapshots and uploads to GCS |
+| [`generate_snapshots.py`](generate_snapshots.py) | CLI that builds the [`SNAPSHOT_NAMES`](names.py) parquet snapshots and uploads to GCS |
 | [`loader.py`](loader.py) | `load_current_snapshot`, `load_configured_snapshot`, GCS download helpers |
 | [`names.py`](names.py) | `SnapshotName` literal type and `SNAPSHOT_NAMES` list |
 | [`releases.py`](releases.py) | Release label → snapshot SHA map; imported by `diagnostics_baseline` |
