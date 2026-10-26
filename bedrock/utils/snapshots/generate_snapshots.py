@@ -162,8 +162,8 @@ def generate_snapshots(
         derive_y_for_national_accounting_balance_usa,
         derive_ydom_and_yimp_usa,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (
-        derive_cornerstone_A_margin,
+    from bedrock.transform.eeio.usa_matrices import (
+        derive_A_margin,
     )
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
         default_phi_panel_years,
@@ -255,7 +255,7 @@ def generate_snapshots(
 
     t0 = time.time()
     logger.info('Generating A_margin snapshot')
-    write_snapshot(derive_cornerstone_A_margin(), 'A_margin')
+    write_snapshot(derive_A_margin(), 'A_margin')
     logger.info(f'[TIMING] A_margin completed in {time.time() - t0:.1f}s')
 
     # Upload to GCS
