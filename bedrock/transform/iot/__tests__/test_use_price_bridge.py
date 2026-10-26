@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import functools
 import operator
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -40,6 +41,7 @@ from bedrock.transform.iot.use_price_bridge import (
     benchmark_bridge,
     collapse_to_bea,
     column_identities,
+    commodity_placement,
     family_placement,
     margin_columns,
     margin_row_recovery,
@@ -351,3 +353,69 @@ def test_the_fiscal_layer_follows_the_input_cell_pattern() -> None:
     gaps = column_identities(bridge, 2017)
     for name in ('TOP', 'MDTY', 'SUB'):
         assert float(gaps[name].abs().max()) == pytest.approx(0.0, abs=1.0), name
+
+
+# --- the commodity split (#1140) -------------------------------------------
+
+
+def _fit_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Two goods, two codes, two buyers with opposite placements."""
+    amount = pd.DataFrame({'b1': [60.0, 40.0], 'b2': [30.0, 70.0]}, index=['g1', 'g2'])
+    shares = pd.DataFrame({'b1': [0.6, 0.4], 'b2': [0.3, 0.7]}, index=['k1', 'k2'])
+    prior = pd.DataFrame(
+        [[1.0, 0.0], [0.0, 1.0]], index=['k1', 'k2'], columns=['g1', 'g2']
+    )
+    return amount, shares, prior
+
+
+def test_an_empty_prior_keeps_the_buyer_split() -> None:
+    amount, shares, prior = _fit_inputs()
+    placed = commodity_placement(amount, shares, prior * 0.0)
+
+    for code in shares.index:
+        expected = amount.mul(shares.loc[code], axis=1)
+        assert np.allclose(placed[code].to_numpy(), expected.to_numpy())
+
+
+def test_the_fit_holds_each_cells_margin_and_each_codes_earnings() -> None:
+    """Both totals are already in the table; holding them keeps Use unchanged."""
+    amount, shares, prior = _fit_inputs()
+    placed = commodity_placement(amount, shares, prior + 0.2, tolerance=1e-9)
+
+    cells = functools.reduce(operator.add, placed.values())
+    assert np.allclose(cells.to_numpy(), amount.to_numpy())
+    for code in shares.index:
+        earned = placed[code].sum(axis=0)
+        assert np.allclose(
+            earned.to_numpy(), (shares.loc[code] * amount.sum()).to_numpy()
+        )
+
+
+def test_a_commodity_goes_to_its_own_code_when_the_totals_allow() -> None:
+    """The fix itself: the buyer's split no longer applies to every commodity."""
+    amount, shares, prior = _fit_inputs()
+    placed = commodity_placement(amount, shares, prior, tolerance=1e-9)
+
+    # b1: g1 60 and k1 earns 60, so g1 lands on k1 almost entirely.
+    assert placed['k1'].loc['g1', 'b1'] == pytest.approx(60.0, rel=1e-2)
+    assert placed['k2'].loc['g2', 'b1'] == pytest.approx(40.0, rel=1e-2)
+    # Under the buyer split g1 would put 40% on k2; the prior moves it off.
+    assert cast(float, placed['k2'].loc['g1', 'b1']) < 1.0
+
+
+def test_a_give_back_is_split_by_commodity_and_earnings_still_hold() -> None:
+    """Inventory draw-downs follow the prior too, fitted on their own sign."""
+    amount, shares, prior = _fit_inputs()
+    amount.loc['g2', 'b2'] = -10.0
+    placed = commodity_placement(amount, shares, prior, tolerance=1e-9)
+
+    cells = functools.reduce(operator.add, placed.values())
+    assert np.allclose(cells.to_numpy(), amount.to_numpy())
+    for code in shares.index:
+        earned = placed[code].sum(axis=0)
+        assert np.allclose(
+            earned.to_numpy(), (shares.loc[code] * amount.sum()).to_numpy()
+        )
+    # The draw-down of g2 is all negative; none of it books onto k1 as a give-back.
+    assert cast(float, placed['k1'].loc['g2', 'b2']) <= 0.0 + 1e-9
+    assert cast(float, placed['k2'].loc['g2', 'b2']) < 0.0

@@ -131,19 +131,35 @@ _cornerstone_industry_avg_margins_filters: MarginsFilters = MarginsFilters(
 )
 
 
-def _get_active_margins_filters() -> MarginsFilters:
+#: Change in private inventories, dropped from the margins A_margin is built
+#: from (#1140). Its 2017 margin-commodity placement is a net of offsetting
+#: signs (pipeline 117% of its transport margin), which books pipeline onto
+#: the inventory build of goods no pipeline carries. Phi keeps it.
+INVENTORY_CHANGE_CODE = 'F03000'
+
+
+def _get_active_margins_filters(exclude_inventories: bool = False) -> MarginsFilters:
     """Margins filters for the active config.
 
     ``useeio_margins`` takes precedence; otherwise
     ``cornerstone_industry_avg_margins`` selects the Cornerstone filter set;
-    otherwise no filtering applies.
+    otherwise no filtering applies. *exclude_inventories* also drops
+    :data:`INVENTORY_CHANGE_CODE`, for A_margin.
     """
     cfg = get_usa_config()
     if cfg.useeio_margins:
-        return _useeio_margins_filters
-    if cfg.cornerstone_industry_avg_margins:
-        return _cornerstone_industry_avg_margins_filters
-    return MarginsFilters()
+        filters = _useeio_margins_filters
+    elif cfg.cornerstone_industry_avg_margins:
+        filters = _cornerstone_industry_avg_margins_filters
+    else:
+        filters = MarginsFilters()
+    if not exclude_inventories:
+        return filters
+    return dataclasses.replace(
+        filters,
+        exclude_industry_codes=filters.exclude_industry_codes
+        | frozenset({INVENTORY_CHANGE_CODE}),
+    )
 
 
 def _apply_margins_filter(df: pd.DataFrame, filters: MarginsFilters) -> pd.DataFrame:
@@ -244,7 +260,9 @@ def _inflate_margins_to_year(df: pd.DataFrame, *, target_year: int) -> pd.DataFr
 
 
 @functools.cache
-def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
+def derive_margins_cornerstone_usa_at_year(
+    target_year: int, exclude_inventories: bool = False
+) -> pd.DataFrame:
     """
     Margins aggregated to Cornerstone commodity taxonomy, summed over all industries.
 
@@ -255,12 +273,13 @@ def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
 
     Returns a DataFrame indexed by Cornerstone ``COMMODITIES`` with columns:
     ``Producers' Value``, ``Transportation``, ``Wholesale``, ``Retail``,
-    ``Purchasers' Value``. Unit is USD.
+    ``Purchasers' Value``. Unit is USD. *exclude_inventories* drops change in
+    private inventories (A_margin only; see :data:`INVENTORY_CHANGE_CODE`).
     """
     cfg = get_usa_config()
     corresp = load_usa_2017_commodity__cornerstone_commodity_correspondence()
     df = corresp @ _margins_by_commodity(
-        _get_active_margins_filters(),
+        _get_active_margins_filters(exclude_inventories),
         abs_negative_producers_value=cfg.useeio_margins,
         abs_negative_margin_columns=cfg.cornerstone_industry_avg_margins,
     )
@@ -271,14 +290,16 @@ def derive_margins_cornerstone_usa_at_year(target_year: int) -> pd.DataFrame:
     return df
 
 
-def derive_margins_cornerstone_usa() -> pd.DataFrame:
+def derive_margins_cornerstone_usa(exclude_inventories: bool = False) -> pd.DataFrame:
     """Margins at ``model_base_year`` (alias for :func:`derive_margins_cornerstone_usa_at_year`)."""
-    return derive_margins_cornerstone_usa_at_year(get_usa_config().model_base_year)
+    return derive_margins_cornerstone_usa_at_year(
+        get_usa_config().model_base_year, exclude_inventories
+    )
 
 
 @functools.cache
 def derive_margin_sectors_cornerstone_usa_at_year(
-    target_year: int,
+    target_year: int, exclude_inventories: bool = False
 ) -> pd.DataFrame | None:
     """Margin dollars by purchased commodity and margin commodity, Cornerstone codes.
 
@@ -296,7 +317,7 @@ def derive_margin_sectors_cornerstone_usa_at_year(
     if raw is None:
         return None
     cfg = get_usa_config()
-    filters = _get_active_margins_filters()
+    filters = _get_active_margins_filters(exclude_inventories)
     df = _apply_margins_filter(raw, filters)
     if cfg.cornerstone_industry_avg_margins:
         # abs_negative_margin_columns flips a row's *type* total when it is
@@ -339,10 +360,12 @@ def derive_margin_sectors_cornerstone_usa_at_year(
     return out
 
 
-def derive_margin_sectors_cornerstone_usa() -> pd.DataFrame | None:
+def derive_margin_sectors_cornerstone_usa(
+    exclude_inventories: bool = False,
+) -> pd.DataFrame | None:
     """Per-sector margins at ``model_base_year``; see the ``_at_year`` form."""
     return derive_margin_sectors_cornerstone_usa_at_year(
-        get_usa_config().model_base_year
+        get_usa_config().model_base_year, exclude_inventories
     )
 
 
