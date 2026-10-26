@@ -10,13 +10,13 @@ import typing as ta
 
 import pytest
 
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_q,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_x,
-    derive_cornerstone_Ytot_matrix_set,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_q,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_x,
+    derive_Ytot_matrix_set,
 )
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     get_cornerstone_industry_price_ratio,
@@ -39,9 +39,9 @@ def test_commodity_industry_output_cpi_consistency(
     if not (2017 <= base_year <= target_year <= 2024):
         raise ValueError("Base or target year is out of range")
 
-    V = derive_cornerstone_V()
-    q = derive_cornerstone_q()
-    x = derive_cornerstone_x()
+    V = derive_V()
+    q = derive_q()
+    x = derive_x()
     industry_CPI_ratio = get_cornerstone_industry_price_ratio(
         base_year, target_year
     ).reindex(x.index, fill_value=1.0)
@@ -93,10 +93,10 @@ def test_compare_output_from_make_and_use(
     include_details: bool,
 ) -> None:
     """Output implied by Make matches Use (+ VA or final demand)."""
-    VA = derive_cornerstone_VA()
-    y_set: SingleRegionYtotAndTradeVectorSet = derive_cornerstone_Ytot_matrix_set()
-    V = derive_cornerstone_V()
-    U_set = derive_cornerstone_U_with_negatives()
+    VA = derive_VA()
+    y_set: SingleRegionYtotAndTradeVectorSet = derive_Ytot_matrix_set()
+    V = derive_V()
+    U_set = derive_U_with_negatives()
     U = U_set.Udom + U_set.Uimp
 
     r_output_in_V_and_U = compare_output_from_make_and_use(

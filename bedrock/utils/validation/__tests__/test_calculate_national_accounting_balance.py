@@ -224,15 +224,15 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
                 return_value=True,
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_B_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_B_mixed_units",
                 return_value=B,
             ) as mock_b,
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_Aq_mixed_units",
                 return_value=mock_Aq,
             ) as mock_aq,
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_y_nab_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_y_nab_mixed_units",
                 return_value=y,
             ) as mock_y,
             patch(
@@ -293,15 +293,15 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
                 return_value=True,
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_B_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_B_mixed_units",
                 return_value=B,
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_Aq_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_Aq_mixed_units",
                 return_value=mock_Aq,
             ),
             patch(
-                "bedrock.transform.eeio.derived_cornerstone.derive_cornerstone_y_nab_mixed_units",
+                "bedrock.transform.eeio.usa_matrices.derive_y_nab_mixed_units",
                 return_value=y,
             ),
             patch(

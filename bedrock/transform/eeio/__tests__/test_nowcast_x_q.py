@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from bedrock.transform.eeio import derived_cornerstone as dc
+from bedrock.transform.eeio import usa_matrices as dc
 
 INDUSTRIES = ['I1', 'I2', 'I3']
 COMMODITIES = ['C1', 'C2', 'C3']
@@ -30,7 +30,7 @@ def _make() -> pd.DataFrame:
 
 
 def _cfg(source: str = 'nowcast', **overrides: object) -> SimpleNamespace:
-    """The USAConfig fields ``derived_cornerstone`` reads, for one source."""
+    """The USAConfig fields ``usa_matrices`` reads, for one source."""
     nowcast = source == 'nowcast'
     fields: dict[str, object] = dict(
         usa_detail_io_source=source,
@@ -58,11 +58,11 @@ def _refuse(*_args: object, **_kwargs: object) -> None:
 
 
 _CACHED = (
-    dc.derive_cornerstone_V,
-    dc.derive_cornerstone_x,
-    dc.derive_cornerstone_q,
-    dc.derive_cornerstone_x_after_redefinition,
-    dc.derive_cornerstone_B_non_finetuned,
+    dc.derive_V,
+    dc.derive_x,
+    dc.derive_q,
+    dc.derive_x_after_redefinition,
+    dc.derive_B_non_finetuned,
 )
 
 
@@ -80,7 +80,7 @@ def nowcast_make(monkeypatch: pytest.MonkeyPatch) -> pd.DataFrame:
     """A nowcast config whose router Make is the 3x3 frame; GO loaders refuse."""
     V = _make()
     monkeypatch.setattr(dc, 'get_usa_config', lambda: _cfg())
-    monkeypatch.setattr(dc, 'derive_cornerstone_V', lambda *a, **k: V.copy())
+    monkeypatch.setattr(dc, 'derive_V', lambda *a, **k: V.copy())
     monkeypatch.setattr(dc, 'validate_cornerstone', lambda df, kind: None)
     monkeypatch.setattr(dc, 'derive_gross_output', _refuse)
     monkeypatch.setattr(dc, 'expand_industry_output_vector', _refuse)
@@ -88,19 +88,19 @@ def nowcast_make(monkeypatch: pytest.MonkeyPatch) -> pd.DataFrame:
 
 
 def test_x_after_redefinition_is_the_make_row_sum(nowcast_make: pd.DataFrame) -> None:
-    x = dc.derive_cornerstone_x_after_redefinition()
+    x = dc.derive_x_after_redefinition()
     pd.testing.assert_series_equal(x, nowcast_make.sum(axis=1))
-    pd.testing.assert_series_equal(x, dc.derive_cornerstone_x())
-    pd.testing.assert_series_equal(dc.derive_cornerstone_x_after_redefinition(2023), x)
+    pd.testing.assert_series_equal(x, dc.derive_x())
+    pd.testing.assert_series_equal(dc.derive_x_after_redefinition(2023), x)
 
 
 def test_x_after_redefinition_rejects_another_year(nowcast_make: pd.DataFrame) -> None:
     with pytest.raises(ValueError, match='one calendar year'):
-        dc.derive_cornerstone_x_after_redefinition(2022)
+        dc.derive_x_after_redefinition(2022)
 
 
 def test_q_is_the_make_column_sum(nowcast_make: pd.DataFrame) -> None:
-    pd.testing.assert_series_equal(dc.derive_cornerstone_q(), nowcast_make.sum(axis=0))
+    pd.testing.assert_series_equal(dc.derive_q(), nowcast_make.sum(axis=0))
 
 
 def test_published_path_still_reads_gross_output(
@@ -123,9 +123,9 @@ def test_published_path_still_reads_gross_output(
         dc, '_distribute_waste_parent_x_using_v_row_shares', lambda s: s
     )
     monkeypatch.setattr(dc, 'validate_cornerstone', lambda df, kind: None)
-    monkeypatch.setattr(dc, 'derive_cornerstone_x', _refuse)
+    monkeypatch.setattr(dc, 'derive_x', _refuse)
 
-    x = dc.derive_cornerstone_x_after_redefinition()
+    x = dc.derive_x_after_redefinition()
 
     assert calls == [(2023, 'after')]
     pd.testing.assert_series_equal(x, go, check_names=False)
@@ -157,12 +157,10 @@ def test_b_via_vnorm_divides_e_by_make_x_even_with_legacy_flags(
     # main split E in two (#744): the module now calls load_E_from_flowsa,
     # the internal pre-reaggregation matrix, so that is what B reads.
     monkeypatch.setattr(dc, 'load_E_from_flowsa', lambda: E)
-    monkeypatch.setattr(
-        dc, 'derive_cornerstone_Vnorm_scrap_corrected', lambda *a, **k: identity
-    )
+    monkeypatch.setattr(dc, 'derive_Vnorm_scrap_corrected', lambda *a, **k: identity)
     monkeypatch.setattr(dc, 'get_cornerstone_industry_price_ratio', _refuse)
 
-    B = dc.derive_cornerstone_B_via_vnorm()
+    B = dc.derive_B_via_vnorm()
 
     expected = E.divide(nowcast_make.sum(axis=1), axis=1) @ identity
     pd.testing.assert_frame_equal(B, expected)
@@ -173,11 +171,11 @@ def test_b_non_finetuned_is_the_vnorm_b(
 ) -> None:
     """No summary-ratio scaling to usa_io_data_year, no PI inflation, under nowcast."""
     marker = pd.DataFrame([[1.0]], index=['CO2'], columns=['C1'])
-    monkeypatch.setattr(dc, 'derive_cornerstone_B_via_vnorm', lambda: marker)
+    monkeypatch.setattr(dc, 'derive_B_via_vnorm', lambda: marker)
     monkeypatch.setattr(dc, 'scale_cornerstone_B', _refuse)
     monkeypatch.setattr(dc, 'inflate_cornerstone_B_matrix_with_industry_pi', _refuse)
 
-    assert dc.derive_cornerstone_B_non_finetuned() is marker
+    assert dc.derive_B_non_finetuned() is marker
 
 
 def test_b_non_finetuned_keeps_the_legacy_footing_when_published(
@@ -198,9 +196,9 @@ def test_b_non_finetuned_keeps_the_legacy_footing_when_published(
         seen.append(f'inflate {original_year}->{target_year}')
         return B
 
-    monkeypatch.setattr(dc, 'derive_cornerstone_B_via_vnorm', lambda: marker)
+    monkeypatch.setattr(dc, 'derive_B_via_vnorm', lambda: marker)
     monkeypatch.setattr(dc, 'scale_cornerstone_B', scale)
     monkeypatch.setattr(dc, 'inflate_cornerstone_B_matrix_with_industry_pi', inflate)
 
-    assert dc.derive_cornerstone_B_non_finetuned() is marker
+    assert dc.derive_B_non_finetuned() is marker
     assert seen == ['scale 2017->2022', 'inflate 2022->2023']

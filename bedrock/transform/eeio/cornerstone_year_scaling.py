@@ -1,8 +1,8 @@
 """Year-scaling helpers for Cornerstone A, q, and B matrices.
 
 Scales detail-level Cornerstone matrices using summary-level ratios from
-BEA summary IO tables.  The summary → detail correspondence uses the
-Cornerstone mapping (not the CEDA v7 version).
+BEA summary IO tables. Summary → detail correspondence uses the Cornerstone
+summary mapping.
 """
 
 from __future__ import annotations

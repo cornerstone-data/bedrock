@@ -21,20 +21,6 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     get_waste_disagg_weights,
 )
 from bedrock.transform.eeio.cornerstone_year_scaling import scale_cornerstone_q
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_reaggregated,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_B_reaggregated,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
@@ -51,6 +37,20 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_reaggregated,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_B_reaggregated,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
+)
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.economic.inflation_helpers_cornerstone import (
     clear_cornerstone_inflation_caches,
@@ -77,18 +77,18 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_eia_purchaser_allocation,
     mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
-    derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_U_set,
-    derive_cornerstone_VA,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_Aq_reaggregated,
-    derive_cornerstone_B_reaggregated,
+    derive_V,
+    derive_Vnorm_scrap_corrected,
+    derive_U_with_negatives,
+    derive_U_set,
+    derive_VA,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_Aq_reaggregated,
+    derive_B_reaggregated,
 ]
 
 
@@ -212,7 +212,7 @@ class TestElectricityDisaggregationPipeline:
     def test_schema_is_407_sectors(self, electricity_disagg_config: str) -> None:
         _setup_config(electricity_disagg_config)
         try:
-            V = derive_cornerstone_V()
+            V = derive_V()
             assert list(V.index) == CORNERSTONE_INDUSTRIES_ELEC
             assert list(V.columns) == CORNERSTONE_COMMODITIES_ELEC
             assert ELECTRICITY_AGGREGATE not in V.index
@@ -233,7 +233,7 @@ class TestElectricityDisaggregationPipeline:
     def test_pipeline_aq_and_diagnostics(self, electricity_disagg_config: str) -> None:
         _setup_config(electricity_disagg_config)
         try:
-            aq = derive_cornerstone_Aq_scaled()
+            aq = derive_Aq_scaled()
             assert aq.Adom.shape[0] == len(CORNERSTONE_COMMODITIES_ELEC)
             elec_col_sums = aq.Adom[ELECTRICITY_DISAGG_SECTORS].sum(axis=0)
             assert (elec_col_sums <= 1.0 + 1e-6).all()
@@ -329,7 +329,7 @@ class TestDetailGoGrowthScaling:
             from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
             cfg = get_usa_config()
-            q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
+            q_pre = derive_Aq().scaled_q.astype(float)
             q_scaled = scale_cornerstone_q(
                 q_pre,
                 target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
@@ -354,7 +354,7 @@ class TestDetailGoGrowthScaling:
             assert cfg.apply_io_year_adjustments is True
             detail_year = int(cfg.usa_detail_original_year)
             io_year = int(cfg.usa_io_data_year)
-            q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
+            q_pre = derive_Aq().scaled_q.astype(float)
             q_scaled = scale_cornerstone_q(
                 q_pre,
                 target_year=io_year,  # type: ignore[arg-type]
@@ -377,7 +377,7 @@ class TestDetailGoGrowthScaling:
             )
 
             cfg = get_usa_config()
-            q_pre = derive_cornerstone_Aq().scaled_q.astype(float)
+            q_pre = derive_Aq().scaled_q.astype(float)
             q_year_scaled = scale_cornerstone_q(
                 q_pre,
                 target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
@@ -388,7 +388,7 @@ class TestDetailGoGrowthScaling:
                 original_year=int(cfg.usa_detail_original_year),
                 target_year=int(cfg.model_base_year),
             )
-            published = derive_cornerstone_Aq_scaled().scaled_q.astype(float)
+            published = derive_Aq_scaled().scaled_q.astype(float)
             for code in ELECTRICITY_DISAGG_SECTORS:
                 assert float(published.loc[code]) != pytest.approx(
                     float(q_year_scaled_pi.loc[code]), rel=1e-4, abs=1.0
@@ -417,7 +417,7 @@ class TestReanchoredAqIdentities:
                 FINAL_DEMANDS,
             )
 
-            aq = derive_cornerstone_Aq_scaled()
+            aq = derive_Aq_scaled()
             alloc = get_reanchored_eia_purchaser_allocation()
             assert alloc is not None
             udom = aq.Adom.multiply(aq.scaled_q, axis=1)

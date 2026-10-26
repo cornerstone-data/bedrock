@@ -10,9 +10,9 @@ from bedrock.transform.eeio.cornerstone_expansion import (
     commodity_corresp,
     industry_corresp,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_U_set,
-    derive_cornerstone_Y_personal_consumption_expenditure,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_U_set,
+    derive_Y_personal_consumption_expenditure,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
@@ -62,9 +62,9 @@ def load_bea_use_table() -> pd.DataFrame:
 
     Rows = Cornerstone industries + one PCE row; columns = commodities.
     """
-    uset = derive_cornerstone_U_set()
+    uset = derive_U_set()
     U_combined = (uset.Udom + uset.Uimp).T
-    Y_cs = derive_cornerstone_Y_personal_consumption_expenditure().to_frame().T
+    Y_cs = derive_Y_personal_consumption_expenditure().to_frame().T
     return pd.concat([U_combined, Y_cs])
 
 

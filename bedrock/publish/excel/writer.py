@@ -51,10 +51,10 @@ between U and U_d since value added is intrinsically domestic.
 
 `U_d`'s FD block is currently truncated: bedrock has no `Ydom` matrix
 at FD-category resolution (only the `ydom` vector via
-`derive_cornerstone_ydom_and_yimp`), so we emit `U_d` as
+`derive_ydom_and_yimp`), so we emit `U_d` as
 `(commodity + VA) x industry` only -- VA rows but no FD columns. The
 `model_info` sheet carries a `u_d_extended` field so consumers see
-this. Future work: add a `derive_cornerstone_Ydom_matrix()` and
+this. Future work: add a `derive_Ydom_matrix()` and
 re-extend `U_d` to match `U`'s shape.
 """
 
@@ -156,7 +156,7 @@ def _build_model_info_df(config_name: str) -> pd.DataFrame:
             'value': (
                 'partial: VA rows included, FD cols truncated. Bedrock has '
                 'no Ydom matrix at FD-category resolution today (only the '
-                'ydom vector via derive_cornerstone_ydom_and_yimp). U_d '
+                'ydom vector via derive_ydom_and_yimp). U_d '
                 'shape diverges from useeior U_d until a derive_cornerstone'
                 '_Ydom_matrix exists. See writer module docstring.'
             ),

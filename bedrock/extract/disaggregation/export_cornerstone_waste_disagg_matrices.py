@@ -13,11 +13,11 @@ import pathlib
 from bedrock.publish.model_objects import clear_publish_caches
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import get_waste_disagg_weights
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_U_set,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Ytot_full_cs_matrix,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_U_set,
+    derive_V,
+    derive_VA,
+    derive_Ytot_full_cs_matrix,
 )
 from bedrock.utils.config.usa_config import USA_CONFIG_ENV_VAR
 
@@ -61,12 +61,12 @@ def export_cornerstone_matrices_to_csv(
     )
     out.mkdir(parents=True, exist_ok=True)
 
-    # Follows the derivation process of derived_cornerstone.py,
-    # except for derive_cornerstone_Ytot_full_cs_matrix() which recreates the full Y matrix in CS space
-    V = derive_cornerstone_V()
-    uset = derive_cornerstone_U_set()
-    VA = derive_cornerstone_VA()
-    Y = derive_cornerstone_Ytot_full_cs_matrix()
+    # Follows the derivation process of usa_matrices.py,
+    # except for derive_Ytot_full_cs_matrix() which recreates the full Y matrix in CS space
+    V = derive_V()
+    uset = derive_U_set()
+    VA = derive_VA()
+    Y = derive_Ytot_full_cs_matrix()
     E = derive_E_usa()
 
     V.to_csv(out / "cornerstone_V.csv", index=True)

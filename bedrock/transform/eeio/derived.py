@@ -1,19 +1,33 @@
+"""Published USA derive entrypoints (A, B, y, C, D).
+
+Two lanes:
+
+- **Published** — functions in this module (``derive_*_usa``). Snapshots,
+  waterfall, EF diagnostics, and other callers that want the configured
+  electricity-reaggregation switch use these.
+- **Deep helpers** — ``bedrock.transform.eeio.usa_matrices``
+  (``derive_*``). V, U, VA, x, q, mixed-units A/B, and other
+  intermediates with no facade twin.
+
+There is no parallel CEDA / USEEIO full-matrix derive path behind these
+facades; they always call the Cornerstone-schema implementation.
+"""
+
 from __future__ import annotations
 
 import functools
 
 import pandas as pd
 
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq_reaggregated,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_B_reaggregated,
-    derive_cornerstone_detail_Ytot_matrix_set,
-    derive_cornerstone_Y_and_trade_scaled,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_y_nab_reaggregated,
-    derive_cornerstone_ydom_and_yimp,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq_reaggregated,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_B_reaggregated,
+    derive_Y_and_trade_scaled,
+    derive_y_nab,
+    derive_y_nab_reaggregated,
+    derive_ydom_and_yimp,
 )
 from bedrock.utils.emissions.characterization import build_ghg_characterization_matrix
 from bedrock.utils.emissions.ghg import GHG
@@ -51,15 +65,15 @@ def derive_B_usa_non_finetuned() -> pd.DataFrame:
     q-weighted collapse (G/T/D → 221100), matching Excel/SEF.
     """
     if _reaggregation_published():
-        return derive_cornerstone_B_reaggregated()
-    return derive_cornerstone_B_non_finetuned()
+        return derive_B_reaggregated()
+    return derive_B_non_finetuned()
 
 
 def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection() -> (
     SingleRegionYtotAndTradeVectorSet
 ):
     """Detail Y and trade vectors, structurally reflected to the target year."""
-    yset = derive_cornerstone_Y_and_trade_scaled()
+    yset = derive_Y_and_trade_scaled()
     if not _reaggregation_published():
         return yset
     return SingleRegionYtotAndTradeVectorSet(
@@ -73,13 +87,13 @@ def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_r
 def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
     """y for the national accounting balance: y_nab = (y_tot - y_imp) + exports."""
     if _reaggregation_published():
-        return derive_cornerstone_y_nab_reaggregated()
-    return derive_cornerstone_y_nab()
+        return derive_y_nab_reaggregated()
+    return derive_y_nab()
 
 
 def derive_ydom_and_yimp_usa() -> SingleRegionYVectorSet:
     """ydom and yimp split, used to populate diagonal/off-diagonal Y_oecd."""
-    yset = derive_cornerstone_ydom_and_yimp()
+    yset = derive_ydom_and_yimp()
     if not _reaggregation_published():
         return yset
     return SingleRegionYVectorSet(
@@ -96,8 +110,8 @@ def derive_Aq_usa() -> SingleRegionAqMatrixSet:
     collapse, matching Excel/SEF and snapshot parquets.
     """
     if _reaggregation_published():
-        return derive_cornerstone_Aq_reaggregated()
-    return derive_cornerstone_Aq_scaled()
+        return derive_Aq_reaggregated()
+    return derive_Aq_scaled()
 
 
 @functools.cache
@@ -122,9 +136,3 @@ def derive_D_usa() -> pd.DataFrame:
     D = derive_C_usa() @ derive_B_usa_non_finetuned()
     D.columns.name = 'sector'
     return D
-
-
-@functools.cache
-def derive_v7_detail_Ytot_usa_matrix_set() -> SingleRegionYtotAndTradeVectorSet:
-    """US Ytot and trade vectors (non-negative ytot, used to ABSR other countries)."""
-    return derive_cornerstone_detail_Ytot_matrix_set()

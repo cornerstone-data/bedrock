@@ -29,21 +29,6 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_mixed_units,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_y_nab_mixed_units,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
     _derive_post_reallocation_checkpoint_for_disagg,
@@ -55,6 +40,21 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_mixed_units,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_y_nab,
+    derive_y_nab_mixed_units,
+)
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
@@ -88,19 +88,19 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     get_eia_purchaser_allocation,
     mecs_purchased_kwh,
     _derive_post_reallocation_checkpoint_for_disagg,
-    derive_cornerstone_V,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_U_set,
-    derive_cornerstone_VA,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_Aq_mixed_units,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_y_nab_mixed_units,
+    derive_V,
+    derive_Vnorm_scrap_corrected,
+    derive_U_with_negatives,
+    derive_U_set,
+    derive_VA,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_Aq_mixed_units,
+    derive_B_non_finetuned,
+    derive_y_nab,
+    derive_y_nab_mixed_units,
 ]
 
 
@@ -224,8 +224,8 @@ def test_mixed_units_flag_off_is_noop() -> None:
     _setup('test_usa_config_waste_disagg_electricity_disaggregation.yaml')
     try:
         with _dollar_industrial_weights():
-            aq_mon = derive_cornerstone_Aq_scaled()
-            aq_mixed = derive_cornerstone_Aq_mixed_units()
+            aq_mon = derive_Aq_scaled()
+            aq_mixed = derive_Aq_mixed_units()
         pd.testing.assert_frame_equal(aq_mon.Adom, aq_mixed.Adom)
         pd.testing.assert_series_equal(aq_mon.scaled_q, aq_mixed.scaled_q)
     finally:
@@ -248,7 +248,7 @@ def test_output_mwh_anchor(
     _setup(mixed_units_config)
     try:
         with _dollar_industrial_weights():
-            aq = derive_cornerstone_Aq_mixed_units()
+            aq = derive_Aq_mixed_units()
         assert aq.scaled_q[GENERATION_SECTOR] == pytest.approx(4_000_000_000.0)
     finally:
         _teardown()
@@ -303,13 +303,13 @@ def test_y_nab_stays_monetary_under_mixed_gate(mixed_units_config: str) -> None:
     _setup('test_usa_config_waste_disagg_electricity_disaggregation.yaml')
     try:
         with _dollar_industrial_weights():
-            y_off = derive_cornerstone_y_nab().copy()
+            y_off = derive_y_nab().copy()
     finally:
         _teardown()
     _setup(mixed_units_config)
     try:
         with _dollar_industrial_weights():
-            y_on = derive_cornerstone_y_nab()
+            y_on = derive_y_nab()
         pd.testing.assert_series_equal(y_off, y_on)
     finally:
         _teardown()
@@ -331,9 +331,9 @@ def test_y_nab_mixed_differs_from_monetary_under_gate(
     _setup(mixed_units_config)
     try:
         with _dollar_industrial_weights():
-            y_mon = derive_cornerstone_y_nab()
-            y_mix = derive_cornerstone_y_nab_mixed_units()
-            aq = derive_cornerstone_Aq_mixed_units()
+            y_mon = derive_y_nab()
+            y_mix = derive_y_nab_mixed_units()
+            aq = derive_Aq_mixed_units()
         assert y_mix[GENERATION_SECTOR] != pytest.approx(y_mon[GENERATION_SECTOR])
         y_back = backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
         pd.testing.assert_series_equal(y_mix, y_back)
@@ -454,7 +454,7 @@ def test_live_conversion_factors_and_generation_mwh(
 
     _setup(mixed_units_config)
     try:
-        aq = derive_cornerstone_Aq_scaled()
+        aq = derive_Aq_scaled()
         _c_col, c_row = electricity_conversion_factors(aq)
         cfg = get_usa_config()
         mwh = float(egrid_mwh_for_io_year(int(cfg.model_base_year)))
@@ -478,7 +478,7 @@ def test_live_conversion_factors_and_generation_mwh(
         else:
             assert mwh_from_dollars <= float(alloc.egrid_mwh) + 1.0
 
-        aq_mix = derive_cornerstone_Aq_mixed_units()
+        aq_mix = derive_Aq_mixed_units()
         assert float(aq_mix.scaled_q[GENERATION_SECTOR]) == pytest.approx(
             mwh, rel=1e-6, abs=1.0
         )

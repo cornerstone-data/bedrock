@@ -27,15 +27,15 @@ from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace impo
 from bedrock.publish.model_objects import get_D, get_V, get_x
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    derive_cornerstone_U_after_waste,
-    derive_cornerstone_V_after_waste,
-    derive_cornerstone_VA_after_waste,
-)
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Vnorm_scrap_corrected,
+    derive_U_after_waste,
+    derive_V_after_waste,
+    derive_VA_after_waste,
 )
 from bedrock.transform.eeio.electricity_disaggregation import (
     build_coproduction_transfer_schedule,
+)
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Vnorm_scrap_corrected,
 )
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.math.formulas import compute_q
@@ -70,9 +70,9 @@ def _q_series() -> pd.Series:
 def report_make_and_intensity() -> None:
     """Footing Make transfers and commodity-intensity decomposition."""
     _load(CONFIGS[1][1])  # reallocation config exposes the pre-realloc checkpoint
-    v0 = derive_cornerstone_V_after_waste()
-    _ = derive_cornerstone_U_after_waste()
-    _ = derive_cornerstone_VA_after_waste()
+    v0 = derive_V_after_waste()
+    _ = derive_U_after_waste()
+    _ = derive_VA_after_waste()
     schedule = build_coproduction_transfer_schedule(v0)
     out = sum(t.amount for t in schedule if t.source == ELEC and t.target == GAS)
     inb = sum(t.amount for t in schedule if t.source == GAS and t.target == ELEC)
@@ -85,7 +85,7 @@ def report_make_and_intensity() -> None:
     E.columns = E.columns.astype(str)
     x = get_x()
     x.index = x.index.astype(str)
-    vnorm = derive_cornerstone_Vnorm_scrap_corrected()
+    vnorm = derive_Vnorm_scrap_corrected()
     vnorm.index = vnorm.index.astype(str)
     vnorm.columns = vnorm.columns.astype(str)
 

@@ -147,7 +147,7 @@ def resplit_waste_use_emissions(fbs: pd.DataFrame) -> pd.DataFrame:
     NAICS placement, and every pool's total is unchanged.
     """
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
-        derive_cornerstone_U_after_waste,
+        derive_U_after_waste,
         get_waste_disagg_weights,
     )
 
@@ -160,7 +160,7 @@ def resplit_waste_use_emissions(fbs: pd.DataFrame) -> pd.DataFrame:
     if not selected.any():
         return fbs
 
-    Udom, Uimp = derive_cornerstone_U_after_waste()
+    Udom, Uimp = derive_U_after_waste()
     U = Udom.add(Uimp, fill_value=0.0)
     U.index = U.index.astype(str)
     U.columns = U.columns.astype(str)

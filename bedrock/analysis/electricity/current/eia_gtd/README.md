@@ -12,7 +12,7 @@ python -m bedrock.analysis.electricity.current.eia_gtd
 ```
 
 That sequence is `reset_usa_config` → `clear_all_publish_caches` →
-`set_global_usa_config` → `derive_cornerstone_Aq_scaled` →
+`set_global_usa_config` → `derive_Aq_scaled` →
 `get_reanchored_eia_purchaser_allocation()` (assert not `None`). Do **not**
 use `get_2017_eia_purchaser_allocation`.
 

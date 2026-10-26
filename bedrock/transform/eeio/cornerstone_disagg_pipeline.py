@@ -2,7 +2,7 @@
 or more disagg-related config flags are true.
 
 Returns uninflated 2017-chain-dollar IO matrices only. Public entry points in
-``derived_cornerstone`` apply inflation and year-scaling after routing here.
+``usa_matrices`` apply inflation and year-scaling after routing here.
 
 Electricity modules are loaded only when electricity flags are on (or when
 callers invoke the lazy end-use facade). Importing this module under
@@ -63,7 +63,7 @@ _BEDROCK_PKG_ROOT = pathlib.Path(__file__).resolve().parents[2]
 WASTE_ORIGINAL_CODE = '562000'
 WASTE_NEW_CODES: list[str] = list(WASTE_DISAGG_COMMODITIES[WASTE_ORIGINAL_CODE])
 
-# Backward-compat aliases (re-exported from derived_cornerstone with leading underscore).
+# Backward-compat aliases (re-exported from usa_matrices with leading underscore).
 _WASTE_ORIGINAL_CODE = WASTE_ORIGINAL_CODE
 _WASTE_NEW_CODES = WASTE_NEW_CODES
 
@@ -216,7 +216,7 @@ class CornerstoneDisaggIOBundle:
     VA: pd.DataFrame
 
 
-def derive_cornerstone_V_after_waste() -> pd.DataFrame:
+def derive_V_after_waste() -> pd.DataFrame:
     V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
     V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
@@ -229,7 +229,7 @@ def derive_cornerstone_V_after_waste() -> pd.DataFrame:
     return V
 
 
-def derive_cornerstone_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
+def derive_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
     Utot = load_detail_Utot_usa()
     Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
@@ -266,7 +266,7 @@ def _derive_y_before_electricity_disagg() -> pd.DataFrame:
     return ytot
 
 
-def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
+def derive_VA_after_waste() -> pd.DataFrame:
     VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
     weights = get_waste_disagg_weights()
@@ -279,9 +279,9 @@ def derive_cornerstone_VA_after_waste() -> pd.DataFrame:
 @functools.cache
 def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
     """Correspondence + waste (+ optional electricity). Uninflated dollars of the detail IO year."""
-    V = derive_cornerstone_V_after_waste()
-    Udom, Uimp = derive_cornerstone_U_after_waste()
-    VA = derive_cornerstone_VA_after_waste()
+    V = derive_V_after_waste()
+    Udom, Uimp = derive_U_after_waste()
+    VA = derive_VA_after_waste()
     if electricity_reallocation_enabled():
         from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
             reallocate_electricity_coproduction,

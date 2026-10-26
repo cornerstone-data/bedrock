@@ -30,21 +30,21 @@ from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
     electricity_reallocation_enabled,
     get_waste_disagg_weights,
 )
-from bedrock.transform.eeio.derived_cornerstone import (
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_B_via_vnorm,
-    derive_cornerstone_q,
-    derive_cornerstone_U_set,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_V,
-    derive_cornerstone_VA,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_y_nab,
-    derive_cornerstone_Ytot_matrix_set,
+from bedrock.transform.eeio.usa_matrices import (
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_B_via_vnorm,
+    derive_q,
+    derive_U_set,
+    derive_U_with_negatives,
+    derive_V,
+    derive_VA,
+    derive_Vnorm_scrap_corrected,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_y_nab,
+    derive_Ytot_matrix_set,
 )
 from bedrock.utils.config.usa_config import (
     get_usa_config,
@@ -65,19 +65,19 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
-    derive_cornerstone_V,
-    derive_cornerstone_x,
-    derive_cornerstone_x_after_redefinition,
-    derive_cornerstone_q,
-    derive_cornerstone_Vnorm_scrap_corrected,
-    derive_cornerstone_U_with_negatives,
-    derive_cornerstone_U_set,
-    derive_cornerstone_Ytot_matrix_set,
-    derive_cornerstone_VA,
-    derive_cornerstone_Aq,
-    derive_cornerstone_Aq_scaled,
-    derive_cornerstone_B_non_finetuned,
-    derive_cornerstone_y_nab,
+    derive_V,
+    derive_x,
+    derive_x_after_redefinition,
+    derive_q,
+    derive_Vnorm_scrap_corrected,
+    derive_U_with_negatives,
+    derive_U_set,
+    derive_Ytot_matrix_set,
+    derive_VA,
+    derive_Aq,
+    derive_Aq_scaled,
+    derive_B_non_finetuned,
+    derive_y_nab,
 ]
 
 
@@ -141,7 +141,7 @@ class TestWeightProvider:
 @pytest.fixture(scope="module")
 def baseline_V() -> pd.DataFrame:
     _setup_config("test_usa_config_waste_disagg_off")
-    V = derive_cornerstone_V()
+    V = derive_V()
     _teardown()
     return V
 
@@ -149,7 +149,7 @@ def baseline_V() -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def baseline_U() -> tuple[pd.DataFrame, pd.DataFrame]:
     _setup_config("test_usa_config_waste_disagg_off")
-    uset = derive_cornerstone_U_with_negatives()
+    uset = derive_U_with_negatives()
     result = (pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp))
     _teardown()
     return result
@@ -166,7 +166,7 @@ def baseline_Ytot() -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def baseline_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     _setup_config("test_usa_config_waste_disagg_off")
-    aq = derive_cornerstone_Aq()
+    aq = derive_Aq()
     result = (pd.DataFrame(aq.Adom), pd.DataFrame(aq.Aimp), aq.scaled_q.copy())
     _teardown()
     return result
@@ -176,7 +176,7 @@ def baseline_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
 def baseline_B() -> pd.DataFrame | None:
     _setup_config("test_usa_config_waste_disagg_off")
     try:
-        B = derive_cornerstone_B_via_vnorm()
+        B = derive_B_via_vnorm()
     except Exception:
         _teardown()
         return None
@@ -187,7 +187,7 @@ def baseline_B() -> pd.DataFrame | None:
 @pytest.fixture(scope="module")
 def disagg_V() -> pd.DataFrame:
     _setup_config("test_usa_config_waste_disagg")
-    V = derive_cornerstone_V()
+    V = derive_V()
     _teardown()
     return V
 
@@ -195,7 +195,7 @@ def disagg_V() -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def disagg_U() -> tuple[pd.DataFrame, pd.DataFrame]:
     _setup_config("test_usa_config_waste_disagg")
-    uset = derive_cornerstone_U_with_negatives()
+    uset = derive_U_with_negatives()
     result = (pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp))
     _teardown()
     return result
@@ -212,7 +212,7 @@ def disagg_Ytot() -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def disagg_VA() -> pd.DataFrame:
     _setup_config("test_usa_config_waste_disagg")
-    VA = derive_cornerstone_VA()
+    VA = derive_VA()
     _teardown()
     return VA
 
@@ -220,7 +220,7 @@ def disagg_VA() -> pd.DataFrame:
 @pytest.fixture(scope="module")
 def disagg_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     _setup_config("test_usa_config_waste_disagg")
-    aq = derive_cornerstone_Aq()
+    aq = derive_Aq()
     result = (pd.DataFrame(aq.Adom), pd.DataFrame(aq.Aimp), aq.scaled_q.copy())
     _teardown()
     return result
@@ -229,7 +229,7 @@ def disagg_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
 @pytest.fixture(scope="module")
 def disagg_B() -> pd.DataFrame:
     _setup_config("test_usa_config_waste_disagg")
-    B = derive_cornerstone_B_via_vnorm()
+    B = derive_B_via_vnorm()
     _teardown()
     return B
 
@@ -482,7 +482,7 @@ class TestPipelineB:
         )
 
         try:
-            B = derive_cornerstone_B_via_vnorm()
+            B = derive_B_via_vnorm()
         finally:
             _teardown()
 
@@ -493,16 +493,12 @@ class TestPipelineB:
         _setup_config("2025_usa_cornerstone_v0_3.yaml")
         try:
             cfg = get_usa_config()
-            actual = derive_cornerstone_B_via_vnorm()
+            actual = derive_B_via_vnorm()
 
-            x = (
-                derive_cornerstone_x_after_redefinition()
-                if cfg.use_ghg_year_x_in_B
-                else derive_cornerstone_x()
-            )
+            x = derive_x_after_redefinition() if cfg.use_ghg_year_x_in_B else derive_x()
             expected = (
                 load_E_from_flowsa().divide(x, axis=1).fillna(0.0)
-                @ derive_cornerstone_Vnorm_scrap_corrected()
+                @ derive_Vnorm_scrap_corrected()
             )
         finally:
             _teardown()
@@ -527,11 +523,11 @@ class TestFeatureOffRegression:
     def test_feature_off_V_matches_baseline(self) -> None:
         _setup_config("test_usa_config_waste_disagg_off")
         assert get_waste_disagg_weights() is None
-        V = derive_cornerstone_V()
+        V = derive_V()
         _teardown()
 
         _setup_config("test_usa_config_waste_disagg_off")
-        V2 = derive_cornerstone_V()
+        V2 = derive_V()
         _teardown()
 
         np.testing.assert_array_equal(V.values, V2.values)
@@ -539,7 +535,7 @@ class TestFeatureOffRegression:
     def test_feature_off_Aq_uses_expansion_path(self) -> None:
         _setup_config("test_usa_config_waste_disagg_off")
         assert get_waste_disagg_weights() is None
-        aq = derive_cornerstone_Aq()
+        aq = derive_Aq()
         Adom = pd.DataFrame(aq.Adom)
         waste_in = [c for c in _WASTE_NEW_CODES if c in Adom.index]
         waste_block = Adom.loc[waste_in, waste_in]

@@ -344,7 +344,7 @@ def derive_useeio_excel_y_nab_scaled_to_model_base_year(
     cfg: USAConfig,
     ub: UseeioBaselineBundle,
 ) -> pd.Series[float]:
-    """Scale USEEIO workbook ``y_nab`` like ``derive_cornerstone_y_nab``.
+    """Scale USEEIO workbook ``y_nab`` like ``derive_y_nab``.
 
     Builds summary national-accounting ``y_nab`` at ``cfg.usa_io_data_year`` (same
     BEA inputs as the cornerstone path), disaggregates to detail using the
@@ -356,7 +356,7 @@ def derive_useeio_excel_y_nab_scaled_to_model_base_year(
 
     Note:
     This helper is used for diagnostics/support comparisons (e.g. CSV exports).
-    The active USEEIO BLy ``y_old`` path uses Cornerstone ``derive_cornerstone_y_nab``
+    The active USEEIO BLy ``y_old`` path uses Cornerstone ``derive_y_nab``
     reindexed to the USEEIO axis, and rebases workbook ``B`` intensities from
     workbook ``dollar_year`` to that ``y``'s dollar year when they differ.
     """
@@ -364,7 +364,7 @@ def derive_useeio_excel_y_nab_scaled_to_model_base_year(
     from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
         derive_summary_Ytot_usa_matrix_set,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
+    from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
         _disaggregate_and_inflate_vector,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415

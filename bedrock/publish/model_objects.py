@@ -85,14 +85,14 @@ def _reaggregation_efs_active() -> bool:
 @functools.cache
 def get_V() -> pd.DataFrame:
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_V_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_V_reaggregated,
         )
 
-        return derive_cornerstone_V_reaggregated()
-    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_V
+        return derive_V_reaggregated()
+    from bedrock.transform.eeio.usa_matrices import derive_V
 
-    return derive_cornerstone_V()
+    return derive_V()
 
 
 @functools.cache
@@ -100,90 +100,90 @@ def get_U() -> pd.DataFrame:
     from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
 
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (
-            derive_cornerstone_U_set_reaggregated,
-            derive_cornerstone_VA_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (
             derive_disagg_Ytot_reaggregated,
+            derive_U_set_reaggregated,
+            derive_VA_reaggregated,
         )
 
-        uset = derive_cornerstone_U_set_reaggregated()
+        uset = derive_U_set_reaggregated()
         intermediate = uset.Udom + uset.Uimp
         fd_block = derive_disagg_Ytot_reaggregated()[list(FINAL_DEMANDS)]
         return assemble_extended_U(
             intermediate=intermediate,
             fd=fd_block,
-            va=derive_cornerstone_VA_reaggregated(),
+            va=derive_VA_reaggregated(),
         )
     from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
         derive_disagg_Ytot_with_trade,
     )
-    from bedrock.transform.eeio.derived_cornerstone import (
-        derive_cornerstone_U_set,
-        derive_cornerstone_VA,
+    from bedrock.transform.eeio.usa_matrices import (
+        derive_U_set,
+        derive_VA,
     )
 
-    uset = derive_cornerstone_U_set()
+    uset = derive_U_set()
     intermediate = uset.Udom + uset.Uimp
     fd_block = derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)]
     return assemble_extended_U(
         intermediate=intermediate,
         fd=fd_block,
-        va=derive_cornerstone_VA(),
+        va=derive_VA(),
     )
 
 
 @functools.cache
 def get_Udom() -> pd.DataFrame:
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (
-            derive_cornerstone_U_set_reaggregated,
-            derive_cornerstone_VA_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (
+            derive_U_set_reaggregated,
+            derive_VA_reaggregated,
         )
 
         return assemble_extended_U(
-            intermediate=derive_cornerstone_U_set_reaggregated().Udom,
+            intermediate=derive_U_set_reaggregated().Udom,
             fd=None,
-            va=derive_cornerstone_VA_reaggregated(),
+            va=derive_VA_reaggregated(),
         )
-    from bedrock.transform.eeio.derived_cornerstone import (
-        derive_cornerstone_U_set,
-        derive_cornerstone_VA,
+    from bedrock.transform.eeio.usa_matrices import (
+        derive_U_set,
+        derive_VA,
     )
 
     return assemble_extended_U(
-        intermediate=derive_cornerstone_U_set().Udom,
+        intermediate=derive_U_set().Udom,
         fd=None,
-        va=derive_cornerstone_VA(),
+        va=derive_VA(),
     )
 
 
 @functools.cache
 def get_x() -> pd.Series:
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (
-            derive_cornerstone_x_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (
+            derive_x_reaggregated,
         )
 
-        return pd.Series(derive_cornerstone_x_reaggregated(), name='x')
-    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_x
+        return pd.Series(derive_x_reaggregated(), name='x')
+    from bedrock.transform.eeio.usa_matrices import derive_x
 
-    return pd.Series(derive_cornerstone_x(), name='x')
+    return pd.Series(derive_x(), name='x')
 
 
 @functools.cache
 def get_A() -> pd.DataFrame:
     if _mixed_units_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_mixed_units,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_mixed_units,
         )
 
-        aq = derive_cornerstone_Aq_mixed_units()
+        aq = derive_Aq_mixed_units()
     elif _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_reaggregated,
         )
 
-        aq = derive_cornerstone_Aq_reaggregated()
+        aq = derive_Aq_reaggregated()
     else:
         from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
@@ -197,17 +197,17 @@ def get_A() -> pd.DataFrame:
 @functools.cache
 def get_Adom() -> pd.DataFrame:
     if _mixed_units_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_mixed_units,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_mixed_units,
         )
 
-        return derive_cornerstone_Aq_mixed_units().Adom
+        return derive_Aq_mixed_units().Adom
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_reaggregated,
         )
 
-        return derive_cornerstone_Aq_reaggregated().Adom
+        return derive_Aq_reaggregated().Adom
     from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
     return derive_Aq_usa().Adom
@@ -226,17 +226,17 @@ def get_Ldom() -> pd.DataFrame:
 @functools.cache
 def get_B() -> pd.DataFrame:
     if _mixed_units_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_B_mixed_units,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_B_mixed_units,
         )
 
-        return derive_cornerstone_B_mixed_units()
+        return derive_B_mixed_units()
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_B_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_B_reaggregated,
         )
 
-        return derive_cornerstone_B_reaggregated()
+        return derive_B_reaggregated()
     from bedrock.transform.eeio.derived import (
         derive_B_usa_non_finetuned,
     )  # noqa: PLC0415, I001
@@ -295,9 +295,9 @@ def get_Ndom() -> pd.DataFrame:
 @functools.cache
 def get_A_margin() -> pd.DataFrame:
     """Margin-provider A matrix (commodity supplying margin x commodity purchased)."""
-    from bedrock.transform.eeio.derived_cornerstone import derive_cornerstone_A_margin
+    from bedrock.transform.eeio.usa_matrices import derive_A_margin
 
-    return derive_cornerstone_A_margin()
+    return derive_A_margin()
 
 
 @functools.cache
@@ -319,17 +319,17 @@ def get_N_margin() -> pd.DataFrame:
 @functools.cache
 def get_q() -> pd.Series:
     if _mixed_units_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_mixed_units,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_mixed_units,
         )
 
-        return pd.Series(derive_cornerstone_Aq_mixed_units().scaled_q, name='q')
+        return pd.Series(derive_Aq_mixed_units().scaled_q, name='q')
     if _reaggregation_efs_active():
-        from bedrock.transform.eeio.derived_cornerstone import (  # noqa: PLC0415
-            derive_cornerstone_Aq_reaggregated,
+        from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
+            derive_Aq_reaggregated,
         )
 
-        return pd.Series(derive_cornerstone_Aq_reaggregated().scaled_q, name='q')
+        return pd.Series(derive_Aq_reaggregated().scaled_q, name='q')
     from bedrock.transform.eeio.derived import derive_Aq_usa  # noqa: PLC0415
 
     return pd.Series(derive_Aq_usa().scaled_q, name='q')
