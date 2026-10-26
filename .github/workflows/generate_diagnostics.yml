@@ -7,7 +7,7 @@ on:
         description: "USA config name (without .yaml extension)"
         required: true
         type: string
-        default: "2025_usa_cornerstone_v0_5"
+        default: "2026_usa_cornerstone_v1_0"
       sheet_id:
         description: "Google Sheets ID for EF diagnostics"
         required: true
