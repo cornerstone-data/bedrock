@@ -316,8 +316,8 @@ def useeio_baseline_price_index_levels(
     sectors (the split-out waste sectors) take their BEA parent's row, as in
     ``get_cornerstone_industry_price_ratio``.
     """
-    from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-        _cornerstone_to_bea_price_parent,
+    from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
+        _usa_to_bea_price_parent,
     )
     from bedrock.utils.economic.inflation_helpers_useeio import (  # noqa: PLC0415
         obtain_useeior_detail_industry_cpi_levels,
@@ -329,7 +329,7 @@ def useeio_baseline_price_index_levels(
     levels = obtain_useeior_detail_industry_cpi_levels()
     children = {
         child: parent
-        for child, parent in _cornerstone_to_bea_price_parent().items()
+        for child, parent in _usa_to_bea_price_parent().items()
         if child not in levels.index and parent in levels.index
     }
     if not children:
