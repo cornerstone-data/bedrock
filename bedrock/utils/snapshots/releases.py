@@ -81,7 +81,11 @@ v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerst
 # business types mapped to BEA structure codes in
 # GHG_national_Cornerstone_nowcast_facilities_transportation_2024_v0.5.0_82e24cd
 # (#1103, #1105). Facilities rung is G5; transport is FINAL.
-v0_6_0 = "e10c75f542b0c9b24692f6524a53073e091d54dc"  # config: 2025_usa_cornerstone_v0_6; matches .SNAPSHOT_KEY
+v0_6_0 = "e10c75f542b0c9b24692f6524a53073e091d54dc"  # config: 2025_usa_cornerstone_v0_6
+
+# Output change: canonical flip to 2026_usa_cornerstone_v1_0 retained-activity
+# FBS (#1147); twin bag vs e10c75f5 on asserted B/A/q/Y.
+v1_0_0 = "326ae5d8922ad69347c360314be541935a374a4b"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -104,6 +108,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_4_1: 2024,
     v0_5_0: 2024,
     v0_6_0: 2024,
+    v1_0_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
 }
