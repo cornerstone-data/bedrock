@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import functools
 import operator
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -399,7 +400,7 @@ def test_a_commodity_goes_to_its_own_code_when_the_totals_allow() -> None:
     assert placed['k1'].loc['g1', 'b1'] == pytest.approx(60.0, rel=1e-2)
     assert placed['k2'].loc['g2', 'b1'] == pytest.approx(40.0, rel=1e-2)
     # Under the buyer split g1 would put 40% on k2; the prior moves it off.
-    assert placed['k2'].loc['g1', 'b1'] < 1.0
+    assert cast(float, placed['k2'].loc['g1', 'b1']) < 1.0
 
 
 def test_a_give_back_is_split_by_commodity_and_earnings_still_hold() -> None:
@@ -416,5 +417,5 @@ def test_a_give_back_is_split_by_commodity_and_earnings_still_hold() -> None:
             earned.to_numpy(), (shares.loc[code] * amount.sum()).to_numpy()
         )
     # The draw-down of g2 is all negative; none of it books onto k1 as a give-back.
-    assert placed['k1'].loc['g2', 'b2'] <= 0.0 + 1e-9
-    assert placed['k2'].loc['g2', 'b2'] < 0.0
+    assert cast(float, placed['k1'].loc['g2', 'b2']) <= 0.0 + 1e-9
+    assert cast(float, placed['k2'].loc['g2', 'b2']) < 0.0
