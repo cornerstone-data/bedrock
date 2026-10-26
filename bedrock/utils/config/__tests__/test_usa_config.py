@@ -393,9 +393,7 @@ def test_v0_5_9_transport_selects_the_year_cornerstone_fbs() -> None:
 
 
 def test_v0_6_matches_v0_5_9_transport() -> None:
-    """v0.6 is the canonical config.
-
-    It matches v0.5.9 transport except the GHG FBS pin and
+    """v0.6 matches v0.5.9 transport except the GHG FBS pin and
     use_facility_ghg_attribution. The loader returns
     GHG_national_Cornerstone_2024.
     """
@@ -403,7 +401,6 @@ def test_v0_6_matches_v0_5_9_transport() -> None:
         _select_cornerstone_ghg_fbs_base_name,
     )
 
-    assert CANONICAL_USA_CONFIG == '2025_usa_cornerstone_v0_6'
     v06 = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_6.yaml')
     transport = _load_usa_config_from_file_name(
         '2025_usa_cornerstone_v0_5_9_transport.yaml'
@@ -427,10 +424,11 @@ def test_v0_6_matches_v0_5_9_transport() -> None:
 def test_v1_0_yearly_yamls_load(year: int) -> None:
     """v1.0 year series: v0.6 methodology on retained-activity year FBS.
 
-    Named ``2026_usa_cornerstone_v1_0_{year}``. Live canonical
-    ``2025_usa_cornerstone_v0_6`` keeps the facilities-transportation 2024
-    pin; this family pins ``GHG_national_Cornerstone_{year}_v0.6.0_635777c``.
-    The unsuffixed ``2026_usa_cornerstone_v1_0`` matches the 2024 series member.
+    Named ``2026_usa_cornerstone_v1_0_{year}``. Each member pins
+    ``GHG_national_Cornerstone_{year}_v0.6.0_635777c``. The unsuffixed
+    ``2026_usa_cornerstone_v1_0`` (live ``CANONICAL_USA_CONFIG``) matches
+    the 2024 series member. ``2025_usa_cornerstone_v0_6`` keeps the
+    facilities-transportation 2024 pin for the v0.6 release / waterfall FINAL.
     """
     from bedrock.transform.allocation.derived import (
         _select_cornerstone_ghg_fbs_base_name,
@@ -488,7 +486,7 @@ def test_v1_0_release_yaml_matches_2024_series_member() -> None:
     set_global_usa_config('2026_usa_cornerstone_v1_0.yaml')
     assert _select_cornerstone_ghg_fbs_base_name() == 'GHG_national_Cornerstone_2024'
     reset_usa_config(should_reset_env_var=True)
-    assert CANONICAL_USA_CONFIG == '2025_usa_cornerstone_v0_6'
+    assert CANONICAL_USA_CONFIG == '2026_usa_cornerstone_v1_0'
 
 
 def test_v0_4_release_yaml_loads() -> None:
