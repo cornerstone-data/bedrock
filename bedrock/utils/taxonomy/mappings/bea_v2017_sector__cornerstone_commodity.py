@@ -30,7 +30,7 @@ def load_bea_v2017_sector_commodity_to_cornerstone_commodity() -> (
     return mapping
 
 
-# Margin type (as named in derive_margins_cornerstone_usa()'s columns) to the
+# Margin type (as named in derive_margins_usa()'s columns) to the
 # BEA 2017 Sector-level code of the commodities that supply that margin.
 MARGIN_TYPE_TO_BEA_SECTOR_CODE: ta.Dict[str, BEA_2017_SECTOR_COMMODITY_CODE] = {
     'Transportation': '48TW',

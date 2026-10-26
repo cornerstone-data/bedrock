@@ -280,7 +280,7 @@ def total_impact_intensity() -> pd.Series:
     all of it is upstream livestock, and ``531ORE`` goes 1.48% -> 3.97%.
 
     ⚠️ **``L`` matches the model's own**, ``(I - (Adom + Aimp))^-1``, the same
-    inverse ``cornerstone_disagg_pipeline`` builds ``N`` from.  Using ``Adom``
+    inverse ``sector_disagg_pipeline`` builds ``N`` from.  Using ``Adom``
     alone would understate every row with an imported input.
     """
     from bedrock.utils.math.formulas import (  # noqa: PLC0415

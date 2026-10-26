@@ -10,15 +10,6 @@ import pytest
 
 from bedrock.publish.cache_reset import clear_all_publish_caches
 from bedrock.publish.model_objects import get_N, get_q
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    cornerstone_sector_disagg_active,
-    derive_disagg_io_bundle,
-    derive_disagg_Ytot_with_trade,
-    electricity_disaggregation_enabled,
-    electricity_reaggregation_enabled,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
@@ -31,6 +22,15 @@ from bedrock.transform.eeio.electricity_disaggregation import (
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     get_reanchored_eia_purchaser_allocation,
     mecs_purchased_kwh,
+)
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
+    electricity_reallocation_enabled,
+    get_waste_disagg_weights,
+    sector_disagg_active,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
@@ -58,8 +58,8 @@ from bedrock.utils.config.usa_config import (
     reset_usa_config,
     set_global_usa_config,
 )
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    clear_cornerstone_inflation_caches,
+from bedrock.utils.economic.inflation_helpers_usa import (
+    clear_usa_inflation_caches,
 )
 
 _NOWCAST_REAGG_CONFIG = (
@@ -99,7 +99,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
-    cornerstone_sector_disagg_active,
+    sector_disagg_active,
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
@@ -132,24 +132,24 @@ def _clear_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
-    clear_cornerstone_inflation_caches()
+    clear_usa_inflation_caches()
     clear_all_publish_caches()
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_summary_year_scaled_aq,
-    )
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         clear_reanchored_electricity_q,
+    )
+    from bedrock.transform.eeio.year_scaling import (  # noqa: PLC0415
+        clear_summary_year_scaled_aq,
     )
 
     clear_summary_year_scaled_aq()
     clear_reanchored_electricity_q()
     from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (  # noqa: PLC0415
-        derive_phi_cornerstone_usa_panel,
-        derive_phi_cornerstone_usa_panel_published,
+        derive_phi_usa_panel,
+        derive_phi_usa_panel_published,
     )
 
-    derive_phi_cornerstone_usa_panel.cache_clear()
-    derive_phi_cornerstone_usa_panel_published.cache_clear()
+    derive_phi_usa_panel.cache_clear()
+    derive_phi_usa_panel_published.cache_clear()
 
 
 @contextmanager
@@ -238,8 +238,7 @@ def test_nowcast_aq_scaled_skips_published_reanchor_helpers() -> None:
                 '.reanchor_electricity_aq_after_year_scaling',
             ) as p_reanchor_scaled,
             patch(
-                'bedrock.transform.eeio.cornerstone_year_scaling'
-                '.get_summary_year_scaled_aq',
+                'bedrock.transform.eeio.year_scaling' '.get_summary_year_scaled_aq',
             ) as p_summary,
             patch(
                 'bedrock.transform.eeio.electricity_gtd_allocation'

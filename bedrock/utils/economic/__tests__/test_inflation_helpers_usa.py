@@ -6,15 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    cornerstone_sector_disagg_active,
-    derive_disagg_io_bundle,
-    derive_disagg_Ytot_with_trade,
-    electricity_disaggregation_enabled,
-    electricity_reaggregation_enabled,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     _derive_post_reallocation_checkpoint_for_disagg,
     build_electricity_detail_GO_growth_ratios,
@@ -23,6 +14,15 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
+    electricity_reallocation_enabled,
+    get_waste_disagg_weights,
+    sector_disagg_active,
+)
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_scaled,
@@ -40,12 +40,12 @@ from bedrock.utils.config.usa_config import (
     reset_usa_config,
     set_global_usa_config,
 )
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
+from bedrock.utils.economic.inflation_helpers_usa import (
     _aggregate_industry_pi,
-    _cornerstone_indexed_industry_pi,
     _get_summary_industry_price_index,
-    clear_cornerstone_inflation_caches,
-    get_cornerstone_industry_price_ratio,
+    _indexed_industry_pi,
+    clear_usa_inflation_caches,
+    get_industry_price_ratio,
     get_rho_inflation_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
@@ -65,7 +65,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
-    cornerstone_sector_disagg_active,
+    sector_disagg_active,
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
@@ -90,12 +90,12 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
-    clear_cornerstone_inflation_caches()
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_summary_year_scaled_aq,
-    )
+    clear_usa_inflation_caches()
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         clear_reanchored_electricity_q,
+    )
+    from bedrock.transform.eeio.year_scaling import (  # noqa: PLC0415
+        clear_summary_year_scaled_aq,
     )
 
     clear_summary_year_scaled_aq()
@@ -131,7 +131,7 @@ def _teardown() -> None:
 def test_rho_inflation_ratio_is_inverse_of_industry_price_ratio() -> None:
     """useeior PRO margin scaling uses PI[orig]/PI[targ], not PI[targ]/PI[orig]."""
     original_year, target_year = 2017, 2024
-    industry = get_cornerstone_industry_price_ratio(original_year, target_year)
+    industry = get_industry_price_ratio(original_year, target_year)
     rho = get_rho_inflation_ratio(original_year, target_year)
     product = (industry * rho).replace([float('inf'), float('-inf')], float('nan'))
     max_dev = (product - 1.0).abs().max()
@@ -214,7 +214,7 @@ def test_industry_price_ratio_apply_io_plus_elec_is_industry_elec_indexed() -> N
     """apply_io + elec: industry PI on industries-elec; commodity PI on commodities-elec."""
     _setup_config('2025_usa_cornerstone_v0_3.yaml')
     try:
-        baseline = get_cornerstone_industry_price_ratio(2017, 2024)
+        baseline = get_industry_price_ratio(2017, 2024)
         parent_pi = float(baseline.loc[ELECTRICITY_AGGREGATE_SECTOR])
         industry_only_pi = float(baseline.loc['331314'])
     finally:
@@ -223,7 +223,7 @@ def test_industry_price_ratio_apply_io_plus_elec_is_industry_elec_indexed() -> N
     _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
     try:
         with _dollar_industrial_weights():
-            industry = get_cornerstone_industry_price_ratio(2017, 2024)
+            industry = get_industry_price_ratio(2017, 2024)
             commodity = get_vnorm_adjusted_commodity_price_ratio(2017, 2024)
         assert list(industry.index) == CORNERSTONE_INDUSTRIES_ELEC
         assert list(commodity.index) == CORNERSTONE_COMMODITIES_ELEC
@@ -242,16 +242,14 @@ def test_industry_pi_under_elec_is_industries_elec_indexed() -> None:
     """Elec must expand industry PI to 407; summary \"22\" must keep children."""
     _setup_config('2025_usa_cornerstone_v0_3.yaml')
     try:
-        parent_pi = float(
-            _cornerstone_indexed_industry_pi(2022).loc[ELECTRICITY_AGGREGATE_SECTOR]
-        )
+        parent_pi = float(_indexed_industry_pi(2022).loc[ELECTRICITY_AGGREGATE_SECTOR])
     finally:
         _teardown()
 
     _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
     try:
         with _dollar_industrial_weights():
-            pi = _cornerstone_indexed_industry_pi(2022)
+            pi = _indexed_industry_pi(2022)
             assert list(pi.index) == active_cornerstone_industries()
             assert ELECTRICITY_AGGREGATE_SECTOR not in pi.index
             for code in ELECTRICITY_DISAGG_SECTORS:

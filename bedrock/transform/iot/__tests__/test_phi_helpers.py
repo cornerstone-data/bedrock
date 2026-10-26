@@ -8,7 +8,7 @@ import pandas as pd
 
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import (
     apply_phi_to_ef_vector,
-    derive_phi_cornerstone_usa_panel_published,
+    derive_phi_usa_panel_published,
     margins_phi_active,
     phi_for_sectors,
 )
@@ -37,9 +37,7 @@ class TestMarginsPhiActive:
     'bedrock.transform.iot.derive_PRO_to_PUR_ratio.margins_phi_active',
     return_value=True,
 )
-@patch(
-    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_at_year'
-)
+@patch('bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_usa_at_year')
 def test_apply_phi_to_ef_vector(mock_phi: MagicMock, _mock_active: MagicMock) -> None:
     mock_phi.return_value = pd.Series({'1111A0': 0.5, '221100': 0.8})
     ef = pd.Series({'1111A0': 10.0, '221100': 20.0, '311111': 2.0})
@@ -67,9 +65,7 @@ def test_phi_for_sectors_identity_when_inactive(_mock_active: MagicMock) -> None
     'bedrock.transform.iot.derive_PRO_to_PUR_ratio.margins_phi_active',
     return_value=True,
 )
-@patch(
-    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_at_year'
-)
+@patch('bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_usa_at_year')
 def test_phi_electricity_children_forced_to_one_when_disaggregation_on(
     mock_phi: MagicMock,
     _mock_active: MagicMock,
@@ -90,11 +86,11 @@ def test_phi_electricity_children_forced_to_one_when_disaggregation_on(
 
 
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_reaggregation_enabled',
+    'bedrock.transform.eeio.sector_disagg_pipeline.electricity_reaggregation_enabled',
     return_value=True,
 )
 @patch(
-    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_panel',
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_usa_panel',
 )
 def test_published_phi_reagg_drops_children_and_sets_parent(
     mock_panel: MagicMock,
@@ -120,9 +116,9 @@ def test_published_phi_reagg_drops_children_and_sets_parent(
         }
     )
     try:
-        out = derive_phi_cornerstone_usa_panel_published(years)
+        out = derive_phi_usa_panel_published(years)
     finally:
-        derive_phi_cornerstone_usa_panel_published.cache_clear()
+        derive_phi_usa_panel_published.cache_clear()
 
     assert list(out.index) == list(CORNERSTONE_COMMODITIES)
     assert all(c not in out.index for c in ELECTRICITY_DISAGG_SECTORS)
@@ -132,14 +128,14 @@ def test_published_phi_reagg_drops_children_and_sets_parent(
 
 
 @patch(
-    'bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_reaggregation_enabled',
+    'bedrock.transform.eeio.sector_disagg_pipeline.electricity_reaggregation_enabled',
     return_value=False,
 )
 @patch(
     'bedrock.transform.iot.derive_PRO_to_PUR_ratio.get_usa_config',
 )
 @patch(
-    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_cornerstone_usa_panel',
+    'bedrock.transform.iot.derive_PRO_to_PUR_ratio.derive_phi_usa_panel',
 )
 def test_published_phi_disagg_sets_children_to_one(
     mock_panel: MagicMock,
@@ -159,9 +155,9 @@ def test_published_phi_disagg_sets_children_to_one(
         }
     )
     try:
-        out = derive_phi_cornerstone_usa_panel_published(years)
+        out = derive_phi_usa_panel_published(years)
     finally:
-        derive_phi_cornerstone_usa_panel_published.cache_clear()
+        derive_phi_usa_panel_published.cache_clear()
 
     assert out.loc['221110', '2024'] == 1.0
     assert out.loc['221121', '2024'] == 1.0

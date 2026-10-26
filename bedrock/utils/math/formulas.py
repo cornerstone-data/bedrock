@@ -129,7 +129,7 @@ def rebase_coefficient_matrix(
     ``rho`` is the house inflation adjustment factor, ``PI[base] / PI[year]``
     per sector — what ``derive_price_index_panel`` publishes as the Excel
     ``Rho`` panel and ``get_rho_inflation_ratio`` returns. ⚠️ It is the
-    **reciprocal** of the forward ratio ``get_cornerstone_industry_price_ratio``
+    **reciprocal** of the forward ratio ``get_industry_price_ratio``
     gives; passing that by mistake rebases the wrong way and the error is
     silent, because the result is still a plausible matrix. Pass the ``rho`` of
     the matrix's own year against the dollar year you want.

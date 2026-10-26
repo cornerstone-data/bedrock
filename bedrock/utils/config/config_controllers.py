@@ -75,7 +75,7 @@ def temp_usa_config(
     Example::
 
         with temp_usa_config("test_usa_config", cache_bearing_modules=(...,)):
-            phi = derive_phi_cornerstone_usa()
+            phi = derive_phi_usa()
     """
     _cfg_module.reset_usa_config()
     clear_caches(*cache_bearing_modules)

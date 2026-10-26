@@ -73,7 +73,7 @@ def _worker(config: str, tag: str, out_dir: Path) -> None:
     from bedrock.extract.disaggregation.waste_weight_types import (  # noqa: PLC0415
         WeightDerivationProvenance,
     )
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         get_waste_disagg_provenance,
         get_waste_disagg_weights,
     )

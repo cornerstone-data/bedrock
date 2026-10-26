@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bedrock.transform.eeio.cornerstone_expansion import (
+from bedrock.transform.eeio.usa_expansion import (
     CS_INDUSTRY_LIST,
     cs_industry_to_bea_map,
     expand_industry_output_vector,

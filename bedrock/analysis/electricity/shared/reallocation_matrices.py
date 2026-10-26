@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from bedrock.publish.model_objects import apply_loc_suffix, assemble_extended_U
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     derive_disagg_Ytot_with_trade,
     derive_U_after_waste,
     derive_V_after_waste,

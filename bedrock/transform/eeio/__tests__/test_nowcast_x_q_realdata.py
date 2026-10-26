@@ -29,7 +29,7 @@ import pytest
 from bedrock.extract.iot.detail_io import load_detail_V_usa
 from bedrock.extract.iot.io_2017 import load_2017_V_after_redef_usa
 from bedrock.publish.cache_reset import clear_all_publish_caches
-from bedrock.transform.eeio.cornerstone_expansion import commodity_corresp
+from bedrock.transform.eeio.usa_expansion import commodity_corresp
 from bedrock.transform.eeio.usa_matrices import (
     derive_x,
     derive_x_after_redefinition,

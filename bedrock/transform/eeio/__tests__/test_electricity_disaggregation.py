@@ -11,16 +11,6 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.allocation.derived import derive_E_usa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    cornerstone_sector_disagg_active,
-    derive_disagg_io_bundle,
-    derive_disagg_Ytot_with_trade,
-    electricity_disaggregation_enabled,
-    electricity_reaggregation_enabled,
-    electricity_reallocation_enabled,
-    get_waste_disagg_weights,
-)
-from bedrock.transform.eeio.cornerstone_year_scaling import scale_cornerstone_q
 from bedrock.transform.eeio.electricity_disaggregation import (
     ELECTRICITY_AGGREGATE,
     ELECTRICITY_DISAGG_SECTORS,
@@ -37,6 +27,15 @@ from bedrock.transform.eeio.electricity_disaggregation import (
     get_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import mecs_purchased_kwh
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    derive_disagg_io_bundle,
+    derive_disagg_Ytot_with_trade,
+    electricity_disaggregation_enabled,
+    electricity_reaggregation_enabled,
+    electricity_reallocation_enabled,
+    get_waste_disagg_weights,
+    sector_disagg_active,
+)
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_reaggregated,
@@ -51,9 +50,10 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x,
     derive_x_after_redefinition,
 )
+from bedrock.transform.eeio.year_scaling import scale_q
 from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    clear_cornerstone_inflation_caches,
+from bedrock.utils.economic.inflation_helpers_usa import (
+    clear_usa_inflation_caches,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_COMMODITIES_ELEC,
@@ -68,7 +68,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
-    cornerstone_sector_disagg_active,
+    sector_disagg_active,
     derive_disagg_Ytot_with_trade,
     build_electricity_disagg_go_weights,
     build_electricity_disagg_use_intersection_weights,
@@ -96,12 +96,12 @@ def _clear_all_caches() -> None:
     for fn in _CACHED_FUNCTIONS:
         if hasattr(fn, 'cache_clear'):
             fn.cache_clear()
-    clear_cornerstone_inflation_caches()
-    from bedrock.transform.eeio.cornerstone_year_scaling import (  # noqa: PLC0415
-        clear_summary_year_scaled_aq,
-    )
+    clear_usa_inflation_caches()
     from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
         clear_reanchored_electricity_q,
+    )
+    from bedrock.transform.eeio.year_scaling import (  # noqa: PLC0415
+        clear_summary_year_scaled_aq,
     )
 
     clear_summary_year_scaled_aq()
@@ -303,10 +303,10 @@ class Test2017EIAPurchaserAllocation:
         _setup_config(electricity_disagg_config)
         try:
             with mock.patch(
-                'bedrock.transform.eeio.cornerstone_disagg_pipeline.derive_disagg_io_bundle'
+                'bedrock.transform.eeio.sector_disagg_pipeline.derive_disagg_io_bundle'
             ) as bundle_mock:
                 with mock.patch(
-                    'bedrock.transform.eeio.cornerstone_disagg_pipeline.derive_disagg_Ytot_with_trade'
+                    'bedrock.transform.eeio.sector_disagg_pipeline.derive_disagg_Ytot_with_trade'
                 ) as y_mock:
                     get_eia_purchaser_allocation.cache_clear()
                     _derive_post_reallocation_checkpoint_for_disagg.cache_clear()
@@ -330,7 +330,7 @@ class TestDetailGoGrowthScaling:
 
             cfg = get_usa_config()
             q_pre = derive_Aq().scaled_q.astype(float)
-            q_scaled = scale_cornerstone_q(
+            q_scaled = scale_q(
                 q_pre,
                 target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
                 original_year=int(cfg.usa_detail_original_year),  # type: ignore[arg-type]
@@ -355,7 +355,7 @@ class TestDetailGoGrowthScaling:
             detail_year = int(cfg.usa_detail_original_year)
             io_year = int(cfg.usa_io_data_year)
             q_pre = derive_Aq().scaled_q.astype(float)
-            q_scaled = scale_cornerstone_q(
+            q_scaled = scale_q(
                 q_pre,
                 target_year=io_year,  # type: ignore[arg-type]
                 original_year=detail_year,  # type: ignore[arg-type]
@@ -372,18 +372,18 @@ class TestDetailGoGrowthScaling:
         _setup_config('2025_usa_cornerstone_v0_3_electricity_disaggregation.yaml')
         try:
             from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
-            from bedrock.utils.economic.inflation_helpers_cornerstone import (  # noqa: PLC0415
-                inflate_cornerstone_q_or_y_with_commodity_pi,
+            from bedrock.utils.economic.inflation_helpers_usa import (  # noqa: PLC0415
+                inflate_q_or_y_with_commodity_pi,
             )
 
             cfg = get_usa_config()
             q_pre = derive_Aq().scaled_q.astype(float)
-            q_year_scaled = scale_cornerstone_q(
+            q_year_scaled = scale_q(
                 q_pre,
                 target_year=int(cfg.usa_io_data_year),  # type: ignore[arg-type]
                 original_year=int(cfg.usa_detail_original_year),  # type: ignore[arg-type]
             )
-            q_year_scaled_pi = inflate_cornerstone_q_or_y_with_commodity_pi(
+            q_year_scaled_pi = inflate_q_or_y_with_commodity_pi(
                 q_year_scaled,
                 original_year=int(cfg.usa_detail_original_year),
                 target_year=int(cfg.model_base_year),

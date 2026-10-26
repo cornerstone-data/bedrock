@@ -18,8 +18,8 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x,
     derive_Ytot_matrix_set,
 )
-from bedrock.utils.economic.inflation_helpers_cornerstone import (
-    get_cornerstone_industry_price_ratio,
+from bedrock.utils.economic.inflation_helpers_usa import (
+    get_industry_price_ratio,
     get_vnorm_adjusted_commodity_price_ratio,
 )
 from bedrock.utils.schemas.single_region_types import SingleRegionYtotAndTradeVectorSet
@@ -42,9 +42,9 @@ def test_commodity_industry_output_cpi_consistency(
     V = derive_V()
     q = derive_q()
     x = derive_x()
-    industry_CPI_ratio = get_cornerstone_industry_price_ratio(
-        base_year, target_year
-    ).reindex(x.index, fill_value=1.0)
+    industry_CPI_ratio = get_industry_price_ratio(base_year, target_year).reindex(
+        x.index, fill_value=1.0
+    )
     commodity_CPI_ratio = get_vnorm_adjusted_commodity_price_ratio(
         base_year, target_year
     ).reindex(q.index, fill_value=1.0)

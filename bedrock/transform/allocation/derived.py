@@ -146,7 +146,7 @@ def resplit_waste_use_emissions(fbs: pd.DataFrame) -> pd.DataFrame:
     Directly attributed waste emissions (landfills, incineration) keep their
     NAICS placement, and every pool's total is unchanged.
     """
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         derive_U_after_waste,
         get_waste_disagg_weights,
     )
@@ -192,7 +192,7 @@ def derive_E_usa() -> pd.DataFrame:
     construction must use ``load_E_from_flowsa`` so per-child E/x is available
     before the q-weighted B collapse.
     """
-    from bedrock.transform.eeio.cornerstone_disagg_pipeline import (  # noqa: PLC0415
+    from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         collapse_electricity_children_columns,
         electricity_reaggregation_enabled,
     )

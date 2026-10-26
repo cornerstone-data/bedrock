@@ -36,12 +36,12 @@ from bedrock.analysis.electricity.current.diagnostics.full_trace.full_trace impo
 from bedrock.analysis.electricity.current.diagnostics.paths import OUT_DIR
 from bedrock.publish.model_objects import get_B, get_D, get_Ldom
 from bedrock.transform.allocation.derived import derive_E_usa, load_E_from_flowsa
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
-    electricity_conversion_factors,
-)
 from bedrock.transform.eeio.electricity_disaggregation import (
     GENERATION_SECTOR,
     split_electricity_e_for_disaggregated_b,
+)
+from bedrock.transform.eeio.sector_disagg_pipeline import (
+    electricity_conversion_factors,
 )
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,

@@ -195,7 +195,7 @@ class TestCalculateEfDiagnostics:
                 return_value=efs,
             ),
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_mixed_units_enabled",
+                "bedrock.transform.eeio.sector_disagg_pipeline.electricity_mixed_units_enabled",
                 return_value=True,
             ),
             patch(
@@ -219,10 +219,10 @@ class TestCalculateEfDiagnostics:
                 return_value=mock_Aq,
             ),
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.compute_mixed_unit_ef_vectors",
+                "bedrock.transform.eeio.sector_disagg_pipeline.compute_mixed_unit_ef_vectors",
             ) as mock_uniform,
             patch(
-                "bedrock.transform.eeio.cornerstone_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh",
+                "bedrock.transform.eeio.sector_disagg_pipeline.electricity_end_use_retail_prices_cents_kwh",
                 return_value={"Total": 10.0},
             ),
             patch(

@@ -11,7 +11,7 @@ import logging
 
 import pandas as pd
 
-from bedrock.transform.eeio.cornerstone_disagg_pipeline import (
+from bedrock.transform.eeio.sector_disagg_pipeline import (
     electricity_reaggregation_enabled,
 )
 from bedrock.utils.config.usa_config import get_usa_config
