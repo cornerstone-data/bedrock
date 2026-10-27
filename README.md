@@ -1,5 +1,7 @@
 # bedrock
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23396890.svg)](https://doi.org/10.5281/zenodo.23396890)
+
 `bedrock` is a pipeline for building environmentally-extended input-output (EEIO) models and related data artifacts, like emission factors.
 
 `bedrock` merges USEEIO and CEDA-US to build the Cornerstone U.S. model, a waypoint toward the Cornerstone global Multi-Regional EEIO model targeted for release in October 2026.
@@ -91,5 +93,7 @@ uv run pytest bedrock/transform/__tests__/test_usa.py -m eeio_integration
 ```
 
 ## Outputs
+
+Latest global spend-based GHG emission factors: [Cornerstone EEIO on Zenodo](https://doi.org/10.5281/zenodo.23396891) (`2026-rc`).
 
 EEIO matrices for each `bedrock` release will be uploaded at a future date for sharing.
