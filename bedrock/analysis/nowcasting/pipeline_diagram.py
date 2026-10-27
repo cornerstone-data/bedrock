@@ -69,6 +69,18 @@ BLOCK_SUPPLY_BRIDGE = ('#dfeedd', '#4a8b46')
 NEUTRAL = ('#e9edf0', '#68757f')
 
 SOURCE_FC, SOURCE_EC = '#eef2f6', '#8ba4b8'
+#: A source BEA does not use in its own tables. Fill only, so the outline colour
+#: and dash that trace its arrows are unchanged.
+NON_BEA_FC = '#fdf3c8'
+#: Sources added for the nowcast that sit outside BEA's own source set.
+NON_BEA_SOURCES = frozenset(
+    {
+        'EIA Electricity Revenue and Prices',
+        'Census MECS (Manufacturing Energy)',
+        'LBNL Data Center Electricity',
+        'BLS Scrap and Paper Price Indexes, Recovered Paper Use',
+    }
+)
 #: A source's outline colour and dash pattern are also the colour and dash of
 #: every arrow it sends, which is the only way two dozen edges stay traceable.
 #: Six hues x two dash patterns, assigned so neighbouring sources never share
@@ -104,7 +116,7 @@ SRC_X, SRC_W = 1.0, 14.0
 #: One vertical lane per source, in the channel between the source column and
 #: the step column.  A source feeding three steps leaves by one lane, which is
 #: what keeps the wiring readable at two dozen edges.
-LANE_X0, LANE_DX = 15.8, 0.46
+LANE_X0, LANE_DX = 15.8, 0.34
 STEP_X, STEP_W = 22.2, 19.0
 #: One routing lane per outgoing edge, between the steps and the tables.
 EXIT_X = (43.0, 43.7, 44.4, 45.1, 45.8)
@@ -400,6 +412,10 @@ SOURCES: tuple[tuple[str, tuple[int, ...]], ...] = (
     ('Census AIES (Formerly ASM, SAS, ARTS, AWTS)', (0, 2, 3)),
     ('USDA ERS Farm Income and Inventories', (0, 2)),
     ('EIA Form 923 Fuel Receipts', (2,)),
+    ('EIA Electricity Revenue and Prices', (2, 3)),
+    ('Census MECS (Manufacturing Energy)', (2,)),
+    ('LBNL Data Center Electricity', (2,)),
+    ('BLS Scrap and Paper Price Indexes, Recovered Paper Use', (2,)),
     ('Census International Goods Trade', (0, 3)),
     ('BEA ITAs and Services Trade', (0, 3)),
     ('STB Rail Revenue and BTS FAF', (3,)),
@@ -426,14 +442,15 @@ SEED_STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
             '·  Manufacturing and Mining',
             '·  Services and Transportation',
             '·  Agriculture',
-            '·  Utilities',
+            '·  Utilities, Data Centers',
+            '·  Electricity, Scrap and Paper Prices',
             '·  Held Columns: Benchmark Mix, Price Carry',
         ),
     ),
     (
         'Step 4: Supply',
         (
-            '4A  Domestic Output',
+            '4A  Domestic Output, AIES Receipts',
             '4B  Imports and Duties',
             '4C  Margins',
             '4D  Product Taxes and Subsidies',
@@ -449,7 +466,7 @@ def _draw_sources_and_steps(ax: plt.Axes) -> None:
         for s in steps:
             entries[s].append(i)
 
-    src_gap = 0.6
+    src_gap = 0.4
     src_h = (BAND_TOP - BAND_BOTTOM - (len(SOURCES) - 1) * src_gap) / len(SOURCES)
     src_mid: list[float] = []
     for i, (name, _) in enumerate(SOURCES):
@@ -463,7 +480,7 @@ def _draw_sources_and_steps(ax: plt.Axes) -> None:
             SRC_W,
             src_h,
             lines=[name],
-            fc=SOURCE_FC,
+            fc=NON_BEA_FC if name in NON_BEA_SOURCES else SOURCE_FC,
             ec=hue,
             body_fs=7.2,
             body_color=INK,
@@ -761,13 +778,38 @@ def _draw_lower(ax: plt.Axes) -> None:
         s5_x,
         LOW_SRC_Y,
         s5_w,
-        LOW_SRC_H,
+        2.8,
         lines=['BEA GDP by Industry', 'BEA Summary SUTs'],
         fc=SOURCE_FC,
         ec=SOURCE_EC,
         body_fs=7.2,
         body_color='#2f4d61',
         align_middle=True,
+    )
+    _box(
+        ax,
+        s5_x,
+        LOW_SRC_Y + 3.3,
+        s5_w,
+        2.8,
+        lines=['EIA Electricity Revenue and Prices'],
+        fc=NON_BEA_FC,
+        ec=SOURCE_EC,
+        body_fs=7.2,
+        body_color='#2f4d61',
+        align_middle=True,
+    )
+    # The electricity prices come around the right-hand side of the BEA box.
+    _elbow(
+        ax,
+        [
+            (s5_x + s5_w, LOW_SRC_Y + 4.8),
+            (s5_x + s5_w + 1.2, LOW_SRC_Y + 4.8),
+            (s5_x + s5_w + 1.2, CONSTRAINT_Y + CONSTRAINT_H / 2),
+            (s5_x + s5_w + 0.3, CONSTRAINT_Y + CONSTRAINT_H / 2),
+        ],
+        color=SOURCE_EC,
+        lw=1.4,
     )
     _box(
         ax,
@@ -914,6 +956,7 @@ def _draw_key(ax: plt.Axes) -> None:
             SOURCE_EC,
             'Input Data Source — Outline Colour and Dash Match Its Arrows',
         ),
+        (NON_BEA_FC, SOURCE_EC, 'Source BEA Does Not Use'),
         (STEP_FC, STEP_EC, 'Build Step'),
         (CONSTRAINT_FC, CONSTRAINT_EC, 'Constraint on the Balance'),
         ('#f7f9fa', NEUTRAL[1], 'Data Product'),
@@ -988,6 +1031,7 @@ def draw_legend(ax: plt.Axes) -> None:
         3.4,
         (
             (SOURCE_FC, SOURCE_EC, 'Input Data Source'),
+            (NON_BEA_FC, SOURCE_EC, 'Source BEA Does Not Use'),
             (STEP_FC, STEP_EC, 'Build Step'),
             (CONSTRAINT_FC, CONSTRAINT_EC, 'Balance Constraint'),
             ('#f7f9fa', NEUTRAL[1], 'Data Product'),
