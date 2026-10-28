@@ -112,7 +112,7 @@ def load_footing_from_snapshot(impl: Implementation) -> StepSnapshot:
     if cached is not None and cached.d is not None and cached.n is not None:
         return cached
 
-    b = load_snapshot('B_USA_non_finetuned', impl.snapshot_key)
+    b = load_snapshot('B_USA', impl.snapshot_key)
     adom = load_snapshot('Adom_USA', impl.snapshot_key)
     aimp = load_snapshot('Aimp_USA', impl.snapshot_key)
     d = compute_d(B=b)

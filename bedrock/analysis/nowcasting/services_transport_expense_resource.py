@@ -219,7 +219,7 @@ from bedrock.utils.snapshots.loader import load_configured_snapshot
 from bedrock.utils.snapshots.names import SnapshotName
 
 #: The shipped model's direct GHG intensity, in the v0.3 snapshot.
-B_SNAPSHOT: SnapshotName = 'B_USA_non_finetuned'
+B_SNAPSHOT: SnapshotName = 'B_USA'
 
 #: SAS Table 5 years, both vintages.  ⚠️ 2018 and 2019 publish none of the
 #: detailed items in either workbook.

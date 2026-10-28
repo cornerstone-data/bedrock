@@ -87,7 +87,7 @@ def parts_for(year: int) -> YearParts:
     """``D``, ``A_d``, ``L_d`` and ``N_d`` for one nowcast year."""
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_d,
@@ -97,7 +97,7 @@ def parts_for(year: int) -> YearParts:
     )
 
     vintage = activate_live_config(year)
-    B = derive_B_usa_non_finetuned()
+    B = derive_B_usa()
     aq = derive_Aq_usa()
     A = aq.Adom
     L = compute_L_matrix(A=A)

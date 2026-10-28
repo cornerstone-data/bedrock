@@ -203,7 +203,7 @@ class TestCalculateEfDiagnostics:
                 return_value=mock_Aq,
             ),
             patch(
-                "bedrock.transform.eeio.derived.derive_B_usa_non_finetuned",
+                "bedrock.transform.eeio.derived.derive_B_usa",
                 return_value=pd.DataFrame(np.eye(n), index=idx, columns=idx),
             ),
             patch(
@@ -211,7 +211,7 @@ class TestCalculateEfDiagnostics:
                 return_value=mock_Aq,
             ),
             patch(
-                "bedrock.transform.eeio.usa_matrices.derive_B_non_finetuned",
+                "bedrock.transform.eeio.usa_matrices.derive_B",
                 return_value=pd.DataFrame(np.eye(n), index=idx, columns=idx),
             ),
             patch(

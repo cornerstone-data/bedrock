@@ -1,6 +1,6 @@
 """Live reproducibility of dual-ladder waterfall configs (except pinned baselines).
 
-Each live case rebuilds ``derive_Aq_usa`` + ``derive_B_usa_non_finetuned`` for
+Each live case rebuilds ``derive_Aq_usa`` + ``derive_B_usa`` for
 one waterfall config, q-weights ``1ᵀ B L`` with canonical v0.6
 ``scaled_q_USA``, and compares to the diagnostics sheet ``N_new`` pin.
 

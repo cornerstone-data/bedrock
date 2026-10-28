@@ -361,7 +361,7 @@ def derive_useeio_excel_y_nab_scaled_to_model_base_year(
     workbook ``dollar_year`` to that ``y``'s dollar year when they differ.
     """
     from bedrock.extract.iot.io_2017 import load_summary_Uimp_usa  # noqa: PLC0415
-    from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
+    from bedrock.transform.eeio.summary_matrices import (  # noqa: PLC0415
         derive_summary_Ytot_usa_matrix_set,
     )
     from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415

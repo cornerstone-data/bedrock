@@ -261,7 +261,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
 
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
     from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         compute_mixed_unit_ef_vectors,
@@ -270,7 +270,7 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     )
     from bedrock.transform.eeio.usa_matrices import (  # noqa: PLC0415
         derive_Aq_scaled,
-        derive_B_non_finetuned,
+        derive_B,
     )
     from bedrock.utils.validation.diagnostics_helpers import (  # noqa: PLC0415
         MIXED_VS_MONETARY_TAB_COLUMNS,
@@ -281,8 +281,8 @@ def calculate_ef_diagnostics(sheet_id: str) -> None:
     if electricity_mixed_units_enabled():
         t0 = time.time()
         aq_mon = derive_Aq_scaled()
-        b_mon = derive_B_non_finetuned()
-        b_live = derive_B_usa_non_finetuned()
+        b_mon = derive_B()
+        b_live = derive_B_usa()
         d_mon = ta.cast(
             'pd.Series[float]',
             compute_d(B=b_live).squeeze(),

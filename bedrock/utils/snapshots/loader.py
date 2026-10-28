@@ -11,6 +11,9 @@ SNAPSHOT_BASE = os.path.dirname(__file__)
 GCS_SNAPSHOT_DIR = "snapshots"
 USEEIO_BASELINE_CACHE_SUBDIR = "useeio_baseline"
 
+# Historical GCS / local keys written before the B_USA rename (#1150).
+_B_USA_LEGACY_BASENAME = "B_USA_non_finetuned"
+
 
 def load_current_snapshot(name: SnapshotName) -> pd.DataFrame:
     return load_snapshot(name, key=current_snapshot_key())
@@ -25,14 +28,49 @@ def load_configured_snapshot(name: SnapshotName) -> pd.DataFrame:
 
 
 def load_snapshot(name: SnapshotName, key: str) -> pd.DataFrame:
-    download_snapshot(name, key=key)
-    return pd.read_parquet(os.path.join(snapshot_local_dir(key=key), f"{name}.parquet"))
+    path = download_snapshot(name, key=key)
+    return pd.read_parquet(path)
 
 
-def download_snapshot(name: SnapshotName, key: str) -> None:
-    local_pth = os.path.join(snapshot_local_dir(key=key), f"{name}.parquet")
+def download_snapshot(name: SnapshotName, key: str) -> str:
+    """Ensure ``name`` is local for ``key``; return the path to read.
+
+    For ``B_USA``, prefer ``B_USA.parquet``, else fall back to the legacy
+    ``B_USA_non_finetuned.parquet`` (local, then GCS).
+    """
+    local_dir = snapshot_local_dir(key=key)
+    gcs_dir = snapshot_gcs_dir(key=key)
+
+    if name == "B_USA":
+        return _download_b_usa(local_dir, gcs_dir)
+
+    local_pth = os.path.join(local_dir, f"{name}.parquet")
+    download_gcs_file_if_not_exists(f"{name}.parquet", gcs_dir, local_pth)
+    return local_pth
+
+
+def _download_b_usa(local_dir: str, gcs_dir: str) -> str:
+    preferred = os.path.join(local_dir, "B_USA.parquet")
+    legacy = os.path.join(local_dir, f"{_B_USA_LEGACY_BASENAME}.parquet")
+
+    if os.path.exists(preferred):
+        return preferred
+    if os.path.exists(legacy):
+        return legacy
+
+    download_gcs_file_if_not_exists("B_USA.parquet", gcs_dir, preferred)
+    if os.path.exists(preferred):
+        return preferred
+
     download_gcs_file_if_not_exists(
-        f"{name}.parquet", snapshot_gcs_dir(key=key), local_pth
+        f"{_B_USA_LEGACY_BASENAME}.parquet", gcs_dir, legacy
+    )
+    if os.path.exists(legacy):
+        return legacy
+
+    raise FileNotFoundError(
+        f"Neither B_USA.parquet nor {_B_USA_LEGACY_BASENAME}.parquet "
+        f"found under {local_dir} or gs://cornerstone-default/{gcs_dir}/"
     )
 
 

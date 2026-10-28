@@ -157,8 +157,8 @@ def generate_snapshots(
     )
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
-        derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection,
+        derive_B_usa,
+        derive_Y_and_trade_usa,
         derive_y_for_national_accounting_balance_usa,
         derive_ydom_and_yimp_usa,
     )
@@ -204,11 +204,11 @@ def generate_snapshots(
     write_snapshot(derive_E_usa_es_long(), 'E_USA_ES_LONG')
     logger.info(f'[TIMING] E_USA_ES_LONG completed in {time.time() - t0:.1f}s')
 
-    # Generate B_USA_non_finetuned
+    # Generate B_USA
     t0 = time.time()
-    logger.info('Generating B_USA_non_finetuned snapshot')
-    write_snapshot(derive_B_usa_non_finetuned(), 'B_USA_non_finetuned')
-    logger.info(f'[TIMING] B_USA_non_finetuned completed in {time.time() - t0:.1f}s')
+    logger.info('Generating B_USA snapshot')
+    write_snapshot(derive_B_usa(), 'B_USA')
+    logger.info(f'[TIMING] B_USA completed in {time.time() - t0:.1f}s')
 
     # Generate Aq matrices (Adom_USA, Aimp_USA, scaled_q_USA)
     t0 = time.time()
@@ -228,9 +228,7 @@ def generate_snapshots(
     # Generate ytot_USA and exports_USA
     t0 = time.time()
     logger.info('Generating ytot_USA and exports_USA snapshots')
-    y_and_trade_set = (
-        derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection()
-    )
+    y_and_trade_set = derive_Y_and_trade_usa()
     write_snapshot(y_and_trade_set.ytot, 'ytot_USA')
     write_snapshot(y_and_trade_set.exports, 'exports_USA')
     logger.info(

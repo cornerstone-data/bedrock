@@ -42,10 +42,6 @@ from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio.bea_intermediates import (
     bea_Aq,
 )
-from bedrock.transform.eeio.derived_2017 import (
-    derive_summary_Yimp_usa,
-    derive_summary_Ytot_usa_matrix_set,
-)
 from bedrock.transform.eeio.sector_disagg_pipeline import (
     build_electricity_mixed_units_aq,
     build_electricity_mixed_units_b,
@@ -64,6 +60,10 @@ from bedrock.transform.eeio.sector_disagg_pipeline import (
     reaggregate_electricity_children_x,
     reaggregate_electricity_children_y,
     sector_disagg_active,
+)
+from bedrock.transform.eeio.summary_matrices import (
+    derive_summary_Yimp_usa,
+    derive_summary_Ytot_usa_matrix_set,
 )
 from bedrock.transform.eeio.usa_expansion import (
     CS_COMMODITY_LIST,
@@ -825,7 +825,7 @@ def derive_B_via_vnorm() -> pd.DataFrame:
 
 
 @functools.cache
-def derive_B_non_finetuned() -> pd.DataFrame:
+def derive_B() -> pd.DataFrame:
     """Year-scaled + inflated B in Cornerstone sector space.
 
     When ``use_ghg_year_x_in_B`` is true, B is already on the GHG-year footing
@@ -863,7 +863,7 @@ def derive_B_mixed_units() -> pd.DataFrame:
     """Mixed-unit B (221110 column CO2/MWh) when gate is on; else monetary B."""
     aq = derive_Aq_scaled()
     c_col, _ = electricity_conversion_factors(aq)
-    return build_electricity_mixed_units_b(derive_B_non_finetuned(), c_col)
+    return build_electricity_mixed_units_b(derive_B(), c_col)
 
 
 @functools.cache
@@ -876,7 +876,7 @@ def derive_Aq_reaggregated() -> SingleRegionAqMatrixSet:
 def derive_B_reaggregated() -> pd.DataFrame:
     """Published 405 B: q-weight 407 B columns with post-reanchor scaled_q."""
     aq = derive_Aq_scaled()
-    return reaggregate_electricity_children_b(derive_B_non_finetuned(), aq.scaled_q)
+    return reaggregate_electricity_children_b(derive_B(), aq.scaled_q)
 
 
 @functools.cache

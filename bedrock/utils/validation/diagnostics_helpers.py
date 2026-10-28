@@ -131,7 +131,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
     Returns:
         ``(True, "")`` to emit adjusted vectors, or ``(False, reason)`` to skip
         (leaving optional fields ``None``) and avoid double-applying inflation when
-        ``derive_B_non_finetuned`` already inflates ``B`` to
+        ``derive_B`` already inflates ``B`` to
         ``model_base_year``.
     """
     if cfg.deflate_x_to_detail_io_year_for_B:
@@ -151,7 +151,7 @@ def d_n_new_inflated_eligibility(cfg: USAConfig) -> tuple[bool, str]:
         )
     return (
         False,
-        'derive_B_non_finetuned already applies '
+        'derive_B already applies '
         'inflate_B_matrix_with_industry_pi to model_base_year; '
         'skipping second denominator inflation pass (would double-apply)',
     )
@@ -721,7 +721,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
     # Late-binding imports - these depend on global config
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
     from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
         electricity_mixed_units_enabled,
@@ -742,7 +742,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
 
     config = get_usa_config()
     new_base_year = config.model_base_year
-    B_snapshot_name: SnapshotName = 'B_USA_non_finetuned'
+    B_snapshot_name: SnapshotName = 'B_USA'
     Adom_snapshot_name: SnapshotName = 'Adom_USA'
     Aimp_snapshot_name: SnapshotName = 'Aimp_USA'
 
@@ -754,7 +754,7 @@ def pull_efs_for_diagnostics() -> EfsForDiagnostics:
         B_new = derive_B_reaggregated()
         Aq_set = derive_Aq_reaggregated()
     else:
-        B_new = derive_B_usa_non_finetuned()
+        B_new = derive_B_usa()
         Aq_set = derive_Aq_usa()
     logger.info(
         f'[TIMING] derive B/Aq for diagnostics completed in {time.time() - t0:.1f}s'
@@ -920,7 +920,7 @@ def compute_effective_x_comparison() -> pd.DataFrame:
     from bedrock.transform.eeio.bea_intermediates import (  # noqa: PLC0415
         bea_x,
     )
-    from bedrock.transform.eeio.derived_2017 import (  # noqa: PLC0415
+    from bedrock.transform.eeio.summary_matrices import (  # noqa: PLC0415
         derive_summary_q_usa,
     )
     from bedrock.transform.iot.derived_gross_industry_output import (  # noqa: PLC0415

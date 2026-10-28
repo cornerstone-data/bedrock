@@ -26,7 +26,7 @@ from bedrock.transform.eeio.sector_disagg_pipeline import (
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_scaled,
-    derive_B_non_finetuned,
+    derive_B,
     derive_U_set,
     derive_U_with_negatives,
     derive_V,
@@ -82,7 +82,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_x_after_redefinition,
     derive_Aq,
     derive_Aq_scaled,
-    derive_B_non_finetuned,
+    derive_B,
 ]
 
 
