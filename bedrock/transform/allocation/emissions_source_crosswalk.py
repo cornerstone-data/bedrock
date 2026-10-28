@@ -160,8 +160,8 @@ def tag_fbs_rows(fbs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFrame:
 def add_co2e_columns(fbs: pd.DataFrame) -> pd.DataFrame:
     """Add ``kg``, ``co2e_ar5``, ``co2e_ar6`` from ``FlowAmount`` / ``Unit`` / ``Flowable``."""
     gwp_key = fbs['Flowable'].map(lambda f: _FLOWABLE_GWP_KEY.get(f, f))
-    ar5 = gwp_key.map(lambda k: GWP100_AR5_CEDA.get(k, 1.0))  # type: ignore[arg-type]
-    ar6 = gwp_key.map(lambda k: GWP100_AR6_CEDA.get(k, 1.0))  # type: ignore[arg-type]
+    ar5 = gwp_key.map(lambda k: GWP100_AR5_CEDA.get(k, 1.0))
+    ar6 = gwp_key.map(lambda k: GWP100_AR6_CEDA.get(k, 1.0))
     is_kg = fbs['Unit'] == 'kg'
     out = fbs.copy()
     out['kg'] = fbs['FlowAmount'].where(is_kg, other=float('nan'))
