@@ -234,7 +234,7 @@ def suppression() -> pd.DataFrame:
                 'suppressed_years': int(
                     intermediate.loc[line, YEAR_COLUMNS].isna().sum()
                 ),
-                'derived_2017_$M': round(
+                'summary_matrices_$M': round(
                     float(panel.loc[children, ANCHOR_YEAR].sum()), 3
                 ),
                 'derived_max_abs_$M': round(

@@ -13,7 +13,7 @@ import bedrock.utils.math.formulas as formulas
 from bedrock.transform.allocation.derived import derive_E_usa
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_scaled,
-    derive_B_non_finetuned,
+    derive_B,
     derive_q,
     derive_U_set,
     derive_U_with_negatives,
@@ -514,7 +514,7 @@ def test_domestic_lci_equals_e(canonical_usa_config: None) -> None:
     L_d = compute_L_matrix(A=Aq.Adom)
     y_d = derive_y_nab()
     result = compare_E_and_LCI_result(
-        B=derive_B_non_finetuned(),
+        B=derive_B(),
         L=L_d,
         y=y_d,
         E_ind=derive_E_usa(),
@@ -547,7 +547,7 @@ def test_total_lci_equals_e(canonical_usa_config: None) -> None:
     y_trade = derive_Y_and_trade_scaled()
     y_tot = y_trade.ytot + y_trade.exports - y_trade.imports
     result = compare_E_and_LCI_result(
-        B=derive_B_non_finetuned(),
+        B=derive_B(),
         L=L_tot,
         y=y_tot,
         E_ind=derive_E_usa(),

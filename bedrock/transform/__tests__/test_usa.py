@@ -5,8 +5,8 @@ import pytest
 
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
-    derive_B_usa_non_finetuned,
-    derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection,
+    derive_B_usa,
+    derive_Y_and_trade_usa,
     derive_y_for_national_accounting_balance_usa,
     derive_ydom_and_yimp_usa,
 )
@@ -17,13 +17,13 @@ from bedrock.utils.validation.test_helpers import (
 
 
 @pytest.mark.eeio_integration
-def test_b_usa_non_finetuned_snapshot(
-    b_usa_non_finetuned_snapshot: pd.DataFrame,
+def test_b_usa_snapshot(
+    b_usa_snapshot: pd.DataFrame,
 ) -> None:
     assert_snapshot_frame_equal(
-        actual=derive_B_usa_non_finetuned(),
-        expected=b_usa_non_finetuned_snapshot,
-        msg="B_USA_non_finetuned",
+        actual=derive_B_usa(),
+        expected=b_usa_snapshot,
+        msg="B_USA",
     )
 
 
@@ -66,7 +66,7 @@ def test_y_nab_usa_snapshot(y_nab_usa_snapshot: pd.Series[float]) -> None:
 @pytest.mark.eeio_integration
 def test_ytot_usa_snapshot(ytot_usa_snapshot: pd.Series[float]) -> None:
     assert_snapshot_series_equal(
-        actual=derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection().ytot,
+        actual=derive_Y_and_trade_usa().ytot,
         expected=ytot_usa_snapshot,
         msg="ytot_USA",
     )
@@ -75,7 +75,7 @@ def test_ytot_usa_snapshot(ytot_usa_snapshot: pd.Series[float]) -> None:
 @pytest.mark.eeio_integration
 def test_exports_usa_snapshot(exports_usa_snapshot: pd.Series[float]) -> None:
     assert_snapshot_series_equal(
-        actual=derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection().exports,
+        actual=derive_Y_and_trade_usa().exports,
         expected=exports_usa_snapshot,
         msg="exports_USA",
     )

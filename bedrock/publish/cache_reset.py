@@ -11,9 +11,14 @@ from bedrock.extract.iot.io_2017 import (
     load_2017_margins_before_redef_usa,
 )
 from bedrock.publish.model_objects import clear_publish_caches
+from bedrock.transform.allocation.emissions_source_E import (
+    _tagged_export_fbs,
+    derive_E_usa_emissions_sources,
+    derive_E_usa_es_long,
+)
 from bedrock.transform.eeio.derived import (
     derive_Aq_usa,
-    derive_B_usa_non_finetuned,
+    derive_B_usa,
     derive_C_usa,
     derive_D_usa,
     derive_y_for_national_accounting_balance_usa,
@@ -34,8 +39,8 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_mixed_units,
     derive_Aq_reaggregated,
     derive_Aq_scaled,
+    derive_B,
     derive_B_mixed_units,
-    derive_B_non_finetuned,
     derive_B_reaggregated,
     derive_disagg_Ytot_reaggregated,
     derive_q,
@@ -82,11 +87,14 @@ _ELECTRICITY_DISAGG_CACHED_ATTRS: tuple[str, ...] = (
 )
 
 UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
-    derive_B_usa_non_finetuned,
+    derive_B_usa,
     derive_C_usa,
     derive_D_usa,
     derive_Aq_usa,
     derive_y_for_national_accounting_balance_usa,
+    _tagged_export_fbs,
+    derive_E_usa_emissions_sources,
+    derive_E_usa_es_long,
     sector_disagg_active,
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
@@ -108,7 +116,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     derive_Aq_mixed_units,
     derive_Aq_reaggregated,
     derive_A_margin,
-    derive_B_non_finetuned,
+    derive_B,
     derive_B_mixed_units,
     derive_B_reaggregated,
     derive_V_reaggregated,

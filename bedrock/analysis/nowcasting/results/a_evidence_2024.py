@@ -130,7 +130,7 @@ class Models:
         )
 
         self.year = year
-        self.B = load_snapshot('B_USA_non_finetuned', V03_SNAPSHOT)
+        self.B = load_snapshot('B_USA', V03_SNAPSHOT)
         self.D = self.B.sum(axis=0)
 
         aq, self.vintage = aq_from_live_config(year)
@@ -1010,11 +1010,11 @@ def decompose_n_change(models: Models) -> tuple[pd.DataFrame, pd.DataFrame]:
     deriving ``B`` is the slow step.
     """
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
 
     B_v03, A_v03, L_v03 = models.B, models.v03, models.v03_L
-    B_now, L_now = derive_B_usa_non_finetuned(), models.L
+    B_now, L_now = derive_B_usa(), models.L
 
     def median_change(new: "pd.Series[float]", old: "pd.Series[float]") -> float:
         pct = (100.0 * (new - old) / old).replace([np.inf, -np.inf], np.nan)

@@ -14,11 +14,11 @@ def main() -> None:
     set_global_usa_config(config)
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
 
     derive_Aq_usa()
-    derive_B_usa_non_finetuned()
+    derive_B_usa()
     print('Generated Aqset and B for ', config)
 
 

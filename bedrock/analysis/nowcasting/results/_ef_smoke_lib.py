@@ -132,13 +132,13 @@ def efs_from_live_config(year: int) -> YearEFs:
     """D and N for one nowcast year via live B + A (not a stored snapshot)."""
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
 
     vintage = activate_live_config(year)
 
     t0 = time.time()
-    B = derive_B_usa_non_finetuned()
+    B = derive_B_usa()
     aq = derive_Aq_usa()
     L = compute_L_matrix(A=aq.Adom + aq.Aimp)
     M = compute_M_matrix(B=B, L=L)
@@ -152,7 +152,7 @@ def efs_from_live_config(year: int) -> YearEFs:
 
 
 def efs_from_snapshot(key: str) -> YearEFs:
-    B = load_snapshot('B_USA_non_finetuned', key)
+    B = load_snapshot('B_USA', key)
     Adom = load_snapshot('Adom_USA', key)
     Aimp = load_snapshot('Aimp_USA', key)
     L = compute_L_matrix(A=Adom + Aimp)

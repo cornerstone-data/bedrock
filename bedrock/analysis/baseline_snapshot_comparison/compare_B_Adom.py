@@ -22,7 +22,7 @@ set_global_usa_config('2025_usa_cornerstone_v0_3')
 
 from bedrock.transform.eeio.derived import (  # noqa: E402
     derive_Aq_usa,
-    derive_B_usa_non_finetuned,
+    derive_B_usa,
 )
 from bedrock.utils.snapshots.loader import (  # noqa: E402
     load_snapshot,
@@ -34,7 +34,7 @@ log.info('snap key: %s', snap_key)
 
 log.info('computing B_new, Aq (live)...')
 t0 = time.time()
-B_new = derive_B_usa_non_finetuned()
+B_new = derive_B_usa()
 Aq = derive_Aq_usa()
 Adom_new = Aq.Adom
 log.info(
@@ -45,7 +45,7 @@ log.info(
 )
 
 log.info('loading B_old, Adom_old from v0...')
-B_old = load_snapshot('B_USA_non_finetuned', snap_key)
+B_old = load_snapshot('B_USA', snap_key)
 Adom_old = load_snapshot('Adom_USA', snap_key)
 log.info('snapshot shapes — B_old=%s, Adom_old=%s', B_old.shape, Adom_old.shape)
 

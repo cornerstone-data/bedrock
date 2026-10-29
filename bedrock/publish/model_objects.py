@@ -238,10 +238,10 @@ def get_B() -> pd.DataFrame:
 
         return derive_B_reaggregated()
     from bedrock.transform.eeio.derived import (
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )  # noqa: PLC0415, I001
 
-    return derive_B_usa_non_finetuned()
+    return derive_B_usa()
 
 
 @functools.cache

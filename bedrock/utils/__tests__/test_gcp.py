@@ -26,13 +26,13 @@ def test_get_most_recent_from_bucket_ignores_snapshot_folder_sha() -> None:
     df = pd.DataFrame(
         [
             {
-                "full_path": "snapshots/2ebb51f7190c3a62b5d8b2420bff9b20f57282fc/B_USA_non_finetuned.parquet",
+                "full_path": "snapshots/2ebb51f7190c3a62b5d8b2420bff9b20f57282fc/B_USA.parquet",
                 "created": pd.Timestamp("2026-03-10T13:19:19Z"),
                 "extension": ".parquet",
                 "version": None,
                 "hash": None,
-                "base_name": "B_USA_non_finetuned",
-                "filename": "B_USA_non_finetuned.parquet",
+                "base_name": "B_USA",
+                "filename": "B_USA.parquet",
                 "year": None,
             }
         ]
@@ -40,11 +40,11 @@ def test_get_most_recent_from_bucket_ignores_snapshot_folder_sha() -> None:
 
     with patch("bedrock.utils.io.gcp.list_bucket_files", return_value=df):
         result = get_most_recent_from_bucket(
-            "B_USA_non_finetuned.parquet",
+            "B_USA.parquet",
             "snapshots/2ebb51f7190c3a62b5d8b2420bff9b20f57282fc",
         )
 
-    assert result == ["B_USA_non_finetuned.parquet"]
+    assert result == ["B_USA.parquet"]
 
 
 def test_list_bucket_files_extracts_base_name_for_v0_1_versions() -> None:

@@ -2,7 +2,7 @@
 
 Reproducibility guard: when this test passes we know the bedrock workbook
 written at HEAD reproduces the values of the pinned
-`B_USA_non_finetuned` parquet snapshot from `.SNAPSHOT_KEY`. Divergence
+`B_USA` parquet snapshot from `.SNAPSHOT_KEY`. Divergence
 implies either (a) bedrock derivation drift, or (b) the snapshot is stale
 and needs regenerating via `bedrock.utils.snapshots.generate_snapshots`.
 
@@ -40,7 +40,7 @@ def _strip_loc_suffix(values: pd.Index) -> pd.Index:
 
 @pytest.mark.eeio_integration
 def test_published_B_matches_snapshot(tmp_path: Path) -> None:
-    """Compare bedrock XLSX `B` sheet vs `B_USA_non_finetuned` parquet snapshot."""
+    """Compare bedrock XLSX `B` sheet vs `B_USA` parquet snapshot."""
     setup_config(_DEFAULT_CONFIG)
     try:
         out = os.fspath(tmp_path / 'model.xlsx')
@@ -49,7 +49,7 @@ def test_published_B_matches_snapshot(tmp_path: Path) -> None:
         B_xlsx = pd.read_excel(out, sheet_name='B', index_col=0, engine='openpyxl')
         B_xlsx.columns = _strip_loc_suffix(B_xlsx.columns)
 
-        B_snapshot = load_current_snapshot('B_USA_non_finetuned')
+        B_snapshot = load_current_snapshot('B_USA')
     finally:
         teardown()
 

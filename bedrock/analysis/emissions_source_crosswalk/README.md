@@ -8,10 +8,17 @@ is one inventory category for one gas. Bedrock currently exports emissions by
 gas only, so CEDA has to rebuild the source detail from its older v7 pipeline.
 
 This folder works out how to tag every bedrock emission with the CEDA source
-it belongs to. With that tagging, bedrock could export emissions by source
-directly. For now it is an analysis: it reads the 2024 GHG flow-by-sector
-dataset (FBS) and writes tables for review. The model pipeline does not use it
-yet.
+it belongs to. It is still the review toolkit: scripts build tables from a
+retained-activity GHG FBS, and `fbs_to_ceda_emissions_source.csv` is the
+hand-written mapping.
+
+A **draft** snapshot export path consumes that CSV (and a vendored 123-source
+catalog) from `bedrock.transform.allocation.emissions_source_E`. That path is
+crosswalk-only: it does not yet apply nested-split shares or method YAML
+breakouts for soils / NEU / aviation / res-com. See issue #1134 and
+`.cursor/plan/10_21_retained_activity_fbs_pipeline.plan.md`. Nested-split
+recipes in this folder (`build_nested_split.py`, `nested_split_*.yaml`) remain
+analysis-only until that bake-in.
 
 As of the 2024 run, 99.9% of emissions (by CO2e) land on exactly one CEDA
 source.

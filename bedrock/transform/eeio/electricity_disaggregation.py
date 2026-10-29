@@ -15,13 +15,13 @@ import pandas as pd
 
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights, weights_to_csv
 from bedrock.extract.iot.gdp import SECTOR_NAME_COL, load_go_detail
-from bedrock.transform.eeio.derived_2017 import derive_summary_q_usa
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     get_2017_eia_purchaser_allocation as get_2017_eia_purchaser_allocation,
 )
 from bedrock.transform.eeio.electricity_gtd_allocation import (
     get_eia_purchaser_allocation as get_eia_purchaser_allocation,
 )
+from bedrock.transform.eeio.summary_matrices import derive_summary_q_usa
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_V,
 )
