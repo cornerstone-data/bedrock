@@ -58,8 +58,10 @@ def bea_Vnorm_scrap_corrected() -> pd.DataFrame:
     V = load_detail_V_usa()
     q = bea_q()
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
-    scrap = V.loc[:, 'S00401']
-    return Vnorm.divide((1.0 - (scrap / q).fillna(0.0)))
+    # Scrap is indexed by industry and q by commodity; align on the commodity
+    # axis so codes on only one axis do not add all-NaN columns (#849).
+    scrap = V.loc[:, 'S00401'].reindex(q.index).fillna(0.0)
+    return Vnorm.divide(1.0 - (scrap / q).fillna(0.0))
 
 
 # ---------------------------------------------------------------------------
@@ -86,4 +88,6 @@ def bea_Aq() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series[float]]:
         U_norm=compute_Unorm_matrix(U=Uimp_clean, x=x),
         V_norm=Vnorm,
     )
+    assert Adom.index.equals(Adom.columns), 'Adom is not square.'
+    assert Aimp.index.equals(Aimp.columns), 'Aimp is not square.'
     return Adom, Aimp, bea_q()
