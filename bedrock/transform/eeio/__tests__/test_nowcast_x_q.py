@@ -62,7 +62,7 @@ _CACHED = (
     dc.derive_x,
     dc.derive_q,
     dc.derive_x_after_redefinition,
-    dc.derive_B_non_finetuned,
+    dc.derive_B,
 )
 
 
@@ -166,7 +166,7 @@ def test_b_via_vnorm_divides_e_by_make_x_even_with_legacy_flags(
     pd.testing.assert_frame_equal(B, expected)
 
 
-def test_b_non_finetuned_is_the_vnorm_b(
+def test_b_is_the_vnorm_b(
     nowcast_make: pd.DataFrame, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """No summary-ratio scaling to usa_io_data_year, no PI inflation, under nowcast."""
@@ -175,10 +175,10 @@ def test_b_non_finetuned_is_the_vnorm_b(
     monkeypatch.setattr(dc, 'scale_B', _refuse)
     monkeypatch.setattr(dc, 'inflate_B_matrix_with_industry_pi', _refuse)
 
-    assert dc.derive_B_non_finetuned() is marker
+    assert dc.derive_B() is marker
 
 
-def test_b_non_finetuned_keeps_the_legacy_footing_when_published(
+def test_b_keeps_the_legacy_footing_when_published(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Regression guard: ``bea_published`` without GHG-year x still scales and inflates."""
@@ -200,5 +200,5 @@ def test_b_non_finetuned_keeps_the_legacy_footing_when_published(
     monkeypatch.setattr(dc, 'scale_B', scale)
     monkeypatch.setattr(dc, 'inflate_B_matrix_with_industry_pi', inflate)
 
-    assert dc.derive_B_non_finetuned() is marker
+    assert dc.derive_B() is marker
     assert seen == ['scale 2017->2022', 'inflate 2022->2023']

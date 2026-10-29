@@ -85,7 +85,7 @@ def nd_from_live_config(year: int) -> YearNd:
     """
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
     from bedrock.utils.math.formulas import (  # noqa: PLC0415
         compute_L_matrix,
@@ -95,7 +95,7 @@ def nd_from_live_config(year: int) -> YearNd:
 
     vintage = activate_live_config(year)
     t0 = time.time()
-    B = derive_B_usa_non_finetuned()
+    B = derive_B_usa()
     aq = derive_Aq_usa()
 
     n_total = _as_float_series(

@@ -25,7 +25,7 @@ These are **independent** concepts and frequently point at different commits:
 
 | Thing | Where | What it is |
 |---|---|---|
-| Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). |
+| Snapshot artifacts | `gs://cornerstone-default/snapshots/<git_sha>/*.parquet` | The parquet outputs of the canonical pipeline run at `<git_sha>`. See [`SNAPSHOT_NAMES`](names.py). Writers emit `B_USA.parquet`; [`loader.py`](loader.py) prefers that name and falls back to legacy `B_USA_non_finetuned.parquet` for older GCS keys. |
 | Snapshot key | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | The single SHA that integration tests load via `load_current_snapshot(...)`. Bumping this is what "uses the new snapshot" means. |
 | Release tag | annotated git tag `v0.X.Y` | Marks a snapshot/release boundary so methodology evolution is easy to read in history. |
 | Package version | [`pyproject.toml`](../../../pyproject.toml) `[project].version` | Same number as the release tag without the `v` prefix (e.g. tag `v0.5.0` → `0.5.0`). `return_pkg_version` in [`settings.py`](../config/settings.py) stamps FBA/FBS filenames (`{method}_v{tool_version}_{git_hash}.parquet`) from this value. Bumped in Phase B before the tag. |

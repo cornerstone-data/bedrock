@@ -40,7 +40,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         y_old = y if y_old is None else y_old
 
         def fake_load_snapshot(name: str, key: str) -> pd.DataFrame | pd.Series:
-            if name == "B_USA_non_finetuned":
+            if name == "B_USA":
                 return B_old
             if name == "Adom_USA":
                 return Adom_old
@@ -59,7 +59,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
                 return_value=False,
             ),
             patch(
-                "bedrock.transform.eeio.derived.derive_B_usa_non_finetuned",
+                "bedrock.transform.eeio.derived.derive_B_usa",
                 return_value=B,
             ),
             patch(
@@ -208,7 +208,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         mock_Aq.Adom = Adom
 
         def fake_load_snapshot(name: str, key: str) -> pd.DataFrame | pd.Series:
-            if name == "B_USA_non_finetuned":
+            if name == "B_USA":
                 return B
             if name == "Adom_USA":
                 return Adom
@@ -236,7 +236,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
                 return_value=y,
             ) as mock_y,
             patch(
-                "bedrock.transform.eeio.derived.derive_B_usa_non_finetuned",
+                "bedrock.transform.eeio.derived.derive_B_usa",
                 return_value=B,
             ),
             patch(
@@ -277,7 +277,7 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         mock_Aq.Adom = Adom
 
         def fake_load_snapshot(name: str, key: str) -> pd.DataFrame | pd.Series:
-            if name == "B_USA_non_finetuned":
+            if name == "B_USA":
                 return B
             if name == "Adom_USA":
                 return Adom

@@ -22,7 +22,7 @@ import pandas as pd
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_reaggregated,
     derive_Aq_scaled,
-    derive_B_non_finetuned,
+    derive_B,
     derive_B_reaggregated,
     derive_Y_and_trade_scaled,
     derive_y_nab,
@@ -58,7 +58,7 @@ def _collapse_commodity_vector(values: pd.Series[float]) -> pd.Series[float]:
 
 
 @functools.cache
-def derive_B_usa_non_finetuned() -> pd.DataFrame:
+def derive_B_usa() -> pd.DataFrame:
     """USA B for snapshots / diagnostics.
 
     With ``implement_electricity_reaggregation``, this is the published 405
@@ -66,13 +66,15 @@ def derive_B_usa_non_finetuned() -> pd.DataFrame:
     """
     if _reaggregation_published():
         return derive_B_reaggregated()
-    return derive_B_non_finetuned()
+    return derive_B()
 
 
-def derive_Y_and_trade_matrix_usa_from_summary_target_year_ytot_and_structural_reflection() -> (
-    SingleRegionYtotAndTradeVectorSet
-):
-    """Detail Y and trade vectors, structurally reflected to the target year."""
+def derive_Y_and_trade_usa() -> SingleRegionYtotAndTradeVectorSet:
+    """Detail Y and trade vectors (summary→detail disaggregate + inflate).
+
+    With ``implement_electricity_reaggregation``, collapses electricity
+    children on each vector to match the published 405 commodity set.
+    """
     yset = derive_Y_and_trade_scaled()
     if not _reaggregation_published():
         return yset
@@ -133,6 +135,6 @@ def derive_D_usa() -> pd.DataFrame:
     `Greenhouse Gases` indicator over commodities because bedrock's B is
     already CO2e. See `bedrock.utils.emissions.characterization`.
     """
-    D = derive_C_usa() @ derive_B_usa_non_finetuned()
+    D = derive_C_usa() @ derive_B_usa()
     D.columns.name = 'sector'
     return D

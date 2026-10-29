@@ -20,7 +20,7 @@ set_global_usa_config('2025_usa_cornerstone_v0_3')
 
 from bedrock.transform.eeio.derived import (  # noqa: E402
     derive_Aq_usa,
-    derive_B_usa_non_finetuned,
+    derive_B_usa,
     derive_y_for_national_accounting_balance_usa,
 )
 from bedrock.utils.math.formulas import compute_d, compute_L_matrix  # noqa: E402
@@ -32,12 +32,12 @@ from bedrock.utils.snapshots.loader import (  # noqa: E402
 snap_key = resolve_snapshot_key()
 
 log.info('computing live B, Adom, y...')
-B_new = derive_B_usa_non_finetuned()
+B_new = derive_B_usa()
 Adom_new = derive_Aq_usa().Adom
 y_new = derive_y_for_national_accounting_balance_usa().astype(float)
 
 log.info('loading v0 snapshot B, Adom, y...')
-B_old = load_snapshot('B_USA_non_finetuned', snap_key)
+B_old = load_snapshot('B_USA', snap_key)
 Adom_old = load_snapshot('Adom_USA', snap_key)
 y_old_obj = load_snapshot('y_nab_USA', snap_key)
 y_old = (

@@ -46,7 +46,7 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_Aq,
     derive_Aq_reaggregated,
     derive_Aq_scaled,
-    derive_B_non_finetuned,
+    derive_B,
     derive_B_reaggregated,
     derive_disagg_Ytot_reaggregated,
     derive_U_set,
@@ -104,7 +104,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     derive_Aq,
     derive_Aq_scaled,
     derive_Aq_reaggregated,
-    derive_B_non_finetuned,
+    derive_B,
     derive_B_reaggregated,
     derive_V_reaggregated,
     derive_U_set_reaggregated,
@@ -227,15 +227,15 @@ def test_usa_derives_route_to_reaggregated_when_flag_on(
     monkeypatch.setattr(derived_mod, 'derive_B_reaggregated', lambda: sentinel_b)
     monkeypatch.setattr(derived_mod, 'derive_y_nab_reaggregated', lambda: sentinel_y)
     derived_mod.derive_Aq_usa.cache_clear()
-    derived_mod.derive_B_usa_non_finetuned.cache_clear()
+    derived_mod.derive_B_usa.cache_clear()
     derived_mod.derive_y_for_national_accounting_balance_usa.cache_clear()
     try:
         assert derived_mod.derive_Aq_usa() is sentinel_aq
-        assert derived_mod.derive_B_usa_non_finetuned() is sentinel_b
+        assert derived_mod.derive_B_usa() is sentinel_b
         assert derived_mod.derive_y_for_national_accounting_balance_usa() is sentinel_y
     finally:
         derived_mod.derive_Aq_usa.cache_clear()
-        derived_mod.derive_B_usa_non_finetuned.cache_clear()
+        derived_mod.derive_B_usa.cache_clear()
         derived_mod.derive_y_for_national_accounting_balance_usa.cache_clear()
 
 
@@ -358,12 +358,12 @@ def test_reagg_internals_stay_407_published_are_405() -> None:
             b = derive_B_reaggregated()
             from bedrock.transform.eeio.derived import (  # noqa: PLC0415
                 derive_Aq_usa,
-                derive_B_usa_non_finetuned,
+                derive_B_usa,
                 derive_y_for_national_accounting_balance_usa,
             )
 
             aq_usa = derive_Aq_usa()
-            b_usa = derive_B_usa_non_finetuned()
+            b_usa = derive_B_usa()
             y_nab_usa = derive_y_for_national_accounting_balance_usa()
             n = get_N()
             u = get_U()
@@ -417,7 +417,7 @@ def test_reagg_identities_on_scaled_q() -> None:
         with _dollar_industrial_weights():
             aq_407 = derive_Aq_scaled()
             aq = derive_Aq_reaggregated()
-            b_407 = derive_B_non_finetuned()
+            b_407 = derive_B()
             b = derive_B_reaggregated()
             y_nab = derive_y_nab_reaggregated()
         q407 = aq_407.scaled_q
@@ -497,11 +497,11 @@ def test_reagg_dn_differs_from_production() -> None:
     try:
         from bedrock.transform.eeio.derived import (  # noqa: PLC0415
             derive_Aq_usa,
-            derive_B_usa_non_finetuned,
+            derive_B_usa,
         )
 
         aq_prod = derive_Aq_usa()
-        b_prod = derive_B_usa_non_finetuned()
+        b_prod = derive_B_usa()
         d_prod = compute_d(B=b_prod)
         n_prod = compute_n(
             M=compute_M_matrix(

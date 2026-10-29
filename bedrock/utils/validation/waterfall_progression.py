@@ -322,12 +322,12 @@ def weighted_avg_n_for_config(config_name: str) -> float:
 
     from bedrock.transform.eeio.derived import (  # noqa: PLC0415
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
     )
 
     aq = derive_Aq_usa()
     return _weighted_avg_n(
-        B=derive_B_usa_non_finetuned(),
+        B=derive_B_usa(),
         Adom=aq.Adom,
         Aimp=aq.Aimp,
         q=load_canonical_v0_6_q(),
@@ -339,7 +339,7 @@ def weighted_avg_n_v0_baseline() -> float:
     from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
 
     return _weighted_avg_n(
-        B=load_snapshot('B_USA_non_finetuned', 'v0'),
+        B=load_snapshot('B_USA', 'v0'),
         Adom=load_snapshot('Adom_USA', 'v0'),
         Aimp=load_snapshot('Aimp_USA', 'v0'),
         q=load_canonical_v0_6_q(),

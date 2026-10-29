@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from bedrock.transform.eeio.derived_2017 import (
+from bedrock.transform.eeio.summary_matrices import (
     derive_summary_Adom_usa,
     derive_summary_Aimp_usa,
     derive_summary_q_usa,

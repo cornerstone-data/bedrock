@@ -127,7 +127,7 @@ def calculate_national_accounting_balance_diagnostics(
       **Skipped** when ``diagnostics_baseline_source == 'gcs_useeio_xlsx'`` (no
       ``E_old`` for the Excel baseline path).
     - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from the
-      baseline (parquet ``B_USA_non_finetuned`` / ``Adom_USA`` / ``y_nab_USA`` at
+      baseline (parquet ``B_USA`` / ``Adom_USA`` / ``y_nab_USA`` at
       the configured snapshot key, or USEEIO Excel synthetic ``B`` / ``A_d``
       when in Excel baseline mode). For USEEIO, ``y_old`` is Cornerstone
       ``derive_y_nab()`` reindexed to the USEEIO sector axis
@@ -140,7 +140,7 @@ def calculate_national_accounting_balance_diagnostics(
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
         derive_Aq_usa,
-        derive_B_usa_non_finetuned,
+        derive_B_usa,
         derive_y_for_national_accounting_balance_usa,
     )
     from bedrock.transform.eeio.sector_disagg_pipeline import (  # noqa: PLC0415
@@ -170,7 +170,7 @@ def calculate_national_accounting_balance_diagnostics(
         Aq_set = derive_Aq_reaggregated()
         y_new = derive_y_nab_reaggregated()
     else:
-        B_new = derive_B_usa_non_finetuned()
+        B_new = derive_B_usa()
         Aq_set = derive_Aq_usa()
         y_new = derive_y_for_national_accounting_balance_usa()
 
@@ -268,7 +268,7 @@ def calculate_national_accounting_balance_diagnostics(
         )
     else:
         snap_key = resolve_snapshot_key()
-        B_old = load_snapshot("B_USA_non_finetuned", snap_key)
+        B_old = load_snapshot("B_USA", snap_key)
         Adom_old = load_snapshot("Adom_USA", snap_key)
         y_old = _series_from_1d_frame_or_series(load_snapshot("y_nab_USA", snap_key))
     BLy_old = _compute_bly_series(B=B_old, Adom=Adom_old, y=y_old)

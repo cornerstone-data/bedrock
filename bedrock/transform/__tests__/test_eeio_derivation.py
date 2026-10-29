@@ -1,4 +1,4 @@
-"""Unit tests for the scrap correction in derived_2017.py."""
+"""Unit tests for the scrap correction in summary_matrices.py."""
 
 import numpy as np
 import pandas as pd

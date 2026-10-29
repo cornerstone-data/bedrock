@@ -4,7 +4,7 @@ SnapshotName = ta.Literal[
     "E_USA_ES",  # ceda EmissionsSource x industries (AR6 kg CO2e)
     "E_USA_GAS",  # 7 GHG x industries (former E_USA_ES content)
     "E_USA_ES_LONG",  # source x gas x sector (kg + AR5/AR6 CO2e)
-    "B_USA_non_finetuned",
+    "B_USA",
     "Adom_USA",
     "Aimp_USA",
     "scaled_q_USA",

@@ -353,7 +353,7 @@ def check(year: int = 2024) -> int:
     )
     from bedrock.utils.snapshots.loader import load_snapshot  # noqa: PLC0415
 
-    B = load_snapshot('B_USA_non_finetuned', V03_SNAPSHOT)
+    B = load_snapshot('B_USA', V03_SNAPSHOT)
     aq, vintage = aq_from_live_config(year)
     A = aq.Adom + aq.Aimp
     L = compute_L_matrix(A=A)
