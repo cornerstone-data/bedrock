@@ -1,5 +1,9 @@
 """Apply the FBS → ceda emissions-source crosswalk to a retained-activity FBS.
 
+CLI / review entrypoint for this analysis package. A draft snapshot derive
+(:mod:`bedrock.transform.allocation.emissions_source_E`) also reads
+``fbs_to_ceda_emissions_source.csv`` without nested-split ``--shares``.
+
 ``fbs_to_ceda_emissions_source.csv`` maps ``MetaSources`` × ``ActivityProducedBy``
 × ``Flowable`` to one of ceda's 123 ``EmissionsSource`` codes. ``*`` matches
 anything, and the most specific row wins (source, then activity, then gas).
