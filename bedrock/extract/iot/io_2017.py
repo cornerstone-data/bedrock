@@ -76,6 +76,11 @@ LOCAL_BEA_NIPA_IOT_BRIDGES_DIR = local_dir_for_gcs_sub_bucket(
     GCS_BEA_NIPA_IOT_BRIDGES_DIR
 )
 
+#: The summary supply-use workbooks ``_load_usa_summary_sut`` reads, for every
+#: year. ``bea_annual_update`` checks they come from the same BEA annual update
+#: as gross output.
+SUMMARY_SUT_MAPPING = USA_SUMMARY_SUT_MAPPING_1997_2024
+
 
 # ----- Documentation ----- #
 # MUTs (Detail and Summary, After Redefinitions) are downloaded from:
@@ -1270,10 +1275,10 @@ def _load_usa_summary_sut(
     # 2017-2022 workbook so published FBAs would not move, but the nowcast balances
     # these controls against gross output, and a 2022 control on the older release
     # sat $1.32T (absolute, commodity output) off it (#1157). The two workbooks
-    # agree exactly on 2017.
+    # agree exactly on 2017. bea_annual_update checks the two stay on one update.
     # year arrives as a str from the FBA generation path; coerce it for sheet_name.
     year_int = int(year)
-    mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
+    mapping = SUMMARY_SUT_MAPPING
     df = (
         load_from_gcs(
             name=mapping[matrix_name],

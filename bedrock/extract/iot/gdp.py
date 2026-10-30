@@ -123,6 +123,20 @@ def load_go_detail(version: BeaDataVersion = BEA_DATA_VERSION) -> pd.DataFrame:
     return _load_detail_table("UGO305-A", version)
 
 
+def load_go_detail_years(version: BeaDataVersion = BEA_DATA_VERSION) -> ta.List[int]:
+    """The years the detail gross output table (UGO305-A) publishes for ``version``."""
+    _download_detail_table(version)
+    header = pd.read_excel(
+        os.path.join(
+            _local_gdp_detail_dir(version), f"{version}_DetailGrossOutput.xlsx"
+        ),
+        sheet_name="UGO305-A",
+        skiprows=7,
+        nrows=0,
+    )
+    return [int(c) for c in header.columns.astype(str) if c.strip().isdigit()]
+
+
 def _load_detail_table(
     sheet_name: GCS_GDP_DETAIL_TABLES, version: BeaDataVersion = BEA_DATA_VERSION
 ) -> pd.DataFrame:
