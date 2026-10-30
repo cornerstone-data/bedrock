@@ -64,6 +64,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 
+from bedrock.extract.iot.bea_annual_update import assert_same_bea_annual_update
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     detail_gross_output_panel,
 )
@@ -596,6 +597,9 @@ def assemble(
     seed's own value-added column sums, so sweeping afterwards would shift the
     seed under the injection by exactly the swept dust.
     """
+    # Gross output and the summary supply-use controls must be one BEA annual
+    # update; the targets balance one against the other (#1157).
+    assert_same_bea_annual_update()
     mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     seeds = assemble_seeds(int(year), fitted=fitted)
     masks = assemble_masks(int(year), pce_constraint=mode)
