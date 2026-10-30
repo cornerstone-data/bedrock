@@ -39,7 +39,11 @@ def test_mismatch_raises_and_names_the_workbook() -> None:
         )
 
 
-def test_older_than_newest_update_warns(caplog: pytest.LogCaptureFixture) -> None:
+def test_older_than_newest_update_warns(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The bedrock logger does not propagate to the root logger caplog listens on.
+    monkeypatch.setattr(logging.getLogger('bedrock'), 'propagate', True)
     older = NEWEST_BEA_ANNUAL_UPDATE - 1
     with caplog.at_level(logging.WARNING):
         assert_same_bea_annual_update(
