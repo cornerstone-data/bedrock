@@ -35,7 +35,6 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_SUMMARY_MUT_YEARS,
     USA_SUMMARY_SPAN_MUT_YEARS,
     USA_SUMMARY_SUT_MAPPING_1997_2024,
-    USA_SUMMARY_SUT_MAPPING_2017_2022,
     USA_SUMMARY_SUT_NAMES,
     USA_SUMMARY_SUT_YEARS,
 )
@@ -1266,20 +1265,15 @@ def _load_usa_summary_sut(
     Load USA Summary tables in Supply-use format
     """
 
-    # Vintage pinning, as in _load_usa_summary_mut above: the workbook is chosen by
-    # year, not by recency, so BEA's historical revisions do not move values under
-    # existing consumers as new vintages add years on the right. 2017-2022 stays on
-    # the workbook its published FBAs were built from; a 2025 vintage would get its
-    # own `year > 2024` arm, leaving 2023-2024 where they are.
-    # year arrives as a str from the FBA generation path, and typing.cast at the
-    # call site is a no-op at runtime. Coerce before the vintage comparisons: they
-    # raise on a str today, but sheet_name=str(year) accepts either type, so if
-    # they ever moved a str year would silently select the wrong vintage mapping.
+    # Every year reads the 1997-2024 workbook, the same BEA release as gross output
+    # (UGO305-A, BEA_DATA_VERSION 2025Q2). 2017-2022 used to stay pinned to the
+    # 2017-2022 workbook so published FBAs would not move, but the nowcast balances
+    # these controls against gross output, and a 2022 control on the older release
+    # sat $1.32T (absolute, commodity output) off it (#1157). The two workbooks
+    # agree exactly on 2017.
+    # year arrives as a str from the FBA generation path; coerce it for sheet_name.
     year_int = int(year)
-    if year_int > 2022:
-        mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
-    else:
-        mapping = USA_SUMMARY_SUT_MAPPING_2017_2022
+    mapping = USA_SUMMARY_SUT_MAPPING_1997_2024
     df = (
         load_from_gcs(
             name=mapping[matrix_name],
