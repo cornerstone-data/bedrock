@@ -16,10 +16,17 @@ GROSS_OUTPUT = 'gross output UGO305-A (2026Q2)'
 SUPPLY = 'Supply_Tables_1997-2025_Summary.xlsx'
 USE = 'Use_Tables_Supply-Use_Framework_1997-2025_Summary.xlsx'
 VALUE_ADDED = 'TVA113-A (GDPbyInd_2026Q2.zip)'
+PRICE_INDEX = 'price index UGO304-A (bea_price_index_vintage 2026Q2)'
 
 
 def _all_on(update: int) -> dict[str, int]:
-    return {GROSS_OUTPUT: update, SUPPLY: update, USE: update, VALUE_ADDED: update}
+    return {
+        GROSS_OUTPUT: update,
+        PRICE_INDEX: update,
+        SUPPLY: update,
+        USE: update,
+        VALUE_ADDED: update,
+    }
 
 
 def test_update_is_the_year_after_the_last_year_published() -> None:
@@ -48,6 +55,13 @@ def test_value_added_components_on_an_older_update_raises() -> None:
     # The June 2026 quarterly archive ends in 2024: the 2025 update by content.
     updates = {**_all_on(2026), VALUE_ADDED: 2025}
     with pytest.raises(ValueError, match='TVA113-A'):
+        assert_same_bea_annual_update(updates)
+
+
+def test_price_index_on_an_older_update_raises() -> None:
+    # A config left on bea_price_index_vintage 2025Q2 under 2026Q2 gross output.
+    updates = {**_all_on(2026), PRICE_INDEX: 2025}
+    with pytest.raises(ValueError, match='price index UGO304-A'):
         assert_same_bea_annual_update(updates)
 
 

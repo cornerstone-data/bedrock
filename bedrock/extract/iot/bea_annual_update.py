@@ -1,10 +1,11 @@
 """Which BEA annual update each industry-accounts input comes from (#1157).
 
-BEA revises gross output, the summary supply-use tables and the components of
-value added together, once a year, in the annual update of the industry accounts
-it releases each September. The nowcast balances summary supply-use controls
-against gross output, and splits value added with the components table, so all
-three must come from the same update: a control from an older update carries
+BEA revises gross output, the industry price index, the summary supply-use
+tables and the components of value added together, once a year, in the annual
+update of the industry accounts it releases each September. The nowcast balances
+summary supply-use controls against gross output, carries prices with the price
+index, and splits value added with the components table, so all four must come
+from the same update: a control from an older update carries
 BEA's revisions as error (in 2022, $1.32T of commodity output, summed absolute,
 between the 2023 and 2025 updates).
 
@@ -26,6 +27,10 @@ summary supply-use, 2017-2022 workbooks        2022        2023
 ``TVA113-A``, ``GDPbyInd.zip`` (June 2026)     2024        2025
 ``TVA113-A``, ``GDPbyInd_2026Q2.zip``          2025        2026
 =============================================  ==========  =============
+
+The price index (``UGO304-A``) sits in the same workbook as gross output, but
+it is read at ``USAConfig.bea_price_index_vintage`` rather than
+``BEA_DATA_VERSION``, so it is checked as a source of its own.
 
 The June 2026 archive is a quarterly release: it was published in 2026 but its
 annual table still ends in 2024, so by content it is the 2025 update.
@@ -53,6 +58,7 @@ from bedrock.extract.iot.gdp import (
     load_go_detail_years,
 )
 from bedrock.extract.iot.io_2017 import LOCAL_USA_SUP_DIR, SUMMARY_SUT_MAPPING
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.io.gcp import load_from_gcs
 
 logger = logging.getLogger(__name__)
@@ -119,8 +125,12 @@ def value_added_components_annual_update() -> int:
 
 def industry_accounts_annual_updates() -> dict[str, int]:
     """The annual update of every industry-accounts input, keyed by source."""
+    price_index_vintage = get_usa_config().bea_price_index_vintage
     return {
         f'gross output UGO305-A ({BEA_DATA_VERSION})': gross_output_annual_update(),
+        f'price index UGO304-A (bea_price_index_vintage {price_index_vintage})': (
+            gross_output_annual_update(price_index_vintage)
+        ),
         **summary_sut_annual_updates(),
         f'{VALUE_ADDED_COMPONENTS_SHEET} ({GDP_BY_INDUSTRY_ZIP})': (
             value_added_components_annual_update()
