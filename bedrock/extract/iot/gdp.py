@@ -18,15 +18,21 @@ from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_buck
 # BEA_GDPbyIndustry (added in #538) fetches the sibling GDPbyInd.zip straight
 # from BEA instead, so GrossOutput.xlsx is duplicated across the two sources.
 # Consolidating them into one industry-accounts source is filed as #694; the
-# thing that must survive it is this pin, since the two archives are currently
-# different vintages.
+# thing that must survive it is this pin. BEA_GDPbyIndustry names its cached
+# archive by this version so the two stay on one annual update.
 #
 # ⚠️ BEA_DATA_VERSION pins every loader here by default -- gross output,
 # intermediate inputs and value added included. Only the price-index path
 # (derived_price_index) passes ``USAConfig.bea_price_index_vintage`` instead,
 # so moving that config does not move the nowcast's output controls.
+#
+# ⚠️ Move this together with the summary supply-use workbooks
+# (io_2017.SUMMARY_SUT_MAPPING) and the GDP-by-industry archive
+# (BEA_GDPbyIndustry): all three must be one BEA annual update, and
+# bea_annual_update.assert_same_bea_annual_update raises if they are not.
+# "2026Q2" is the 2026 annual update, published 30 September 2026.
 BeaDataVersion = ta.Literal["2025Q2", "2026Q2"]
-BEA_DATA_VERSION: BeaDataVersion = "2025Q2"
+BEA_DATA_VERSION: BeaDataVersion = "2026Q2"
 SECTOR_NAME_COL = "sector_name"
 
 SUMMARY_LINE_NUMBER_COL = "summary_line_no"
