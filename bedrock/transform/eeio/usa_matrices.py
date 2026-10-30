@@ -998,6 +998,23 @@ def derive_y_nab() -> pd.Series[float]:
     return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
 
 
+def derive_y_dom_from_use_final_demand() -> pd.Series[float]:
+    """Domestic final demand plus exports, read from the Use table.
+
+    ``Y @ 1 + Uimp @ 1``: every final-demand column of the Use table (exports
+    included, the ``F05000`` imports column negative) plus the imports that
+    industries use. What is left is the domestic output that final demand
+    takes. Unlike ``derive_y_nab`` it never sees ``A`` or ``q``, so
+    ``L_dom @ y`` reproduces ``q`` only when Make and Use agree on each
+    commodity's output. Negatives are kept, as in the published tables.
+    """
+    Y = derive_Ytot_full_cs_matrix()
+    Uimp = derive_U_with_negatives().Uimp
+    y = Y.sum(axis=1).add(Uimp.sum(axis=1), fill_value=0.0)
+    y.index.name = 'sector'
+    return y
+
+
 @functools.cache
 def derive_y_nab_mixed_units() -> pd.Series[float]:
     """Hybrid final demand for mixed-unit BLy diagnostics (221110 in MWh).
