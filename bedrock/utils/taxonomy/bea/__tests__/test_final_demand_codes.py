@@ -45,6 +45,7 @@ def test_derive_initial_y_pur_targets_the_sut_list() -> None:
     for a unit test. The behavioural check that the output carries 19 columns
     and no ``F05000`` belongs with the nowcast validation runs (#576).
     """
-    src = inspect.getsource(nowcast.derive_initial_Y_pur)
+    assert '_nipa_final_demand_block' in inspect.getsource(nowcast.derive_initial_Y_pur)
+    src = inspect.getsource(nowcast._nipa_final_demand_block)
     assert 'SUT_FINAL_DEMAND_CODES' in src
     assert 'USA_2017_FINAL_DEMAND_CODES' not in src

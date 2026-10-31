@@ -45,9 +45,12 @@ sidecar records both.
 whether a nowcast-year ``MCIF`` is c.i.f. per commodity (making that control
 carry over unchanged) is #822 and open. The sidecar names the control used.
 
-Two commodities, ``4200ID`` and ``S00900``, are not balance labels and enter
-the conversion as zero rows; ``4200ID`` still receives the customs-duty
-credit in ``F05000`` and the duty wedge in Make, by rule.
+Two commodities, ``4200ID`` and ``S00900``, are not balance labels.
+``4200ID`` enters the conversion as a zero row and still receives the
+customs-duty credit in ``F05000`` and the duty wedge in Make, by rule.
+``S00900``, the rest-of-world adjustment, enters as its two final-demand
+cells: the year's PCE adjustment (minus nonresidents' spending in the United
+States) and the same amount in exports (#1158).
 
 Testing: no direct unit tests, on purpose - like
 :mod:`nowcast_sut_assembly`, this is wiring over heavy cached inputs, and the
@@ -191,13 +194,21 @@ def load_balanced_sut(
     return supply, use, (supply_path.stem, use_path.stem)
 
 
-def _conform_use_sut(use: pd.DataFrame) -> pd.DataFrame:
+def _conform_use_sut(use: pd.DataFrame, rest_of_world_pce: float) -> pd.DataFrame:
     """The balanced Use SUT on the full conversion axes, zero-filled.
 
-    ``4200ID`` and ``S00900`` are not balance labels; their rows enter as
-    zeros. Missing labels beyond those two mean the input is not a balanced
-    Use SUT, so they raise instead of being papered over.
+    ``4200ID`` and ``S00900`` are not balance labels. ``4200ID``'s row enters
+    as zeros. ``S00900`` enters as the rest-of-world adjustment: PCE
+    ``rest_of_world_pce`` (negative) and exports its opposite, so the row nets
+    to zero against a Supply that carries no ``S00900`` output or imports.
+    Missing labels beyond those two mean the input is not a balanced Use SUT,
+    so they raise instead of being papered over.
     """
+    if rest_of_world_pce > 0:
+        raise ValueError(
+            f'rest-of-world PCE adjustment is {rest_of_world_pce:,.0f} USD; '
+            'it removes nonresidents\' spending, so it cannot be positive'
+        )
     commodities = list(USA_2017_COMMODITY_CODES)
     unexpected = set(commodities) - set(use.index) - {'4200ID', 'S00900'}
     if unexpected:
@@ -208,10 +219,13 @@ def _conform_use_sut(use: pd.DataFrame) -> pd.DataFrame:
     if missing_va:
         raise ValueError(f'balanced Use SUT is missing VA rows {missing_va}')
     fd_columns = [c for c in SUT_FINAL_DEMAND_CODES if c in use.columns]
-    return use.reindex(
+    conformed = use.reindex(
         index=commodities + list(_SUT_VA_ROWS),
         columns=list(USA_2017_INDUSTRY_CODES) + fd_columns,
     ).fillna(0.0)
+    conformed.loc['S00900', 'F01000'] = rest_of_world_pce
+    conformed.loc['S00900', 'F04000'] = -rest_of_world_pce
+    return conformed
 
 
 def _supply_bridge(supply: pd.DataFrame) -> pd.DataFrame:
@@ -592,15 +606,17 @@ def mut_from_balanced(
     supply: pd.DataFrame,
     use: pd.DataFrame,
     *,
+    rest_of_world_pce: float,
     panel: RatePanel | None = None,
     sources: tuple[str, ...] = (),
 ) -> MutTables:
     """The year's MUT quartet from its balanced Supply and Use SUT (USD).
 
-    Every gate below checks a relation the construction guarantees; see
-    :data:`GATE_ATOL`.
+    *rest_of_world_pce* is ``Y[S00900, F01000]``, USD, which the balance does
+    not carry; see :func:`_conform_use_sut`. Every gate below checks a relation
+    the construction guarantees; see :data:`GATE_ATOL`.
     """
-    use_sut = _conform_use_sut(use)
+    use_sut = _conform_use_sut(use, rest_of_world_pce)
     supply_block = _supply_block(supply)
     bridge = _supply_bridge(supply)
     commodities = list(USA_2017_COMMODITY_CODES)
@@ -680,8 +696,17 @@ def mut_from_balanced(
 
 def build(year: int, directory: Path | None = None) -> MutTables:
     """Load the year's balanced SUT and convert it. The one-call entry point."""
+    # Deferred import: nowcast pulls in the FBS machinery.
+    from bedrock.transform.iot.nowcast import rest_of_world_pce_usd  # noqa: PLC0415
+
     supply, use, sources = load_balanced_sut(year, directory)
-    return mut_from_balanced(year, supply, use, sources=sources)
+    return mut_from_balanced(
+        year,
+        supply,
+        use,
+        rest_of_world_pce=rest_of_world_pce_usd(year),
+        sources=sources,
+    )
 
 
 # --- saving -----------------------------------------------------------------
@@ -789,11 +814,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from bedrock.transform.iot.nowcast import rest_of_world_pce_usd  # noqa: PLC0415
+
     years = tuple(args.year) if args.year else NOWCAST_MUT_YEARS
     panel = build_rate_panel(2017)
     for year in years:
         supply, use, sources = load_balanced_sut(year)
-        tables = mut_from_balanced(year, supply, use, panel=panel, sources=sources)
+        tables = mut_from_balanced(
+            year,
+            supply,
+            use,
+            rest_of_world_pce=rest_of_world_pce_usd(year),
+            panel=panel,
+            sources=sources,
+        )
         interior = tables.use.loc[
             list(USA_2017_COMMODITY_CODES), list(USA_2017_INDUSTRY_CODES)
         ]
