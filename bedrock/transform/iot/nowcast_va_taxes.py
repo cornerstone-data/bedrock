@@ -300,6 +300,17 @@ def trade_industries() -> list[str]:
     ]
 
 
+def trade_commodities() -> list[str]:
+    """The wholesale and retail margin commodities, on the same prefixes as
+    :func:`trade_industries`."""
+    return [
+        c
+        for c in USA_2017_COMMODITY_CODES
+        if (c.startswith(WHOLESALE_PREFIX) and c != CUSTOMS_INDUSTRY)
+        or c.startswith(RETAIL_PREFIXES)
+    ]
+
+
 @functools.cache
 def industry_output(year: int) -> pd.Series:
     """Industry output at basic value, USD - the make block's column margin.
@@ -373,7 +384,21 @@ def t00top_row(year: int, block: pd.DataFrame | None = None) -> pd.Series:
     3. **duties** whole onto ``4200ID``.
 
     The column total is ``TOP + MDTY`` by construction, which is the published
-    row's total. What the operator estimates is only the split.
+    row's total. What the operator estimates is only the split. The row sums
+    :func:`t00top_cells`.
+    """
+    return t00top_cells(year, block=block).sum(axis=1).rename('T00TOP')
+
+
+def t00top_cells(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
+    """:func:`t00top_row` on the Make axes: industry x commodity produced, USD.
+
+    The row sums are ``T00TOP``. Each leg keeps the commodity it was allocated
+    from, which the row throws away: producer-level tax stays on the taxed
+    commodity at each producer's market share, the trade-level leg rides each
+    trade industry's own output mix (BEA books that tax inside the trade margin,
+    so it is trade output), and duties sit on the ``4200ID`` cell. The Make
+    conversion places the wedge from these cells (#1161).
     """
     _guard_year(year)
     industries = list(USA_2017_INDUSTRY_CODES)
@@ -389,7 +414,12 @@ def t00top_row(year: int, block: pd.DataFrame | None = None) -> pd.Series:
     # caller wants the one block the model is built on.
     supply = make_block(year) if block is None else block
     shares = market_shares_of(supply, exclude_government=True)
-    row = shares.mul(producer, axis=0).sum(axis=0).reindex(industries).fillna(0.0)
+    cells = (
+        shares.mul(producer, axis=0)
+        .reindex(index=commodities, columns=industries)
+        .fillna(0.0)
+        .T
+    )
 
     fuel_commodities = [c for c in NAMED_TAX_LINES['motor fuel'][1] if c in trade.index]
     fuel_tax = float(trade.loc[fuel_commodities].sum())
@@ -403,18 +433,61 @@ def t00top_row(year: int, block: pd.DataFrame | None = None) -> pd.Series:
             f'is 22.8% of the row; it cannot be empty.'
         )
 
-    row[PETROLEUM_WHOLESALERS] += fuel_tax
-    row[others] += (float(trade.sum()) - fuel_tax) * (weight / weight_total)
-    row[CUSTOMS_INDUSTRY] += duties
+    trade_leg = pd.Series(0.0, index=industries)
+    trade_leg[PETROLEUM_WHOLESALERS] += fuel_tax
+    trade_leg[others] += (float(trade.sum()) - fuel_tax) * (weight / weight_total)
+    cells += _on_output_mix(trade_leg, supply, year, within=trade_commodities())
+    _add(cells, CUSTOMS_INDUSTRY, CUSTOMS_INDUSTRY, duties)
 
     expected = float(producer.sum() + trade.sum() + duties)
-    if abs(float(row.sum()) - expected) > _ROUNDING_TOLERANCE:
+    total = float(cells.to_numpy().sum())
+    if abs(total - expected) > _ROUNDING_TOLERANCE:
         raise ValueError(
-            f'T00TOP {year} sums to {row.sum():,.0f} USD against a TOP + MDTY '
+            f'T00TOP {year} sums to {total:,.0f} USD against a TOP + MDTY '
             f'total of {expected:,.0f}. The three legs partition that total, so '
             f'a gap means one of them was applied twice or dropped.'
         )
-    return row.rename('T00TOP')
+    cells.index.name = 'industry'
+    cells.columns.name = 'commodity'
+    return cells
+
+
+def _add(cells: pd.DataFrame, industry: str, commodity: str, amount: float) -> None:
+    cells.at[industry, commodity] = (
+        ta.cast(float, cells.at[industry, commodity]) + amount
+    )
+
+
+def _on_output_mix(
+    amounts: pd.Series,
+    block: pd.DataFrame,
+    year: int,
+    within: list[str] | None = None,
+) -> pd.DataFrame:
+    """Industry amounts spread over each industry's own commodity mix.
+
+    Industry x commodity, USD. *within* restricts the mix to those commodities
+    for every industry that produces any of them: a dealer's sales tax belongs
+    on its trade margin, not on the repair service it also sells. An amount on
+    an industry with no output has no mix to ride, so it raises rather than
+    being dropped.
+    """
+    industries = list(USA_2017_INDUSTRY_CODES)
+    commodities = list(USA_2017_COMMODITY_CODES)
+    mix = block.reindex(index=commodities, columns=industries).fillna(0.0)
+    if within is not None:
+        restricted = mix.mul(mix.index.isin(within).astype(float), axis=0)
+        has_any = restricted.sum(axis=0) > 0.0
+        mix.loc[:, has_any] = restricted.loc[:, has_any]
+    output = mix.sum(axis=0)
+    stranded = amounts[(output == 0.0) & (amounts != 0.0)]
+    if not stranded.empty:
+        raise ValueError(
+            f'{year} industries {stranded.index.tolist()} carry a tax wedge but '
+            'no output to place it on'
+        )
+    shares = mix.div(output.where(output != 0.0), axis=1).fillna(0.0)
+    return shares.mul(amounts.reindex(industries).fillna(0.0), axis=1).T
 
 
 # --- T00SUB ----------------------------------------------------------------
@@ -472,18 +545,28 @@ def t00sub_row(year: int) -> pd.Series:
 
     ⚠️ Negative is the balance's convention, matching
     ``nowcast._USE_VALUE_ADDED_SUBTOTALS`` - ``VAPRO`` adds this row. BEA
-    publishes it positive and subtracts it.
+    publishes it positive and subtracts it. The row sums :func:`t00sub_cells`.
+    """
+    return t00sub_cells(year).sum(axis=1).rename('T00SUB')
+
+
+def t00sub_cells(year: int) -> pd.DataFrame:
+    """:func:`t00sub_row` on the Make axes: industry x commodity, USD negative.
+
+    Each subsidy stays on the commodity it subsidises, on the industry the
+    routing pays it to, so the Make conversion books it where the Supply
+    ``SUB`` column has it (#1161).
     """
     _guard_year(year)
     industries = list(USA_2017_INDUSTRY_CODES)
     industry_set = set(industries)
 
-    # sub_decomposition is negative; this row is built positive and flipped once
-    # at the end, so the routing arithmetic reads the way the tables do.
+    # sub_decomposition is negative; the cells are built positive and flipped
+    # once at the end, so the routing arithmetic reads the way the tables do.
     parts = -sub_decomposition(year).drop(columns=['SUB'])
     routed = government_enterprise_shares()
 
-    row = pd.Series(0.0, index=industries)
+    cells = pd.DataFrame(0.0, index=industries, columns=list(USA_2017_COMMODITY_CODES))
     for subsidy_type in parts.columns:
         column = parts[subsidy_type]
         for raw_commodity, raw_amount in column[column != 0.0].items():
@@ -491,14 +574,15 @@ def t00sub_row(year: int) -> pd.Series:
             key = (str(subsidy_type), commodity)
             if key in FIXED_ROUTINGS:
                 target, share = FIXED_ROUTINGS[key]
-                row[target] += amount * share
+                _add(cells, target, commodity, amount * share)
             else:
                 share = float(routed.get(key, 0.0))
                 if share > 0:
-                    row[GOVERNMENT_ENTERPRISE_ROUTINGS[key]] += amount * share
+                    target = GOVERNMENT_ENTERPRISE_ROUTINGS[key]
+                    _add(cells, target, commodity, amount * share)
             remainder = amount * (1.0 - share)
             if commodity in industry_set:
-                row[commodity] += remainder
+                _add(cells, commodity, commodity, remainder)
             elif remainder != 0.0:
                 raise ValueError(
                     f'{commodity} carries {remainder:,.0f} USD of {year} '
@@ -508,13 +592,16 @@ def t00sub_row(year: int) -> pd.Series:
                 )
 
     expected = float(parts.to_numpy().sum())
-    if abs(float(row.sum()) - expected) > _ROUNDING_TOLERANCE:
+    total = float(cells.to_numpy().sum())
+    if abs(total - expected) > _ROUNDING_TOLERANCE:
         raise ValueError(
-            f'T00SUB {year} sums to {row.sum():,.0f} USD against a SUB total of '
+            f'T00SUB {year} sums to {total:,.0f} USD against a SUB total of '
             f'{expected:,.0f}. Identity and the routings both conserve mass, so '
             f'a gap means a commodity was placed twice.'
         )
-    return (-row).rename('T00SUB')
+    cells.index.name = 'industry'
+    cells.columns.name = 'commodity'
+    return -cells
 
 
 def t00osub_row(year: int) -> pd.Series:
@@ -605,6 +692,16 @@ def va_tax_rows(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
     return pd.DataFrame(
         [t00top_row(year, block=block), t00sub_row(year), t00osub_row(year)]
     ).rename_axis(index='value_added_code', columns='industry')
+
+
+def make_wedge_cells(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
+    """``T00TOP + T00SUB`` on the Make axes, industry x commodity, USD.
+
+    Row sums are the two rows :func:`va_tax_rows` returns; column sums are each
+    commodity's net product tax as the Make table should carry it. ``block`` is
+    passed through to :func:`t00top_cells`.
+    """
+    return t00top_cells(year, block=block) + t00sub_cells(year)
 
 
 def _guard_year(year: int) -> None:
