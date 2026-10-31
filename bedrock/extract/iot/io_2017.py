@@ -34,7 +34,7 @@ from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_SUMMARY_MUT_NAMES,
     USA_SUMMARY_MUT_YEARS,
     USA_SUMMARY_SPAN_MUT_YEARS,
-    USA_SUMMARY_SUT_MAPPING_1997_2024,
+    USA_SUMMARY_SUT_MAPPING_1997_2025,
     USA_SUMMARY_SUT_NAMES,
     USA_SUMMARY_SUT_YEARS,
 )
@@ -79,7 +79,7 @@ LOCAL_BEA_NIPA_IOT_BRIDGES_DIR = local_dir_for_gcs_sub_bucket(
 #: The summary supply-use workbooks ``_load_usa_summary_sut`` reads, for every
 #: year. ``bea_annual_update`` checks they come from the same BEA annual update
 #: as gross output.
-SUMMARY_SUT_MAPPING = USA_SUMMARY_SUT_MAPPING_1997_2024
+SUMMARY_SUT_MAPPING = USA_SUMMARY_SUT_MAPPING_1997_2025
 
 
 # ----- Documentation ----- #
@@ -1270,8 +1270,8 @@ def _load_usa_summary_sut(
     Load USA Summary tables in Supply-use format
     """
 
-    # Every year reads the 1997-2024 workbook, the same BEA release as gross output
-    # (UGO305-A, BEA_DATA_VERSION 2025Q2). 2017-2022 used to stay pinned to the
+    # Every year reads one workbook, SUMMARY_SUT_MAPPING, the same BEA annual update
+    # as gross output (UGO305-A, BEA_DATA_VERSION). 2017-2022 used to stay pinned to the
     # 2017-2022 workbook so published FBAs would not move, but the nowcast balances
     # these controls against gross output, and a 2022 control on the older release
     # sat $1.32T (absolute, commodity output) off it (#1157). The two workbooks
