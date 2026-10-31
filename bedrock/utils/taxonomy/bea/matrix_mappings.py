@@ -88,6 +88,8 @@ USA_SUMMARY_SUT_NAMES = ta.Literal[
     "Supply_summary",
     "Use_SUT_summary",
 ]
+# The superseded 2017-2022 release. No loader reads it since #1157; kept to name
+# the workbook for analyses that compare the two releases.
 USA_SUMMARY_SUT_MAPPING_2017_2022 = {
     "Supply_summary": "Supply_Tables_2017-2022_Summary.xlsx",
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx",
@@ -131,10 +133,9 @@ USA_SUMMARY_MUT_YEARS = ta.Literal[
 ]
 USA_GROSS_INDUSTRY_OUTPUT_YEARS = USA_SUMMARY_MUT_YEARS
 
-# Years wired up for summary SUT. It stops at 2017 on the left because that is where
-# the pinned 2017-2022 workbook starts, not because of the data: the 1997-YYYY
-# workbooks carry 1997-2016 on the same schema, so earlier years can be added here
-# once they are given a vintage to pin to in `_load_usa_summary_sut`.
+# Years wired up for summary SUT. It stops at 2017 on the left for historical
+# reasons, not because of the data: the 1997-2024 workbook carries 1997-2016 on the
+# same schema, so earlier years can be added here.
 USA_SUMMARY_SUT_YEARS = ta.Literal[
     2017,
     2018,
