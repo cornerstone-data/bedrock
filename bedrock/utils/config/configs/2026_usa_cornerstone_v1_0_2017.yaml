@@ -1,7 +1,8 @@
 # Cornerstone 2026 model - v1.0, calendar year 2017.
 #
 # Same methodology as 2025_usa_cornerstone_v0_6 for year 2017.
-# nowcast_mut_vintage v0.5.0_011f41f is the 2017 compensation-of-employees rebuild.
+# nowcast_mut_vintage v1.0.0_c99157a is the 2017-2024 rebuild on the 2026 BEA
+# annual update.
 # bea_price_index_vintage 2026Q2 is the index those tables were built with.
 # The GHG loader returns GHG_national_Cornerstone_2017.
 # cornerstone_ghg_fbs_filename pins the retained-activity year-stem object
@@ -18,7 +19,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v0.5.0_011f41f'
+nowcast_mut_vintage: 'v1.0.0_c99157a'
 usa_base_io_data_year: 2017
 usa_ghg_data_year: 2017
 bea_price_index_vintage: '2026Q2'
