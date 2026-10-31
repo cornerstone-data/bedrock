@@ -1,17 +1,17 @@
-"""How far each year steps out of line, table by table (#890).
+"""How far each year of a nowcast build steps out of line, table by table.
 
-The nowcast builds one supply-use pair per year, 2017-2024. A year that steps
-out and back -- 2022 is the largest -- shows the method reacting to something
-that year alone, not a trend. This module measures that **excursion** for every
-interior year and every block of the tables, compares it with BEA's published
-summary tables measured the same way, and compares build vintages, so a change
-to the method can be judged by whether it brings the tables closer to BEA's own
-year-to-year behaviour.
+The nowcast builds one balanced supply-use pair per year. A year whose structure
+steps out and back, rather than lying on the path between its neighbours, shows
+the method reacting to something in that year alone. This module measures that
+**excursion** for every interior year and every block of the tables, measures
+BEA's published summary tables the same way, and scores each build on disk
+against BEA, so a change to the method can be judged by whether it brings the
+tables closer to BEA's own year-to-year behaviour.
 
 An excursion BEA's tables share is not a defect: the COVID shock (2020) and
-rebound (2021) step out and back in the published tables too. So the score that
-matters is **ours minus published**, and :data:`EXPLAINED_YEARS` marks the years
-whose shock is known, reported with and without them.
+rebound (2021) step out and back in the published tables too. So the score is
+**ours minus published**, and :data:`EXPLAINED_YEARS` marks the years whose
+shock is known; the build summary reports the mean with and without them.
 
 Measure
 -------
@@ -21,16 +21,15 @@ commodity's producer mix, ...), the structural dissimilarity between two years i
 half the summed absolute change in its shares: 0 means the same structure, 1
 means none in common. With ``d(a, b)`` that distance,
 
-    excursion = d(2021, 2022) + d(2022, 2023) - d(2021, 2023)
+    excursion = d(t - 1, t) + d(t, t + 1) - d(t - 1, t + 1)
 
-(written for 2022; any interior year t uses t - 1 and t + 1) is the extra
-distance travelled by going through 2022 rather than straight from 2021 to
-2023. It is zero when 2022 lies on the path between its neighbours and at most
-``2 * min(d(2021, 2022), d(2022, 2023))``. The level counterpart is
-``log x(2022) - mean(log x(2021), log x(2023))``.
+is the extra distance travelled by going through year t rather than straight
+from t - 1 to t + 1. It is zero when t lies on the path between its neighbours
+and at most ``2 * min(d(t - 1, t), d(t, t + 1))``. The level counterpart is
+``log x(t) - mean(log x(t - 1), log x(t + 1))``.
 
 Each block reports the size-weighted mean excursion and the share of the total
-2021-2023 movement (``d(2021, 2022) + d(2022, 2023)``) that it accounts for.
+movement over the three years (``d(t - 1, t) + d(t, t + 1)``) it accounts for.
 
 Builds are compared with BEA at **summary** level, ours summed to BEA's summary
 rows and columns, since that is the grain BEA publishes every year.
@@ -51,9 +50,9 @@ block              entity, shares over             weight
 CLI::
 
     uv run python -m bedrock.analysis.nowcasting.sut_excursion --check
-    # one year in depth, with the #890 ablations
+    # one centre year of one build in depth, with its top detail contributors
     uv run python -m bedrock.analysis.nowcasting.sut_excursion \\
-        --vintage v1.0.0_<hash> [--ablations <dir>]
+        --vintage v1.0.0_<hash> --year 2022
     # every year, every build on disk, against BEA
     uv run python -m bedrock.analysis.nowcasting.sut_excursion --span
 """
@@ -68,7 +67,6 @@ import typing as ta
 import numpy as np
 import pandas as pd
 
-from bedrock.analysis.nowcasting.own_use_2022 import _first
 from bedrock.extract.iot.io_2017 import _load_usa_summary_sut
 from bedrock.utils.config.settings import FBS_DIR
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_SUMMARY_SUT_YEARS
@@ -84,7 +82,6 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary impor
     load_bea_v2017_industry_to_bea_v2017_summary,
 )
 
-YEARS = (2021, 2022, 2023)
 #: Interior years of the span: each needs the year before and after.
 CENTRE_YEARS = tuple(range(2018, 2024))
 #: Centre years whose excursion has a known cause shared with BEA's tables.
@@ -168,6 +165,10 @@ def blocks(tables: Tables, *, summary: bool) -> dict[str, pd.DataFrame]:
     }
 
 
+def _first(mapping: ta.Mapping[ta.Any, ta.Sequence[str]]) -> dict[str, str]:
+    return {k: v[0] for k, v in mapping.items() if v}
+
+
 def _axes(summary: bool) -> tuple[list[str], list[str], list[str]]:
     fd = [c for c in USA_2017_FINAL_DEMAND_CODES if c != IMPORTS]
     if not summary:
@@ -208,14 +209,6 @@ def build_year(vintage: str, year: int) -> Tables:
         return pd.read_parquet(path)
 
     return Tables(read('Use_SUT'), read('Supply'))
-
-
-def ablation_2022(directory: str, variant: str) -> Tables:
-    """One ablation variant's 2022 pair, $M, as own_use_2022_ablation wrote it."""
-    return Tables(
-        pd.read_parquet(os.path.join(directory, f'use_2022_{variant}.parquet')),
-        pd.read_parquet(os.path.join(directory, f'supply_2022_{variant}.parquet')),
-    )
 
 
 @functools.cache
@@ -277,36 +270,24 @@ def top_entities(years: ta.Sequence[Tables], block: str, n: int = 10) -> pd.Data
     return table.sort_values('contribution', ascending=False).head(n)
 
 
-def report(vintage: str, ablations: str | None) -> None:
+def report(vintage: str, year: int) -> None:
+    """One centre year of one build: every block, against BEA, with contributors."""
     pd.set_option('display.width', 220)
-    ours = [build_year(vintage, y) for y in YEARS]
+    years = (year - 1, year, year + 1)
+    ours = [build_year(vintage, y) for y in years]
     columns = {
-        'published (summary)': assess([published_year(y) for y in YEARS], summary=True),
+        'published (summary)': assess([published_year(y) for y in years], summary=True),
         'ours (summary)': assess([to_summary(t) for t in ours], summary=True),
         'ours (detail)': assess(ours, summary=False),
     }
-    variants: list[str] = []
-    if ablations:
-        from bedrock.analysis.nowcasting.own_use_2022_ablation import (  # noqa: PLC0415
-            VARIANTS,
-        )
-
-        for variant in VARIANTS:
-            if not os.path.exists(
-                os.path.join(ablations, f'use_2022_{variant}.parquet')
-            ):
-                continue
-            variants.append(variant)
-            years = [ours[0], ablation_2022(ablations, variant), ours[2]]
-            columns[variant] = assess(years, summary=False)
-    print(f'== 2022 excursion, {vintage}')
+    print(f'== {year} excursion, {vintage}')
     print('\nWeighted mean excursion (0-1 for structure, |log| for levels):')
     print(
         pd.DataFrame({k: v['excursion'] for k, v in columns.items()})
         .round(4)
         .to_string()
     )
-    print('\nExcursion as a share of 2021-2023 movement:')
+    print(f'\nExcursion as a share of {years[0]}-{years[2]} movement:')
     print(
         pd.DataFrame({k: v['share_of_movement'] for k, v in columns.items()})
         .drop(index=['industry_output_level', 'commodity_output_level'])
@@ -423,7 +404,10 @@ def check() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--vintage', help='the build, v<version>_<hash>')
-    parser.add_argument('--ablations', help='own_use_2022_ablation --out directory')
+    parser.add_argument(
+        '--year', type=int, default=2022, choices=CENTRE_YEARS,
+        help='centre year for the one-build report',
+    )  # fmt: skip
     parser.add_argument(
         '--span', action='store_true', help='every year, every build on disk'
     )
@@ -437,7 +421,7 @@ def main() -> None:
         return
     if not args.vintage:
         parser.error('--vintage is required')
-    report(args.vintage, args.ablations)
+    report(args.vintage, args.year)
 
 
 if __name__ == '__main__':
