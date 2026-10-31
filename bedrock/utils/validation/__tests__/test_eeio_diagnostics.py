@@ -411,14 +411,6 @@ def test_compare_output_and_L_y(
 
 
 @pytest.mark.eeio_integration
-@pytest.mark.xfail(
-    reason=(
-        'Make and Use disagree on commodity output. The canonical MUT '
-        'v0.5.0_a166975 predates #1161: $1.6T, 286 of 405 sectors. On #1161 '
-        'tables 13 sectors plus S00402 (q = 0) still fail, mostly waste '
-        'disaggregation (562*).'
-    ),
-)
 def test_domestic_L_y_from_use_final_demand_equals_q(
     canonical_usa_config: None,
 ) -> None:
