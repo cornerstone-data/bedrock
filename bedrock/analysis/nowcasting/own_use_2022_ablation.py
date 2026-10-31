@@ -118,7 +118,9 @@ def _patch(variant: str) -> None:
         config = get_usa_config().model_copy(
             update={'census_materials_index_alpha': 0.0}
         )
-        reset_usa_config(should_reset_env_var=False)
+        # get_usa_config records the loaded file in the environment, which the
+        # setter's already-set guard reads, so clear both.
+        reset_usa_config(should_reset_env_var=True)
         set_global_usa_config_object(config, source_label='own_use_2022 alpha 0')
         return
     module_name, function_name = {
