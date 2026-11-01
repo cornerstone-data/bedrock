@@ -1,16 +1,19 @@
-"""Census export product codes onto one NAICS assignment for every year (#1174).
+"""Census trade product codes onto one NAICS assignment for every year (#1174).
 
-Census assigns each 10-digit Schedule B export code to one NAICS code and
-publishes the assignment yearly (``expconcord{yy}``). The 2017-2023 files carry
-one assignment and the **2024** file a revised one, and Census compiled its
-``exports/naics`` series for 2022 onward on the revised one. Read directly, that
-series therefore changes classification between 2021 and 2022: ``332996``
-fabricated pipe and fittings has no exports before 2022 and 2.2bn USD after,
-taken from ``332919``; ``335929`` communication wire falls from 6.3bn to 1.6bn.
+Census assigns each 10-digit product code (Schedule B for exports, HTS for
+imports) to one NAICS code and publishes the assignment yearly
+(``expconcord{yy}``, ``impconcord{yy}``). For both directions the 2017-2023
+files carry one assignment and the **2024** file a revised one, and Census
+compiled its ``exports/naics`` and ``imports/naics`` series for 2022 onward on
+the revised one. Read directly, those series change classification between
+2021 and 2022: ``332996`` fabricated pipe and fittings has no trade before 2022
+and 2.2bn USD of exports and 3.8bn of imports after, taken from ``332919``;
+``335929`` communication wire exports fall from 6.3bn to 1.6bn and imports
+from 10.4bn to 2.5bn.
 
-The export extract instead reads exports by product code and assigns every year
-on the 2024 file, so 2017-2021 are back-cast onto the classification of the
-later years. A code the 2024 file does not list takes, in order:
+The extract instead reads trade by product code and assigns every year on the
+2024 file, so 2017-2021 are back-cast onto the classification of the later
+years. A code the 2024 file does not list takes, in order:
 
 1. the 2024 NAICS mix of its **successor codes**: codes in the same HS6 that
    trade in 2024 but not in the year being assigned. This is what a code that
@@ -19,18 +22,14 @@ later years. A code the 2024 file does not list takes, in order:
 3. the 2024 NAICS mix of the **HS 2022 headings that replaced its HS6**, from
    the WCO HS 2017 to HS 2022 correlation, for an HS6 the 2022 revision removed;
 4. its **own year's** concordance;
-5. ``990000`` for the ``988`` low-value and estimated shipments, which no
-   concordance lists and which Census places there in ``exports/naics``.
+5. ``990000`` for the ``988`` low-value and estimated export shipments, which
+   no concordance lists and which Census places there in ``exports/naics``.
 
 Rules 1 and 3 matter. Without them about 55bn USD a year of 2017-2021 exports
 stays on the old assignment, because in 2022 Census replaced several large
 "not elsewhere specified" codes and assigned the replacements differently from
-the codes that survived; ``335210`` small appliances then still falls from
-6.4bn to 2.1bn between 2021 and 2022.
-
-Assigned this way, 2023 matches ``exports/naics`` within 1.9bn USD and 2024
-within 0.1bn. 2017-2021 move 29-32bn USD a year between four-digit NAICS
-families compared with ``exports/naics``; the national total is unchanged.
+the codes that survived; ``335210`` small appliances exports then still fall
+from 6.4bn to 2.1bn between 2021 and 2022.
 """
 
 from __future__ import annotations
@@ -40,10 +39,13 @@ import logging
 import os
 import typing as ta
 from collections.abc import Mapping, Sequence
+
 import pandas as pd
 import requests
 
 log = logging.getLogger(__name__)
+
+Flow = ta.Literal['exports', 'imports']
 
 #: The concordance every year is assigned on.
 CURRENT_CONCORDANCE_YEAR = 2024
@@ -52,12 +54,12 @@ CONCORDANCE_YEARS = tuple(range(2017, CURRENT_CONCORDANCE_YEAR + 1))
 LOW_VALUE_PREFIX = '988'
 LOW_VALUE_NAICS = '990000'
 
-CONCORDANCE_CSV = 'Census_USATrade_export_concordance.csv'
 HS_CORRELATION_CSV = 'HS2022_HS2017_correlation.csv'
 
+_CONCORDANCE_PREFIX: dict[Flow, str] = {'exports': 'exp', 'imports': 'imp'}
 _CONCORDANCE_URL = (
     'https://www.census.gov/foreign-trade/reference/codes/concordance/'
-    'expconcord{yy:02d}.{ext}'
+    '{prefix}concord{yy:02d}.{ext}'
 )
 #: census.gov and unstats.un.org refuse the default python user agent (403).
 _HEADERS = {'User-Agent': 'Mozilla/5.0'}
@@ -77,7 +79,12 @@ RULES = (
 )
 
 
-def assign_exports_to_naics(
+def concordance_csv(flow: str) -> str:
+    """The cached concordance file name for *flow*."""
+    return f'Census_USATrade_{flow[:-1]}_concordance.csv'
+
+
+def assign_trade_to_naics(
     values: pd.Series,
     *,
     own: pd.Series,
@@ -85,14 +92,13 @@ def assign_exports_to_naics(
     reference: pd.Series,
     hs6_successors: Mapping[str, Sequence[str]],
 ) -> tuple[pd.Series, pd.Series]:
-    """One year's exports by product code, summed onto the current NAICS codes.
+    """One year's trade by product code, summed onto the current NAICS codes.
 
-    *values* is the year's exports by 10-digit product code. *own* and
-    *current* map product code to NAICS: the year's own concordance and the
-    current one. *reference* is exports by product code in the current
-    concordance's year; its mix decides where unlisted codes go.
-    *hs6_successors* maps an HS 2017 heading to the HS 2022 headings that
-    replaced it.
+    *values* is the year's trade by 10-digit product code. *own* and *current*
+    map product code to NAICS: the year's own concordance and the current one.
+    *reference* is trade by product code in the current concordance's year; its
+    mix decides where unlisted codes go. *hs6_successors* maps an HS 2017
+    heading to the HS 2022 headings that replaced it.
 
     Returns the NAICS totals and the value each rule assigned (see the module
     docstring). Value no rule can place is reported as ``unassigned`` and left
@@ -151,28 +157,30 @@ def _download(url: str) -> bytes:
 
 
 def _read_concordance_workbook(content: bytes) -> pd.DataFrame:
-    """One ``expconcord`` workbook as product code and NAICS, both strings.
+    """One concordance workbook as product code and NAICS, both strings.
 
-    The 2023 file does not open with openpyxl (invalid XML), so the calamine
-    reader is the fallback.
+    The 2023 export file does not open with openpyxl (invalid XML), so the
+    calamine reader is the fallback.
     """
     try:
         frame = pd.read_excel(io.BytesIO(content), dtype=str)
-    except Exception:  # noqa: BLE001 - openpyxl rejects the 2023 workbook
+    except Exception:  # noqa: BLE001 - openpyxl rejects the 2023 export workbook
         frame = pd.read_excel(io.BytesIO(content), dtype=str, engine='calamine')
     frame.columns = [str(c).strip().lower() for c in frame.columns]
     return frame[['commodity', 'naics']].dropna()
 
 
-def refresh_export_concordances(out_dir: str) -> str:
-    """Download the 2017-2024 export concordances into one CSV in *out_dir*."""
+def refresh_concordances(out_dir: str, flow: Flow) -> str:
+    """Download the 2017-2024 concordances for *flow* into one CSV in *out_dir*."""
     frames = []
     for year in CONCORDANCE_YEARS:
-        ext = 'xls' if year <= 2019 else 'xlsx'
-        url = _CONCORDANCE_URL.format(yy=year % 100, ext=ext)
-        frame = _read_concordance_workbook(_download(url))
-        frames.append(frame.assign(year=year))
-    out = os.path.join(out_dir, CONCORDANCE_CSV)
+        url = _CONCORDANCE_URL.format(
+            prefix=_CONCORDANCE_PREFIX[flow],
+            yy=year % 100,
+            ext='xls' if year <= 2019 else 'xlsx',
+        )
+        frames.append(_read_concordance_workbook(_download(url)).assign(year=year))
+    out = os.path.join(out_dir, concordance_csv(flow))
     pd.concat(frames)[['year', 'commodity', 'naics']].to_csv(out, index=False)
     return out
 

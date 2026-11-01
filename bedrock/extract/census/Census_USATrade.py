@@ -62,14 +62,15 @@ Census ``exports/naics`` carries a ``DF`` dimension: ``1`` domestic exports,
 re-exports; the Trade export FBS selects ``ALL_VAL_YR_DOM`` only.  Both
 series are kept in the FBA so gross totals remain auditable against Census.
 
-Exports are read by product code (#1174)
-----------------------------------------
-Census compiled ``exports/naics`` for 2022 onward on a revised product-to-NAICS
-assignment, so the series changes classification between 2021 and 2022.
-Exports are therefore read from ``exports/hs`` at ``HS10`` and assigned to NAICS
-in the parse, every year on the 2024 concordance; see
-:mod:`bedrock.extract.census.census_export_concordance`. Imports still read
-``imports/naics``.
+Trade is read by product code (#1174)
+-------------------------------------
+Census compiled ``exports/naics`` and ``imports/naics`` for 2022 onward on a
+revised product-to-NAICS assignment, so both series change classification
+between 2021 and 2022. Both directions are therefore read from ``exports/hs``
+and ``imports/hs`` at ``HS10`` and assigned to NAICS in the parse, every year
+on the 2024 concordance; see
+:mod:`bedrock.extract.census.census_trade_concordance`. The output keeps the
+NAICS activities and flow names of the ``naics`` endpoints.
 """
 
 from __future__ import annotations
@@ -87,12 +88,12 @@ from urllib.request import urlopen
 import pandas as pd
 from requests import Response
 
-from bedrock.extract.census.census_export_concordance import (
-    CONCORDANCE_CSV,
+from bedrock.extract.census.census_trade_concordance import (
     CURRENT_CONCORDANCE_YEAR,
     HS_CORRELATION_CSV,
-    assign_exports_to_naics,
+    assign_trade_to_naics,
     concordance_by_year,
+    concordance_csv,
     hs6_successors,
 )
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
@@ -144,24 +145,25 @@ def _census_usatrade_filename(url: str, year: str | int) -> str:
 def census_usatrade_url_helper(
     *, build_url: str, config: dict[str, Any], **_kwargs: Any
 ) -> list[str]:
-    """National import and export urls (no partner-country loop).
+    """National import and export urls at ``HS10`` (no partner-country loop).
 
-    Imports read ``imports/naics`` at ``NA6``; exports read ``exports/hs`` at
-    ``HS10`` (#1174).
+    The yaml url names the ``naics`` endpoint at ``NA6``; both directions are
+    rewritten to the ``hs`` endpoint at ``HS10`` (#1174).
     """
-    imports = build_url.replace('__flow__', _IMPORT_FLOW).replace(
-        '__get_fields__', str(config['import_get_fields'])
-    )
-    exports = (
-        build_url.replace('__flow__/naics', f'{_EXPORT_FLOW}/hs')
-        .replace('COMM_LVL=NA6', 'COMM_LVL=HS10')
-        .replace('__get_fields__', str(config['export_get_fields']))
-    )
-    if '/hs?' not in exports or 'COMM_LVL=HS10' not in exports:
-        raise ValueError(
-            f'Census USA Trade export url not rewritten to HS10: {exports}'
+    urls = []
+    for flow, get_key in (
+        (_IMPORT_FLOW, 'import_get_fields'),
+        (_EXPORT_FLOW, 'export_get_fields'),
+    ):
+        url = (
+            build_url.replace('__flow__/naics', f'{flow}/hs')
+            .replace('COMM_LVL=NA6', 'COMM_LVL=HS10')
+            .replace('__get_fields__', str(config[get_key]))
         )
-    return [imports, exports]
+        if f'/{flow}/hs?' not in url or 'COMM_LVL=HS10' not in url:
+            raise ValueError(f'Census USA Trade url not rewritten to HS10: {url}')
+        urls.append(url)
+    return urls
 
 
 def census_usatrade_call(*, resp: Response, **kwargs: Any) -> pd.DataFrame:
@@ -240,27 +242,35 @@ def _load_input(source: str, name: str, year: int | None = None) -> pd.DataFrame
     )
 
 
-def _hs10_export_values(raw: pd.DataFrame, df_code: str) -> pd.Series:
-    """Exports by 10-digit product code for one Census ``DF`` value, USD."""
-    rows = raw.loc[raw['DF'].astype(str).str.strip() == df_code]
+def _hs10_values(
+    raw: pd.DataFrame, value_col: str, df_code: str | None = None
+) -> pd.Series:
+    """One value field by 10-digit product code, USD; exports for one ``DF``."""
+    code_col = 'E_COMMODITY' if 'E_COMMODITY' in raw.columns else 'I_COMMODITY'
+    rows = raw
+    if df_code is not None:
+        rows = raw.loc[raw['DF'].astype(str).str.strip() == df_code]
     return (
-        pd.to_numeric(rows['ALL_VAL_YR'], errors='coerce')
+        pd.to_numeric(rows[value_col], errors='coerce')
         .fillna(0.0)
-        .groupby(rows['E_COMMODITY'].astype(str).str.zfill(10))
+        .groupby(rows[code_col].astype(str).str.zfill(10))
         .sum()
     )
 
 
-def _parse_export_hs10(raw: pd.DataFrame, year: int, source: str) -> pd.DataFrame:
-    """Assign product-code exports to NAICS on the current concordance (#1174).
+def _parse_hs10(
+    raw: pd.DataFrame, year: int, source: str, config: dict[str, Any]
+) -> pd.DataFrame:
+    """Assign product-code trade to NAICS on the current concordance (#1174).
 
-    Domestic exports and re-exports (``DF`` 1 and 2) are assigned separately.
-    Both use the gross 2024 exports as the reference mix.
+    Exports: domestic exports and re-exports (``DF`` 1 and 2) are assigned
+    separately, both on the mix of gross 2024 exports. Imports: each value field
+    is assigned on the mix of 2024 customs value (``GEN_VAL_YR``), so a product
+    code's duties, charges and values split alike and the duty rate built from
+    them (``trade.duties``) is unchanged within a code.
     """
-    missing = {'E_COMMODITY', 'ALL_VAL_YR', 'DF'} - set(raw.columns)
-    if missing:
-        raise ValueError(f'Census USA Trade HS10 export dump missing {sorted(missing)}')
-    concordances = concordance_by_year(_load_input(source, CONCORDANCE_CSV))
+    flow = _EXPORT_FLOW if 'E_COMMODITY' in raw.columns else _IMPORT_FLOW
+    concordances = concordance_by_year(_load_input(source, concordance_csv(flow)))
     successors = hs6_successors(_load_input(source, HS_CORRELATION_CSV))
     current = concordances[CURRENT_CONCORDANCE_YEAR]
     own = concordances.get(year, current)
@@ -269,14 +279,26 @@ def _parse_export_hs10(raw: pd.DataFrame, year: int, source: str) -> pd.DataFram
     else:
         reference_raw = _load_input(
             source,
-            _census_usatrade_filename(f'/{_EXPORT_FLOW}/hs', CURRENT_CONCORDANCE_YEAR),
+            _census_usatrade_filename(f'/{flow}/hs', CURRENT_CONCORDANCE_YEAR),
             CURRENT_CONCORDANCE_YEAR,
         )
-    reference = _hs10_export_values(reference_raw, '-')
+    if flow == _EXPORT_FLOW:
+        reference = _hs10_values(reference_raw, 'ALL_VAL_YR', '-')
+        series = {
+            name: _hs10_values(raw, 'ALL_VAL_YR', df_code)
+            for df_code, name in _EXPORT_FLOW_BY_DF.items()
+        }
+    else:
+        reference = _hs10_values(reference_raw, 'GEN_VAL_YR')
+        series = {
+            name: _hs10_values(raw, name)
+            for name in config['import_flow_names']
+            if name in raw.columns
+        }
     frames = []
-    for df_code, flow_name in _EXPORT_FLOW_BY_DF.items():
-        totals, by_rule = assign_exports_to_naics(
-            _hs10_export_values(raw, df_code),
+    for flow_name, values in series.items():
+        totals, by_rule = assign_trade_to_naics(
+            values,
             own=own,
             current=current,
             reference=reference,
@@ -294,7 +316,7 @@ def _parse_export_hs10(raw: pd.DataFrame, year: int, source: str) -> pd.DataFram
                     'NAICS': totals.index.astype(str),
                     'FlowName': flow_name,
                     'FlowAmount': totals.to_numpy(),
-                    'Description': _EXPORT_FLOW_DESCRIPTIONS[flow_name],
+                    'Description': _flow_description(flow_name),
                 }
             )
         )
@@ -314,12 +336,13 @@ def census_usatrade_parse(
     for raw in df_list:
         df = raw.copy()
         cols = {str(c).upper(): c for c in df.columns}
-        if 'E_COMMODITY' in cols:
+        if 'E_COMMODITY' in cols or 'I_COMMODITY' in cols:
             frames.append(
-                _parse_export_hs10(
+                _parse_hs10(
                     df.rename(columns={v: k for k, v in cols.items()}),
                     int(year),
                     source,
+                    config,
                 )
             )
             continue

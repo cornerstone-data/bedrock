@@ -1,11 +1,12 @@
 import pandas as pd
 import pytest
 
-from bedrock.extract.census.census_export_concordance import (
-    assign_exports_to_naics,
+from bedrock.extract.census.census_trade_concordance import (
+    assign_trade_to_naics,
     concordance_by_year,
     hs6_successors,
 )
+from bedrock.extract.census import Census_USATrade
 from bedrock.extract.census.Census_USATrade import (
     _census_usatrade_filename,
     census_usatrade_url_helper,
@@ -35,7 +36,7 @@ SUCCESSORS = {'340220': ['340250']}
 def _assign(
     values: dict[str, float], own: dict[str, str]
 ) -> tuple[pd.Series, pd.Series]:
-    return assign_exports_to_naics(
+    return assign_trade_to_naics(
         pd.Series(values),
         own=pd.Series(own, dtype=str),
         current=CURRENT,
@@ -114,7 +115,7 @@ def test_csv_loaders() -> None:
     assert succ == {'940190': ['940191', '940199']}
 
 
-def test_export_url_reads_hs10_and_imports_stay_on_naics() -> None:
+def test_both_urls_read_hs10() -> None:
     build_url = (
         'https://api.census.gov/data/timeseries/intltrade/__flow__/naics?'
         'get=__get_fields__&COMM_LVL=NA6&YEAR=2021&MONTH=12'
@@ -122,16 +123,69 @@ def test_export_url_reads_hs10_and_imports_stay_on_naics() -> None:
     imports, exports = census_usatrade_url_helper(
         build_url=build_url,
         config={
-            'import_get_fields': 'NAICS,GEN_CIF_YR',
+            'import_get_fields': 'I_COMMODITY,GEN_CIF_YR',
             'export_get_fields': 'E_COMMODITY,ALL_VAL_YR,DF',
         },
     )
-    assert '/imports/naics?' in imports and 'COMM_LVL=NA6' in imports
+    assert '/imports/hs?' in imports and 'COMM_LVL=HS10' in imports
     assert '/exports/hs?' in exports and 'COMM_LVL=HS10' in exports
     assert (
         _census_usatrade_filename(exports, 2021)
         == 'Census_USATrade_2021_exports_hs10.csv'
     )
     assert (
-        _census_usatrade_filename(imports, 2021) == 'Census_USATrade_2021_imports.csv'
+        _census_usatrade_filename(imports, 2021)
+        == 'Census_USATrade_2021_imports_hs10.csv'
+    )
+
+
+def test_import_fields_split_alike_on_the_customs_value_mix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every import field of a retired code splits by one mix, so ratios hold."""
+    reference = pd.DataFrame(
+        {
+            'I_COMMODITY': ['8479890001', '8479890002'],
+            'GEN_VAL_YR': ['300', '100'],
+            'GEN_CIF_YR': ['330', '110'],
+            'CAL_DUT_YR': ['0', '0'],
+        }
+    )
+    inputs = {
+        'Census_USATrade_import_concordance.csv': pd.DataFrame(
+            {
+                'year': ['2024', '2024', '2021'],
+                'commodity': ['8479890001', '8479890002', '8479890099'],
+                'naics': ['333998', '335210', '335210'],
+            }
+        ),
+        'HS2022_HS2017_correlation.csv': pd.DataFrame(
+            {'hs2022': ['847989'], 'hs2017': ['847989']}
+        ),
+        'Census_USATrade_2024_imports_hs10.csv': reference,
+    }
+    monkeypatch.setattr(
+        Census_USATrade, '_load_input', lambda _source, name, _year=None: inputs[name]
+    )
+    raw = pd.DataFrame(
+        {
+            'I_COMMODITY': ['8479890099'],
+            'GEN_VAL_YR': ['40'],
+            'GEN_CIF_YR': ['44'],
+            'CAL_DUT_YR': ['4'],
+        }
+    )
+    out = Census_USATrade.census_usatrade_parse(
+        df_list=[raw],
+        year='2021',
+        config={'import_flow_names': ['GEN_CIF_YR', 'GEN_VAL_YR', 'CAL_DUT_YR']},
+    )
+    got = out.pivot_table(
+        index='ActivityProducedBy', columns='FlowName', values='FlowAmount'
+    )
+    assert got.loc['333998'].to_dict() == pytest.approx(
+        {'GEN_CIF_YR': 33.0, 'GEN_VAL_YR': 30.0, 'CAL_DUT_YR': 3.0}
+    )
+    assert got.loc['335210'].to_dict() == pytest.approx(
+        {'GEN_CIF_YR': 11.0, 'GEN_VAL_YR': 10.0, 'CAL_DUT_YR': 1.0}
     )
