@@ -61,11 +61,22 @@ Census ``exports/naics`` carries a ``DF`` dimension: ``1`` domestic exports,
 ``2`` foreign exports (re-exports).  BEA's I-O ``F04000`` column is net of
 re-exports; the Trade export FBS selects ``ALL_VAL_YR_DOM`` only.  Both
 series are kept in the FBA so gross totals remain auditable against Census.
+
+Trade is read by product code (#1174)
+-------------------------------------
+Census compiled ``exports/naics`` and ``imports/naics`` for 2022 onward on a
+revised product-to-NAICS assignment, so both series change classification
+between 2021 and 2022. Both directions are therefore read from ``exports/hs``
+and ``imports/hs`` at ``HS10`` and assigned to NAICS in the parse, every year
+on the 2024 concordance; see
+:mod:`bedrock.extract.census.census_trade_concordance`. The output keeps the
+NAICS activities and flow names of the ``naics`` endpoints.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import ssl
 import time
@@ -77,12 +88,22 @@ from urllib.request import urlopen
 import pandas as pd
 from requests import Response
 
+from bedrock.extract.census.census_trade_concordance import (
+    CURRENT_CONCORDANCE_YEAR,
+    HS_CORRELATION_CSV,
+    assign_trade_to_naics,
+    concordance_by_year,
+    concordance_csv,
+    hs6_successors,
+)
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.config.common import load_env_file_key
 from bedrock.utils.io.gcp import load_from_gcs
 from bedrock.utils.io.gcp_paths import gcs_extract_input_sub_bucket_from_kwargs
 from bedrock.utils.io.local_extract_input_data import load_local_extract_input_dir
 from bedrock.utils.mapping.location import US_FIPS
+
+log = logging.getLogger(__name__)
 
 _IMPORT_FLOW = 'imports'
 _EXPORT_FLOW = 'exports'
@@ -116,21 +137,31 @@ def _census_flow_from_url(url: str) -> str:
 
 
 def _census_usatrade_filename(url: str, year: str | int) -> str:
-    return f"Census_USATrade_{year}_{_census_flow_from_url(url)}.csv"
+    flow = _census_flow_from_url(url)
+    suffix = '_hs10' if '/hs' in urlparse(url).path.lower() else ''
+    return f"Census_USATrade_{year}_{flow}{suffix}.csv"
 
 
 def census_usatrade_url_helper(
     *, build_url: str, config: dict[str, Any], **_kwargs: Any
 ) -> list[str]:
-    """National NAICS-6 import and export urls (no partner-country loop)."""
+    """National import and export urls at ``HS10`` (no partner-country loop).
+
+    The yaml url names the ``naics`` endpoint at ``NA6``; both directions are
+    rewritten to the ``hs`` endpoint at ``HS10`` (#1174).
+    """
     urls = []
     for flow, get_key in (
         (_IMPORT_FLOW, 'import_get_fields'),
         (_EXPORT_FLOW, 'export_get_fields'),
     ):
-        url = build_url.replace('__flow__', flow).replace(
-            '__get_fields__', str(config[get_key])
+        url = (
+            build_url.replace('__flow__/naics', f'{flow}/hs')
+            .replace('COMM_LVL=NA6', 'COMM_LVL=HS10')
+            .replace('__get_fields__', str(config[get_key]))
         )
+        if f'/{flow}/hs?' not in url or 'COMM_LVL=HS10' not in url:
+            raise ValueError(f'Census USA Trade url not rewritten to HS10: {url}')
         urls.append(url)
     return urls
 
@@ -200,14 +231,121 @@ def _parse_export_with_df(raw: pd.DataFrame) -> pd.DataFrame:
     return melted
 
 
+def _load_input(source: str, name: str, year: int | None = None) -> pd.DataFrame:
+    """A cached Census_USATrade input file, from local input_data or GCS."""
+    kwargs = {'source': source, 'year': year}
+    return load_from_gcs(
+        name=name,
+        sub_bucket=gcs_extract_input_sub_bucket_from_kwargs(kwargs),
+        local_dir=load_local_extract_input_dir(kwargs),
+        loader=lambda pth: pd.read_csv(pth, dtype=str),
+    )
+
+
+def _hs10_values(
+    raw: pd.DataFrame, value_col: str, df_code: str | None = None
+) -> pd.Series:
+    """One value field by 10-digit product code, USD; exports for one ``DF``."""
+    code_col = 'E_COMMODITY' if 'E_COMMODITY' in raw.columns else 'I_COMMODITY'
+    rows = raw
+    if df_code is not None:
+        rows = raw.loc[raw['DF'].astype(str).str.strip() == df_code]
+    return (
+        pd.to_numeric(rows[value_col], errors='coerce')
+        .fillna(0.0)
+        .groupby(rows[code_col].astype(str).str.zfill(10))
+        .sum()
+    )
+
+
+def _parse_hs10(
+    raw: pd.DataFrame, year: int, source: str, config: dict[str, Any]
+) -> pd.DataFrame:
+    """Assign product-code trade to NAICS on the current concordance (#1174).
+
+    Exports: domestic exports and re-exports (``DF`` 1 and 2) are assigned
+    separately, both on the mix of gross 2024 exports. Imports: each value field
+    is assigned on the mix of 2024 customs value (``GEN_VAL_YR``), so a product
+    code's duties, charges and values split alike and the duty rate built from
+    them (``trade.duties``) is unchanged within a code.
+    """
+    flow = _EXPORT_FLOW if 'E_COMMODITY' in raw.columns else _IMPORT_FLOW
+    concordances = concordance_by_year(_load_input(source, concordance_csv(flow)))
+    successors = hs6_successors(_load_input(source, HS_CORRELATION_CSV))
+    current = concordances[CURRENT_CONCORDANCE_YEAR]
+    own = concordances.get(year, current)
+    if year == CURRENT_CONCORDANCE_YEAR:
+        reference_raw = raw
+    else:
+        reference_raw = _load_input(
+            source,
+            _census_usatrade_filename(f'/{flow}/hs', CURRENT_CONCORDANCE_YEAR),
+            CURRENT_CONCORDANCE_YEAR,
+        )
+    if flow == _EXPORT_FLOW:
+        reference = _hs10_values(reference_raw, 'ALL_VAL_YR', '-')
+        series = {
+            name: _hs10_values(raw, 'ALL_VAL_YR', df_code)
+            for df_code, name in _EXPORT_FLOW_BY_DF.items()
+        }
+    else:
+        reference = _hs10_values(reference_raw, 'GEN_VAL_YR')
+        series = {
+            name: _hs10_values(raw, name)
+            for name in config['import_flow_names']
+            if name in raw.columns
+        }
+    frames = []
+    for flow_name, values in series.items():
+        totals, by_rule = assign_trade_to_naics(
+            values,
+            own=own,
+            current=current,
+            reference=reference,
+            hs6_successors=successors,
+        )
+        log.info(
+            'Census_USATrade %s %s assigned by rule, $M: %s',
+            year,
+            flow_name,
+            (by_rule / 1e6).round(0).to_dict(),
+        )
+        frames.append(
+            pd.DataFrame(
+                {
+                    'NAICS': totals.index.astype(str),
+                    'FlowName': flow_name,
+                    'FlowAmount': totals.to_numpy(),
+                    'Description': _flow_description(flow_name),
+                }
+            )
+        )
+    return pd.concat(frames, ignore_index=True)
+
+
 def census_usatrade_parse(
-    *, df_list: list[pd.DataFrame], year: str, config: dict[str, Any], **_kwargs: Any
+    *,
+    df_list: list[pd.DataFrame],
+    year: str,
+    config: dict[str, Any],
+    source: str = 'Census_USATrade',
+    **_kwargs: Any,
 ) -> pd.DataFrame:
     """Melt Census value fields to FlowName / FlowAmount in USD."""
     frames = []
     for raw in df_list:
         df = raw.copy()
         cols = {str(c).upper(): c for c in df.columns}
+        if 'E_COMMODITY' in cols or 'I_COMMODITY' in cols:
+            frames.append(
+                _parse_hs10(
+                    df.rename(columns={v: k for k, v in cols.items()}),
+                    int(year),
+                    source,
+                    config,
+                )
+            )
+            continue
         if 'NAICS' not in cols:
             raise ValueError('Census USA Trade dump missing NAICS column')
         if 'ALL_VAL_YR' in cols:
