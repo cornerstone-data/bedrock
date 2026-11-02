@@ -27,6 +27,7 @@ def make_from_sut(
     supply_block: pd.DataFrame,
     tax_rows: pd.DataFrame,
     year: int,
+    wedge_cells: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Return an industry x commodity Make table at producer prices.
 
@@ -44,6 +45,13 @@ def make_from_sut(
 
     Customs duties are the one zero-output exception: BEA books the whole
     amount on the synthetic ``4200ID`` industry/commodity cell.
+
+    ``wedge_cells`` (industry x commodity, from
+    :func:`~bedrock.transform.iot.nowcast_va_taxes.make_wedge_cells`) replaces
+    the output-mix spread with the allocator's own cells, so each commodity's
+    wedge is the product tax and subsidy it carries in the Supply table rather
+    than a share of its producers' totals (#1161). Its row sums must equal
+    ``T00TOP + T00SUB``.
     """
     if not isinstance(supply_block, pd.DataFrame) or not isinstance(
         tax_rows, pd.DataFrame
@@ -74,6 +82,24 @@ def make_from_sut(
 
     wedge = top + sub
     output = basic.sum(axis=1)
+    if wedge_cells is not None:
+        cells = wedge_cells.reindex_like(basic).fillna(0.0)
+        row_gap = (cells.sum(axis=1) - wedge).abs()
+        if float(row_gap.max()) > MILLION_CURRENCY_TO_CURRENCY:
+            raise ValueError(
+                f'{year} wedge cells do not sum to T00TOP + T00SUB; worst '
+                f'industry {row_gap.idxmax()} is off by {row_gap.max():,.0f}'
+            )
+        make = basic + cells
+        expected = output + cells.sum(axis=1)
+        gap = (make.sum(axis=1) - expected).abs()
+        if float(gap.max()) > 1e-3:
+            raise AssertionError(
+                f'{year} Make conversion failed to conserve the industry wedge; '
+                f'max gap {gap.max():,.6f}'
+            )
+        return make
+
     shares = basic.div(output.replace(0.0, np.nan), axis=0).fillna(0.0)
     make = basic + shares.mul(wedge, axis=0)
 
@@ -143,6 +169,7 @@ def check() -> int:
     from bedrock.transform.iot.nowcast_va_taxes import (  # noqa: PLC0415
         government_industries,
         make_block,
+        make_wedge_cells,
         trade_industries,
         va_tax_rows,
     )
@@ -159,7 +186,9 @@ def check() -> int:
         columns=list(USA_2017_INDUSTRY_CODES),
     )
     taxes = va_tax_rows(year, block=supply)
-    actual = make_from_sut(supply, taxes, year)
+    actual = make_from_sut(
+        supply, taxes, year, wedge_cells=make_wedge_cells(year, block=supply)
+    )
     expected = load_2017_V_before_redef_usa().reindex_like(actual)
     _difference_report(actual, expected, trade_industries())
 

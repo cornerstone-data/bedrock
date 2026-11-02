@@ -67,6 +67,7 @@ from typing import Any
 import pandas as pd
 
 from bedrock.extract.bea.BEA_NIPA import extract_table_info  # noqa: F401
+from bedrock.extract.iot.gdp import BEA_DATA_VERSION
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
 from bedrock.utils.io.gcp import download_extract_input_from_gcs_if_not_exists
 from bedrock.utils.io.local_extract_input_data import local_extract_input_dir
@@ -74,7 +75,12 @@ from bedrock.utils.mapping.location import US_FIPS
 
 #: One archive holds every table and every year, so there is one file to cache
 #: rather than one per year -- as with ``BEA_NIPA``'s ``FlatFiles.ZIP``.
-GDP_BY_INDUSTRY_ZIP = 'GDPbyInd.zip'
+#:
+#: Named by ``BEA_DATA_VERSION`` so the archive moves with gross output: both must
+#: be one BEA annual update (``bea_annual_update``). BEA serves the archive as
+#: ``GDPbyInd.zip`` whatever the release; the unversioned ``GDPbyInd.zip`` on GCS
+#: is the June 2026 release, which still carries the 2025 annual update's years.
+GDP_BY_INDUSTRY_ZIP = f'GDPbyInd_{BEA_DATA_VERSION}.zip'
 
 #: ``TVA113`` publishes in millions of dollars; the FBA is in dollars, matching
 #: ``BEA_NIPA``.

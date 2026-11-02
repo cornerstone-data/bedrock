@@ -187,6 +187,7 @@ import pandas as pd
 from bedrock.extract.iot.constants import GCS_USA_SUP_DIR
 from bedrock.extract.iot.io_2017 import (
     LOCAL_USA_SUP_DIR,
+    SUMMARY_SUT_MAPPING,
     _load_2017_detail_supply_use_usa,
     _load_benchmark_detail_supply_use_usa,
 )
@@ -471,18 +472,18 @@ def commodity_price_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
 
 #: The summary Supply workbook the margin leg reads, for **every** year.
 #:
-#: ``_load_usa_summary_sut`` pins the vintage by year -- 2017-2022 to the legacy
-#: workbook, 2023-2024 to the current one -- so that BEA's revisions do not move
-#: published FBAs. That is right for an FBA and wrong for a *ratio* of two years,
-#: which would otherwise take its numerator and denominator off different
-#: vintages. Measured: the two vintages disagree by a median 0.50pp on 2020's
+#: Since #1157 ``_load_usa_summary_sut`` reads this workbook for every year too.
+#: Before that it pinned 2017-2022 to the legacy workbook, which would have taken
+#: a *ratio* of two years' numerator and denominator off different vintages.
+#: Measured: the two vintages disagree by a median 0.50pp on 2020's
 #: margin rates and 1.20pp on 2022's. ✅ They agree **exactly** on 2017 -- BEA
 #: does not revise the benchmark year -- so reading one vintage throughout costs
 #: nothing at the base and removes the seam at the target.
-SUMMARY_SUPPLY_VINTAGE = 'Supply_Tables_1997-2024_Summary.xlsx'
+SUMMARY_SUPPLY_VINTAGE = SUMMARY_SUT_MAPPING['Supply_summary']
 
 #: The years :data:`SUMMARY_SUPPLY_VINTAGE` carries a sheet for, and so the years
-#: the margin leg of the deflator exists at all. 1997-2024, contiguous.
+#: the margin leg of the deflator exists at all. 1997-2024, contiguous. The 2026
+#: update's workbook adds 2025; it stays out until the nowcast reaches 2025 (#707).
 #:
 #: ⚠️ **This is a separate constraint from :data:`INTERMEDIATE_YEARS`**, which is
 #: bounded by gross output. They happen to agree at the right-hand end today, so
@@ -613,8 +614,8 @@ def fitted_regime_theta(year: int, base: int = SEED_YEAR) -> float:
 def _summary_supply(year: int) -> pd.DataFrame:
     """One year's sheet of the summary Supply SUT, indexed by commodity code.
 
-    Read off :data:`SUMMARY_SUPPLY_VINTAGE` for every year rather than through
-    ``_load_usa_summary_sut``; see there for why.
+    Read off :data:`SUMMARY_SUPPLY_VINTAGE` for every year, the same workbook
+    ``_load_usa_summary_sut`` reads since #1157.
     """
     supply = load_from_gcs(
         name=SUMMARY_SUPPLY_VINTAGE,

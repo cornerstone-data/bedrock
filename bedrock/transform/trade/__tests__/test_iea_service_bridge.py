@@ -11,7 +11,9 @@ alone; these tests pin that invariant on the committed crosswalk.
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
+from bedrock.transform.trade import utilities
 from bedrock.transform.trade.utilities import IEA_IMPORTS_CROSSWALK_CSV
 
 
@@ -36,3 +38,56 @@ def test_noncomparable_leaves_map_to_s00300_alone() -> None:
         'these S00300 leaves also map to commodities, so summing their full '
         f'value into S00300 double-counts: {sorted(other["Activity"])}'
     )
+
+
+# --- suppressed IEA categories (#904, #1172) ---------------------------------
+
+NAN = float('nan')
+
+
+def _filled(values: list[float]) -> list[float]:
+    panel = pd.DataFrame(
+        [values], index=['leaf'], columns=range(2019, 2019 + len(values))
+    )
+    return utilities.interpolate_suppressed(panel).iloc[0].tolist()
+
+
+def test_interior_gap_is_geometric_between_positive_endpoints() -> None:
+    assert _filled([100.0, NAN, NAN, 800.0]) == pytest.approx(
+        [100.0, 200.0, 400.0, 800.0]
+    )
+
+
+def test_interior_gap_with_a_zero_endpoint_is_linear() -> None:
+    assert _filled([30.0, NAN, 0.0]) == pytest.approx([30.0, 15.0, 0.0])
+
+
+def test_edge_gaps_and_unobserved_rows_stay_suppressed() -> None:
+    assert _filled([NAN, 5.0, 6.0, NAN]) == pytest.approx(
+        [NAN, 5.0, 6.0, NAN], nan_ok=True
+    )
+    assert all(pd.isna(_filled([NAN, NAN, NAN])))
+
+
+def test_only_categories_the_fba_flags_as_suppressed_are_filled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A published zero stays zero; a flagged one is filled from its neighbours."""
+    panel = pd.DataFrame(
+        {2020: [100.0, 0.0], 2021: [NAN, NAN], 2022: [400.0, 0.0]},
+        index=['Suppressed', 'TrueZero'],
+    )
+    monkeypatch.setattr(utilities, '_iea_published_panel', lambda flow: panel)
+    fba = pd.DataFrame(
+        {
+            'FlowName': ['Imports', 'Imports'],
+            'ActivityProducedBy': ['Suppressed', 'TrueZero'],
+            'FlowAmount': [0.0, 0.0],
+            'Suppressed': ['(D)', None],
+        }
+    )
+    now = utilities._iea_category_totals(fba, 'Imports')
+
+    out = utilities._fill_suppressed_categories(now, fba, 'Imports', 2021)
+
+    assert out.to_dict() == pytest.approx({'Suppressed': 200.0, 'TrueZero': 0.0})

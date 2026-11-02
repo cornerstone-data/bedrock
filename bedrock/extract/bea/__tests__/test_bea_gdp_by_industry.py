@@ -18,6 +18,7 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.bea.BEA_GDPbyIndustry import (
+    GDP_BY_INDUSTRY_ZIP,
     extract_table_info,
     gdp_by_industry_local_path,
 )
@@ -77,7 +78,7 @@ def _archive_missing() -> bool:
 
 requires_archive = pytest.mark.skipif(
     _archive_missing(),
-    reason='GDPbyInd.zip is not cached under extract/input_data',
+    reason=f'{GDP_BY_INDUSTRY_ZIP} is not cached under extract/input_data',
 )
 
 

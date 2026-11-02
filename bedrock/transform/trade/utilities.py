@@ -411,6 +411,100 @@ def _iea_category_totals(fba: pd.DataFrame, flow: str) -> pd.Series:
     )
 
 
+#: The BEA_IEA years the suppression fill reads (``BEA_IEA.yaml`` ``years``).
+IEA_YEARS: tuple[int, ...] = tuple(range(2017, 2025))
+
+
+def _iea_suppressed(fba: pd.DataFrame, flow: str) -> list[str]:
+    """IEA categories BEA suppressed (``(D)``) for one trade direction."""
+    frame = pd.DataFrame(fba)
+    if 'Suppressed' not in frame.columns:
+        return []
+    rows = frame[(frame['FlowName'].astype(str) == flow) & frame['Suppressed'].notna()]
+    return sorted(rows['ActivityProducedBy'].astype(str).unique())
+
+
+def interpolate_suppressed(panel: pd.DataFrame) -> pd.DataFrame:
+    """Fill suppressed cells that lie between two observed years of the same row.
+
+    *panel* is service category x year, NaN where BEA suppresses the value
+    (``(D)``). A gap with an observation on both sides is filled geometrically
+    between the two endpoints (constant growth) when both are positive,
+    linearly otherwise. Gaps at either end of the span, and rows never
+    observed, stay NaN: there is no second endpoint to interpolate to.
+
+    Graded by hiding published IEA values (#1172): for a one-year gap the
+    median error is 6.4% geometric and 6.3% linear, against 9.9% for carrying
+    the last year forward and 18.7% for holding the 2017 level (growth = 1).
+    Hiding 2020 alone, the COVID dip a smooth path cannot see, it is 7.8%
+    against 11.1% and 18.0%. Geometric keeps a positive series positive and
+    matches the interpolation the Step 3 seed uses between censuses.
+    """
+    out = panel.astype(float)
+    years = sorted(int(y) for y in out.columns)
+    out.columns = [int(y) for y in out.columns]
+    out = out[years]
+    for row in out.index:
+        values = out.loc[row]
+        observed = [y for y in years if pd.notna(values[y])]
+        for before, after in zip(observed, observed[1:]):
+            start, end = float(values[before]), float(values[after])
+            for y in years:
+                if not before < y < after:
+                    continue
+                t = (y - before) / (after - before)
+                if start > 0 and end > 0:
+                    out.loc[row, y] = start * (end / start) ** t
+                else:
+                    out.loc[row, y] = start + (end - start) * t
+    return out
+
+
+@functools.cache
+def _iea_published_panel(flow: str) -> pd.DataFrame:
+    """Every IEA year's category totals, USD, NaN where BEA suppressed them."""
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    columns = {}
+    for year in IEA_YEARS:
+        fba = getFlowByActivity(IEA_SOURCE, year)
+        totals = _iea_category_totals(fba, flow)
+        totals[_iea_suppressed(fba, flow)] = float('nan')
+        columns[year] = totals
+    return pd.DataFrame(columns)
+
+
+def _fill_suppressed_categories(
+    now: pd.Series, fba: pd.DataFrame, flow: str, year: int
+) -> pd.Series:
+    """*now* with this year's suppressed categories filled between observed years.
+
+    The suppressed values stay zero on the ``BEA_IEA`` flow-by-activity table,
+    which holds only what BEA published; the fill is part of building the
+    trade flow-by-sector tables (#904). A category with no observation on one
+    side keeps its zero, and the bridge then holds it at its 2017 weight.
+    """
+    import logging  # noqa: PLC0415
+
+    suppressed = _iea_suppressed(fba, flow)
+    if not suppressed:
+        return now
+    panel = _iea_published_panel(flow).reindex(suppressed)
+    panel[year] = float('nan')
+    filled = interpolate_suppressed(panel)[year].dropna()
+    now = now.copy()
+    now[filled.index] = filled
+    for category, value in filled.items():
+        logging.getLogger(__name__).info(
+            'BEA_IEA %s %s %s suppressed; interpolated %.0f $M',
+            year,
+            flow,
+            category,
+            value / 1e6,
+        )
+    return now
+
+
 def _bridge_iea_services(
     fba: FlowByActivity,
     flow: str,
@@ -427,6 +521,9 @@ def _bridge_iea_services(
     bridge = pd.read_csv(bridge_csv, dtype={'commodity': str})
     now = _iea_category_totals(fba, flow)
     frame_year = pd.to_numeric(pd.DataFrame(fba)['Year'], errors='coerce').dropna()
+    years = set(frame_year.astype(int).unique())
+    if len(years) == 1:
+        now = _fill_suppressed_categories(now, fba, flow, years.pop())
     if set(frame_year.astype(int).unique()) == {IEA_ANCHOR_YEAR}:
         # The frame being bridged is the anchor year, so it is its own base.
         base = now

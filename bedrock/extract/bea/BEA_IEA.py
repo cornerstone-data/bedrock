@@ -71,7 +71,13 @@ def bea_iea_load_gcs(**kwargs: Any) -> pd.DataFrame:
 def bea_iea_parse(
     *, df_list: list[pd.DataFrame], year: str, **_kwargs: Any
 ) -> pd.DataFrame:
-    """Format TypeOfService rows; convert million-USD DataValue to USD."""
+    """Format TypeOfService rows; convert million-USD DataValue to USD.
+
+    A value BEA suppresses (``(D)``) is stored as zero with its note in
+    ``Suppressed``, as the Census sources do. Recovering it is left to the
+    flow-by-sector step that uses it (``bridge_iea_service_*``, #904), so this
+    table holds only what BEA published.
+    """
     df = pd.concat(df_list, ignore_index=True)
     if 'TypeOfService' not in df.columns or 'DataValue' not in df.columns:
         raise ValueError('BEA IntlServTrade dump missing TypeOfService or DataValue')
@@ -79,13 +85,21 @@ def bea_iea_parse(
     if direction_col is None:
         raise ValueError('BEA IntlServTrade dump missing TradeDirection')
 
+    values = pd.to_numeric(df['DataValue'], errors='coerce')
+    notes = (
+        df['NoteRef'].astype(str).str.strip()
+        if 'NoteRef' in df.columns
+        else pd.Series('', index=df.index)
+    )
     out = pd.DataFrame(
         {
             'ActivityProducedBy': df['TypeOfService'].astype(str),
             'FlowName': df[direction_col].astype(str),
-            'FlowAmount': pd.to_numeric(df['DataValue'], errors='coerce').fillna(0.0)
-            * _MILLION_TO_USD,
+            'FlowAmount': values.fillna(0.0) * _MILLION_TO_USD,
             'Description': df[direction_col].astype(str).str.lower(),
+            'Suppressed': notes.where(notes.ne('') & notes.ne('nan'), '(D)').where(
+                values.isna()
+            ),
         }
     )
     out['ActivityConsumedBy'] = ''
