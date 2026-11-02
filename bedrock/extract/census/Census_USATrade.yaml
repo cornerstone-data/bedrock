@@ -36,11 +36,17 @@ years:
 #   CAL_DUT_YR  calculated import duties
 #   GEN_CHA_YR  general imports, c.i.f. charges (freight/insurance wedge vs customs)
 #   ALL_VAL_YR  exports, FAS-family total value (free alongside ship)
-#   DF          exports only — Census returns three values per NAICS:
-#               '-' gross (dropped at parse), '1' domestic, '2' re-exports.
+#   DF          exports only — Census returns three values per code:
+#               '-' gross, '1' domestic, '2' re-exports.
 #               Parsed to ALL_VAL_YR_DOM / ALL_VAL_YR_FGN (#762).
-import_get_fields: NAICS,GEN_CIF_YR,GEN_VAL_YR,CAL_DUT_YR,GEN_CHA_YR
-export_get_fields: NAICS,ALL_VAL_YR,DF
+# Both directions are read from the hs endpoints at HS10 (E_COMMODITY, the
+# 10-digit Schedule B code; I_COMMODITY, the 10-digit HTS code) and assigned to
+# NAICS in the parse on the 2024 concordance (#1174); the url helper rewrites
+# the naics url above. The parse also reads the export and import concordance
+# CSVs, HS2022_HS2017_correlation.csv and the 2024 HS10 dumps (see
+# census_trade_concordance.py to refresh them).
+import_get_fields: I_COMMODITY,GEN_CIF_YR,GEN_VAL_YR,CAL_DUT_YR,GEN_CHA_YR
+export_get_fields: E_COMMODITY,ALL_VAL_YR,DF
 import_flow_names:
   - GEN_CIF_YR
   - GEN_VAL_YR
