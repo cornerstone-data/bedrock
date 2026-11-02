@@ -187,6 +187,7 @@ import pandas as pd
 from bedrock.extract.iot.constants import GCS_USA_SUP_DIR
 from bedrock.extract.iot.io_2017 import (
     LOCAL_USA_SUP_DIR,
+    SUMMARY_SUT_MAPPING,
     _load_2017_detail_supply_use_usa,
     _load_benchmark_detail_supply_use_usa,
 )
@@ -478,10 +479,11 @@ def commodity_price_factor(year: int, base: int = SEED_YEAR) -> pd.Series:
 #: margin rates and 1.20pp on 2022's. ✅ They agree **exactly** on 2017 -- BEA
 #: does not revise the benchmark year -- so reading one vintage throughout costs
 #: nothing at the base and removes the seam at the target.
-SUMMARY_SUPPLY_VINTAGE = 'Supply_Tables_1997-2024_Summary.xlsx'
+SUMMARY_SUPPLY_VINTAGE = SUMMARY_SUT_MAPPING['Supply_summary']
 
 #: The years :data:`SUMMARY_SUPPLY_VINTAGE` carries a sheet for, and so the years
-#: the margin leg of the deflator exists at all. 1997-2024, contiguous.
+#: the margin leg of the deflator exists at all. 1997-2024, contiguous. The 2026
+#: update's workbook adds 2025; it stays out until the nowcast reaches 2025 (#707).
 #:
 #: ⚠️ **This is a separate constraint from :data:`INTERMEDIATE_YEARS`**, which is
 #: bounded by gross output. They happen to agree at the right-hand end today, so
