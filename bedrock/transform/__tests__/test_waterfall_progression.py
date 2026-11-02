@@ -19,6 +19,8 @@ Not rebuilt: pinned USEEIO baseline; historical v03 G2 / G3 / FINAL;
 historical v05 US ladder G2 / G3 / G4 / FINAL (plot registries only).
 
 Pins are sheet ``N_new`` x canonical q (``waterfall_progression --sheet-n-new``).
+The live values equal the sheet values except G1-G3, which moved with the 2026
+BEA annual update (#1167); see ``EXPECTED_LIVE_N_NEW``.
 Early G1* sheets are the 2026-10-02 remint on ``main`` in the v0.5 Diagnostics
 Drive folder. US ladder G2-G5 sheets are the 2026-10-12 USEEIO cut on
 ``dfe743bc`` in the v0.6 Diagnostics Drive folder. FINAL is the 2026-10-13
@@ -46,8 +48,8 @@ from bedrock.utils.validation.waterfall_progression import (
 )
 
 # q-weighted sheet N_new (kgCO2e/USD). Source: --sheet-n-new with
-# releases.v0_6_0 scaled_q_USA. Live 1^T B L matches these.
-EXPECTED_LIVE_N_NEW = {
+# releases.v0_6_0 scaled_q_USA. The sheets are the published record.
+EXPECTED_SHEET_N_NEW = {
     'v03_waterfall_useeio_g1_schema_ghg': 0.3114424,
     'v03_waterfall_ceda_g1a_schema_ghg': 0.2532430,
     'v03_waterfall_ceda_g1b_waste_disagg': 0.2556329,
@@ -58,8 +60,21 @@ EXPECTED_LIVE_N_NEW = {
     '2025_usa_cornerstone_v0_6': 0.2256090,
 }
 
+# Live 1^T B L for the same configs. It matches the sheets except where an input
+# the config does not pin has moved since the sheet was cut:
+# - G1, G2 and G3 read BEA's published tables, whose release is fixed in code,
+#   not in the config. #1167 moved them to the 2026 annual update (gross output
+#   and the summary supply-use tables), which raises N by 0.7-1.0%. G4 and G5
+#   pin their MUT and GHG FBS and still match.
+EXPECTED_LIVE_N_NEW = {
+    **EXPECTED_SHEET_N_NEW,
+    'v03_waterfall_useeio_g1_schema_ghg': 0.3136028,
+    'v06_waterfall_g2_methods': 0.2403652,
+    'v06_waterfall_g3_data': 0.2420125,
+}
+
 # Assessment USEEIO-track bars (diagnostics columns x canonical v0.6 q).
-# Pin uses N_old_inflated on the G2 sheet; G2–FINAL use N_new (= live pins).
+# Pin uses N_old_inflated on the G2 sheet; G2–FINAL use N_new (= sheet values).
 EXPECTED_ASSESSMENT_USEEIO_BEDROCK_N = {
     'pinned_useeio_baseline': 0.2486568,
     'G2': 0.2386033,
@@ -99,10 +114,10 @@ def test_live_waterfall_config_set_matches_registries() -> None:
 
 @pytest.mark.eeio_integration
 def test_sheet_n_new_pins_match_expected() -> None:
-    """Diagnostics N_new × canonical q matches the live expected pins."""
+    """Diagnostics N_new × canonical q matches the recorded sheet values."""
     levels = sheet_n_new_levels()
-    assert set(levels) == set(EXPECTED_LIVE_N_NEW)
-    for config_name, expected in EXPECTED_LIVE_N_NEW.items():
+    assert set(levels) == set(EXPECTED_SHEET_N_NEW)
+    for config_name, expected in EXPECTED_SHEET_N_NEW.items():
         assert levels[config_name] == pytest.approx(
             expected, abs=ATOL_KG_PER_USD
         ), config_name
