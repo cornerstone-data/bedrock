@@ -31,15 +31,17 @@ files:
 # summary grain) and UGdpByInd.zip (underlying detail, ~198 industry rows).
 # extract/iot/gdp.py already reads UGdpByInd's GrossOutput.xlsx - as UGO305-A
 # detail gross output and UGO304-A detail price index - but gets it from GCS as a
-# manually extracted workbook, pinned to BEA_DATA_VERSION = "2025Q2". So
-# GrossOutput.xlsx is duplicated between the two sources.
+# manually extracted workbook, pinned to BEA_DATA_VERSION. So GrossOutput.xlsx is
+# duplicated between the two sources.
 #
-# ⚠️ Do not merge them by moving files. The 2025Q2 pin is deliberate (Q2 is the
-# annual release carrying the Detail update) and the two archives are currently
-# DIFFERENT vintages - this one says "published June 25, 2026", the
-# underlying-detail one "September 25, 2025". Dropping the pin would silently
-# move gross output under electricity disaggregation and
-# derived_gross_industry_output. See #694 for the proposed shape.
+# ⚠️ The archive is cached as GDPbyInd_<BEA_DATA_VERSION>.zip, so it moves with
+# gross output: both must be one BEA annual update, and
+# bea_annual_update.assert_same_bea_annual_update raises if they are not. BEA
+# serves every release, quarterly ones included, as GDPbyInd.zip. The unversioned
+# GDPbyInd.zip on GCS is the June 2026 quarterly release, whose annual table still
+# ends in 2024 (the 2025 update); GDPbyInd_2026Q2.zip is the 30 September 2026
+# annual update. extract_data_from_raw_sources: True writes whatever BEA serves
+# today under the current version's name, so check its "Data published" line.
 #
 # ⚠️ There is no underlying-detail counterpart to TVA113. UGdpByInd's
 # ValueAdded.xlsx carries UVA201-UVA210 - quantity and price indexes, real value

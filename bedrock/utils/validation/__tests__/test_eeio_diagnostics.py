@@ -21,6 +21,7 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x,
     derive_x_after_redefinition,
     derive_Y_and_trade_scaled,
+    derive_y_dom_from_use_final_demand,
     derive_y_nab,
     derive_Ytot_matrix_set,
 )
@@ -394,6 +395,9 @@ def test_compare_output_and_L_y(
     output = Aq.scaled_q if modelType == "Commodity" else derive_x()
     if use_domestic:
         # y_nab from backcompute_y_from_A_and_q(Adom, scaled_q); unclipped.
+        # Circular: y_nab = (I - Adom) q, so this only checks that L inverts
+        # (I - Adom). The independent check is
+        # test_domestic_L_y_from_use_final_demand_equals_q.
         y = derive_y_nab()
         L = formulas.compute_L_matrix(A=Aq.Adom)
     else:
@@ -407,6 +411,41 @@ def test_compare_output_and_L_y(
         output=output, L=L, y=y, tolerance=0.01, include_details=True
     )
     assert len(r_output_L_y_validation.failing_sectors) == 0
+
+
+@pytest.mark.eeio_integration
+@pytest.mark.xfail(
+    reason=(
+        'Make and Use disagree on commodity output. The pinned MUT '
+        'v0.5.0_a166975 is the pre-rebuild table ($1.6T, 286 of 405 sectors). '
+        'On the #1162 rebuild (#1170) 15 sectors still fail: the waste '
+        'children (562*, #1165), 331410 and S00402 (q = 0).'
+    ),
+)
+def test_domestic_L_y_from_use_final_demand_equals_q(
+    canonical_usa_config: None,
+) -> None:
+    """L_dom @ y = q with y read from the Use table's final-demand columns.
+
+    The domestic case of ``test_compare_output_and_L_y`` uses ``y_nab``,
+    back-computed as ``(I - Adom) q``, so it holds by construction. Here y
+    comes from the Use table alone, so a sector fails when its Make output
+    differs from its Use row (intermediate plus final demand).
+    """
+    Aq = derive_Aq_scaled()
+    result = compare_output_vs_leontief_x_demand(
+        output=Aq.scaled_q,
+        L=compute_L_matrix(A=Aq.Adom),
+        y=derive_y_dom_from_use_final_demand().reindex(
+            Aq.scaled_q.index, fill_value=0.0
+        ),
+        tolerance=0.01,
+        include_details=True,
+    )
+    assert result.passed, (
+        f'L_dom @ y_use != q ({len(result.failing_sectors)} sectors): '
+        f'{result.failing_sectors[:20]}'
+    )
 
 
 # ---------------------------------------------------------------------------
