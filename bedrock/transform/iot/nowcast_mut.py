@@ -27,7 +27,19 @@ year's own purchaser values - the year-portable design, not an approximation
 of a published number that exists. The margin columns keep BEA's
 tax-inclusive definition (``fiscal=None``): splitting a nowcast year's sales
 tax out of its trade margins needs the year's own fiscal layer, which is the
-#823 generalisation and not built here.
+#823 generalisation and not built here. Published 2017 confirms the
+convention: each good's stripped margin is its Supply ``TRADE + TRANS`` plus
+the trade-level share of its ``TOP``, to 1.1bn $M across all goods.
+
+**The anchor is only the pattern; the Supply table sets the amounts (#1161).**
+Make's tax wedge is fitted to the *balanced* tax rows and columns
+(:func:`balanced_make_wedge`), and the margin placement to each good's Supply
+margin and each margin commodity's Make output (:func:`_reconcile_placement`),
+so every commodity's producer-price Use row equals its Make output. What
+Step 6 cannot close it hands on, gated and named: where the balance moved a
+code's tax row and tax column apart, and the margin columns' failure to net
+(#809). :func:`_commodity_identity` checks that nothing else is left and the
+sidecar records both.
 
 ⚠️ **The import control is ``MCIF + MDTY``** per #816's benchmark finding;
 whether a nowcast-year ``MCIF`` is c.i.f. per commodity (making that control
@@ -54,6 +66,7 @@ import typing as ta
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.nowcast_mut_storage import (
@@ -71,12 +84,19 @@ from bedrock.transform.iot.margin_rates import (
     goods_commodities,
 )
 from bedrock.transform.iot.mut_use_to_import_matrix import import_matrix_from_use
+from bedrock.transform.iot.nowcast_product_taxes import trade_level_share
 from bedrock.transform.iot.nowcast_trade_margins import trade_commodity_prior
 from bedrock.transform.iot.nowcast_transport_margins import transport_commodity_prior
-from bedrock.transform.iot.nowcast_va_taxes import va_tax_rows
+from bedrock.transform.iot.nowcast_va_taxes import (
+    CUSTOMS_INDUSTRY,
+    t00sub_cells,
+    t00top_cells,
+    trade_commodities,
+)
 from bedrock.transform.iot.supply_to_make import make_from_sut
 from bedrock.transform.iot.sut_use_to_mut_use import (
     V00200_COMPONENTS,
+    f05000_column,
     use_producer_from_sut,
 )
 from bedrock.transform.iot.use_price_bridge import MARGIN_FAMILIES, margin_columns
@@ -105,6 +125,12 @@ NOWCAST_MUT_YEARS: tuple[int, ...] = tuple(range(2017, 2025))
 #: not noise.
 GATE_ATOL = 1.0 * MILLION_CURRENCY_TO_CURRENCY
 
+#: Stopping rule for the two biproportional fits below (the Make tax wedge and
+#: the margin reconciliation): worst constrained total, USD. A tenth of the
+#: gate tolerance, so a converged fit never trips a gate on its own rounding.
+_FIT_TOLERANCE = 0.1 * GATE_ATOL
+_FIT_ITERATIONS = 5000
+
 #: The six value-added rows of the balanced Use SUT, in balance order.
 _SUT_VA_ROWS = ('V00100', 'T00OTOP', 'T00OSUB', 'V00300', 'T00TOP', 'T00SUB')
 
@@ -132,6 +158,8 @@ class MutTables(ta.NamedTuple):
     margins: pd.DataFrame
     #: The ``Balanced_Detail_*`` stems the build read, for the sidecar.
     sources: tuple[str, ...]
+    #: The commodity identity residual Step 5 hands over, $M (#1161).
+    identity_residual: ta.Mapping[str, float] = {}
 
 
 # --- loading the Step 5 products -------------------------------------------
@@ -210,6 +238,119 @@ def _supply_block(supply: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _supply_column(supply: pd.DataFrame, name: str) -> pd.Series:
+    """One Supply column by name, commodity-indexed. The ``TRADE`` header
+    carries a trailing space in the balanced parquet."""
+    columns = {str(c).strip(): c for c in supply.columns}
+    if name not in columns:
+        raise ValueError(f'balanced Supply table has no {name} column')
+    return (
+        supply[columns[name]]
+        .astype(float)
+        .reindex(list(USA_2017_COMMODITY_CODES))
+        .fillna(0.0)
+    )
+
+
+def _fit(
+    prior: pd.DataFrame,
+    rows: pd.Series,
+    columns: pd.Series,
+    fallback: pd.DataFrame,
+) -> pd.DataFrame:
+    """Non-negative *prior* scaled to the *rows* totals and to the non-NaN
+    *columns* totals (biproportional; NaN columns are free).
+
+    A row or constrained column that has a target but no prior mass takes its
+    pattern from *fallback*, so the money is placed rather than dropped.
+
+    ⚠️ **Rows win.** Each pass ends on the row scaling, so the rows are exact
+    on return and any column the pattern cannot reach keeps the shortfall. The
+    two callers both need that order: Make's industry totals must equal the
+    balanced Use's tax rows, and each good must give up exactly its Supply
+    margin. Stops at :data:`_FIT_TOLERANCE` on the columns or after
+    :data:`_FIT_ITERATIONS`; what is left shows in the identity report.
+    """
+    cells = prior.clip(lower=0.0).copy()
+    backup = fallback.reindex_like(cells).fillna(0.0).clip(lower=0.0)
+    empty_rows = (cells.sum(axis=1) <= 0.0) & (rows > 0.0)
+    cells.loc[empty_rows] = backup.loc[empty_rows]
+    constrained = columns.notna()
+    empty_columns = (cells.sum(axis=0) <= 0.0) & constrained & (columns > 0.0)
+    cells.loc[:, empty_columns] = backup.loc[:, empty_columns]
+
+    x = cells.to_numpy(copy=True)
+    row_target = rows.reindex(cells.index).fillna(0.0).to_numpy()
+    column_target = columns.reindex(cells.columns).to_numpy()
+    mask = ~np.isnan(column_target)
+    for _ in range(_FIT_ITERATIONS):
+        got = x.sum(axis=0)
+        scale = np.ones_like(got)
+        np.divide(column_target, got, out=scale, where=mask & (got > 0.0))
+        x *= scale[None, :]
+        got = x.sum(axis=1)
+        x *= np.divide(row_target, got, out=np.zeros_like(got), where=got > 0.0)[
+            :, None
+        ]
+        column_gap = np.abs(x.sum(axis=0) - column_target)[mask].max(initial=0.0)
+        if column_gap <= _FIT_TOLERANCE:
+            break
+    return pd.DataFrame(x, index=cells.index, columns=cells.columns)
+
+
+def balanced_make_wedge(
+    year: int, block: pd.DataFrame, use_sut: pd.DataFrame, supply: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The Make tax wedge on the balanced taxes, industry x commodity, USD.
+
+    Returns the cells and the ``T00TOP``/``T00SUB`` rows they sum to. Step 5
+    moves both the Use table's tax rows and the Supply table's ``TOP``/``SUB``
+    columns - by 89bn $M on ``T00TOP`` in 2022 - so the pre-balance operator
+    (:func:`~bedrock.transform.iot.nowcast_va_taxes.t00top_cells`,
+    :func:`~bedrock.transform.iot.nowcast_va_taxes.t00sub_cells`) is only the
+    pattern here. Its cells are fitted to the balanced Use rows (so Make's
+    industry totals agree with ``V00200``) and to the balanced Supply columns
+    (so each commodity's wedge is the tax the Supply table charges on it,
+    #1161):
+
+    - ``TOP``: each commodity carries its producer-level share of the balanced
+      ``TOP``, ``4200ID`` carries ``MDTY``, and the wholesale and retail
+      commodity columns are free - they take the trade-level tax, which BEA
+      books inside the trade margin.
+    - ``SUB``: each commodity carries its balanced ``SUB``, scaled to the row
+      total where the balance left the two a rounding apart.
+
+    ⚠️ The balance moves the rows and the columns separately, so they can
+    disagree on one code - ``531HSO``'s ``T00SUB`` is 2,444 $M in 2017 against
+    a ``SUB`` of 2,206 on the commodity only that industry makes. No cell
+    pattern meets both; the rows win (:func:`_fit`), and the difference stays
+    on that commodity's identity, where it is a Step 5 residual to report
+    rather than a placement to fake.
+    """
+    commodities = list(USA_2017_COMMODITY_CODES)
+    industries = list(USA_2017_INDUSTRY_CODES)
+    fallback = block.reindex(index=commodities, columns=industries).fillna(0.0).T
+
+    top_rows = pd.Series(use_sut.loc['T00TOP']).reindex(industries).astype(float)
+    top_columns = _supply_column(supply, 'TOP') * (
+        1.0 - trade_level_share().reindex(commodities).fillna(0.0)
+    )
+    top_columns[CUSTOMS_INDUSTRY] += float(_supply_column(supply, 'MDTY').sum())
+    top_columns[trade_commodities()] = np.nan
+    top = _fit(t00top_cells(year, block=block), top_rows, top_columns, fallback)
+
+    sub_rows = -pd.Series(use_sut.loc['T00SUB']).reindex(industries).astype(float)
+    sub_columns = -_supply_column(supply, 'SUB')
+    if float(sub_columns.sum()) > 0.0:
+        sub_columns *= float(sub_rows.sum()) / float(sub_columns.sum())
+    sub = _fit(-t00sub_cells(year), sub_rows, sub_columns, fallback)
+
+    rows = pd.DataFrame({'T00TOP': top_rows, 'T00SUB': -sub_rows}).T.rename_axis(
+        index='value_added_code', columns='industry'
+    )
+    return top - sub, rows
+
+
 # --- the margins table ------------------------------------------------------
 
 
@@ -229,10 +370,66 @@ def margin_commodity_prior() -> dict[str, pd.DataFrame]:
     }
 
 
+#: The two families the Supply table separates: ``TRANS`` against the transport
+#: codes, ``TRADE`` against wholesale and retail together.
+RECONCILED_FAMILIES: dict[str, tuple[str, ...]] = {
+    'transport': MARGIN_FAMILIES['transport'],
+    'trade': (*MARGIN_FAMILIES['wholesale'], *MARGIN_FAMILIES['retail']),
+}
+
+
+def _reconcile_placement(
+    placed: ta.Mapping[str, pd.DataFrame],
+    purchaser: pd.DataFrame,
+    give_up: ta.Mapping[str, pd.Series],
+    book: pd.Series,
+) -> dict[str, pd.DataFrame]:
+    """Placed margin rescaled to the Supply table's margins (#1161).
+
+    Per :data:`RECONCILED_FAMILIES` entry, the goods x margin-commodity totals
+    of the placement are fitted so each good gives up *give_up* (its Supply
+    ``TRANS``; its ``TRADE`` plus the trade-level tax BEA keeps inside the
+    trade margin) and each margin commodity books *book* (what its Make output
+    leaves its producer-price Use row to carry). Each ``(good, margin
+    commodity)`` pair keeps its buyer split; a good with a target but no
+    placed margin takes its buyers' purchaser split and the family's
+    economy-wide commodity mix.
+
+    The margin columns of a balanced SUT need not net to zero (#809), so the
+    two sides of a family can disagree. The goods side is exact - it is what
+    the Supply table says each good carries - and the margin-commodity targets
+    are scaled to it, which leaves the residual on the commodities whose
+    column failed to net.
+    """
+    goods = list(purchaser.index)
+    row_total = purchaser.sum(axis=1)
+    buyer_split = purchaser.div(row_total.where(row_total > 0.0), axis=0).fillna(0.0)
+    out = dict(placed)
+    for family, codes in RECONCILED_FAMILIES.items():
+        totals = pd.DataFrame({code: placed[code].sum(axis=1) for code in codes})
+        rows = give_up[family].reindex(goods).fillna(0.0).clip(lower=0.0)
+        columns = book.reindex(list(codes)).fillna(0.0).clip(lower=0.0)
+        if float(columns.sum()) > 0.0:
+            columns *= float(rows.sum()) / float(columns.sum())
+        mix = totals.sum(axis=0) / float(totals.to_numpy().sum())
+        fallback = pd.DataFrame({code: float(mix[code]) for code in codes}, index=goods)
+        fitted = _fit(totals, rows, columns, fallback)
+        for code in codes:
+            before = totals[code]
+            scale = (fitted[code] / before.where(before > 0.0)).fillna(0.0)
+            seeded = (before <= 0.0) & (fitted[code] > 0.0)
+            out[code] = placed[code].mul(scale, axis=0) + buyer_split.mul(
+                fitted[code].where(seeded, 0.0), axis=0
+            )
+    return out
+
+
 def margins_table(
     use_sut: pd.DataFrame,
     panel: RatePanel | None = None,
     prior: ta.Mapping[str, pd.DataFrame] | None = None,
+    give_up: ta.Mapping[str, pd.Series] | None = None,
+    book: pd.Series | None = None,
 ) -> pd.DataFrame:
     """The year's hyper-detailed Margins table, USD, from the purchaser Use.
 
@@ -240,23 +437,28 @@ def margins_table(
     value columns followed by one column per margin commodity. Rows carrying
     nothing on any value column are left out.
 
-    Goods rows: ``Producers' Value`` is the panel's ``pro`` rate on the cell's
-    purchaser value, the margin columns are :func:`margin_columns`' placement
-    (tax-inclusive), and the identity ``PRO + T + W + R = PUR`` closes cell by
-    cell because the rate components sum to one. *prior* (default
+    Goods rows: the margin columns are :func:`margin_columns`' placement
+    (tax-inclusive) and ``Producers' Value`` is the purchaser value less that
+    placement, so the identity ``PRO + T + W + R = PUR`` closes cell by cell;
+    unreconciled, that is the panel's ``pro`` rate on the cell. *prior* (default
     :func:`margin_commodity_prior`) splits each family by commodity purchased,
     fitted so what each margin commodity earns from each buyer - and so its
     Use row - is the anchor placement's, gated below. Margin-commodity rows follow
     the published convention: ``Purchasers' Value`` is the buyer's direct
     purchase of the margin service, ``Producers' Value`` adds the margin
     routed onto that commodity, and the margin columns are zero.
+
+    *give_up* and *book* reconcile the placement to the Supply table's margins
+    after the anchor placement is gated (:func:`_reconcile_placement`, #1161).
+    Without them the table is the anchor placement alone, which conserves
+    margin mass but leaves each commodity's producer-price Use row off its
+    Make output.
     """
     rates = panel if panel is not None else build_rate_panel(2017)
     goods = goods_commodities()
     buyers = [b for b in BUYER_CODES if b in use_sut.columns]
     purchaser = use_sut.loc[goods, buyers].astype(float)
 
-    pro = rates.rates['pro'].reindex(index=goods, columns=buyers).fillna(1.0)
     # The panel spans all 422 buyer codes; the SUT has no F05000 column, so
     # alignment inside margin_columns grows an all-NaN column - restrict back
     # to the live buyers before anything is stored.
@@ -288,8 +490,13 @@ def margins_table(
         for code in MARGIN_COMMODITIES
     )
     _gate('margin commodity earnings per buyer (worst cell)', earnings_gap)
+    if give_up is not None:
+        if book is None:
+            raise ValueError("give_up needs the margin commodities' book too")
+        placed = _reconcile_placement(placed, purchaser, give_up, book)
 
-    wide: dict[str, pd.DataFrame] = {_PRO: pro * purchaser, _PUR: purchaser}
+    stripped = functools.reduce(lambda a, b: a + b, placed.values())
+    wide: dict[str, pd.DataFrame] = {_PRO: purchaser - stripped, _PUR: purchaser}
     for family, codes in MARGIN_FAMILIES.items():
         wide[_FAMILY_COLUMN[family]] = functools.reduce(
             lambda a, b: a + b, (placed[code] for code in codes)
@@ -330,6 +537,56 @@ def _gate(label: str, gap_usd: float) -> None:
         )
 
 
+def _commodity_identity(
+    year: int,
+    identity: pd.Series,
+    margins: pd.DataFrame,
+    give_up: ta.Mapping[str, pd.Series],
+    tax_gap: pd.Series,
+) -> dict[str, float]:
+    """Gate the commodity identity on what Step 6 controls; return the rest.
+
+    ``identity`` is Make output less the producer-price Use row. Step 6 places
+    the margins, so each good must give up exactly its Supply margin (gated).
+    It cannot place the tax wedge where the balanced Use rows and Supply
+    columns disagree, so on every other commodity the identity must equal that
+    disagreement, *tax_gap*, and nothing else (gated). What is left - the
+    disagreement and the margin columns' failure to net (#809) - is a Step 5
+    residual, returned in $M for the sidecar.
+    """
+    commodity = margins.index.get_level_values('Commodity Code')
+    goods = margins.loc[~commodity.isin(MARGIN_COMMODITIES)]
+    by_good = goods.groupby(level='Commodity Code')
+    stripped = {
+        'transport': by_good['Transportation'].sum(),
+        'trade': by_good['Wholesale'].sum() + by_good['Retail'].sum(),
+    }
+    on_goods = ~identity.index.isin(MARGIN_COMMODITIES)
+    unexplained = identity[on_goods] - tax_gap.reindex(identity.index)[on_goods]
+    for family, target in give_up.items():
+        got = stripped[family].reindex(target.index).fillna(0.0)
+        gap = (got - target.clip(lower=0.0))[on_goods]
+        _gate(
+            f'{year} {family} margin given up vs Supply (worst commodity)',
+            float(gap.abs().max()),
+        )
+        unexplained += (target - got)[on_goods]
+    _gate(
+        f'{year} commodity identity beyond the Step 5 tax disagreement '
+        f'(worst commodity, {unexplained.abs().idxmax()})',
+        float(unexplained.abs().max()),
+    )
+    million = MILLION_CURRENCY_TO_CURRENCY
+    return {
+        'net_usd_m': float(identity.sum()) / million,
+        'sum_abs_usd_m': float(identity.abs().sum()) / million,
+        'tax_disagreement_sum_abs_usd_m': float(identity[on_goods].abs().sum())
+        / million,
+        'margin_commodities_sum_abs_usd_m': float(identity[~on_goods].abs().sum())
+        / million,
+    }
+
+
 def mut_from_balanced(
     year: int,
     supply: pd.DataFrame,
@@ -350,10 +607,22 @@ def mut_from_balanced(
     industries = list(USA_2017_INDUSTRY_CODES)
     fd_columns = [c for c in use_sut.columns if c not in industries]
 
-    taxes = va_tax_rows(year, block=supply_block)
-    make = make_from_sut(supply_block, taxes, year)
+    wedge, taxes = balanced_make_wedge(year, supply_block, use_sut, supply)
+    make = make_from_sut(supply_block, taxes, year, wedge_cells=wedge)
 
-    margins = margins_table(use_sut, panel=panel)
+    output = make.sum(axis=0).reindex(commodities).fillna(0.0)
+    shortfall = (
+        output
+        - use_sut.loc[commodities, industries + fd_columns].sum(axis=1)
+        - f05000_column(bridge).reindex(commodities).fillna(0.0)
+    )
+    give_up = {
+        'transport': _supply_column(supply, 'TRANS'),
+        'trade': _supply_column(supply, 'TRADE')
+        + _supply_column(supply, 'TOP')
+        * trade_level_share().reindex(commodities).fillna(0.0),
+    }
+    margins = margins_table(use_sut, panel=panel, give_up=give_up, book=shortfall)
     goods_rows = margins.loc[
         ~margins.index.get_level_values('Commodity Code').isin(MARGIN_COMMODITIES)
     ]
@@ -385,6 +654,14 @@ def mut_from_balanced(
     ).abs()
     _gate(f'{year} V00200 collapse identity (worst industry)', float(v00200_gap.max()))
 
+    tax_target = (_supply_column(supply, 'TOP') + _supply_column(supply, 'SUB')) - (
+        give_up['trade'] - _supply_column(supply, 'TRADE')
+    )
+    tax_target[CUSTOMS_INDUSTRY] += float(_supply_column(supply, 'MDTY').sum())
+    tax_gap = wedge.sum(axis=0).reindex(commodities).fillna(0.0) - tax_target
+    identity = output - converted.loc[commodities].fillna(0.0).sum(axis=1)
+    residual = _commodity_identity(year, identity, margins, give_up, tax_gap)
+
     import_control = bridge['MCIF'].astype(float) + bridge['MDTY'].astype(float)
     imports = import_matrix_from_use(converted.loc[commodities], import_control)
     allocated = imports.drop(columns=['F05000'], errors='ignore').sum().sum()
@@ -397,6 +674,7 @@ def mut_from_balanced(
         imports=imports,
         margins=margins,
         sources=sources,
+        identity_residual=residual,
     )
 
 
@@ -464,6 +742,7 @@ def save_mut(
                     '(BEA definition); the nowcast-year fiscal split is #823'
                 ),
                 'import_control': 'MCIF + MDTY per #816; nowcast basis is #822',
+                'commodity_identity_residual': dict(tables.identity_residual),
                 'builder': 'bedrock.transform.iot.nowcast_mut',
             },
         }
