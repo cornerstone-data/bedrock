@@ -18,15 +18,21 @@ from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_buck
 # BEA_GDPbyIndustry (added in #538) fetches the sibling GDPbyInd.zip straight
 # from BEA instead, so GrossOutput.xlsx is duplicated across the two sources.
 # Consolidating them into one industry-accounts source is filed as #694; the
-# thing that must survive it is this pin, since the two archives are currently
-# different vintages.
+# thing that must survive it is this pin. BEA_GDPbyIndustry names its cached
+# archive by this version so the two stay on one annual update.
 #
 # ⚠️ BEA_DATA_VERSION pins every loader here by default -- gross output,
 # intermediate inputs and value added included. Only the price-index path
 # (derived_price_index) passes ``USAConfig.bea_price_index_vintage`` instead,
 # so moving that config does not move the nowcast's output controls.
+#
+# ⚠️ Move this together with the summary supply-use workbooks
+# (io_2017.SUMMARY_SUT_MAPPING) and the GDP-by-industry archive
+# (BEA_GDPbyIndustry): all three must be one BEA annual update, and
+# bea_annual_update.assert_same_bea_annual_update raises if they are not.
+# "2026Q2" is the 2026 annual update, published 30 September 2026.
 BeaDataVersion = ta.Literal["2025Q2", "2026Q2"]
-BEA_DATA_VERSION: BeaDataVersion = "2025Q2"
+BEA_DATA_VERSION: BeaDataVersion = "2026Q2"
 SECTOR_NAME_COL = "sector_name"
 
 SUMMARY_LINE_NUMBER_COL = "summary_line_no"
@@ -121,6 +127,20 @@ def load_go_detail(version: BeaDataVersion = BEA_DATA_VERSION) -> pd.DataFrame:
     Unit is million USD
     """
     return _load_detail_table("UGO305-A", version)
+
+
+def load_go_detail_years(version: BeaDataVersion = BEA_DATA_VERSION) -> ta.List[int]:
+    """The years the detail gross output table (UGO305-A) publishes for ``version``."""
+    _download_detail_table(version)
+    header = pd.read_excel(
+        os.path.join(
+            _local_gdp_detail_dir(version), f"{version}_DetailGrossOutput.xlsx"
+        ),
+        sheet_name="UGO305-A",
+        skiprows=7,
+        nrows=0,
+    )
+    return [int(c) for c in header.columns.astype(str) if c.strip().isdigit()]
 
 
 def _load_detail_table(

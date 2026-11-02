@@ -88,6 +88,8 @@ USA_SUMMARY_SUT_NAMES = ta.Literal[
     "Supply_summary",
     "Use_SUT_summary",
 ]
+# The superseded 2017-2022 release. No loader reads it since #1157; kept to name
+# the workbook for analyses that compare the two releases.
 USA_SUMMARY_SUT_MAPPING_2017_2022 = {
     "Supply_summary": "Supply_Tables_2017-2022_Summary.xlsx",
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_2017-2022_Summary.xlsx",
@@ -103,9 +105,19 @@ USA_SUMMARY_SUT_MAPPING_2017_2022 = {
 # stable, but it would put a vintage boundary between 2023 and 2024, so their
 # year-over-year step would carry a 0.3% revision artifact - and these are the RAS
 # control totals for exactly those years.
+#
+# The 2025 annual update. Superseded by the 2026 update below; kept to name the
+# workbook for analyses that compare the two releases.
 USA_SUMMARY_SUT_MAPPING_1997_2024 = {
     "Supply_summary": "Supply_Tables_1997-2024_Summary.xlsx",
     "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2024_Summary.xlsx",
+}
+# The 2026 annual update (published 30 September 2026), from the same SUPPLY-USE.zip
+# and renamed on upload the same way. It leaves 2017-2020 unchanged and revises
+# 2021-2024.
+USA_SUMMARY_SUT_MAPPING_1997_2025 = {
+    "Supply_summary": "Supply_Tables_1997-2025_Summary.xlsx",
+    "Use_SUT_summary": "Use_Tables_Supply-Use_Framework_1997-2025_Summary.xlsx",
 }
 
 USA_DETAIL_MUT_YEARS = ta.Literal[2007, 2012, 2017]
@@ -131,10 +143,9 @@ USA_SUMMARY_MUT_YEARS = ta.Literal[
 ]
 USA_GROSS_INDUSTRY_OUTPUT_YEARS = USA_SUMMARY_MUT_YEARS
 
-# Years wired up for summary SUT. It stops at 2017 on the left because that is where
-# the pinned 2017-2022 workbook starts, not because of the data: the 1997-YYYY
-# workbooks carry 1997-2016 on the same schema, so earlier years can be added here
-# once they are given a vintage to pin to in `_load_usa_summary_sut`.
+# Years wired up for summary SUT. It stops at 2017 on the left for historical
+# reasons, not because of the data: the 1997-2024 workbook carries 1997-2016 on the
+# same schema, so earlier years can be added here.
 USA_SUMMARY_SUT_YEARS = ta.Literal[
     2017,
     2018,
