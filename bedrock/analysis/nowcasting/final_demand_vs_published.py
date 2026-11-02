@@ -14,13 +14,17 @@ on disk by modification time.  This module takes the build label explicitly
 (default: the canonical config's ``nowcast_mut_vintage``) and fetches it from
 GCS when it is not local, so the answer is about the tables the model ships.
 
-⚠️ **Most final-demand columns cannot fail this check by construction.**  The
-NIPA-built columns carry an observed annual total, and
+⚠️ **Most final-demand columns rarely fail this check.**  The NIPA-built
+columns carry an observed annual total, and
 :mod:`~bedrock.transform.iot.nowcast_fd_conditioning` scales them onto the
-published summary composition, so they sit within 0.6% every year.  The
-columns that can drift are the ones built outside NIPA: exports ``F040``
-(trade data, not conditioned) and inventories ``F030`` (#746).  A column that
-moves here has escaped its control, which is the point of grading totals.
+published summary composition of the ``as_read`` workbook, so they mostly sit
+within 0.6%.  Conditioning only scales groups it can reach with the same
+sign: an empty group or a sign mismatch holds the factor at 1.0, which is how
+``F07S`` misses in 2023 (below).  ``--reference latest`` grades against a
+workbook the conditioning never saw (``F02S`` 2022, below).  The columns built
+outside NIPA can drift every year: exports ``F040`` (trade data, not
+conditioned) and inventories ``F030`` (#746).  A column that moves here has
+escaped its control, which is the point of grading totals.
 
 What it finds on ``v0.5.0_a166975`` (2026-10-29)
 ------------------------------------------------
@@ -35,8 +39,11 @@ Excluding that row, exports sit within 2% of BEA every year.  PCE is the
 larger column, so the same dollars stay under the 2% bar there: ``F040``
 fails, ``F010`` does not.
 
-❌ **``F07S`` federal nondefense software investment is 27% short in 2023
-alone** (5.3bn), against 0.0-0.4% in every other year.
+❌ **``F07S`` federal nondefense structures investment is 27% short in 2023
+alone** (5.3bn), against 0.0-0.4% in every other year.  Almost all of it is
+the ``Used`` summary group: ours about -5.5bn against BEA's +0.16bn, where the
+conditioning's sign-mismatch guard holds the factor at 1.0.  It is not a broad
+miss on structures.
 
 ⚠️ **``F030`` inventories misses by 2-28bn**, -22% to +64%.  The column is a
 small net of large flows, so the relative gap is not meaningful by itself; the
@@ -50,6 +57,10 @@ A column fails when its gap exceeds **both** 2% of the published total and
 industry total by more than 2% is worth making before release.  The 1bn floor
 keeps rounding on near-zero columns (``F06C``, ``F10N`` and the like) from
 reading as failures.
+
+A pass is not a match on a large column: ``F010`` PCE passes with a gap of
+about 200bn every year on ``v0.5.0_a166975`` (+1.5%, under 2%), the same
+``S00900`` dollars that fail ``F040``.  Read the dollar gap as well.
 
 ⚠️ **Which BEA release is the reference matters.**  The default
 (``--reference as_read``) is the workbook the build itself reads, so a pass
@@ -171,6 +182,10 @@ def column_totals(
         codes = [
             c for c in USA_2017_SUMMARY_FINAL_DEMAND_CODES if c in published.columns
         ]
+        # reindex drops rows silently; a renamed BEA row would zero its mass.
+        missing = {'Used', REST_OF_WORLD_SUMMARY_ROW} - set(published.index)
+        if missing:
+            raise KeyError(f'{year}: published Use has no {sorted(missing)} row')
         theirs = published.reindex(index=list(USA_2017_SUMMARY_COMMODITY_CODES))[
             codes
         ].sum()
