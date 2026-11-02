@@ -85,8 +85,9 @@ lands on.
 ($405,436, all exports) against $3,494 of Supply-side freedom - a joint free
 share of 0.9% - and it is already derived from an identity
 (``-F010 + Supply T016``), so it is re-derived after the balance rather than
-asked to move inside it. ``4200ID`` produces nothing, so its commodity row is
-empty.
+asked to move inside it: Step 6 writes it back
+(``nowcast_mut._conform_use_sut``). ``4200ID`` produces nothing, so its
+commodity row is empty.
 
 ⚠️ **A code can mean different things on the two axes, and ``4200ID`` does.**
 It is empty as a *commodity* but live as an *industry*: customs duties, buying

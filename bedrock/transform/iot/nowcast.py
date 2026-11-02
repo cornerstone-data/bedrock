@@ -56,7 +56,9 @@ Trade FBS ``SectorProducedBy`` is BEA 2017 Detail (same include on
 after the NIPA frame exists; do not send Trade through
 ``map_fbs_sectors_to_model_schema``. ``S00900`` / ``F04000`` is the rest-of-world
 identity ``-Y[S00900, F01000] + Supply_T016[S00900]`` (frozen 2017 Supply
-``T016``) for every trade-overlay year.
+``T016``) for every trade-overlay year. The balance holds ``S00900`` out, and
+Step 6 writes the row back from :func:`rest_of_world_pce_usd` without the
+``T016`` term, because the balanced Supply carries no ``S00900`` output.
 """
 
 from __future__ import annotations
@@ -402,6 +404,50 @@ def _s00900_export_identity_usd() -> float:
     return float(t016_m) * MILLION_CURRENCY_TO_CURRENCY
 
 
+def _nipa_final_demand_block(fbs: pd.DataFrame, year: int) -> pd.DataFrame:
+    """The NIPA-built final-demand block of one year, conditioned, USD."""
+    resolved = _resolve_both_sector_columns(fbs)
+    y = (
+        resolved.groupby(['SectorProducedBy', 'SectorConsumedBy'])['FlowAmount']
+        .sum()
+        .unstack('SectorConsumedBy', fill_value=0)
+        .reindex(columns=list(SUT_FINAL_DEMAND_CODES), fill_value=0.0)
+        .sort_index()
+    )
+    y.index.name = 'commodity'
+    y.columns.name = 'final_demand_code'
+
+    # Every year is padded onto the full BEA detail commodity list, not just the
+    # benchmark. A commodity absent from the groupby is one that receives no
+    # final domestic use at all - in 2017 that is 81 of the 402, and they are
+    # the same 81 that come back zero across all seventeen NIPA columns. Zero
+    # and absent are the same fact here, but only one of them survives a join,
+    # so the reindex has to happen before the frame is handed out (#621).
+    y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
+    if 'S00900' not in y.index:
+        y.loc['S00900'] = 0.0
+
+    if year in SUMMARY_SUT_YEARS:
+        y = condition_fd_on_summary(y, year)
+    return y
+
+
+def rest_of_world_pce_usd(year: int) -> float:
+    """``Y[S00900, F01000]`` for *year*, USD: the rest-of-world adjustment to PCE.
+
+    Minus nonresidents' spending in the United States, plus personal
+    remittances in kind to nonresidents (NIPA ``DEXFRC`` and its partner line),
+    conditioned exactly as :func:`derive_initial_Y_pur` conditions it. Negative
+    in every year. ``S00900`` is held out of the Step 5 balance
+    (``nowcast_mask.EXCLUDED_COMMODITIES``), so Step 6 reads it here and writes
+    the row back. Reads the stored ``NIPA_final_dom_uses`` FBS, which the Step 5
+    run that precedes Step 6 has just regenerated.
+    """
+    fbs = getFlowBySector(f'NIPA_final_dom_uses_{year}')
+    y = _nipa_final_demand_block(pd.DataFrame(fbs), int(year))
+    return float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
+
+
 @functools.cache
 def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.DataFrame:
     """
@@ -426,29 +472,7 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     fbs = FlowBySector.generateFlowBySector(
         f'NIPA_final_dom_uses_{year}', download_sources_ok=download_sources_ok
     )
-    resolved = _resolve_both_sector_columns(pd.DataFrame(fbs))
-    y = (
-        resolved.groupby(['SectorProducedBy', 'SectorConsumedBy'])['FlowAmount']
-        .sum()
-        .unstack('SectorConsumedBy', fill_value=0)
-        .reindex(columns=list(SUT_FINAL_DEMAND_CODES), fill_value=0.0)
-        .sort_index()
-    )
-    y.index.name = 'commodity'
-    y.columns.name = 'final_demand_code'
-
-    # Every year is padded onto the full BEA detail commodity list, not just the
-    # benchmark. A commodity absent from the groupby is one that receives no
-    # final domestic use at all - in 2017 that is 81 of the 402, and they are
-    # the same 81 that come back zero across all seventeen NIPA columns. Zero
-    # and absent are the same fact here, but only one of them survives a join,
-    # so the reindex has to happen before the frame is handed out (#621).
-    y = y.reindex(y.index.union(USA_2017_COMMODITY_CODES), fill_value=0.0)
-    if 'S00900' not in y.index:
-        y.loc['S00900'] = 0.0
-
-    if year in SUMMARY_SUT_YEARS:
-        y = condition_fd_on_summary(y, year)
+    y = _nipa_final_demand_block(pd.DataFrame(fbs), int(year))
 
     if year in TRADE_OVERLAY_YEARS:
         from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
