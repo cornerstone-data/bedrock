@@ -395,6 +395,9 @@ def test_compare_output_and_L_y(
     output = Aq.scaled_q if modelType == "Commodity" else derive_x()
     if use_domestic:
         # y_nab from backcompute_y_from_A_and_q(Adom, scaled_q); unclipped.
+        # Circular: y_nab = (I - Adom) q, so this only checks that L inverts
+        # (I - Adom). The independent check is
+        # test_domestic_L_y_from_use_final_demand_equals_q.
         y = derive_y_nab()
         L = formulas.compute_L_matrix(A=Aq.Adom)
     else:
@@ -413,10 +416,10 @@ def test_compare_output_and_L_y(
 @pytest.mark.eeio_integration
 @pytest.mark.xfail(
     reason=(
-        'Make and Use disagree on commodity output. The canonical MUT '
-        'v0.5.0_a166975 predates #1161: $1.6T, 286 of 405 sectors. On #1161 '
-        'tables 13 sectors plus S00402 (q = 0) still fail, mostly waste '
-        'disaggregation (562*).'
+        'Make and Use disagree on commodity output. The pinned MUT '
+        'v0.5.0_a166975 is the pre-rebuild table ($1.6T, 286 of 405 sectors). '
+        'On the #1162 rebuild (#1170) 15 sectors still fail: the waste '
+        'children (562*, #1165), 331410 and S00402 (q = 0).'
     ),
 )
 def test_domestic_L_y_from_use_final_demand_equals_q(
