@@ -526,7 +526,8 @@ class USAConfig(BaseModel):
         '0d26d14f61a86e5f2c9c4fd9b7b2d23e63f203a0',  # v0.4.1 (CI Flip)
         '3a1dddc2030e5793b929888c1343cf5a14729f4c',  # v0.5.0
         'e10c75f542b0c9b24692f6524a53073e091d54dc',  # v0.6.0
-        '326ae5d8922ad69347c360314be541935a374a4b',  # v1.0.0 (current .SNAPSHOT_KEY)
+        '326ae5d8922ad69347c360314be541935a374a4b',  # v1.0.0-rc
+        '1b9261c308369c83977585ffcd18a7d7725bd5c9',  # v1.0.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
