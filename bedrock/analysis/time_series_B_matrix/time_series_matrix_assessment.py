@@ -1,8 +1,8 @@
 """FBS sector E and real commodity B over the time series assessment.
 
-Writes four SVGs (E Mt / E normalized; B intensity / B normalized) and one
-CSV joined on BEA detail ``code``. Absolute top-N order (Mt or intensity
-range) is reused for the matching normalized plot so row order matches.
+Writes row SVGs (E Mt / E normalized; B intensity / B normalized), absolute
+line SVGs for the top codes by range, and one CSV joined on BEA detail
+``code``. Absolute top-N order is reused for matching normalized row plots.
 Same code is the primary industry/commodity pair; B reshuffles via
 ``(E/x)@Vnorm``, so values need not match.
 
@@ -307,6 +307,65 @@ def plot_by_year(
     return out
 
 
+def plot_lines_by_year(
+    panel: pd.DataFrame,
+    *,
+    name_by_code: Mapping[str, str],
+    abs_kind: AbsKind,
+    title: str,
+    out_stem: str,
+    order: Sequence[str],
+    dollar_year: int = DOLLAR_YEAR,
+) -> Path:
+    """Line chart of absolute levels over years for the codes in *order*.
+
+    *abs_kind* ``Mt`` treats *panel* as kg CO2e; ``intensity`` uses values as-is
+    (kg per *dollar_year*$). No normalization.
+    """
+    years = [int(y) for y in panel.columns]
+    if not years:
+        raise ValueError('panel has no year columns')
+    absolute = (panel / 1e9) if abs_kind == 'Mt' else panel.copy()
+    codes = [str(c) for c in order]
+    missing = [c for c in codes if c not in absolute.index]
+    if missing:
+        raise KeyError(f'order codes not in panel: {missing}')
+    absolute = absolute.reindex(codes)
+
+    ylabel = 'Mt CO2e' if abs_kind == 'Mt' else f'kg CO2e / ${dollar_year}'
+    cmap = plt.get_cmap('tab20')
+    fig, ax = plt.subplots(figsize=(12, 7))
+    for i, code in enumerate(codes):
+        row = absolute.loc[code]
+        color = cmap(i % 20)
+        name = name_by_code.get(code, '')
+        label = f'{code} {name}'.strip()
+        if len(label) > 42:
+            label = f'{label[:39]}...'
+        ax.plot(
+            years,
+            [float(row[y]) for y in years],
+            marker='o',
+            markersize=4,
+            linewidth=1.5,
+            color=color,
+            label=label,
+        )
+    ax.set_xlabel('year')
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.set_xticks(years)
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), fontsize=7)
+    fig.tight_layout()
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / f'{out_stem}.svg'
+    fig.savefig(out, bbox_inches='tight')
+    plt.close(fig)
+    logger.info(f'Wrote {out}')
+    return out
+
+
 def joined_E_B_csv(
     E_kg: pd.DataFrame,
     B_intensity: pd.DataFrame,
@@ -405,9 +464,10 @@ def main(
     codes: Sequence[str] | None = None,
     base_year: int = DOLLAR_YEAR,
     top_n: int | None = 50,
+    line_top_n: int | None = 20,
     dollar_year: int = DOLLAR_YEAR,
 ) -> list[Path]:
-    """Write four year-panel SVGs and one joined E+B CSV under ``output/``."""
+    """Write row + line SVGs and one joined E+B CSV under ``output/``."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
     E_kg = sector_emissions_panel(years, codes=codes)
     B = commodity_B_panel(years, codes=codes, dollar_year=dollar_year)
@@ -418,6 +478,12 @@ def main(
     e_order = absolute_top_order(E_kg, abs_kind='Mt', base_year=base_year, top_n=top_n)
     b_order = absolute_top_order(
         B, abs_kind='intensity', base_year=base_year, top_n=top_n
+    )
+    e_line_order = absolute_top_order(
+        E_kg, abs_kind='Mt', base_year=base_year, top_n=line_top_n
+    )
+    b_line_order = absolute_top_order(
+        B, abs_kind='intensity', base_year=base_year, top_n=line_top_n
     )
     b_abs_unit = f'kg/${dollar_year}'
 
@@ -462,6 +528,24 @@ def main(
             abs_unit=b_abs_unit,
             dollar_year=dollar_year,
         ),
+        plot_lines_by_year(
+            E_kg,
+            name_by_code=industry_name,
+            abs_kind='Mt',
+            title='FBS sector E by year',
+            out_stem='fbs_sector_E_by_year_Mt_lines',
+            order=e_line_order,
+            dollar_year=dollar_year,
+        ),
+        plot_lines_by_year(
+            B,
+            name_by_code=commodity_name,
+            abs_kind='intensity',
+            title=f'Commodity B by year (real {dollar_year}$)',
+            out_stem='fbs_commodity_B_by_year_intensity_lines',
+            order=b_line_order,
+            dollar_year=dollar_year,
+        ),
         joined_E_B_csv(E_kg, B, base_year=base_year),
     ]
     return paths
@@ -497,7 +581,13 @@ if __name__ == '__main__':
         '--top-n',
         type=int,
         default=50,
-        help='SVG only: top N by absolute (Mt/intensity) max-min range (0 = all)',
+        help='Row SVG only: top N by absolute max-min range (0 = all)',
+    )
+    parser.add_argument(
+        '--line-top-n',
+        type=int,
+        default=20,
+        help='Line SVG only: top N by absolute max-min range (0 = all)',
     )
     args = parser.parse_args()
     code_list = (
@@ -506,11 +596,13 @@ if __name__ == '__main__':
         else [s.strip() for s in str(args.codes).split(',') if s.strip()]
     )
     top = None if int(args.top_n) <= 0 else int(args.top_n)
+    line_top = None if int(args.line_top_n) <= 0 else int(args.line_top_n)
     for path in main(
         years=tuple(args.years),
         codes=code_list,
         base_year=args.base_year,
         top_n=top,
+        line_top_n=line_top,
         dollar_year=args.dollar_year,
     ):
         print(path)
