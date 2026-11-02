@@ -359,7 +359,9 @@ def test_t00osub_is_zero_before_the_pandemic_and_the_published_total_after() -> 
     assert vt.t00osub_row(2017).abs().sum() == 0.0
     assert vt.t00osub_row(2019).abs().sum() == 0.0
     total_2020 = -vt.t00osub_row(2020).sum() / MILLION
-    assert total_2020 == pytest.approx(538_490, abs=30)
+    # BEA's published 2020 T00OSUB in the 2026 annual update (#1167); the
+    # release before it had 538,490.
+    assert total_2020 == pytest.approx(579_724, abs=30)
 
 
 def test_t00osub_reaches_the_industries_the_products_column_no_longer_carries() -> None:
@@ -387,5 +389,6 @@ def test_t00osub_groups_conserve_the_published_row() -> None:
         grouped[group_of[str(industry)]] = grouped.get(
             group_of[str(industry)], 0.0
         ) + float(amount)
-    assert grouped['722'] / MILLION == pytest.approx(-36_200, abs=2)
-    assert grouped['81'] / MILLION == pytest.approx(-20_837, abs=2)
+    # 2026 annual update (#1167); the release before it had -36,200 and -20,837.
+    assert grouped['722'] / MILLION == pytest.approx(-41_471, abs=2)
+    assert grouped['81'] / MILLION == pytest.approx(-24_168, abs=2)
