@@ -48,7 +48,7 @@ from bedrock.analysis.electricity.current.eia_gtd.target_attribution_221100 impo
     _published_band_ok,
 )
 from bedrock.analysis.nowcasting.results._ef_smoke_lib import NOWCAST_YEARS
-from bedrock.transform.iot.nowcast import derive_initial_Y_pur
+from bedrock.transform.iot.nowcast import derive_initial_Y_pur, rest_of_world_pce_usd
 from bedrock.transform.iot.nowcast_mask import (
     PCE_ELECTRICITY_COL,
     PCE_ELECTRICITY_ROW,
@@ -295,7 +295,12 @@ def _mut_pce_cell_usd(yb: YearBalance) -> float:
         raise ValueError(f'year {yb.year}: balance_year returned no balanced blocks')
     supply_usd = yb.balanced['supply'].astype(float) * _M_TO_USD
     use_usd = yb.balanced['use'].astype(float) * _M_TO_USD
-    mut = mut_from_balanced(yb.year, supply_usd, use_usd)
+    mut = mut_from_balanced(
+        yb.year,
+        supply_usd,
+        use_usd,
+        rest_of_world_pce=rest_of_world_pce_usd(yb.year),
+    )
     return _cell_at(
         mut.use,
         PCE_ELECTRICITY_ROW,
@@ -409,7 +414,12 @@ def _measure_arm(
                 raise ValueError('no balanced blocks')
             supply_usd = yb.balanced['supply'].astype(float) * _M_TO_USD
             use_usd = yb.balanced['use'].astype(float) * _M_TO_USD
-            mut = mut_from_balanced(year, supply_usd, use_usd)
+            mut = mut_from_balanced(
+                year,
+                supply_usd,
+                use_usd,
+                rest_of_world_pce=rest_of_world_pce_usd(year),
+            )
             mut_col = _f01000_series_usd(
                 mut.use, scale=1.0, label=f'mut_from_balanced({year}).use'
             )
