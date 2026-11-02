@@ -2,7 +2,7 @@
 #
 # Unsuffixed family release for calendar year 2024. Same resolved fields as
 # 2026_usa_cornerstone_v1_0_2024 (the series member). Detail MUT is the
-# after-redefinition build named by nowcast_mut_vintage: v1.0.0_c99157a, the
+# after-redefinition build named by nowcast_mut_vintage: v1.0.0_5514c3b, the
 # 2017-2024 rebuild on the 2026 BEA annual update. bea_price_index_vintage
 # 2026Q2 is the index those tables were built with. The GHG loader returns
 # GHG_national_Cornerstone_2024. cornerstone_ghg_fbs_filename pins the
@@ -20,7 +20,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v1.0.0_c99157a'
+nowcast_mut_vintage: 'v1.0.0_5514c3b'
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
 bea_price_index_vintage: '2026Q2'
