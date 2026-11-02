@@ -92,3 +92,56 @@ def test_summary_controlled_rows_take_the_published_summary_split_by_2017(
     assert out.to_dict() == pytest.approx(
         {'111000': 10e6, '621100': 75e6, '621200': 25e6}
     )
+
+
+# --- suppressed IEA categories (#904, #1172) ---------------------------------
+
+NAN = float('nan')
+
+
+def _filled(values: list[float]) -> list[float]:
+    panel = pd.DataFrame(
+        [values], index=['leaf'], columns=range(2019, 2019 + len(values))
+    )
+    return utilities.interpolate_suppressed(panel).iloc[0].tolist()
+
+
+def test_interior_gap_is_geometric_between_positive_endpoints() -> None:
+    assert _filled([100.0, NAN, NAN, 800.0]) == pytest.approx(
+        [100.0, 200.0, 400.0, 800.0]
+    )
+
+
+def test_interior_gap_with_a_zero_endpoint_is_linear() -> None:
+    assert _filled([30.0, NAN, 0.0]) == pytest.approx([30.0, 15.0, 0.0])
+
+
+def test_edge_gaps_and_unobserved_rows_stay_suppressed() -> None:
+    assert _filled([NAN, 5.0, 6.0, NAN]) == pytest.approx(
+        [NAN, 5.0, 6.0, NAN], nan_ok=True
+    )
+    assert all(pd.isna(_filled([NAN, NAN, NAN])))
+
+
+def test_only_categories_the_fba_flags_as_suppressed_are_filled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A published zero stays zero; a flagged one is filled from its neighbours."""
+    panel = pd.DataFrame(
+        {2020: [100.0, 0.0], 2021: [NAN, NAN], 2022: [400.0, 0.0]},
+        index=['Suppressed', 'TrueZero'],
+    )
+    monkeypatch.setattr(utilities, '_iea_published_panel', lambda flow: panel)
+    fba = pd.DataFrame(
+        {
+            'FlowName': ['Imports', 'Imports'],
+            'ActivityProducedBy': ['Suppressed', 'TrueZero'],
+            'FlowAmount': [0.0, 0.0],
+            'Suppressed': ['(D)', None],
+        }
+    )
+    now = utilities._iea_category_totals(fba, 'Imports')
+
+    out = utilities._fill_suppressed_categories(now, fba, 'Imports', 2021)
+
+    assert out.to_dict() == pytest.approx({'Suppressed': 200.0, 'TrueZero': 0.0})
