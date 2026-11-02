@@ -10,8 +10,14 @@ alone; these tests pin that invariant on the committed crosswalk.
 
 from __future__ import annotations
 
-import pandas as pd
+from pathlib import Path
 
+import pandas as pd
+import pytest
+
+import bedrock.extract.iot.io_2017 as io_2017
+from bedrock.extract.flowbyactivity import FlowByActivity
+from bedrock.transform.trade import utilities
 from bedrock.transform.trade.utilities import IEA_IMPORTS_CROSSWALK_CSV
 
 
@@ -35,4 +41,54 @@ def test_noncomparable_leaves_map_to_s00300_alone() -> None:
     assert other.empty, (
         'these S00300 leaves also map to commodities, so summing their full '
         f'value into S00300 double-counts: {sorted(other["Activity"])}'
+    )
+
+
+def test_summary_controlled_rows_take_the_published_summary_split_by_2017(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#658: controlled rows replace the bridge with the published summary row."""
+    bridge = tmp_path / 'bridge.csv'
+    pd.DataFrame(
+        {
+            'category': ['Cat', 'Cat'],
+            'commodity': ['111000', '621100'],
+            'share': [1.0, 1.0],
+        }
+    ).to_csv(bridge, index=False)
+    detail = pd.DataFrame(
+        {'F04000': [10.0, 30.0, 10.0]}, index=pd.Index(['111000', '621100', '621200'])
+    )
+    monkeypatch.setattr(io_2017, '_load_2017_detail_supply_use_usa', lambda _t: detail)
+    monkeypatch.setattr(
+        utilities,
+        '_published_summary_trade',
+        lambda flow, year: pd.Series({'621': 100.0}),
+    )
+    fba = FlowByActivity(
+        pd.DataFrame(
+            {
+                'FlowName': ['Exports'],
+                'ActivityProducedBy': ['Cat'],
+                'FlowAmount': [5e6],
+                'Year': [2017],
+            }
+        ),
+        full_name='BEA_IEA',
+        config={},
+    )
+    out = pd.DataFrame(
+        utilities._bridge_iea_services(
+            fba,
+            flow='Exports',
+            bridge_csv=str(bridge),
+            anchor_table='Use_SUT_detail',
+            anchor_column='F04000',
+            summary_controls={'621': ('621100', '621200')},
+        )
+    ).set_index('ActivityProducedBy')['FlowAmount']
+    # 621100 leaves the bridge for 75/25 of the summary row by 2017 F04000;
+    # 621200, which the bridge never fed, gets its share too.
+    assert out.to_dict() == pytest.approx(
+        {'111000': 10e6, '621100': 75e6, '621200': 25e6}
     )
