@@ -891,3 +891,43 @@ def test_power_petroleum_moves_on_price_not_eia_oil(
     pd.testing.assert_series_equal(
         priced.drop(ue.OIL), eia.drop(ue.OIL), check_names=False
     )
+
+
+# --- oil and gas extraction's seed repriced (#922) ------------------------------
+
+
+@needs_census
+def test_oil_gas_extraction_seed_holds_self_use_and_reprices_petroleum(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2017 is the identity; only ``211000`` changes; petroleum falls after 2022.
+
+    The shipped seed held petroleum at its 2022 nominal share through 2024 while
+    the price fell 1.944 -> 1.430 of 2017.
+    """
+    from bedrock.analysis.nowcasting import (  # noqa: PLC0415
+        inputs_structure as ins,
+    )
+
+    assert get_usa_config().reprice_oil_gas_extraction_seed is True
+    column, oil = ins.OWN_PRODUCT_HELD[0], ins.REPRICED_ROWS[0]
+    use = ins._use_2017_detail()[column]
+    at_2017 = ins.mining_seed(2017)[column].reindex(use.index).fillna(0.0)
+    assert float((at_2017 - use).abs().max()) < 1e-6
+
+    on = {y: ins.mining_seed(y) for y in (2022, 2024)}
+    for frame in on.values():
+        assert frame[column].sum() == pytest.approx(use.sum())
+    share = {y: f[column][oil] / f[column].sum() for y, f in on.items()}
+    assert share[2024] < share[2022]
+
+    flags = get_usa_config().model_copy(
+        update={'reprice_oil_gas_extraction_seed': False}
+    )
+    monkeypatch.setattr(ins, 'get_usa_config', lambda: flags)
+    off = ins.mining_seed(2024)
+    others = [c for c in off.columns if c != column]
+    rows = off.index.intersection(on[2024].index)
+    pd.testing.assert_frame_equal(on[2024].loc[rows, others], off.loc[rows, others])
+    # Shipped: held at the 2022 nominal share.
+    assert off[column][oil] / off[column].sum() > share[2024]

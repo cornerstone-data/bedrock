@@ -244,6 +244,18 @@ class USAConfig(BaseModel):
     # purchased power stay on EIA. See
     # bedrock.analysis.nowcasting.utilities_expense_seed.oil_leg (#922).
     carry_power_petroleum_on_price: bool = True  # DRI: WesIngwersen
+    # In the Step 3 mining seed, keep oil and gas extraction's (211000)
+    # purchases of its own product at their real 2017 share instead of the
+    # census's, and move its refined petroleum (324110) as the census's real
+    # 2017 -> 2022 change times each year's relative price. The 2017 census
+    # books 54.8% of the column's materials as its own product against 26.4% in
+    # 2022 (2012 and 2022 agree), and halving that cell lifted every other row
+    # about 2x: petroleum read 1.92x of 2017, held at the 2022 nominal peak
+    # through 2024. Against BEA's published summary 211 column, petroleum per
+    # $100 of output misses by 0.18 (2018-2024 mean) against 1.08, and self-use
+    # by 1.52 against 3.31 (first-order estimate). See
+    # bedrock.analysis.nowcasting.inputs_structure.repriced_column (#922).
+    reprice_oil_gas_extraction_seed: bool = True  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
