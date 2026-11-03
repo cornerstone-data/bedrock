@@ -232,6 +232,18 @@ class USAConfig(BaseModel):
     # centers at 2.8x. Overrides the survey observation on this one cell. See
     # nowcast_intermediate.DATA_CENTER_ELECTRICITY_CSV and #1035.
     move_data_processing_electricity_on_lbnl: bool = True  # DRI: WesIngwersen
+    # Move the electric power columns' refined petroleum cell (324110 into
+    # 221100/S00101/S00202) on BEA's refined petroleum price instead of EIA 923's
+    # oil fuel bill in the Step 3 utilities seed. BEA's 2017 cell is $17.4bn of
+    # purchases against $0.57bn of oil burned at power plants, so EIA's oil leg
+    # moves a cell 30 times its size on a different concept: the seeded cell went
+    # 1.97x, 0.95x, 0.43x of 2017 in 2018-2020 while BEA's annual summary 324 x
+    # 22 went 1.58x, 1.53x, 0.94x. On the 2012 -> 2017 benchmark holdout the
+    # price leg scores +17.2% (impact) and +18.5% (dollar) against +16.0% and
+    # +18.9% for EIA's oil leg, so it keeps the seed's verdict. Coal, gas and
+    # purchased power stay on EIA. See
+    # bedrock.analysis.nowcasting.utilities_expense_seed.oil_leg (#922).
+    carry_power_petroleum_on_price: bool = True  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =

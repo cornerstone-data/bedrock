@@ -194,6 +194,17 @@ FUEL_TO_BEA: dict[str, str] = {
     'oil': '324110',
 }
 
+#: The refined petroleum row, which moves on BEA's price, not EIA's oil bill.
+#:
+#: ❌ **BEA's 2017 cell is not oil-fired generation**: $17,351M of purchases
+#: against $566M of oil burned at power plants (:func:`scope`). EIA's oil leg
+#: moves it 30 times its own size, and in the annual years that diverges:
+#: seeded 1.97x, 0.95x, 0.43x of 2017 in 2018-2020 while BEA's published
+#: summary ``324 x 22`` went 1.58x, 1.53x, 0.94x. ✅ The price keeps the holdout
+#: verdict (:func:`oil_leg`) without claiming a volume nothing measures.
+#: Behind ``carry_power_petroleum_on_price`` (#922).
+OIL = FUEL_TO_BEA['oil']
+
 #: ⚠️ **The three electric columns are scored together.**  Cornerstone merges
 #: government utilities into the private ones at Step 7 anyway, and BEA's split
 #: between them is not one EIA can reproduce: EIA reports by plant and utility,
@@ -280,8 +291,12 @@ def relative_index(
     *,
     escalator: float = 1.0,
     purchased_power: bool = True,
+    oil_on_price: bool = False,
 ) -> 'pd.Series[float]':
     """EIA's ``base_year -> year`` movement for the rows EIA names.
+
+    ``oil_on_price`` moves ``324110`` on BEA's refined petroleum price instead
+    of EIA's oil fuel bill; see :data:`OIL` and :func:`oil_leg`.
 
     ⚠️ **Unlike every other seed in this package the index is not divided by
     the industry's own expense growth**, and that is deliberate.  ``escalator``
@@ -307,6 +322,12 @@ def relative_index(
         values[PURCHASED_POWER] = (
             float(revenue.loc[year] / revenue.loc[base_year]) / escalator
         )
+    if oil_on_price:
+        from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+            commodity_price_factor,
+        )
+
+        values[OIL] = float(commodity_price_factor(year, base_year)[OIL]) / escalator
     return pd.Series(values)
 
 
@@ -381,6 +402,11 @@ def utilities_seed(year: int, base_year: int = 2017) -> pd.DataFrame:
     about the *evidence*, not about this function, and it sat close enough to the
     held-column notes above to be misread as an exclusion.
 
+    ⚠️ **Oil moves on BEA's refined petroleum price, not EIA's oil bill**, with
+    ``carry_power_petroleum_on_price`` on (the default). The row is still moved,
+    not held: :data:`OIL` explains why EIA's leg indexes a concept the cell does
+    not carry, and :func:`oil_leg` shows the holdout keeps its verdict.
+
     ⚠️ **The graded span is the one coal dominated.** :func:`legs` re-ran the
     holdout with each fuel removed to find which leg carried the +16.0%: without
     coal the gain is **-0.3%**, and coal alone is **+10.3%**. Coal was 51.7% of
@@ -390,8 +416,14 @@ def utilities_seed(year: int, base_year: int = 2017) -> pd.DataFrame:
     drop a fuel: dropping one would discard observed movement to make the seed
     match the span that graded it.
     """
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
     use = _use_2017_detail()
-    index = relative_index(year, base_year)
+    index = relative_index(
+        year,
+        base_year,
+        oil_on_price=get_usa_config().carry_power_petroleum_on_price,
+    )
     seed = use[list(ELECTRIC)].copy()
     touched = [code for code in index.index if code in seed.index]
     seed.loc[touched, :] = seed.loc[touched, :].mul(
@@ -736,6 +768,38 @@ def amplitude() -> pd.DataFrame:
     return pd.DataFrame(records).set_index('power')
 
 
+def oil_leg() -> pd.DataFrame:
+    """The holdout with ``324110`` on EIA's oil bill, on BEA's price, or held.
+
+    ✅ **The price leg keeps the verdict**: +17.2% impact and +18.5% dollar,
+    against +16.0% and +18.9% on EIA's oil, all three columns winning either
+    way. ❌ Holding the cell at nominal 2017 costs 2.8 and 12.0 points, so the
+    row is worth moving -- on the concept it carries.
+    """
+    from bedrock.analysis.nowcasting.benchmark_holdout import (  # noqa: PLC0415
+        BASE,
+        TARGET,
+    )
+
+    eia = relative_index(TARGET, BASE)
+    variants = {
+        "EIA 923's oil bill": eia,
+        "BEA's refined petroleum price (default)": relative_index(
+            TARGET, BASE, oil_on_price=True
+        ),
+        'held at nominal 2017': eia.where(eia.index != OIL, 1.0),
+    }
+    records = []
+    for label, index in variants.items():
+        row: dict[str, object] = {'oil leg': label, 'index': float(index[OIL])}
+        for weighting in ('dollar', 'impact'):
+            summary = _score(index, weighting)
+            row[f'{weighting}_gain_%'] = summary['gain_%']
+            row[f'{weighting}_wins'] = summary['wins']
+        records.append(row)
+    return pd.DataFrame(records).set_index('oil leg')
+
+
 def surge(
     years: tuple[int, ...] = (2012, 2017, 2020, 2021, 2022, 2023, 2024),
 ) -> pd.DataFrame:
@@ -764,6 +828,7 @@ def main() -> None:
     parser.add_argument('--scope', action='store_true', help='EIA against BEA')
     parser.add_argument('--gas', action='store_true', help='form 176 on 221200')
     parser.add_argument('--surge', action='store_true', help='what EIA says 2020-24')
+    parser.add_argument('--oil', action='store_true', help='the oil leg, three ways')
     parser.add_argument('--all', action='store_true', help='every measurement')
     args = parser.parse_args()
     chosen = (
@@ -773,6 +838,7 @@ def main() -> None:
         or args.scope
         or args.gas
         or args.surge
+        or args.oil
     )
     pd.set_option('display.width', 200)
 
@@ -830,6 +896,9 @@ def main() -> None:
     if args.all or args.surge or not chosen:
         print('\nWhat EIA says about the years the seed is wanted for, $M\n')
         print(surge().round(1).to_string())
+    if args.all or args.oil or not chosen:
+        print('\nThe oil leg: EIA oil bill, BEA price, or held\n')
+        print(oil_leg().round(3).to_string())
 
 
 if __name__ == '__main__':

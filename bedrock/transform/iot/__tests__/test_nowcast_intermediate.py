@@ -852,3 +852,42 @@ def test_services_seed_chains_across_the_survey_change(
     monkeypatch.setattr(st, '_chain_across_aies', lambda: False)
     indexed_2023 = st.services_transport_seed(2023)
     assert float((indexed_2023 - chained_2022).abs().to_numpy().max()) > 0.0
+
+
+# --- electric power's refined petroleum on price (#922) ------------------------
+
+
+def test_power_petroleum_moves_on_price_not_eia_oil(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the flag on, ``324110`` takes BEA's price; coal and gas stay on EIA.
+
+    ⚠️ BEA's 2017 cell is $17.4bn against $0.57bn of oil burned, so EIA's oil
+    bill moves a cell 30 times its size on a different concept.
+    """
+    from bedrock.analysis.nowcasting import (  # noqa: PLC0415
+        utilities_expense_seed as ue,
+    )
+
+    costs = pd.DataFrame(
+        {'coal': [100.0, 80.0], 'gas': [100.0, 150.0], 'oil': [10.0, 19.0]},
+        index=[2017, 2018],
+    )
+    monkeypatch.setattr(ue, 'fuel_costs', lambda: costs)
+    monkeypatch.setattr(
+        ue, 'resale_revenue', lambda: pd.Series({2017: 50.0, 2018: 55.0})
+    )
+    monkeypatch.setattr(
+        ni,
+        'commodity_price_factor',
+        lambda year, base=SEED_YEAR: pd.Series({ue.OIL: 1.25}),
+    )
+
+    assert get_usa_config().carry_power_petroleum_on_price is True
+    eia = ue.relative_index(2018, 2017)
+    priced = ue.relative_index(2018, 2017, oil_on_price=True)
+    assert eia[ue.OIL] == pytest.approx(1.9)
+    assert priced[ue.OIL] == pytest.approx(1.25)
+    pd.testing.assert_series_equal(
+        priced.drop(ue.OIL), eia.drop(ue.OIL), check_names=False
+    )
