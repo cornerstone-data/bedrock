@@ -67,7 +67,7 @@ AbsKind = Literal['Mt', 'intensity']
 #: Constant-dollar year for real B/N (and default normalization year).
 DOLLAR_YEAR = 2017
 
-FBS_VINTAGE = 'v0.6.0_635777c'
+FBS_VINTAGE = 'v1.0.0_79273ed'
 MUT_VINTAGE = 'v1.0.0_5514c3b'
 #: Year-stem GHG FBS basename template (matches ``2026_usa_cornerstone_v1_0_{year}``).
 FBS_STEM = 'GHG_national_Cornerstone_{year}'
@@ -648,7 +648,7 @@ def main(
             E_kg,
             name_by_code=industry_name,
             y_scale='Mt',
-            title='FBS sector E by year',
+            title='Industry E by year',
             out_stem='fbs_sector_E_by_year_Mt',
             base_year=base_year,
             order=e_order,
@@ -657,7 +657,7 @@ def main(
             E_kg,
             name_by_code=industry_name,
             y_scale='normalized',
-            title='FBS sector E by year',
+            title='Industry E by year',
             out_stem='fbs_sector_E_by_year_normalized',
             base_year=base_year,
             order=e_order,
@@ -709,7 +709,7 @@ def main(
             E_kg,
             name_by_code=industry_name,
             abs_kind='Mt',
-            title='FBS sector E by year',
+            title='Industry E by year',
             out_stem='fbs_sector_E_by_year_Mt_lines',
             order=e_line_order,
             dollar_year=dollar_year,
@@ -718,7 +718,7 @@ def main(
             E_kg,
             name_by_code=industry_name,
             abs_kind='Mt',
-            title='FBS sector E by year',
+            title='Industry E by year',
             out_stem='fbs_sector_E_by_year_normalized_lines',
             order=e_line_order,
             dollar_year=dollar_year,
