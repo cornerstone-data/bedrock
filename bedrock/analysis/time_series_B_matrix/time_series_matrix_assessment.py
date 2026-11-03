@@ -1,14 +1,15 @@
-"""FBS sector E and real commodity B over the time series assessment.
+"""FBS sector E and real commodity B/N over the time series assessment.
 
-Writes row SVGs (E Mt / E normalized; B intensity / B normalized), absolute
-line SVGs for the top codes by range, and one CSV joined on BEA detail
-``code``. Absolute top-N order is reused for matching normalized row plots.
-Same code is the primary industry/commodity pair; B reshuffles via
-``(E/x)@Vnorm``, so values need not match.
+Loads a dig span at pinned GHG FBS + NowcastMUT vintages (cache when those
+pins match; otherwise build once and save). Writes row SVGs (E Mt / E
+normalized; B and N intensity / normalized), absolute line SVGs for the top
+codes by range, and one CSV joined on BEA detail ``code``. Absolute top-N
+order is reused for matching normalized row plots. Same code is the primary
+industry/commodity pair; B reshuffles via ``(E/x)@Vnorm``, so values need not
+match. N is ``B@L`` (total factor including indirect effects).
 
-B uses ``B_total(..., real=True)`` after rebasing dig ``x`` to constant
-**2017$**. E is industry CO2e at GHG FBS ``v0.6.0_635777c`` (dig
-``E_stratified`` cache when present). Normalization defaults to 2017 = 1.
+B and N use ``B_total`` / ``N_total`` with ``real=True`` after rebasing dig
+``x`` to constant **2017$**. Normalization defaults to 2017 = 1.
 
 Usage::
 
@@ -29,6 +30,7 @@ from typing import Literal
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
 from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     CACHE_BEARING_MODULES,
     CACHE_DIR,
@@ -36,10 +38,13 @@ from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     OUTPUT_DIR,
     YEARS,
     B_total,
+    N_total,
+    Span,
+    build_span,
     deflate_x,
-    fbs_to_co2e,
-    load_fbs,
     load_span,
+    resolve_vintages,
+    save_span,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
@@ -50,8 +55,13 @@ logger = logging.getLogger(__name__)
 PlotScale = Literal['normalized', 'Mt', 'intensity']
 AbsKind = Literal['Mt', 'intensity']
 
-#: Constant-dollar year for real B (and default normalization year).
+#: Constant-dollar year for real B/N (and default normalization year).
 DOLLAR_YEAR = 2017
+
+FBS_VINTAGE = 'v0.6.0_635777c'
+MUT_VINTAGE = 'v1.0.0_5514c3b'
+#: Year-stem GHG FBS basename template (matches ``2026_usa_cornerstone_v1_0_{year}``).
+FBS_STEM = 'GHG_national_Cornerstone_{year}'
 
 #: Distinct hues on one warm→cool path (2017 gold … 2024 navy).
 YEAR_COLORS: dict[int, str] = {
@@ -66,46 +76,78 @@ YEAR_COLORS: dict[int, str] = {
 }
 
 
+def build_assessment_span(
+    years: tuple[int, ...] = YEARS,
+    *,
+    dollar_year: int = DOLLAR_YEAR,
+) -> Span:
+    """Span at pinned FBS/MUT; reuse dig cache when pins match, else build and save.
+
+    Dig defaults to ``…_nowcast_{year}`` FBS; year configs pin the unsuffixed
+    stem in :data:`FBS_STEM`. Rebases ``x`` to *dollar_year*$ after load/build.
+    """
+    bcd.FBS_STEM = FBS_STEM
+    vintages_path = CACHE_DIR / 'vintages.txt'
+    span: Span | None = None
+    if vintages_path.exists():
+        pinned = dict(
+            line.split('=', 1)
+            for line in vintages_path.read_text().split()
+            if '=' in line
+        )
+        if pinned.get('fbs') == FBS_VINTAGE and pinned.get('mut') == MUT_VINTAGE:
+            try:
+                span = load_span(years)
+                logger.info(
+                    f'Loaded dig cache fbs={span.vintages.fbs} mut={span.vintages.mut}'
+                )
+            except FileNotFoundError as exc:
+                logger.info(f'Dig cache incomplete ({exc}); rebuilding')
+        else:
+            logger.info(
+                f'Dig cache vintages fbs={pinned.get("fbs")!r} mut={pinned.get("mut")!r} '
+                f'do not match pins fbs={FBS_VINTAGE!r} mut={MUT_VINTAGE!r}; rebuilding'
+            )
+
+    rebuilt = span is None
+    if rebuilt:
+        vintages = resolve_vintages(
+            fbs_vintage=FBS_VINTAGE, mut_vintage=MUT_VINTAGE, years=years
+        )
+        logger.info(
+            f'Building span fbs={vintages.fbs} mut={vintages.mut} stem={FBS_STEM}'
+        )
+        span = build_span(years, vintages)
+
+    logger.info(f'Rebasing x to {dollar_year}$ for real B_total / N_total')
+    with temp_usa_config(
+        CONFIG_TEMPLATE.format(year=dollar_year),
+        cache_bearing_modules=CACHE_BEARING_MODULES,
+        nowcast_mut_vintage=span.vintages.mut,
+    ):
+        span.x_real = deflate_x(span.x, base_year=dollar_year)
+
+    if rebuilt:
+        save_span(span)
+    return span
+
+
 def sector_emissions_panel(
+    span: Span,
     years: tuple[int, ...] = YEARS,
     codes: Sequence[str] | None = None,
 ) -> pd.DataFrame:
-    """Sector x year CO2e totals from the year-stem GHG FBS (kg).
-
-    Index = sector code; columns = years. FBS pin is ``v0.6.0_635777c``.
-    """
-    cache_e = CACHE_DIR / 'E_stratified.parquet'
-    if cache_e.exists():
-        logger.info(f'Loading sector E from {cache_e}')
-        E = pd.read_parquet(cache_e)
-        E = E[E['year'].isin(years)]
-        panel = (
-            E.groupby(['sector', 'year'], observed=True)['CO2e']
-            .sum()
-            .unstack('year')
-            .fillna(0.0)
-        )
-    else:
-        logger.info('Building sector E from FBS parquets at v0.6.0_635777c')
-        parts: dict[int, pd.Series] = {}
-        for year in years:
-            with temp_usa_config(
-                CONFIG_TEMPLATE.format(year=year),
-                cache_bearing_modules=CACHE_BEARING_MODULES,
-            ):
-                co2e = fbs_to_co2e(load_fbs(year, 'v0.6.0_635777c'))
-            parts[year] = (
-                co2e.groupby(co2e['SectorProducedBy'].astype(str), observed=True)[
-                    'CO2e'
-                ]
-                .sum()
-                .rename(year)
-            )
-        panel = pd.DataFrame(parts).fillna(0.0)
-        panel.index.name = 'sector'
-
+    """Sector x year CO2e totals from *span.E* (kg). Index = sector; columns = years."""
+    E = span.E[span.E['year'].isin(years)]
+    panel = (
+        E.groupby(['sector', 'year'], observed=True)['CO2e']
+        .sum()
+        .unstack('year')
+        .fillna(0.0)
+    )
     panel.index = panel.index.map(str)
     panel.columns = pd.Index([int(c) for c in panel.columns], name='year')
+    panel = panel.reindex(columns=list(years), fill_value=0.0)
     if codes is not None:
         wanted = [str(s) for s in codes]
         missing = [s for s in wanted if s not in panel.index]
@@ -116,23 +158,11 @@ def sector_emissions_panel(
 
 
 def commodity_B_panel(
+    span: Span,
     years: tuple[int, ...] = YEARS,
     codes: Sequence[str] | None = None,
-    dollar_year: int = DOLLAR_YEAR,
 ) -> pd.DataFrame:
-    """Commodity x year real B (kg CO2e per *dollar_year*$), from dig ``load_span``.
-
-    Rebases nominal ``span.x`` with ``deflate_x(..., base_year=dollar_year)`` then
-    ``B_total(span, real=True)``. Dig cache ``x_real`` is ignored for the dollar base.
-    """
-    logger.info(f'Loading dig span; rebasing x to {dollar_year}$ for real B_total')
-    span = load_span(years)
-    with temp_usa_config(
-        CONFIG_TEMPLATE.format(year=dollar_year),
-        cache_bearing_modules=CACHE_BEARING_MODULES,
-        nowcast_mut_vintage=span.vintages.mut,
-    ):
-        span.x_real = deflate_x(span.x, base_year=dollar_year)
+    """Commodity x year real B (kg CO2e per dollar) from *span* after 2017$ rebase."""
     panel = B_total(span, real=True)
     panel = panel.reindex(columns=list(years))
     panel.index = panel.index.map(str)
@@ -142,6 +172,25 @@ def commodity_B_panel(
         missing = [s for s in wanted if s not in panel.index]
         if missing:
             raise KeyError(f'Codes not in real B panel: {missing}')
+        panel = panel.reindex(wanted)
+    return panel.sort_index(axis='columns')
+
+
+def commodity_N_panel(
+    span: Span,
+    years: tuple[int, ...] = YEARS,
+    codes: Sequence[str] | None = None,
+) -> pd.DataFrame:
+    """Commodity x year real N = B@L (kg CO2e per dollar) from *span*."""
+    panel = N_total(span, real=True)
+    panel = panel.reindex(columns=list(years))
+    panel.index = panel.index.map(str)
+    panel.columns = pd.Index([int(c) for c in panel.columns], name='year')
+    if codes is not None:
+        wanted = [str(s) for s in codes]
+        missing = [s for s in wanted if s not in panel.index]
+        if missing:
+            raise KeyError(f'Codes not in real N panel: {missing}')
         panel = panel.reindex(wanted)
     return panel.sort_index(axis='columns')
 
@@ -366,16 +415,19 @@ def plot_lines_by_year(
     return out
 
 
-def joined_E_B_csv(
+def joined_E_B_N_csv(
     E_kg: pd.DataFrame,
     B_intensity: pd.DataFrame,
+    N_intensity: pd.DataFrame,
     *,
     base_year: int = DOLLAR_YEAR,
     path: Path | None = None,
 ) -> Path:
-    """Outer-join E (Mt + normalized) and real B (intensity + normalized) on code."""
+    """Outer-join E (Mt + normalized) and real B/N (intensity + normalized) on code."""
     years = sorted(
-        {int(c) for c in E_kg.columns} | {int(c) for c in B_intensity.columns}
+        {int(c) for c in E_kg.columns}
+        | {int(c) for c in B_intensity.columns}
+        | {int(c) for c in N_intensity.columns}
     )
     industry_name = {str(k): str(v) for k, v in INDUSTRY_DESC.items()}
     commodity_name = {str(k): str(v) for k, v in COMMODITY_DESC.items()}
@@ -392,7 +444,17 @@ def joined_E_B_csv(
     B_disc_int = B.max(axis=1) - B.min(axis=1)
     B_disc_norm = B_norm.max(axis=1) - B_norm.min(axis=1)
 
-    codes = sorted(set(E_mt.index.astype(str)) | set(B.index.astype(str)))
+    N = N_intensity
+    N_base = N[base_year] if base_year in N.columns else pd.Series(dtype=float)
+    N_norm = N.div(N_base.where(N_base > 0), axis=0)
+    N_disc_int = N.max(axis=1) - N.min(axis=1)
+    N_disc_norm = N_norm.max(axis=1) - N_norm.min(axis=1)
+
+    codes = sorted(
+        set(E_mt.index.astype(str))
+        | set(B.index.astype(str))
+        | set(N.index.astype(str))
+    )
     rows: list[dict[str, object]] = []
     for code in codes:
         row: dict[str, object] = {
@@ -410,6 +472,12 @@ def joined_E_B_csv(
             ),
             'B_range_normalized': (
                 float(B_disc_norm[code]) if code in B_disc_norm.index else float('nan')
+            ),
+            'N_range_intensity': (
+                float(N_disc_int[code]) if code in N_disc_int.index else float('nan')
+            ),
+            'N_range_normalized': (
+                float(N_disc_norm[code]) if code in N_disc_norm.index else float('nan')
             ),
         }
         for year in years:
@@ -433,11 +501,21 @@ def joined_E_B_csv(
                 if code in B_norm.index and year in B_norm.columns
                 else float('nan')
             )
+            row[f'N_{year}_intensity'] = (
+                float(N.loc[code, year])
+                if code in N.index and year in N.columns
+                else float('nan')
+            )
+            row[f'N_{year}_normalized'] = (
+                float(N_norm.loc[code, year])
+                if code in N_norm.index and year in N_norm.columns
+                else float('nan')
+            )
         rows.append(row)
 
     out_df = pd.DataFrame(rows)
     out_df = out_df.sort_values(
-        by=['E_range_normalized', 'B_range_normalized'],
+        by=['E_range_normalized', 'B_range_normalized', 'N_range_normalized'],
         ascending=False,
         na_position='last',
     )
@@ -450,10 +528,14 @@ def joined_E_B_csv(
         + [f'B_{year}_intensity' for year in years]
         + ['B_range_normalized']
         + [f'B_{year}_normalized' for year in years]
+        + ['N_range_intensity']
+        + [f'N_{year}_intensity' for year in years]
+        + ['N_range_normalized']
+        + [f'N_{year}_normalized' for year in years]
     )
     out_df = out_df.reindex(columns=col_order)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    csv_path = path or (OUTPUT_DIR / 'fbs_E_B_by_year.csv')
+    csv_path = path or (OUTPUT_DIR / 'fbs_E_B_N_by_year.csv')
     out_df.to_csv(csv_path, index=False)
     logger.info(f'Wrote {csv_path}')
     return csv_path
@@ -467,10 +549,12 @@ def main(
     line_top_n: int | None = 20,
     dollar_year: int = DOLLAR_YEAR,
 ) -> list[Path]:
-    """Write row + line SVGs and one joined E+B CSV under ``output/``."""
+    """Write row + line SVGs and one joined E+B+N CSV under ``output/``."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
-    E_kg = sector_emissions_panel(years, codes=codes)
-    B = commodity_B_panel(years, codes=codes, dollar_year=dollar_year)
+    span = build_assessment_span(years, dollar_year=dollar_year)
+    E_kg = sector_emissions_panel(span, years, codes=codes)
+    B = commodity_B_panel(span, years, codes=codes)
+    N = commodity_N_panel(span, years, codes=codes)
 
     industry_name = {str(k): str(v) for k, v in INDUSTRY_DESC.items()}
     commodity_name = {str(k): str(v) for k, v in COMMODITY_DESC.items()}
@@ -479,13 +563,19 @@ def main(
     b_order = absolute_top_order(
         B, abs_kind='intensity', base_year=base_year, top_n=top_n
     )
+    n_order = absolute_top_order(
+        N, abs_kind='intensity', base_year=base_year, top_n=top_n
+    )
     e_line_order = absolute_top_order(
         E_kg, abs_kind='Mt', base_year=base_year, top_n=line_top_n
     )
     b_line_order = absolute_top_order(
         B, abs_kind='intensity', base_year=base_year, top_n=line_top_n
     )
-    b_abs_unit = f'kg/${dollar_year}'
+    n_line_order = absolute_top_order(
+        N, abs_kind='intensity', base_year=base_year, top_n=line_top_n
+    )
+    intensity_abs_unit = f'kg/${dollar_year}'
 
     paths = [
         plot_by_year(
@@ -525,7 +615,28 @@ def main(
             out_stem='fbs_commodity_B_by_year_normalized',
             base_year=base_year,
             order=b_order,
-            abs_unit=b_abs_unit,
+            abs_unit=intensity_abs_unit,
+            dollar_year=dollar_year,
+        ),
+        plot_by_year(
+            N,
+            name_by_code=commodity_name,
+            y_scale='intensity',
+            title=f'Commodity N by year (real {dollar_year}$)',
+            out_stem='fbs_commodity_N_by_year_intensity',
+            base_year=base_year,
+            order=n_order,
+            dollar_year=dollar_year,
+        ),
+        plot_by_year(
+            N,
+            name_by_code=commodity_name,
+            y_scale='normalized',
+            title=f'Commodity N by year (real {dollar_year}$)',
+            out_stem='fbs_commodity_N_by_year_normalized',
+            base_year=base_year,
+            order=n_order,
+            abs_unit=intensity_abs_unit,
             dollar_year=dollar_year,
         ),
         plot_lines_by_year(
@@ -546,7 +657,16 @@ def main(
             order=b_line_order,
             dollar_year=dollar_year,
         ),
-        joined_E_B_csv(E_kg, B, base_year=base_year),
+        plot_lines_by_year(
+            N,
+            name_by_code=commodity_name,
+            abs_kind='intensity',
+            title=f'Commodity N by year (real {dollar_year}$)',
+            out_stem='fbs_commodity_N_by_year_intensity_lines',
+            order=n_line_order,
+            dollar_year=dollar_year,
+        ),
+        joined_E_B_N_csv(E_kg, B, N, base_year=base_year),
     ]
     return paths
 
@@ -575,7 +695,7 @@ if __name__ == '__main__':
         '--dollar-year',
         type=int,
         default=DOLLAR_YEAR,
-        help=f'Constant-dollar year for real B (default: {DOLLAR_YEAR})',
+        help=f'Constant-dollar year for real B/N (default: {DOLLAR_YEAR})',
     )
     parser.add_argument(
         '--top-n',
