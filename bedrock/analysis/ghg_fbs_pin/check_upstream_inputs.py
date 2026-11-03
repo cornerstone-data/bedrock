@@ -1,11 +1,14 @@
 ﻿"""Preflight: pinned Energy FBS + NowcastMUT vintages for a GHG rebuild.
 
 ``find_file`` loads the newest ``ctime`` match for a stem under ``FBS_DIR``.
-Energy FBS pins lock exact filenames. Nowcast Use attribution is melted from
-NowcastMUT (``flowsa/NowcastMUT``); the FBA parse path uses
-``latest_nowcast_mut_vintage`` and ignores USAConfig, so this pin locks the
-MUT vintage (and requires local Nowcast FBAs for that year to be absent so
-regen cannot reuse a stale melt).
+Energy FBS pins lock exact filenames. Nowcast Use attribution FBAs are built
+from NowcastMUT (``flowsa/NowcastMUT``). Align ``upstream_inputs_pin.json``
+with the rebuild config's ``nowcast_mut_vintage`` before Phase A A2. This pin
+locks that MUT vintage, requires those tables locally, and requires local
+Nowcast Use FBAs for that year to be absent so regen cannot reuse a stale
+FBA. Until the Nowcast Use FBA parse is fully config-aware, quarantine
+rival MUT vintages so ``latest_nowcast_mut_vintage`` cannot serve a different
+upload.
 
 Usage::
 
@@ -134,7 +137,7 @@ def check_nowcast_mut(
     pin: dict[str, Any],
     download: bool = False,
 ) -> list[str]:
-    """Require pinned MUT tables locally; fail on wrong latest vintage or FBAs."""
+    """Require pinned MUT tables locally; fail on missing files, rivals, or FBAs."""
     problems: list[str] = []
     year = spec['year']
     stage = spec['stage']
@@ -142,19 +145,18 @@ def check_nowcast_mut(
     gcs_prefix = _gcs_mut_prefix(pin)
     directory = Path(FBS_DIR)
 
+    # Informational: a newer GCS upload is fine when the rebuild config still
+    # names *vintage*; quarantine rivals until Use FBA parse is config-aware.
     try:
         latest = latest_nowcast_mut_vintage(year=year, stage=stage)
-    except Exception as exc:
-        problems.append(
-            f'{method}: could not resolve latest NowcastMUT vintage for '
-            f'{year}/{stage}: {exc}'
-        )
+    except Exception:
         latest = None
     if latest is not None and latest != vintage:
-        problems.append(
-            f'{method}: pinned NowcastMUT vintage {vintage!r} but '
-            f'latest_nowcast_mut_vintage({year}, {stage!r}) is {latest!r}; '
-            f'FBA regen would melt {latest!r}'
+        print(
+            f'{method}: note: pinned NowcastMUT vintage {vintage!r}; '
+            f'newest on GCS for {year}/{stage} is {latest!r} '
+            f'(rebuild under a config whose nowcast_mut_vintage is {vintage!r}; '
+            f'quarantine rivals if the Use FBA parse still resolves latest-on-GCS)'
         )
 
     for table in spec['tables']:
@@ -198,7 +200,7 @@ def check_nowcast_mut(
     if fbas:
         problems.append(
             f'{method}: local Nowcast Use FBAs for {year} would be reused instead '
-            f'of melting pinned MUT {vintage!r}: {[p.name for p in fbas]} '
+            f'of rebuilding from pinned MUT {vintage!r}: {[p.name for p in fbas]} '
             f'(run --quarantine-rivals)'
         )
     return problems
