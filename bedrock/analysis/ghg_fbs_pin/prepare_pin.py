@@ -189,9 +189,7 @@ def main() -> None:
         '  4. uv run pytest bedrock/transform/__tests__/test_fbs.py '
         '-m fbs_regeneration -v'
     )
-    print(
-        '  5. Cut the USA snapshot (Phase A A3) so .SNAPSHOT_KEY loads this FBS.'
-    )
+    print('  5. Cut the USA snapshot (Phase A A3) so .SNAPSHOT_KEY loads this FBS.')
     print(f'Draft written to {pin_path}')
 
 
