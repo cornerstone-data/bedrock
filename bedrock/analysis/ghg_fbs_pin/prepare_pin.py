@@ -29,6 +29,7 @@ from bedrock.analysis.ghg_fbs_pin.compare_gas_e import compare
 OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
 PIN_TEMPLATE = {
     'method': '',
+    'usa_config': '',
     'gcs_sub_bucket': 'transform/output_data',
     'filename': '',
     'sha256': '',
@@ -144,8 +145,21 @@ def main() -> None:
             shutil.copy2(meta, OUTPUT_DIR / meta.name)
     digest = _sha256(dest)
 
+    import os  # noqa: PLC0415
+
+    from bedrock.utils.config.usa_config import (  # noqa: PLC0415
+        USA_CONFIG_ENV_VAR,
+        get_usa_config,
+    )
+
+    # Ensure the process-wide config is loaded; stem comes from the env label.
+    get_usa_config()
+    config_label = (os.environ.get(USA_CONFIG_ENV_VAR) or '').strip()
+    usa_config_stem = Path(config_label).stem if config_label else ''
+
     pin = dict(PIN_TEMPLATE)
     pin['method'] = method
+    pin['usa_config'] = usa_config_stem
     pin['filename'] = dest.name
     pin['sha256'] = digest
     pin_path = OUTPUT_DIR / 'cornerstone_ghg_fbs_2024_pin.DRAFT.json'
@@ -165,8 +179,9 @@ def main() -> None:
         'cornerstone_ghg_fbs_2024_pin.json'
     )
     print(
-        '  3. Set cornerstone_ghg_fbs_filename on canonical + waterfall configs '
-        f'to {dest.name!r}. Candidates:'
+        '  3. Set cornerstone_ghg_fbs_filename on canonical + year-series '
+        f'configs to {dest.name!r} (frozen decks only with a deliberate '
+        'decision). Candidates:'
     )
     for rel in _configs_pinning_stem(method):
         print(f'       - {rel}')
@@ -174,6 +189,7 @@ def main() -> None:
         '  4. uv run pytest bedrock/transform/__tests__/test_fbs.py '
         '-m fbs_regeneration -v'
     )
+    print('  5. Cut the USA snapshot (Phase A A3) so .SNAPSHOT_KEY loads this FBS.')
     print(f'Draft written to {pin_path}')
 
 

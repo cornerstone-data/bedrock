@@ -33,6 +33,7 @@ These are **independent** concepts and frequently point at different commits:
 | Diagnostics baseline alias | [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | Short operator names (`ceda-v0`, `v0.3`, …) → `releases.py` constants. Add an entry when a new release is a common comparison target. Raw SHAs skip this map if they are already on the `Literal`. |
 | Allowed snapshot keys | `USAConfig.snapshot_version_or_git_sha` | `Literal[...]` of SHAs diagnostics may load as `N_old` / `D_old`. Every released snapshot SHA must appear here. YAML default is `'v0'`; dispatch `--baseline` overrides for that run only. |
 | Canonical config | [`2026_usa_cornerstone_v1_0.yaml`](../config/configs/2026_usa_cornerstone_v1_0.yaml) | `CANONICAL_USA_CONFIG` — the default `generate_snapshots` / live model config. Each `.SNAPSHOT_KEY` bag is built from the config stem recorded on its `releases.py` entry. Atomic configs are not snapshotted here; see "Adhoc snapshots" below. |
+| Nowcast MUT vintage | `USAConfig.nowcast_mut_vintage` | Artifact label for after-redefinition Make/Use/Import/Margins under `flowsa/NowcastMUT` (e.g. `v1.0.0_5514c3b`). See "Nowcast artifact stages" and "Nowcast MUT vintage" below. |
 | Cornerstone GHG FBS pin | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pins the Cornerstone GHG FBS parquet in `transform/output_data` (method, filename, SHA256). Guards FBS regeneration in [`test_fbs.py`](../../transform/__tests__/test_fbs.py). See "Cornerstone GHG FBS pin" below. |
 | Nowcast balanced SUT pin | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | Pins the 2024 balanced Supply and Use parquets in `flowsa/BalancedSUT` (filename + SHA256). Guards a `balance_year(2024)` rebuild in [`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py). See "Nowcast balanced SUT pin" below. |
 
@@ -43,20 +44,51 @@ These are **independent** concepts and frequently point at different commits:
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | Full pipeline outputs at a git SHA | `test_usa.py` (`eeio_integration`) |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | The Cornerstone GHG FBS parquet | `test_fbs.py` (`fbs_regeneration`) |
 | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | 2024 balanced Supply and Use | `test_nowcast_balanced_sut_pin.py` (`nowcast_integration`) |
-| `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Nothing — selects via `_select_cornerstone_ghg_fbs_base_name` (newest upload for that base_name) | `load_E_from_flowsa()` for Cornerstone GHG |
+| `_load_cornerstone_ghg_fbs_from_gcs` in [`derived.py`](../../transform/allocation/derived.py) | Exact object when `USAConfig.cornerstone_ghg_fbs_filename` is set; otherwise newest upload for the selected `base_name` | `load_E_from_flowsa()` for Cornerstone GHG |
 
-The FBS pin and the runtime loader are independent: bumping the pin updates the regeneration test golden file; production still follows the latest GCS upload until `load_E_from_flowsa` is wired to the pin.
+The FBS pin JSON and `cornerstone_ghg_fbs_filename` on the canonical USA config must name the **same** GCS object. That object is what `generate_snapshots` loads for E and what `test_fbs_regeneration` tries to reproduce. Do not leave the pin or the config on an FBS built under a prior `nowcast_mut_vintage` after the canonical MUT has moved — rebuild the FBS, repoint both fields, then cut the snapshot (see Phase A below). Changing `nowcast_mut_vintage` alone never justifies running `generate_snapshots`: the snapshot would load new Use tables under an E still built from the prior MUT.
 
-| Store | Releases (`v0`, `v0.1`, `v0.2`, `v0.3`, `v0.4`, `v0.5`) | Test-only SHAs |
+### Nowcast artifact stages
+
+| Stage | GCS prefix | Selected by | Guarded by |
+|---|---|---|---|
+| Balanced SUT (Step 5) | `flowsa/BalancedSUT` | pin JSON + `PIN_USA_CONFIG` in [`nowcast_balanced_sut_pin.py`](nowcast_balanced_sut_pin.py) | `nowcast_integration` (`test_balance_2024_matches_pinned_sut`) |
+| Before-redef MUT (Step 6) | `flowsa/NowcastMUT` | build/upload only | no weekday pin |
+| After-redef MUT (Step 7) | `flowsa/NowcastMUT` | `USAConfig.nowcast_mut_vintage` | config string + GCS upload; Step 7 `--check` (2017 replay) |
+
+`nowcast_integration` rebuilds `balance_year(2024)` only. It does **not** prove that the after-redefinition MUT named by `nowcast_mut_vintage` is reproducible. Steps 5–7 usually ship together, so the balanced SUT pin and the MUT vintage **generally** share a build label; that coupling is operational, not a hard equality check for GHG rebuild (see cascade matrix).
+
+### Bump cascade by change type
+
+| Change | `nowcast_mut_vintage` | Balanced SUT pin | `upstream_inputs_pin.json` | GHG rebuild + FBS pin / `cornerstone_ghg_fbs_filename` | `.SNAPSHOT_KEY` | Typical release | Gate tests |
+|---|---|---|---|---|---|---|---|
+| Nowcast rebuild (Steps 5–7 uploaded) | Set on live configs | Bump when Step 5 outputs for the pinned year move | Align MUT (and Energy FBS if those inputs move) | Required before snapshot — Use attribution follows the new MUT | Required after FBS promote | minor | Prefer green `nowcast_integration` when the SUT pin moved; then `fbs_regeneration`; then `eeio_integration` on the bump PR |
+| GHG / Energy / stewi only (MUT unchanged) | Unchanged | Unchanged | Refresh Energy / stewi stems if those pins move | Required before snapshot | Required after FBS promote | minor | `fbs_regeneration`; then `eeio_integration` |
+| Model-only A/y/q (no E / MUT / FBS inputs) | Unchanged | Unchanged | Unchanged | Skip A2 | Required | minor | `eeio_integration` |
+| Combined nowcast + GHG + ship | As nowcast row | As nowcast row | As nowcast row | As nowcast row | As nowcast row | minor (+ Phase B tag) | All three markers green for the cut |
+
+Preferred PR stack for a nowcast-driven cut: MUT config + SUT pin (when balance moved) → FBS pin + `cornerstone_ghg_fbs_filename` → `.SNAPSHOT_KEY`. Landing MUT or FBS filename ahead of the snapshot bump can red `eeio_integration` on `main` until the snapshot PR merges; that gap is expected when the stack is in flight.
+
+GHG rebuild is **not** blocked on the balanced SUT pin filename equaling `nowcast_mut_vintage`. Prefer a green `nowcast_integration` when the SUT pin was updated for this rebuild. If the balance pin deliberately lags, rebuild GHG against the config MUT after Step 7 `--check` / upload confidence, then still promote FBS before the snapshot.
+
+### Which configs move
+
+| Config family | When MUT or Cornerstone GHG filename moves |
+|---|---|
+| Canonical `2026_usa_cornerstone_v1_0` + `2026_usa_cornerstone_v1_0_{2017..2024}` year series | Always retarget with the live rebuild |
+| Frozen waterfall / release / `COMBINATIONS` diagnostics decks | Only with a deliberate deck decision — see [config-cleanup](../../../.cursor/rules/config-cleanup.mdc) |
+| Atomic / feature-flag YAMLs | Only when that atomic scenario is meant to consume the new MUT or E |
+
+| Store | Releases (`v0` … `v1.0`) | Test-only SHAs |
 |---|---|---|
 | [`.SNAPSHOT_KEY`](.SNAPSHOT_KEY) | current release SHA | — |
-| [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2`, `v0_3_0`, … | `TEST_*` (intermediate bumps, not release labels) |
-| [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | `ceda-v0`, `v0.3`, … | — |
-| `USAConfig.snapshot_version_or_git_sha` | `'v0'`, release SHAs with `# v0.x` comments | `2ebb51f7...`, `9fe22d9a...` `# test` |
+| [`releases.py`](releases.py) | `v0`, `v0_1`, `v0_2`, `v0_3_0`, `v0_6_0`, `v1_0_0`, … | `TEST_*` (intermediate bumps, not release labels) |
+| [`diagnostics_baseline.py`](../validation/diagnostics_baseline.py) `NAMED_BASELINES` | `ceda-v0`, `v0.3`, `v1.0`, … | — |
+| `USAConfig.snapshot_version_or_git_sha` | `'v0'`, release SHAs with `# v0.x` / `# v1.0` comments | `2ebb51f7...`, `9fe22d9a...` `# test` |
 
 **Atomic config** — a YAML config that changes a single methodology flag relative to the baseline, used to measure that change in isolation. See [`../config/feature_flag.md`](../config/feature_flag.md). Diagnostics against a chosen snapshot or USEEIO baseline: [`../validation/evaluate_feature_impact.md`](../validation/evaluate_feature_impact.md).
 
-`v0.2` is an earlier release snapshot. `v0` and `v0.1` predate it. The two `TEST_*` SHAs are intermediate bumps kept in the Literal so atomic configs and test fixtures can pin them for comparison.
+Release snapshot SHAs stay on the `Literal` so historical baselines remain loadable. The two `TEST_*` SHAs are intermediate bumps kept for atomic configs and fixtures.
 
 ## Versioning
 
@@ -97,6 +129,8 @@ or fix
 
 Do not bump `.SNAPSHOT_KEY` to silence a failure you have not diagnosed.
 
+A `nowcast_mut_vintage` (or GHG input) change without promoting the Cornerstone GHG FBS pin and `cornerstone_ghg_fbs_filename` is not a complete Phase A: the next snapshot would load E from an FBS built under a prior MUT. See **Bump cascade by change type** and Phase A A2.
+
 ## When to cut a release (Phase B trigger)
 
 Phase B is **scheduled**, not reactive. Cut a release when any of these is true and `main` is green:
@@ -126,7 +160,18 @@ A patch release (`v0.2.0` → `v0.2.1`) skips Phase A entirely — only Phase B 
 **A1. Land the change on `main`.**
 Merge the methodology / pipeline-change PR. Note the merge commit SHA on `main`; this is what the snapshots will be generated against and what `.SNAPSHOT_KEY` will pin.
 
-**A2. Generate snapshots in CI.**
+**A2. Refresh the Cornerstone GHG FBS when its inputs moved.**
+`generate_snapshots` loads E from the exact parquet named by `cornerstone_ghg_fbs_filename`; it does not regenerate that FBS. If the landed change (or a companion PR) moved `nowcast_mut_vintage`, the GHG method YAML / upstream FBAs, stewi facility pins, or Energy FBS inputs that feed the Cornerstone GHG FBS, rebuild and promote that FBS **before** cutting the snapshot:
+
+1. Prefer a green weekday `nowcast_integration` / `test_balance_2024_matches_pinned_sut` when the balanced SUT pin was updated for this nowcast rebuild. GHG Use attribution follows the rebuild config's `nowcast_mut_vintage`, not the SUT pin filename — do not treat SUT-pin lag as an automatic blocker when the balance gate is deliberately on a prior methodology config. Still require Step 7 `--check` / upload confidence for the MUT named on the config before promoting FBS.
+2. Align [`bedrock/analysis/ghg_fbs_pin/upstream_inputs_pin.json`](../../analysis/ghg_fbs_pin/upstream_inputs_pin.json) with the canonical config's `nowcast_mut_vintage` (and Energy FBS filenames).
+3. Rebuild under that config via the [`ghg_fbs_pin`](../../analysis/ghg_fbs_pin/README.md) toolkit (`check_upstream_inputs`, then `prepare_pin` / `compare_gas_e`).
+4. Upload the parquet to `gs://cornerstone-default/transform/output_data/`, bump [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) (include `usa_config` naming the rebuild config), and set `cornerstone_ghg_fbs_filename` on the canonical USA config (and matching year series) to the same object. Frozen waterfall / `COMBINATIONS` decks move only with a deliberate deck decision.
+5. Confirm `fbs_regeneration` is green on that pin.
+
+Skip A2 only when the pipeline change cannot affect Cornerstone GHG E (for example pure A/y/q methodology that does not touch MUT vintage or FBS inputs). A release snapshot must not name an FBS built under a prior `nowcast_mut_vintage` once the canonical MUT has moved.
+
+**A3. Generate snapshots in CI.**
 Trigger the `generate_snapshots` workflow manually:
 
 - GitHub → Actions → **generate_snapshots** → Run workflow
@@ -136,7 +181,7 @@ Trigger the `generate_snapshots` workflow manually:
 
 Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>/`.
 
-**A3. Open the snapshot bump PR.**
+**A4. Open the snapshot bump PR.**
 On a new branch, make exactly these changes (and nothing else — keep the bump PR mechanical and reviewable in under a minute):
 
 - [ ] [`bedrock/utils/snapshots/.SNAPSHOT_KEY`](.SNAPSHOT_KEY) — replace the file's only line with the new SHA.
@@ -146,16 +191,23 @@ On a new branch, make exactly these changes (and nothing else — keep the bump 
 - [ ] Title: `release: snapshot bump (anticipated v0.X.Y)`
 - [ ] Description: short summary of the output delta vs. the previous snapshot, plus the GCS URL `gs://cornerstone-default/snapshots/<new_sha>/`.
 
-**A4. Verify before merging.**
-On the bump PR's branch, the integration tests should pass against the new snapshot:
+**A5. Verify before merging.**
+On the bump PR's branch, the USA snapshot integration tests should pass against the new snapshot:
 
 ```bash
 uv run pytest bedrock/transform/__tests__/test_usa.py -m eeio_integration
 ```
 
-Re-run locally if CI runners hit transient flakes. The bump PR is the only safe place to verify because once `.SNAPSHOT_KEY` changes, the test pass/fail signal is what guards the release.
+When the same release cycle also moved the FBS pin or the balanced SUT pin, confirm those weekday markers on the pin-bump branches (or on `main` after they merged):
 
-**A5. Merge the bump PR.**
+```bash
+uv run pytest bedrock/transform/__tests__/test_fbs.py -m fbs_regeneration -v
+uv run pytest bedrock/transform/__tests__/test_nowcast_balanced_sut_pin.py -m nowcast_integration -v
+```
+
+Re-run locally if CI runners hit transient flakes. The bump PR is the only safe place to verify the new `.SNAPSHOT_KEY` because once that file changes, the `eeio_integration` pass/fail signal is what guards the release.
+
+**A6. Merge the bump PR.**
 At this point `main` carries the new snapshot. No tag yet. Other PRs (docs, polish, fixes) can continue to merge until you're ready for Phase B.
 
 ### Phase B — Cutting the release
@@ -174,7 +226,7 @@ git diff <latest_tag>..main -- bedrock/utils/snapshots/.SNAPSHOT_KEY
 If you're cutting `v1.0.0` or a later major release, that's a deliberate methodology + comms decision separate from this flow.
 
 **B2. Confirm `main` is shippable.**
-Integration tests green on the most recent scheduled run. CI on `main` is green. Any docs PRs intended for this release have already merged.
+Integration tests green on the most recent scheduled run (`eeio_integration`, and `fbs_regeneration` / `nowcast_integration` when those pins moved). CI on `main` is green. Soft check: the canonical config's `nowcast_mut_vintage`, `cornerstone_ghg_fbs_filename`, and the FBS / balanced SUT pins agree with the stack the snapshot was cut under. Any docs PRs intended for this release have already merged.
 
 **B3. Bump the package version.**
 On a small PR (or the same PR as any last docs/polish for the release), set `[project].version` in [`pyproject.toml`](../../../pyproject.toml) to the version you are about to tag — no `v` prefix (e.g. tag `v0.5.0` → `version = "0.5.0"`). Run `uv lock` so [`uv.lock`](../../../uv.lock) records the same `bedrock` version, and commit both files. Merge before tagging. Do this for every release, patch or minor. Already-uploaded FBA/FBS objects keep their old `tool_version` in the filename; only new regenerations pick up the bumped value via `return_pkg_version`.
@@ -302,19 +354,20 @@ An earlier interim under the v0.6 `.SNAPSHOT_KEY` (`…/a_margin/e10c75f542b0c9b
 
 Bump the pin when the team **intentionally** ships a new Cornerstone GHG FBS to GCS, for example:
 
+- Canonical `nowcast_mut_vintage` moved (Use attribution in the GHG FBS follows that MUT — Phase A A2; prefer green `nowcast_integration` when the balanced SUT pin moved with the rebuild)
 - Changes to the pinned method YAML or its upstream FBAs
 - A new stewi or facilitymatcher stem adopted in [`stewi_facility_pin.json`](stewi_facility_pin.json) that changes FBS output
 - A refreshed Energy FBS input that changes the Cornerstone GHG FBS
 
 Do **not** bump the pin to silence a failing test without diagnosing the diff. A red `test_generate_cornerstone_ghg_fbs_matches_pinned_reference` means either regeneration is broken or the pin is stale relative to an upload that was already blessed.
 
-A pin bump is separate from a `.SNAPSHOT_KEY` bump. Snapshot tests cover the full pipeline; the FBS pin covers only whether `generateFlowBySector` on the pinned `method` still reproduces the committed golden parquet. Keep `filename` equal to `cornerstone_ghg_fbs_filename` on the canonical USA config.
+The FBS pin bump and the `.SNAPSHOT_KEY` bump are usually **separate PRs**, but for a MUT-driven (or other E-changing) release the **order is fixed**: promote the new FBS pin and `cornerstone_ghg_fbs_filename` first (Phase A A2), then cut the snapshot (A3–A6). Snapshot tests cover the full pipeline including E loaded from that filename; the FBS pin covers whether `generateFlowBySector` under the pin's `usa_config` still reproduces that golden parquet. Keep `filename` equal to `cornerstone_ghg_fbs_filename` on the canonical USA config.
 
 ### How to bump the pin
 
 **1. Regenerate and upload.**
 
-Confirm the stewi facility pin preflight passes (`uv run python -m bedrock.utils.snapshots.stewi_facility_pin`), then run `FlowBySector.generateFlowBySector` for the method stem the canonical config loads (or via an internal job), with `download_sources_ok=True`. Upload the parquet and metadata JSON to `gs://cornerstone-default/transform/output_data/`. Filenames follow `{method}_v{tool_version}_{git_hash}.parquet`.
+Prefer the operator toolkit in [`bedrock/analysis/ghg_fbs_pin`](../../analysis/ghg_fbs_pin/README.md): lock upstream inputs, rebuild under the canonical config, draft the pin JSON. Confirm the stewi facility pin preflight passes (`uv run python -m bedrock.utils.snapshots.stewi_facility_pin`), then run `FlowBySector.generateFlowBySector` for the method stem the canonical config loads (or via `prepare_pin`), with `download_sources_ok=True`. Upload the parquet and metadata JSON to `gs://cornerstone-default/transform/output_data/`. Filenames follow `{method}_v{tool_version}_{git_hash}.parquet`.
 
 **2. Compute SHA256** of the uploaded parquet:
 
@@ -327,7 +380,10 @@ uv run python -c "import hashlib, sys; p=sys.argv[1]; h=hashlib.sha256(open(p,'r
 - `method` — FlowBySector stem the canonical config loads
 - `filename` — exact GCS object name
 - `sha256` — 64-char hex digest from step 2
+- `usa_config` — config stem the FBS was rebuilt under (regen tests must run under the same one so Use attribution reads that config's `nowcast_mut_vintage`)
 - `gcs_sub_bucket` stays `transform/output_data` unless the bucket layout changes
+
+Also set `cornerstone_ghg_fbs_filename` on the canonical USA config (and matching year / waterfall configs) to the same `filename`.
 
 **4. Verify** on the pin-bump branch:
 
@@ -335,21 +391,50 @@ uv run python -c "import hashlib, sys; p=sys.argv[1]; h=hashlib.sha256(open(p,'r
 uv run pytest bedrock/transform/__tests__/test_fbs.py -m fbs_regeneration -v
 ```
 
-**5. Merge** the pin bump — in the same PR as the FBS regen/upload when possible, or immediately after. Keep the diff mechanical: the JSON pin file (and any upload-related method changes) only.
+**5. Merge** the pin bump — in the same PR as the FBS regen/upload when possible, or immediately after. Keep the diff mechanical: the JSON pin file, config filename fields, and any upload-related method changes only. Then continue Phase A at **A3** so the next `.SNAPSHOT_KEY` bag loads this FBS.
 
-After upload, `_load_cornerstone_ghg_fbs_from_gcs` picks up the new parquet on the next run (newest `base_name` match) even before the pin bump merges; the pin bump aligns CI with the blessed file.
+With `cornerstone_ghg_fbs_filename` set, `_load_cornerstone_ghg_fbs_from_gcs` loads that exact object (local FBS directory first, then GCS). The pin bump aligns the weekday regen golden with the same file.
+
+## Nowcast MUT vintage
+
+After-redefinition Make/Use/Import/Margins under `gs://cornerstone-default/flowsa/NowcastMUT/` are selected by `USAConfig.nowcast_mut_vintage` (e.g. `v1.0.0_5514c3b`). There is no SHA256 pin JSON for those tables. Configs that omit `nowcast_mut_vintage` resolve the newest Make parquet on GCS for the year/stage — uploading a rival vintage can silently retarget those configs.
+
+### When to rebuild and bump the vintage
+
+- BEA annual update or price-index vintage that feeds Steps 3–7
+- Step 5–7 methodology that changes balanced SUT or MUT outputs
+- Intentional multi-year panel rebuild for a release config family
+
+### How to rebuild and publish
+
+Run under the USA config that will name the new vintage. Order is fixed: balance → before-redef MUT → after-redef MUT (+ `--gcs` on Step 7).
+
+```powershell
+$env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
+# Step 5 — balanced Supply and Use (default year span; --gcs uploads flowsa/BalancedSUT)
+uv run python -m bedrock.transform.iot.nowcast_sut_assembly --years 2017-2024 --gcs
+# Step 6 — before-redefinition MUT (omit --year to convert every year with balanced products)
+uv run python -m bedrock.transform.iot.nowcast_mut
+# Step 7 — 2017 replay, then after-redefinition MUT + upload (omit --year for the full panel)
+uv run python -m bedrock.transform.iot.nowcast_redefinitions --check
+uv run python -m bedrock.transform.iot.nowcast_redefinitions --gcs
+```
+
+Record the vintage string stamped on the uploaded after-redef objects (`v{tool_version}_{git_hash}` from `default_nowcast_mut_vintage()`). Set `nowcast_mut_vintage` on the canonical config and the matching year series (see **Which configs move**). When Step 5 outputs for the pinned balance year move, bump the balanced SUT pin in the same stack. Then continue Phase A A2 (GHG) and A3–A6 (snapshot) — a MUT config PR alone is not a release cut.
 
 ## Nowcast balanced SUT pin
 
-[`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) pins the 2024 balanced Supply and Use tables under `gs://cornerstone-default/flowsa/BalancedSUT/`. Filename and SHA256 live in that file. The pin does not cover the Step 6 MUT or the after-redefinition MUT. v0.5 still loads the after-redefinition tables named by `nowcast_mut_vintage`.
+[`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) pins the 2024 balanced Supply and Use tables under `gs://cornerstone-default/flowsa/BalancedSUT/`. Filename and SHA256 live in that file. The pin does **not** cover the Step 6 MUT or the after-redefinition MUT; the model loads after-redef tables named by `nowcast_mut_vintage`.
 
-The pin is independent of `nowcast_mut_vintage` and `.SNAPSHOT_KEY`. [`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under `2025_usa_cornerstone_v0_5_9`, with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. Missing FlowByActivity inputs are loaded from `flowsa/FlowByActivity` before any Census, EIA, or BEA call. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
+The pin is separate from `.SNAPSHOT_KEY` and from the FBS pin. It does not automatically move when only after-redef MUT objects change. In practice Steps 5–7 ship together, so when a nowcast rebuild moves `balance_year` outputs, bump this pin so weekday `nowcast_integration` guards the same build the team uploaded. Do not require the SUT pin filename to equal `nowcast_mut_vintage` as a hard gate for GHG rebuild (see cascade matrix).
+
+[`test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) calls `balance_year(2024)` under the pin's `usa_config` (today `2025_usa_cornerstone_v0_5_9` via `PIN_USA_CONFIG`), with FBS reads and writes pointed at an empty directory, and compares the frames `save_balance` writes (Use after the residue sweep) to the pinned parquets. Missing FlowByActivity inputs are loaded from `flowsa/FlowByActivity` before any Census, EIA, or BEA call. The test is marked `nowcast_integration` and runs as its own job on the weekday `test_integration` schedule. One year is about 15-17 minutes when inputs are already local; a cold rebuild is longer, and the job timeout is 120 minutes.
 
 ### When to bump the pin
 
-Bump the pin when a new balanced 2024 Supply and Use upload is the table the rebuild should match. Do not bump the pin to silence a failing test without diagnosing the diff. A red `test_balance_2024_matches_pinned_sut` means either regeneration is broken or the pin names a vintage the current code no longer reproduces.
+Bump the pin when a new balanced 2024 Supply and Use upload is the table the rebuild should match — typically as part of a Steps 5–7 nowcast rebuild. Do not bump the pin to silence a failing test without diagnosing the diff. A red `test_balance_2024_matches_pinned_sut` means either regeneration is broken or the pin names a vintage the current code no longer reproduces.
 
-A pin bump is separate from a `.SNAPSHOT_KEY` bump and from the FBS pin bump. Do not point the test at `latest_nowcast_mut_vintage` or at `nowcast_mut_vintage`.
+Do not point the test at `latest_nowcast_mut_vintage` or at `nowcast_mut_vintage`.
 
 ### How to bump the pin
 
@@ -357,7 +442,7 @@ The golden files are objects already on GCS. After the balanced Supply and Use f
 
 1. Set `filename` to the exact object names under `flowsa/BalancedSUT`.
 2. Set `sha256` to the digest of each parquet.
-3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT` and `usa_config` as `2025_usa_cornerstone_v0_5_9` unless the rebuild's methodology config changes. `PIN_USA_CONFIG` in `nowcast_balanced_sut_pin.py` must match that name.
+3. Leave `gcs_sub_bucket` as `flowsa/BalancedSUT`. Set `usa_config` to the methodology config used for that `balance_year` rebuild, and keep `PIN_USA_CONFIG` in `nowcast_balanced_sut_pin.py` equal to that name.
 
 ```powershell
 uv run python -c "import hashlib, sys; p=sys.argv[1]; print(hashlib.sha256(open(p,'rb').read()).hexdigest())" path\to\Balanced_Detail_Use_SUT_2024_....parquet
@@ -369,7 +454,7 @@ Verify:
 uv run pytest bedrock/transform/__tests__/test_nowcast_balanced_sut_pin.py -m nowcast_integration -v
 ```
 
-Merge the pin bump with the upload when they ship together. Keep the diff mechanical: the JSON pin file, unless the same change is what moved the balanced tables.
+Merge the pin bump with the upload when they ship together. Keep the diff mechanical: the JSON pin file (and `PIN_USA_CONFIG` when the methodology config changes).
 
 ## File map
 
@@ -382,7 +467,7 @@ Merge the pin bump with the upload when they ship together. Keep the diff mechan
 | [`names.py`](names.py) | `SnapshotName` literal type and `SNAPSHOT_NAMES` list |
 | [`releases.py`](releases.py) | Release label → snapshot SHA map; imported by `diagnostics_baseline` |
 | [`../validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) | Maps `--baseline` labels (`ceda-v0`, `v0.3`, …) to snapshot keys |
-| [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs |
+| [`../config/usa_config.py`](../config/usa_config.py) | `USAConfig.snapshot_version_or_git_sha` `Literal` of allowed baseline SHAs; also `nowcast_mut_vintage` |
 | [`../../../.github/workflows/generate_snapshots.yml`](../../../.github/workflows/generate_snapshots.yml) | `workflow_dispatch` CI that runs `generate_snapshots.py` |
 | [`../../../.github/workflows/test_integration.yml`](../../../.github/workflows/test_integration.yml) | Weekday CI: `eeio_integration` against `.SNAPSHOT_KEY`, `fbs_regeneration` against the FBS pin, and `nowcast_integration` against the balanced SUT pin |
 | [`cornerstone_ghg_fbs_2024_pin.json`](cornerstone_ghg_fbs_2024_pin.json) | Pinned Cornerstone GHG FBS parquet for the regen test |
@@ -390,6 +475,11 @@ Merge the pin bump with the upload when they ship together. Keep the diff mechan
 | [`nowcast_balanced_sut_2024_pin.json`](nowcast_balanced_sut_2024_pin.json) | Pinned 2024 balanced Supply and Use |
 | [`nowcast_balanced_sut_pin.py`](nowcast_balanced_sut_pin.py) | Load balanced SUT pin JSON, download from GCS, verify SHA256 |
 | [`../../transform/__tests__/test_nowcast_balanced_sut_pin.py`](../../transform/__tests__/test_nowcast_balanced_sut_pin.py) | `nowcast_integration` test: `balance_year(2024)` vs pinned Supply and Use |
+| [`../../transform/iot/nowcast_sut_assembly.py`](../../transform/iot/nowcast_sut_assembly.py) | Step 5 balance CLI |
+| [`../../transform/iot/nowcast_mut.py`](../../transform/iot/nowcast_mut.py) | Step 6 before-redef MUT CLI |
+| [`../../transform/iot/nowcast_redefinitions.py`](../../transform/iot/nowcast_redefinitions.py) | Step 7 after-redef MUT CLI (`--gcs`, `--check`) |
+| [`../../extract/iot/nowcast_mut_storage.py`](../../extract/iot/nowcast_mut_storage.py) | MUT GCS layout + vintage helpers |
+| [`../../analysis/ghg_fbs_pin/`](../../analysis/ghg_fbs_pin/) | Operator toolkit for A2 GHG pin bumps |
 | [`stewi_facility_pin.json`](stewi_facility_pin.json) | Pinned stewi GHGRP/NEI + facilitymatcher outputs for facilities FBS |
 | [`stewi_facility_pin.py`](stewi_facility_pin.py) | Load pin, download from GCS, preflight check |
 | [`../../transform/__tests__/test_fbs.py`](../../transform/__tests__/test_fbs.py) | `fbs_regeneration` test: regen vs pinned FBS |
