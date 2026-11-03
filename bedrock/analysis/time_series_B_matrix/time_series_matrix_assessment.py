@@ -121,8 +121,8 @@ def build_assessment_span(
                 f'do not match pins fbs={FBS_VINTAGE!r} mut={MUT_VINTAGE!r}; rebuilding'
             )
 
-    rebuilt = span is None
-    if rebuilt:
+    rebuilt = False
+    if span is None:
         vintages = resolve_vintages(
             fbs_vintage=FBS_VINTAGE, mut_vintage=MUT_VINTAGE, years=years
         )
@@ -130,6 +130,7 @@ def build_assessment_span(
             f'Building span fbs={vintages.fbs} mut={vintages.mut} stem={FBS_STEM}'
         )
         span = build_span(years, vintages)
+        rebuilt = True
 
     logger.info(f'Rebasing x to {dollar_year}$ for real B_total / N_total')
     with temp_usa_config(
