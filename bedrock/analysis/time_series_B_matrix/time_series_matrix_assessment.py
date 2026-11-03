@@ -1,12 +1,14 @@
 """FBS sector E and real commodity B/N over the time series assessment.
 
 Loads a dig span at pinned GHG FBS + NowcastMUT vintages (cache when those
-pins match; otherwise build once and save). Writes row SVGs (E Mt / E
-normalized; B and N intensity / normalized), absolute line SVGs for the top
-codes by range, and one CSV joined on BEA detail ``code``. Absolute top-N
-order is reused for matching normalized row plots. Same code is the primary
-industry/commodity pair; B reshuffles via ``(E/x)@Vnorm``, so values need not
-match. N is ``B@L`` (total factor including indirect effects).
+pins match; otherwise build once and save). Writes under
+``analysis/time_series_B_matrix/time_series_matrix_assessment/``: row SVGs
+(E Mt / E normalized; B and N intensity / normalized), absolute and normalized
+line SVGs for the top codes by range, one CSV joined on BEA detail ``code``,
+and a versioned run ``.log``. Absolute top-N order is reused for matching
+normalized plots. Same code is the primary industry/commodity pair; B
+reshuffles via ``(E/x)@Vnorm``, so values need not match. N is ``B@L`` (total
+factor including indirect effects).
 
 B and N use ``B_total`` / ``N_total`` with ``real=True`` after rebasing dig
 ``x`` to constant **2017$**. Normalization defaults to 2017 = 1.
@@ -24,6 +26,7 @@ from __future__ import annotations
 import argparse
 import logging
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -35,7 +38,6 @@ from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     CACHE_BEARING_MODULES,
     CACHE_DIR,
     CONFIG_TEMPLATE,
-    OUTPUT_DIR,
     YEARS,
     B_total,
     N_total,
@@ -47,6 +49,13 @@ from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     save_span,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
+from bedrock.utils.config.settings import (
+    GIT_BRANCH,
+    GIT_HASH,
+    GIT_HASH_LONG,
+    PKG,
+    PKG_VERSION_NUMBER,
+)
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
@@ -62,6 +71,9 @@ FBS_VINTAGE = 'v0.6.0_635777c'
 MUT_VINTAGE = 'v1.0.0_5514c3b'
 #: Year-stem GHG FBS basename template (matches ``2026_usa_cornerstone_v1_0_{year}``).
 FBS_STEM = 'GHG_national_Cornerstone_{year}'
+
+#: Assessment SVGs, CSV, and run log (dig span cache stays under ``output/cache``).
+ASSESSMENT_DIR = Path(__file__).resolve().parent / 'time_series_matrix_assessment'
 
 #: Distinct hues on one warm→cool path (2017 gold … 2024 navy).
 YEAR_COLORS: dict[int, str] = {
@@ -348,8 +360,8 @@ def plot_by_year(
     ax.legend(handles=handles, title='year', loc='lower right', fontsize=7, ncol=2)
     fig.tight_layout()
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUTPUT_DIR / f'{out_stem}.svg'
+    ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
+    out = ASSESSMENT_DIR / f'{out_stem}.svg'
     fig.savefig(out, bbox_inches='tight')
     plt.close(fig)
     logger.info(f'Wrote {out}')
@@ -365,11 +377,13 @@ def plot_lines_by_year(
     out_stem: str,
     order: Sequence[str],
     dollar_year: int = DOLLAR_YEAR,
+    base_year: int | None = None,
 ) -> Path:
-    """Line chart of absolute levels over years for the codes in *order*.
+    """Line chart over years for the codes in *order*.
 
     *abs_kind* ``Mt`` treats *panel* as kg CO2e; ``intensity`` uses values as-is
-    (kg per *dollar_year*$). No normalization.
+    (kg per *dollar_year*$). When *base_year* is set, each series is divided by
+    that year's value (must be positive) so *base_year* = 1.
     """
     years = [int(y) for y in panel.columns]
     if not years:
@@ -381,13 +395,27 @@ def plot_lines_by_year(
         raise KeyError(f'order codes not in panel: {missing}')
     absolute = absolute.reindex(codes)
 
-    ylabel = 'Mt CO2e' if abs_kind == 'Mt' else f'kg CO2e / ${dollar_year}'
+    if base_year is None:
+        values = absolute
+        ylabel = 'Mt CO2e' if abs_kind == 'Mt' else f'kg CO2e / ${dollar_year}'
+        plot_title = title
+    else:
+        if base_year not in absolute.columns:
+            raise KeyError(
+                f'base_year {base_year} not in panel columns {list(absolute.columns)}'
+            )
+        base = absolute[base_year]
+        positive = base > 0
+        values = absolute.loc[positive].div(base[positive], axis=0)
+        ylabel = f'normalized ({base_year} = 1)'
+        plot_title = f'{title} ({base_year}=1 normalized)'
+
     cmap = plt.get_cmap('tab20')
     fig, ax = plt.subplots(figsize=(12, 7))
-    for i, code in enumerate(codes):
-        row = absolute.loc[code]
+    for i, code in enumerate(values.index):
+        row = values.loc[code]
         color = cmap(i % 20)
-        name = name_by_code.get(code, '')
+        name = name_by_code.get(str(code), '')
         label = f'{code} {name}'.strip()
         if len(label) > 42:
             label = f'{label[:39]}...'
@@ -400,15 +428,19 @@ def plot_lines_by_year(
             color=color,
             label=label,
         )
+    if base_year is not None:
+        ax.axhline(1.0, color='0.35', linestyle='--', linewidth=1)
+        ax.axhline(2.0, color='red', linestyle=':', linewidth=1.2)
+        ax.axhline(0.5, color='red', linestyle=':', linewidth=1.2)
     ax.set_xlabel('year')
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    ax.set_title(plot_title)
     ax.set_xticks(years)
     ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), fontsize=7)
     fig.tight_layout()
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUTPUT_DIR / f'{out_stem}.svg'
+    ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
+    out = ASSESSMENT_DIR / f'{out_stem}.svg'
     fig.savefig(out, bbox_inches='tight')
     plt.close(fig)
     logger.info(f'Wrote {out}')
@@ -534,8 +566,8 @@ def joined_E_B_N_csv(
         + [f'N_{year}_normalized' for year in years]
     )
     out_df = out_df.reindex(columns=col_order)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    csv_path = path or (OUTPUT_DIR / 'fbs_E_B_N_by_year.csv')
+    ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
+    csv_path = path or (ASSESSMENT_DIR / 'fbs_E_B_N_by_year.csv')
     out_df.to_csv(csv_path, index=False)
     logger.info(f'Wrote {csv_path}')
     return csv_path
@@ -549,9 +581,42 @@ def main(
     line_top_n: int | None = 20,
     dollar_year: int = DOLLAR_YEAR,
 ) -> list[Path]:
-    """Write row + line SVGs and one joined E+B+N CSV under ``output/``."""
+    """Write row + line SVGs, joined CSV, and run log under ``ASSESSMENT_DIR``."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
+    ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = ASSESSMENT_DIR / (
+        f'time_series_matrix_assessment_v{PKG_VERSION_NUMBER}'
+        f'{("_" + GIT_HASH) if GIT_HASH else ""}.log'
+    )
+
     span = build_assessment_span(years, dollar_year=dollar_year)
+    log_path.write_text(
+        '\n'.join(
+            [
+                f'tool={PKG}',
+                'category=TimeSeriesMatrixAssessment',
+                'name_data=time_series_matrix_assessment',
+                f'tool_version={PKG_VERSION_NUMBER}',
+                f'git_hash={GIT_HASH}',
+                f'commit={GIT_HASH_LONG}',
+                f'branch={GIT_BRANCH}',
+                f'date_created={datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
+                f'fbs_vintage={span.vintages.fbs}',
+                f'mut_vintage={span.vintages.mut}',
+            ]
+        )
+        + '\n',
+        encoding='utf-8',
+    )
+    file_handler = logging.FileHandler(log_path, mode='a', encoding='utf-8')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s %(levelname)-8s %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+        )
+    )
+    logger.addHandler(file_handler)
     E_kg = sector_emissions_panel(span, years, codes=codes)
     B = commodity_B_panel(span, years, codes=codes)
     N = commodity_N_panel(span, years, codes=codes)
@@ -649,6 +714,16 @@ def main(
             dollar_year=dollar_year,
         ),
         plot_lines_by_year(
+            E_kg,
+            name_by_code=industry_name,
+            abs_kind='Mt',
+            title='FBS sector E by year',
+            out_stem='fbs_sector_E_by_year_normalized_lines',
+            order=e_line_order,
+            dollar_year=dollar_year,
+            base_year=base_year,
+        ),
+        plot_lines_by_year(
             B,
             name_by_code=commodity_name,
             abs_kind='intensity',
@@ -656,6 +731,16 @@ def main(
             out_stem='fbs_commodity_B_by_year_intensity_lines',
             order=b_line_order,
             dollar_year=dollar_year,
+        ),
+        plot_lines_by_year(
+            B,
+            name_by_code=commodity_name,
+            abs_kind='intensity',
+            title=f'Commodity B by year (real {dollar_year}$)',
+            out_stem='fbs_commodity_B_by_year_normalized_lines',
+            order=b_line_order,
+            dollar_year=dollar_year,
+            base_year=base_year,
         ),
         plot_lines_by_year(
             N,
@@ -666,8 +751,22 @@ def main(
             order=n_line_order,
             dollar_year=dollar_year,
         ),
+        plot_lines_by_year(
+            N,
+            name_by_code=commodity_name,
+            abs_kind='intensity',
+            title=f'Commodity N by year (real {dollar_year}$)',
+            out_stem='fbs_commodity_N_by_year_normalized_lines',
+            order=n_line_order,
+            dollar_year=dollar_year,
+            base_year=base_year,
+        ),
         joined_E_B_N_csv(E_kg, B, N, base_year=base_year),
+        log_path,
     ]
+    logger.info(f'Wrote {log_path}')
+    logger.removeHandler(file_handler)
+    file_handler.close()
     return paths
 
 
