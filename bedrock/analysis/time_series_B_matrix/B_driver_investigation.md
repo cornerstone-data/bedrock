@@ -16,10 +16,10 @@ absolute values, so moves in opposite directions don't cancel.
 
 | Code | Sector | IV score | Driving factor | Status | Issues and PRs |
 |---|---|---|---|---|---|
-| `221100` | Electric power generation, transmission, and distribution | 3.23 | B 93%, L 7% | unresolved | none yet |
+| `221100` | Electric power generation, transmission, and distribution | 3.23 | B 93%, L 7% | unresolved | #890 |
 | `481000` | Air transportation | 0.40 | B 82%, L 18% | unresolved | none yet |
-| `211000` | Oil and gas extraction | 0.35 | B 54%, L 46% | unresolved | none yet |
-| `484000` | Truck transportation | 0.31 | B 65%, L 35% | unresolved | none yet |
+| `211000` | Oil and gas extraction | 0.35 | B 54%, L 46% | unresolved | #890 |
+| `484000` | Truck transportation | 0.31 | B 65%, L 35% | unresolved | #890 |
 | `324110` | Petroleum refineries | 0.26 | B 55%, L 45% | unresolved | none yet |
 | `325110` | Petrochemical manufacturing | 0.25 | B 60%, L 40% | unresolved | none yet |
 | `531ORE` | Other real estate | 0.23 | B 48%, L 52% | unresolved | none yet |
