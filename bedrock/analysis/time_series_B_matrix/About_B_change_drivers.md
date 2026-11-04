@@ -30,7 +30,7 @@ are under "The negative emission factors were a build-vintage artefact" in
 section 1.
 
 Method and the diagnostic-to-approach mapping are in
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md); this note holds the
+`B_matrix_smoothing_plan.md` (removed; see git history); this note holds the
 numbers, and [`B_driver_investigation.md`](B_driver_investigation.md) tracks
 which of them have been shown to be justified.
 
@@ -643,7 +643,7 @@ plant is identified by its segment, so lease and plant fuel are now classified o
 evidence ([#927](https://github.com/cornerstone-data/bedrock/issues/927), PR
 #961). On the run that measured it the class reaches **144.9 Mt**, 83.8 Mt of it
 oil and gas extraction. See
-[`About_facility_emissions_basis.md`](About_facility_emissions_basis.md) §8.
+[`About_facility_emissions_basis.md`](../ghg_model/About_facility_emissions_basis.md) §8.
 
 #### Where the basis disagrees with the current split
 

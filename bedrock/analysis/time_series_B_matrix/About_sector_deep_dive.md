@@ -47,8 +47,8 @@ Use these only when the steps above don't explain a sector. They need the tables
 [`B_change_diagnostics.py`](B_change_diagnostics.py), written by its `main` at the same
 vintages. Those tables use the full `L` and `N`, so their `N` figures won't match the
 triage. `divergence_by_sector_stratum.csv` is on nominal output; use
-`divergence_detail_real.csv` beside real figures. The `D#` codes are defined in
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
+`divergence_detail_real.csv` beside real figures. The `D#` codes are listed under "Key to the Diagnostic column" in
+[`About_sector_trend_explanations.md`](About_sector_trend_explanations.md).
 
 ### Direct path — output, emissions, intensity
 

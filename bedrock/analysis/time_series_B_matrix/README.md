@@ -53,11 +53,6 @@ the ones the log uses.
 | File | Use it to |
 |---|---|
 | [`B_change_diagnostics.py`](B_change_diagnostics.py) | Split the gap between `E` and `x` by source and route. Writes the `D#` tables, on the full `L` and `N` |
-| [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md) | Read the project plan and the `D#` definitions |
-| [`fbs_vs_ghgrp_totals.py`](fbs_vs_ghgrp_totals.py) | Compare a sector's emissions with what its facilities report to GHGRP |
-| [`facility_data_coverage.py`](facility_data_coverage.py) | See how much of a sector the facility data covers |
-| [`mode_policy_scorecard.py`](mode_policy_scorecard.py) | Compare the facility attribution mode policies (#1040) |
-| [`nei_combustion_proxy_test.py`](nei_combustion_proxy_test.py) | Test NEI pollutants as stand-ins for combustion CO2 (#919) |
 
 **Past findings**
 
@@ -66,5 +61,4 @@ These are dated, and their figures predate the current vintages.
 | File | What it covers |
 |---|---|
 | [`About_B_change_drivers.md`](About_B_change_drivers.md) | What moved `B` on the 2026-09-21 run |
-| [`About_B_smoothing_phase1_outcome.md`](About_B_smoothing_phase1_outcome.md), [`phase1_outcome.py`](phase1_outcome.py) | The result of B Smoothing Phase 1 |
-| [`About_facility_emissions_basis.md`](About_facility_emissions_basis.md) | A facility-reported basis for industrial emissions |
+| [`About_B_smoothing_phase1_outcome.md`](About_B_smoothing_phase1_outcome.md) | The result of B Smoothing Phase 1 |

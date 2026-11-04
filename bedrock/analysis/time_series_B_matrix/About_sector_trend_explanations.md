@@ -22,7 +22,8 @@ line at 1, dotted lines at 0.5 and 2, and the 2024 value at the end. `E` and `q`
 `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. An explanation should say which vintages it was checked on. Each explanation stays
 short and links to the issue or note that holds the evidence.
 
-**Earlier findings** are the former tracker rows, moved here unchanged. They are
+**Earlier findings** are the former tracker rows, moved here unchanged apart from
+links to files that have moved or been removed. They are
 from the 2026-09-21 run on FBS `v0.3.0_99655e9` and MUT `v0.3.0_4276083`, so they
 predate the current vintages. Use them as leads rather than as explanations of
 the figures above. Older notes that cite "tracker row N" refer to these.
@@ -358,7 +359,7 @@ sector entry.
 - **Effect:** NEI on-site CO2 (SCC branches 1-3) is flat across 2020→2021 (2,333 → 2,427 Mt), but the share on combustion SCCs jumps **2.9% → 75.5%**. Ungated SCC `fuel_class` collapses into `process` before 2021 and into `purchased` after. A related facility-count step lands a year earlier (2019→2020: 12,030 → 19,989 NEI CO2 facilities; D15 union 12,827 → 15,743).
 - **Potency:** discontinuous NEI `fuel_class`; continuous union totals on SCC 1-3
 - **Justified?:** **not justified** — a coding change, not an emissions move
-- **Status:** **Handled for `fuel_class`.** `NEI_FUEL_CLASS_FIRST_YEAR = 2021` in `facility_combustion`: NEI-derived and NEI-share-imputed `fuel_class` only from 2021; earlier NEI rows stay in the union as `unclassified`. GHGRP subpart W `fuel_class` is unchanged. §5 share churn is not distorted — low on both sides of both seams. **Combustion vs process time series:** `nei_combustion_process_backcast` is part of every `B_change_diagnostics.main` run and restates the pre-2021 SCC coding split from 2021/2022 FacilityID twins without changing levels or `fuel_class`. Inventing pre-2021 `fuel_class` from that split remains open (needs a second twin rule for `self_supplied`). ⚠️ The CO2 series still ends at 2022 (`NEI_LAST_YEAR`); EPA omitted CO2 from NEI 2023 ([#932](https://github.com/cornerstone-data/bedrock/issues/932) / [#970](https://github.com/cornerstone-data/bedrock/issues/970)). Evidence in [`About_facility_emissions_basis.md`](About_facility_emissions_basis.md) §5 / §7
+- **Status:** **Handled for `fuel_class`.** `NEI_FUEL_CLASS_FIRST_YEAR = 2021` in `facility_combustion`: NEI-derived and NEI-share-imputed `fuel_class` only from 2021; earlier NEI rows stay in the union as `unclassified`. GHGRP subpart W `fuel_class` is unchanged. §5 share churn is not distorted — low on both sides of both seams. **Combustion vs process time series:** `nei_combustion_process_backcast` is part of every `B_change_diagnostics.main` run and restates the pre-2021 SCC coding split from 2021/2022 FacilityID twins without changing levels or `fuel_class`. Inventing pre-2021 `fuel_class` from that split remains open (needs a second twin rule for `self_supplied`). ⚠️ The CO2 series still ends at 2022 (`NEI_LAST_YEAR`); EPA omitted CO2 from NEI 2023 ([#932](https://github.com/cornerstone-data/bedrock/issues/932) / [#970](https://github.com/cornerstone-data/bedrock/issues/970)). Evidence in [`About_facility_emissions_basis.md`](../ghg_model/About_facility_emissions_basis.md) §5 / §7
 
 ## Reference moved from the tracker
 
@@ -403,7 +404,7 @@ assessment flag), not from this tracker's quoted Mt figures:
    as the table below.
 
 Checklist: [`About_sector_deep_dive.md`](About_sector_deep_dive.md). D#
-register: [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
+register: `B_matrix_smoothing_plan.md` (removed; see git history).
 
 ⚠️ Tracker rows and figures in
 [`About_B_change_drivers.md`](About_B_change_drivers.md) may predate the
@@ -427,7 +428,7 @@ assumptions behind it. Until that is done the verdict is `unresolved`, and an
 confirm it or to re-check it after a fix. The key beneath the tracker says what
 to open for each `D#`; the full register — the question each asks, the method,
 every file it writes — is in
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md#methods-which-diagnostic-answers-which-approach).
+`B_matrix_smoothing_plan.md` (removed; see git history).
 Cite the diagnostic that *surfaced* the driver, not every table the row could
 be checked against. A row with no diagnostic behind it came from somewhere else
 — a code or source review — and says so; that is allowed, but it means the
@@ -456,7 +457,7 @@ is the right place to start an investigation.
 What to open to confirm a row, and what to re-run after a fix. One line each;
 the full definitions — the question, the method and every file — are in the
 register in
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md#methods-which-diagnostic-answers-which-approach).
+`B_matrix_smoothing_plan.md` (removed; see git history).
 
 | ID | Open | To see |
 |---|---|---|
@@ -477,7 +478,7 @@ register in
 diagnostic.** It writes every table in one pass, so there is no cost to
 re-reading the cited ID; what a single-row re-check cannot see is movement
 displaced onto other commodities, which only the acceptance measures in
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md) will show. D1 runs on
+`B_matrix_smoothing_plan.md` (removed; see git history) will show. D1 runs on
 every invocation and raises if the decomposition stops closing — a fix that
 breaks it invalidates every other number in this file.
 

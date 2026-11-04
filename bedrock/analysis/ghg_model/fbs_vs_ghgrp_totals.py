@@ -20,9 +20,9 @@ an extraction NAICS), so a flag is a sector to read, not a verdict.
 
 ::
 
-    uv run python -m bedrock.analysis.time_series_B_matrix.fbs_vs_ghgrp_totals \\
+    uv run python -m bedrock.analysis.ghg_model.fbs_vs_ghgrp_totals \\
         --vintage v0.3.0_0e1b0f0 --label release_v0.5
-    uv run python -m bedrock.analysis.time_series_B_matrix.fbs_vs_ghgrp_totals \\
+    uv run python -m bedrock.analysis.ghg_model.fbs_vs_ghgrp_totals \\
         --vintage v0.3.0_99655e9 --stem GHG_national_Cornerstone_nowcast_{year} \\
         --config 2025_usa_cornerstone_v0_4_nowcast_{year} --label v0.4 --check
 """

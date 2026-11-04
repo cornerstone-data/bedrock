@@ -13,12 +13,12 @@ industrial emitters: iron and steel, paper, cement, fertilizer, industrial
 gases and natural gas distribution.
 
 Figures and tables come from
-[`phase1_outcome.py`](phase1_outcome.py), which reads three runs of
+`phase1_outcome.py` (removed; see git history), which reads three runs of
 [`B_change_diagnostics.py`](B_change_diagnostics.py) (vintages at the end).
 
 ## What the project set out to do
 
-The [plan](B_matrix_smoothing_plan.md) set two acceptance measures, both on
+The plan, `B_matrix_smoothing_plan.md` (removed; see git history), set two acceptance measures, both on
 real-dollar factors, to be recorded before remediation and re-run after:
 
 - the median `abs_delta_B_pct_of_N` per year, the change in a commodity's

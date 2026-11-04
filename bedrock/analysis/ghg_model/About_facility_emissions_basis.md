@@ -22,9 +22,9 @@ Measured with **D15** and **D15b** in `B_change_diagnostics.py`
 MUT `v0.3.0_4276083`. The facility union is bounded at 2022 by NEI; the
 GHGRP-only comparisons in §2 run the full 2017-2024 span.
 
-Driver context is in [`B_driver_investigation.md`](B_driver_investigation.md);
+Driver context is in [`B_driver_investigation.md`](../time_series_B_matrix/B_driver_investigation.md);
 the diagnostic register is in
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
+`B_matrix_smoothing_plan.md` (removed; see git history).
 
 ---
 
