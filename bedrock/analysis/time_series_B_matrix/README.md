@@ -1,7 +1,8 @@
 # B matrix time series analysis
 
-Tools and notes for checking whether the 2017-2024 emission factors `B` move for
-real reasons or because of how the model is built.
+Tools and notes for checking whether the emission factors `B` move over time for
+real reasons or because of how the model is built. The span is currently 2017-2024,
+and it will change as the model's years change.
 
 ## Start here
 
