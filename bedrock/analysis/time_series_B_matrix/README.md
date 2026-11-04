@@ -54,12 +54,3 @@ the ones the log uses.
 | File | Use it to |
 |---|---|
 | [`B_change_diagnostics.py`](B_change_diagnostics.py) | Split the gap between `E` and `x` by source and route. Writes the `D#` tables, on the full `L` and `N` |
-
-**Past findings**
-
-These are dated, and their figures predate the current vintages.
-
-| File | What it covers |
-|---|---|
-| [`About_B_change_drivers.md`](About_B_change_drivers.md) | What moved `B` on the 2026-09-21 run |
-| [`About_B_smoothing_phase1_outcome.md`](About_B_smoothing_phase1_outcome.md) | The result of B Smoothing Phase 1 |

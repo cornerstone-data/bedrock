@@ -242,7 +242,7 @@ Earlier findings:
 - **Effect:** Does not reproduce on the published FBS `v0.3.0_99655e9`, where **no commodity is negative in any year**. The negatives came from `v0.3.0_796a6ca`, a local-only build off a branch no ref reaches, which the resolver picked because it ranked span-covering vintages on **file mtime**. The real defect was the resolver, now fixed to rank on provenance and to refuse to guess.
 - **Potency:** none — the finding is withdrawn. `114000` is a genuine mover on the published build, second in the panel; `327910` is unremarkable at rank 655 of 2,835
 - **Justified?:** **n/a — withdrawn**
-- **Status:** **Resolved.** Close #912. Lesson recorded in [`About_B_change_drivers.md`](About_B_change_drivers.md)
+- **Status:** **Resolved.** Close #912. Lesson recorded in `About_B_change_drivers.md` (removed; see git history)
 
 ### 327910 Abrasive product manufacturing
 
@@ -254,7 +254,7 @@ Earlier findings:
 - **Effect:** Does not reproduce on the published FBS `v0.3.0_99655e9`, where **no commodity is negative in any year**. The negatives came from `v0.3.0_796a6ca`, a local-only build off a branch no ref reaches, which the resolver picked because it ranked span-covering vintages on **file mtime**. The real defect was the resolver, now fixed to rank on provenance and to refuse to guess.
 - **Potency:** none — the finding is withdrawn. `114000` is a genuine mover on the published build, second in the panel; `327910` is unremarkable at rank 655 of 2,835
 - **Justified?:** **n/a — withdrawn**
-- **Status:** **Resolved.** Close #912. Lesson recorded in [`About_B_change_drivers.md`](About_B_change_drivers.md)
+- **Status:** **Resolved.** Close #912. Lesson recorded in `About_B_change_drivers.md` (removed; see git history)
 
 ## Earlier cross-sector findings
 
@@ -329,7 +329,7 @@ sector entry.
 - **Effect:** The largest driver family in the panel and the umbrella over rows 1 and 2, which name its three biggest cells. 698 Mt of gross movement across 567 cells, netting −50 Mt, ⚠️ **The route labels mislead.** By label it is 504 Mt MECS and 194 Mt Use; by provenance 216 Mt of that MECS mass is `petroleum_industrial`, whose weights are BEA Use money rescaled by a MECS fuel share, so **~409 Mt of the 698 Mt — 59% — runs on the Use table** and only ~288 Mt on MECS quantities. The MECS vintage steps from the 2018 survey to the 2022 survey between nowcast 2020 and 2021, and 2021 carries 2.9x the sector reallocation of a within-vintage year against 1.6x on the non-MECS control.
 - **Potency:** 698 Mt gross, 23.3% of all gross movement in the panel; ~9pp of 2021 reallocation above the control
 - **Justified?:** **split** — the Use-table 59% is **not justified** via rows 1 and 2; the MECS 41% stays **unresolved**, its cutoff measured but its emissions not
-- **Status:** ⚠️ Umbrella: do not sum its potency with rows 1 and 2. Both halves resolve the same way — [#929](https://github.com/cornerstone-data/bedrock/issues/929) replaces the Use-table part outright, and manufacturing combustion is **100%** inside the facility scope, so [#918](https://github.com/cornerstone-data/bedrock/issues/918), [#920](https://github.com/cornerstone-data/bedrock/issues/920) and [#921](https://github.com/cornerstone-data/bedrock/issues/921) all retire with it. Evidence in [`About_B_change_drivers.md`](About_B_change_drivers.md) §4 mechanism 5
+- **Status:** ⚠️ Umbrella: do not sum its potency with rows 1 and 2. Both halves resolve the same way — [#929](https://github.com/cornerstone-data/bedrock/issues/929) replaces the Use-table part outright, and manufacturing combustion is **100%** inside the facility scope, so [#918](https://github.com/cornerstone-data/bedrock/issues/918), [#920](https://github.com/cornerstone-data/bedrock/issues/920) and [#921](https://github.com/cornerstone-data/bedrock/issues/921) all retire with it. Evidence in `About_B_change_drivers.md` (removed; see git history) §4 mechanism 5
 
 **Earlier tracker row 17**
 
@@ -368,7 +368,7 @@ The notes that used to surround the tracker table, unchanged.
 Phase 1 closed on 2026-10-02. Rows 1, 2, 15, 16 and 17 were waiting on the
 facility basis (#929), which is now in the v0.5 GHG FBS; their result is
 measured in
-[`About_B_smoothing_phase1_outcome.md`](About_B_smoothing_phase1_outcome.md).
+`About_B_smoothing_phase1_outcome.md` (removed; see git history).
 Open rows carry over to Phase 2 through their issues. The figures below are
 from the 2026-09-21 run and were not restated.
 
@@ -377,14 +377,14 @@ worth, and whether it turns out to be justified. This is the working document
 for the plan's "determine why the drivers change and how to fix them" step.
 
 Measurements come from `B_change_diagnostics.py`; the standing results are in
-[`About_B_change_drivers.md`](About_B_change_drivers.md). Figures quoted here
+`About_B_change_drivers.md` (removed; see git history). Figures quoted here
 are the run of 2026-09-21 on FBS `v0.3.0_99655e9` and MUT `v0.3.0_4276083`.
 ⚠️ Every `N`-derived figure was restated on 2026-09-21 when `N_total` stopped
 mixing a real `B` with a nominal `L` ([#957](https://github.com/cornerstone-data/bedrock/issues/957));
 `B`-only potencies and every Mt figure are untouched.
 ⚠️ Every figure was restated on 2026-09-18: the prior run resolved to a
 local-only FBS build that no ref reaches. See the vintage section of
-[`About_B_change_drivers.md`](About_B_change_drivers.md).
+`About_B_change_drivers.md` (removed; see git history).
 
 ### How to use it
 
@@ -407,7 +407,7 @@ Checklist: [`About_sector_deep_dive.md`](About_sector_deep_dive.md). D#
 register: `B_matrix_smoothing_plan.md` (removed; see git history).
 
 ⚠️ Tracker rows and figures in
-[`About_B_change_drivers.md`](About_B_change_drivers.md) may predate the
+`About_B_change_drivers.md` (removed; see git history) may predate the
 current IV pins — use them as a map of which D# to open, not as live evidence.
 
 **Justified?** is the field that takes real work. It cannot be answered from
@@ -511,7 +511,7 @@ not in this group — its oscillation is 0.42. The 302 Mt is eight *other*
 
 A row leaves `unresolved` only with a stated reason and a source-level check
 behind it, not on plausibility. Record the check in
-[`About_B_change_drivers.md`](About_B_change_drivers.md) and link it here, and
+`About_B_change_drivers.md` (removed; see git history) and link it here, and
 add the diagnostic that carried the check to the row's **Diagnostic** cell —
 the ID that *closed* a row is usually not the one that opened it. When
 a driver is fixed, re-run the diagnostics and record the before-and-after on

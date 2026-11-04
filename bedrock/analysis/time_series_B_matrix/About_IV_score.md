@@ -4,7 +4,7 @@ The IV score gives each commodity's emission factor `B` one number over
 2017-2024. It is high when `B` moves, jumps or trends and when that `B` drives
 the domestic total factors `N_d`. It selects the factors to check as real-world
 change or as a modeling problem. It does not say why a factor moved;
-`B_change_diagnostics.py` and `About_B_change_drivers.md` are the next step for a
+[`About_sector_deep_dive.md`](About_sector_deep_dive.md) is the next step for a
 flagged factor.
 
 Code: `IV_score.py`. Results below use GHG FBS `v1.0.0_79273ed` and MUT
@@ -164,10 +164,10 @@ ranks second under the three that are not equal.
 The commodities that leave are mostly small emitters whose rank came from their
 own `N_d`, such as alumina, forestry and private households.
 
-## Compared with the drivers note
+## Compared with ranking on a factor's own `N`
 
-`About_B_change_drivers.md` weights each factor by its own `N` only
-(`delta_B_pct_of_N`, the `k = j` term). Summing that measure over the span on the
+`B_change_diagnostics.py` reports `delta_B_pct_of_N`, which weights each factor by
+its own `N` only, the `k = j` term. Summing that measure over the span on the
 domestic basis and ranking on it keeps 18 of this top 30.
 
 - **Enter under IV**, because they reach other commodities' `N_d`: other real
@@ -177,8 +177,6 @@ domestic basis and ranking on it keeps 18 of this top 30.
 - **Leave under IV**, because they move their own `N_d` but little else: fishing
   (rank 4 on the own-`N_d` measure, 42 here), vegetable farming (5, 40), pulp
   mills (8, 39), schools (10, 52), storage batteries (16, 46).
-
-The decomposition in the drivers note can be rerun for any factor flagged here.
 
 ## Limits
 
