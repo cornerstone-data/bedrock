@@ -93,8 +93,9 @@ v1_0_0_rc = (
 # 2017-2024 rebuilt on the 2026 BEA annual update (#1166, #1167), the Step 6
 # commodity identity (#1162), the rest-of-world adjustment row (#1171),
 # interpolated suppressed BEA services trade cells (#1172) and Census trade on
-# the 2024 product-to-NAICS concordance (#1175).
-v1_0_0 = "1b9261c308369c83977585ffcd18a7d7725bd5c9"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
+# the 2024 product-to-NAICS concordance (#1175). The GHG and Energy FBS are
+# rebuilt on that MUT, GHG_national_Cornerstone_{year}_v1.0.0_79273ed (#1189).
+v1_0_0 = "7f0bdab6e7d12f17a9c2a61437a22af1df7bed30"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
