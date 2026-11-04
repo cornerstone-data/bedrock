@@ -6,8 +6,8 @@ pins match; otherwise build once and save). Writes under
 with other analysis ``output/``): row SVGs (E Mt / E normalized; B and N
 intensity / normalized), absolute and normalized line SVGs for the top codes
 by range, a self-contained Plotly HTML of normalized B and N lines for the
-same line-chart codes, one CSV joined on BEA detail ``code``, and a versioned
-run ``.log``. Absolute top-N order is reused for matching normalized plots.
+same line-chart codes, one CSV joined on BEA detail ``code``, and a run
+``.log``. Absolute top-N order is reused for matching normalized plots.
 Same code is the primary industry/commodity pair; B reshuffles via
 ``(E/x)@Vnorm``, so values need not match. N is ``B@L`` (total factor
 including indirect effects).
@@ -53,13 +53,6 @@ from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
     save_span,
 )
 from bedrock.utils.config.config_controllers import temp_usa_config
-from bedrock.utils.config.settings import (
-    GIT_BRANCH,
-    GIT_HASH,
-    GIT_HASH_LONG,
-    PKG,
-    PKG_VERSION_NUMBER,
-)
 from bedrock.utils.taxonomy.cornerstone.commodities import COMMODITY_DESC
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
@@ -781,25 +774,19 @@ def main(
     """Write row + line SVGs, interactive B/N HTML, joined CSV, and run log."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
     ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
-    log_path = ASSESSMENT_DIR / (
-        f'time_series_matrix_assessment_v{PKG_VERSION_NUMBER}'
-        f'{("_" + GIT_HASH) if GIT_HASH else ""}.log'
-    )
+    log_path = ASSESSMENT_DIR / 'time_series_matrix_assessment.log'
 
     span = build_assessment_span(years, dollar_year=dollar_year)
     log_path.write_text(
         '\n'.join(
             [
-                f'tool={PKG}',
-                'category=TimeSeriesMatrixAssessment',
-                'name_data=time_series_matrix_assessment',
-                f'tool_version={PKG_VERSION_NUMBER}',
-                f'git_hash={GIT_HASH}',
-                f'commit={GIT_HASH_LONG}',
-                f'branch={GIT_BRANCH}',
-                f'date_created={datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
                 f'fbs_vintage={span.vintages.fbs}',
                 f'mut_vintage={span.vintages.mut}',
+                f'fbs_stem={FBS_STEM}',
+                f'dollar_year={dollar_year}',
+                f'base_year={base_year}',
+                f'years={",".join(str(y) for y in years)}',
+                f'date_created={datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
             ]
         )
         + '\n',
