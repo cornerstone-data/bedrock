@@ -2,13 +2,15 @@
 
 Loads a dig span at pinned GHG FBS + NowcastMUT vintages (cache when those
 pins match; otherwise build once and save). Writes under
-``analysis/time_series_B_matrix/time_series_matrix_assessment/``: row SVGs
-(E Mt / E normalized; B and N intensity / normalized), absolute and normalized
-line SVGs for the top codes by range, one CSV joined on BEA detail ``code``,
-and a versioned run ``.log``. Absolute top-N order is reused for matching
-normalized plots. Same code is the primary industry/commodity pair; B
-reshuffles via ``(E/x)@Vnorm``, so values need not match. N is ``B@L`` (total
-factor including indirect effects).
+``analysis/time_series_B_matrix/output/time_series_matrix_assessment/`` (gitignored
+with other analysis ``output/``): row SVGs (E Mt / E normalized; B and N
+intensity / normalized), absolute and normalized line SVGs for the top codes
+by range, a self-contained Plotly HTML of normalized B and N lines for the
+same line-chart codes, one CSV joined on BEA detail ``code``, and a versioned
+run ``.log``. Absolute top-N order is reused for matching normalized plots.
+Same code is the primary industry/commodity pair; B reshuffles via
+``(E/x)@Vnorm``, so values need not match. N is ``B@L`` (total factor
+including indirect effects).
 
 B and N use ``B_total`` / ``N_total`` with ``real=True`` after rebasing dig
 ``x`` to constant **2017$**. Normalization defaults to 2017 = 1.
@@ -32,6 +34,8 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
 from bedrock.analysis.time_series_B_matrix.B_change_diagnostics import (
@@ -72,8 +76,8 @@ MUT_VINTAGE = 'v1.0.0_5514c3b'
 #: Year-stem GHG FBS basename template (matches ``2026_usa_cornerstone_v1_0_{year}``).
 FBS_STEM = 'GHG_national_Cornerstone_{year}'
 
-#: Assessment SVGs, CSV, and run log (dig span cache stays under ``output/cache``).
-ASSESSMENT_DIR = Path(__file__).resolve().parent / 'time_series_matrix_assessment'
+#: Assessment SVGs, HTML, CSV, and run log (sibling of dig span ``output/cache``).
+ASSESSMENT_DIR = bcd.OUTPUT_DIR / 'time_series_matrix_assessment'
 
 #: Distinct hues on one warm→cool path (2017 gold … 2024 navy).
 YEAR_COLORS: dict[int, str] = {
@@ -231,6 +235,21 @@ def absolute_top_order(
     if top_n is not None:
         order = order[: int(top_n)]
     return order
+
+
+def commodity_model_order(codes: Sequence[str]) -> list[str]:
+    """Selected commodity codes in Cornerstone ``COMMODITY_DESC`` key order.
+
+    Codes absent from the taxonomy sort last, alphabetically. Used for the
+    interactive HTML legend; SVG line charts keep range rank.
+    """
+    rank = {str(code): i for i, code in enumerate(COMMODITY_DESC)}
+    known = sorted(
+        (c for c in codes if str(c) in rank),
+        key=lambda c: rank[str(c)],
+    )
+    unknown = sorted(str(c) for c in codes if str(c) not in rank)
+    return [*known, *unknown]
 
 
 def plot_by_year(
@@ -448,6 +467,180 @@ def plot_lines_by_year(
     return out
 
 
+#: Distinct hues for interactive B/N lines (cycles if *order* is longer).
+_LINE_COLORS: tuple[str, ...] = (
+    '#1f77b4',
+    '#ff7f0e',
+    '#2ca02c',
+    '#d62728',
+    '#9467bd',
+    '#8c564b',
+    '#e377c2',
+    '#7f7f7f',
+    '#bcbd22',
+    '#17becf',
+    '#393b79',
+    '#637939',
+    '#8c6d31',
+    '#843c39',
+    '#7b4173',
+    '#5254a3',
+    '#6b6ecf',
+    '#9c9ede',
+    '#cedb9c',
+    '#e7cb94',
+    '#e7969c',
+    '#de9ed6',
+    '#ad494a',
+    '#a55194',
+    '#6b486b',
+    '#b24745',
+    '#d6616b',
+    '#e6550d',
+    '#fdae6b',
+    '#31a354',
+)
+
+
+def plot_interactive_BN_normalized_lines(
+    B: pd.DataFrame,
+    N: pd.DataFrame,
+    *,
+    name_by_code: Mapping[str, str],
+    order: Sequence[str],
+    base_year: int = DOLLAR_YEAR,
+    dollar_year: int = DOLLAR_YEAR,
+    out_stem: str = 'fbs_commodity_BN_by_year_normalized_lines',
+    fbs_vintage: str = '',
+    mut_vintage: str = '',
+) -> Path:
+    """Self-contained Plotly HTML: normalized B and N lines for *order*.
+
+    *order* selects which codes appear (same filter / top-N as the SVG line
+    charts). The legend is always Cornerstone commodity model order, not
+    range rank. Embeds Plotly.js so the file opens offline (``file://``).
+    Hover, legend click, and double-click isolate series.
+    """
+    selected = [str(c) for c in order]
+    if not selected:
+        raise ValueError('order is empty')
+    for label, panel in (('B', B), ('N', N)):
+        missing = [c for c in selected if c not in panel.index]
+        if missing:
+            raise KeyError(f'order codes not in {label} panel: {missing}')
+    if base_year not in B.columns or base_year not in N.columns:
+        raise KeyError(f'base_year {base_year} missing from B/N columns')
+
+    def _normalized(panel: pd.DataFrame) -> pd.DataFrame:
+        base = panel[base_year]
+        positive = base > 0
+        return panel.loc[positive].div(base[positive], axis=0)
+
+    B_n = _normalized(B.reindex(selected))
+    N_n = _normalized(N.reindex(selected))
+    years = [int(y) for y in B.columns]
+    codes_plot = commodity_model_order(
+        [c for c in selected if c in B_n.index and c in N_n.index]
+    )
+    if not codes_plot:
+        raise ValueError(f'no codes with positive {base_year} B and N')
+
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.08,
+        subplot_titles=(
+            f'Direct factor B (real {dollar_year}$; {base_year}=1)',
+            f'Total factor N = B@L (real {dollar_year}$; {base_year}=1)',
+        ),
+    )
+    for i, code in enumerate(codes_plot):
+        name = name_by_code.get(code, '')
+        label = f'{code} {name}'.strip()
+        if len(label) > 55:
+            label = f'{label[:52]}...'
+        color = _LINE_COLORS[i % len(_LINE_COLORS)]
+        common = dict(
+            x=years,
+            mode='lines+markers',
+            name=label,
+            legendgroup=code,
+            line=dict(width=1.8, color=color),
+            marker=dict(size=6),
+            opacity=0.55,
+            hovertemplate=(f'<b>{label}</b><br>' '%{x}: %{y:.3f}<extra></extra>'),
+        )
+        fig.add_trace(
+            go.Scatter(y=[float(B_n.loc[code, y]) for y in years], **common),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                y=[float(N_n.loc[code, y]) for y in years],
+                showlegend=False,
+                **common,
+            ),
+            row=2,
+            col=1,
+        )
+
+    for row in (1, 2):
+        for y_val, dash, color in (
+            (1.0, 'dash', '#333333'),
+            (2.0, 'dot', '#cc0000'),
+            (0.5, 'dot', '#cc0000'),
+        ):
+            fig.add_hline(
+                y=y_val,
+                line_dash=dash,
+                line_color=color,
+                line_width=1,
+                row=row,
+                col=1,
+            )
+
+    vintage_bits = [
+        p
+        for p in (
+            f'FBS {fbs_vintage}' if fbs_vintage else '',
+            f'MUT {mut_vintage}' if mut_vintage else '',
+        )
+        if p
+    ]
+    subtitle = ' · '.join(vintage_bits)
+    title = f'Commodity B and N normalized ({base_year}=1)'
+    if subtitle:
+        title = f'{title} — {subtitle}'
+
+    fig.update_xaxes(title_text='year', dtick=1, row=2, col=1)
+    fig.update_yaxes(title_text='B normalized', row=1, col=1)
+    fig.update_yaxes(title_text='N normalized', row=2, col=1)
+    fig.update_layout(
+        height=900,
+        template='plotly_white',
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        font=dict(color='#222222'),
+        title=dict(text=title, x=0.01),
+        legend=dict(
+            font=dict(size=10),
+            itemclick='toggle',
+            itemdoubleclick='toggleothers',
+            bgcolor='white',
+        ),
+        margin=dict(l=60, r=40, t=60, b=40),
+        hovermode='closest',
+    )
+
+    ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
+    out = ASSESSMENT_DIR / f'{out_stem}.html'
+    fig.write_html(out, include_plotlyjs=True, full_html=True)
+    logger.info(f'Wrote {out}')
+    return out
+
+
 def joined_E_B_N_csv(
     E_kg: pd.DataFrame,
     B_intensity: pd.DataFrame,
@@ -582,7 +775,7 @@ def main(
     line_top_n: int | None = 20,
     dollar_year: int = DOLLAR_YEAR,
 ) -> list[Path]:
-    """Write row + line SVGs, joined CSV, and run log under ``ASSESSMENT_DIR``."""
+    """Write row + line SVGs, interactive B/N HTML, joined CSV, and run log."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
     ASSESSMENT_DIR.mkdir(parents=True, exist_ok=True)
     log_path = ASSESSMENT_DIR / (
@@ -641,6 +834,8 @@ def main(
     n_line_order = absolute_top_order(
         N, abs_kind='intensity', base_year=base_year, top_n=line_top_n
     )
+    # Interactive HTML covers every code that appears on either B or N line SVG.
+    bn_line_order = list(dict.fromkeys([*b_line_order, *n_line_order]))
     intensity_abs_unit = f'kg/${dollar_year}'
 
     paths = [
@@ -761,6 +956,16 @@ def main(
             order=n_line_order,
             dollar_year=dollar_year,
             base_year=base_year,
+        ),
+        plot_interactive_BN_normalized_lines(
+            B,
+            N,
+            name_by_code=commodity_name,
+            order=bn_line_order,
+            base_year=base_year,
+            dollar_year=dollar_year,
+            fbs_vintage=span.vintages.fbs,
+            mut_vintage=span.vintages.mut,
         ),
         joined_E_B_N_csv(E_kg, B, N, base_year=base_year),
         log_path,
