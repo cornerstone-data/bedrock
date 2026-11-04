@@ -7,12 +7,16 @@ same FBS/MUT vintages the IV run used (`--list-vintages`; assessment pins in
 
 Tracker: [`B_driver_investigation.md`](B_driver_investigation.md) · D# register:
 [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md) · IV:
-[`IV_score.py`](IV_score.py) / `About_IV_score.md` (when on the branch that
-ships it)
+[`IV_score.py`](IV_score.py) / [`About_IV_score.md`](About_IV_score.md)
 
 **Batch triage** (IV top-N × dig peak year → path B/L/both + top stratum)::
 
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --top 30
+    uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --above-iv-score 0.2
+
+The triage's `N` columns are on `L_dom` and `N_d`, matching the IV score. The dig's
+`B_change_real.csv` is on the full `L` and `N`, so its `%ΔN`, L-held and L-effect
+values won't match the triage.
 
 ## Intake
 

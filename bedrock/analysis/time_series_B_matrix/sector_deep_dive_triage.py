@@ -2,8 +2,12 @@
 
 Reads an ``IV_score.csv`` and a dig output dir from
 :mod:`~bedrock.analysis.time_series_B_matrix.B_change_diagnostics`, and writes
-one row per code with the deep-dive intake columns (E/x/B/N moves, L-held vs
+one row per code with the deep-dive intake columns (E/x/B/N_d moves, L-held vs
 L-effect, top stratum, path = B / L / both). Does not rebuild the span.
+
+The ``N`` columns are on ``L_dom`` and ``N_d``, the basis of the IV score, so the
+change table is computed here on the domestic span. ``B_change_real.csv`` in the
+dig is on the full ``L`` and ``N``. The other dig tables don't depend on ``L``.
 
 Defaults point at the IV pins used for the 2026-11-04 ``2122A0`` pilot
 (``dig_fbs_79273ed_mut_5514c3b``). Override with ``--dig-dir`` / ``--iv-csv``.
@@ -12,6 +16,8 @@ Defaults point at the IV pins used for the 2026-11-04 ``2122A0`` pilot
 
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --top 30
+    uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage \\
+        --above-iv-score 0.2
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage \\
         --codes 2122A0,221100,325110
 """
@@ -24,6 +30,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
+from bedrock.analysis.time_series_B_matrix.IV_score import (
+    domestic_span,
+    load_or_build_span,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +111,13 @@ def triage(
     *,
     codes: list[str] | None = None,
     top: int | None = None,
+    above_iv_score: float | None = None,
 ) -> pd.DataFrame:
-    """One triage row per code at that code's IV ``peak_year``."""
+    """One triage row per code at that code's IV ``peak_year``.
+
+    *codes* takes precedence over *above_iv_score*, which takes precedence over
+    *top*.
+    """
     iv = iv.copy()
     iv['commodity'] = iv['commodity'].astype(str)
     if codes:
@@ -110,12 +127,26 @@ def triage(
             raise ValueError(f'codes not in IV_score.csv: {missing}')
         iv = iv[iv['commodity'].isin(want)].copy()
         iv = iv.set_index('commodity').loc[want].reset_index()
+    elif above_iv_score is not None:
+        iv = iv[iv['IV'] > above_iv_score].sort_values('rank')
+        if iv.empty:
+            raise ValueError(f'no commodity has an IV score above {above_iv_score}')
     else:
         iv = iv.sort_values('rank').head(top or 15)
 
-    bc = pd.read_csv(dig_dir / 'B_change_real.csv')
+    full_span = load_or_build_span()
+    if bcd.CACHE_DIR.resolve() != cache_dir.resolve():
+        raise ValueError(f'--cache-dir {cache_dir} is not the IV span {bcd.CACHE_DIR}')
+    bc = bcd.B_change(domestic_span(full_span), real=True)
     bc['commodity'] = bc['commodity'].astype(str)
-    div = pd.read_csv(dig_dir / 'divergence_by_sector_stratum.csv')
+    # divergence_by_sector_stratum.csv is on nominal x, so it can't be read beside
+    # the real %dx here. This is the same grouping on real x.
+    div = (
+        pd.read_csv(dig_dir / 'divergence_detail_real.csv', dtype={'sector': str})
+        .groupby(['sector', 'year_to', 'attribution', 'MetaSources'])['divergence']
+        .sum()
+        .reset_index()
+    )
     span = pd.read_csv(dig_dir / 'sector_stratum_span.csv')
     span['sector'] = span['sector'].astype(str)
     x = pd.read_csv(dig_dir / 'x_real.csv').set_index('sector')
@@ -133,7 +164,7 @@ def triage(
         year_from = year_to - 1
         brow = bc[(bc['commodity'] == code) & (bc['year_to'] == year_to)]
         if brow.empty:
-            logger.warning('%s: no B_change_real row for year_to=%s', code, year_to)
+            logger.warning('%s: no B change row for year_to=%s', code, year_to)
             continue
         b = brow.iloc[0]
         yf, yt = str(year_from), str(year_to)
@@ -177,11 +208,11 @@ def triage(
                 'pct_dE': dE,
                 'pct_dx': dx,
                 'pct_dB': float(b['pct_change_B']),
-                'pct_dN': float(b['pct_change_N']),
-                'pct_dN_L_held': l_held,
-                'pct_dN_L_effect': l_effect,
-                'abs_delta_B_pct_of_N': float(b['abs_delta_B_pct_of_N']),
-                'own_direct_share_of_N': float(b['own_direct_share_of_N']),
+                'pct_dN_d': float(b['pct_change_N']),
+                'pct_dN_d_L_held': l_held,
+                'pct_dN_d_L_effect': l_effect,
+                'abs_delta_B_pct_of_N_d': float(b['abs_delta_B_pct_of_N']),
+                'own_direct_share_of_N_d': float(b['own_direct_share_of_N']),
                 'path': _path(l_held, l_effect),
                 'E_from_Mt': E0,
                 'E_to_Mt': E1,
@@ -212,7 +243,16 @@ def main(argv: list[str] | None = None) -> Path:
         help='span cache with E_stratified.parquet (for sector E Mt)',
     )
     parser.add_argument(
-        '--top', type=int, default=15, help='IV ranks 1..N (ignored if --codes)'
+        '--top',
+        type=int,
+        default=15,
+        help='IV ranks 1..N (ignored if --codes or --above-iv-score)',
+    )
+    parser.add_argument(
+        '--above-iv-score',
+        type=float,
+        default=None,
+        help='only commodities with an IV score above this (ignored if --codes)',
     )
     parser.add_argument(
         '--codes',
@@ -236,6 +276,7 @@ def main(argv: list[str] | None = None) -> Path:
         args.cache_dir,
         codes=codes,
         top=None if codes else args.top,
+        above_iv_score=args.above_iv_score,
     )
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -243,6 +284,8 @@ def main(argv: list[str] | None = None) -> Path:
         out = args.out
     elif codes:
         out = OUT_DIR / f'triage_{len(codes)}codes.csv'
+    elif args.above_iv_score is not None:
+        out = OUT_DIR / f'triage_above_iv_{args.above_iv_score}.csv'
     else:
         out = OUT_DIR / f'triage_top{args.top}.csv'
     table.to_csv(out, index=False)
@@ -255,10 +298,10 @@ def main(argv: list[str] | None = None) -> Path:
         'pct_dE',
         'pct_dx',
         'pct_dB',
-        'pct_dN',
-        'pct_dN_L_held',
-        'pct_dN_L_effect',
-        'abs_delta_B_pct_of_N',
+        'pct_dN_d',
+        'pct_dN_d_L_held',
+        'pct_dN_d_L_effect',
+        'abs_delta_B_pct_of_N_d',
         'top_attribution',
         'top_MetaSources',
         'top_divergence_Mt',
