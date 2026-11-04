@@ -145,20 +145,21 @@ def triage(
                 or yt not in frame.columns
             ):
                 return float('nan'), float('nan'), float('nan')
-            a, c = float(frame.loc[key, yf]), float(frame.loc[key, yt])
+            a = float(np.asarray(frame.loc[key, yf]).item())
+            c = float(np.asarray(frame.loc[key, yt]).item())
             return a, c, _pct(a, c)
 
         E0, E1, dE = _level(E, code)
         x0, x1, dx = _level(x, code)
         B0, B1, dB_level = _level(B, code)
 
-        top = _top_stratum(div, code, year_to)
+        stratum = _top_stratum(div, code, year_to)
         osc = float('nan')
-        if top['top_MetaSources']:
+        if stratum['top_MetaSources']:
             cell = span[
                 (span['sector'] == code)
-                & (span['MetaSources'] == top['top_MetaSources'])
-                & (span['attribution'] == top['top_attribution'])
+                & (span['MetaSources'] == stratum['top_MetaSources'])
+                & (span['attribution'] == stratum['top_attribution'])
             ]
             if not cell.empty:
                 osc = float(cell.iloc[0]['oscillation'])
@@ -186,9 +187,9 @@ def triage(
                 'E_to_Mt': E1,
                 'B_from': B0,
                 'B_to': B1,
-                'top_MetaSources': top['top_MetaSources'],
-                'top_attribution': top['top_attribution'],
-                'top_divergence_Mt': top['top_divergence_Mt'],
+                'top_MetaSources': stratum['top_MetaSources'],
+                'top_attribution': stratum['top_attribution'],
+                'top_divergence_Mt': stratum['top_divergence_Mt'],
                 'top_oscillation': osc,
                 'IV_oscillation': (
                     float(ivrow['oscillation'])
