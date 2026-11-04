@@ -1,0 +1,366 @@
+"""IV score: one number per ``B`` over 2017-2024, importance times volatility.
+
+The score ranks commodity emission factors for review. It is high when a
+factor moves or jumps and when that factor drives ``N``. It does not say why a
+factor moved; :mod:`~bedrock.analysis.time_series_B_matrix.B_change_diagnostics`
+splits a flagged factor into ``E``, ``x`` and ``Vnorm``.
+
+::
+
+    IV_j = I_j * V_j
+
+    S_jk = B_j L_jk / N_k                the share of N_k from emissions at j
+    I_j  = mean over years of sum_k w_k S_jk
+    V_j  = RMS over years of (d_jt - median over years of d_jt)
+    d_jt = (B_jt - B_jt-1) / mean(B_jt, B_jt-1), with B in constant 2017 dollars
+
+``w_k`` is how much each commodity's ``N`` counts and sums to 1 each year. See
+:data:`WEIGHT_SCHEMES`, or pass any weights of your own. With ``equal`` weights
+``IV_j`` reads as: in a typical year, the move in this factor shifts the average
+commodity's ``N`` by this many percentage points.
+
+``S`` is built on nominal ``B`` and ``L``. On a consistent real basis ``rho``
+cancels, apart from the gap between deflating on the industry and commodity
+axes (``L_deflator_axis_gap.csv``). ``V`` has to be real, because a nominal
+factor falls whenever prices rise.
+
+Commodities with no ``N`` in some year are dropped from the targets ``k``.
+
+Findings are in ``About_IV_score.md``.
+
+::
+
+    uv run python -m bedrock.analysis.time_series_B_matrix.IV_score
+    uv run python -m bedrock.analysis.time_series_B_matrix.IV_score --check
+    uv run python -m bedrock.analysis.time_series_B_matrix.IV_score \\
+        --weights final_demand
+    uv run python -m bedrock.analysis.time_series_B_matrix.IV_score \\
+        --weights-csv my_weights.csv
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import re
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
+from bedrock.utils.config.config_controllers import temp_usa_config
+from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
+
+logger = logging.getLogger(__name__)
+
+#: The GHG FBS stem the v1.0 year configs name.
+FBS_STEM = 'GHG_national_Cornerstone_{year}'
+
+#: Named weightings of the ``N`` values. ``equal`` counts each published factor
+#: once. ``final_demand`` and ``output`` count a commodity by its dollars, with
+#: negative net final demand set to 0. ``footprint`` counts it by the emissions
+#: embodied in its final demand, which reduces ``I_j`` to the emissions share
+#: ``B_j q_j / sum(B q)``, so ``L`` drops out.
+WEIGHT_SCHEMES: tuple[str, ...] = ('equal', 'final_demand', 'output', 'footprint')
+
+OUT_DIR = bcd.OUTPUT_DIR / 'IV_score'
+
+
+def config_vintages(years: tuple[int, ...] = bcd.YEARS) -> bcd.SpanVintages:
+    """The one FBS and one MUT vintage the year configs name across the span."""
+    fbs: set[str] = set()
+    mut: set[str] = set()
+    for year in years:
+        with temp_usa_config(bcd.CONFIG_TEMPLATE.format(year=year)):
+            config = get_usa_config()
+            name = config.cornerstone_ghg_fbs_filename or ''
+            match = re.search(r'_(v[^_]+_[0-9a-f]+)\.parquet$', name)
+            if match is None:
+                raise ValueError(f'{year}: no vintage in FBS filename {name!r}')
+            fbs.add(match.group(1))
+            mut.add(str(config.nowcast_mut_vintage))
+    if len(fbs) != 1 or len(mut) != 1:
+        raise ValueError(f'The year configs disagree: FBS {fbs}, MUT {mut}')
+    return bcd.SpanVintages(fbs=fbs.pop(), mut=mut.pop())
+
+
+def load_or_build_span(vintages: bcd.SpanVintages | None = None) -> bcd.Span:
+    """The span at *vintages*, cached under ``output/`` per FBS and MUT pair."""
+    pinned = vintages or config_vintages()
+    bcd.FBS_STEM = FBS_STEM
+    bcd.CACHE_DIR = bcd.OUTPUT_DIR / (
+        f'cache_fbs_{pinned.fbs.rsplit("_", 1)[-1]}'
+        f'_mut_{pinned.mut.rsplit("_", 1)[-1]}'
+    )
+    if (bcd.CACHE_DIR / 'vintages.txt').exists():
+        span = bcd.load_span()
+        if span.vintages != pinned:
+            raise ValueError(f'{bcd.CACHE_DIR} holds {span.vintages}, not {pinned}')
+        return span
+    span = bcd.build_span(bcd.YEARS, pinned)
+    bcd.save_span(span)
+    return span
+
+
+def n_shares(span: bcd.Span) -> dict[int, pd.DataFrame]:
+    """``S_jk = B_j L_jk / N_k`` per year, emitters ``j`` by target ``N`` ``k``.
+
+    Each column sums to 1. Targets with no ``N`` in any year are dropped.
+    """
+    B = bcd.B_total(span, real=False)
+    N = bcd.N_total(span, real=False)
+    index = span.L[min(span.L)].index
+    positive = N.reindex(index).gt(0).all(axis=1)
+    targets = positive[positive].index
+    return {
+        year: span.L[year]
+        .mul(B[year].reindex(index).fillna(0.0), axis=0)
+        .loc[:, targets]
+        .div(N[year].reindex(targets), axis=1)
+        for year in span.L
+    }
+
+
+def net_final_demand(span: bcd.Span) -> pd.DataFrame:
+    """``y = L^-1 q``, commodity by year, from the span's own ``L`` and ``q``."""
+    index = span.L[min(span.L)].index
+    return pd.DataFrame(
+        {
+            year: np.linalg.solve(
+                L.to_numpy(),
+                span.q[year].reindex(index).fillna(0.0).to_numpy(dtype=float),
+            )
+            for year, L in span.L.items()
+        },
+        index=index,
+    )
+
+
+def n_weights(
+    span: bcd.Span, targets: pd.Index, weights: str | pd.Series = 'equal'
+) -> pd.DataFrame:
+    """``w_k`` by year, summing to 1 each year.
+
+    *weights* is a name in :data:`WEIGHT_SCHEMES` or a series keyed on commodity
+    that holds for every year. Commodities the series leaves out get 0.
+    """
+    years = sorted(span.L)
+    if isinstance(weights, pd.Series):
+        raw = pd.DataFrame({y: weights.reindex(targets).fillna(0.0) for y in years})
+    elif weights == 'equal':
+        raw = pd.DataFrame(1.0, index=targets, columns=years)
+    elif weights == 'final_demand':
+        raw = net_final_demand(span).reindex(targets).clip(lower=0.0)
+    elif weights == 'output':
+        raw = span.q.reindex(targets).fillna(0.0)
+    elif weights == 'footprint':
+        # Negative net final demand stays in, so the identity with the emissions
+        # share holds exactly.
+        N = bcd.N_total(span, real=False)
+        raw = net_final_demand(span).reindex(targets) * N.reindex(targets)
+    else:
+        raise ValueError(f'Unknown weights {weights!r}; use one of {WEIGHT_SCHEMES}')
+    return raw[years] / raw[years].sum()
+
+
+def importance(
+    span: bcd.Span,
+    shares: dict[int, pd.DataFrame],
+    weights: str | pd.Series = 'equal',
+) -> pd.Series:
+    """``I_j``, the weighted share of ``N`` from emitter ``j``. Sums to 1."""
+    targets = shares[min(shares)].columns
+    w = n_weights(span, targets, weights)
+    by_year = pd.DataFrame({year: S @ w[year] for year, S in shares.items()})
+    return by_year.mean(axis=1)
+
+
+def annual_change(B: pd.DataFrame) -> pd.DataFrame:
+    """``d_jt``, the change against the two-year mean, so a zero stays finite."""
+    prior = B.shift(1, axis=1)
+    mean = (B.abs() + prior.abs()) / 2
+    return ((B - prior) / mean.where(mean > 0)).iloc[:, 1:].fillna(0.0)
+
+
+def volatility(B: pd.DataFrame) -> pd.DataFrame:
+    """``V_j``, plus the columns that say what kind of movement it is.
+
+    The median annual change is removed, so a steady trend scores 0 and a single
+    jump does not count as trend. ``net_change`` keeps the trend in view.
+
+    - ``peak_year``, ``largest_deviation``: the year furthest from the median
+    - ``jump_share``: that year's share of squared deviations; 1 is a single jump
+    - ``oscillation``: ``1 - |sum d| / sum |d|``; 0 goes one way, 1 returns
+    """
+    d = annual_change(B)
+    deviation = d.sub(d.median(axis=1), axis=0)
+    squared = deviation.pow(2)
+    gross = d.abs().sum(axis=1)
+    return pd.DataFrame(
+        {
+            'V': np.sqrt(squared.mean(axis=1)),
+            'peak_year': deviation.abs().idxmax(axis=1).astype(int),
+            'largest_deviation': deviation.abs().max(axis=1),
+            'jump_share': (squared.max(axis=1) / squared.sum(axis=1)).fillna(0.0),
+            'oscillation': (1 - d.sum(axis=1).abs() / gross).fillna(0.0),
+            'net_change': d.sum(axis=1),
+        }
+    )
+
+
+def largest_n_move(span: bcd.Span, targets: pd.Index) -> pd.DataFrame:
+    """The largest single move in any ``N`` that one factor's annual change causes.
+
+    Percent of the prior year's ``N``, with ``L`` held at the prior year. The
+    average in ``I`` dilutes a factor that moves one ``N`` a long way, and this
+    column shows it.
+    """
+    B = bcd.B_total(span, real=True)
+    N = bcd.N_total(span, real=True)
+    L_real = bcd.L_real(span)
+    years = sorted(L_real)
+    index = L_real[years[0]].index
+    moves = []
+    for prior, current in zip(years, years[1:]):
+        dB = (B[current] - B[prior]).reindex(index).fillna(0.0)
+        move = L_real[prior].loc[:, targets].mul(dB, axis=0)
+        moves.append(move.div(N[prior].reindex(targets), axis=1).abs() * 100)
+    stacked = np.stack([m.to_numpy() for m in moves])  # year, emitter, target
+    peaks = [
+        np.unravel_index(stacked[:, j, :].argmax(), stacked[:, j, :].shape)
+        for j in range(len(index))
+    ]
+    return pd.DataFrame(
+        {
+            'largest_N_move_pct': stacked.max(axis=(0, 2)),
+            'largest_N_move_year': [years[1:][int(t)] for t, _ in peaks],
+            'largest_N_move_target': [str(targets[int(k)]) for _, k in peaks],
+        },
+        index=index,
+    )
+
+
+def iv_table(span: bcd.Span, weights: str | pd.Series = 'equal') -> pd.DataFrame:
+    """One row per commodity, sorted on ``IV``, the headline under *weights*.
+
+    ``IV_<scheme>`` carries the score under each named weighting alongside.
+    """
+    shares = n_shares(span)
+    targets = shares[min(shares)].columns
+    B_real = bcd.B_total(span, real=True)
+    index = shares[min(shares)].index
+    V = volatility(B_real.reindex(index).fillna(0.0))
+
+    table = pd.DataFrame(index=index)
+    table['name'] = [str(INDUSTRY_DESC.get(c, c)) for c in index]
+    table['I'] = importance(span, shares, weights)
+    table = table.join(V)
+    table['IV'] = table['I'] * table['V'] * 100
+    table['rank'] = table['IV'].rank(ascending=False, method='min').astype(int)
+    for scheme in WEIGHT_SCHEMES:
+        table[f'IV_{scheme}'] = importance(span, shares, scheme) * table['V'] * 100
+
+    B_nominal = bcd.B_total(span, real=False).reindex(index).fillna(0.0)
+    q = span.q.reindex(index).fillna(0.0)
+    table['mean_emissions_Mt'] = (B_nominal * q).mean(axis=1) / 1e9
+    table['own_share_of_N'] = pd.DataFrame(
+        {
+            year: pd.Series([S.at[k, k] for k in targets], index=targets, dtype=float)
+            for year, S in shares.items()
+        }
+    ).mean(axis=1)
+    table = table.join(largest_n_move(span, targets))
+    own_measure = bcd.B_change(span, real=True).groupby('commodity')[
+        'abs_delta_B_pct_of_N'
+    ]
+    table['sum_abs_delta_B_pct_of_N'] = own_measure.sum().reindex(index).fillna(0.0)
+    return table.sort_values('IV', ascending=False).rename_axis(index='commodity')
+
+
+def movement_by_year(span: bcd.Span, table: pd.DataFrame) -> pd.DataFrame:
+    """Each year's share of squared ``I * deviation``, with and without the top ``B``."""
+    B_real = bcd.B_total(span, real=True).reindex(table.index).fillna(0.0)
+    d = annual_change(B_real)
+    deviation = d.sub(d.median(axis=1), axis=0)
+    squared = deviation.mul(table['I'], axis=0).pow(2)
+    without_top = squared.iloc[1:]
+    return pd.DataFrame(
+        {
+            'all_commodities': squared.sum() / squared.sum().sum(),
+            f'without_{table.index[0]}': without_top.sum() / without_top.sum().sum(),
+        }
+    ).rename_axis(index='year')
+
+
+def check(span: bcd.Span) -> None:
+    """Assert the identities the score rests on and its response to test series."""
+    shares = n_shares(span)
+    worst = max(float((S.sum() - 1).abs().max()) for S in shares.values())
+    assert worst < 1e-9, f'S does not sum to 1 over emitters: {worst:.1e}'
+    logger.info('OK  S sums to 1 over emitters for every N (worst %.1e)', worst)
+
+    for scheme in WEIGHT_SCHEMES:
+        total = float(importance(span, shares, scheme).sum())
+        assert abs(total - 1) < 1e-9, f'{scheme}: I sums to {total}'
+    logger.info('OK  I sums to 1 under every named weighting')
+
+    B = bcd.B_total(span, real=False)
+    index = shares[min(shares)].index
+    emissions = (B.reindex(index).fillna(0.0) * span.q.reindex(index).fillna(0.0))[
+        sorted(span.L)
+    ]
+    share = (emissions / emissions.sum()).mean(axis=1)
+    gap = float((importance(span, shares, 'footprint') - share).abs().max())
+    assert gap < 1e-9, f'footprint importance is not the emissions share: {gap:.1e}'
+    logger.info('OK  footprint importance is the emissions share (gap %.1e)', gap)
+
+    years = sorted(span.L)
+    test_series = {
+        'flat': [1.0] * 8,
+        'steady': [0.8**i for i in range(8)],
+        'wobble_10pct': [1.0, 1.1] * 4,
+        'step_50pct': [1.0] * 4 + [1.5] * 4,
+        'spike_50pct': [1.0] * 4 + [1.5] + [1.0] * 3,
+    }
+    V = volatility(pd.DataFrame(test_series, index=years).T)['V']
+    assert V['flat'] == 0 and V['steady'] < 1e-12, 'a steady trend must score 0'
+    assert V['spike_50pct'] > V['step_50pct'] > V['wobble_10pct'], V.to_string()
+    logger.info('OK  test series, V:\n%s', V.round(3).to_string())
+
+
+def main(weights: str | pd.Series = 'equal', out_dir: Path = OUT_DIR) -> pd.DataFrame:
+    span = load_or_build_span()
+    logger.info('FBS %s, MUT %s', span.vintages.fbs, span.vintages.mut)
+    table = iv_table(span, weights)
+    by_year = movement_by_year(span, table)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    table.to_csv(out_dir / 'IV_score.csv')
+    by_year.to_csv(out_dir / 'IV_score_by_year.csv')
+
+    columns = ['name', 'IV', 'I', 'V', 'peak_year', 'jump_share', 'oscillation']
+    logger.info('Top 30:\n%s', table[columns].head(30).round(3).to_string())
+    logger.info('Share by year:\n%s', by_year.round(3).to_string())
+    return table
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s | %(message)s')
+    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    parser.add_argument('--check', action='store_true', help='assert and exit')
+    parser.add_argument('--weights', choices=WEIGHT_SCHEMES, default='equal')
+    parser.add_argument(
+        '--weights-csv',
+        type=Path,
+        help='CSV with columns commodity and weight; overrides --weights',
+    )
+    args = parser.parse_args()
+    if args.check:
+        check(load_or_build_span())
+    elif args.weights_csv:
+        custom = pd.read_csv(args.weights_csv, dtype={'commodity': str})
+        main(custom.set_index('commodity')['weight'])
+    else:
+        main(args.weights)
