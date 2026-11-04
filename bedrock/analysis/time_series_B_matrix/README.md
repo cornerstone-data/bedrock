@@ -21,7 +21,9 @@ uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage -
 ```
 
 Each `IV_score` run overwrites `output/IV_score/`, and the triage reads that folder
-unless you pass `--iv-csv`. Results go under `output/`, which is not committed.
+unless you pass `--iv-csv`. Results go under `output/`, which is not committed. The
+triage also overwrites its sectors' curves in `images/sector_trends/`, so commit only
+the ones the log uses.
 
 ## Terms
 

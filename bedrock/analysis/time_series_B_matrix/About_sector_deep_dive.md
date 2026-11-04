@@ -10,13 +10,15 @@ uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage -
 | Step | Question | What to read |
 |---|---|---|
 | 1 | Which sectors? | IV score, from [`IV_score.py`](IV_score.py) |
-| 2 | Did emissions change? | `E` each year, and its largest sources |
-| 3 | Did output change? | `q` each year, in constant 2017 dollars |
+| 2 | Did emissions change? | The trend in `E`, and its largest sources |
+| 3 | Did output change? | The trend in `q`, in constant 2017 dollars |
 | 4 | Did the supply chain change? | The driving factor, `B` or `L`, and the largest `A` cells |
 | 5 | Why? | Your explanation, from the sources and evidence |
 
 The run writes two files to `output/sector_deep_dive_triage/`: a CSV with one row per
-sector, and `*_draft.md`, with the tracker rows and log entries ready to paste.
+sector, and `*_draft.md`, with the tracker rows and log entries ready to paste. The
+entries show `E` and `q` as curves with 2017 = 1, saved to `images/sector_trends/`,
+and the CSV has each year's value.
 `--iv-csv` chooses the `IV_score.csv`, and so the weights. `--codes` runs named
 sectors.
 

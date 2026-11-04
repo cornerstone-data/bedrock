@@ -9,15 +9,16 @@ Each sector has the same fields:
 
 | Field | What goes here |
 |---|---|
-| **E** | Sector emissions each year, 2017 to 2024, in Mt CO2e |
+| **E** | The trend in sector emissions, 2017 to 2024, with 2017 = 1, and the 2017 value in Mt CO2e |
 | **E source** | The inventory tables and attribution routes behind `E`, largest first, with their share over the span |
 | **E explanation** | Why `E` moved, or didn't |
-| **q** | Commodity output each year, 2017 to 2024, in billions of constant 2017 dollars |
+| **q** | The trend in commodity output, 2017 to 2024, with 2017 = 1, and the 2017 value in billions of constant 2017 dollars |
 | **q explanation** | Why `q` moved, or didn't |
 | **A explanation** | Which purchases in `A` changed, and why. The triage lists the largest, as gross percent of `N_d` over the span |
 | **L explanation** | How much `L` moves this sector's `N_d`, and why |
 
-Sectors come from the tracker's list. `E` and `q` below are on GHG FBS
+Sectors come from the tracker's list. Curves share one scale, with a dashed
+line at 1, dotted lines at 0.5 and 2, and the 2024 value at the end. `E` and `q` are on GHG FBS
 `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. An explanation should say which vintages it was checked on. Each explanation stays
 short and links to the issue or note that holds the evidence.
 
@@ -32,10 +33,10 @@ the figures above. Older notes that cite "tracker row N" refer to these.
 
 | Field | Value |
 |---|---|
-| **E** | 1791 → 1814 → 1671 → 1500 → 1602 → 1592 → 1467 → 1471 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.01 → 0.93 → 0.84 → 0.89 → 0.89 → 0.82 → 0.82](images/sector_trends/221100_E.svg) 2017 = 1791 |
 | **E source** | `eGRID` via `Direct` (99%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 455 → 457 → 444 → 448 → 416 → 437 → 463 → 483 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.01 → 0.98 → 0.98 → 0.92 → 0.96 → 1.02 → 1.06](images/sector_trends/221100_q.svg) 2017 = 455 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Electric power generation, transmission, and distribution (1.8); Electric power generation, transmission, and distribution bought by Electric power generation, transmission, and distribution (1.6); Coal mining bought by Electric power generation, transmission, and distribution (1.5) |
 | **L explanation** | Not yet assessed. |
@@ -66,10 +67,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 163 → 164 → 172 → 112 → 143 → 156 → 171 → 178 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.01 → 1.06 → 0.69 → 0.88 → 0.96 → 1.05 → 1.09](images/sector_trends/481000_E.svg) 2017 = 163 |
 | **E source** | `UMD_GHGIA_T_3_8.direct_jet` via `Direct` (99%); `UMD_GHGIA_T_3_10.direct_non_road` via `Direct` (1%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 232 → 242 → 252 → 130 → 196 → 250 → 267 → 282 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.09 → 0.56 → 0.85 → 1.08 → 1.15 → 1.22](images/sector_trends/481000_q.svg) 2017 = 232 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (11.3); Oil and gas extraction bought by Petroleum refineries (1.5); Scenic and sightseeing transportation and support activities bought by Air transportation (1.4) |
 | **L explanation** | Not yet assessed. |
@@ -90,10 +91,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 353 → 384 → 397 → 358 → 357 → 363 → 351 → 354 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.13 → 1.02 → 1.01 → 1.03 → 1.00 → 1.00](images/sector_trends/211000_E.svg) 2017 = 353 |
 | **E source** | `UMD_GHGIA_T_3_28` via `Direct` (32%); `UMD_GHGIA_T_3_11.natural_gas_lease_plant` via `GHGRP_NEI_Facilities` (26%); `UMD_GHGIA_T_3_25` via `Direct` (13%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 213 → 254 → 277 → 255 → 283 → 311 → 337 → 346 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.19 → 1.30 → 1.20 → 1.33 → 1.46 → 1.59 → 1.63](images/sector_trends/211000_q.svg) 2017 = 213 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Oil and gas extraction (7.4); Oil and gas extraction bought by Oil and gas extraction (5.4); Pipeline transportation bought by Oil and gas extraction (4.6) |
 | **L explanation** | Not yet assessed. |
@@ -124,10 +125,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 170 → 167 → 174 → 173 → 192 → 182 → 178 → 179 |
+| **E** | ![E with 2017 = 1: 1.00 → 0.98 → 1.02 → 1.02 → 1.13 → 1.07 → 1.04 → 1.05](images/sector_trends/484000_E.svg) 2017 = 170 |
 | **E source** | `UMD_GHGIA_T_3_8.petroleum_fuels_diesel` via `Energy_highway_fuel_shares_national` (90%); `UMD_GHGIA_T_3_8.petroleum_fuels_gasoline_trucks` via `Energy_highway_fuel_shares_national` (5%); `UMD_GHGIA_T_A5_5_2` via `Direct` (4%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 341 → 352 → 348 → 355 → 374 → 373 → 368 → 370 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.03 → 1.02 → 1.04 → 1.10 → 1.09 → 1.08 → 1.09](images/sector_trends/484000_q.svg) 2017 = 341 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Truck transportation (7.9); Petroleum refineries bought by Truck transportation (7.3); Truck transportation bought by Truck transportation (4.3) |
 | **L explanation** | Not yet assessed. |
@@ -136,10 +137,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 199 → 201 → 200 → 181 → 183 → 186 → 180 → 176 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.01 → 1.01 → 0.91 → 0.92 → 0.93 → 0.90 → 0.88](images/sector_trends/324110_E.svg) 2017 = 199 |
 | **E source** | `UMD_GHGIA_T_3_11.petroleum_still_gas` via `GHGRP_NEI_Facilities` (50%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (26%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (9%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 477 → 494 → 500 → 388 → 421 → 425 → 445 → 469 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.05 → 0.81 → 0.88 → 0.89 → 0.93 → 0.98](images/sector_trends/324110_q.svg) 2017 = 477 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petroleum refineries (13.0); Electric power generation, transmission, and distribution bought by Petroleum refineries (6.3); Pipeline transportation bought by Petroleum refineries (5.1) |
 | **L explanation** | Not yet assessed. |
@@ -160,10 +161,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 47 → 51 → 43 → 43 → 51 → 52 → 65 → 67 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.08 → 0.91 → 0.91 → 1.09 → 1.12 → 1.39 → 1.44](images/sector_trends/325110_E.svg) 2017 = 47 |
 | **E source** | `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (52%); `UMD_GHGIA_T_4_31` via `Direct` (40%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (7%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 63 → 56 → 62 → 53 → 51 → 49 → 58 → 55 |
+| **q** | ![q with 2017 = 1: 1.00 → 0.89 → 0.97 → 0.84 → 0.81 → 0.78 → 0.92 → 0.88](images/sector_trends/325110_q.svg) 2017 = 63 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petrochemical manufacturing (15.6); Petrochemical manufacturing bought by Petrochemical manufacturing (9.1); Electric power generation, transmission, and distribution bought by Petrochemical manufacturing (4.9) |
 | **L explanation** | Not yet assessed. |
@@ -172,10 +173,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 58 → 63 → 66 → 49 → 49 → 46 → 43 → 36 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.13 → 0.84 → 0.85 → 0.80 → 0.74 → 0.61](images/sector_trends/531ORE_E.svg) 2017 = 58 |
 | **E source** | `UMD_GHGIA_T_3_4.non_manufacturing_natural_gas` via `Nowcast_Detail_Use_AfterRedef` (94%); `UMD_GHGIA_T_3_4.petroleum_commercial` via `Nowcast_Detail_Use_AfterRedef` (5%); `UMD_GHGIA_T_4_60.refrigerants` via `Nowcast_Detail_Use_AfterRedef` (1%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 1287 → 1338 → 1406 → 1338 → 1558 → 1592 → 1586 → 1606 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.09 → 1.04 → 1.21 → 1.24 → 1.23 → 1.25](images/sector_trends/531ORE_q.svg) 2017 = 1287 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Other real estate (20.0); Solid waste landfilling bought by Other real estate (4.4); Other real estate bought by Other real estate (3.8) |
 | **L explanation** | Not yet assessed. |
@@ -184,10 +185,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 76 → 82 → 79 → 78 → 60 → 60 → 62 → 63 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.04 → 1.02 → 0.80 → 0.79 → 0.82 → 0.83](images/sector_trends/325190_E.svg) 2017 = 76 |
 | **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (47%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (19%); `UMD_GHGIA_T_2_S1.direct` via `Direct` (14%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 117 → 116 → 108 → 99 → 104 → 106 → 108 → 127 |
+| **q** | ![q with 2017 = 1: 1.00 → 0.99 → 0.92 → 0.85 → 0.88 → 0.91 → 0.93 → 1.08](images/sector_trends/325190_q.svg) 2017 = 117 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Other basic organic chemical manufacturing (11.5); Grain farming bought by Other basic organic chemical manufacturing (9.1); Electric power generation, transmission, and distribution bought by Other basic organic chemical manufacturing (5.7) |
 | **L explanation** | Not yet assessed. |
@@ -196,10 +197,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 20 → 20 → 20 → 19 → 25 → 25 → 37 → 38 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.02 → 1.04 → 0.97 → 1.25 → 1.29 → 1.87 → 1.92](images/sector_trends/325211_E.svg) 2017 = 20 |
 | **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (63%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (26%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (3%) |
 | **E explanation** | Not yet assessed. |
-| **q** | 89 → 90 → 86 → 83 → 77 → 84 → 89 → 94 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.02 → 0.97 → 0.93 → 0.87 → 0.95 → 1.00 → 1.06](images/sector_trends/325211_q.svg) 2017 = 89 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Plastics material and resin manufacturing (15.8); Other basic organic chemical manufacturing bought by Plastics material and resin manufacturing (11.3); Electric power generation, transmission, and distribution bought by Plastics material and resin manufacturing (5.7) |
 | **L explanation** | Not yet assessed. |

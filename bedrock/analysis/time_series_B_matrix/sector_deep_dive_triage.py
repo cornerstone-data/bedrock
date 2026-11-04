@@ -18,6 +18,11 @@ An ``A`` cell's contribution to the ``L_dom`` part uses
 contributes ``N_d_i,t * dA_ij * L_jk,t-1``. These add up to the ``L_dom`` part
 exactly, and ``--check`` asserts that. All of this is in constant 2017 dollars.
 
+The draft shows ``E`` and ``q`` as curves normalized to 2017 = 1, as in
+``time_series_matrix_assessment``, drawn to one fixed scale so that sectors can be
+compared. They are written to ``images/sector_trends/``, and each run overwrites
+its sectors' curves. The CSV keeps the values.
+
 Runs from the span cache that ``IV_score`` builds.
 
 ::
@@ -39,6 +44,7 @@ import typing as ta
 from dataclasses import dataclass
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -46,6 +52,10 @@ from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
 from bedrock.analysis.time_series_B_matrix.IV_score import (
     domestic_span,
     load_or_build_span,
+)
+from bedrock.analysis.time_series_B_matrix.time_series_matrix_assessment import (
+    DOLLAR_YEAR,
+    sector_emissions_panel,
 )
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
@@ -55,11 +65,16 @@ HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / 'output'
 DEFAULT_IV = OUTPUT / 'IV_score' / 'IV_score.csv'
 OUT_DIR = OUTPUT / 'sector_deep_dive_triage'
+CURVE_DIR = HERE / 'images' / 'sector_trends'
 
 FIRST_YEAR = 2017
 N_SOURCES = 3
 N_CELLS = 3
 NOT_ASSESSED = 'Not yet assessed.'
+#: Every curve uses this scale unless its values fall outside it.
+CURVE_RANGE = (0.4, 2.2)
+CURVE_COLOR = '#2a8ea3'
+CURVE_INK = '#768390'
 
 
 @dataclass(frozen=True)
@@ -67,6 +82,7 @@ class Basis:
     """Everything the triage reads, in constant 2017 dollars on the domestic basis."""
 
     E: pd.DataFrame
+    sector_E: pd.DataFrame
     q: pd.DataFrame
     changes: pd.DataFrame
     N: pd.DataFrame
@@ -84,6 +100,7 @@ def load_basis() -> Basis:
     changes['commodity'] = changes['commodity'].astype(str)
     return Basis(
         E=E,
+        sector_E=sector_emissions_panel(span) / 1e9,
         q=span.q * bcd.commodity_rho(span).reindex(span.q.index)[span.q.columns],
         changes=changes,
         N=bcd.N_total(span, real=True),
@@ -121,11 +138,63 @@ def cell(frame: pd.DataFrame, row: str, column: int) -> float:
     return float(np.asarray(frame.loc[row, column]).item())
 
 
+def short(value: float) -> str:
+    """A whole number, or two figures under 10."""
+    return f'{value:.0f}' if abs(value) >= 10 else f'{value:.2g}'
+
+
 def series(values: pd.Series) -> str:
-    """The values in year order: whole numbers, or two figures under 10."""
-    return ' → '.join(
-        f'{v:.0f}' if abs(v) >= 10 else f'{v:.2g}'
-        for v in values.sort_index().to_numpy(dtype=float)
+    return ' → '.join(short(v) for v in values.sort_index().to_numpy(dtype=float))
+
+
+def trend_curve(normalized: pd.Series, out: Path) -> None:
+    """Draw one series normalized to 1 at the base year, with its last value."""
+    years = [int(y) for y in normalized.index]
+    values = normalized.to_numpy(dtype=float)
+    with plt.rc_context({'svg.hashsalt': out.stem, 'svg.fonttype': 'none'}):
+        fig, ax = plt.subplots(figsize=(2.8, 0.8))
+        for level, style in ((1.0, '--'), (0.5, ':'), (2.0, ':')):
+            ax.axhline(level, color=CURVE_INK, linestyle=style, linewidth=0.6)
+        ax.plot(years, values, color=CURVE_COLOR, linewidth=1.5)
+        ax.plot(
+            years[-1], values[-1], 'o', color=CURVE_COLOR, markersize=3.5, clip_on=False
+        )
+        ax.annotate(
+            f'{values[-1]:.2f}',
+            (years[-1], values[-1]),
+            xytext=(5, 0),
+            textcoords='offset points',
+            va='center',
+            fontsize=7,
+            color=CURVE_INK,
+        )
+        ax.set_ylim(
+            min(CURVE_RANGE[0], values.min() - 0.1),
+            max(CURVE_RANGE[1], values.max() + 0.1),
+        )
+        ax.set_xlim(years[0], years[-1])
+        ax.set_xticks([years[0], years[-1]])
+        ax.set_yticks([0.5, 1.0, 2.0], labels=['0.5', '1', '2'])
+        ax.tick_params(length=0, labelsize=7, colors=CURVE_INK)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        fig.subplots_adjust(left=0.1, right=0.86, top=0.96, bottom=0.2)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, transparent=True, metadata={'Date': None})
+        plt.close(fig)
+
+
+def curve_cell(values: pd.Series, code: str, field: str) -> str:
+    """Draw the curve and return its table cell, with the base year's value."""
+    base = float(values.loc[DOLLAR_YEAR])
+    if base <= 0:
+        return f'{series(values)} (no positive {DOLLAR_YEAR} value to normalize)'
+    normalized = values.sort_index() / base
+    trend_curve(normalized, CURVE_DIR / f'{code}_{field}.svg')
+    alt = ' → '.join(f'{v:.2f}' for v in normalized.to_numpy(dtype=float))
+    return (
+        f'![{field} with {DOLLAR_YEAR} = 1: {alt}]'
+        f'(images/sector_trends/{code}_{field}.svg) {DOLLAR_YEAR} = {short(base)}'
     )
 
 
@@ -175,7 +244,6 @@ def top_a_cells(basis: Basis, code: str) -> str:
 
 def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
     """One row per commodity in *iv*, in its order."""
-    sector_E = basis.E.groupby(['sector', 'year'])['CO2e'].sum().unstack() / 1e9
     rows = []
     for _, row in iv.iterrows():
         code = str(row['commodity'])
@@ -189,7 +257,7 @@ def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
                 'code': code,
                 'name': name_of(code),
                 'IV': float(row['IV']),
-                'E': series(pd.Series(sector_E.loc[code])),
+                'E': series(pd.Series(basis.sector_E.loc[code])),
                 'E_sources': e_sources(basis, code),
                 'q': series(pd.Series(basis.q.loc[code]) / 1e9),
                 'driving_factor': 'B' if B_share >= 50 else 'L',
@@ -202,7 +270,7 @@ def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def draft(table: pd.DataFrame) -> str:
+def draft(table: pd.DataFrame, basis: Basis) -> str:
     """Draft tracker rows and log entries, with the explanations left to write."""
     lines = [
         '## Tracker rows',
@@ -218,15 +286,18 @@ def draft(table: pd.DataFrame) -> str:
         )
     lines += ['', '## Log entries', '']
     for _, row in table.iterrows():
+        code = str(row['code'])
+        E_cell = curve_cell(pd.Series(basis.sector_E.loc[code]), code, 'E')
+        q_cell = curve_cell(pd.Series(basis.q.loc[code]) / 1e9, code, 'q')
         lines += [
             f"### {row['code']} {row['name']}",
             '',
             '| Field | Value |',
             '|---|---|',
-            f"| **E** | {row['E']} |",
+            f'| **E** | {E_cell} |',
             f"| **E source** | {row['E_sources']} |",
             f'| **E explanation** | {NOT_ASSESSED} |',
-            f"| **q** | {row['q']} |",
+            f'| **q** | {q_cell} |',
             f'| **q explanation** | {NOT_ASSESSED} |',
             f"| **A explanation** | {NOT_ASSESSED} Largest cells, gross percent of "
             f"`N_d`: {row['top_A_cells']} |",
@@ -290,7 +361,7 @@ def main(argv: list[str] | None = None) -> Path | None:
     out.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(out, index=False)
     draft_path = out.with_name(f'{out.stem}_draft.md')
-    draft_path.write_text(draft(table), encoding='utf-8')
+    draft_path.write_text(draft(table, basis), encoding='utf-8')
 
     columns = ['rank', 'code', 'IV', 'driving_factor', 'B_share_pct', 'E', 'q']
     print(table[columns].round(2).to_string(index=False))
