@@ -9,16 +9,16 @@ Each sector has the same fields:
 
 | Field | What goes here |
 |---|---|
-| **E** | Sector emissions, 2017 to 2024 |
+| **E** | Sector emissions each year, 2017 to 2024, in Mt CO2e |
 | **E source** | The inventory tables and attribution routes behind `E`, largest first, with their share over the span |
 | **E explanation** | Why `E` moved, or didn't |
-| **q** | Commodity output in constant 2017 dollars, 2017 to 2024 |
+| **q** | Commodity output each year, 2017 to 2024, in billions of constant 2017 dollars |
 | **q explanation** | Why `q` moved, or didn't |
 | **A explanation** | Which purchases in `A` changed, and why. The triage lists the largest, as gross percent of `N_d` over the span |
 | **L explanation** | How much `L` moves this sector's `N_d`, and why |
 
-Sectors come from the tracker's list. `E` and `q` below are on GHG FBS `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. An
-explanation should say which vintages it was checked on. Each explanation stays
+Sectors come from the tracker's list. `E` and `q` below are on GHG FBS
+`v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. An explanation should say which vintages it was checked on. Each explanation stays
 short and links to the issue or note that holds the evidence.
 
 **Earlier findings** are the former tracker rows, moved here unchanged. They are
@@ -32,10 +32,10 @@ the figures above. Older notes that cite "tracker row N" refer to these.
 
 | Field | Value |
 |---|---|
-| **E** | 1,791.5 → 1,471.4 Mt CO2e (-18%) |
+| **E** | 1791 → 1814 → 1671 → 1500 → 1602 → 1592 → 1467 → 1471 |
 | **E source** | `eGRID` via `Direct` (99%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $454.9bn → $483.4bn (+6%) |
+| **q** | 455 → 457 → 444 → 448 → 416 → 437 → 463 → 483 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Electric power generation, transmission, and distribution (1.8); Electric power generation, transmission, and distribution bought by Electric power generation, transmission, and distribution (1.6); Coal mining bought by Electric power generation, transmission, and distribution (1.5) |
 | **L explanation** | Not yet assessed. |
@@ -66,10 +66,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 163.2 → 178.4 Mt CO2e (+9%) |
+| **E** | 163 → 164 → 172 → 112 → 143 → 156 → 171 → 178 |
 | **E source** | `UMD_GHGIA_T_3_8.direct_jet` via `Direct` (99%); `UMD_GHGIA_T_3_10.direct_non_road` via `Direct` (1%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $232.1bn → $282.4bn (+22%) |
+| **q** | 232 → 242 → 252 → 130 → 196 → 250 → 267 → 282 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (11.3); Oil and gas extraction bought by Petroleum refineries (1.5); Scenic and sightseeing transportation and support activities bought by Air transportation (1.4) |
 | **L explanation** | Not yet assessed. |
@@ -90,10 +90,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 352.5 → 353.9 Mt CO2e (+0%) |
+| **E** | 353 → 384 → 397 → 358 → 357 → 363 → 351 → 354 |
 | **E source** | `UMD_GHGIA_T_3_28` via `Direct` (32%); `UMD_GHGIA_T_3_11.natural_gas_lease_plant` via `GHGRP_NEI_Facilities` (26%); `UMD_GHGIA_T_3_25` via `Direct` (13%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $212.9bn → $346.4bn (+63%) |
+| **q** | 213 → 254 → 277 → 255 → 283 → 311 → 337 → 346 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Oil and gas extraction (7.4); Oil and gas extraction bought by Oil and gas extraction (5.4); Pipeline transportation bought by Oil and gas extraction (4.6) |
 | **L explanation** | Not yet assessed. |
@@ -124,10 +124,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 170.5 → 179.1 Mt CO2e (+5%) |
+| **E** | 170 → 167 → 174 → 173 → 192 → 182 → 178 → 179 |
 | **E source** | `UMD_GHGIA_T_3_8.petroleum_fuels_diesel` via `Energy_highway_fuel_shares_national` (90%); `UMD_GHGIA_T_3_8.petroleum_fuels_gasoline_trucks` via `Energy_highway_fuel_shares_national` (5%); `UMD_GHGIA_T_A5_5_2` via `Direct` (4%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $341.1bn → $370.5bn (+9%) |
+| **q** | 341 → 352 → 348 → 355 → 374 → 373 → 368 → 370 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Truck transportation (7.9); Petroleum refineries bought by Truck transportation (7.3); Truck transportation bought by Truck transportation (4.3) |
 | **L explanation** | Not yet assessed. |
@@ -136,10 +136,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 199.0 → 175.9 Mt CO2e (-12%) |
+| **E** | 199 → 201 → 200 → 181 → 183 → 186 → 180 → 176 |
 | **E source** | `UMD_GHGIA_T_3_11.petroleum_still_gas` via `GHGRP_NEI_Facilities` (50%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (26%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (9%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $477.1bn → $468.9bn (-2%) |
+| **q** | 477 → 494 → 500 → 388 → 421 → 425 → 445 → 469 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petroleum refineries (13.0); Electric power generation, transmission, and distribution bought by Petroleum refineries (6.3); Pipeline transportation bought by Petroleum refineries (5.1) |
 | **L explanation** | Not yet assessed. |
@@ -160,10 +160,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 46.9 → 67.4 Mt CO2e (+44%) |
+| **E** | 47 → 51 → 43 → 43 → 51 → 52 → 65 → 67 |
 | **E source** | `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (52%); `UMD_GHGIA_T_4_31` via `Direct` (40%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (7%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $63.3bn → $55.5bn (-12%) |
+| **q** | 63 → 56 → 62 → 53 → 51 → 49 → 58 → 55 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petrochemical manufacturing (15.6); Petrochemical manufacturing bought by Petrochemical manufacturing (9.1); Electric power generation, transmission, and distribution bought by Petrochemical manufacturing (4.9) |
 | **L explanation** | Not yet assessed. |
@@ -172,10 +172,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 58.0 → 35.6 Mt CO2e (-39%) |
+| **E** | 58 → 63 → 66 → 49 → 49 → 46 → 43 → 36 |
 | **E source** | `UMD_GHGIA_T_3_4.non_manufacturing_natural_gas` via `Nowcast_Detail_Use_AfterRedef` (94%); `UMD_GHGIA_T_3_4.petroleum_commercial` via `Nowcast_Detail_Use_AfterRedef` (5%); `UMD_GHGIA_T_4_60.refrigerants` via `Nowcast_Detail_Use_AfterRedef` (1%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $1,286.7bn → $1,606.4bn (+25%) |
+| **q** | 1287 → 1338 → 1406 → 1338 → 1558 → 1592 → 1586 → 1606 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Other real estate (20.0); Solid waste landfilling bought by Other real estate (4.4); Other real estate bought by Other real estate (3.8) |
 | **L explanation** | Not yet assessed. |
@@ -184,10 +184,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 75.8 → 62.7 Mt CO2e (-17%) |
+| **E** | 76 → 82 → 79 → 78 → 60 → 60 → 62 → 63 |
 | **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (47%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (19%); `UMD_GHGIA_T_2_S1.direct` via `Direct` (14%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $117.2bn → $126.9bn (+8%) |
+| **q** | 117 → 116 → 108 → 99 → 104 → 106 → 108 → 127 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Other basic organic chemical manufacturing (11.5); Grain farming bought by Other basic organic chemical manufacturing (9.1); Electric power generation, transmission, and distribution bought by Other basic organic chemical manufacturing (5.7) |
 | **L explanation** | Not yet assessed. |
@@ -196,10 +196,10 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **E** | 19.6 → 37.7 Mt CO2e (+92%) |
+| **E** | 20 → 20 → 20 → 19 → 25 → 25 → 37 → 38 |
 | **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (63%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (26%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (3%) |
 | **E explanation** | Not yet assessed. |
-| **q** | $88.5bn → $94.1bn (+6%) |
+| **q** | 89 → 90 → 86 → 83 → 77 → 84 → 89 → 94 |
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Plastics material and resin manufacturing (15.8); Other basic organic chemical manufacturing bought by Plastics material and resin manufacturing (11.3); Electric power generation, transmission, and distribution bought by Plastics material and resin manufacturing (5.7) |
 | **L explanation** | Not yet assessed. |

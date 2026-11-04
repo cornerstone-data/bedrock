@@ -5,8 +5,8 @@ commodity, plus a draft entry for the tracker and for
 ``About_sector_trend_explanations.md``:
 
 1. Which sectors? The IV score, from an ``IV_score.csv``.
-2. Did emissions change? ``E`` in 2017 and 2024, and its largest sources.
-3. Did output change? ``q`` in 2017 and 2024, in constant 2017 dollars.
+2. Did emissions change? ``E`` each year in Mt CO2e, and its largest sources.
+3. Did output change? ``q`` each year in billions of constant 2017 dollars.
 4. Did the supply chain change? The driving factor, and the largest ``A`` cells.
 
 The driving factor splits each annual change in ``N_d`` into the part from ``B``,
@@ -57,7 +57,6 @@ DEFAULT_IV = OUTPUT / 'IV_score' / 'IV_score.csv'
 OUT_DIR = OUTPUT / 'sector_deep_dive_triage'
 
 FIRST_YEAR = 2017
-LAST_YEAR = 2024
 N_SOURCES = 3
 N_CELLS = 3
 NOT_ASSESSED = 'Not yet assessed.'
@@ -122,8 +121,12 @@ def cell(frame: pd.DataFrame, row: str, column: int) -> float:
     return float(np.asarray(frame.loc[row, column]).item())
 
 
-def pct_change(first: float, last: float) -> float:
-    return 100 * (last / first - 1) if first else float('nan')
+def series(values: pd.Series) -> str:
+    """The values in year order: whole numbers, or two figures under 10."""
+    return ' → '.join(
+        f'{v:.0f}' if abs(v) >= 10 else f'{v:.2g}'
+        for v in values.sort_index().to_numpy(dtype=float)
+    )
 
 
 def e_sources(basis: Basis, code: str) -> str:
@@ -176,10 +179,6 @@ def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
     rows = []
     for _, row in iv.iterrows():
         code = str(row['commodity'])
-        E_first = cell(sector_E, code, FIRST_YEAR)
-        E_last = cell(sector_E, code, LAST_YEAR)
-        q_first = cell(basis.q, code, FIRST_YEAR) / 1e9
-        q_last = cell(basis.q, code, LAST_YEAR) / 1e9
         moves = basis.changes[basis.changes['commodity'] == code]
         from_B = float(moves['pct_change_N_L_held'].abs().sum())
         from_L = float(moves['pct_change_N_L_effect'].abs().sum())
@@ -190,13 +189,9 @@ def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
                 'code': code,
                 'name': name_of(code),
                 'IV': float(row['IV']),
-                'E_2017_Mt': E_first,
-                'E_2024_Mt': E_last,
-                'pct_E': pct_change(E_first, E_last),
+                'E': series(pd.Series(sector_E.loc[code])),
                 'E_sources': e_sources(basis, code),
-                'q_2017_bn': q_first,
-                'q_2024_bn': q_last,
-                'pct_q': pct_change(q_first, q_last),
+                'q': series(pd.Series(basis.q.loc[code]) / 1e9),
                 'driving_factor': 'B' if B_share >= 50 else 'L',
                 'B_share_pct': B_share,
                 'L_share_pct': 100 - B_share,
@@ -228,12 +223,10 @@ def draft(table: pd.DataFrame) -> str:
             '',
             '| Field | Value |',
             '|---|---|',
-            f"| **E** | {row['E_2017_Mt']:,.1f} → {row['E_2024_Mt']:,.1f} Mt CO2e "
-            f"({row['pct_E']:+.0f}%) |",
+            f"| **E** | {row['E']} |",
             f"| **E source** | {row['E_sources']} |",
             f'| **E explanation** | {NOT_ASSESSED} |',
-            f"| **q** | ${row['q_2017_bn']:,.1f}bn → ${row['q_2024_bn']:,.1f}bn "
-            f"({row['pct_q']:+.0f}%) |",
+            f"| **q** | {row['q']} |",
             f'| **q explanation** | {NOT_ASSESSED} |',
             f"| **A explanation** | {NOT_ASSESSED} Largest cells, gross percent of "
             f"`N_d`: {row['top_A_cells']} |",
@@ -299,7 +292,7 @@ def main(argv: list[str] | None = None) -> Path | None:
     draft_path = out.with_name(f'{out.stem}_draft.md')
     draft_path.write_text(draft(table), encoding='utf-8')
 
-    columns = ['rank', 'code', 'IV', 'pct_E', 'pct_q', 'driving_factor', 'B_share_pct']
+    columns = ['rank', 'code', 'IV', 'driving_factor', 'B_share_pct', 'E', 'q']
     print(table[columns].round(2).to_string(index=False))
     print(f'\nWrote {out}\nWrote {draft_path}')
     return out
