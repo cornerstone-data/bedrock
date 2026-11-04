@@ -151,20 +151,20 @@ def trend_curve(normalized: pd.Series, out: Path) -> None:
     years = [int(y) for y in normalized.index]
     values = normalized.to_numpy(dtype=float)
     with plt.rc_context({'svg.hashsalt': out.stem, 'svg.fonttype': 'none'}):
-        fig, ax = plt.subplots(figsize=(2.8, 0.8))
+        fig, ax = plt.subplots(figsize=(5.6, 1.6))
         for level, style in ((1.0, '--'), (0.5, ':'), (2.0, ':')):
-            ax.axhline(level, color=CURVE_INK, linestyle=style, linewidth=0.6)
-        ax.plot(years, values, color=CURVE_COLOR, linewidth=1.5)
+            ax.axhline(level, color=CURVE_INK, linestyle=style, linewidth=1.2)
+        ax.plot(years, values, color=CURVE_COLOR, linewidth=3)
         ax.plot(
-            years[-1], values[-1], 'o', color=CURVE_COLOR, markersize=3.5, clip_on=False
+            years[-1], values[-1], 'o', color=CURVE_COLOR, markersize=7, clip_on=False
         )
         ax.annotate(
             f'{values[-1]:.2f}',
             (years[-1], values[-1]),
-            xytext=(5, 0),
+            xytext=(10, 0),
             textcoords='offset points',
             va='center',
-            fontsize=7,
+            fontsize=14,
             color=CURVE_INK,
         )
         ax.set_ylim(
@@ -174,7 +174,7 @@ def trend_curve(normalized: pd.Series, out: Path) -> None:
         ax.set_xlim(years[0], years[-1])
         ax.set_xticks([years[0], years[-1]])
         ax.set_yticks([0.5, 1.0, 2.0], labels=['0.5', '1', '2'])
-        ax.tick_params(length=0, labelsize=7, colors=CURVE_INK)
+        ax.tick_params(length=0, labelsize=14, colors=CURVE_INK)
         for spine in ax.spines.values():
             spine.set_visible(False)
         fig.subplots_adjust(left=0.1, right=0.86, top=0.96, bottom=0.2)
