@@ -30,7 +30,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -572,13 +572,16 @@ def plot_interactive_BN_normalized_lines(
             hovertemplate=(f'<b>{label}</b><br>' '%{x}: %{y:.3f}<extra></extra>'),
         )
         fig.add_trace(
-            go.Scatter(y=[float(B_n.loc[code, y]) for y in years], **common),
+            go.Scatter(
+                y=[float(cast(Any, B_n.loc[code, y])) for y in years],
+                **common,
+            ),
             row=1,
             col=1,
         )
         fig.add_trace(
             go.Scatter(
-                y=[float(N_n.loc[code, y]) for y in years],
+                y=[float(cast(Any, N_n.loc[code, y])) for y in years],
                 showlegend=False,
                 **common,
             ),
