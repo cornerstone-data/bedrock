@@ -23,6 +23,28 @@ local-only FBS build that no ref reaches. See the vintage section of
 
 ## How to use it
 
+### Start from IV / assessment (sector deep-dive)
+
+For a commodity-year move in D or N, open from the **IV score** (or an
+assessment flag), not from this tracker's quoted Mt figures:
+
+1. Rank / peak year from `IV_score` outputs (pins in that run's log /
+   `vintages.txt`) — see [`IV_score.py`](IV_score.py) and `About_IV_score.md`
+   when that note is on the branch.
+2. Rebuild dig (+ assessment levels) at those FBS/MUT pins; filter
+   `B_change_real.csv` for the code and peak year.
+3. **Triage (D6):** large `%ΔB` / `abs_delta_B_pct_of_N` → direct path; L
+   effect dominates `pct_change_N_*` → structure path (`nd_drivers`).
+4. Follow the matching D# path; record **Justified?** with the same vocabulary
+   as the table below.
+
+Checklist: [`About_sector_deep_dive.md`](About_sector_deep_dive.md). D#
+register: [`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
+
+⚠️ Tracker rows and figures in
+[`About_B_change_drivers.md`](About_B_change_drivers.md) may predate the
+current IV pins — use them as a map of which D# to open, not as live evidence.
+
 **Justified?** is the field that takes real work. It cannot be answered from
 the diagnostics — they say *that* something departed and by how much, never
 whether it should have. Answering it means going back to the source and the

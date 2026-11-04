@@ -1,5 +1,11 @@
 # What moves `B`, and how much of it is real
 
+⚠️ **Figures below are run-dated (2026-09-21 pins), not the live entry path.**
+For which commodity-year to open, start from IV / assessment and the checklist
+in [`About_sector_deep_dive.md`](About_sector_deep_dive.md); rebuild dig at
+those pins before quoting levels. Do not treat Mt / % here as current until a
+dedicated restatement.
+
 Findings from `B_change_diagnostics.py`, run 2026-09-21 against FBS vintage
 `v0.3.0_99655e9` and nowcast MUT vintage `v0.3.0_4276083`, nowcast models
 2017-2024. The FBS is the one published build on GCS, and its hash is

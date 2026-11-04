@@ -18,6 +18,18 @@ Based on
 1. Emissions data sources or economic output sources driving the most change (top-down)
 2. Sector direct EF internannual changes in real dollars coupled with justified fixes that can potentially reduce cumulatively (across all EFs) the most (bottom-up).
 
+### Prioritize from IV / assessment
+
+For *which* commodity-year to open first, use the **IV score**
+([`IV_score.py`](IV_score.py); `About_IV_score.md` when present) and the
+time-series assessment panel
+([`time_series_matrix_assessment.py`](time_series_matrix_assessment.py)). IV
+ranks factors by importance × volatility; assessment shows E / B / N levels.
+Neither replaces dig tables — rebuild dig at the IV FBS/MUT pins, then follow
+the D# register below (D6 triage → direct or structure path). Sector
+checklist: [`About_sector_deep_dive.md`](About_sector_deep_dive.md). Tracker
+verdicts: [`B_driver_investigation.md`](B_driver_investigation.md).
+
 ## Develop diagnostics to identify drivers
 
 Create the diagnostics to identify and prioritize the drivers. 
