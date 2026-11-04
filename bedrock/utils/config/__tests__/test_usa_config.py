@@ -425,7 +425,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
     """v1.0 year series: v0.6 methodology on retained-activity year FBS.
 
     Named ``2026_usa_cornerstone_v1_0_{year}``. Each member pins
-    ``GHG_national_Cornerstone_{year}_v0.6.0_635777c``. The unsuffixed
+    ``GHG_national_Cornerstone_{year}_v1.0.0_79273ed``. The unsuffixed
     ``2026_usa_cornerstone_v1_0`` (live ``CANONICAL_USA_CONFIG``) matches
     the 2024 series member. ``2025_usa_cornerstone_v0_6`` keeps the
     facilities-transportation 2024 pin for the v0.6 release / waterfall FINAL.
@@ -443,7 +443,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
     assert not cfg.deflate_x_to_detail_io_year_for_B
     assert cfg.bea_price_index_vintage == '2026Q2'
     assert cfg.cornerstone_ghg_fbs_filename == (
-        f'GHG_national_Cornerstone_{year}_v0.6.0_635777c.parquet'
+        f'GHG_national_Cornerstone_{year}_v1.0.0_79273ed.parquet'
     )
     assert cfg.nowcast_mut_vintage == 'v1.0.0_5514c3b'
 
@@ -478,7 +478,7 @@ def test_v1_0_release_yaml_matches_2024_series_member() -> None:
     y2024 = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_2024.yaml')
     assert base.model_dump() == y2024.model_dump()
     assert base.cornerstone_ghg_fbs_filename == (
-        'GHG_national_Cornerstone_2024_v0.6.0_635777c.parquet'
+        'GHG_national_Cornerstone_2024_v1.0.0_79273ed.parquet'
     )
     set_global_usa_config('2026_usa_cornerstone_v1_0.yaml')
     assert _select_cornerstone_ghg_fbs_base_name() == 'GHG_national_Cornerstone_2024'

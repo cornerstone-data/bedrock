@@ -1,12 +1,12 @@
 # Cornerstone 2026 model - v1.0, calendar year 2022.
 #
-# Same methodology as 2025_usa_cornerstone_v0_6 for year 2022.
+# Same methodology as 2026_usa_cornerstone_v1_0 for year 2022.
 # nowcast_mut_vintage v1.0.0_5514c3b is the 2017-2024 rebuild on the 2026 BEA
-# annual update.
-# bea_price_index_vintage 2026Q2 is the index those tables were built with.
-# The GHG loader returns GHG_national_Cornerstone_2022.
-# cornerstone_ghg_fbs_filename pins the retained-activity year-stem object
-# GHG_national_Cornerstone_2022_v0.6.0_635777c.parquet.
+# annual update. bea_price_index_vintage 2026Q2 is the index those tables were
+# built with. The GHG loader returns GHG_national_Cornerstone_2022.
+# cornerstone_ghg_fbs_filename names the GCS object loaded for E. When
+# nowcast_mut_vintage or GHG inputs move, follow
+# bedrock/utils/snapshots/README.md (Bump cascade / Phase A A2).
 # Waste disaggregation, industry-average margins, and no IO year adjustments.
 
 #####
@@ -27,7 +27,7 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2022_v0.6.0_635777c.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2022_v1.0.0_79273ed.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io

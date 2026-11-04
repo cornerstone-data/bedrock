@@ -5,9 +5,9 @@
 # after-redefinition build named by nowcast_mut_vintage: v1.0.0_5514c3b, the
 # 2017-2024 rebuild on the 2026 BEA annual update. bea_price_index_vintage
 # 2026Q2 is the index those tables were built with. The GHG loader returns
-# GHG_national_Cornerstone_2024. cornerstone_ghg_fbs_filename pins the
-# retained-activity year-stem object
-# GHG_national_Cornerstone_2024_v0.6.0_635777c.parquet.
+# GHG_national_Cornerstone_2024. cornerstone_ghg_fbs_filename names the GCS
+# object loaded for E. When nowcast_mut_vintage or GHG inputs move, follow
+# bedrock/utils/snapshots/README.md (Bump cascade / Phase A A2).
 # Waste disaggregation, industry-average margins, and no IO year adjustments.
 
 #####
@@ -28,7 +28,7 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v0.6.0_635777c.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v1.0.0_79273ed.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
