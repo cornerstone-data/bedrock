@@ -67,9 +67,7 @@ def _sector_E_mt(cache_dir: Path) -> pd.DataFrame:
     return pivoted
 
 
-def _top_stratum(
-    div: pd.DataFrame, sector: str, year_to: int
-) -> pd.Series:
+def _top_stratum(div: pd.DataFrame, sector: str, year_to: int) -> pd.Series:
     sub = div[(div['sector'].astype(str) == sector) & (div['year_to'] == year_to)]
     if sub.empty:
         return pd.Series(
@@ -80,7 +78,11 @@ def _top_stratum(
                 'top_oscillation': float('nan'),
             }
         )
-    row = sub.assign(_a=sub['divergence'].abs()).sort_values('_a', ascending=False).iloc[0]
+    row = (
+        sub.assign(_a=sub['divergence'].abs())
+        .sort_values('_a', ascending=False)
+        .iloc[0]
+    )
     return pd.Series(
         {
             'top_MetaSources': row['MetaSources'],
@@ -137,7 +139,11 @@ def triage(
         yf, yt = str(year_from), str(year_to)
 
         def _level(frame: pd.DataFrame, key: str) -> tuple[float, float, float]:
-            if key not in frame.index or yf not in frame.columns or yt not in frame.columns:
+            if (
+                key not in frame.index
+                or yf not in frame.columns
+                or yt not in frame.columns
+            ):
                 return float('nan'), float('nan'), float('nan')
             a, c = float(frame.loc[key, yf]), float(frame.loc[key, yt])
             return a, c, _pct(a, c)
@@ -184,9 +190,11 @@ def triage(
                 'top_attribution': top['top_attribution'],
                 'top_divergence_Mt': top['top_divergence_Mt'],
                 'top_oscillation': osc,
-                'IV_oscillation': float(ivrow['oscillation'])
-                if 'oscillation' in ivrow.index and pd.notna(ivrow['oscillation'])
-                else float('nan'),
+                'IV_oscillation': (
+                    float(ivrow['oscillation'])
+                    if 'oscillation' in ivrow.index and pd.notna(ivrow['oscillation'])
+                    else float('nan')
+                ),
             }
         )
     return pd.DataFrame(rows)
@@ -202,7 +210,9 @@ def main(argv: list[str] | None = None) -> Path:
         default=DEFAULT_CACHE,
         help='span cache with E_stratified.parquet (for sector E Mt)',
     )
-    parser.add_argument('--top', type=int, default=15, help='IV ranks 1..N (ignored if --codes)')
+    parser.add_argument(
+        '--top', type=int, default=15, help='IV ranks 1..N (ignored if --codes)'
+    )
     parser.add_argument(
         '--codes',
         type=str,
