@@ -1,4 +1,4 @@
-"""Sector triage: what moved over 2017-2024 for each commodity the IV score flags.
+"""Sector triage: what moved over the span for each commodity the IV score flags.
 
 Answers the four questions in ``About_sector_deep_dive.md`` and writes one row per
 commodity, plus a draft entry for the tracker and for
@@ -67,7 +67,6 @@ DEFAULT_IV = OUTPUT / 'IV_score' / 'IV_score.csv'
 OUT_DIR = OUTPUT / 'sector_deep_dive_triage'
 CURVE_DIR = HERE / 'images' / 'sector_trends'
 
-FIRST_YEAR = 2017
 N_SOURCES = 3
 N_CELLS = 3
 NOT_ASSESSED = 'Not yet assessed.'
@@ -93,7 +92,7 @@ class Basis:
 def load_basis() -> Basis:
     span = domestic_span(load_or_build_span())
     L = bcd.L_real(span)
-    identity = np.eye(len(L[FIRST_YEAR]))
+    identity = np.eye(len(L[min(L)]))
     E = span.E.copy()
     E['sector'] = E['sector'].astype(str)
     changes = bcd.B_change(span, real=True)
@@ -215,7 +214,7 @@ def a_cell_moves(basis: Basis, code: str) -> tuple[pd.DataFrame, pd.Series]:
 
     Also returns the contributions summed by year, which equal the ``L_dom`` part.
     """
-    index = basis.L[FIRST_YEAR].index
+    index = basis.L[min(basis.L)].index
     k = index.get_loc(code)
     gross = np.zeros((len(index), len(index)))
     by_year = {}
