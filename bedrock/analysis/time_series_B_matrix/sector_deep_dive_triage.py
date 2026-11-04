@@ -1,31 +1,42 @@
-"""Batch triage: IV-ranked commodities × dig tables at one peak year each.
+"""Sector triage: what moved over 2017-2024 for each commodity the IV score flags.
 
-Reads an ``IV_score.csv`` and a dig output dir from
-:mod:`~bedrock.analysis.time_series_B_matrix.B_change_diagnostics`, and writes
-one row per code with the deep-dive intake columns (E/x/B/N_d moves, L-held vs
-L-effect, top stratum, path = B / L / both). Does not rebuild the span.
+Answers the four questions in ``About_sector_deep_dive.md`` and writes one row per
+commodity, plus a draft entry for the tracker and for
+``About_sector_trend_explanations.md``:
 
-The ``N`` columns are on ``L_dom`` and ``N_d``, the basis of the IV score, so the
-change table is computed here on the domestic span. ``B_change_real.csv`` in the
-dig is on the full ``L`` and ``N``. The other dig tables don't depend on ``L``.
+1. Which sectors? The IV score, from an ``IV_score.csv``.
+2. Did emissions change? ``E`` in 2017 and 2024, and its largest sources.
+3. Did output change? ``q`` in 2017 and 2024, in constant 2017 dollars.
+4. Did the supply chain change? The driving factor, and the largest ``A`` cells.
 
-Defaults point at the IV pins used for the 2026-11-04 ``2122A0`` pilot
-(``dig_fbs_79273ed_mut_5514c3b``). Override with ``--dig-dir`` / ``--iv-csv``.
+The driving factor splits each annual change in ``N_d`` into the part from ``B``,
+with ``L_dom`` held at the prior year, and the part from ``L_dom``. Absolute values
+are summed over the years so that moves in opposite directions don't cancel.
+
+An ``A`` cell's contribution to the ``L_dom`` part uses
+``L_t - L_t-1 = L_t (A_t - A_t-1) L_t-1``, so for target ``k`` the cell ``(i, j)``
+contributes ``N_d_i,t * dA_ij * L_jk,t-1``. These add up to the ``L_dom`` part
+exactly, and ``--check`` asserts that. All of this is in constant 2017 dollars.
+
+Runs from the span cache that ``IV_score`` builds.
 
 ::
 
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage
-    uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --top 30
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage \\
         --above-iv-score 0.2
     uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage \\
         --codes 2122A0,221100,325110
+    uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage \\
+        --check
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import typing as ta
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -36,250 +47,245 @@ from bedrock.analysis.time_series_B_matrix.IV_score import (
     domestic_span,
     load_or_build_span,
 )
+from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / 'output'
 DEFAULT_IV = OUTPUT / 'IV_score' / 'IV_score.csv'
-DEFAULT_DIG = OUTPUT / 'dig_fbs_79273ed_mut_5514c3b'
-DEFAULT_CACHE = OUTPUT / 'cache_fbs_79273ed_mut_5514c3b'
 OUT_DIR = OUTPUT / 'sector_deep_dive_triage'
 
-#: |L_effect| / |L_held| above this → structure path; inverse → direct; else both.
-PATH_RATIO = 2.0
+FIRST_YEAR = 2017
+LAST_YEAR = 2024
+N_SOURCES = 3
+N_CELLS = 3
+NOT_ASSESSED = 'Not yet assessed.'
 
 
-def _pct(a: float, b: float) -> float:
-    if not np.isfinite(a) or not np.isfinite(b) or a == 0.0:
-        return float('nan')
-    return 100.0 * (b / a - 1.0)
+@dataclass(frozen=True)
+class Basis:
+    """Everything the triage reads, in constant 2017 dollars on the domestic basis."""
+
+    E: pd.DataFrame
+    q: pd.DataFrame
+    changes: pd.DataFrame
+    N: pd.DataFrame
+    L: dict[int, pd.DataFrame]
+    A: dict[int, np.ndarray]
 
 
-def _path(l_held: float, l_effect: float) -> str:
-    ah, ae = abs(l_held), abs(l_effect)
-    if ah == 0.0 and ae == 0.0:
-        return 'unclear'
-    if ae > PATH_RATIO * ah:
-        return 'L'
-    if ah > PATH_RATIO * ae:
-        return 'B'
-    return 'both'
-
-
-def _sector_E_mt(cache_dir: Path) -> pd.DataFrame:
-    """Sector × year emissions in Mt from the dig span cache."""
-    path = cache_dir / 'E_stratified.parquet'
-    E = pd.read_parquet(path)
-    g = E.groupby(['sector', 'year'], as_index=False)['CO2e'].sum()
-    g['E_Mt'] = g['CO2e'] / 1e9
-    g['sector'] = g['sector'].astype(str)
-    pivoted = g.pivot(index='sector', columns='year', values='E_Mt')
-    pivoted.columns = pivoted.columns.map(str)
-    return pivoted
-
-
-def _top_stratum(div: pd.DataFrame, sector: str, year_to: int) -> pd.Series:
-    sub = div[(div['sector'].astype(str) == sector) & (div['year_to'] == year_to)]
-    if sub.empty:
-        return pd.Series(
-            {
-                'top_MetaSources': '',
-                'top_attribution': '',
-                'top_divergence_Mt': float('nan'),
-                'top_oscillation': float('nan'),
-            }
-        )
-    row = (
-        sub.assign(_a=sub['divergence'].abs())
-        .sort_values('_a', ascending=False)
-        .iloc[0]
-    )
-    return pd.Series(
-        {
-            'top_MetaSources': row['MetaSources'],
-            'top_attribution': row['attribution'],
-            'top_divergence_Mt': row['divergence'] / 1e9,
-        }
+def load_basis() -> Basis:
+    span = domestic_span(load_or_build_span())
+    L = bcd.L_real(span)
+    identity = np.eye(len(L[FIRST_YEAR]))
+    E = span.E.copy()
+    E['sector'] = E['sector'].astype(str)
+    changes = bcd.B_change(span, real=True)
+    changes['commodity'] = changes['commodity'].astype(str)
+    return Basis(
+        E=E,
+        q=span.q * bcd.commodity_rho(span).reindex(span.q.index)[span.q.columns],
+        changes=changes,
+        N=bcd.N_total(span, real=True),
+        L=L,
+        A={year: identity - np.linalg.inv(m.to_numpy()) for year, m in L.items()},
     )
 
 
-def triage(
+def select(
     iv: pd.DataFrame,
-    dig_dir: Path,
-    cache_dir: Path,
-    *,
-    codes: list[str] | None = None,
-    top: int | None = None,
-    above_iv_score: float | None = None,
+    codes: list[str] | None,
+    above_iv_score: float | None,
+    top: int,
 ) -> pd.DataFrame:
-    """One triage row per code at that code's IV ``peak_year``.
-
-    *codes* takes precedence over *above_iv_score*, which takes precedence over
-    *top*.
-    """
-    iv = iv.copy()
-    iv['commodity'] = iv['commodity'].astype(str)
+    """*codes* takes precedence over *above_iv_score*, and that over *top*."""
     if codes:
-        want = [c.strip() for c in codes]
-        missing = [c for c in want if c not in set(iv['commodity'])]
+        missing = sorted(set(codes) - set(iv['commodity']))
         if missing:
-            raise ValueError(f'codes not in IV_score.csv: {missing}')
-        iv = iv[iv['commodity'].isin(want)].copy()
-        iv = iv.set_index('commodity').loc[want].reset_index()
-    elif above_iv_score is not None:
-        iv = iv[iv['IV'] > above_iv_score].sort_values('rank')
-        if iv.empty:
-            raise ValueError(f'no commodity has an IV score above {above_iv_score}')
-    else:
-        iv = iv.sort_values('rank').head(top or 15)
+            raise ValueError(f'codes not in the IV table: {missing}')
+        return iv.set_index('commodity').loc[codes].reset_index()
+    ranked = iv.sort_values('rank')
+    if above_iv_score is None:
+        return ranked.head(top)
+    chosen = ranked[ranked['IV'] > above_iv_score]
+    if chosen.empty:
+        raise ValueError(f'no commodity has an IV score above {above_iv_score}')
+    return chosen
 
-    full_span = load_or_build_span()
-    if bcd.CACHE_DIR.resolve() != cache_dir.resolve():
-        raise ValueError(f'--cache-dir {cache_dir} is not the IV span {bcd.CACHE_DIR}')
-    bc = bcd.B_change(domestic_span(full_span), real=True)
-    bc['commodity'] = bc['commodity'].astype(str)
-    # divergence_by_sector_stratum.csv is on nominal x, so it can't be read beside
-    # the real %dx here. This is the same grouping on real x.
-    div = (
-        pd.read_csv(dig_dir / 'divergence_detail_real.csv', dtype={'sector': str})
-        .groupby(['sector', 'year_to', 'attribution', 'MetaSources'])['divergence']
-        .sum()
-        .reset_index()
+
+def name_of(code: str) -> str:
+    return ta.cast(ta.Mapping[str, str], INDUSTRY_DESC).get(code, code).strip()
+
+
+def cell(frame: pd.DataFrame, row: str, column: int) -> float:
+    return float(np.asarray(frame.loc[row, column]).item())
+
+
+def pct_change(first: float, last: float) -> float:
+    return 100 * (last / first - 1) if first else float('nan')
+
+
+def e_sources(basis: Basis, code: str) -> str:
+    """The largest sources of ``E`` over the span, with their shares."""
+    rows = basis.E[basis.E['sector'] == code]
+    by_source = rows.groupby(['MetaSources', 'attribution'])['CO2e'].sum()
+    shares = (by_source / by_source.sum() * 100).nlargest(N_SOURCES).round()
+    return '; '.join(
+        f'`{source}` via `{route}` ({share:.0f}%)'
+        for (source, route), share in shares.items()
+        if share > 0
     )
-    span = pd.read_csv(dig_dir / 'sector_stratum_span.csv')
-    span['sector'] = span['sector'].astype(str)
-    x = pd.read_csv(dig_dir / 'x_real.csv').set_index('sector')
-    x.index = x.index.astype(str)
-    x.columns = x.columns.map(str)
-    B = pd.read_csv(dig_dir / 'B_total_real.csv', index_col=0)
-    B.index = B.index.astype(str)
-    B.columns = B.columns.map(str)
-    E = _sector_E_mt(cache_dir)
 
-    rows: list[dict[str, object]] = []
-    for _, ivrow in iv.iterrows():
-        code = str(ivrow['commodity'])
-        year_to = int(ivrow['peak_year'])
-        year_from = year_to - 1
-        brow = bc[(bc['commodity'] == code) & (bc['year_to'] == year_to)]
-        if brow.empty:
-            logger.warning('%s: no B change row for year_to=%s', code, year_to)
-            continue
-        b = brow.iloc[0]
-        yf, yt = str(year_from), str(year_to)
 
-        def _level(frame: pd.DataFrame, key: str) -> tuple[float, float, float]:
-            if (
-                key not in frame.index
-                or yf not in frame.columns
-                or yt not in frame.columns
-            ):
-                return float('nan'), float('nan'), float('nan')
-            a = float(np.asarray(frame.loc[key, yf]).item())
-            c = float(np.asarray(frame.loc[key, yt]).item())
-            return a, c, _pct(a, c)
+def a_cell_moves(basis: Basis, code: str) -> tuple[pd.DataFrame, pd.Series]:
+    """Each ``A`` cell's gross contribution to ``code``'s ``N_d``, percent of ``N_d``.
 
-        E0, E1, dE = _level(E, code)
-        x0, x1, dx = _level(x, code)
-        B0, B1, dB_level = _level(B, code)
+    Also returns the contributions summed by year, which equal the ``L_dom`` part.
+    """
+    index = basis.L[FIRST_YEAR].index
+    k = index.get_loc(code)
+    gross = np.zeros((len(index), len(index)))
+    by_year = {}
+    years = sorted(basis.L)
+    for prior, current in zip(years, years[1:]):
+        N_current = basis.N[current].reindex(index).fillna(0.0).to_numpy(dtype=float)
+        L_prior = basis.L[prior].to_numpy()[:, k]
+        change = np.outer(N_current, L_prior) * (basis.A[current] - basis.A[prior])
+        change = change / cell(basis.N, code, prior) * 100
+        gross += np.abs(change)
+        by_year[current] = float(change.sum())
+    return pd.DataFrame(gross, index=index, columns=index), pd.Series(by_year)
 
-        stratum = _top_stratum(div, code, year_to)
-        osc = float('nan')
-        if stratum['top_MetaSources']:
-            cell = span[
-                (span['sector'] == code)
-                & (span['MetaSources'] == stratum['top_MetaSources'])
-                & (span['attribution'] == stratum['top_attribution'])
-            ]
-            if not cell.empty:
-                osc = float(cell.iloc[0]['oscillation'])
 
-        l_held = float(b['pct_change_N_L_held'])
-        l_effect = float(b['pct_change_N_L_effect'])
+def top_a_cells(basis: Basis, code: str) -> str:
+    gross, _ = a_cell_moves(basis, code)
+    values = gross.to_numpy()
+    largest = np.argsort(values, axis=None)[::-1][:N_CELLS]
+    sellers, buyers = np.unravel_index(largest, values.shape)
+    return '; '.join(
+        f'{name_of(str(gross.index[i]))} bought by '
+        f'{name_of(str(gross.columns[j]))} ({values[i, j]:.1f})'
+        for i, j in zip(sellers, buyers)
+    )
+
+
+def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
+    """One row per commodity in *iv*, in its order."""
+    sector_E = basis.E.groupby(['sector', 'year'])['CO2e'].sum().unstack() / 1e9
+    rows = []
+    for _, row in iv.iterrows():
+        code = str(row['commodity'])
+        E_first = cell(sector_E, code, FIRST_YEAR)
+        E_last = cell(sector_E, code, LAST_YEAR)
+        q_first = cell(basis.q, code, FIRST_YEAR) / 1e9
+        q_last = cell(basis.q, code, LAST_YEAR) / 1e9
+        moves = basis.changes[basis.changes['commodity'] == code]
+        from_B = float(moves['pct_change_N_L_held'].abs().sum())
+        from_L = float(moves['pct_change_N_L_effect'].abs().sum())
+        B_share = 100 * from_B / (from_B + from_L)
         rows.append(
             {
-                'rank': int(ivrow['rank']),
+                'rank': int(row['rank']),
                 'code': code,
-                'name': ivrow.get('name', b.get('name', '')),
-                'IV': float(ivrow['IV']),
-                'peak_year': year_to,
-                'year_from': year_from,
-                'pct_dE': dE,
-                'pct_dx': dx,
-                'pct_dB': float(b['pct_change_B']),
-                'pct_dN_d': float(b['pct_change_N']),
-                'pct_dN_d_L_held': l_held,
-                'pct_dN_d_L_effect': l_effect,
-                'abs_delta_B_pct_of_N_d': float(b['abs_delta_B_pct_of_N']),
-                'own_direct_share_of_N_d': float(b['own_direct_share_of_N']),
-                'path': _path(l_held, l_effect),
-                'E_from_Mt': E0,
-                'E_to_Mt': E1,
-                'B_from': B0,
-                'B_to': B1,
-                'top_MetaSources': stratum['top_MetaSources'],
-                'top_attribution': stratum['top_attribution'],
-                'top_divergence_Mt': stratum['top_divergence_Mt'],
-                'top_oscillation': osc,
-                'IV_oscillation': (
-                    float(ivrow['oscillation'])
-                    if 'oscillation' in ivrow.index and pd.notna(ivrow['oscillation'])
-                    else float('nan')
-                ),
+                'name': name_of(code),
+                'IV': float(row['IV']),
+                'E_2017_Mt': E_first,
+                'E_2024_Mt': E_last,
+                'pct_E': pct_change(E_first, E_last),
+                'E_sources': e_sources(basis, code),
+                'q_2017_bn': q_first,
+                'q_2024_bn': q_last,
+                'pct_q': pct_change(q_first, q_last),
+                'driving_factor': 'B' if B_share >= 50 else 'L',
+                'B_share_pct': B_share,
+                'L_share_pct': 100 - B_share,
+                'top_A_cells': top_a_cells(basis, code),
+                'peak_year': int(row['peak_year']),
             }
         )
     return pd.DataFrame(rows)
 
 
-def main(argv: list[str] | None = None) -> Path:
-    parser = argparse.ArgumentParser(description=__doc__)
+def draft(table: pd.DataFrame) -> str:
+    """Draft tracker rows and log entries, with the explanations left to write."""
+    lines = [
+        '## Tracker rows',
+        '',
+        '| Code | Sector | IV score | Driving factor | Status | Issues and PRs |',
+        '|---|---|---|---|---|---|',
+    ]
+    for _, row in table.iterrows():
+        lines.append(
+            f"| `{row['code']}` | {row['name']} | {row['IV']:.2f} | "
+            f"B {row['B_share_pct']:.0f}%, L {row['L_share_pct']:.0f}% | "
+            'unresolved | none yet |'
+        )
+    lines += ['', '## Log entries', '']
+    for _, row in table.iterrows():
+        lines += [
+            f"### {row['code']} {row['name']}",
+            '',
+            '| Field | Value |',
+            '|---|---|',
+            f"| **E** | {row['E_2017_Mt']:,.1f} → {row['E_2024_Mt']:,.1f} Mt CO2e "
+            f"({row['pct_E']:+.0f}%) |",
+            f"| **E source** | {row['E_sources']} |",
+            f'| **E explanation** | {NOT_ASSESSED} |',
+            f"| **q** | ${row['q_2017_bn']:,.1f}bn → ${row['q_2024_bn']:,.1f}bn "
+            f"({row['pct_q']:+.0f}%) |",
+            f'| **q explanation** | {NOT_ASSESSED} |',
+            f"| **A explanation** | {NOT_ASSESSED} Largest cells, gross percent of "
+            f"`N_d`: {row['top_A_cells']} |",
+            f'| **L explanation** | {NOT_ASSESSED} |',
+            '',
+        ]
+    return '\n'.join(lines)
+
+
+def check(iv: pd.DataFrame, basis: Basis) -> None:
+    """Assert that the ``A`` cells add up to the ``L_dom`` part for every year."""
+    worst = 0.0
+    for code in iv['commodity'].astype(str):
+        _, by_year = a_cell_moves(basis, code)
+        moves = basis.changes[basis.changes['commodity'] == code]
+        expected = moves.set_index('year_to')['pct_change_N_L_effect']
+        worst = max(worst, float((by_year - expected).abs().max()))
+    assert worst < 1e-6, f'A cells miss the L effect by {worst:.1e}'
+    logger.info(
+        'OK  A cells add up to the L effect for %d commodities (worst %.1e)',
+        len(iv),
+        worst,
+    )
+
+
+def main(argv: list[str] | None = None) -> Path | None:
+    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--iv-csv', type=Path, default=DEFAULT_IV)
-    parser.add_argument('--dig-dir', type=Path, default=DEFAULT_DIG)
-    parser.add_argument(
-        '--cache-dir',
-        type=Path,
-        default=DEFAULT_CACHE,
-        help='span cache with E_stratified.parquet (for sector E Mt)',
-    )
-    parser.add_argument(
-        '--top',
-        type=int,
-        default=15,
-        help='IV ranks 1..N (ignored if --codes or --above-iv-score)',
-    )
+    parser.add_argument('--top', type=int, default=15, help='IV ranks 1 to N')
     parser.add_argument(
         '--above-iv-score',
         type=float,
-        default=None,
-        help='only commodities with an IV score above this (ignored if --codes)',
+        help='only commodities with an IV score above this; overrides --top',
     )
     parser.add_argument(
-        '--codes',
-        type=str,
-        default='',
-        help='comma-separated BEA codes (overrides --top)',
+        '--codes', default='', help='comma-separated codes; overrides the other two'
     )
     parser.add_argument(
-        '--out',
-        type=Path,
-        default=None,
-        help='output CSV (default: output/sector_deep_dive_triage/triage_topN.csv)',
+        '--out', type=Path, help='output CSV; the draft is written beside it'
     )
+    parser.add_argument('--check', action='store_true', help='assert and exit')
     args = parser.parse_args(argv)
 
+    iv = pd.read_csv(args.iv_csv, dtype={'commodity': str})
     codes = [c.strip() for c in args.codes.split(',') if c.strip()] or None
-    iv = pd.read_csv(args.iv_csv)
-    table = triage(
-        iv,
-        args.dig_dir,
-        args.cache_dir,
-        codes=codes,
-        top=None if codes else args.top,
-        above_iv_score=args.above_iv_score,
-    )
+    chosen = select(iv, codes, args.above_iv_score, args.top)
+    basis = load_basis()
+    if args.check:
+        check(chosen, basis)
+        return None
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    table = triage(chosen, basis)
     if args.out is not None:
         out = args.out
     elif codes:
@@ -288,27 +294,14 @@ def main(argv: list[str] | None = None) -> Path:
         out = OUT_DIR / f'triage_above_iv_{args.above_iv_score}.csv'
     else:
         out = OUT_DIR / f'triage_top{args.top}.csv'
+    out.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(out, index=False)
-    logger.info('Wrote %s (%d rows)', out, len(table))
-    cols = [
-        'rank',
-        'code',
-        'peak_year',
-        'path',
-        'pct_dE',
-        'pct_dx',
-        'pct_dB',
-        'pct_dN_d',
-        'pct_dN_d_L_held',
-        'pct_dN_d_L_effect',
-        'abs_delta_B_pct_of_N_d',
-        'top_attribution',
-        'top_MetaSources',
-        'top_divergence_Mt',
-        'top_oscillation',
-    ]
-    print(table[cols].round(2).to_string(index=False))
-    print(f'\nWrote {out}')
+    draft_path = out.with_name(f'{out.stem}_draft.md')
+    draft_path.write_text(draft(table), encoding='utf-8')
+
+    columns = ['rank', 'code', 'IV', 'pct_E', 'pct_q', 'driving_factor', 'B_share_pct']
+    print(table[columns].round(2).to_string(index=False))
+    print(f'\nWrote {out}\nWrote {draft_path}')
     return out
 
 

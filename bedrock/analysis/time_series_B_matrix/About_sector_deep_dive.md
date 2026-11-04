@@ -1,45 +1,54 @@
-# Sector deep-dive checklist (D/N year moves)
+# Sector deep dive
 
-Entry path for a commodity-year the IV score or assessment flags. Dig tables
-explain *why*; IV only names *which* code. Use real (2017$) tables. Pin the
-same FBS/MUT vintages the IV run used (`--list-vintages`; assessment pins in
-[`time_series_matrix_assessment.py`](time_series_matrix_assessment.py)).
+How to explain the trend in a commodity's emission factor. The triage answers the
+first four questions for every sector on the list, and you write up the fifth.
 
-Tracker: [`B_driver_investigation.md`](B_driver_investigation.md) · D# register:
-[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md) · IV:
-[`IV_score.py`](IV_score.py) / [`About_IV_score.md`](About_IV_score.md)
+```
+uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --above-iv-score 0.2
+```
 
-**Batch triage** (IV top-N × dig peak year → path B/L/both + top stratum)::
-
-    uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --top 30
-    uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage --above-iv-score 0.2
-
-The triage's `N` columns are on `L_dom` and `N_d`, matching the IV score. The dig's
-`B_change_real.csv` is on the full `L` and `N`, so its `%ΔN`, L-held and L-effect
-values won't match the triage.
-
-## Intake
-
-- **Code** (BEA detail), **peak pair** (Y−1 → Y from IV `peak_year` or the
-  visual jump), **signal** (B jump, N jump, or both).
-- Open assessment CSV/HTML for that code: levels of **E (Mt)**, **B**, **N**
-  (normalized and absolute) under `output/time_series_matrix_assessment/` or
-  the module's assessment dir.
-- Industry vs commodity: the primary pair shares the code; B can reshuffle via
-  Vnorm, so industry E/x need not equal commodity B.
-
-## Triage: B problem or L/A problem?
-
-From dig [`B_change_real.csv`](B_change_diagnostics.py) (D6a/D6b) for
-`(code, year=Y)`:
-
-| Look at | If large | Branch |
+| Step | Question | What to read |
 |---|---|---|
-| `abs_delta_B_pct_of_N` / `%ΔB` | yes | **Direct path** |
-| `pct_change_N_L_effect` vs `pct_change_N_L_held` | L effect dominates | **Structure path** |
-| Both | — | Run both; do not assume B explains N |
+| 1 | Which sectors? | IV score, from [`IV_score.py`](IV_score.py) |
+| 2 | Did emissions change? | `E` in 2017 and 2024, and its largest sources |
+| 3 | Did output change? | `q` in 2017 and 2024, in constant 2017 dollars |
+| 4 | Did the supply chain change? | The driving factor, `B` or `L`, and the largest `A` cells |
+| 5 | Why? | Your explanation, from the sources and evidence |
 
-## Direct path — output, emissions, intensity
+The run writes two files to `output/sector_deep_dive_triage/`: a CSV with one row per
+sector, and `*_draft.md`, with the tracker rows and log entries ready to paste.
+`--iv-csv` chooses the `IV_score.csv`, and so the weights. `--codes` runs named
+sectors.
+
+## Reading the result
+
+- **Driving factor mostly `B`:** look at `E` and `q`. `B` is roughly `E / q`, so
+  they show whether emissions or output moved it.
+- **Driving factor mostly `L`:** look at the largest `A` cells, which say whose
+  purchases changed. Those cells add up to the `L` part exactly.
+- **Both:** do both. A commodity near 50% has real movement from each.
+
+`N_d`, `L_dom` and the driving factor are domestic, matching the IV score. `peak_year`
+in the CSV is the year furthest from the trend, if you want one year to open.
+
+## Recording it
+
+- Write the explanation in
+  [`About_sector_trend_explanations.md`](About_sector_trend_explanations.md), and say
+  which vintages it was checked on. Keep it short and link to the evidence.
+- Update only the status and links in the tracker,
+  [`B_driver_investigation.md`](B_driver_investigation.md).
+
+## Going further
+
+Use these only when the steps above don't explain a sector. They need the tables from
+[`B_change_diagnostics.py`](B_change_diagnostics.py), written by its `main` at the same
+vintages. Those tables use the full `L` and `N`, so their `N` figures won't match the
+triage. `divergence_by_sector_stratum.csv` is on nominal output; use
+`divergence_detail_real.csv` beside real figures. The `D#` codes are defined in
+[`B_matrix_smoothing_plan.md`](B_matrix_smoothing_plan.md).
+
+### Direct path — output, emissions, intensity
 
 For sector `s` = same code (or Vnorm parents if secondary product):
 
@@ -52,7 +61,7 @@ For sector `s` = same code (or Vnorm parents if secondary product):
 4. **Flag C — elasticity (D4):** `output_elasticity_real.csv` for the sector's
    dominant attribution roles — slope far from 1 means E does not track x.
 
-## Direct path — inventory / attribution
+### Direct path — inventory / attribution
 
 1. **Stratum mass (D8):** `divergence_by_sector_stratum.csv` for `s` and year
    Y — rank MetaSources × AttributionSources by absolute divergence.
@@ -66,12 +75,12 @@ For sector `s` = same code (or Vnorm parents if secondary product):
 5. **Optional facility (D14–D16):** combustion / table 3-11 family →
    `--facility-data`.
 
-## Direct path — Vnorm / Make
+### Direct path — Vnorm / Make
 
 D13 `vnorm_share_of_B_movement.csv`; if material,
 [`supply_mix_diagnostic`](../nowcasting/supply_mix_diagnostic.py).
 
-## Structure path — Use / A / L
+### Structure path — Use / A / L
 
 When D6b says L dominates, or N moves with flat B:
 
@@ -82,15 +91,3 @@ When D6b says L dominates, or N moves with flat B:
    [`L_flux_priority`](../nowcasting/L_flux_priority.py);
    dollar-basis notes in `About_the_L_dollar_basis.md` /
    `About_the_nd_driver_basis.md`.
-
-## Verdict write-up
-
-- Facts: `%Δx`, `%ΔE`, `%ΔB`, `%ΔN`, L-held vs L-effect shares
-- Dominant stratum: MetaSources + AttributionSources + class/route
-- Flags hit (A–C, Use-cell spike, facility floor breach)
-- **Justified?** / not / out of scope / unresolved — tracker vocabulary
-- Next lever: FBS method, attribution vector, nowcast Use/Make, or leave alone
-
-Rebuild dig (+ assessment) at the IV pins before quoting levels. Tracker rows
-and [`About_B_change_drivers.md`](About_B_change_drivers.md) figures may
-predate the current pins; treat them as a D# map, not as evidence.
