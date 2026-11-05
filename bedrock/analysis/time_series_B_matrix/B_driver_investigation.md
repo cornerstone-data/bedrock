@@ -21,10 +21,10 @@ absolute values, so moves in opposite directions don't cancel.
 | `211000` | Oil and gas extraction | 0.35 | B 54%, L 46% | unresolved | #890, #922 |
 | `484000` | Truck transportation | 0.31 | B 65%, L 35% | unresolved | #890 |
 | `324110` | Petroleum refineries | 0.26 | B 55%, L 45% | unresolved | #984, #975, #997, #1177 |
-| `325110` | Petrochemical manufacturing | 0.25 | B 60%, L 40% | unresolved | #997, #1177, #986 |
-| `531ORE` | Other real estate | 0.23 | B 48%, L 52% | unresolved | #705, #1163 |
-| `325190` | Other basic organic chemical manufacturing | 0.23 | B 62%, L 38% | unresolved | #1177, #898  |
-| `325211` | Plastics material and resin manufacturing | 0.21 | B 55%, L 45% | unresolved | #670 |
+| `325110` | Petrochemical manufacturing | 0.25 | B 60%, L 40% | unresolved | #997, #1177, #986, #1196 |
+| `531ORE` | Other real estate | 0.23 | B 48%, L 52% | unresolved | #705, #1163, #975 |
+| `325190` | Other basic organic chemical manufacturing | 0.23 | B 62%, L 38% | unresolved | #1177, #898, #1196 |
+| `325211` | Plastics material and resin manufacturing | 0.21 | B 55%, L 45% | unresolved | #670, #1196 |
 
 Status values:
 
