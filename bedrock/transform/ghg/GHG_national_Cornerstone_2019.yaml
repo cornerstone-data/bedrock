@@ -928,6 +928,8 @@ source_names:
                 selection_fields:
                   PrimaryActivity:
                     Industry HGL: Industry Petroleum Products Non-energy
+                    # T_3_25b labels HGL 'LPG' (#1200)
+                    Industry LPG: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
                   Energy_manufacturing_national_nowcast_2019:
@@ -949,6 +951,8 @@ source_names:
                     Industry Still Gas: Industry Petroleum Products Non-energy
                     Industry Waxes: Industry Petroleum Products Non-energy
                     Industry Natural Gasoline: Industry Petroleum Products Non-energy
+                    # T_3_25b labels natural gasoline 'Pentanes Plus' (#1200)
+                    Industry Pentanes Plus: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
                   Energy_manufacturing_national_nowcast_2019:
