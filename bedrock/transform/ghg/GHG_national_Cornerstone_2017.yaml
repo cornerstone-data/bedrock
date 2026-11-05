@@ -1007,6 +1007,11 @@ source_names:
                     selection_fields:
                       Flowable: Natural Gas
                       Class: Other
+                    exclusion_fields:
+                      # Ammonia (32531) and hydrogen (32512) feedstock gas: its CO2
+                      # is already attributed via Ammonia Production and the
+                      # subpart P hydrogen carve-out (#1200)
+                      SectorConsumedBy: ['32531', '32512']
 
               transportation_lubricants:
                 selection_fields:

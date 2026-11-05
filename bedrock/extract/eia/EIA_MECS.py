@@ -9,10 +9,11 @@ Last updated: 8 Sept. 2020
 """
 import io
 import os
-from typing import Any, List
+from typing import Any, List, TypeVar
 
 import numpy as np
 import pandas as pd
+import stewi
 from requests import Response
 
 from bedrock.extract.eia.EIA_CBECS_Land import calculate_total_facility_land_area
@@ -581,6 +582,184 @@ def estimate_suppressed_mecs_energy(
     )
 
     return unsuppressed.drop(columns='Suppressed')
+
+
+DF = TypeVar('DF', bound=pd.DataFrame)
+
+#: MECS survey years the pipeline builds (EIA_MECS_Energy.yaml), searched
+#: nearest-first when a suppressed feedstock cell is filled from another
+#: survey (#1200).
+MECS_SURVEY_YEARS = (2018, 2022)
+#: MECS nonfuel (feedstock) table, the basis for non-energy use (#1200).
+MECS_FEEDSTOCK_TABLE = 'Table 2.1'
+SUPPRESSED_CODES = ('D', 'Q')
+#: ``Suppressed`` marker for a cell filled here; not ``D``/``Q`` so
+#: :func:`estimate_suppressed_mecs_energy` keeps it.
+GHGRP_FILL_MARKER = 'GHGRP'
+
+
+def ghgrp_co2_by_naics(year: int) -> pd.Series:
+    '''GHGRP CO2 (kg) by facility NAICS for *year*, all subparts but D
+    (electric power). Empty if stewi has no inventory for the year.'''
+    try:
+        flows = stewi.getInventory(
+            'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
+        )
+        facilities = stewi.getInventoryFacilities(
+            'GHGRP', year, download_if_missing=True
+        )
+    except Exception as err:  # noqa: BLE001 - a missing year leaves ratio 1
+        log.warning(f'GHGRP {year} unavailable for MECS fill: {err}')
+        return pd.Series(dtype=float)
+    if flows is None or facilities is None:
+        return pd.Series(dtype=float)
+    flows = flows[(flows['FlowName'] == 'Carbon Dioxide') & (flows['Process'] != 'D')]
+    flows = flows.merge(
+        facilities[['FacilityID', 'NAICS']], on='FacilityID', how='left'
+    )
+    naics = flows['NAICS'].astype(str).str.replace(r'\.0$', '', regex=True)
+    return flows.groupby(naics)['FlowAmount'].sum()
+
+
+def _ghgrp_ratio(
+    code: str, ghgrp: dict[int, pd.Series], year: int, other: int
+) -> float:
+    '''GHGRP CO2 of facilities under NAICS *code*, *year* over *other*; 1.0
+    when either year has none.'''
+    totals = []
+    for y in (year, other):
+        series = ghgrp.get(y, pd.Series(dtype=float))
+        totals.append(
+            float(series[series.index.astype(str).str.startswith(code)].sum())
+        )
+    if totals[0] <= 0 or totals[1] <= 0:
+        return 1.0
+    return totals[0] / totals[1]
+
+
+def _parent_remainder(
+    national: pd.DataFrame, code: str, flow: str, filled: dict[tuple[str, str], float]
+) -> float | None:
+    '''Room left in *code*'s nearest reported parent for *flow*: the parent's
+    value less every other child it lists (and fills already made under it).
+    None when no numeric parent exists.'''
+    rows = national[national['FlowName'] == flow]
+    numeric = rows[~rows['Suppressed'].isin(SUPPRESSED_CODES)]
+    values: dict[str, float] = dict(
+        zip(numeric['ActivityConsumedBy'], numeric['FlowAmount'].astype(float))
+    )
+    codes = set(rows['ActivityConsumedBy'])
+    prefixes = [c for c in codes if c != code and code.startswith(c) and c.isdigit()]
+    if not prefixes:
+        return None
+    parent = max(prefixes, key=len)
+    if parent not in values:
+        return None
+
+    def nearest_parent(c: str) -> str | None:
+        found = [p for p in codes if p != c and c.startswith(p) and p.isdigit()]
+        return max(found, key=len) if found else None
+
+    siblings = [c for c in codes if c != code and nearest_parent(c) == parent]
+    used = sum(filled.get((c, flow), values.get(c, 0.0)) for c in siblings)
+    return values[parent] - used
+
+
+def fill_suppressed_feedstock(
+    fba: DF,
+    year: int,
+    other_surveys: dict[int, pd.DataFrame],
+    ghgrp: dict[int, pd.Series],
+) -> DF:
+    '''Fill suppressed (``D``/``Q``) national MECS feedstock cells (#1200).
+
+    Each such Table 2.1 cell takes the value the nearest other survey reports
+    for the same NAICS and fuel, scaled by the ratio of that NAICS's GHGRP CO2
+    between the two years, and capped at the room left in its nearest reported
+    parent. Cells no other survey reports stay suppressed. Filled cells carry
+    ``Suppressed`` = :data:`GHGRP_FILL_MARKER`.
+
+    :param other_surveys: Table 2.1 national rows of other survey years
+    :param ghgrp: GHGRP CO2 by NAICS, by year (:func:`ghgrp_co2_by_naics`)
+    '''
+    fba = fba.copy()
+    mask = (fba['Description'] == MECS_FEEDSTOCK_TABLE) & (fba['Location'] == US_FIPS)
+    national = fba[mask]
+    targets = national[
+        national['Suppressed'].isin(SUPPRESSED_CODES)
+        & (national['FlowName'] != 'Total')
+        & national['ActivityConsumedBy'].astype(str).str.isdigit()
+    ]
+    order = sorted(other_surveys, key=lambda y: (abs(y - year), -y))
+    filled: dict[tuple[str, str], float] = {}
+    # Deepest codes first so a parent's room accounts for its filled children.
+    for idx in sorted(
+        targets.index, key=lambda i: -len(str(targets.at[i, 'ActivityConsumedBy']))
+    ):
+        code = str(targets.at[idx, 'ActivityConsumedBy'])
+        flow = str(targets.at[idx, 'FlowName'])
+        unit = str(targets.at[idx, 'Unit'])
+        for other in order:
+            ref = other_surveys[other]
+            hit = ref[
+                (ref['ActivityConsumedBy'] == code)
+                & (ref['FlowName'] == flow)
+                & (ref['Unit'].astype(str) == unit)
+                & ~ref['Suppressed'].isin(SUPPRESSED_CODES)
+            ]
+            if hit.empty:
+                continue
+            ratio = _ghgrp_ratio(code, ghgrp, year, other)
+            # '*' (under 0.5) counts as 0.25, as estimate_suppressed_mecs_energy
+            base = (
+                0.25
+                if hit['Suppressed'].iloc[0] == '*'
+                else float(hit['FlowAmount'].astype(float).iloc[0])
+            )
+            value = base * ratio
+            room = _parent_remainder(national, code, flow, filled)
+            if room is not None:
+                value = min(value, max(room, 0.0))
+            filled[(code, flow)] = value
+            log.info(
+                f'MECS {year} Table 2.1 {code} {flow}: suppressed '
+                f'{targets.at[idx, "Suppressed"]} filled with {value:.1f} {unit} '
+                f'from MECS {other} x GHGRP CO2 ratio {ratio:.3f}'
+                + (f' (parent room {room:.1f})' if room is not None else '')
+            )
+            break
+    for (code, flow), value in filled.items():
+        rows = mask & (fba['ActivityConsumedBy'] == code) & (fba['FlowName'] == flow)
+        fba.loc[rows, 'FlowAmount'] = value
+        fba.loc[rows, 'Suppressed'] = GHGRP_FILL_MARKER
+    return fba
+
+
+def fill_suppressed_mecs_feedstock_with_ghgrp(
+    fba: FlowByActivity, **_kwargs: Any
+) -> FlowByActivity:
+    '''
+    clean_fba_before_activity_sets, ahead of
+    :func:`estimate_suppressed_mecs_energy`. Fills suppressed national Table
+    2.1 (feedstock) cells from the other MECS surveys scaled by GHGRP CO2,
+    instead of letting them drop to zero (#1200, #1196).
+    '''
+    if 'Suppressed' not in fba.columns:
+        return fba
+    year = int(fba.config['year'])
+    other_surveys: dict[int, pd.DataFrame] = {}
+    for other in MECS_SURVEY_YEARS:
+        if other == year:
+            continue
+        ref = getFlowByActivity('EIA_MECS_Energy', other)
+        other_surveys[other] = pd.DataFrame(
+            ref[
+                (ref['Description'] == MECS_FEEDSTOCK_TABLE)
+                & (ref['Location'] == US_FIPS)
+            ]
+        )
+    ghgrp = {y: ghgrp_co2_by_naics(y) for y in (year, *other_surveys)}
+    return fill_suppressed_feedstock(fba, year, other_surveys, ghgrp)
 
 
 #: Gallons of distillate fuel oil per trillion Btu (0.138 MMBtu per gallon).
