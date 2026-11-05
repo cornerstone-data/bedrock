@@ -152,11 +152,12 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 
 ## 8. Proposed next steps (not decided)
 
-1. Split EIA 861 retail revenue by ownership (section 6). This answers the 2017 level question, the $78bn and the right input floor. It needs no rebuild.
-2. Ask BEA which Form 861 series it uses for generation and distribution, and whether 2017 distribution is net of purchased power.
-3. Re-run the input floor on the answer from step 1.
-4. Grade the current two legs against the all-retail treatment on an evaluation build, on implied price, the electricity row and the cells in section 5. Decide after that. A change would need a rebuild and reopens a #1009 decision.
-5. Correct the statements in section 9, and post a correction on #890 pointing here.
+1. Re-run the IV score and the sector deep dive with electric power on a consistent output price (section 11). This needs no rebuild, and it decides how much of the tracker's largest movement is a deflator mismatch.
+2. Split EIA 861 retail revenue by ownership (section 6). This answers the 2017 level question, the $78bn and the right input floor. It needs no rebuild.
+3. Ask BEA which Form 861 series it uses for generation and distribution, and whether 2017 distribution is net of purchased power.
+4. Re-run the input floor on the ownership split.
+5. Grade the current two legs against the all-retail treatment on an evaluation build, on implied price, the electricity row and the cells in section 5. Decide after that. A change would need a rebuild and reopens a #1009 decision.
+6. Correct the statements in section 9, and post a correction on #890 pointing here.
 
 ## 9. Statements elsewhere that are out of date
 
@@ -169,6 +170,9 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | `current/eia_gtd/About_price_proposal.md:147` | MECS is the tie-breaker | on a dollar basis Census is closest to the Use table in 2018 and 2022 (#898) |
 | `current/eia_gtd/About_why_the_flat_price_fails.md` | capped purchaser counts, 6 in 2017 to 44 in 2024 | measured before #1030 changed the row; not re-measured |
 | `bedrock/transform/iot/eia_utility_go_adjustment.py`, module docstring | wholesale leg is "sales for resale between utilities" | the benchmark sells it to ordinary buyers (section 6) |
+| `time_series_B_matrix/About_sector_trend_explanations.md`, earlier tracker row 8 | 2021 emissions rose on flat real output; "justified, do not smooth"; re-derive on eGRID | on the current build, real output falls 7.0% in 2021 on a mismatched price (section 11). The verdict needs re-deriving |
+| `time_series_B_matrix/About_sector_trend_explanations.md`, earlier tracker row 14 | pending #911; no eGRID 2017; Puerto Rico included | #911 and #947 merged; #913 and #914 closed |
+| `time_series_B_matrix/About_sector_trend_explanations.md`, earlier tracker row 18 | settle #896 first, then #922 and #923, then re-run | #896 and #923 closed; #922 open with #1187 in review; the ranking has not been re-run on the current build |
 | #890 comments of 2026-11-03 | benchmark nets about $130bn; recommends the "net basis"; describes the wedge as resale | see sections 4 to 6 |
 
 ## 10. Where the evidence is
@@ -187,3 +191,77 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | Fuel seed for the electric columns | `bedrock/analysis/nowcasting/utilities_expense_seed.py`, #719, #1187 |
 | Fuel purchases against eGRID emissions | #1002 |
 | Own use cells and the 2022 spike | #890 |
+| Sector list, status and links | `time_series_B_matrix/B_driver_investigation.md` |
+| Sector explanations and the earlier tracker rows | `time_series_B_matrix/About_sector_trend_explanations.md` |
+| IV score | `time_series_B_matrix/About_IV_score.md` |
+| How much each A cell moves `N`, and the electricity row across commodities | `nowcasting/About_the_L_flux_priority.md` |
+| Electricity emissions source: eGRID, Puerto Rico, 2017 | #911, #913, #914, #947 |
+
+## 11. Electric power in the B tracker
+
+The B tracker (`time_series_B_matrix/B_driver_investigation.md`) restarted from the IV score on GHG FBS `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. Electric power ranks first under all four weightings in `About_IV_score.md`. With spend weights its score is 3.23, against 0.40 for the next sector, and 93% of the movement in its domestic emission factor comes from `B`. Its status is unresolved and its explanation fields are not yet assessed. The IV note attributes most of the 2021 share of movement across all commodities to this one factor: 2021 is 64.9% of the movement with electric power and 22.4% without it.
+
+### Most of the 2021 and 2023 swing in `E/q` comes from the output price
+
+`B` is roughly `E / q`. The tracker's `q` is our nominal commodity output in constant 2017 dollars. The nominal output of the `221100` industry has been on EIA since #1030. The deflator is still BEA's price index for `221100`, which includes the single wholesale price on all eight generation lines. #1030 moved the price carry for unseeded cells onto EIA's retail price, but `derive_industry_price_index` and the `rho` built from it have no such override.
+
+| index, 2017 = 1 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| nominal commodity output, $bn | 454.9 | 478.3 | 472.0 | 460.7 | 512.1 | 597.9 | 577.6 | 588.2 |
+| BEA price index, `221100` | 1.000 | 1.046 | 1.063 | 1.030 | 1.230 | 1.367 | 1.247 | 1.216 |
+| EIA average retail price | 1.000 | 1.005 | 1.006 | 1.010 | 1.059 | 1.179 | 1.210 | 1.234 |
+| `q`, output on BEA's price (reproduces the tracker) | 1.000 | 1.005 | 0.976 | 0.984 | 0.915 | 0.962 | 1.018 | 1.063 |
+| `q`, output on EIA's price | 1.000 | 1.047 | 1.032 | 1.003 | 1.063 | 1.115 | 1.050 | 1.047 |
+| EIA retail kWh | 1.000 | 1.036 | 1.024 | 0.998 | 1.022 | 1.055 | 1.041 | 1.068 |
+
+| annual change, % | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | sum of absolute changes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `E` | 1.0 | -7.9 | -9.7 | 6.0 | 0.0 | -7.9 | 0.0 | 32.4 |
+| `E / q`, tracker | 0.5 | -5.2 | -10.4 | 13.9 | -4.9 | -12.9 | -4.2 | 52.1 |
+| `E /` output on EIA's price | -3.5 | -6.6 | -7.1 | -0.0 | -4.7 | -2.2 | 0.3 | 24.3 |
+| `E /` EIA retail kWh | -2.5 | -6.8 | -7.3 | 3.5 | -3.1 | -6.6 | -2.5 | 32.4 |
+
+The tracker's `q` falls 7.0% in 2021 while kWh sold rise 2.4%, then rises 5.8% in 2023 while kWh fall 1.3%. On a consistent basis the 2021 rise of 13.9% becomes -0.0% or +3.5%, and the 2023 fall of 12.9% becomes -2.2% or -6.6%. The overall decline in `E/q` from 2017 to 2024 is 21.7% to 23.2% on all three bases, so the long-run decline does not depend on this.
+
+Limits of this check:
+
+- `E` is rounded to two decimals from the tracker, so the annual changes are approximate. `q` is the unrounded series in the table above.
+- The EIA retail price is not the exact price of our output, which includes a wholesale leg and the government utilities that are not rebased. That is why output on EIA's price still rises 11.5% in 2022 against 5.5% for kWh.
+- kWh are retail sales only.
+- The IV score and the driving factor have not been recomputed. Where else this deflator reaches, including the released factors, has not been traced.
+
+### What the tracker's fields point to
+
+| field | current reading | where it goes |
+|---|---|---|
+| `E`, 1.00 to 0.82 | eGRID via `Direct` is 99%. Largest fall comes in 2019-20 and 2023 | Real decarbonisation is the earlier verdict; re-derive it on this basis. 2021 is the one rise, +6.0% |
+| `q`, 1.00 to 1.06 | not physical in 2021-23; see above | this section |
+| largest `A` cell, refined petroleum, 1.8% of `N_d` | the EIA oil bill moved a $17.4bn cell | #922, fixed behind a flag in #1187, not yet in the tables |
+| second `A` cell, own use, 1.6% | section 5 | #890 |
+| third `A` cell, coal mining, 1.5% | EIA 923 coal moves this row, and is 2.1x BEA's row in 2017 (`utilities_expense_seed.scope`) | not yet examined on this build |
+
+### Electricity as an input to other tracker sectors
+
+The electricity row is one of the three largest `A` cells in seven of the other eight sectors on the list, in gross percent of `N_d`:
+
+| buyer | electricity cell | rank among its `A` cells |
+|---|---:|---:|
+| `531ORE` other real estate | 20.0 | 1 |
+| `484000` truck transportation | 7.9 | 1 |
+| `211000` oil and gas extraction | 7.4 | 1 |
+| `324110` petroleum refineries | 6.3 | 2 |
+| `325190` other basic organic chemicals | 5.7 | 3 |
+| `325211` plastics and resin | 5.7 | 3 |
+| `325110` petrochemicals | 4.9 | 3 |
+
+These are the same movements reached from the buyer side, so their explanations should wait for the row's. The earlier work reached the same place: on 2026-09-21, the electricity row was a driving `A` cell for all 20 top-ranked commodities and held 30.9% of their top-cell mass (earlier tracker row 18). #896 closed on 2026-09-30, when #1030 reduced the 2023-24 share fall: electricity as a share of intermediate use for 2021-24 went from 2.02, 2.02, 1.69, 1.53% to 1.73, 1.79, 1.65, 1.57%. The ranking has not been re-run since. What #899 still has open is the same price question for buyers: BEA's price index runs about 17% above EIA's commercial price in 2021-22, for every unseeded buyer.
+
+### Status of the earlier tracker items
+
+| item | status | what remains |
+|---|---|---|
+| Row 8, direct emissions, "justified, do not smooth" | written on the UMD series and `v0.3.0_99655e9` | re-derive on eGRID and a consistent `q` |
+| Row 8 and #936, shared 2021 event | #936 open | not supported so far. Water transportation's 2021 is two fuel rows in the inventory, with emissions up 98%; electric power's is up 6% on eGRID. No shared cause has been shown |
+| Row 14, switch to eGRID | #911 and #947 merged; #913 and #914 closed | 2017 is indexed to the inventory, not observed. We did not find a check of the 2017/2018 boundary on the current build |
+| Row 18, ranked `L` movers | see above | re-run on the current build |
+| #1002, EIA 923 against eGRID | closed; no comparison was run | nothing checks that the fuel we book agrees with the emissions we attribute. Expect a gap, because receipts are purchases and eGRID is combustion |
