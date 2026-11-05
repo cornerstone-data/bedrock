@@ -146,17 +146,17 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | Leave BEA's series as published | rejected in #1009 | the balancing moved $17.6bn into household electricity with no evidence for it (`About_1009`, section 4) |
 | Set own use to the size of purchased power, about $72.5bn | rejected in #1009 | at the 2017 level, fuel plus purchased power of $81.2bn nearly fills investor-owned utilities' $88.5bn share of intermediate inputs; BEA's source has no line for power bought for resale |
 | Two legs: retail and Table 8.3 (current) | shipped in #1010, on since #1030 | worst implied price deviation falls from 14.7% to about 5%; leaves the mismatch in section 5 |
-| All output on retail revenue | rejected in #1010 on the input floor | the floor needs re-testing (section 6); removes the wholesale cycle from output |
+| All output on retail revenue | rejected in #1010 on the input floor | the floor needs re-testing (section 6); removes the wholesale cycle from output; has to come with a matching deflator (section 11) |
 | Keep the wholesale leg and put its movement in own use | proposed on #890, not graded | follows BEA's annual tables but not the benchmark. Moves only the change, not the $72.5bn level, but the no-source objection to the row above still applies |
 | Keep BEA's ten lines and replace the generation price index | proposed in `About_1009`, section 6, not built | preferred there as the exact decomposition. Needs checking against section 3, because a better price index alone may not remove the double count |
 
 ## 8. Proposed next steps (not decided)
 
-1. Re-run the IV score and the sector deep dive with electric power on a consistent output price (section 11). This needs no rebuild, and it decides how much of the tracker's largest movement is a deflator mismatch.
+1. Done: about half of the IV score for electric power is the deflator mismatch (section 11).
 2. Split EIA 861 retail revenue by ownership (section 6). This answers the 2017 level question, the $78bn and the right input floor. It needs no rebuild.
 3. Ask BEA which Form 861 series it uses for generation and distribution, and whether 2017 distribution is net of purchased power.
 4. Re-run the input floor on the ownership split.
-5. Grade the current two legs against the all-retail treatment on an evaluation build, on implied price, the electricity row and the cells in section 5. Decide after that. A change would need a rebuild and reopens a #1009 decision.
+5. Grade the current two legs against all output on retail revenue with EIA's retail price as the deflator, behind flags, on an evaluation build, on implied price, the electricity row and the cells in section 5. Decide after that. A change would need a rebuild and reopens a #1009 decision.
 6. Correct the statements in section 9, and post a correction on #890 pointing here.
 
 ## 9. Statements elsewhere that are out of date
@@ -218,17 +218,41 @@ The B tracker (`time_series_B_matrix/B_driver_investigation.md`) restarted from 
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | `E` | 1.0 | -7.9 | -9.7 | 6.0 | 0.0 | -7.9 | 0.0 | 32.4 |
 | `E / q`, tracker | 0.5 | -5.2 | -10.4 | 13.9 | -4.9 | -12.9 | -4.2 | 52.1 |
-| `E /` output on EIA's price | -3.5 | -6.6 | -7.1 | -0.0 | -4.7 | -2.2 | 0.3 | 24.3 |
+| `E /` output on EIA's price | -3.5 | -6.6 | -7.1 | 0.0 | -4.7 | -2.2 | 0.3 | 24.3 |
 | `E /` EIA retail kWh | -2.5 | -6.8 | -7.3 | 3.5 | -3.1 | -6.6 | -2.5 | 32.4 |
 
-The tracker's `q` falls 7.0% in 2021 while kWh sold rise 2.4%, then rises 5.8% in 2023 while kWh fall 1.3%. On a consistent basis the 2021 rise of 13.9% becomes -0.0% or +3.5%, and the 2023 fall of 12.9% becomes -2.2% or -6.6%. The overall decline in `E/q` from 2017 to 2024 is 21.7% to 23.2% on all three bases, so the long-run decline does not depend on this.
+The tracker's `q` falls 7.0% in 2021 while kWh sold rise 2.4%, then rises 5.8% in 2023 while kWh fall 1.3%. On a consistent basis the 2021 rise of 13.9% becomes about 0% or +3.5%, and the 2023 fall of 12.9% becomes -2.2% or -6.6%. The overall decline in `E/q` from 2017 to 2024 is 21.7% to 23.2% on all three bases, so the long-run decline does not depend on this.
 
 Limits of this check:
 
 - `E` is rounded to two decimals from the tracker, so the annual changes are approximate. `q` is the unrounded series in the table above.
 - The EIA retail price is not the exact price of our output, which includes a wholesale leg and the government utilities that are not rebased. That is why output on EIA's price still rises 11.5% in 2022 against 5.5% for kWh.
 - kWh are retail sales only.
-- The IV score and the driving factor have not been recomputed. Where else this deflator reaches, including the released factors, has not been traced.
+- Where else this deflator reaches, including the released factors, has not been traced.
+
+### IV score with electric power on a consistent real output
+
+Measured on the cached tables for GHG FBS `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`, with no rebuild and spend weights. Only electric power's real output changes. `I` is built on nominal values, so it does not move, and `V` is recomputed.
+
+| real output of `221100` | IV score | V | annual change in real `B`, 2021 | annual change in real `B`, 2023 | 2021 share of all movement |
+|---|---:|---:|---:|---:|---:|
+| nominal output over BEA's price index (as built) | 3.23 | 0.100 | +13.8% | -13.8% | 66.4% |
+| nominal output over EIA's average retail price | 1.48 | 0.046 | +0.7% | -2.1% | 24.4% |
+| 2017 output moved on EIA retail kWh | 1.76 | 0.055 | +4.2% | -6.8% | 47.9% |
+
+Electric power stays first; the next sector scores 0.40. About half of its score comes from the mismatch. What remains on the kWh basis includes a real 2021 rise in emissions and the long-run decline, and is not a reason to smooth.
+
+The change is almost entirely in electric power's own factor. Its gross `N_d` movement falls from 56.1 to 35.1 on the kWh basis, and gas distribution (`221200`) falls by 4.0. Other commodities move by 0.2 or less, because the deflator cancels between `B` and `L` for a buyer. What changes for buyers is the split between `B` and `L`, for example truck transportation goes from 65% to 60% `B`. So the deflator does not address electricity's effect on buyers' factors. That runs through the nominal output and the electricity row (section 5).
+
+Nominal output and the deflator have to change together. The table shows real output, as an index with 2017 = 1:
+
+| | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|
+| current output over BEA's price | 0.915 | 0.962 | 1.018 | 1.063 |
+| all output on retail revenue, over BEA's price | 0.880 | 0.909 | 1.010 | 1.084 |
+| all output on retail revenue, over EIA's retail price, equal to kWh | 1.022 | 1.055 | 1.041 | 1.068 |
+
+Removing the wholesale leg alone makes the 2021-22 dip in real output deeper, because BEA's price index keeps the wholesale spike. The government utilities, which are not rebased, sit in Cornerstone `221100` as well: federal electric output goes from $15.9bn to $26.6bn by 2022. A real output that tracks kWh closely has to account for them.
 
 ### What the tracker's fields point to
 
