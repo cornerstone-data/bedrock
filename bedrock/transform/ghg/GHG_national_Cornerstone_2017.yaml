@@ -1012,9 +1012,10 @@ source_names:
                       Flowable: Natural Gas
                       Class: Other
                     exclusion_fields:
-                      # Ammonia (32531) and hydrogen (32512) feedstock gas: its CO2
-                      # is already attributed via Ammonia Production and the
-                      # subpart P hydrogen carve-out (#1200)
+                      # 32531: the GHGI nets ammonia feedstock gas out of this row
+                      # (Annex 2.1, Ch. 3 Tables 3-24/3-25); its CO2 is Ammonia
+                      # Production. 32512: modeling choice, not GHGI text; hydrogen
+                      # gets its CO2 via the subpart P carve-out (#1200)
                       SectorConsumedBy: ['32531', '32512']
 
               transportation_lubricants:
