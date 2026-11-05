@@ -27,7 +27,7 @@ badly.
 
 Run it directly; it needs a network on a cold stewi cache::
 
-    python -m bedrock.analysis.time_series_B_matrix.nei_combustion_proxy_test
+    python -m bedrock.analysis.ghg_model.nei_combustion_proxy_test
 """
 
 import logging

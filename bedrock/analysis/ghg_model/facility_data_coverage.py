@@ -33,9 +33,9 @@ any formal scheme.
 
 ::
 
-    uv run python -m bedrock.analysis.time_series_B_matrix.facility_data_coverage \\
+    uv run python -m bedrock.analysis.ghg_model.facility_data_coverage \\
         --cache-dir output/cache_v05_facilities
-    uv run python -m bedrock.analysis.time_series_B_matrix.facility_data_coverage \\
+    uv run python -m bedrock.analysis.ghg_model.facility_data_coverage \\
         --cache-dir output/cache_v05_facilities --check
 """
 

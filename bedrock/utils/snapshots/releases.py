@@ -84,8 +84,18 @@ v0_5_0 = "3a1dddc2030e5793b929888c1343cf5a14729f4c"  # config: 2025_usa_cornerst
 v0_6_0 = "e10c75f542b0c9b24692f6524a53073e091d54dc"  # config: 2025_usa_cornerstone_v0_6
 
 # Output change: canonical flip to 2026_usa_cornerstone_v1_0 retained-activity
-# FBS (#1147); twin bag vs e10c75f5 on asserted B/A/q/Y.
-v1_0_0 = "326ae5d8922ad69347c360314be541935a374a4b"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
+# FBS (#1147); twin bag vs e10c75f5 on asserted B/A/q/Y. Tagged v1.0.0-rc.
+v1_0_0_rc = (
+    "326ae5d8922ad69347c360314be541935a374a4b"  # config: 2026_usa_cornerstone_v1_0
+)
+
+# Output change: the v1.0 configs load the nowcast MUT v1.0.0_5514c3b (#1170):
+# 2017-2024 rebuilt on the 2026 BEA annual update (#1166, #1167), the Step 6
+# commodity identity (#1162), the rest-of-world adjustment row (#1171),
+# interpolated suppressed BEA services trade cells (#1172) and Census trade on
+# the 2024 product-to-NAICS concordance (#1175). The GHG and Energy FBS are
+# rebuilt on that MUT, GHG_national_Cornerstone_{year}_v1.0.0_79273ed (#1189).
+v1_0_0 = "7f0bdab6e7d12f17a9c2a61437a22af1df7bed30"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -108,6 +118,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_4_1: 2024,
     v0_5_0: 2024,
     v0_6_0: 2024,
+    v1_0_0_rc: 2024,
     v1_0_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
