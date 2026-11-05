@@ -64,9 +64,43 @@ So the 2022 electricity share of an intermediate buyer's footprint falls 4.4%, a
 
 ## Open decisions
 
-- **Reference output.** `delta` is measured from the current two-leg output. Measuring from BEA's published output would keep BEA's inputs for electric power and make the residual larger: about $68bn in 2021 and $83bn in 2022. Non-fuel inputs would stay at BEA's level, about $144bn in 2021 against $117bn in 2020, which is a rise that utilities' reported costs don't show.
+- **Reference output.** See "Controlling non-fuel inputs" below. A larger residual is acceptable if it controls non-fuel inputs (Wes, 2026-11-05).
 - **Allocation across buyers.** It is proportional to electricity purchases. Commercial buyers carry most of the excess over EIA revenue, so a class-based allocation may fit better.
 - **The 2017 level.** The benchmark's roughly $68bn of bills above retail revenue stays in electricity. Moving it would change the observed benchmark.
+
+## Controlling non-fuel inputs
+
+The layer above leaves electric power's inputs where the BEA-based pathway has them. Measuring `delta` from BEA's published output would make the residual larger, but it would not control non-fuel inputs: it inherits BEA's path. To control them, the residual is sized from a target instead:
+
+```
+electric value added = retail output - fuel - non-fuel target
+residual             = BEA value added - electric value added
+```
+
+All electric industries together, $bn. Non-fuel inputs are intermediate inputs less EIA-923 fuel.
+
+| non-fuel inputs | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| BEA's output and value added | 121.0 | 147.6 | 148.6 | 122.9 | 143.8 | 165.2 | 121.7 | 131.2 |
+| current two-leg output | 121.0 | 133.6 | 126.1 | 116.6 | 94.1 | 118.4 | 114.5 | 140.8 |
+| 2017 cells x commodity price x EIA kWh | 121.0 | 127.9 | 128.5 | 125.9 | 135.6 | 150.5 | 151.6 | 160.6 |
+| 2017 x investor-owned non-fuel operating and maintenance cost | 121.0 | 145.3 | 149.2 | 135.3 | 135.8 | 136.5 | 158.7 | 163.4 |
+
+| residual | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| from BEA's output | 18.7 | 25.1 | 7.6 | 68.4 | 83.0 | 17.9 | -11.3 |
+| from the price x kWh target | -0.9 | 5.1 | 10.6 | 60.2 | 68.3 | 47.7 | 18.1 |
+| from the operating and maintenance target | 16.4 | 25.8 | 20.0 | 60.4 | 54.3 | 54.9 | 20.9 |
+
+The price x kWh target is the proposed one. It holds the real input mix fixed per kWh, the same theta = 1 prior as the Step 3 price carry, and it doesn't depend on investor-owned utilities standing in for the whole industry. Their series jumps 20% in 2018, when administrative costs nearly double and taxes fall. A negative residual is set to zero.
+
+This version is not a layer on the balanced tables. Electric power buys more than it does on the BEA-based pathway, and commodity rows are fixed, so:
+
+- the electric industries' intermediate target moves inside the balance, by about $42bn in 2021, $32bn in 2022, $37bn in 2023 and $20bn in 2024 above the current build;
+- buyers' other inputs give up the same amount, because the residual they buy exceeds the electricity they lose;
+- gas into electric power has more room against EIA's bill. How much has to be measured.
+
+The BEA-based pathway stays unchanged behind the flag either way.
 
 ## How far it is built
 
