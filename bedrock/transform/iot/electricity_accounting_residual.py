@@ -24,10 +24,12 @@ never to households or exports, whose electricity follows EIA revenue.
 Who buys it
 -----------
 
-Commercial and industrial buyers split it by each class's 2017 bills above EIA
-revenue, and within a class by each buyer's 2017 electricity purchases. Both are
-measured at the benchmark because a year's own bills come out of the balance this
-feeds, which would be circular.
+Commercial and industrial buyers split it by each class's bills above EIA revenue
+that year, and within a class by each buyer's electricity purchases that year. The
+bills are Step 3's electricity cells, on column totals before the transfer, because
+balanced bills come out of the balance this feeds, which would be circular. On the
+BEA-based build they put commercial's share within 7 points of balanced bills, and
+run above them in 2023-24, before the interior fit.
 
 How it reaches the balance
 --------------------------
@@ -106,7 +108,7 @@ def split_across_columns(total: float, value_added: pd.Series) -> pd.Series:
 def buyer_shares(
     bills: pd.Series, revenue_commercial: float, revenue_industrial: float
 ) -> pd.Series:
-    """Each intermediate buyer's share of the residual, from 2017 bills.
+    """Each intermediate buyer's share of the residual, from one year's bills.
 
     Classes split by their bills above EIA revenue, and buyers within a class by
     bill. A class at or below its revenue takes none.
@@ -121,7 +123,7 @@ def buyer_shares(
         }
     ).clip(lower=0.0)
     if float(excess.sum()) <= 0:
-        raise ValueError('no class has 2017 bills above its EIA revenue')
+        raise ValueError('no class has bills above its EIA revenue')
     weights = excess / float(excess.sum())
     return pd.concat(
         [
@@ -146,18 +148,27 @@ def _use_2017() -> pd.DataFrame:
     return use
 
 
-@functools.cache
-def _bills_2017() -> 'pd.Series[float]':
-    """Intermediate electricity purchases at the benchmark, other than electric, $M."""
-    from bedrock.utils.taxonomy.bea.v2017_industry import (  # noqa: PLC0415
-        USA_2017_INDUSTRY_CODES,
+def _step_3_bills(year: int, value_added: pd.Series) -> 'pd.Series[float]':
+    """Step 3's electricity cells in *year*, other than electric buyers, $M.
+
+    On column totals before the transfer, passed explicitly so this does not read
+    the value-added panel it helps build.
+    """
+    from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415
+        detail_gross_output_panel,
+    )
+    from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+        derive_intermediate_use,
+    )
+    from bedrock.utils.economic.units import (  # noqa: PLC0415
+        MILLION_CURRENCY_TO_CURRENCY,
     )
 
-    row = pd.Series(
-        pd.to_numeric(pd.Series(_use_2017().loc[ELECTRICITY]), errors='coerce')
-    )
-    keep = [c for c in USA_2017_INDUSTRY_CODES if c not in ELECTRIC_INDUSTRIES]
-    return pd.Series(row.reindex(keep).fillna(0.0), dtype=float)
+    output = detail_gross_output_panel()[int(year)].reindex(value_added.index)
+    control = (output - value_added).astype(float) * MILLION_CURRENCY_TO_CURRENCY
+    block = derive_intermediate_use(int(year), column_control=control)
+    row = pd.Series(block.loc[ELECTRICITY], dtype=float) / MILLION_CURRENCY_TO_CURRENCY
+    return row.drop(index=list(ELECTRIC_INDUSTRIES), errors='ignore')
 
 
 @functools.cache
@@ -220,9 +231,9 @@ def value_added_transfers(
     )
     transfers[codes] = -split_across_columns(total, value_added[codes])
     shares = buyer_shares(
-        _bills_2017(),
-        eia_retail_revenue_usd(BASE_YEAR, 'Commercial') / 1e6,
-        eia_retail_revenue_usd(BASE_YEAR, 'Industrial') / 1e6,
+        _step_3_bills(int(year), value_added),
+        eia_retail_revenue_usd(int(year), 'Commercial') / 1e6,
+        eia_retail_revenue_usd(int(year), 'Industrial') / 1e6,
     )
     transfers[shares.index] = shares * total
     return transfers
