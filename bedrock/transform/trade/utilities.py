@@ -337,6 +337,57 @@ IEA_IMPORTS_CROSSWALK_CSV = (
 )
 
 
+#: Export rows set to BEA's published summary ``F040`` instead of an ITA mover
+#: (#658): summary row -> its detail rows, split by their published 2017
+#: ``F04000`` shares.
+#:
+#: Health-related travel, the former mover of all three, is travel: BEA books
+#: it with the rest of travel in the rest-of-world row (``S00900``), not in
+#: commodity rows, so it no longer feeds them.
+#:
+#: - ``622`` hospitals: BEA's exports rise from 2.8bn in 2017 to 14.1bn in
+#:   2024, including through 2020-21, and no published ITA series moves that
+#:   way. The 2009 IO manual (ch. 7) distributes multi-industry services by the
+#:   reporting firm's industry from BEA survey data that is not published by
+#:   type, which is the likely source; the source has been asked of BEA.
+#: - ``621`` ambulatory care and ``623`` nursing and residential care: these
+#:   follow ITA health services (2022-2024: 990, 816 and 861 $M against ITA's
+#:   974, 769 and 819), but ITA suppresses health services exports for
+#:   2017-2021, so the series cannot anchor or move the bridge.
+SUMMARY_CONTROLLED_EXPORTS: dict[str, tuple[str, ...]] = {
+    '622': ('622000',),
+    '621': ('621100', '621200', '621300', '621400', '621500', '621600', '621900'),
+    '623': ('623A00', '623B00'),
+}
+
+
+#: Import rows set to BEA's published summary ``MCIF`` (#658), in the same
+#: form. ``622`` hospital imports grow from 4.4bn in 2017 to 11.1bn in 2024 on
+#: the same unpublished source as the exports; health-related travel imports
+#: are spending abroad and go to noncomparable imports (``S00300``), and
+#: health services move ``621`` and ``623`` through the bridge.
+SUMMARY_CONTROLLED_IMPORTS: dict[str, tuple[str, ...]] = {'622': ('622000',)}
+
+#: The published summary table and column each direction is controlled on.
+_SUMMARY_CONTROL_SOURCE = {
+    'Exports': ('Use_SUT_summary', 'F040'),
+    'Imports': ('Supply_summary', 'MCIF'),
+}
+
+
+def _published_summary_trade(flow: str, year: int) -> pd.Series:
+    """BEA's published summary ``F040`` (exports) or ``MCIF`` (imports), $M."""
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_usa_summary_sut,
+    )
+
+    table, column = _SUMMARY_CONTROL_SOURCE[flow]
+    frame = _load_usa_summary_sut(table, year)  # type: ignore[arg-type]
+    frame.index = pd.Index([str(i).strip() for i in frame.index])
+    frame.columns = pd.Index([str(c).strip() for c in frame.columns])
+    return pd.to_numeric(frame[column], errors='coerce').fillna(0.0)
+
+
 def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     """The imports mirror of :func:`bridge_iea_service_exports` (#771).
 
@@ -366,6 +417,7 @@ def bridge_iea_service_imports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         anchor_table='Supply_detail',
         anchor_column='MCIF',
         noncomparable_csv=IEA_IMPORTS_CROSSWALK_CSV,
+        summary_controls=SUMMARY_CONTROLLED_IMPORTS,
     )
 
 
@@ -390,6 +442,10 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
     ⚠️ The rest-of-world adjustment row (``S00900``, where BEA books most
     traveler spending) and the used/scrap rows are deliberately absent — the
     first is re-derived after the balance, the second two have no IEA source.
+
+    The rows in :data:`SUMMARY_CONTROLLED_EXPORTS` take BEA's published
+    summary ``F040`` for the frame's year instead of the bridge, split across
+    their detail rows by published 2017 ``F04000``.
     """
     return _bridge_iea_services(
         fba,
@@ -397,6 +453,7 @@ def bridge_iea_service_exports(fba: FlowByActivity, **_: Any) -> FlowByActivity:
         bridge_csv=IEA_EXPORT_BRIDGE_CSV,
         anchor_table='Use_SUT_detail',
         anchor_column='F04000',
+        summary_controls=SUMMARY_CONTROLLED_EXPORTS,
     )
 
 
@@ -512,6 +569,7 @@ def _bridge_iea_services(
     anchor_table: str,
     anchor_column: str,
     noncomparable_csv: str | None = None,
+    summary_controls: dict[str, tuple[str, ...]] | None = None,
 ) -> FlowByActivity:
     import numpy as np  # noqa: PLC0415
 
@@ -556,6 +614,18 @@ def _bridge_iea_services(
     )
     amounts = published.reindex(index.index).fillna(0.0) * index * 1e6  # USD
 
+    controlled = {c for rows in (summary_controls or {}).values() for c in rows}
+    if summary_controls:
+        years = set(frame_year.astype(int).unique())
+        if len(years) != 1:
+            raise ValueError(f'summary controls need one year, got {sorted(years)}')
+        summary = _published_summary_trade(flow, years.pop())
+        for summary_row, commodities in summary_controls.items():
+            weights = published.reindex(list(commodities)).fillna(0.0).clip(lower=0.0)
+            shares = weights / weights.sum()
+            for commodity, share in shares.items():
+                amounts[commodity] = float(summary[summary_row]) * share * 1e6  # USD
+
     # The categories the crosswalk routes to S00300 bypass the bridge: each
     # maps to S00300 alone, so their plain sum reproduces the pre-bridge
     # proportional attribution exactly (#766).
@@ -579,12 +649,19 @@ def _bridge_iea_services(
         row['Location'] = US_FIPS
         row['ActivityProducedBy'] = commodity
         row['ActivityConsumedBy'] = None
-        row['Description'] = (
-            'sum of the IEA leaves crosswalked to S00300 (#766)'
-            if commodity == 'S00300'
-            else f'published 2017 {anchor_column} x IEA category growth blend '
-            f'(#771 bridge, {flow})'
-        )
+        if commodity == 'S00300':
+            description = 'sum of the IEA leaves crosswalked to S00300 (#766)'
+        elif commodity in controlled:
+            description = (
+                f'published summary {_SUMMARY_CONTROL_SOURCE[flow][1]}, split by '
+                f'published 2017 {anchor_column} (#658)'
+            )
+        else:
+            description = (
+                f'published 2017 {anchor_column} x IEA category growth blend '
+                f'(#771 bridge, {flow})'
+            )
+        row['Description'] = description
         rows.append(row)
     out = pd.concat(rows, ignore_index=True)
     return FlowByActivity(
