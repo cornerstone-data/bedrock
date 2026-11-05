@@ -70,23 +70,11 @@ Earlier findings:
 |---|---|
 | **E** | ![E with 2017 = 1: 1.00 → 1.01 → 1.06 → 0.69 → 0.88 → 0.96 → 1.05 → 1.09](images/sector_trends/481000_E.svg) 2017 = 163 |
 | **E source** | `UMD_GHGIA_T_3_8.direct_jet` via `Direct` (99%); `UMD_GHGIA_T_3_10.direct_non_road` via `Direct` (1%) |
-| **E explanation** | Not yet assessed. |
+| **E explanation** | Almost all sector E is jet fuel `Direct` (`UMD_GHGIA_T_3_8.direct_jet`). On FBS `v1.0.0_79273ed` / MUT `v1.0.0_5514c3b`, jet Direct falls about 35% from 2019 to 2020 and recovers about 28% into 2021. Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
 | **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.09 → 0.56 → 0.85 → 1.08 → 1.15 → 1.22](images/sector_trends/481000_q.svg) 2017 = 232 |
-| **q explanation** | Not yet assessed. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (11.3); Oil and gas extraction bought by Petroleum refineries (1.5); Scenic and sightseeing transportation and support activities bought by Air transportation (1.4) |
-| **L explanation** | Not yet assessed. |
-
-Earlier findings:
-
-**Earlier tracker row 4**
-
-- **Driver:** Air transportation `481000` jet fuel, `Direct`
-- **Issue:** [#935](https://github.com/cornerstone-data/bedrock/issues/935)
-- **Diagnostic:** D9 · D8
-- **Effect:** 99.5 Mt of movement, a quarter of it net. Mixed trend and churn; the only large `Direct` cell that is not electric power.
-- **Potency:** 99.5 Mt gross, net −24.7; oscillation 0.75
-- **Justified?:** **unresolved**
-- **Status:** Filed as [#935](https://github.com/cornerstone-data/bedrock/issues/935). Check the denominator too — `481000` output collapsed in 2020 as well
+| **q explanation** | Real output for `481000` falls harder than E in 2020 (about −48% vs −35%) and rebounds harder in 2021 (about +51% vs +28%), so commodity B spikes then unwinds. Matches the COVID passenger collapse vs a softer fuel drop (BTS). Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
+| **A explanation** | Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (11.3); Oil and gas extraction bought by Petroleum refineries (1.5); Scenic and sightseeing transportation and support activities bought by Air transportation (1.4). On the 2019→2020 and 2020→2021 pairs, path is Direct (B); A/L are secondary. |
+| **L explanation** | L effect is secondary on both COVID pairs and does not explain the N move. The 2020 B spike and 2021 unwind are justified COVID economics; do not smooth. Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
 
 ### 211000 Oil and gas extraction
 
