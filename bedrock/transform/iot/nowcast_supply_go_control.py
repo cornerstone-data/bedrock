@@ -196,7 +196,7 @@ def released_groups() -> frozenset[str]:
 
     Empty unless ``rebase_utility_gross_output_on_eia`` is set, in which case it
     is the summary parent of every industry in
-    :data:`~bedrock.transform.iot.eia_utility_go_adjustment.CONTROLLED`.
+    :func:`~bedrock.transform.iot.eia_utility_go_adjustment.controlled_industries`.
 
     ⚠️ **Why a level change has to release the row, and not only the share.**
     :func:`fit_block` normally renormalises the GO target to the group's own
@@ -244,11 +244,13 @@ def released_groups() -> frozenset[str]:
     released: set[str] = set()
     if get_usa_config().rebase_utility_gross_output_on_eia:
         from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
-            CONTROLLED,
+            controlled_industries,
         )
 
         parents = _industry_parent()
-        released.update(parents[code] for code in CONTROLLED if code in parents)
+        released.update(
+            parents[code] for code in controlled_industries() if code in parents
+        )
     # #1013 manufacturing, which releases only the groups its chain moves.
     released.update(aies_released())
     return frozenset(released)
