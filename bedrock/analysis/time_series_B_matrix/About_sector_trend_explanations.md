@@ -9,6 +9,7 @@ Each sector has the same fields:
 
 | Field | What goes here |
 |---|---|
+| **B** | The trend in the direct emission factor, 2017 to 2024, with 2017 = 1, and the 2017 value in kg CO2e per constant 2017 dollar |
 | **E** | The trend in sector emissions, 2017 to 2024, with 2017 = 1, and the 2017 value in Mt CO2e |
 | **E source** | The inventory tables and attribution routes behind `E`, largest first, with their share over the span |
 | **E explanation** | Why `E` moved, or didn't |
@@ -16,9 +17,10 @@ Each sector has the same fields:
 | **q explanation** | Why `q` moved, or didn't |
 | **A explanation** | Which purchases in `A` changed, and why. The triage lists the largest, as gross percent of `N_d` over the span |
 | **L explanation** | How much `L` moves this sector's `N_d`, and why |
+| **Conclusion** | Identify the culprit and tie together the relevant explanations. Mark it provisional until the explanations above are written. |
 
 Sectors come from the tracker's list. Curves share one scale, with a dashed
-line at 1, dotted lines at 0.5 and 2, and the 2024 value at the end. `E` and `q` are on GHG FBS
+line at 1, dotted lines at 0.5 and 2, and the 2024 value at the end. `B`, `E` and `q` are on GHG FBS
 `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. An explanation should say which vintages it was checked on. Each explanation stays
 short and links to the issue or note that holds the evidence.
 
@@ -34,6 +36,7 @@ the figures above. Older notes that cite "tracker row N" refer to these.
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 1.01 → 0.96 → 0.85 → 0.98 → 0.92 → 0.80 → 0.77](images/sector_trends/221100_B.svg) 2017 = 3.9 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.01 → 0.93 → 0.84 → 0.89 → 0.89 → 0.82 → 0.82](images/sector_trends/221100_E.svg) 2017 = 1791 |
 | **E source** | `eGRID` via `Direct` (99%) |
 | **E explanation** | Not yet assessed. |
@@ -41,6 +44,7 @@ the figures above. Older notes that cite "tracker row N" refer to these.
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Electric power generation, transmission, and distribution (1.8); Electric power generation, transmission, and distribution bought by Electric power generation, transmission, and distribution (1.6); Coal mining bought by Electric power generation, transmission, and distribution (1.5) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional.** `B` ends 23% lower mainly because of `E`: `eGRID` `Direct`, 99% of `E`, falls 18% while `q` rises 6%. That fits real decarbonization, so the trend should not be smoothed. The open part is 2021, when `B` rises 15%: `E` is up 7% and `q` down 7%, because the price index rises 20% against nominal output up 11%. Check that `q` dip against EIA sales volumes and [#890](https://github.com/cornerstone-data/bedrock/issues/890). `L` is minor, 7% of the movement. |
 
 Earlier findings:
 
@@ -68,18 +72,21 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 0.96 → 0.97 → 1.22 → 1.04 → 0.89 → 0.91 → 0.90](images/sector_trends/481000_B.svg) 2017 = 0.7 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.01 → 1.06 → 0.69 → 0.88 → 0.96 → 1.05 → 1.09](images/sector_trends/481000_E.svg) 2017 = 163 |
 | **E source** | `UMD_GHGIA_T_3_8.direct_jet` via `Direct` (99%); `UMD_GHGIA_T_3_10.direct_non_road` via `Direct` (1%) |
-| **E explanation** | Almost all sector E is jet fuel `Direct` (`UMD_GHGIA_T_3_8.direct_jet`). On FBS `v1.0.0_79273ed` / MUT `v1.0.0_5514c3b`, jet Direct falls about 35% from 2019 to 2020 and recovers about 28% into 2021. Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
+| **E explanation** | Almost all sector E is jet fuel `Direct` (`UMD_GHGIA_T_3_8.direct_jet`). Direct falls about 35% from 2019 to 2020 and recovers about 28% into 2021. Less planes were flying due to COVID in 2020 Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
 | **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.09 → 0.56 → 0.85 → 1.08 → 1.15 → 1.22](images/sector_trends/481000_q.svg) 2017 = 232 |
 | **q explanation** | Real output for `481000` falls harder than E in 2020 (about −48% vs −35%) and rebounds harder in 2021 (about +51% vs +28%), so commodity B spikes then unwinds. Matches the COVID passenger collapse vs a softer fuel drop (BTS). Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
 | **A explanation** | Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (11.3); Oil and gas extraction bought by Petroleum refineries (1.5); Scenic and sightseeing transportation and support activities bought by Air transportation (1.4). On the 2019→2020 and 2020→2021 pairs, path is Direct (B); A/L are secondary. |
-| **L explanation** | L effect is secondary on both COVID pairs and does not explain the N move. The 2020 B spike and 2021 unwind are justified COVID economics; do not smooth. Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
+| **L explanation** | L effect is secondary on both COVID pairs and does not explain the N move. Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
+| **Conclusion** | The 2020 rise in `B` (+22%) and its 2021 unwind are justified COVID economics; do not smooth. By 2024 `B` is 10% below 2017, with `E` ×1.09 and `q` ×1.22. About two thirds of that is less fuel per revenue passenger-mile (`E` per RPM ×0.93). It is not fuller planes: load factor is 83.5% in 2017 and 83.4% in 2024 ([BTS](https://data.bts.gov/Research-and-Statistics/Transportation-Services-Index-and-Seasonally-Adjus/bw6n-ddqk)), so the gain is fuel per seat-mile, ×0.935 on [BTS Form 41 fuel](https://www.transtats.bts.gov/fuel.asp), on both domestic and international. That is more efficient flying; aircraft, gauge and routing are not split. The other third is real output per RPM ×1.04: nominal output per RPM ×1.23 against a price index of ×1.18. That is not higher profit: operating surplus falls from 19.7% to 15.5% of output, and the [BTS operating margin](https://www.bts.gov/newsroom/2017-annual-and-4th-quarter-us-airline-financial-data) from 12.2% to [5.5%](https://www.bts.gov/newsroom/us-airlines-profited-60-billion-2025-decrease-over-2024). Measured against the price index as a percent of 2017 output, value added nets to −1.3 (compensation +2.8, taxes −0.6, surplus −3.6), fuel is −2.7 and other purchases +7.8. Still open: whether that +4% is more service per passenger-mile or a price index that lags fares. It peaks at ×1.10 in 2022, when `B` reaches its low. Evidence: [#935](https://github.com/cornerstone-data/bedrock/issues/935). |
 
 ### 211000 Oil and gas extraction
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 0.92 → 0.88 → 0.87 → 0.77 → 0.70 → 0.63 → 0.62](images/sector_trends/211000_B.svg) 2017 = 1.5 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.13 → 1.02 → 1.01 → 1.03 → 1.00 → 1.00](images/sector_trends/211000_E.svg) 2017 = 353 |
 | **E source** | `UMD_GHGIA_T_3_28` via `Direct` (32%); `UMD_GHGIA_T_3_11.natural_gas_lease_plant` via `GHGRP_NEI_Facilities` (26%); `UMD_GHGIA_T_3_25` via `Direct` (13%) |
 | **E explanation** | Not yet assessed. |
@@ -87,6 +94,7 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Oil and gas extraction (7.4); Oil and gas extraction bought by Oil and gas extraction (5.4); Pipeline transportation bought by Oil and gas extraction (4.6) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional.** `B` ends 38% lower because `q` rises 63% on flat `E`. Flat `E` nets falling `UMD_GHGIA_T_3_28` and `UMD_GHGIA_T_3_25` (121.6 → 107.9 and 63.4 → 37.7 Mt) against rising lease and plant fuel (80.3 → 105.4 Mt). First check `q` against production volumes, since the price index runs from ×0.70 to ×1.81. `L` is 46% of the movement, mostly 2022-23: electricity per $100 of output goes 1.06 → 2.19 → 1.17, and self-use drops 3.61 → 1.53 in 2023. Reassess once [#922](https://github.com/cornerstone-data/bedrock/issues/922) (PR #1187, still open) is in the tables. |
 
 Earlier findings:
 
@@ -114,6 +122,7 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 0.95 → 1.00 → 0.98 → 1.03 → 0.98 → 0.97 → 0.97](images/sector_trends/484000_B.svg) 2017 = 0.47 |
 | **E** | ![E with 2017 = 1: 1.00 → 0.98 → 1.02 → 1.02 → 1.13 → 1.07 → 1.04 → 1.05](images/sector_trends/484000_E.svg) 2017 = 170 |
 | **E source** | `UMD_GHGIA_T_3_8.petroleum_fuels_diesel` via `Energy_highway_fuel_shares_national` (90%); `UMD_GHGIA_T_3_8.petroleum_fuels_gasoline_trucks` via `Energy_highway_fuel_shares_national` (5%); `UMD_GHGIA_T_A5_5_2` via `Direct` (4%) |
 | **E explanation** | Not yet assessed. |
@@ -121,11 +130,13 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Truck transportation (7.9); Petroleum refineries bought by Truck transportation (7.3); Truck transportation bought by Truck transportation (4.3) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional.** No trend to explain: `B` stays within 5% of 2017 every year and ends 3% lower, with `E` ×1.05 and `q` ×1.09. The largest move is 2021, when diesel `E` rises 11%. The cell to check is on the `L` side: own use per $100 of output steps 4.30 → 6.78 in 2023 and stays there, which [#890](https://github.com/cornerstone-data/bedrock/issues/890) flags for truck. |
 
 ### 324110 Petroleum refineries
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 0.99 → 0.96 → 1.13 → 1.07 → 1.07 → 0.96 → 0.92](images/sector_trends/324110_B.svg) 2017 = 0.47 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.01 → 1.01 → 0.91 → 0.92 → 0.93 → 0.90 → 0.88](images/sector_trends/324110_E.svg) 2017 = 199 |
 | **E source** | `UMD_GHGIA_T_3_11.petroleum_still_gas` via `GHGRP_NEI_Facilities` (50%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (26%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (9%) |
 | **E explanation** | Not yet assessed. |
@@ -133,6 +144,7 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petroleum refineries (13.0); Electric power generation, transmission, and distribution bought by Petroleum refineries (6.3); Pipeline transportation bought by Petroleum refineries (5.1) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional.** `B` ends 8% lower. Its 2020 rise of 17% is `q` down 22% against `E` down 10%, the same COVID shape as air and likely justified. The gradual fall in `E` (×0.88) is mostly the `Hybrid_Facility_MECS` routes (natural gas 51.1 → 44.3 Mt, petroleum 21.7 → 14.3 Mt), while still gas barely moves (99.3 → 92.4 Mt), so check those routes against facility data, with [#984](https://github.com/cornerstone-data/bedrock/issues/984). `B` is only about 40% of `N_d`, and `L` is 45% of the movement: oil and gas extraction per $100 of output rises 30.6 → 36.5, and electricity goes 0.82 → 1.77 → 1.32. |
 
 Earlier findings:
 
@@ -150,6 +162,7 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 1.17 → 0.88 → 1.03 → 1.31 → 1.34 → 1.30 → 1.35](images/sector_trends/325110_B.svg) 2017 = 0.72 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.08 → 0.91 → 0.91 → 1.09 → 1.12 → 1.39 → 1.44](images/sector_trends/325110_E.svg) 2017 = 47 |
 | **E source** | `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (52%); `UMD_GHGIA_T_4_31` via `Direct` (40%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (7%) |
 | **E explanation** | Not yet assessed. |
@@ -157,11 +170,13 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petrochemical manufacturing (15.6); Petrochemical manufacturing bought by Petrochemical manufacturing (9.1); Electric power generation, transmission, and distribution bought by Petrochemical manufacturing (4.9) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional, likely not justified.** `B` ends 35% higher, with `E` ×1.44 and `q` ×0.88. Three quarters of the `E` rise is `UMD_GHGIA_T_3_14` via `EPA_GHGI_NEU` (25.2 → 40.2 Mt), while that source across all sectors is about flat (92 → 96 Mt). This sector's share of it moves in blocks: 27%, then 21% from 2019, 28% from 2021 and 42% from 2023. The 2023 step lands where the attribution table switches from `EPA_GHGI_T_3_25b` to `EPA_GHGI_T_3_25`, though the cause is not yet traced. So the likely culprit is the split rather than emissions, shared with `325211` and `325190`: [#1196](https://github.com/cornerstone-data/bedrock/issues/1196). `L` is 40% of the movement, led by oil and gas extraction per $100 of output (13.4 → 15.5 → 10.6). |
 
 ### 531ORE Other real estate
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 1.05 → 1.04 → 0.80 → 0.70 → 0.64 → 0.60 → 0.49](images/sector_trends/531ORE_B.svg) 2017 = 0.045 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.13 → 0.84 → 0.85 → 0.80 → 0.74 → 0.61](images/sector_trends/531ORE_E.svg) 2017 = 58 |
 | **E source** | `UMD_GHGIA_T_3_4.non_manufacturing_natural_gas` via `Nowcast_Detail_Use_AfterRedef` (94%); `UMD_GHGIA_T_3_4.petroleum_commercial` via `Nowcast_Detail_Use_AfterRedef` (5%); `UMD_GHGIA_T_4_60.refrigerants` via `Nowcast_Detail_Use_AfterRedef` (1%) |
 | **E explanation** | Not yet assessed. |
@@ -169,11 +184,13 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Other real estate (20.0); Solid waste landfilling bought by Other real estate (4.4); Other real estate bought by Other real estate (3.8) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional, likely not justified.** `B` ends 51% lower, with `E` ×0.61 and `q` ×1.25. `E` is 94% commercial natural gas spread on a Use row. That source across all sectors rises 5% (173 → 182 Mt), but this sector's share falls from 31.3% to 18.3%; at a constant share `E` would be about flat. So the fall is in the allocation, not in measured gas. In the Use table the sector's gas purchases rise ($4.9bn → $5.7bn) while those of all industries double ($32bn → $64bn). [#975](https://github.com/cornerstone-data/bedrock/issues/975) covers this route. `L` is 52% of the movement, led by electricity per $100 of output (2.84 → 1.61), and [#705](https://github.com/cornerstone-data/bedrock/issues/705) found no annual source for this column. |
 
 ### 325190 Other basic organic chemical manufacturing
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 1.07 → 1.09 → 1.18 → 0.92 → 0.89 → 0.91 → 0.77](images/sector_trends/325190_B.svg) 2017 = 0.63 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.04 → 1.02 → 0.80 → 0.79 → 0.82 → 0.83](images/sector_trends/325190_E.svg) 2017 = 76 |
 | **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (47%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (19%); `UMD_GHGIA_T_2_S1.direct` via `Direct` (14%) |
 | **E explanation** | Not yet assessed. |
@@ -181,11 +198,13 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Other basic organic chemical manufacturing (11.5); Grain farming bought by Other basic organic chemical manufacturing (9.1); Electric power generation, transmission, and distribution bought by Other basic organic chemical manufacturing (5.7) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional.** `B` ends 23% lower, in two steps. In 2021 `E` falls 22%, largely `UMD_GHGIA_T_3_14` via `EPA_GHGI_NEU` (17.6 → 5.5 Mt, share 21% → 6%), the same block pattern as `325110`, so likely not justified: [#1196](https://github.com/cornerstone-data/bedrock/issues/1196). In 2024 `B` falls 15% because `q` rises 17% on flat `E`, which needs its source checked. `L` is 38% of the movement: petrochemical inputs per $100 of output (12.4 → 6.1) and own use (6.5 → 3.0) both halve. |
 
 ### 325211 Plastics material and resin manufacturing
 
 | Field | Value |
 |---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 1.04 → 1.04 → 1.02 → 1.37 → 1.31 → 1.66 → 1.60](images/sector_trends/325211_B.svg) 2017 = 0.28 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.02 → 1.04 → 0.97 → 1.25 → 1.29 → 1.87 → 1.92](images/sector_trends/325211_E.svg) 2017 = 20 |
 | **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (63%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (26%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (3%) |
 | **E explanation** | Not yet assessed. |
@@ -193,6 +212,7 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Plastics material and resin manufacturing (15.8); Other basic organic chemical manufacturing bought by Plastics material and resin manufacturing (11.3); Electric power generation, transmission, and distribution bought by Plastics material and resin manufacturing (5.7) |
 | **L explanation** | Not yet assessed. |
+| **Conclusion** | **Provisional, likely not justified.** `B` ends 60% higher, with `E` ×1.92 and `q` only ×1.06. `UMD_GHGIA_T_3_14` via `EPA_GHGI_NEU` is 17.1 of the 18.1 Mt rise in `E` (1.7 → 18.8 Mt): its share goes 2% → 5% in 2021 → 20% in 2023, on a source that is about flat across sectors. Same culprit as `325110`: [#1196](https://github.com/cornerstone-data/bedrock/issues/1196). [#670](https://github.com/cornerstone-data/bedrock/issues/670), the linked import issue, does not look like the driver of `B`. `L` is 45% of the movement and not yet assessed. |
 
 ## Earlier findings for sectors not on the current list
 

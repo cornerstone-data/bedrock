@@ -17,7 +17,7 @@ uv run python -m bedrock.analysis.time_series_B_matrix.sector_deep_dive_triage -
 
 The run writes two files to `output/sector_deep_dive_triage/`: a CSV with one row per
 sector, and `*_draft.md`, with the tracker rows and log entries ready to paste. The
-entries show `E` and `q` as curves with 2017 = 1, saved to `images/sector_trends/`,
+entries show `B`, `E` and `q` as curves with 2017 = 1, saved to `images/sector_trends/`,
 and the CSV has each year's value.
 `--iv-csv` chooses the `IV_score.csv`, and so the weights. `--codes` runs named
 sectors.
