@@ -27,9 +27,9 @@ Coal/Petroleum weights are not GHGRP-twin inflated.
 
 Usage::
 
-    uv run python bedrock/analysis/time_series_B_matrix/mode_policy_scorecard.py
-    uv run python bedrock/analysis/time_series_B_matrix/mode_policy_scorecard.py --modes-only
-    uv run python bedrock/analysis/time_series_B_matrix/mode_policy_scorecard.py --years 2019,2020,2021,2022
+    uv run python bedrock/analysis/ghg_model/mode_policy_scorecard.py
+    uv run python bedrock/analysis/ghg_model/mode_policy_scorecard.py --modes-only
+    uv run python bedrock/analysis/ghg_model/mode_policy_scorecard.py --years 2019,2020,2021,2022
 """
 
 from __future__ import annotations

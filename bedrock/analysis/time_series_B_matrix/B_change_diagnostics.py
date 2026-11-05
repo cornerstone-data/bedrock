@@ -3076,7 +3076,7 @@ def facility_scope_split(
     but it flips the combustion verdict for the oil and gas sectors: `211000`
     goes from 0.52 to **1.49** and `21311A` from 0.13 to **1.26**, both from
     clearing the floor to breaching it. The tables in
-    ``About_facility_emissions_basis.md`` §2 quote the subpart C reading, so the
+    ``ghg_model/About_facility_emissions_basis.md`` §2 quote the subpart C reading, so the
     two move together or not at all.
     """
     if 'table_3_11_Mt' not in basis:
