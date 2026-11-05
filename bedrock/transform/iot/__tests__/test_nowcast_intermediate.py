@@ -883,7 +883,6 @@ def test_power_petroleum_moves_on_price_not_eia_oil(
         lambda year, base=SEED_YEAR: pd.Series({ue.OIL: 1.25}),
     )
 
-    assert get_usa_config().carry_power_petroleum_on_price is True
     eia = ue.relative_index(2018, 2017)
     priced = ue.relative_index(2018, 2017, oil_on_price=True)
     assert eia[ue.OIL] == pytest.approx(1.9)
@@ -909,7 +908,13 @@ def test_oil_gas_extraction_seed_holds_self_use_and_reprices_petroleum(
         inputs_structure as ins,
     )
 
-    assert get_usa_config().reprice_oil_gas_extraction_seed is True
+    def set_flag(value: bool) -> None:
+        flags = get_usa_config().model_copy(
+            update={'reprice_oil_gas_extraction_seed': value}
+        )
+        monkeypatch.setattr(ins, 'get_usa_config', lambda: flags)
+
+    set_flag(True)
     column, oil = ins.OWN_PRODUCT_HELD[0], ins.REPRICED_ROWS[0]
     use = ins._use_2017_detail()[column]
     at_2017 = ins.mining_seed(2017)[column].reindex(use.index).fillna(0.0)
@@ -921,13 +926,10 @@ def test_oil_gas_extraction_seed_holds_self_use_and_reprices_petroleum(
     share = {y: f[column][oil] / f[column].sum() for y, f in on.items()}
     assert share[2024] < share[2022]
 
-    flags = get_usa_config().model_copy(
-        update={'reprice_oil_gas_extraction_seed': False}
-    )
-    monkeypatch.setattr(ins, 'get_usa_config', lambda: flags)
+    set_flag(False)
     off = ins.mining_seed(2024)
     others = [c for c in off.columns if c != column]
     rows = off.index.intersection(on[2024].index)
     pd.testing.assert_frame_equal(on[2024].loc[rows, others], off.loc[rows, others])
-    # Shipped: held at the 2022 nominal share.
+    # Flag off: held at the 2022 nominal share.
     assert off[column][oil] / off[column].sum() > share[2024]

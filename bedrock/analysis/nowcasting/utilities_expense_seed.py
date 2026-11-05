@@ -403,7 +403,7 @@ def utilities_seed(year: int, base_year: int = 2017) -> pd.DataFrame:
     held-column notes above to be misread as an exclusion.
 
     ⚠️ **Oil moves on BEA's refined petroleum price, not EIA's oil bill**, with
-    ``carry_power_petroleum_on_price`` on (the default). The row is still moved,
+    ``carry_power_petroleum_on_price`` on. The row is still moved,
     not held: :data:`OIL` explains why EIA's leg indexes a concept the cell does
     not carry, and :func:`oil_leg` shows the holdout keeps its verdict.
 
@@ -784,7 +784,7 @@ def oil_leg() -> pd.DataFrame:
     eia = relative_index(TARGET, BASE)
     variants = {
         "EIA 923's oil bill": eia,
-        "BEA's refined petroleum price (default)": relative_index(
+        "BEA's refined petroleum price": relative_index(
             TARGET, BASE, oil_on_price=True
         ),
         'held at nominal 2017': eia.where(eia.index != OIL, 1.0),

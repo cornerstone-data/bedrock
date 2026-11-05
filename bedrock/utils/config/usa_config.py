@@ -243,7 +243,10 @@ class USAConfig(BaseModel):
     # +18.9% for EIA's oil leg, so it keeps the seed's verdict. Coal, gas and
     # purchased power stay on EIA. See
     # bedrock.analysis.nowcasting.utilities_expense_seed.oil_leg (#922).
-    carry_power_petroleum_on_price: bool = True  # DRI: WesIngwersen
+    # OFF until the next nowcast rebuild, which turns it on and bumps the 2024
+    # balanced table pin in the same change; on before that, a rebuild no longer
+    # reproduces the pinned tables (test_nowcast_balanced_sut_pin).
+    carry_power_petroleum_on_price: bool = False  # DRI: WesIngwersen
     # In the Step 3 mining seed, keep oil and gas extraction's (211000)
     # purchases of its own product at their real 2017 share instead of the
     # census's, and move its refined petroleum (324110) as the census's real
@@ -255,7 +258,10 @@ class USAConfig(BaseModel):
     # $100 of output misses by 0.18 (2018-2024 mean) against 1.08, and self-use
     # by 1.52 against 3.31 (first-order estimate). See
     # bedrock.analysis.nowcasting.inputs_structure.repriced_column (#922).
-    reprice_oil_gas_extraction_seed: bool = True  # DRI: WesIngwersen
+    # OFF until the next nowcast rebuild, which turns it on and bumps the 2024
+    # balanced table pin in the same change; on before that, a rebuild no longer
+    # reproduces the pinned tables (test_nowcast_balanced_sut_pin).
+    reprice_oil_gas_extraction_seed: bool = False  # DRI: WesIngwersen
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
