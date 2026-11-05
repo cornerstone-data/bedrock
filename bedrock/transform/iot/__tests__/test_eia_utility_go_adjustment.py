@@ -185,7 +185,7 @@ def test_all_three_electric_industries_follow_the_retail_index() -> None:
         assert adjusted.at[code, 2018] == pytest.approx(base * 1.1)
         assert adjusted.at[code, 2022] == pytest.approx(base * 2.0)
     for code in ('221200', '111200'):
-        pd.testing.assert_series_equal(adjusted.loc[code], panel.loc[code])
+        pd.testing.assert_frame_equal(adjusted.loc[[code]], panel.loc[[code]])
 
 
 @pytest.mark.usefixtures('_retail_basis')
@@ -248,4 +248,4 @@ def test_price_lines_follow_eia_and_keep_their_seams_closed(
     # BEA's +10% from 2024 to 2025 on the new 2024 level; 2016 as published.
     assert out.at['221100', 2025] == pytest.approx(187.0)
     assert out.at['221100', 2016] == pytest.approx(90.0)
-    pd.testing.assert_series_equal(out.loc['111200'], original.loc['111200'])
+    pd.testing.assert_frame_equal(out.loc[['111200']], original.loc[['111200']])
