@@ -194,6 +194,14 @@ class USAConfig(BaseModel):
     # before that, a rebuild no longer reproduces the pinned tables. See
     # bedrock/analysis/electricity/About_electricity_modeling_record.md.
     electric_output_on_retail_revenue: bool = False  # DRI: WesIngwersen
+    # Second pathway for electric power; needs the flag above. Electric non-fuel
+    # inputs follow 2017 cells x input prices x EIA kWh, and what is left of BEA's
+    # electric value added moves to a residual commodity and industry (S00700)
+    # sold to commercial and industrial buyers. Keeps electric inputs from being
+    # squeezed by pinned value added. OFF, and not to be set in a build that
+    # publishes tables: Steps 6 and 7 do not read the pair yet. See
+    # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
+    electricity_accounting_residual: bool = False  # DRI: WesIngwersen
     # Chain manufacturing detail gross output for 2023-24 on AIES receipts
     # instead of BEA's own annual movement. BEA's detail stops tracking census
     # after the 2022 Economic Census: measured against each industry's own 2017
@@ -455,6 +463,14 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'electric_output_on_retail_revenue requires '
                 'rebase_utility_gross_output_on_eia'
+            )
+        if (
+            self.electricity_accounting_residual
+            and not self.electric_output_on_retail_revenue
+        ):
+            raise ValueError(
+                'electricity_accounting_residual requires '
+                'electric_output_on_retail_revenue'
             )
         return self
 

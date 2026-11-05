@@ -1,70 +1,59 @@
-"""Electricity accounting residual: a layer on the balanced tables, 2018-2024.
+"""Electricity accounting residual: a second pathway for electric power, 2018-2024.
 
-A separate pathway from the BEA-based electric output, which is left unchanged.
-This module takes that pathway's balanced Supply and Use tables and returns them
-with one more commodity and one more industry.
+The BEA-based pathway stays as it is. With ``electricity_accounting_residual`` on,
+electric output follows EIA retail revenue, electric non-fuel inputs follow a
+target, and what is left of BEA's electric value added moves to a residual
+commodity and industry.
 
-What it does
+The residual
 ------------
 
-BEA's electric gross output counts the wholesale price cycle twice (see
-``bedrock/analysis/electricity/About_electricity_modeling_record.md``). Lowering
-output inside the balance has a cost: BEA's value added stays pinned, so the cut
-comes out of the industry's inputs, and the buyers' lost electricity is replaced
-by other commodities. In 2022 refineries bought $4.5bn more oil and gas.
+For all electric industries together::
 
-Here the difference between the two outputs, ``delta``, moves to a residual pair:
+    non-fuel target = 2017 non-fuel inputs x input prices x EIA kWh
+    electric value added = retail output - EIA fuel - non-fuel target
+    residual = BEA value added - electric value added, never negative
 
-==================  ==============================================================
-electric industry   output falls by ``delta``, value added falls by ``delta``,
-                    inputs unchanged
-buyers              purchases of electricity fall by ``delta`` in total, purchases
-                    of the residual rise by the same amount, column totals
-                    unchanged
-residual industry   output ``delta``, value added ``delta``, no inputs
-==================  ==============================================================
+The non-fuel target holds the real input mix per kWh fixed. Input prices are each
+commodity's own price, weighted by the 2017 cells. Electric value added plus
+residual value added equals BEA's, so total value added still equals final demand.
 
-Every other cell is unchanged, so nothing passes to other industries. Electric
-value added plus residual value added equals the old pathway's electric value
-added, so total value added still equals final demand.
+The residual has no inputs and no emissions. It is sold to intermediate buyers,
+never to households or exports, whose electricity follows EIA revenue.
 
-The residual has no inputs and no emissions. Households and exports keep their
-electricity, because the excess over EIA revenue is on intermediate buyers
-(household electricity follows EIA residential revenue).
+Who buys it
+-----------
 
-Emissions shift between buyers
-------------------------------
+Commercial and industrial buyers split it by each class's 2017 bills above EIA
+revenue, and within a class by each buyer's 2017 electricity purchases. Both are
+measured at the benchmark because a year's own bills come out of the balance this
+feeds, which would be circular.
 
-Electric output falls, so its emissions per dollar rise, and intermediate buyers
-buy fewer dollars of electricity. Their cut is larger than the fall in output as a
-share, because households are excluded, so emissions from electricity move from
-intermediate buyers to households. Total emissions are unchanged.
+How it reaches the balance
+--------------------------
 
-Not yet wired into the build: Steps 6 and 7, the taxonomy and ``A`` do not read
-these tables. Run::
+The balance has no row or column for the pair. It sees a transfer of value added
+(:func:`value_added_transfers`): electric value added falls and each buyer's rises
+by what it pays for the residual, so the total is unchanged, and every target
+built on ``GO - VAPRO`` follows. :func:`split_residual` then moves those buyer
+amounts out of surplus into the residual row, on the balanced tables.
 
-    uv run python -m bedrock.transform.iot.electricity_accounting_residual --check
+Not yet wired past Step 5: Steps 6 and 7, the taxonomy and ``A`` do not read the
+pair, so the flag must stay off in any build that publishes tables.
 """
 
 from __future__ import annotations
 
-import argparse
-from pathlib import Path
+import functools
 
 import pandas as pd
 
-from bedrock.transform.iot.derived_intermediate_and_value_added import (
-    detail_gross_output_panel,
-)
 from bedrock.transform.iot.eia_utility_go_adjustment import (
     BASE_YEAR,
-    CONTROLLED,
     CONTROLLED_YEARS,
     ELECTRIC_INDUSTRIES,
-    retail_gross_output,
-    retail_price_index,
+    retail_index,
     retail_sales_mwh,
-    two_leg_gross_output,
 )
 
 #: The commodity and the industry share one code.
@@ -76,7 +65,12 @@ ELECTRICITY = '221100'
 #: The value-added row the change goes through.
 SURPLUS_ROW = 'V00300'
 
-OUTPUT_DATA = Path(__file__).resolve().parents[1] / 'output_data'
+#: The rows EIA's fuel bill stands for, left out of the non-fuel target's weights.
+FUEL_ROWS = ('212100', '211000', '324110')
+
+#: Two-digit prefixes of EIA's industrial class: farms, mining, construction,
+#: manufacturing. Every other intermediate buyer is in its commercial class.
+INDUSTRIAL_PREFIXES = ('11', '21', '23', '31', '32', '33')
 
 #: Identities hold to this, $M.
 TOLERANCE_USD_M = 1e-6
@@ -87,70 +81,181 @@ def _row(frame: pd.DataFrame, label: str) -> 'pd.Series[float]':
     return pd.Series(frame.loc[label], dtype=float)
 
 
-def residual_amounts(panel: pd.DataFrame, year: int) -> pd.Series:
-    """``delta`` by electric industry in *year*, $M, never negative.
+def residual_total(
+    output_2017: float,
+    value_added_2017: float,
+    value_added: float,
+    fuel_2017: float,
+    fuel: float,
+    retail_relative: float,
+    input_price_relative: float,
+    kwh_relative: float,
+) -> float:
+    """The residual in one year, $M, from all-electric totals. Never negative."""
+    non_fuel_2017 = output_2017 - value_added_2017 - fuel_2017
+    non_fuel = non_fuel_2017 * input_price_relative * kwh_relative
+    electric_value_added = output_2017 * retail_relative - fuel - non_fuel
+    return max(value_added - electric_value_added, 0.0)
 
-    The old pathway's output less retail-based output, from BEA's published
-    *panel*. Where retail-based output is the higher, the industry keeps the old
-    pathway's output: a negative residual has no meaning. So real output follows
-    kWh only where ``delta`` is positive.
+
+def split_across_columns(total: float, value_added: pd.Series) -> pd.Series:
+    """The residual by electric industry, in proportion to its value added."""
+    return value_added.astype(float) * (total / float(value_added.sum()))
+
+
+def buyer_shares(
+    bills: pd.Series, revenue_commercial: float, revenue_industrial: float
+) -> pd.Series:
+    """Each intermediate buyer's share of the residual, from 2017 bills.
+
+    Classes split by their bills above EIA revenue, and buyers within a class by
+    bill. A class at or below its revenue takes none.
     """
-    two_leg = two_leg_gross_output(panel, year)
-    old = panel.loc[two_leg.index, int(year)].astype(float)
-    for code in CONTROLLED:
-        old[code] = two_leg[code]
-    return (old - retail_gross_output(panel, year)).clip(lower=0.0)
+    positive = bills[bills > 0].astype(float)
+    industrial = [c for c in positive.index if str(c).startswith(INDUSTRIAL_PREFIXES)]
+    commercial = [c for c in positive.index if c not in industrial]
+    excess = pd.Series(
+        {
+            'commercial': float(positive[commercial].sum()) - revenue_commercial,
+            'industrial': float(positive[industrial].sum()) - revenue_industrial,
+        }
+    ).clip(lower=0.0)
+    if float(excess.sum()) <= 0:
+        raise ValueError('no class has 2017 bills above its EIA revenue')
+    weights = excess / float(excess.sum())
+    return pd.concat(
+        [
+            positive[commercial]
+            / float(positive[commercial].sum())
+            * float(weights['commercial']),
+            positive[industrial]
+            / float(positive[industrial].sum())
+            * float(weights['industrial']),
+        ]
+    )
 
 
-def _intermediate_buyers(use: pd.DataFrame, supply: pd.DataFrame) -> list[str]:
-    """Industries that buy electricity, other than the electric industries."""
-    row = _row(use, ELECTRICITY)
-    industries = [c for c in use.columns if c in supply.columns]
-    keep = [c for c in industries if c not in ELECTRIC_INDUSTRIES]
-    return [c for c in keep if float(row[c]) > 0]
+def _use_2017() -> pd.DataFrame:
+    from bedrock.extract.iot.io_2017 import (  # noqa: PLC0415
+        _load_2017_detail_supply_use_usa,
+    )
+
+    use = _load_2017_detail_supply_use_usa('Use_SUT_detail').copy()
+    use.index = pd.Index([str(i).strip() for i in use.index])
+    use.columns = pd.Index([str(c).strip() for c in use.columns])
+    return use
+
+
+@functools.cache
+def _bills_2017() -> 'pd.Series[float]':
+    """Intermediate electricity purchases at the benchmark, other than electric, $M."""
+    from bedrock.utils.taxonomy.bea.v2017_industry import (  # noqa: PLC0415
+        USA_2017_INDUSTRY_CODES,
+    )
+
+    row = pd.Series(
+        pd.to_numeric(pd.Series(_use_2017().loc[ELECTRICITY]), errors='coerce')
+    )
+    keep = [c for c in USA_2017_INDUSTRY_CODES if c not in ELECTRIC_INDUSTRIES]
+    return pd.Series(row.reindex(keep).fillna(0.0), dtype=float)
+
+
+@functools.cache
+def _non_fuel_weights() -> 'pd.Series[float]':
+    """The electric columns' 2017 non-fuel input cells, by commodity, $M."""
+    from bedrock.utils.taxonomy.bea.v2017_commodity import (  # noqa: PLC0415
+        USA_2017_COMMODITY_CODES,
+    )
+
+    cells = (
+        _use_2017()[list(ELECTRIC_INDUSTRIES)]
+        .apply(pd.to_numeric, errors='coerce')
+        .fillna(0.0)
+        .sum(axis=1)
+    )
+    keep = [c for c in USA_2017_COMMODITY_CODES if c not in FUEL_ROWS]
+    return pd.Series(cells.reindex(keep).fillna(0.0), dtype=float)
+
+
+def input_price_relative(year: int) -> float:
+    """The price of the electric columns' non-fuel inputs relative to 2017."""
+    from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+        commodity_price_factor,
+    )
+
+    weights = _non_fuel_weights()
+    factor = commodity_price_factor(int(year)).reindex(weights.index).fillna(1.0)
+    return float((weights * factor).sum() / weights.sum())
+
+
+def value_added_transfers(
+    year: int, value_added: pd.Series, value_added_2017: float, output_2017: float
+) -> pd.Series:
+    """The change in each industry's value added for the balance, $M. Sums to zero.
+
+    *value_added* is the year's value added by detail industry before the
+    transfer. *value_added_2017* and *output_2017* are BEA's all-electric totals.
+    """
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        fuel_costs,
+    )
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        eia_retail_revenue_usd,
+    )
+
+    codes = [code for code in ELECTRIC_INDUSTRIES if code in value_added.index]
+    transfers = pd.Series(0.0, index=value_added.index)
+    if int(year) == BASE_YEAR or int(year) not in CONTROLLED_YEARS:
+        return transfers
+    fuel = fuel_costs()[['coal', 'gas', 'oil']].sum(axis=1)
+    total = residual_total(
+        output_2017=output_2017,
+        value_added_2017=value_added_2017,
+        value_added=float(value_added[codes].sum()),
+        fuel_2017=float(fuel[BASE_YEAR]),
+        fuel=float(fuel[int(year)]),
+        retail_relative=retail_index(int(year)),
+        input_price_relative=input_price_relative(int(year)),
+        kwh_relative=retail_sales_mwh(int(year)) / retail_sales_mwh(BASE_YEAR),
+    )
+    transfers[codes] = -split_across_columns(total, value_added[codes])
+    shares = buyer_shares(
+        _bills_2017(),
+        eia_retail_revenue_usd(BASE_YEAR, 'Commercial') / 1e6,
+        eia_retail_revenue_usd(BASE_YEAR, 'Industrial') / 1e6,
+    )
+    transfers[shares.index] = shares * total
+    return transfers
 
 
 def split_residual(
-    use: pd.DataFrame, supply: pd.DataFrame, delta: pd.Series
+    use: pd.DataFrame, supply: pd.DataFrame, purchases: pd.Series
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """The balanced Use and Supply tables with the residual pair added, $M.
+    """The balanced tables with the residual pair added, $M.
 
-    The new tables keep the row and column order and add the pair at the end of
-    the commodity rows and industry columns. Raises rather than returning a table
-    that breaks an identity.
+    *purchases* is what each buyer pays for the residual, the positive part of
+    :func:`value_added_transfers`. The balance holds that amount in each buyer's
+    surplus. Here it moves to the residual row, and the same total becomes the
+    residual industry's output and value added. Raises rather than returning
+    tables that break an identity.
     """
-    if bool((delta < 0).any()):
-        raise ValueError(f'a negative residual: {delta[delta < 0].to_dict()}')
-    total = float(delta.sum())
-    buyers = _intermediate_buyers(use, supply)
-    bills = _row(use, ELECTRICITY)[buyers]
-    if total > float(bills.sum()):
-        raise ValueError(
-            f'residual of {total:,.0f} exceeds intermediate electricity purchases '
-            f'of {float(bills.sum()):,.0f}'
-        )
-    moved = bills * (total / float(bills.sum()))
-
+    if bool((purchases < 0).any()):
+        raise ValueError('a negative purchase of the residual')
+    total = float(purchases.sum())
     industries = [c for c in use.columns if c in supply.columns]
     commodities = [r for r in use.index if r in supply.index]
 
     new_use = _add_pair(use, commodities, industries)
-    new_use.loc[ELECTRICITY, buyers] = bills - moved
-    new_use.loc[RESIDUAL_CODE, buyers] = moved
     surplus = _row(use, SURPLUS_ROW)
-    for code in delta.index:
-        new_use.loc[SURPLUS_ROW, code] = float(surplus[code]) - float(delta[code])
+    for code in purchases.index:
+        new_use.loc[RESIDUAL_CODE, code] = float(purchases[code])
+        new_use.loc[SURPLUS_ROW, code] = float(surplus[code]) - float(purchases[code])
     new_use.loc[SURPLUS_ROW, RESIDUAL_CODE] = total
 
     new_supply = _add_pair(supply, commodities, industries)
-    electricity = _row(supply, ELECTRICITY)
-    for code in delta.index:
-        new_supply.loc[ELECTRICITY, code] = float(electricity[code]) - float(
-            delta[code]
-        )
     new_supply.loc[RESIDUAL_CODE, RESIDUAL_CODE] = total
 
-    _check_identities(use, supply, new_use, new_supply, delta, buyers)
+    _check_identities(use, new_use, new_supply, purchases)
     return new_use, new_supply
 
 
@@ -165,121 +270,40 @@ def _add_pair(
 
 def _check_identities(
     use: pd.DataFrame,
-    supply: pd.DataFrame,
     new_use: pd.DataFrame,
     new_supply: pd.DataFrame,
-    delta: pd.Series,
-    buyers: list[str],
+    purchases: pd.Series,
 ) -> None:
-    """Every column and row total, and that nothing else moved."""
+    """Column totals, the pair's balance, and that nothing else moved."""
     failures: list[str] = []
-    total = float(delta.sum())
+    total = float(purchases.sum())
 
-    change = new_use.drop(index=RESIDUAL_CODE, columns=RESIDUAL_CODE) - use.reindex(
-        index=new_use.index.drop(RESIDUAL_CODE),
-        columns=new_use.columns.drop(RESIDUAL_CODE),
-    ).astype(float)
+    kept = new_use.drop(index=RESIDUAL_CODE, columns=RESIDUAL_CODE)
+    change = kept - use.reindex(index=kept.index, columns=kept.columns).astype(float)
     allowed = pd.DataFrame(False, index=change.index, columns=change.columns)
-    allowed.loc[[ELECTRICITY], buyers] = True
-    allowed.loc[[SURPLUS_ROW], list(delta.index)] = True
-    outside = change.where(~allowed, 0.0).abs().to_numpy().max()
+    allowed.loc[[SURPLUS_ROW], list(purchases.index)] = True
+    outside = float(change.where(~allowed, 0.0).abs().to_numpy().max())
     if outside > TOLERANCE_USD_M:
         failures.append(f'a Use cell outside the change moved by {outside:,.6f}')
 
-    buyer_change = (new_use[buyers].sum() - use[buyers].astype(float).sum()).abs().max()
-    if buyer_change > TOLERANCE_USD_M:
-        failures.append(f"a buyer's column total moved by {buyer_change:,.6f}")
+    buyers = list(purchases.index)
+    moved = float((new_use[buyers].sum() - use[buyers].astype(float).sum()).abs().max())
+    if moved > TOLERANCE_USD_M:
+        failures.append(f"a buyer's column total moved by {moved:,.6f}")
 
-    row_change = float(new_use.loc[RESIDUAL_CODE].sum())
-    if abs(row_change - total) > TOLERANCE_USD_M:
-        failures.append(f'the residual row sums to {row_change:,.3f}, not {total:,.3f}')
+    for name, value in {
+        'the residual row': float(_row(new_use, RESIDUAL_CODE).sum()),
+        'the residual column': float(new_use[RESIDUAL_CODE].sum()),
+        'residual supply': float(new_supply[RESIDUAL_CODE].sum()),
+    }.items():
+        if abs(value - total) > TOLERANCE_USD_M:
+            failures.append(f'{name} sums to {value:,.3f}, not {total:,.3f}')
 
-    value_added = float(new_use.loc[SURPLUS_ROW].sum())
-    if abs(value_added - float(use.loc[SURPLUS_ROW].astype(float).sum())) > (
-        TOLERANCE_USD_M
-    ):
-        failures.append('total value added moved')
-
-    for code in delta.index:
-        amount = float(delta[code])
-        fall = float(use[code].astype(float).sum()) - float(new_use[code].sum())
-        if abs(fall - amount) > TOLERANCE_USD_M:
-            failures.append(
-                f'{code} column total fell by {fall:,.3f}, not {amount:,.3f}'
-            )
-        supplied = float(supply[code].astype(float).sum())
-        if abs(supplied - float(new_supply[code].sum()) - amount) > TOLERANCE_USD_M:
-            failures.append(f'{code} supply did not fall by {amount:,.3f}')
+    surplus_change = float(_row(new_use, SURPLUS_ROW).sum()) - float(
+        _row(use, SURPLUS_ROW).sum()
+    )
+    if abs(surplus_change) > TOLERANCE_USD_M:
+        failures.append(f'total value added moved by {surplus_change:,.6f}')
 
     if failures:
         raise ValueError('; '.join(failures))
-
-
-def _load(name: str, year: int, vintage: str) -> pd.DataFrame:
-    frame = pd.read_parquet(OUTPUT_DATA / f'{name}_{year}_{vintage}.parquet')
-    frame = frame.astype(float)
-    frame.index = pd.Index([str(i).strip() for i in frame.index])
-    frame.columns = pd.Index([str(c).strip() for c in frame.columns])
-    return frame
-
-
-def report(vintage: str) -> pd.DataFrame:
-    """Per year: the residual, what moved, and real output against kWh, on *vintage*."""
-    panel = detail_gross_output_panel(ec_adjusted=False)
-    rows: dict[int, dict[str, float]] = {}
-    for year in CONTROLLED_YEARS:
-        if year == BASE_YEAR:
-            continue
-        delta = residual_amounts(panel, year)
-        use = _load('Balanced_Detail_Use_SUT', year, vintage)
-        supply = _load('Balanced_Detail_Supply', year, vintage)
-        new_use, new_supply = split_residual(use, supply, delta)
-
-        codes = list(ELECTRIC_INDUSTRIES)
-        old = float(_row(use, SURPLUS_ROW)[codes].sum())
-        new_output = float(new_supply[codes].sum().sum())
-        base = _load('Balanced_Detail_Supply', BASE_YEAR, vintage)
-        base_output = float(base[codes].sum().sum())
-        price = retail_price_index(year) / retail_price_index(BASE_YEAR)
-        kwh = retail_sales_mwh(year) / retail_sales_mwh(BASE_YEAR)
-
-        output = float(supply[codes].sum().sum())
-        intermediate = _intermediate_buyers(use, supply)
-        bills = float(_row(use, ELECTRICITY)[intermediate].sum())
-        rows[year] = {
-            **{f'delta {code}, $bn': float(delta[code]) / 1e3 for code in codes},
-            'residual, $bn': float(delta.sum()) / 1e3,
-            'share of intermediate electricity, %': 100 * float(delta.sum()) / bills,
-            'electric surplus before, $bn': old / 1e3,
-            'electric surplus after, $bn': float(
-                _row(new_use, SURPLUS_ROW)[codes].sum()
-            )
-            / 1e3,
-            **{
-                f'surplus after {code}, $bn': float(_row(new_use, SURPLUS_ROW)[code])
-                / 1e3
-                for code in codes
-            },
-            'real output on EIA price, 2017 = 1': new_output / base_output / price,
-            'kWh, 2017 = 1': kwh,
-            'intermediate buyers, electricity emissions': (
-                (bills - float(delta.sum())) / bills / (new_output / output)
-            ),
-            'other electricity buyers, emissions': output / new_output,
-        }
-    return pd.DataFrame(rows)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split('\n', maxsplit=1)[0])
-    parser.add_argument('--check', action='store_true', help='run every year')
-    parser.add_argument('--vintage', default='v1.0.0_5514c3b')
-    args = parser.parse_args()
-    pd.set_option('display.width', 200)
-    print(report(args.vintage).round(3).to_string())
-    print('\nOK: every identity held in every year')
-    return 0
-
-
-if __name__ == '__main__':
-    raise SystemExit(main())
