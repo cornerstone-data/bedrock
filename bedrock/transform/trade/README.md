@@ -22,8 +22,8 @@ Exports and imports share one Census goods Crosswalk. IEA uses two files because
 
 | IEA `TypeOfService` | Exports (`BEA_IEA_exports`) | Imports (`BEA_IEA_imports`) | Why they differ |
 | --- | --- | --- | --- |
-| `Financial` | 1:m → `52A000`, `522A00`, `523A00`, `523900`; split by published 2017 `F04000` | *unmapped* | Parent total (~$38 B imports) has no SUT `MCIF` home; mapping it dumps mass onto `52A000` (5.7× SUT). |
-| `FinFisim` | *unmapped* (included in parent `Financial`) | 1:1 → `52A000` | FISIM imports (~$6.6 B) match published `52A000` `MCIF`. |
+| `Financial` | *unmapped* (children mapped, #658) | *unmapped* | Parent total (~$38 B imports) has no SUT `MCIF` home; mapping it dumps mass onto `52A000` (5.7× SUT). |
+| `FinFisim` | → `52A000`, `522A00` (banking, #658) | 1:1 → `52A000` | FISIM imports (~$6.6 B) match published `52A000` `MCIF`. |
 | `CipLicensesOutcomesResearchAndDev` | → `533000` (F040-weighted family) | → **`S00300`** | Intangible licensing imports; `533000` `MCIF` is zero ([#606](https://github.com/cornerstone-data/bedrock/issues/606)). |
 | `CipLicensesFranchiseFees` / `CipLicensesTrademarks` | → `533000` | → **`S00300`** | Same noncomparable-imports bucket on `MCIF`. |
 | `TransportSeaFreight` | → `483000` | → **`S00300`** | Foreign vessel services consumed abroad; `483000` `MCIF` is zero ([#606](https://github.com/cornerstone-data/bedrock/issues/606)). |
@@ -36,12 +36,12 @@ Exports and imports share one Census goods Crosswalk. IEA uses two files because
 | `ConstExpend` / `ConstAbroadUs` | *unmapped* | → **`S00300`** | Construction abroad (~$2 B); type‑1. |
 | `FinCredCardOthCredRelated` | *unmapped* | *unmapped* | Explicit credit services; `522A00` `MCIF` is zero in SUT. |
 | `FinSecBrokAndMM` | *unmapped* | *unmapped* | Explicit brokerage; `523A00` `MCIF` is ~$57 M in SUT vs ~$4.8 B in IEA. |
-| `FinUwAndPP` | *unmapped* | *unmapped* | Explicit underwriting; no SUT `MCIF` cell. |
-| `FinSecLendEftOth` | *unmapped* | *unmapped* | Securities lending / EFT; no SUT `MCIF` cell. |
-| `FinFinMan` | *unmapped* | *unmapped* | Financial management; `523900` `MCIF` is zero in SUT. |
-| `FinAdvCust` | *unmapped* | *unmapped* | Advisory / custody; `523900` `MCIF` is zero in SUT. |
+| `FinUwAndPP` | → `523A00` (#658) | *unmapped* | Explicit underwriting; no SUT `MCIF` cell. |
+| `FinSecLendEftOth` | → `52A000`, `522A00` (banking, #658) | *unmapped* | Securities lending / EFT; no SUT `MCIF` cell. |
+| `FinFinMan` | → `523900` (#658) | *unmapped* | Financial management; `523900` `MCIF` is zero in SUT. |
+| `FinAdvCust` | → `523900` (#658) | *unmapped* | Advisory / custody; `523900` `MCIF` is zero in SUT. |
 
-**Export financial rule:** map parent `Financial` only; the proportional split uses published 2017 `F04000` weights among the four Detail codes. **Import financial rule:** map `FinFisim` → `52A000` only (direct 1:1; no proportional step).
+**Export financial rule (#658):** map the `Fin*` leaves, not the parent. Securities (`523A00`, `523900`) move with brokerage and market making, underwriting, financial management and advisory and custody; banking (`52A000`, `522A00`) with credit card and credit-related fees, FISIM and securities lending / EFT / other. Graded on the published summary rows over 2018–2024, that split reproduces `523` and `521CI` exports within 0.06% mean absolute error, against 8.6% and 7.5% when all four rows moved with the parent; the 2017 ITA sums also match the published rows ($71.8 B vs $71.9 B, $59.9 B vs $60.0 B). **Import financial rule:** map `FinFisim` → `52A000` only (direct 1:1; no proportional step).
 
 When adding a new IEA row, update **both** files unless the classification argument is direction-specific (financial services, `#606` / `S00300` imports).
 
@@ -126,5 +126,5 @@ Candidates to revisit. Trigger is a classification or source argument, not a 201
 - **Transport port services (exports)** -- imports already map `TransportAirPort` / `TransportSeaPort` → `S00300`. Export-side rows wait for a support-activities Detail code (no `488000` in 2017 commodities) or a written rule that port is the mode commodity (`481000` / `483000`).
 - **Family consolidation.** Both directions fold Census activities onto a parent before attribution so the 1:m weight, not Census's own within-family split, decides where mass lands. Imports fold **every** four-digit family with more than one published leaf (`consolidate_import_activities_fba`, 48 families, 165 generated crosswalk rows carrying `Note = FAMILY_PARENT`, written by `bedrock.utils.mapping.write_census_family_parents`) — **only where Census's family total is within 25% of BEA's**, because a family whose level is wrong would spread one leaf's level error over siblings that were fine; the 13 excluded families are #670's; exports fold vehicles and aerospace only (`consolidate_export_activities_fba`). ⚠️ `duties.map_census_import_flow_to_detail` applies the **same** import consolidation — the duty rate is a ratio of two mapped Census flows multiplying the FBS's own mass, so folding on one side only builds the rate on one commodity axis and applies it to another.
 - **1:m weights** -- exports: published 2017 Use `F04000`; imports: frozen 2017 Supply `MCIF` until total uses exist ([#729](https://github.com/cornerstone-data/bedrock/issues/729)). ⚠️ #729’s same-year `T007` was **withdrawn** on the export side in #701: a supply weight answers "who produced it" and an export split needs "who exported it", which differ by a factor of eight inside aerospace. Graded on the benchmark panel, same-year `T007` puts 13.7% (2007→2012) and 20.9% (2012→2017) of family export dollars on the wrong leaf against the prior benchmark’s export mix at 3.2% and 4.7% — see `analysis/nowcasting/trade_data/export_split_weight.py`. Equal shares remain a README candidate only.
-- **Financial services** -- direction-specific Crosswalks (`BEA_IEA_exports` vs `BEA_IEA_imports`). Exports: parent `Financial` 1:m by published 2017 `F04000`. Imports: `FinFisim` → `52A000` only. Do not map parent `Financial` or explicit `Fin*` leaves onto `MCIF`.
+- **Financial services** -- direction-specific Crosswalks (`BEA_IEA_exports` vs `BEA_IEA_imports`). Exports: the `Fin*` leaves, securities and banking separately (#658; see the export financial rule above). Imports: `FinFisim` → `52A000` only. Do not map parent `Financial` or explicit `Fin*` leaves onto `MCIF`.
 - **Goods coverage** -- `11211X` / `31181X` and other Census residuals are kept in the FBA and mapped (see Residual / specials). `311824` maps to `3118A0` per BEA's NAICS-to-Detail crosswalk (dry pasta/dough/flour mixes, not bakery). `980000` (low-value shipments) stays omitted; no Detail sector.
