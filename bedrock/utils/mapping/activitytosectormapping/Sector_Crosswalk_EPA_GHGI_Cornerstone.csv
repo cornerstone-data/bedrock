@@ -100,7 +100,7 @@ EPA_GHGI_Cornerstone,Ethylene,NAICS_2017_Code,325110,,,EPA_GHGI_T_4_55
 EPA_GHGI_Cornerstone,Ethylene Dichloride,NAICS_2017_Code,325199,,,EPA_GHGI_T_4_55
 EPA_GHGI_Cornerstone,Ethylene Oxide,NAICS_2017_Code,325199,,,EPA_GHGI_T_4_55
 EPA_GHGI_Cornerstone,Methanol,NAICS_2017_Code,325199,,,EPA_GHGI_T_4_55
-EPA_GHGI_Cornerstone,Industry Industrial Coking Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),EPA_GHGI_T_3_22
+EPA_GHGI_Cornerstone,Industry Industrial Coking Coal,NAICS_2017_Code,3311,,331110 coke-oven by-products (coal tar and light oil); was 212210 iron ore mining (#1200),EPA_GHGI_T_3_22
 EPA_GHGI_Cornerstone,Industry Industrial Other Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),EPA_GHGI_T_3_22
 EPA_GHGI_Cornerstone,Industry Petroleum Products Non-energy,NAICS_2017_Code,31,,"31, 32, 33",EPA_GHGI_T_3_22
 EPA_GHGI_Cornerstone,Industry Petroleum Products Non-energy,NAICS_2017_Code,324110,,,EPA_GHGI_T_3_22
