@@ -11,7 +11,7 @@ import pytest
 
 from bedrock.extract.disaggregation import egrid_generation
 from bedrock.transform.iot import eia_utility_go_adjustment as ug
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 
 #: 2017 electric gross output totals 500 in the synthetic panel, so a retail
 #: revenue of 400 leaves a wholesale wedge of 100 that splits 80/10/10.
@@ -36,7 +36,13 @@ def _panel() -> pd.DataFrame:
 
 @pytest.fixture(autouse=True)
 def _stub_eia(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Retail doubles by 2022, wholesale halves; both are 1.0 at the base year."""
+    """Retail doubles by 2022, wholesale halves; both are 1.0 at the base year.
+
+    On the two-leg basis unless a test asks for ``_retail_basis``.
+    """
+    monkeypatch.setattr(
+        get_usa_config(), 'electric_output_on_retail_revenue', False, raising=True
+    )
     monkeypatch.setattr(
         egrid_generation, 'eia_retail_revenue_usd', lambda year: RETAIL_USD_2017
     )
@@ -170,7 +176,7 @@ def _retail_basis(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_two_legs_and_one_industry_stay_the_default() -> None:
-    assert get_usa_config().electric_output_on_retail_revenue is False
+    assert USAConfig.model_fields['electric_output_on_retail_revenue'].default is False
     assert ug.controlled_industries() == ug.CONTROLLED
 
 

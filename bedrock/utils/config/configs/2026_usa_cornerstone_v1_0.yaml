@@ -2,7 +2,7 @@
 #
 # Unsuffixed family release for calendar year 2024. Same resolved fields as
 # 2026_usa_cornerstone_v1_0_2024 (the series member). Detail MUT is the
-# after-redefinition build named by nowcast_mut_vintage: v1.0.0_5514c3b, the
+# after-redefinition build named by nowcast_mut_vintage: v1.0.0_b17908f, the
 # 2017-2024 rebuild on the 2026 BEA annual update. bea_price_index_vintage
 # 2026Q2 is the index those tables were built with. The GHG loader returns
 # GHG_national_Cornerstone_2024. cornerstone_ghg_fbs_filename names the GCS
@@ -20,7 +20,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v1.0.0_5514c3b'
+nowcast_mut_vintage: 'v1.0.0_b17908f'
 usa_base_io_data_year: 2024
 usa_ghg_data_year: 2024
 bea_price_index_vintage: '2026Q2'
@@ -28,8 +28,15 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v1.0.0_79273ed.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v1.0.0_edf6e0e.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
 cornerstone_industry_avg_margins: True
+# Electric power on EIA retail revenue and the electricity accounting residual.
+# nowcast_mut_vintage above was built with all five on.
+electric_output_on_retail_revenue: True
+electricity_accounting_residual: True
+carry_power_petroleum_on_price: True
+reprice_oil_gas_extraction_seed: True
+hold_electric_gas_on_eia: True
