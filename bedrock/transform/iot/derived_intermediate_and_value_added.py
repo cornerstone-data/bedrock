@@ -115,9 +115,33 @@ def detail_value_added_panel() -> pd.DataFrame:
     return allocate_underlying_to_detail(
         group_values,
         anchor=value_added_anchor(),
-        gross_output=detail_gross_output_panel(),
+        gross_output=_value_added_weights_output(),
         mapping=UNDERLYING_LINE_TO_BEA_2017_INDUSTRY_MAPPING,
     )
+
+
+def _value_added_weights_output() -> pd.DataFrame:
+    """The gross output that shares out each underlying value-added line.
+
+    ⚠️ With ``electric_output_on_retail_revenue`` on, the government utilities
+    keep BEA's output here. They share lines with the postal service and other
+    enterprises, and rebased output would move value added onto those neighbours
+    (postal service +$2.5bn in 2021) with nothing behind it.
+    """
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    panel = detail_gross_output_panel()
+    if not get_usa_config().electric_output_on_retail_revenue:
+        return panel
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        GOVERNMENT_ELECTRIC,
+    )
+
+    published = detail_gross_output_panel(ec_adjusted=False)
+    weights = panel.copy()
+    codes = [code for code in GOVERNMENT_ELECTRIC if code in weights.index]
+    weights.loc[codes, :] = published.loc[codes, weights.columns]
+    return weights
 
 
 @functools.cache

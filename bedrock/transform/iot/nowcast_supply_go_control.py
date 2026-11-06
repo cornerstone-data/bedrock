@@ -198,6 +198,12 @@ def released_groups() -> frozenset[str]:
     is the summary parent of every industry in
     :data:`~bedrock.transform.iot.eia_utility_go_adjustment.CONTROLLED`.
 
+    ⚠️ **The government utilities do not release their groups**, even with
+    ``electric_output_on_retail_revenue`` on. A release re-levels every member,
+    which moved water, other state and local enterprises and the retail rows on
+    nothing observed, far enough to break the margin check on group 445. See
+    :func:`_set_government_electric_columns`.
+
     ⚠️ **Why a level change has to release the row, and not only the share.**
     :func:`fit_block` normally renormalises the GO target to the group's own
     block total (``want * total / want.sum()``), so only *shares within* the
@@ -333,6 +339,68 @@ def gross_output_at_basic(year: int, wedge: 'pd.Series[float]') -> 'pd.Series[fl
     return output.astype(float) * MILLION_CURRENCY_TO_CURRENCY - wedge.reindex(
         output.index
     ).fillna(0.0)
+
+
+def _government_electric_on_retail() -> tuple[str, ...]:
+    """The government utilities when their output is on retail revenue, or empty."""
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        GOVERNMENT_ELECTRIC,
+    )
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    if get_usa_config().electric_output_on_retail_revenue:
+        return GOVERNMENT_ELECTRIC
+    return ()
+
+
+def _fit_targets(
+    year: int, targets: 'pd.Series[float]', wedge: 'pd.Series[float]'
+) -> 'pd.Series[float]':
+    """*targets* with the government utilities on BEA's output, for :func:`fit_block`.
+
+    Their groups are held, so a held fit takes shares within the group: a lower
+    target would hand the cut to the postal service and the other enterprises.
+    Their groups fit as they do on BEA's output, and
+    :func:`_set_government_electric_columns` then applies the change.
+    """
+    codes = _government_electric_on_retail()
+    if not codes:
+        return targets
+    published = detail_gross_output_panel(ec_adjusted=False)[int(year)]
+    out = targets.copy()
+    for code in codes:
+        out[code] = float(published[code]) * MILLION_CURRENCY_TO_CURRENCY - float(
+            wedge.get(code, 0.0)
+        )
+    return out
+
+
+def _set_government_electric_columns(
+    fitted: pd.DataFrame, targets: 'pd.Series[float]'
+) -> pd.DataFrame:
+    """Put the government utilities on their targets through the electricity cell.
+
+    Only the electricity row moves. Their other commodities and every other
+    industry in their groups keep the held fit.
+    """
+    codes = _government_electric_on_retail()
+    if not codes:
+        return fitted
+    from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+        ELECTRICITY_COMMODITY,
+    )
+
+    out = fitted.copy()
+    for code in codes:
+        cell = float(np.asarray(out.at[ELECTRICITY_COMMODITY, code], dtype=float))
+        change = float(targets[code]) - float(out[code].sum())
+        if cell + change < 0:
+            raise ValueError(
+                f'{code}: the output target needs {change:,.0f} USD from an '
+                f'electricity cell of {cell:,.0f} USD'
+            )
+        out.at[ELECTRICITY_COMMODITY, code] = cell + change
+    return out
 
 
 def fit_group(
@@ -572,7 +640,9 @@ def go_controlled_supply_block(
     wedge = _wedge(year, block)
     fitted, moved = block, float('inf')
     for _ in range(WEDGE_PASSES):
-        fitted, _diagnostics = fit_block(block, gross_output_at_basic(year, wedge))
+        targets = gross_output_at_basic(year, wedge)
+        fitted, _diagnostics = fit_block(block, _fit_targets(year, targets, wedge))
+        fitted = _set_government_electric_columns(fitted, targets)
         settled = _wedge(year, fitted)
         moved = float((settled - wedge).abs().max())
         wedge = settled
@@ -592,7 +662,8 @@ def group_diagnostics(year: int, download_sources_ok: bool = False) -> pd.DataFr
     """Per-summary-group convergence and movement, for the report and tests."""
     block = raw_supply_block(int(year), download_sources_ok)
     wedge = _wedge(year, go_controlled_supply_block(int(year), download_sources_ok))
-    _fitted, diagnostics = fit_block(block, gross_output_at_basic(year, wedge))
+    targets = _fit_targets(year, gross_output_at_basic(year, wedge), wedge)
+    _fitted, diagnostics = fit_block(block, targets)
     return diagnostics
 
 

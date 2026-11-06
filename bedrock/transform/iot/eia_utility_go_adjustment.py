@@ -241,6 +241,20 @@ HELD_OUT = {
 CONTROLLED = ('221100',)
 
 
+def controlled_industries() -> tuple[str, ...]:
+    """The industries rebased under the active config.
+
+    :data:`CONTROLLED`, or all of :data:`ELECTRIC_INDUSTRIES` with
+    ``electric_output_on_retail_revenue`` on. One retail index has no wedge to
+    split by ownership, which is what held the government utilities out.
+    """
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    if get_usa_config().electric_output_on_retail_revenue:
+        return ELECTRIC_INDUSTRIES
+    return CONTROLLED
+
+
 def _cell(panel: pd.DataFrame, industry: str, year: int) -> float:
     """One panel cell as a float; ``.at`` on a mixed-dtype frame is a union."""
     return float(np.asarray(panel.at[industry, year]).item())
@@ -329,8 +343,28 @@ def two_leg_gross_output(panel: pd.DataFrame, year: int) -> pd.Series:
     )
 
 
+def retail_gross_output(panel: pd.DataFrame, year: int) -> pd.Series:
+    """Electric gross output in *year* with every industry on retail revenue, $M.
+
+    Each :data:`BASE_YEAR` value times :func:`retail_index`. Divided by
+    :func:`retail_price_index`, the total is the base year's output times kWh
+    sold, so real output follows physical sales by construction. ⚠️ The base
+    year's level is kept, including the output above retail revenue that the
+    benchmark Use table sells to ordinary buyers.
+    """
+    if int(year) not in CONTROLLED_YEARS:
+        raise ValueError(
+            f'{year} is outside the controlled span {CONTROLLED_YEARS[0]}-'
+            f'{CONTROLLED_YEARS[-1]}'
+        )
+    codes = _electric_industries_in(panel)
+    if not codes:
+        raise KeyError(f'none of {ELECTRIC_INDUSTRIES} is in the gross-output panel')
+    return panel.loc[codes, BASE_YEAR].astype(float) * retail_index(int(year))
+
+
 def apply_eia_utility_adjustment(raw: pd.DataFrame) -> pd.DataFrame:
-    """The gross-output panel with :data:`CONTROLLED` rows rebased on EIA.
+    """The gross-output panel with :func:`controlled_industries` rebased on EIA.
 
     ``raw`` is industries x years in million USD; a new frame is returned and
     the argument is not mutated. Rows outside :data:`CONTROLLED` and years
@@ -345,12 +379,14 @@ def apply_eia_utility_adjustment(raw: pd.DataFrame) -> pd.DataFrame:
     the same industry, not in a sibling.
     """
     adjusted = raw.copy()
-    codes = [code for code in CONTROLLED if code in raw.index]
+    controlled = controlled_industries()
+    codes = [code for code in controlled if code in raw.index]
     if not codes:
         return adjusted
+    rebase = two_leg_gross_output if controlled == CONTROLLED else retail_gross_output
     years = [year for year in CONTROLLED_YEARS if year in raw.columns]
     for year in years:
-        rebased = two_leg_gross_output(raw, year)
+        rebased = rebase(raw, year)
         for code in codes:
             adjusted.at[code, year] = float(rebased.at[code])
     return adjusted
@@ -473,7 +509,7 @@ def report(years: Iterable[int] = CONTROLLED_YEARS) -> pd.DataFrame:
                 continue
             row[f'{code}_raw'] = _cell(raw, code, int(year))
             row[f'{code}_two_leg'] = float(two_leg_gross_output(raw, year).loc[code])
-            row[f'{code}_controlled'] = code in CONTROLLED
+            row[f'{code}_controlled'] = code in controlled_industries()
         rows.append(row)
     return pd.DataFrame(rows).set_index('year')
 
@@ -504,15 +540,16 @@ def check() -> int:
     if base_gap > 1e-6:
         failures.append(f'{BASE_YEAR} moved by {base_gap:,.3f} $M; it must not')
 
-    uncontrolled = [code for code in raw.index if code not in CONTROLLED]
+    controlled = controlled_industries()
+    uncontrolled = [code for code in raw.index if code not in controlled]
     side_gap = (adjusted.loc[uncontrolled] - raw.loc[uncontrolled]).abs().max().max()
     if side_gap > 1e-6:
         failures.append(
             f'an uncontrolled industry moved by {side_gap:,.3f} $M; only '
-            f'{CONTROLLED} may change'
+            f'{controlled} may change'
         )
 
-    for code in CONTROLLED:
+    for code in controlled:
         if code not in adjusted.index:
             failures.append(f'{code} is controlled but absent from the panel')
             continue
@@ -522,7 +559,7 @@ def check() -> int:
             failures.append(f'{code} gross output goes non-positive ({worst:,.0f} $M)')
 
     for code in HELD_OUT:
-        if code in CONTROLLED:
+        if code in CONTROLLED:  # fixed list: the retail basis may add S00101, S00202
             failures.append(
                 f'{code} is in HELD_OUT and must not be controlled: '
                 f'{HELD_OUT[code]}'
