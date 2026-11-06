@@ -202,6 +202,16 @@ class USAConfig(BaseModel):
     # publishes tables: Steps 6 and 7 do not read the pair yet. See
     # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
     electricity_accounting_residual: bool = False  # DRI: WesIngwersen
+    # Hold electric power's total purchases of oil and gas extraction (211000)
+    # on BEA's 2017 total times EIA-923's gas bill relative to 2017, through the
+    # interior fit and GRAS. Column controls and the fixed gas row otherwise take
+    # it to $69bn in 2022 against EIA's $86bn, and $55-64bn with the oil and gas
+    # seed repriced. The total is held rather than each cell because BEA's 2017
+    # cells put 69% in S00202, which would exceed that column's inputs by 2022.
+    # Other buyers of the row give up the difference. OFF until the rebuild that
+    # bumps the 2024 balanced table pin. See
+    # nowcast_intermediate.electric_gas_cells.
+    hold_electric_gas_on_eia: bool = False  # DRI: WesIngwersen
     # Chain manufacturing detail gross output for 2023-24 on AIES receipts
     # instead of BEA's own annual movement. BEA's detail stops tracking census
     # after the 2022 Economic Census: measured against each industry's own 2017
