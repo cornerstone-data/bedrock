@@ -1281,3 +1281,109 @@ def prepare_facilities_mobile_combustion(
             'prepare_facilities_mobile_combustion requires clean_parameter.year'
         )
     return assign_lng_liquefaction_gas(fba, dict(clean_parameter))
+
+
+def calc_per_fuel_emissions(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """Convert NEU TBtu (Table 3-15) to MMT CO2 using Annex A3-5 factors.
+
+    ``clean_parameter`` keys: ``annex_fba`` (required), ``annex_year`` (optional,
+    default 2024). Formula: TBtu × coeff × (1 − fraction) × (44/12) / 1000.
+    """
+    params = fba.config.get('clean_parameter') or {}
+    annex_name = params.get('annex_fba')
+    if not annex_name:
+        raise ValueError('calc_per_fuel_emissions requires clean_parameter.annex_fba')
+    annex_year = int(params.get('annex_year', 2024))
+
+    annex = load_fba_w_standardized_units(
+        datasource=str(annex_name),
+        year=annex_year,
+        download_FBA_if_missing=True,
+    )
+    flow = annex['FlowName'].astype(str)
+    coeff = annex.loc[flow.str.startswith('Carbon Coefficient')]
+    frac = annex.loc[flow.str.startswith('Fraction Sequestered')]
+    if coeff.empty:
+        raise ValueError(f'No Carbon Coefficient rows in {annex_name} {annex_year}')
+
+    # A3-5 "Natural Gas" matches 3-15 "Natural Gas to Chemical Plants".
+    annex_fuel = (
+        coeff['ActivityProducedBy']
+        .astype(str)
+        .replace({'Natural Gas': 'Natural Gas to Chemical Plants'})
+    )
+    coeff_map = {
+        k: float(v)
+        for k, v in zip(annex_fuel, coeff['FlowAmount'], strict=False)
+        if pd.notna(v)
+    }
+    frac_fuel = (
+        frac['ActivityProducedBy']
+        .astype(str)
+        .replace({'Natural Gas': 'Natural Gas to Chemical Plants'})
+    )
+    frac_map = {
+        k: float(v)
+        for k, v in zip(frac_fuel, frac['FlowAmount'], strict=False)
+        if pd.notna(v)
+    }
+
+    attributes_to_save = {
+        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
+    }
+    out = fba.copy()
+    # Consumption parse parks fuels on ActivityConsumedBy.
+    if (out['ActivityProducedBy'].astype(str) == 'None').any() and (
+        out['ActivityConsumedBy'].astype(str) != 'None'
+    ).any():
+        out['ActivityProducedBy'] = out['ActivityConsumedBy']
+        out['ActivityConsumedBy'] = 'None'
+
+    apb = out['ActivityProducedBy'].astype(str)
+    drop = (
+        apb.str.contains('All activities', regex=False)
+        | apb.str.startswith('Total')
+        | apb.str.contains('U.S. Territories', regex=False)
+        | apb.str.contains('Note:', regex=False)
+    )
+    out = out.loc[~drop].copy()
+    apb = apb.loc[~drop]
+
+    sector = np.where(
+        apb.str.startswith('Industry '),
+        'Industry',
+        np.where(apb.str.startswith('Transportation '), 'Transportation', ''),
+    )
+    fuel = (
+        apb.str.removeprefix('Industry ')
+        .str.removeprefix('Transportation ')
+        .str.strip()
+    )
+    out['ActivityProducedBy'] = [
+        f'{sec} {fuel_name}'.strip() if sec else fuel_name
+        for sec, fuel_name in zip(sector, fuel, strict=False)
+    ]
+
+    coeffs = fuel.map(coeff_map)
+    fracs = fuel.map(frac_map).fillna(0.0)
+    tbtu = out['FlowAmount'].astype(float)
+    # Missing coefficient (e.g. Miscellaneous Products) → 0 emissions.
+    out['FlowAmount'] = np.where(
+        coeffs.isna(),
+        0.0,
+        tbtu * coeffs * (1.0 - fracs) * (44.0 / 12.0) / 1000.0,
+    )
+    out['FlowName'] = 'CO2'
+    out['Unit'] = 'MMT CO2e'
+    out['Class'] = 'Chemicals'
+    out['Compartment'] = 'air'
+    out['FlowType'] = 'ELEMENTARY_FLOW'
+
+    result = FlowByActivity(out.reset_index(drop=True))
+    for attr, value in attributes_to_save.items():
+        setattr(result, attr, value)
+    log.info(
+        f'calc_per_fuel_emissions: {len(result)} fuel rows from 3-15 × {annex_name} '
+        f'({annex_year}); total {float(result["FlowAmount"].sum()):.1f} MMT CO2'
+    )
+    return result
