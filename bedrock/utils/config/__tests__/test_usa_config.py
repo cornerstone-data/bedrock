@@ -422,7 +422,8 @@ def test_v0_6_matches_v0_5_9_transport() -> None:
 
 @pytest.mark.parametrize('year', range(2017, 2025))
 def test_v1_0_yearly_yamls_load(year: int) -> None:
-    """v1.0 year series: v0.6 methodology on retained-activity year FBS.
+    """v1.0 year series: v0.6 methodology on retained-activity year FBS, plus the
+    electricity flags its MUT was built with.
 
     Named ``2026_usa_cornerstone_v1_0_{year}``. Each member pins
     ``GHG_national_Cornerstone_{year}_v1.0.0_edf6e0e``. The unsuffixed
@@ -446,6 +447,14 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         f'GHG_national_Cornerstone_{year}_v1.0.0_edf6e0e.parquet'
     )
     assert cfg.nowcast_mut_vintage == 'v1.0.0_b17908f'
+    electricity_flags = {
+        'electric_output_on_retail_revenue',
+        'electricity_accounting_residual',
+        'carry_power_petroleum_on_price',
+        'reprice_oil_gas_extraction_seed',
+        'hold_electric_gas_on_eia',
+    }
+    assert all(getattr(cfg, flag) for flag in electricity_flags)
 
     exclude = {
         'model_base_year',
@@ -453,6 +462,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'usa_ghg_data_year',
         'cornerstone_ghg_fbs_filename',
         'nowcast_mut_vintage',
+        *electricity_flags,
     }
     assert cfg.model_dump(exclude=exclude) == release.model_dump(exclude=exclude)
 
