@@ -88,7 +88,6 @@ sources_to_cache:
       - Petroleum
 
 _attribution_sources:
-  # Nested EPA_GHGI_T_3_25 below is inventory, not UMD T_3_25 (petroleum-systems CH4).
   Energy_manufacturing_national_nowcast_2019: &mecs_energy_alloc
     data_format: FBS
     geoscale: national
@@ -886,7 +885,7 @@ source_names:
         - Methanol
     attribution_method: direct
 
-  UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via EPA T_3_25b
+  UMD_GHGIA_T_3_14: # UMD Table 3-14 totals; allocate via UMD 3-15 x A3-5
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: UMD_GHGIA_AR5_100
@@ -896,10 +895,14 @@ source_names:
           PrimaryActivity: Emissions NEU Fossil Fuel Consumption
         attribution_method: proportional
         attribution_source:
-          EPA_GHGI_T_3_25b:
-            year: *epa_ghgi_year
-            activity_to_sector_mapping: EPA_GHGI_Cornerstone
-            fedefl_mapping: GHGI_AR5_100
+          UMD_GHGIA_T_3_15:
+            year: *ghgi_year
+            activity_to_sector_mapping: UMD_GHGIA
+            fedefl_mapping: UMD_GHGIA_AR5_100
+            clean_fba_before_activity_sets: !script_function:UMD_GHGIA calc_per_fuel_emissions
+            clean_parameter:
+              annex_fba: UMD_GHGIA_T_A3_5
+              annex_year: 2024
             activity_sets:
               coal:
                 selection_fields:
@@ -928,8 +931,6 @@ source_names:
                 selection_fields:
                   PrimaryActivity:
                     Industry HGL: Industry Petroleum Products Non-energy
-                    # T_3_25b labels HGL 'LPG' (#1200)
-                    Industry LPG: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
                   Energy_manufacturing_national_nowcast_2019:
@@ -952,8 +953,6 @@ source_names:
                     Industry Still Gas: Industry Petroleum Products Non-energy
                     Industry Waxes: Industry Petroleum Products Non-energy
                     Industry Natural Gasoline: Industry Petroleum Products Non-energy
-                    # T_3_25b labels natural gasoline 'Pentanes Plus' (#1200)
-                    Industry Pentanes Plus: Industry Petroleum Products Non-energy
                 attribution_method: proportional
                 attribution_source:
                   Energy_manufacturing_national_nowcast_2019:

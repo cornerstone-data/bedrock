@@ -36,6 +36,8 @@ source_activity_1: ["3-4"]  # fuel listed first, sector nested. Append fuel afte
 source_activity_1_fuel: ["3-8", "3-9", "3-10"]  # fuel listed first, vehicle nested. Append vehicle after fuel.
 # Tables with sub categories
 source_activity_2: ["3-25", "3-26", "3-27", "3-28", "3-29", "3-30", "A5-5-2"]  # no nesting, cell A2 is blank, different from epa ghgi
+# Sector headers (Industry / Transportation / U.S. Territories) then fuel rows
+source_No_activity: ["3-15"]
 rows_as_flows: ["4-33", "4-35", "4-50", "4-52", "4-59"]
 
 # Optional table overrides
@@ -75,6 +77,12 @@ Tables:
     "3-14":
       flow: CO2
       desc: "Table 3-14: CO2 Emissions from NEU Fossil Fuel Consumption (MMT CO2 Eq. and Percent Carbon)"
+      data_reliability: 4
+    "3-15":
+      class: Energy
+      unit: TBtu
+      flow: Fossil Fuel
+      desc: "Table 3-15: Adjusted Consumption of Fossil Fuels for NEUs (TBtu)"
       data_reliability: 4
     "3-25":
       "flow": "CH4"
@@ -160,6 +168,16 @@ Tables:
       data_reliability: 4
 
 Annex:
+  "Annex 3":
+      "A3-5":
+        year: "2024"
+        class: Energy
+        unit: MMT Carbon/QBTU
+        compartment: air
+        flow: Carbon Coefficient
+        desc: "Table A3-5: 2024 Non-Energy Carbon Stored in Products"
+        data_reliability: 4
+
   "Annex 5":
       # A5.1-S1..S7 - annual Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type
       "A5-1-S1":
