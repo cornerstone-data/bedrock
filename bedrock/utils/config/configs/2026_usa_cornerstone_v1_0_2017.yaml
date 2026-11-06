@@ -27,7 +27,7 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2017_v1.0.0_79273ed.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2017_v1.0.0_edf6e0e.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
