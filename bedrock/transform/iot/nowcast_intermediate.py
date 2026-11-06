@@ -278,6 +278,11 @@ INDISPENSABLE_COMMODITIES = ('211000', '212100', '221100', '221200', '324110')
 #: :func:`commodity_price_factor`.
 ELECTRICITY_COMMODITY = '221100'
 
+#: Oil and gas extraction, and the electric columns whose purchases of it can be
+#: held on EIA-923; see :func:`electric_gas_cells`.
+GAS_COMMODITY = '211000'
+ELECTRIC_GAS_BUYERS = ('221100', 'S00101', 'S00202')
+
 #: The scrap row, which :data:`UNPRICED_COMMODITIES` leaves at a factor of 1.0.
 SCRAP_COMMODITY = 'S00401'
 
@@ -1314,16 +1319,92 @@ def pinned_electricity_buyers(year: int) -> list[str]:
     return []
 
 
+def pinned_gas_buyers() -> list[str]:
+    """Buyers whose ``211000`` cell is written in Step 3 and held after it.
+
+    The electric columns under ``hold_electric_gas_on_eia``; empty with it off.
+    """
+    if get_usa_config().hold_electric_gas_on_eia:
+        return list(ELECTRIC_GAS_BUYERS)
+    return []
+
+
+def allocate_electric_gas(
+    total: float,
+    base_cells: pd.Series,
+    room: pd.Series,
+) -> pd.Series:
+    """Split a held gas total across the electric columns, USD.
+
+    Government columns take their 2017 share, up to *room*. ``221100`` takes the
+    rest: the three merge into one Cornerstone industry, so the split between them
+    doesn't reach ``A``, and EIA-923 cannot say which ownership column burned what.
+    """
+    shares = base_cells / float(base_cells.sum())
+    cells = (shares * total).astype(float)
+    government = [c for c in cells.index if c != ELECTRICITY_COMMODITY]
+    cells[government] = cells[government].clip(upper=room[government].clip(lower=0.0))
+    cells[ELECTRICITY_COMMODITY] = total - float(cells[government].sum())
+    if float(cells[ELECTRICITY_COMMODITY]) > float(room[ELECTRICITY_COMMODITY]):
+        raise ValueError(
+            f'held gas of {total:,.0f} USD does not fit the electric columns: '
+            f'{ELECTRICITY_COMMODITY} takes {float(cells[ELECTRICITY_COMMODITY]):,.0f} '
+            f'with room for {float(room[ELECTRICITY_COMMODITY]):,.0f}'
+        )
+    return cells
+
+
+def electric_gas_cells(year: int, control: pd.Series) -> pd.Series:
+    """The electric columns' held ``211000`` cells in *year*, USD.
+
+    BEA's 2017 total times EIA-923's gas bill relative to 2017, so BEA's level and
+    EIA's movement. *control* is each column's intermediate total. *room* in a
+    government column is that total less its other inputs at 2017 cells x input
+    prices x kWh, the path the electricity accounting residual uses.
+    """
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        fuel_costs,
+    )
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        retail_sales_mwh,
+    )
+    from bedrock.transform.iot.electricity_accounting_residual import (  # noqa: PLC0415
+        input_price_relative,
+    )
+
+    _require_year(year)
+    benchmark = benchmark_intermediate()
+    buyers = list(ELECTRIC_GAS_BUYERS)
+    base_cells = pd.Series(benchmark.loc[GAS_COMMODITY], dtype=float)[buyers]
+    gas = fuel_costs()['gas']
+    total = float(base_cells.sum()) * float(gas[year]) / float(gas[SEED_YEAR])
+    if int(year) == SEED_YEAR:
+        return base_cells
+    other_2017 = benchmark[buyers].astype(float).sum(axis=0) - base_cells
+    volume = retail_sales_mwh(year) / retail_sales_mwh(SEED_YEAR)
+    floor = other_2017 * input_price_relative(year) * volume
+    room = control.reindex(buyers).astype(float) - floor
+    # The floor only keeps the smaller government columns from overflowing.
+    # 221100 takes the rest, up to its whole intermediate total.
+    room[ELECTRICITY_COMMODITY] = float(control[ELECTRICITY_COMMODITY])
+    return allocate_electric_gas(total, base_cells, room)
+
+
 def pin_electricity_cells(block: pd.DataFrame, year: int) -> pd.DataFrame:
-    """Write the held ``221100`` cells (:func:`pinned_electricity_buyers`)."""
+    """Write the held cells (:func:`pinned_electricity_buyers`, :func:`pinned_gas_buyers`)."""
     buyers = [j for j in pinned_electricity_buyers(year) if j in block.columns]
-    if not buyers or ELECTRICITY_COMMODITY not in block.index:
+    gas_buyers = pinned_gas_buyers()
+    if not buyers and not gas_buyers:
         return block
     out = block.copy()
-    if DATA_CENTER_BUYER in buyers:
+    if DATA_CENTER_BUYER in buyers and ELECTRICITY_COMMODITY in block.index:
         out.loc[ELECTRICITY_COMMODITY, DATA_CENTER_BUYER] = (
             data_center_electricity_cell(year)
         )
+    if gas_buyers:
+        cells = electric_gas_cells(year, block[gas_buyers].astype(float).sum(axis=0))
+        for buyer in gas_buyers:
+            out.loc[GAS_COMMODITY, buyer] = float(cells[buyer])
     return out
 
 
@@ -1418,6 +1499,7 @@ __all__ = [
     'data_center_electricity_index',
     'pin_electricity_cells',
     'pinned_electricity_buyers',
+    'pinned_gas_buyers',
     'carried_column_shares',
     'carry_shares',
     'commodity_deflator',

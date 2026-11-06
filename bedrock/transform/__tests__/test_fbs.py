@@ -9,6 +9,7 @@ from pandas.testing import assert_frame_equal
 
 from bedrock.transform.flowbysector import FlowBySector, getFlowBySector
 from bedrock.utils.config import settings
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
 from bedrock.utils.snapshots.fbs_pin import download_pinned_fbs, load_fbs_pin
 
 _SKIP_FBS_COMPARE_COLUMNS = ['ProducedBySectorType', 'ConsumedBySectorType']
@@ -59,8 +60,17 @@ def test_generate_cornerstone_ghg_fbs_matches_pinned_reference(
     pinned_path = download_pinned_fbs(pin, fbs_dir)
     fbs_reference = pd.read_parquet(pinned_path)
 
-    FlowBySector.generateFlowBySector(method, download_sources_ok=True)
-    fbs_regenerated = getFlowBySector(method)
+    # Regenerate under the config the pin was built with: its
+    # nowcast_mut_vintage decides which MUT the Use attribution reads.
+    if 'usa_config' in pin:
+        reset_usa_config(should_reset_env_var=True)
+        set_global_usa_config(pin['usa_config'])
+    try:
+        FlowBySector.generateFlowBySector(method, download_sources_ok=True)
+        fbs_regenerated = getFlowBySector(method)
+    finally:
+        if 'usa_config' in pin:
+            reset_usa_config(should_reset_env_var=True)
 
     assert 'ActivityProducedBy' in fbs_reference.columns
     assert 'ActivityProducedBy' in fbs_regenerated.columns

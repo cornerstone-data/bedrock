@@ -33,6 +33,8 @@ source_names:
     exclusion_fields:
       ActivityConsumedBy: '31-33'
     clean_fba_before_activity_sets:
+      # Suppressed feedstock cells from the other survey x GHGRP (#1200)
+      - !script_function:EIA_MECS fill_suppressed_mecs_feedstock_with_ghgrp
       - !script_function:EIA_MECS estimate_suppressed_mecs_energy
     activity_sets:
       table_3_1_coal:

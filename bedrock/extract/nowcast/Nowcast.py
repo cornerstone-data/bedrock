@@ -11,6 +11,7 @@ from bedrock.extract.iot.nowcast_mut_storage import (
     latest_nowcast_mut_vintage,
 )
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.mapping.location import US_FIPS
 
 # NowcastMUT stores USD; BEA Detail Use AfterRedef FBAs use million USD.
@@ -22,13 +23,16 @@ def nowcast_detail_use_after_redef_parse(
 ) -> pd.DataFrame:
     """Melt NowcastMUT after-redef Use into a BEA-shaped Money FBA.
 
-    Loads ``Nowcast_Detail_Use_after_redef_{year}`` at the newest GCS vintage
-    for that year (FBS regen runs outside USAConfig). Shape matches
-    ``bea_parse`` for ``BEA_Detail_Use_AfterRedef`` so GHG method exclusion
-    lists and proportional attribution keep working.
+    Loads ``Nowcast_Detail_Use_after_redef_{year}`` at the active config's
+    ``nowcast_mut_vintage``, and at the newest GCS vintage for that year only
+    when the config names none. Reading the newest upload unconditionally made
+    a regenerated GHG FBS depend on whichever MUT was uploaded last. Shape
+    matches ``bea_parse`` for ``BEA_Detail_Use_AfterRedef`` so GHG method
+    exclusion lists and proportional attribution keep working.
     """
     year_i = int(year)
-    vintage = latest_nowcast_mut_vintage(year=year_i, stage='after')
+    configured = (get_usa_config().nowcast_mut_vintage or '').strip()
+    vintage = configured or latest_nowcast_mut_vintage(year=year_i, stage='after')
     use = _load_stored_table('Use', vintage=vintage, year=year_i, stage='after')
 
     df = use.reset_index()

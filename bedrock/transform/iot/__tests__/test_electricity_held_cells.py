@@ -13,7 +13,7 @@ import pytest
 from bedrock.transform.iot import eia_utility_go_adjustment as eia
 from bedrock.transform.iot import nowcast_interior_fit as fi
 from bedrock.transform.iot import nowcast_intermediate as ni
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -22,7 +22,10 @@ ELEC = ni.ELECTRICITY_COMMODITY
 
 def _flag(monkeypatch: pytest.MonkeyPatch, data_centers: bool) -> None:
     config = get_usa_config().model_copy(
-        update={'move_data_processing_electricity_on_lbnl': data_centers}
+        update={
+            'move_data_processing_electricity_on_lbnl': data_centers,
+            'hold_electric_gas_on_eia': False,
+        }
     )
     monkeypatch.setattr(ni, 'get_usa_config', lambda: config)
 
@@ -107,3 +110,57 @@ def test_pin_writes_the_data_center_cell_only(
     assert out.at[ELEC, ni.DATA_CENTER_BUYER] == 7.0
     assert out.at[ELEC, '441000'] == 1.0
     assert out.at['other', ni.DATA_CENTER_BUYER] == 1.0
+
+
+# --- electric power's gas purchases ------------------------------------------
+
+
+def test_gas_hold_is_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert USAConfig.model_fields['hold_electric_gas_on_eia'].default is False
+    _flag(monkeypatch, False)
+    assert ni.pinned_gas_buyers() == []
+
+
+def test_government_columns_take_their_share_up_to_their_room() -> None:
+    base = pd.Series({'221100': 7.0, 'S00101': 2.0, 'S00202': 20.0})
+    room = pd.Series({'221100': 500.0, 'S00101': 100.0, 'S00202': 30.0})
+    cells = ni.allocate_electric_gas(58.0, base, room)
+    assert cells['S00101'] == pytest.approx(4.0)
+    assert cells['S00202'] == pytest.approx(30.0)  # 40 wanted, room for 30
+    assert cells['221100'] == pytest.approx(24.0)
+    assert float(cells.sum()) == pytest.approx(58.0)
+
+
+def test_negative_room_gives_a_government_column_no_gas() -> None:
+    base = pd.Series({'221100': 7.0, 'S00101': 2.0, 'S00202': 20.0})
+    room = pd.Series({'221100': 500.0, 'S00101': -5.0, 'S00202': 30.0})
+    cells = ni.allocate_electric_gas(29.0, base, room)
+    assert cells['S00101'] == 0.0
+    assert float(cells.sum()) == pytest.approx(29.0)
+
+
+def test_gas_that_does_not_fit_raises() -> None:
+    base = pd.Series({'221100': 7.0, 'S00101': 2.0, 'S00202': 20.0})
+    room = pd.Series({'221100': 1.0, 'S00101': 1.0, 'S00202': 1.0})
+    with pytest.raises(ValueError, match='does not fit'):
+        ni.allocate_electric_gas(58.0, base, room)
+
+
+def test_only_the_gas_cells_of_the_electric_columns_are_written(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _flag(monkeypatch, False)
+    buyers = list(ni.ELECTRIC_GAS_BUYERS)
+    monkeypatch.setattr(ni, 'pinned_gas_buyers', lambda: buyers)
+    monkeypatch.setattr(
+        ni,
+        'electric_gas_cells',
+        lambda year, control: pd.Series({'221100': 7.0, 'S00101': 8.0, 'S00202': 9.0}),
+    )
+    block = pd.DataFrame(
+        1.0, index=[ni.GAS_COMMODITY, 'other'], columns=[*buyers, '441000']
+    )
+    out = ni.pin_electricity_cells(block, 2022)
+    assert out.at[ni.GAS_COMMODITY, 'S00202'] == 9.0
+    assert out.at[ni.GAS_COMMODITY, '441000'] == 1.0
+    assert out.at['other', 'S00202'] == 1.0
