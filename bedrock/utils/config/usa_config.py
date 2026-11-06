@@ -180,6 +180,38 @@ class USAConfig(BaseModel):
     # grading already covered this arm: eia_band wins it too ($2.52bn weighted
     # EIA miss against $4.06bn), see About_1008_pce_electricity_pin.md.
     rebase_utility_gross_output_on_eia: bool = True  # DRI: WesIngwersen
+    # With the rebase above on, move all electric gross output (221100, S00101
+    # and S00202) on EIA retail revenue, and price it on EIA's average retail
+    # price (revenue over kWh), so real output follows kWh sold. BEA's series
+    # moves generation on sales for resale and distribution on retail revenue,
+    # which counts the wholesale cycle twice: 2017 to 2022 output rises $166.8bn
+    # against $94.9bn of retail revenue, although transmission plus distribution
+    # equals retail revenue less generation in 2017 ($256.4bn against $257.2bn).
+    # Output and price change together: retail output over BEA's price index
+    # would deepen the 2021 dip in real output, to 0.880 of 2017. BEA's value
+    # added stays pinned, so the lower output comes out of intermediate inputs.
+    # OFF until the nowcast rebuild that bumps the 2024 balanced table pin; on
+    # before that, a rebuild no longer reproduces the pinned tables. See
+    # bedrock/analysis/electricity/About_electricity_modeling_record.md.
+    electric_output_on_retail_revenue: bool = False  # DRI: WesIngwersen
+    # Second pathway for electric power; needs the flag above. Electric non-fuel
+    # inputs follow 2017 cells x input prices x EIA kWh, and what is left of BEA's
+    # electric value added moves to a residual commodity and industry (S00700)
+    # sold to commercial and industrial buyers. Keeps electric inputs from being
+    # squeezed by pinned value added. OFF, and not to be set in a build that
+    # publishes tables: Steps 6 and 7 do not read the pair yet. See
+    # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
+    electricity_accounting_residual: bool = False  # DRI: WesIngwersen
+    # Hold electric power's total purchases of oil and gas extraction (211000)
+    # on BEA's 2017 total times EIA-923's gas bill relative to 2017, through the
+    # interior fit and GRAS. Column controls and the fixed gas row otherwise take
+    # it to $69bn in 2022 against EIA's $86bn, and $55-64bn with the oil and gas
+    # seed repriced. The total is held rather than each cell because BEA's 2017
+    # cells put 69% in S00202, which would exceed that column's inputs by 2022.
+    # Other buyers of the row give up the difference. OFF until the rebuild that
+    # bumps the 2024 balanced table pin. See
+    # nowcast_intermediate.electric_gas_cells.
+    hold_electric_gas_on_eia: bool = False  # DRI: WesIngwersen
     # Chain manufacturing detail gross output for 2023-24 on AIES receipts
     # instead of BEA's own annual movement. BEA's detail stops tracking census
     # after the 2022 Economic Census: measured against each industry's own 2017
@@ -429,6 +461,26 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'At most one margins flag may be true; got: '
                 'useeio_margins, cornerstone_industry_avg_margins'
+            )
+        return self
+
+    @model_validator(mode='after')
+    def _validate_electric_output_basis(self) -> USAConfig:
+        if (
+            self.electric_output_on_retail_revenue
+            and not self.rebase_utility_gross_output_on_eia
+        ):
+            raise ValueError(
+                'electric_output_on_retail_revenue requires '
+                'rebase_utility_gross_output_on_eia'
+            )
+        if (
+            self.electricity_accounting_residual
+            and not self.electric_output_on_retail_revenue
+        ):
+            raise ValueError(
+                'electricity_accounting_residual requires '
+                'electric_output_on_retail_revenue'
             )
         return self
 

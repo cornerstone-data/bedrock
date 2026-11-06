@@ -11,6 +11,7 @@ import pytest
 
 from bedrock.extract.disaggregation import egrid_generation
 from bedrock.transform.iot import eia_utility_go_adjustment as ug
+from bedrock.utils.config.usa_config import get_usa_config
 
 #: 2017 electric gross output totals 500 in the synthetic panel, so a retail
 #: revenue of 400 leaves a wholesale wedge of 100 that splits 80/10/10.
@@ -156,3 +157,95 @@ def test_direct_use_is_excluded_from_the_sales_denominator() -> None:
     """Self-generated electricity is never sold, so it has no revenue behind it."""
     assert 'Direct Use' not in ug.RETAIL_SALES_CLASSES
     assert 'Total End Use' not in ug.RETAIL_SALES_CLASSES
+
+
+# --- all electric output on retail revenue ---------------------------------
+
+
+@pytest.fixture
+def _retail_basis(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        get_usa_config(), 'electric_output_on_retail_revenue', True, raising=True
+    )
+
+
+def test_two_legs_and_one_industry_stay_the_default() -> None:
+    assert get_usa_config().electric_output_on_retail_revenue is False
+    assert ug.controlled_industries() == ug.CONTROLLED
+
+
+@pytest.mark.usefixtures('_retail_basis')
+def test_all_three_electric_industries_follow_the_retail_index() -> None:
+    """Identical trends: each is its 2017 value times retail, 2.0 by 2022."""
+    panel = _panel()
+    adjusted = ug.apply_eia_utility_adjustment(panel)
+    assert set(ug.controlled_industries()) == set(ug.ELECTRIC_INDUSTRIES)
+    for code, base in {'221100': 400.0, 'S00101': 50.0, 'S00202': 50.0}.items():
+        assert adjusted.at[code, 2017] == pytest.approx(base)
+        assert adjusted.at[code, 2018] == pytest.approx(base * 1.1)
+        assert adjusted.at[code, 2022] == pytest.approx(base * 2.0)
+    for code in ('221200', '111200'):
+        pd.testing.assert_frame_equal(adjusted.loc[[code]], panel.loc[[code]])
+
+
+@pytest.mark.usefixtures('_retail_basis')
+def test_real_output_follows_kwh_on_the_retail_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Revenue over revenue per kWh is kWh, so the total tracks physical sales."""
+    kwh = {2017: 100.0, 2018: 103.0, 2022: 106.0}
+    monkeypatch.setattr(ug, 'retail_sales_mwh', lambda year: kwh[int(year)])
+    adjusted = ug.apply_eia_utility_adjustment(_panel())
+    total = adjusted.loc[list(ug.ELECTRIC_INDUSTRIES)].sum()
+    for year in (2018, 2022):
+        price = ug.retail_price_index(year) / ug.retail_price_index(2017)
+        assert total[year] / price / total[2017] == pytest.approx(kwh[year] / 100.0)
+
+
+def test_retail_output_outside_the_span_raises() -> None:
+    with pytest.raises(ValueError, match='outside the controlled span'):
+        ug.retail_gross_output(_panel(), max(ug.CONTROLLED_YEARS) + 1)
+
+
+def test_the_retail_basis_needs_the_rebase_on() -> None:
+    with pytest.raises(ValueError, match='requires'):
+        get_usa_config().model_validate(
+            {
+                **get_usa_config().model_dump(),
+                'rebase_utility_gross_output_on_eia': False,
+                'electric_output_on_retail_revenue': True,
+            }
+        )
+
+
+@pytest.mark.usefixtures('_retail_basis')
+def test_price_lines_follow_eia_and_keep_their_seams_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """On EIA 2017-2024; BEA's change after; other sectors and the input untouched."""
+    from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
+
+    span = {year: 1.0 + 0.1 * (year - 2017) for year in ug.CONTROLLED_YEARS}
+    monkeypatch.setattr(ug, 'retail_price_index', lambda year: span[int(year)])
+    years = [2016, *ug.CONTROLLED_YEARS, 2025]
+    levels = pd.DataFrame(
+        {year: [100.0, 80.0, 50.0] for year in years},
+        index=['221100', 'S00101', '111200'],
+        dtype=float,
+    )
+    levels.loc['221100', 2024] = 200.0
+    levels.loc['221100', 2025] = 220.0
+    levels.loc['221100', 2016] = 90.0
+    original = levels.copy()
+
+    out = helpers._electric_lines_on_eia_retail_price(levels)
+
+    pd.testing.assert_frame_equal(levels, original)
+    assert out.at['221100', 2017] == pytest.approx(100.0)
+    assert out.at['221100', 2022] == pytest.approx(150.0)
+    assert out.at['S00101', 2022] == pytest.approx(120.0)
+    assert out.at['221100', 2024] == pytest.approx(170.0)
+    # BEA's +10% from 2024 to 2025 on the new 2024 level; 2016 as published.
+    assert out.at['221100', 2025] == pytest.approx(187.0)
+    assert out.at['221100', 2016] == pytest.approx(90.0)
+    pd.testing.assert_frame_equal(out.loc[['111200']], original.loc[['111200']])

@@ -317,3 +317,58 @@ def test_a_held_group_divides_the_level_change_out() -> None:
         )
     # And the siblings moved, which is the reallocation that has no source.
     assert float(fitted['i_gas'].sum()) != pytest.approx(float(sub['i_gas'].sum()))
+
+
+# --- government utilities on retail revenue ---------------------------------
+
+
+def test_government_electric_helpers_do_nothing_with_the_flag_off() -> None:
+    block = pd.DataFrame({'S00101': [10.0]}, index=['221100'])
+    targets = pd.Series({'S00101': 5.0})
+    assert get_usa_config().electric_output_on_retail_revenue is False
+    assert gc._fit_targets(YEAR, targets, pd.Series(dtype=float)) is targets
+    assert gc._set_government_electric_columns(block, targets) is block
+
+
+def test_only_the_electricity_cell_of_a_government_utility_moves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_usa_config(), 'electric_output_on_retail_revenue', True)
+    block = pd.DataFrame(
+        {
+            'S00101': [100.0, 5.0, 0.0],
+            'S00202': [50.0, 0.0, 1.0],
+            'S00102': [0.0, 7.0, 3.0],
+        },
+        index=['221100', '221200', '491000'],
+    )
+    targets = pd.Series({'S00101': 85.0, 'S00202': 60.0, 'S00102': 1.0})
+    out = gc._set_government_electric_columns(block, targets)
+    assert out.at['221100', 'S00101'] == pytest.approx(80.0)
+    assert out.at['221100', 'S00202'] == pytest.approx(59.0)
+    assert out['S00101'].sum() == pytest.approx(85.0)
+    pd.testing.assert_frame_equal(out.drop(index='221100'), block.drop(index='221100'))
+    pd.testing.assert_series_equal(out['S00102'], block['S00102'])
+
+
+def test_a_cut_larger_than_the_electricity_cell_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_usa_config(), 'electric_output_on_retail_revenue', True)
+    block = pd.DataFrame(
+        {'S00101': [10.0, 50.0], 'S00202': [10.0, 0.0]}, index=['221100', '221200']
+    )
+    targets = pd.Series({'S00101': 40.0, 'S00202': 10.0})
+    with pytest.raises(ValueError, match='electricity cell'):
+        gc._set_government_electric_columns(block, targets)
+
+
+def test_the_retail_basis_does_not_release_the_government_groups(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_usa_config(), 'electric_output_on_retail_revenue', True)
+    gc.released_groups.cache_clear()
+    try:
+        assert not {'GFE', 'GSLE'} & gc.released_groups()
+    finally:
+        gc.released_groups.cache_clear()
