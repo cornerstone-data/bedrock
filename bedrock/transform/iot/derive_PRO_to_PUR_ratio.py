@@ -284,8 +284,22 @@ def derive_margins_usa_at_year(
         abs_negative_margin_columns=cfg.cornerstone_industry_avg_margins,
     )
     df = _inflate_margins_to_year(df, target_year=target_year)
+    delivery = pd.Series(0.0, index=df.index)
+    if cfg.electricity_delivery_margin:
+        from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+            active_delivery_split,
+            delivery_margin_rate,
+            restructure_margins,
+        )
+
+        df = restructure_margins(df, delivery_margin_rate(active_delivery_split()))
+        delivery = df['Electricity delivery']
     df["Purchasers' Value"] = (
-        df["Producers' Value"] + df['Transportation'] + df['Wholesale'] + df['Retail']
+        df["Producers' Value"]
+        + df['Transportation']
+        + df['Wholesale']
+        + df['Retail']
+        + delivery
     )
     return df
 
