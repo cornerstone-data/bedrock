@@ -439,10 +439,8 @@ def strip_char(text: str) -> str:
         'CH_{4}': 'CH4',
         'FK 5-1-12a': 'FK 5-1-12',
         'Total e,j': 'Total',
-        'Naphtha (<401Â° F)': 'Naphtha (<401 F)',
-        'Other Oil (>401Â° F)': 'Other Oil (>401 F)',
-        'Naphtha (<401° F)': 'Naphtha (<401 F)',
-        'Other Oil (>401° F)': 'Other Oil (>401 F)',
+        'Naphtha (<401Â° F)': 'Naphtha (<401° F)',
+        'Other Oil (>401Â° F)': 'Other Oil (>401° F)',
         'Geothermala': 'Geothermal',
     }
     text = re.sub(r'\^\{[a-zA-Z]\}', '', text)
@@ -451,7 +449,7 @@ def strip_char(text: str) -> str:
         text = text.replace(key, footnotes[key])
 
     # Align temperature labels with FBS activity names (no degree glyph).
-    text = text.replace('deg. F', 'F').replace('°', '')
+    text = text.replace('deg. F', 'F').replace('°', '').replace('Â', '')
 
     return ' '.join(text.split())  # remove extra spaces between words
 
@@ -541,33 +539,19 @@ def umd_ghgia_parse(
                 df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
             else:
                 # No year headers — melt attribute/factor columns to FlowName
-                flow_names: list[str] = []
-                units: list[str] = []
-                for col in value_cols:
-                    label = ' '.join(str(col).split())
-                    if '(' in label and label.endswith(')'):
-                        name, _, unit_part = label.partition('(')
-                        flow_names.append(name.strip())
-                        units.append(unit_part[:-1].strip() or 'None')
-                    else:
-                        flow_names.append(label)
-                        units.append(str(meta.get('unit') or 'None'))
-                unit_by_flow = dict(zip(flow_names, units, strict=False))
-                df = df.rename(columns=dict(zip(value_cols, flow_names, strict=False)))
-                df = df[id_vars + flow_names]
                 df = df.melt(
                     id_vars=id_vars,
-                    value_vars=flow_names,
-                    var_name='FlowName',
+                    var_name=meta.get('melt_var'),
                     value_name='FlowAmount',
                 )
+                name_unit = series_separate_name_and_units(
+                    df['FlowName'].str.split().str.join(' '),
+                    meta['flow'],
+                    meta['unit'],
+                )
+                df['FlowName'] = name_unit['names']
+                df['Unit'] = name_unit['units']
                 df['Year'] = year
-                df['Unit'] = df['FlowName'].map(unit_by_flow).fillna('None')
-                apb = df['ActivityProducedBy'].astype(str)
-                df = df.loc[
-                    ~apb.str.upper().str.startswith('TOTAL')
-                    & ~apb.str.startswith(('+', 'Note', 'a Formerly'))
-                ].copy()
                 df['ActivityProducedBy'] = (
                     df['ActivityProducedBy'].astype(str).map(strip_char)
                 )
@@ -715,21 +699,20 @@ def umd_ghgia_parse(
         elif table_name in source_No_activity:
             apbe_value = ''
             flow_name_list = ['Industry', 'Transportation', 'U.S. Territories']
-            # Default APB / MMT filter; consumption (e.g. 3-15) overrides both.
             activity_col = 'ActivityProducedBy'
-            drop_non_mmt = True
             if _is_consumption(source_name, config):
                 activity_col = 'ActivityConsumedBy'
-                drop_non_mmt = False
             for index, row in df.iterrows():
                 unit = row['Unit']
                 if unit.strip() == 'MMT  CO2':
                     df.loc[index, 'Unit'] = 'MMT CO2e'  # type: ignore[index]
-                if drop_non_mmt and df.loc[index, 'Unit'] != 'MMT CO2e':  # type: ignore[index]
+                if df.loc[index, 'Unit'] != meta.get('unit', 'MMT CO2e'):  # type: ignore[index]
                     df = df.drop(index)
                 else:
                     df.loc[index, 'FlowName'] = meta.get('flow')  # type: ignore[index]
-                    apb_value = strip_char(str(row[activity_col]))
+                    # use .join and split to remove interior spaces
+                    apb_value = ' '.join(row[activity_col].split())
+                    apb_value = apb_value.replace('°', '')
                     if apb_value in flow_name_list:
                         # set header
                         apbe_value = apb_value
@@ -738,7 +721,8 @@ def umd_ghgia_parse(
                         )
                     else:
                         # apply header
-                        df.loc[index, activity_col] = f'{apbe_value} {apb_value}'  # type: ignore[index]
+                        apb_txt = strip_char(apb_value)
+                        df.loc[index, activity_col] = f'{apbe_value} {apb_txt}'  # type: ignore[index]
                     if 'Total' == apb_value or 'Total ' == apb_value:
                         df = df.drop(index)
 
@@ -1284,10 +1268,11 @@ def prepare_facilities_mobile_combustion(
 
 
 def calc_per_fuel_emissions(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
-    """Convert NEU TBtu (Table 3-15) to MMT CO2 using Annex A3-5 factors.
+    """Weight NEU consumption (Table 3-15) by unsequestered carbon (Annex A3-5).
 
     ``clean_parameter`` keys: ``annex_fba`` (required), ``annex_year`` (optional,
-    default 2024). Formula: TBtu × coeff × (1 − fraction) × (44/12) / 1000.
+    default 2024). FlowAmount becomes consumption × coeff × (1 − fraction), a
+    proportional attribution weight (not MMT CO2).
     """
     params = fba.config.get('clean_parameter') or {}
     annex_name = params.get('annex_fba')
@@ -1306,84 +1291,33 @@ def calc_per_fuel_emissions(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivi
     if coeff.empty:
         raise ValueError(f'No Carbon Coefficient rows in {annex_name} {annex_year}')
 
-    # A3-5 "Natural Gas" matches 3-15 "Natural Gas to Chemical Plants".
-    annex_fuel = (
-        coeff['ActivityProducedBy']
-        .astype(str)
-        .replace({'Natural Gas': 'Natural Gas to Chemical Plants'})
+    factors = (
+        coeff[['ActivityProducedBy', 'FlowAmount']]
+        .rename(columns={'FlowAmount': 'Coefficient'})
+        .merge(
+            frac[['ActivityProducedBy', 'FlowAmount']].rename(
+                columns={'FlowAmount': 'Fraction'}
+            ),
+            how='left',
+            on='ActivityProducedBy',
+        )
+        # A3-5 "Natural Gas" matches 3-15 "Natural Gas to Chemical Plants".
+        .replace(
+            {'ActivityProducedBy': {'Natural Gas': 'Natural Gas to Chemical Plants'}}
+        )
+        .rename(columns={'ActivityProducedBy': 'Fuel'})
     )
-    coeff_map = {
-        k: float(v)
-        for k, v in zip(annex_fuel, coeff['FlowAmount'], strict=False)
-        if pd.notna(v)
-    }
-    frac_fuel = (
-        frac['ActivityProducedBy']
-        .astype(str)
-        .replace({'Natural Gas': 'Natural Gas to Chemical Plants'})
-    )
-    frac_map = {
-        k: float(v)
-        for k, v in zip(frac_fuel, frac['FlowAmount'], strict=False)
-        if pd.notna(v)
-    }
 
-    attributes_to_save = {
-        attr: getattr(fba, attr) for attr in fba._metadata + ['_metadata']
-    }
-    out = fba.copy()
-    # Consumption parse parks fuels on ActivityConsumedBy.
-    if (out['ActivityProducedBy'].astype(str) == 'None').any() and (
-        out['ActivityConsumedBy'].astype(str) != 'None'
-    ).any():
-        out['ActivityProducedBy'] = out['ActivityConsumedBy']
-        out['ActivityConsumedBy'] = 'None'
-
-    apb = out['ActivityProducedBy'].astype(str)
-    drop = (
-        apb.str.contains('All activities', regex=False)
-        | apb.str.startswith('Total')
-        | apb.str.contains('U.S. Territories', regex=False)
-        | apb.str.contains('Note:', regex=False)
-    )
-    out = out.loc[~drop].copy()
-    apb = apb.loc[~drop]
-
-    sector = np.where(
-        apb.str.startswith('Industry '),
-        'Industry',
-        np.where(apb.str.startswith('Transportation '), 'Transportation', ''),
-    )
-    fuel = (
-        apb.str.removeprefix('Industry ')
+    # 3-15 fuels (ActivityConsumedBy, nested under Industry / Transportation)
+    # merge on A3-5 fuels (ActivityProducedBy).
+    merged = fba.assign(
+        Fuel=fba['ActivityConsumedBy']
+        .str.removeprefix('Industry ')
         .str.removeprefix('Transportation ')
-        .str.strip()
+    ).merge(factors, how='left', on='Fuel')
+    merged['FlowAmount'] = (
+        merged['FlowAmount']
+        * merged['Coefficient'].fillna(0)
+        * (1 - merged['Fraction'].fillna(0))
     )
-    out['ActivityProducedBy'] = [
-        f'{sec} {fuel_name}'.strip() if sec else fuel_name
-        for sec, fuel_name in zip(sector, fuel, strict=False)
-    ]
-
-    coeffs = fuel.map(coeff_map)
-    fracs = fuel.map(frac_map).fillna(0.0)
-    tbtu = out['FlowAmount'].astype(float)
-    # Missing coefficient (e.g. Miscellaneous Products) → 0 emissions.
-    out['FlowAmount'] = np.where(
-        coeffs.isna(),
-        0.0,
-        tbtu * coeffs * (1.0 - fracs) * (44.0 / 12.0) / 1000.0,
-    )
-    out['FlowName'] = 'CO2'
-    out['Unit'] = 'MMT CO2e'
-    out['Class'] = 'Chemicals'
-    out['Compartment'] = 'air'
-    out['FlowType'] = 'ELEMENTARY_FLOW'
-
-    result = FlowByActivity(out.reset_index(drop=True))
-    for attr, value in attributes_to_save.items():
-        setattr(result, attr, value)
-    log.info(
-        f'calc_per_fuel_emissions: {len(result)} fuel rows from 3-15 × {annex_name} '
-        f'({annex_year}); total {float(result["FlowAmount"].sum()):.1f} MMT CO2'
-    )
-    return result
+    return merged.drop(columns=['Fuel', 'Coefficient', 'Fraction'])

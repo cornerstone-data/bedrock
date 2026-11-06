@@ -174,7 +174,8 @@ Annex:
         class: Energy
         unit: MMT Carbon/QBTU
         compartment: air
-        flow: Carbon Coefficient
+        flow: "__type__"
+        melt_var: FlowName
         desc: "Table A3-5: 2024 Non-Energy Carbon Stored in Products"
         data_reliability: 4
 
