@@ -7,6 +7,7 @@ from typing import cast
 import pandas as pd
 
 from bedrock.publish.model_objects import get_M, get_N, get_N_margin
+from bedrock.transform.eeio.electricity_delivery import published_label
 from bedrock.transform.iot.derive_PRO_to_PUR_ratio import phi_for_sectors
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_usa import (
@@ -102,10 +103,11 @@ def build_emission_factor_table(
 
     rows: list[dict[str, object]] = []
     for code in without.index.astype(str):
+        shown_code, shown_name = published_label(code, COMMODITY_DESC.get(code, ''))
         rows.append(
             {
-                COL_CODE: code,
-                COL_NAME: COMMODITY_DESC.get(code, ''),
+                COL_CODE: shown_code,
+                COL_NAME: shown_name,
                 COL_GHG: GHG_LABEL,
                 COL_UNIT: _unit_label(dollar_year, purchaser_price=purchaser_price),
                 COL_WITHOUT: float(without[code]),
