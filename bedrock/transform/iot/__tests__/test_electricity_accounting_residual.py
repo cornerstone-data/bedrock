@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.iot import electricity_accounting_residual as ear
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 
 CODE = ear.RESIDUAL_CODE
 
@@ -140,7 +140,7 @@ def test_a_negative_purchase_raises() -> None:
 
 
 def test_the_pathway_is_off_and_needs_retail_output() -> None:
-    assert get_usa_config().electricity_accounting_residual is False
+    assert USAConfig.model_fields['electricity_accounting_residual'].default is False
     with pytest.raises(ValueError, match='requires'):
         get_usa_config().model_validate(
             {

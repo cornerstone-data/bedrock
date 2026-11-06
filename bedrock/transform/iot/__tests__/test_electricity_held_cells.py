@@ -13,7 +13,7 @@ import pytest
 from bedrock.transform.iot import eia_utility_go_adjustment as eia
 from bedrock.transform.iot import nowcast_interior_fit as fi
 from bedrock.transform.iot import nowcast_intermediate as ni
-from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 
@@ -22,7 +22,10 @@ ELEC = ni.ELECTRICITY_COMMODITY
 
 def _flag(monkeypatch: pytest.MonkeyPatch, data_centers: bool) -> None:
     config = get_usa_config().model_copy(
-        update={'move_data_processing_electricity_on_lbnl': data_centers}
+        update={
+            'move_data_processing_electricity_on_lbnl': data_centers,
+            'hold_electric_gas_on_eia': False,
+        }
     )
     monkeypatch.setattr(ni, 'get_usa_config', lambda: config)
 
@@ -112,7 +115,9 @@ def test_pin_writes_the_data_center_cell_only(
 # --- electric power's gas purchases ------------------------------------------
 
 
-def test_gas_hold_is_off_by_default() -> None:
+def test_gas_hold_is_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert USAConfig.model_fields['hold_electric_gas_on_eia'].default is False
+    _flag(monkeypatch, False)
     assert ni.pinned_gas_buyers() == []
 
 

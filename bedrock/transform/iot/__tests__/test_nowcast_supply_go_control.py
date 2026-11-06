@@ -322,10 +322,12 @@ def test_a_held_group_divides_the_level_change_out() -> None:
 # --- government utilities on retail revenue ---------------------------------
 
 
-def test_government_electric_helpers_do_nothing_with_the_flag_off() -> None:
+def test_government_electric_helpers_do_nothing_with_the_flag_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_usa_config(), 'electric_output_on_retail_revenue', False)
     block = pd.DataFrame({'S00101': [10.0]}, index=['221100'])
     targets = pd.Series({'S00101': 5.0})
-    assert get_usa_config().electric_output_on_retail_revenue is False
     assert gc._fit_targets(YEAR, targets, pd.Series(dtype=float)) is targets
     assert gc._set_government_electric_columns(block, targets) is block
 
