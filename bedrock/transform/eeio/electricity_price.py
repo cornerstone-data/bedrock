@@ -51,6 +51,9 @@ LOCAL_UTILITY_FLOW = 'Electricity from Local Utility'
 
 #: A parent's remainder below this share of its kWh is mostly rounding.
 MIN_REMAINDER_KWH_SHARE = 0.02
+#: Years pooled in the generation price, ending in the year itself.
+GENERATION_PRICE_YEARS = 3
+
 #: A remainder priced outside this range of its parent is treated as rounding.
 REMAINDER_PRICE_RANGE = (0.5, 2.0)
 
@@ -333,17 +336,46 @@ def resale_price(revenue_usd_m: float, volume_mwh: float) -> float:
     return revenue_usd_m * 1e6 / volume_mwh / 10.0
 
 
-def generation_price(year: int) -> float:
-    """One price per kWh generated in *year*, ¢/kWh (#1215): EIA-861 sales for resale.
+def pooled_resale_price(
+    year: int, revenue_usd_m: pd.Series, volume_mwh: pd.Series
+) -> float:
+    """Sales for resale over :data:`GENERATION_PRICE_YEARS` ending in *year*, ¢/kWh."""
+    years = range(int(year) - GENERATION_PRICE_YEARS + 1, int(year) + 1)
+    missing = [
+        y for y in years if y not in revenue_usd_m.index or y not in volume_mwh.index
+    ]
+    if missing:
+        raise ValueError(f'no sales for resale data for {missing}')
+    return resale_price(
+        float(revenue_usd_m.loc[list(years)].sum()),
+        float(volume_mwh.loc[list(years)].sum()),
+    )
 
-    An observed wholesale price, not a share of the electricity row's dollars, so it
+
+def generation_price(year: int) -> float:
+    """One price per kWh generated in *year*, ¢/kWh (#1215).
+
+    EIA-861 sales for resale, pooled over three years ending in *year*. It is an
+    observed wholesale price, not a share of the electricity row's dollars, so it
     doesn't move with the bills it divides. Generation dollars are this price times
     kWh generated: buyers pay it on kWh delivered, and ``42ELEC`` pays it on losses
     (#1217).
 
-    ⚠️ It moves with the wholesale cycle, faster than retail rates. In 2021 and 2022 it
-    runs above what the cheapest manufacturers pay (:func:`buyers_below`).
+    ⚠️ Why three years: large contracts and retail rates lag the wholesale market. The
+    annual price puts 6 manufacturers and 16% of manufacturing kWh below it in 2021.
+    The trailing average puts none below it in 2021-22, and a few small ones in other
+    years, which #902 floors.
     """
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        resale_revenue,
+        resale_volume,
+    )
+
+    return pooled_resale_price(year, resale_revenue(), resale_volume())
+
+
+def annual_generation_price(year: int) -> float:
+    """Sales for resale in *year* alone, ¢/kWh. Reported, not used in the split."""
     from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
         resale_revenue,
         resale_volume,
