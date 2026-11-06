@@ -1439,6 +1439,29 @@ MINING_SEEDED = ('211000', '212100', '212230', '2122A0', '212310', '2123A0')
 #: Held: see :data:`MINING_SEEDED`. $53.0B stays on its 2017 mix.
 MINING_HELD = ('213111', '21311A')
 
+#: Mining columns whose **own-product cell is not read off the census**: it keeps
+#: its real 2017 share, and :data:`REPRICED_ROWS` move as real census movement x
+#: relative price. See :func:`repriced_column` (#922).
+#:
+#: ❌ **The 2017 census self-use cell is the outlier vintage.** Oil and gas
+#: extraction's purchases of its own product are **54.8%** of its 2017 census
+#: materials and **26.4%** in 2022, while 2012 and 2022 agree (#989). Halving
+#: the largest cell pushes every other row's index up by about 2x on
+#: renormalisation -- refined petroleum reads 1.92x, of which the self-use
+#: collapse is 1.63x. ⚠️ **BEA's annual tables show no halving**: published
+#: summary ``211 x 211`` runs 6.3-12.8 per $100 of output across 2017-2024.
+OWN_PRODUCT_HELD = ('211000',)
+
+#: Rows of :data:`OWN_PRODUCT_HELD` columns moved as **real** census movement
+#: times the row's price relative to the column, every year.
+#:
+#: ⚠️ **The census mix is nominal, so 2017 -> 2022 reads a price move as
+#: structure.** On the non-self materials, refined petroleum's share moves
+#: 1.18x nominal against a relative price of 1.59x: 0.74x real. Then the seed
+#: holds the 2022 nominal share through 2024 while the price falls back
+#: (1.944 -> 1.430 of 2017), so the cell stays at the peak.
+REPRICED_ROWS = ('324110',)
+
 
 def _manufacturing_bea_industries() -> list[str]:
     """The BEA detail industry columns that are manufacturing."""
@@ -2532,7 +2555,85 @@ def mining_seed(
     source, it is the frozen 2017 mix -- which asserts nothing changed in eight
     years, a *stronger* claim than the data makes.
     """
-    return materials_seed(year, clean=clean, columns=list(MINING_SEEDED), alpha=alpha)
+    seed = materials_seed(year, clean=clean, columns=list(MINING_SEEDED), alpha=alpha)
+    if not get_usa_config().reprice_oil_gas_extraction_seed:
+        return seed
+    columns = [c for c in OWN_PRODUCT_HELD if c in seed.columns]
+    repriced = {c: repriced_column(c, year, clean=clean, alpha=alpha) for c in columns}
+    rows = seed.index.union(
+        pd.Index([r for column in repriced.values() for r in column.index])
+    )
+    seed = seed.reindex(rows).fillna(0.0)
+    for column, values in repriced.items():
+        seed[column] = values.reindex(rows).fillna(0.0)
+    return seed.loc[(seed != 0).any(axis=1)]
+
+
+def repriced_column(
+    column: str, year: int, clean: bool = False, alpha: float | None = None
+) -> 'pd.Series[float]':
+    """One :data:`OWN_PRODUCT_HELD` column of the mining seed, in $M.
+
+    Three parts, renormalised to BEA's 2017 column total like
+    :func:`materials_seed`:
+
+    * **The own-product cell** keeps its real 2017 share: BEA's 2017 share
+      times its price relative to the column. The census value is not read;
+      see :data:`OWN_PRODUCT_HELD`.
+    * **:data:`REPRICED_ROWS`** take the census's *real* 2017 -> 2022 move on
+      the non-self materials, interpolated geometrically and held after 2022
+      like every other census cell, times the row's price relative to the
+      non-self rows **in the target year**. 2022 reproduces the census's
+      nominal non-self move exactly.
+    * **Every other row** moves on the census index of the non-self mix, as
+      :func:`materials_seed` does.
+
+    Relative prices are :func:`commodity_price_factor` over the price of the
+    rows they are relative to, weighted by BEA's 2017 column. This is theta = 1
+    -- the real mix held -- for the cells the census does not observe in real
+    terms.
+
+    ✅ **Against BEA's published summary 211 column** (oil and gas extraction
+    alone), first-order on ``v1.0.0_5514c3b``: refined petroleum per $100 of
+    output misses by a mean **0.18** over 2018-2024 against **1.08** shipped,
+    and self-use by **1.52** against **3.31** (#922).
+    """
+    first, second = census_mix_on_bea_industries(clean=clean)
+    span = VINTAGES[1] - VINTAGES[0]
+    t = min((year - VINTAGES[0]) / span, 1.0)
+    power = get_usa_config().census_materials_index_alpha if alpha is None else alpha
+
+    use = _use_2017_detail()[column].astype(float)
+    weights = use / use.sum()
+    price = commodity_price_factor(year).reindex(use.index).fillna(1.0)
+    price_2022 = commodity_price_factor(VINTAGES[1]).reindex(use.index).fillna(1.0)
+    others = [r for r in use.index if r != column and use[r] != 0]
+
+    def basket(factor: 'pd.Series[float]', rows: list[str]) -> float:
+        return float((weights[rows] * factor[rows]).sum() / weights[rows].sum())
+
+    census = [
+        frame[column].drop(index=column, errors='ignore') for frame in (first, second)
+    ]
+    base, end = (frame / frame.sum() for frame in census)
+    mix = interpolate_shares(base.to_frame(), end.to_frame(), t)[column]
+    index = (mix / base.where(base > 0)).replace([np.inf, -np.inf], np.nan) ** power
+    rest = use * index.reindex(use.index).fillna(1.0)
+    rest[column] = 0.0
+    for row in REPRICED_ROWS:
+        if row not in use.index or not base.get(row, 0.0) > 0 or use[row] == 0:
+            continue
+        relative_2022 = price_2022[row] / basket(price_2022, others)
+        real = float(end[row] / base[row]) / relative_2022
+        rest[row] = use[row] * real ** (t * power) * price[row] / basket(price, others)
+    own = (
+        weights.get(column, 0.0)
+        * price.get(column, 1.0)
+        / basket(price, list(use.index[use != 0]))
+    )
+    shares = rest / rest.sum() * (1.0 - own)
+    shares[column] = own
+    return shares * use.sum()
 
 
 def _unit_to_bea(unit: str) -> str | None:

@@ -937,7 +937,8 @@ source_names:
                   PrimaryActivity:
                     Industry Distillate Fuel Oil: Industry Petroleum Products Non-energy
                     Industry Lubricants: Industry Petroleum Products Non-energy
-                    Industry Miscellaneous Products: Industry Petroleum Products Non-energy
+                    # Miscellaneous Products left out: the 2021 GHGI recalculation
+                    # (Ch. 3.2, p. 3-56) sets it to 0 for the whole time series (#1200)
                     'Industry Naphtha (<401 F)': Industry Petroleum Products Non-energy
                     'Industry Other Oil (>401 F)': Industry Petroleum Products Non-energy
                     Industry Petroleum Coke: Industry Petroleum Products Non-energy
@@ -969,6 +970,12 @@ source_names:
                     selection_fields:
                       Flowable: Natural Gas
                       Class: Other
+                    exclusion_fields:
+                      # 32531: the GHGI nets ammonia feedstock gas out of this row
+                      # (Annex 2.1, Ch. 3 Tables 3-24/3-25); its CO2 is Ammonia
+                      # Production. 32512: modeling choice, not GHGI text; hydrogen
+                      # gets its CO2 via the subpart P carve-out (#1200)
+                      SectorConsumedBy: ['32531', '32512']
 
               transportation_lubricants:
                 selection_fields:
