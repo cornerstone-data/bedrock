@@ -46,28 +46,6 @@ the figures above. Older notes that cite "tracker row N" refer to these.
 | **L explanation** | Little: 13% of the movement in `N_d`, because this sector's own direct emissions are most of its factor. It was 7% before #1198, and the share rose because the `B` part shrank (gross `N_d` movement 56 to 36). |
 | **Conclusion** | **Mostly justified.** `B` ends 22% lower, with `E` ×0.82 from the shift from coal to gas and `q` ×1.05, so the trend should not be smoothed. The 2021 rise in `B` is now 4%, from `E` up 7% and `q` up 2%, against 15% before #1198. In `N_d`, the 2021 rise goes from 14.8% to 5.3% and the IV score from 3.23 to 1.65, while the decline over the span stays near 23%. Still open: `q` keeps BEA's 2017 level, and moving it to EIA's level would raise `B` by about 15% in 2024. `L` is minor, 13% of the movement. |
 
-Earlier findings:
-
-**Earlier tracker row 8**
-
-- **Driver:** Electric power `221100` own direct emissions
-- **Issue:** —
-- **Diagnostic:** D9 · D8
-- **Effect:** The largest single cell, 609 Mt. Direct intensity falls 3.75 → 3.01 kg CO2e per constant-2017 dollar. Two of seven years reverse: 2021 emissions +7.0% on flat real output, 2024 output −1.8% on flat emissions.
-- **Potency:** 609 Mt gross, net −355; oscillation 0.42
-- **Justified?:** **justified** — real decarbonisation
-- **Status:** **Do not smooth.** Closed except for the 2021 reversal, which [#936](https://github.com/cornerstone-data/bedrock/issues/936) checks against water transportation — if both are one fuel-price event they close together
-
-**Earlier tracker row 14**
-
-- **Driver:** Electricity source switch, UMD → eGRID (#911)
-- **Issue:** [#914](https://github.com/cornerstone-data/bedrock/issues/914), [#913](https://github.com/cornerstone-data/bedrock/issues/913)
-- **Diagnostic:** — ([#911](https://github.com/cornerstone-data/bedrock/pull/911) review)
-- **Effect:** #911 moves electricity to plant-level eGRID for 2018-2024 only. No eGRID 2017 exists, so the base year keeps a different source and the switch lands on the 2017/2018 boundary that every indexed series is anchored on. eGRID also includes Puerto Rico, ~12 Mt/yr, where the GHG inventory does not.
-- **Potency:** boundary error 0.8% of electricity emissions; discontinuity sits on the largest cell in the panel, 609 Mt gross
-- **Justified?:** **not justified** — a source switch is not a movement
-- **Status:** Pending #911. Row 8 must be re-derived on the eGRID series once it lands
-
 ### 481000 Air transportation
 
 | Field | Value |

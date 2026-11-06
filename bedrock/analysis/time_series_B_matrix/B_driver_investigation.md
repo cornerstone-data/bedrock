@@ -18,16 +18,16 @@ absolute values, so moves in opposite directions don't cancel.
 
 | Code | Sector | IV score | Driving factor | Status | Issues and PRs |
 |---|---|---|---|---|---|
-| `221100` | Electric power generation, transmission, and distribution | 1.65 | B 87%, L 13% | split: the decline is justified. The 2021-23 swing in `q` is fixed (3.23 to 1.65). Open: `q` keeps BEA's 2017 level | #890, #894, #898, #901, #1009, #1012, #1198, #1199, #1205 |
-| `481000` | Air transportation | 0.41 | B 83%, L 17% | justified | #935 |
-| `211000` | Oil and gas extraction | 0.35 | B 52%, L 48% | unresolved | #890, #922 |
-| `484000` | Truck transportation | 0.30 | B 60%, L 40% | unresolved | #890 |
-| `325110` | Petrochemical manufacturing | 0.28 | B 66%, L 34% | unresolved | #997, #1177, #986, #1196, #1203 |
-| `324110` | Petroleum refineries | 0.25 | B 52%, L 48% | unresolved | #984, #975, #997, #1177 |
-| `531ORE` | Other real estate | 0.23 | B 43%, L 57% | unresolved | #705, #1163, #975 |
+| `221100` | Electric power generation, transmission, and distribution | 1.65 | B 87%, L 13% | split: the decline is justified. The 2021-23 swing in `q` is fixed (3.23 to 1.65). Open: `q` keeps BEA's 2017 level | [#890](https://github.com/cornerstone-data/bedrock/issues/890), [#894](https://github.com/cornerstone-data/bedrock/issues/894), [#898](https://github.com/cornerstone-data/bedrock/issues/898), [#901](https://github.com/cornerstone-data/bedrock/issues/901), [#1009](https://github.com/cornerstone-data/bedrock/issues/1009), [#1012](https://github.com/cornerstone-data/bedrock/issues/1012), [#1198](https://github.com/cornerstone-data/bedrock/issues/1198), [#1199](https://github.com/cornerstone-data/bedrock/issues/1199), [#1205](https://github.com/cornerstone-data/bedrock/issues/1205) |
+| `481000` | Air transportation | 0.41 | B 83%, L 17% | justified | [#935](https://github.com/cornerstone-data/bedrock/issues/935) |
+| `211000` | Oil and gas extraction | 0.35 | B 52%, L 48% | unresolved | [#890](https://github.com/cornerstone-data/bedrock/issues/890), [#922](https://github.com/cornerstone-data/bedrock/issues/922) |
+| `484000` | Truck transportation | 0.30 | B 60%, L 40% | unresolved | [#890](https://github.com/cornerstone-data/bedrock/issues/890) |
+| `325110` | Petrochemical manufacturing | 0.28 | B 66%, L 34% | unresolved | [#997](https://github.com/cornerstone-data/bedrock/issues/997), [#1177](https://github.com/cornerstone-data/bedrock/issues/1177), [#986](https://github.com/cornerstone-data/bedrock/issues/986), [#1196](https://github.com/cornerstone-data/bedrock/issues/1196), [#1203](https://github.com/cornerstone-data/bedrock/issues/1203) |
+| `324110` | Petroleum refineries | 0.25 | B 52%, L 48% | unresolved | [#984](https://github.com/cornerstone-data/bedrock/issues/984), [#975](https://github.com/cornerstone-data/bedrock/issues/975), [#997](https://github.com/cornerstone-data/bedrock/issues/997), [#1177](https://github.com/cornerstone-data/bedrock/issues/1177) |
+| `531ORE` | Other real estate | 0.23 | B 43%, L 57% | unresolved | [#705](https://github.com/cornerstone-data/bedrock/issues/705), [#1163](https://github.com/cornerstone-data/bedrock/issues/1163), [#975](https://github.com/cornerstone-data/bedrock/issues/975) |
 | `331110` | Iron and steel mills and ferroalloy manufacturing | 0.23 | B 48%, L 52% | unresolved | none yet |
-| `325190` | Other basic organic chemical manufacturing | 0.18 | B 61%, L 39% | unresolved, below 0.2 | #1177, #898, #1196, #1203 |
-| `325211` | Plastics material and resin manufacturing | 0.18 | B 59%, L 41% | unresolved, below 0.2 | #670, #1196, #1203 |
+| `325190` | Other basic organic chemical manufacturing | 0.18 | B 61%, L 39% | unresolved, below 0.2 | [#1177](https://github.com/cornerstone-data/bedrock/issues/1177), [#898](https://github.com/cornerstone-data/bedrock/issues/898), [#1196](https://github.com/cornerstone-data/bedrock/issues/1196), [#1203](https://github.com/cornerstone-data/bedrock/issues/1203) |
+| `325211` | Plastics material and resin manufacturing | 0.18 | B 59%, L 41% | unresolved, below 0.2 | [#670](https://github.com/cornerstone-data/bedrock/issues/670), [#1196](https://github.com/cornerstone-data/bedrock/issues/1196), [#1203](https://github.com/cornerstone-data/bedrock/issues/1203) |
 
 Status values:
 
