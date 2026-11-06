@@ -229,7 +229,10 @@ def _load_umd_ghgia_table(
     if annex_match:
         annex_num = annex_match.group(1)
         rest = table[len(f'A{annex_num}-') :]
-        csv_label = f'A{annex_num}.{rest}'
+        # Annex 3 CSVs use hyphens (Table A3-5.csv); Annex 5 uses dots (Table A5.1-S1.csv).
+        csv_label = (
+            f'A{annex_num}-{rest}' if annex_num == '3' else f'A{annex_num}.{rest}'
+        )
         rel = posixpath.join(
             'Annexes_v1',
             annex_folder or f'Annex {annex_num}',
@@ -436,14 +439,19 @@ def strip_char(text: str) -> str:
         'CH_{4}': 'CH4',
         'FK 5-1-12a': 'FK 5-1-12',
         'Total e,j': 'Total',
-        'Naphtha (<401Â° F)': 'Naphtha (<401° F)',
-        'Other Oil (>401Â° F)': 'Other Oil (>401° F)',
+        'Naphtha (<401Â° F)': 'Naphtha (<401 F)',
+        'Other Oil (>401Â° F)': 'Other Oil (>401 F)',
+        'Naphtha (<401° F)': 'Naphtha (<401 F)',
+        'Other Oil (>401° F)': 'Other Oil (>401 F)',
         'Geothermala': 'Geothermal',
     }
     text = re.sub(r'\^\{[a-zA-Z]\}', '', text)
 
     for key in footnotes:
         text = text.replace(key, footnotes[key])
+
+    # Align temperature labels with FBS activity names (no degree glyph).
+    text = text.replace('deg. F', 'F').replace('°', '')
 
     return ' '.join(text.split())  # remove extra spaces between words
 
@@ -520,8 +528,49 @@ def umd_ghgia_parse(
                     df.at[index, 'ActivityConsumedBy'] = source  # type: ignore[index]
 
         else:
-            # Standard years (one or more) as column headers
-            df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
+            # Year-header tables (e.g. 3-14, 3-15) vs factor-header tables (e.g. A3-5).
+            # year_cols: value columns whose first token is a 4-digit year.
+            value_cols = [c for c in df.columns if c not in id_vars]
+            year_cols = []
+            for col in value_cols:
+                token = str(col).strip().split()[0] if str(col).strip() else ''
+                if token.isdigit() and len(token) == 4:
+                    year_cols.append(col)
+            if year_cols:
+                # Standard years (one or more) as column headers
+                df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
+            else:
+                # No year headers — melt attribute/factor columns to FlowName
+                flow_names: list[str] = []
+                units: list[str] = []
+                for col in value_cols:
+                    label = ' '.join(str(col).split())
+                    if '(' in label and label.endswith(')'):
+                        name, _, unit_part = label.partition('(')
+                        flow_names.append(name.strip())
+                        units.append(unit_part[:-1].strip() or 'None')
+                    else:
+                        flow_names.append(label)
+                        units.append(str(meta.get('unit') or 'None'))
+                unit_by_flow = dict(zip(flow_names, units, strict=False))
+                df = df.rename(columns=dict(zip(value_cols, flow_names, strict=False)))
+                df = df[id_vars + flow_names]
+                df = df.melt(
+                    id_vars=id_vars,
+                    value_vars=flow_names,
+                    var_name='FlowName',
+                    value_name='FlowAmount',
+                )
+                df['Year'] = year
+                df['Unit'] = df['FlowName'].map(unit_by_flow).fillna('None')
+                apb = df['ActivityProducedBy'].astype(str)
+                df = df.loc[
+                    ~apb.str.upper().str.startswith('TOTAL')
+                    & ~apb.str.startswith(('+', 'Note', 'a Formerly'))
+                ].copy()
+                df['ActivityProducedBy'] = (
+                    df['ActivityProducedBy'].astype(str).map(strip_char)
+                )
 
         # set suppressed values to 0 but mark as suppressed
         # otherwise set non-numeric to nan
@@ -666,27 +715,30 @@ def umd_ghgia_parse(
         elif table_name in source_No_activity:
             apbe_value = ''
             flow_name_list = ['Industry', 'Transportation', 'U.S. Territories']
+            # Default APB / MMT filter; consumption (e.g. 3-15) overrides both.
+            activity_col = 'ActivityProducedBy'
+            drop_non_mmt = True
+            if _is_consumption(source_name, config):
+                activity_col = 'ActivityConsumedBy'
+                drop_non_mmt = False
             for index, row in df.iterrows():
                 unit = row['Unit']
                 if unit.strip() == 'MMT  CO2':
                     df.loc[index, 'Unit'] = 'MMT CO2e'  # type: ignore[index]
-                if df.loc[index, 'Unit'] != 'MMT CO2e':  # type: ignore[index]
+                if drop_non_mmt and df.loc[index, 'Unit'] != 'MMT CO2e':  # type: ignore[index]
                     df = df.drop(index)
                 else:
                     df.loc[index, 'FlowName'] = meta.get('flow')  # type: ignore[index]
-                    # use .join and split to remove interior spaces
-                    apb_value = ' '.join(row['ActivityProducedBy'].split())
-                    apb_value = apb_value.replace('°', '')
+                    apb_value = strip_char(str(row[activity_col]))
                     if apb_value in flow_name_list:
                         # set header
                         apbe_value = apb_value
-                        df.loc[index, 'ActivityProducedBy'] = (  # type: ignore[index]
+                        df.loc[index, activity_col] = (  # type: ignore[index]
                             f'{apbe_value} All activities'
                         )
                     else:
                         # apply header
-                        apb_txt = strip_char(apb_value)
-                        df.loc[index, 'ActivityProducedBy'] = f'{apbe_value} {apb_txt}'  # type: ignore[index]
+                        df.loc[index, activity_col] = f'{apbe_value} {apb_value}'  # type: ignore[index]
                     if 'Total' == apb_value or 'Total ' == apb_value:
                         df = df.drop(index)
 
