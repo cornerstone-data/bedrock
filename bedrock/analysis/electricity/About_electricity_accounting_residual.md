@@ -81,10 +81,46 @@ Buyers give up other inputs, because the residual they buy exceeds the electrici
 
 Other real estate (`531ORE`) is the largest buyer, at $7.2bn in 2022.
 
+## Regrade with the time series procedures
+
+The IV score and sector deep dive triage, spend weights, on three full builds for 2017-2024. All use GHG FBS `v1.0.0_79273ed`, so `E` doesn't respond to the new tables, and none includes #1201.
+
+- **Current:** `v1.0.0_5514c3b`.
+- **Flags off:** the same code with regenerated trade inputs (#1179, #1180), `v1.0.0_b17908ftrade`.
+- **All flags:** `electric_output_on_retail_revenue`, `electricity_accounting_residual`, `carry_power_petroleum_on_price`, `reprice_oil_gas_extraction_seed` and `hold_electric_gas_on_eia`, on the same trade inputs, `v1.0.0_b17908f`.
+
+Steps 6 and 7 pass their checks on all eight years with all flags on. They read the 402-sector tables, in which the residual sits in buyers' surplus, so they need no new dimension.
+
+| tracker sector | IV, current | IV, flags off | IV, all flags | gross `N_d` movement, flags off | gross `N_d` movement, all flags | `B` share, flags off | `B` share, all flags |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `221100` electric power | 3.23 | 3.23 | 1.66 | 56.1 | 35.5 | 93% | 87% |
+| `481000` air transportation | 0.40 | 0.41 | 0.41 | 55.0 | 54.3 | 82% | 83% |
+| `211000` oil and gas extraction | 0.35 | 0.34 | 0.34 | 42.5 | 41.5 | 54% | 52% |
+| `484000` truck transportation | 0.31 | 0.31 | 0.31 | 22.3 | 21.7 | 65% | 61% |
+| `324110` petroleum refineries | 0.26 | 0.26 | 0.26 | 35.3 | 35.2 | 55% | 53% |
+| `325110` petrochemicals | 0.25 | 0.25 | 0.24 | 84.0 | 84.0 | 60% | 59% |
+| `531ORE` other real estate | 0.23 | 0.23 | 0.23 | 58.2 | 58.4 | 48% | 43% |
+| `325190` other basic organic chemicals | 0.23 | 0.23 | 0.23 | 31.6 | 31.5 | 62% | 62% |
+| `325211` plastics and resin | 0.21 | 0.21 | 0.21 | 59.3 | 58.9 | 55% | 54% |
+
+Across all commodities, the median gross `N_d` movement goes from 47.8 to 47.3 between flags off and all flags, and its `B` part from 25.8 to 19.6. Movement falls for 60% of commodities. It falls most for electric power (-20.5), gas distribution (-9.9) and `S00600` (-7.0), and rises by at most 4.6.
+
+Electric power's `N_d`, kg CO2e per constant 2017 dollar:
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| flags off | 4.187 | 4.223 | 3.992 | 3.552 | 4.079 | 3.841 | 3.304 | 3.168 |
+| all flags | 4.187 | 4.090 | 3.800 | 3.511 | 3.696 | 3.551 | 3.296 | 3.226 |
+
+The 2021 rise falls from 14.8% to 5.3%. The 2017 to 2024 decline stays near 23-24%.
+
+Trade alone leaves these grades almost unchanged. It does move the 2024 balanced tables, by $83bn in gross terms, so the 2024 pin needs a bump either way.
+
 ## Not yet measured
 
-- The effect on emission factors, including how much emissions from electricity shift from intermediate buyers to households.
-- The residual pathway with `carry_power_petroleum_on_price` and `reprice_oil_gas_extraction_seed` on. The second takes gas from other buyers, including electric power.
+- The GHG FBS on these tables, including #1201. Emissions allocated through the Use table respond to it, so these factors are not final.
+- The emission shift between buyers on this design. In `A`, electricity bought by trucks falls about 11% in 2022, and other real estate's `N_d` falls about 2%.
+- Whether oil and gas into refineries, which falls $38bn after redefinitions in 2022, is right. Refineries' `N_d` barely moves, because their column total is fixed and other inputs replace it.
 
 ## How far it is built
 
@@ -93,7 +129,8 @@ Other real estate (`531ORE`) is the largest buyer, at $7.2bn in 2022.
 | residual amounts, class split, table split, identity checks | done, unit tested |
 | config flag and value-added transfer in Step 5 | done, off by default |
 | live balance 2021-2024 | done, no publishing |
-| Step 6 and Step 7 tables with the pair | not yet. The flag must stay off in any build that publishes tables |
+| Step 6 and Step 7 | run on the 402-sector tables, checks pass in all eight years. The pair stays out of them |
+| reporting tables with the pair | `split_residual` exists; not yet written by the build |
 | the pair in the taxonomy | not yet |
-| collapsing the pair out of `A` and `B`, so the released schema stays at 405 | not yet tested |
-| evaluation on the IV score and tracker sectors | not yet |
+| released schema stays at 405 | yes: `A` and `B` read the 402-sector tables, and the residual has no inputs or emissions |
+| evaluation on the IV score and tracker sectors | done on `v1.0.0_79273ed`; repeat on the rebuilt FBS |
