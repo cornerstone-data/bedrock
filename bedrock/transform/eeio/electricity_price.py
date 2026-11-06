@@ -386,3 +386,39 @@ def relative_movers(*, threshold: float = RELATIVE_MOVER_THRESHOLD) -> pd.DataFr
 def class_price(year: int, customer_class: str) -> float:
     """The price for buyers outside manufacturing, ¢/kWh delivered."""
     return eia_class_price(year, customer_class)
+
+
+def resale_price(revenue_usd_m: float, volume_mwh: float) -> float:
+    """Sales for resale as ¢/kWh, from revenue in $M and volume in MWh."""
+    if volume_mwh <= 0:
+        raise ValueError('sales for resale volume is non-positive')
+    return revenue_usd_m * 1e6 / volume_mwh / 10.0
+
+
+def generation_price(year: int) -> float:
+    """One price per kWh generated in *year*, ¢/kWh (#1215): EIA-861 sales for resale.
+
+    An observed wholesale price, not a share of the electricity row's dollars, so it
+    doesn't move with the bills it divides. Generation dollars are this price times
+    kWh generated: buyers pay it on kWh delivered, and ``42ELEC`` pays it on losses
+    (#1217).
+
+    ⚠️ It moves with the wholesale cycle, faster than retail rates. In 2021 and 2022 it
+    runs above what the cheapest manufacturers pay (:func:`buyers_below`).
+    """
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        resale_revenue,
+        resale_volume,
+    )
+
+    return resale_price(
+        float(resale_revenue().loc[int(year)]), float(resale_volume().loc[int(year)])
+    )
+
+
+def buyers_below(prices: pd.Series, generation: float) -> pd.Series:
+    """Buyers paying less per kWh than generation costs, cheapest first, ¢/kWh.
+
+    Their delivery margin would be negative, so #902 has to name and treat them.
+    """
+    return prices[prices < generation].sort_values()
