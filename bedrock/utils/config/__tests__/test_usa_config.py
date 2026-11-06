@@ -445,7 +445,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
     assert cfg.cornerstone_ghg_fbs_filename == (
         f'GHG_national_Cornerstone_{year}_v1.0.0_79273ed.parquet'
     )
-    assert cfg.nowcast_mut_vintage == 'v1.0.0_5514c3b'
+    assert cfg.nowcast_mut_vintage == 'v1.0.0_b17908f'
 
     exclude = {
         'model_base_year',
