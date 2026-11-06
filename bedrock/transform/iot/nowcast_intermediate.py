@@ -1359,8 +1359,8 @@ def electric_gas_cells(year: int, control: pd.Series) -> pd.Series:
 
     BEA's 2017 total times EIA-923's gas bill relative to 2017, so BEA's level and
     EIA's movement. *control* is each column's intermediate total. *room* in a
-    column is that total less its other inputs at 2017 cells x input prices x kWh,
-    the path the electricity accounting residual uses.
+    government column is that total less its other inputs at 2017 cells x input
+    prices x kWh, the path the electricity accounting residual uses.
     """
     from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
         fuel_costs,
@@ -1384,6 +1384,9 @@ def electric_gas_cells(year: int, control: pd.Series) -> pd.Series:
     volume = retail_sales_mwh(year) / retail_sales_mwh(SEED_YEAR)
     floor = other_2017 * input_price_relative(year) * volume
     room = control.reindex(buyers).astype(float) - floor
+    # The floor only keeps the smaller government columns from overflowing.
+    # 221100 takes the rest, up to its whole intermediate total.
+    room[ELECTRICITY_COMMODITY] = float(control[ELECTRICITY_COMMODITY])
     return allocate_electric_gas(total, base_cells, room)
 
 
