@@ -584,7 +584,9 @@ def fixed_value_mask(
         # PCE cell above, not a reported value. Empty with the flag off.
         from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
             ELECTRICITY_COMMODITY,
+            GAS_COMMODITY,
             pinned_electricity_buyers,
+            pinned_gas_buyers,
         )
 
         if ELECTRICITY_COMMODITY in values.index:
@@ -593,6 +595,12 @@ def fixed_value_mask(
                     flags.at[ELECTRICITY_COMMODITY, buyer] = bool(
                         np.asarray(values.at[ELECTRICITY_COMMODITY, buyer]).item()
                         != 0.0
+                    )
+        if GAS_COMMODITY in values.index:
+            for buyer in pinned_gas_buyers():
+                if buyer in values.columns:
+                    flags.at[GAS_COMMODITY, buyer] = bool(
+                        np.asarray(values.at[GAS_COMMODITY, buyer]).item() != 0.0
                     )
     return flags
 
