@@ -6,8 +6,10 @@ Explanations go in
 also keeps the findings from the earlier version of this tracker.
 
 The list is every commodity with an IV score above 0.2, using spend weights for an
-average spend-based organizational user, on GHG FBS `v1.0.0_79273ed` and MUT
-`v1.0.0_5514c3b`. The spend file is not in the repo. See
+average spend-based organizational user, on GHG FBS `v1.0.0_edf6e0e` and MUT
+`v1.0.0_b17908f`, with the v1.0 configs' electricity flags on (#1198, #1199, #1205).
+Sectors that have dropped below 0.2 on these vintages stay at the end of the table
+until their issues close. The spend file is not in the repo. See
 [`About_IV_score.md`](About_IV_score.md).
 
 **Driving factor** is how much of the movement in the commodity's `N_d` over
@@ -16,15 +18,16 @@ absolute values, so moves in opposite directions don't cancel.
 
 | Code | Sector | IV score | Driving factor | Status | Issues and PRs |
 |---|---|---|---|---|---|
-| `221100` | Electric power generation, transmission, and distribution | 3.23 | B 93%, L 7% | unresolved | 89#0, #894, #898,#901, #1012 |
-| `481000` | Air transportation | 0.40 | B 82%, L 18% | justified | #935 |
-| `211000` | Oil and gas extraction | 0.35 | B 54%, L 46% | unresolved | #890, #922 |
-| `484000` | Truck transportation | 0.31 | B 65%, L 35% | unresolved | #890 |
-| `324110` | Petroleum refineries | 0.26 | B 55%, L 45% | unresolved | #984, #975, #997, #1177 |
-| `325110` | Petrochemical manufacturing | 0.25 | B 60%, L 40% | unresolved | #997, #1177, #986, #1196 |
-| `531ORE` | Other real estate | 0.23 | B 48%, L 52% | unresolved | #705, #1163, #975 |
-| `325190` | Other basic organic chemical manufacturing | 0.23 | B 62%, L 38% | unresolved | #1177, #898, #1196 |
-| `325211` | Plastics material and resin manufacturing | 0.21 | B 55%, L 45% | unresolved | #670, #1196 |
+| `221100` | Electric power generation, transmission, and distribution | 1.65 | B 87%, L 13% | split: the decline is justified. The 2021-23 swing in `q` is fixed (3.23 to 1.65). Open: `q` keeps BEA's 2017 level | #890, #894, #898, #901, #1009, #1012, #1198, #1199, #1205 |
+| `481000` | Air transportation | 0.41 | B 83%, L 17% | justified | #935 |
+| `211000` | Oil and gas extraction | 0.35 | B 52%, L 48% | unresolved | #890, #922 |
+| `484000` | Truck transportation | 0.30 | B 60%, L 40% | unresolved | #890 |
+| `325110` | Petrochemical manufacturing | 0.28 | B 66%, L 34% | unresolved | #997, #1177, #986, #1196, #1203 |
+| `324110` | Petroleum refineries | 0.25 | B 52%, L 48% | unresolved | #984, #975, #997, #1177 |
+| `531ORE` | Other real estate | 0.23 | B 43%, L 57% | unresolved | #705, #1163, #975 |
+| `331110` | Iron and steel mills and ferroalloy manufacturing | 0.23 | B 48%, L 52% | unresolved | none yet |
+| `325190` | Other basic organic chemical manufacturing | 0.18 | B 61%, L 39% | unresolved, below 0.2 | #1177, #898, #1196, #1203 |
+| `325211` | Plastics material and resin manufacturing | 0.18 | B 59%, L 41% | unresolved, below 0.2 | #670, #1196, #1203 |
 
 Status values:
 
@@ -34,4 +37,5 @@ Status values:
 | **not justified** | movement with nothing underneath it. A defect, in scope, fix it. |
 | **out of scope** | real driver, but this project has no lever on it. Hand over with the evidence. |
 | **unresolved** | not yet investigated. Needs the source-level work before it can be ranked. |
+| **split** | part of the movement is justified and part is not. The row says which. |
 
