@@ -190,3 +190,18 @@ def test_an_industry_only_in_the_anchor_survey_stays_at_the_anchor() -> None:
         {'price': [2.0], 'kwh': [10.0], 'rows': ['3271']}, index=['NEW']
     )
     assert ep.relative_path(early, anchor, 2018)[0]['NEW'] == pytest.approx(2.0)
+
+
+def test_resale_price_is_revenue_over_volume_in_cents() -> None:
+    assert ep.resale_price(150_000.0, 3_000_000_000.0) == pytest.approx(5.0)
+
+
+def test_resale_price_needs_a_positive_volume() -> None:
+    with pytest.raises(ValueError, match='non-positive'):
+        ep.resale_price(1.0, 0.0)
+
+
+def test_buyers_below_lists_the_cheapest_first() -> None:
+    prices = pd.Series({'A': 6.0, 'B': 4.0, 'C': 5.0})
+    assert list(ep.buyers_below(prices, 5.5).index) == ['B', 'C']
+    assert ep.buyers_below(prices, 3.0).empty
