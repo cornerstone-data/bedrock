@@ -243,13 +243,18 @@ def _pinned_interior(year: int, matrix: pd.DataFrame) -> pd.DataFrame:
     """The seed's pinned cells, zero elsewhere (all zero with the pin off)."""
     from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
         ELECTRICITY_COMMODITY,
+        GAS_COMMODITY,
         pinned_electricity_buyers,
+        pinned_gas_buyers,
     )
 
     held = pd.DataFrame(False, index=matrix.index, columns=matrix.columns)
     buyers = [j for j in pinned_electricity_buyers(year) if j in matrix.columns]
     if buyers and ELECTRICITY_COMMODITY in matrix.index:
         held.loc[[ELECTRICITY_COMMODITY], buyers] = True
+    gas_buyers = [j for j in pinned_gas_buyers() if j in matrix.columns]
+    if gas_buyers and GAS_COMMODITY in matrix.index:
+        held.loc[[GAS_COMMODITY], gas_buyers] = True
     return matrix.where(held, 0.0)
 
 

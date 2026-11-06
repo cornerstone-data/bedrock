@@ -15,7 +15,11 @@ DEFAULT_FBS_PIN = _SNAPSHOT_BASE / 'cornerstone_ghg_fbs_2024_pin.json'
 
 
 def load_fbs_pin(pin_json_path: str | Path | None = None) -> dict[str, str]:
-    """Load a committed FBS pin (method, GCS location, filename, SHA256)."""
+    """Load a committed FBS pin (method, GCS location, filename, SHA256).
+
+    ``usa_config``, when present, names the config the pinned FBS was built
+    under; a regeneration must run under the same one.
+    """
     path = Path(pin_json_path or DEFAULT_FBS_PIN)
     raw = json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(raw, dict):
@@ -34,6 +38,8 @@ def load_fbs_pin(pin_json_path: str | Path | None = None) -> dict[str, str]:
             'blessed parquet is on GCS'
         )
     out['sha256'] = exp
+    if 'usa_config' in raw:
+        out['usa_config'] = str(raw['usa_config']).strip()
     return out
 
 

@@ -852,3 +852,84 @@ def test_services_seed_chains_across_the_survey_change(
     monkeypatch.setattr(st, '_chain_across_aies', lambda: False)
     indexed_2023 = st.services_transport_seed(2023)
     assert float((indexed_2023 - chained_2022).abs().to_numpy().max()) > 0.0
+
+
+# --- electric power's refined petroleum on price (#922) ------------------------
+
+
+def test_power_petroleum_moves_on_price_not_eia_oil(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the flag on, ``324110`` takes BEA's price; coal and gas stay on EIA.
+
+    ⚠️ BEA's 2017 cell is $17.4bn against $0.57bn of oil burned, so EIA's oil
+    bill moves a cell 30 times its size on a different concept.
+    """
+    from bedrock.analysis.nowcasting import (  # noqa: PLC0415
+        utilities_expense_seed as ue,
+    )
+
+    costs = pd.DataFrame(
+        {'coal': [100.0, 80.0], 'gas': [100.0, 150.0], 'oil': [10.0, 19.0]},
+        index=[2017, 2018],
+    )
+    monkeypatch.setattr(ue, 'fuel_costs', lambda: costs)
+    monkeypatch.setattr(
+        ue, 'resale_revenue', lambda: pd.Series({2017: 50.0, 2018: 55.0})
+    )
+    monkeypatch.setattr(
+        ni,
+        'commodity_price_factor',
+        lambda year, base=SEED_YEAR: pd.Series({ue.OIL: 1.25}),
+    )
+
+    eia = ue.relative_index(2018, 2017)
+    priced = ue.relative_index(2018, 2017, oil_on_price=True)
+    assert eia[ue.OIL] == pytest.approx(1.9)
+    assert priced[ue.OIL] == pytest.approx(1.25)
+    pd.testing.assert_series_equal(
+        priced.drop(ue.OIL), eia.drop(ue.OIL), check_names=False
+    )
+
+
+# --- oil and gas extraction's seed repriced (#922) ------------------------------
+
+
+@needs_census
+def test_oil_gas_extraction_seed_holds_self_use_and_reprices_petroleum(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2017 is the identity; only ``211000`` changes; petroleum falls after 2022.
+
+    The shipped seed held petroleum at its 2022 nominal share through 2024 while
+    the price fell 1.944 -> 1.430 of 2017.
+    """
+    from bedrock.analysis.nowcasting import (  # noqa: PLC0415
+        inputs_structure as ins,
+    )
+
+    def set_flag(value: bool) -> None:
+        flags = get_usa_config().model_copy(
+            update={'reprice_oil_gas_extraction_seed': value}
+        )
+        monkeypatch.setattr(ins, 'get_usa_config', lambda: flags)
+
+    set_flag(True)
+    column, oil = ins.OWN_PRODUCT_HELD[0], ins.REPRICED_ROWS[0]
+    use = ins._use_2017_detail()[column]
+    at_2017 = ins.mining_seed(2017)[column].reindex(use.index).fillna(0.0)
+    assert float((at_2017 - use).abs().max()) < 1e-6
+
+    on = {y: ins.mining_seed(y) for y in (2022, 2024)}
+    for frame in on.values():
+        assert frame[column].sum() == pytest.approx(use.sum())
+    share = {y: f[column][oil] / f[column].sum() for y, f in on.items()}
+    assert share[2024] < share[2022]
+
+    set_flag(False)
+    off = ins.mining_seed(2024)
+    others = [c for c in off.columns if c != column]
+    rows = off.index.intersection(on[2024].index)
+    pd.testing.assert_frame_equal(on[2024].loc[rows, others], off.loc[rows, others])
+    # Flag off: held at the 2022 nominal share.
+    assert off[column][oil] / off[column].sum() > share[2024]
