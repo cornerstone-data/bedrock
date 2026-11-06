@@ -216,3 +216,18 @@ def test_relative_movers_flags_large_same_row_changes_only() -> None:
     assert list(movers.index) == ['ALUMINA']
     assert movers.loc['ALUMINA', 'fractional_change'] == pytest.approx(8.0 / 5.0 - 1.0)
     assert ep.relative_movers_from_surveys(early, anchor, threshold=0.70).empty
+
+
+def test_resale_price_is_revenue_over_volume_in_cents() -> None:
+    assert ep.resale_price(150_000.0, 3_000_000_000.0) == pytest.approx(5.0)
+
+
+def test_resale_price_needs_a_positive_volume() -> None:
+    with pytest.raises(ValueError, match='non-positive'):
+        ep.resale_price(1.0, 0.0)
+
+
+def test_buyers_below_lists_the_cheapest_first() -> None:
+    prices = pd.Series({'A': 6.0, 'B': 4.0, 'C': 5.0})
+    assert list(ep.buyers_below(prices, 5.5).index) == ['B', 'C']
+    assert ep.buyers_below(prices, 3.0).empty
