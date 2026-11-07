@@ -620,7 +620,8 @@ class USAConfig(BaseModel):
         '3a1dddc2030e5793b929888c1343cf5a14729f4c',  # v0.5.0
         'e10c75f542b0c9b24692f6524a53073e091d54dc',  # v0.6.0
         '326ae5d8922ad69347c360314be541935a374a4b',  # v1.0.0-rc
-        '7f0bdab6e7d12f17a9c2a61437a22af1df7bed30',  # v1.0.0 (current .SNAPSHOT_KEY)
+        '7f0bdab6e7d12f17a9c2a61437a22af1df7bed30',  # v1.0.0, before the electricity flags
+        'c9b69d94a20aecc8d858738eb87093e26e612dbe',  # v1.0.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
