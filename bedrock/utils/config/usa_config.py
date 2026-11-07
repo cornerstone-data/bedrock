@@ -194,6 +194,9 @@ class USAConfig(BaseModel):
     # before that, a rebuild no longer reproduces the pinned tables. See
     # bedrock/analysis/electricity/About_electricity_modeling_record.md.
     electric_output_on_retail_revenue: bool = False  # DRI: WesIngwersen
+    # Electricity generation and a buyer-specific delivery sector (#902), in the slot
+    # of 425000, which merges into 423A00. Applied after Step 7; no nowcast rebuild.
+    electricity_delivery_margin: bool = False  # DRI: WesIngwersen
     # Second pathway for electric power; needs the flag above. Electric non-fuel
     # inputs follow 2017 cells x input prices x EIA kWh, and what is left of BEA's
     # electric value added moves to a residual commodity and industry (S00700)
@@ -495,6 +498,14 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'electric_output_on_eia_level requires '
                 'electricity_accounting_residual'
+            )
+        if self.electricity_delivery_margin and (
+            self.implement_electricity_disaggregation
+            or not self.implement_waste_disaggregation
+        ):
+            raise ValueError(
+                'electricity_delivery_margin replaces the G/T/D ladder and needs '
+                'implement_waste_disaggregation'
             )
         return self
 

@@ -179,6 +179,7 @@ FUEL_RECEIPTS = 'out_eia923__fuel_receipts_costs'
 
 #: EIA form 861 operational data, for the purchased-power leg.
 RESALE_REVENUE = 'core_eia861__yearly_operational_data_revenue'
+RESALE_VOLUME = 'core_eia861__yearly_operational_data_misc'
 
 #: EIA form 176, the natural gas company annual report -- what BEA's Table C1
 #: names for gas.  ⚠️ **Volumes only in the supply table**; the revenue is in
@@ -283,6 +284,16 @@ def resale_revenue() -> 'pd.Series[float]':
     frame['year'] = pd.to_datetime(frame['report_date']).dt.year
     resale = frame[frame['revenue_class'] == 'sales_for_resale']
     return (resale.groupby('year')['revenue'].sum() / 1e6).astype(float)
+
+
+@functools.cache
+def resale_volume() -> 'pd.Series[float]':
+    """``year -> sales-for-resale volume``, MWh, from the same form as the revenue."""
+    frame = pd.read_parquet(
+        _cached(RESALE_VOLUME), columns=['report_date', 'sales_for_resale_mwh']
+    )
+    frame['year'] = pd.to_datetime(frame['report_date']).dt.year
+    return frame.groupby('year')['sales_for_resale_mwh'].sum().astype(float)
 
 
 def relative_index(
