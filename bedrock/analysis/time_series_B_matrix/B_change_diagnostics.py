@@ -117,6 +117,7 @@ from bedrock.transform.allocation.derived import (
     map_fbs_sectors_to_model_schema,
     resplit_waste_use_emissions,
 )
+from bedrock.transform.eeio import electricity_delivery
 from bedrock.transform.eeio.usa_matrices import (
     derive_Aq_scaled,
     derive_Vnorm_scrap_corrected,
@@ -165,11 +166,16 @@ MUT_STEM = 'Nowcast_Detail_Make_after_redef_{year}'
 #: must not leak from one year's config into the next.
 CACHE_BEARING_MODULES: tuple[str, ...] = (
     'bedrock.transform.eeio.usa_matrices',
+    'bedrock.transform.eeio.sector_disagg_pipeline',
+    'bedrock.transform.eeio.electricity_delivery',
     'bedrock.transform.allocation.derived',
     'bedrock.extract.iot.nowcast_mut_storage',
     'bedrock.extract.iot.io_2017',
     'bedrock.transform.iot.derived_gross_industry_output',
 )
+
+#: Config fields set on top of every year's config. Empty for the configs as written.
+CONFIG_OVERRIDES: dict[str, Any] = {}
 
 #: The two FBS columns this analysis is keyed on.
 STRATUM: tuple[str, str] = ('MetaSources', 'AttributionSources')
@@ -534,6 +540,8 @@ def fbs_to_co2e(fbs: pd.DataFrame) -> pd.DataFrame:
     """
     mapped = resplit_waste_use_emissions(map_fbs_sectors_to_model_schema(fbs))
     mapped['Flowable'] = mapped['Flowable'].map(GAS_MAP).fillna(mapped['Flowable'])
+    if electricity_delivery.delivery_margin_on():
+        mapped = electricity_delivery.move_delivery_flows(mapped)
     apply_ch4_non_fossil_flowable(mapped)
 
     # Widened to plain str keys: GWP100_AR6_CEDA is typed on a Literal of the
@@ -700,6 +708,7 @@ def build_span(
             CONFIG_TEMPLATE.format(year=year),
             cache_bearing_modules=CACHE_BEARING_MODULES,
             nowcast_mut_vintage=pinned.mut,
+            **CONFIG_OVERRIDES,
         ):
             E_year = stratified_E(year, pinned.fbs)
             x_year = derive_x()
@@ -724,6 +733,7 @@ def build_span(
         CONFIG_TEMPLATE.format(year=years[0]),
         cache_bearing_modules=CACHE_BEARING_MODULES,
         nowcast_mut_vintage=pinned.mut,
+        **CONFIG_OVERRIDES,
     ):
         x_real = deflate_x(x, base_year=years[0])
     logger.info(
@@ -3496,7 +3506,7 @@ def table_3_11_by_sector(year: int, fbs_vintage: str) -> pd.Series:
     The prior the residual rule renormalises against. Loaded without building
     the full E-versus-x span - only the GHG FBS for *year* is required.
     """
-    with temp_usa_config(CONFIG_TEMPLATE.format(year=year)):
+    with temp_usa_config(CONFIG_TEMPLATE.format(year=year), **CONFIG_OVERRIDES):
         emissions = stratified_E(year, fbs_vintage)
     combustion = emissions[
         emissions['MetaSources']

@@ -52,6 +52,7 @@ from __future__ import annotations
 import argparse
 import logging
 import re
+import typing as ta
 from dataclasses import replace
 from pathlib import Path
 
@@ -59,6 +60,7 @@ import numpy as np
 import pandas as pd
 
 from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
+from bedrock.transform.eeio.electricity_delivery import PUBLISHED_LABELS
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
@@ -80,6 +82,22 @@ WEIGHT_SCHEMES: tuple[str, ...] = ('equal', 'final_demand', 'output', 'footprint
 DEFAULT_TREND_WEIGHT = 1.0
 
 OUT_DIR = bcd.OUTPUT_DIR / 'IV_score'
+
+#: Added to the span cache and output folders with the delivery margin on, so
+#: those runs never replace the results of the configs as written.
+DELIVERY_MARGIN_LABEL = 'delivery_margin'
+
+
+def delivery_margin_on() -> bool:
+    """Whether this run sets ``electricity_delivery_margin`` on the year configs."""
+    return bool(bcd.CONFIG_OVERRIDES.get('electricity_delivery_margin'))
+
+
+def sector_name(code: str) -> str:
+    """The name of a sector in this run's schema."""
+    if delivery_margin_on() and code in PUBLISHED_LABELS:
+        return PUBLISHED_LABELS[code][1]
+    return ta.cast(ta.Mapping[str, str], INDUSTRY_DESC).get(code, code)
 
 
 def config_vintages(years: tuple[int, ...] = bcd.YEARS) -> bcd.SpanVintages:
@@ -107,6 +125,7 @@ def load_or_build_span(vintages: bcd.SpanVintages | None = None) -> bcd.Span:
     bcd.CACHE_DIR = bcd.OUTPUT_DIR / (
         f'cache_fbs_{pinned.fbs.rsplit("_", 1)[-1]}'
         f'_mut_{pinned.mut.rsplit("_", 1)[-1]}'
+        f'{"_" + DELIVERY_MARGIN_LABEL if delivery_margin_on() else ""}'
     )
     if (bcd.CACHE_DIR / 'vintages.txt').exists():
         span = bcd.load_span()
@@ -135,6 +154,7 @@ def domestic_span(span: bcd.Span) -> bcd.Span:
             bcd.CONFIG_TEMPLATE.format(year=year),
             cache_bearing_modules=bcd.CACHE_BEARING_MODULES,
             nowcast_mut_vintage=span.vintages.mut,
+            **bcd.CONFIG_OVERRIDES,
         ):
             L_dom[year] = bcd.compute_L_matrix(A=bcd.derive_Aq_scaled().Adom)
         L_dom[year].to_parquet(path)
@@ -311,7 +331,7 @@ def iv_table(
     V = volatility(B_real.reindex(index).fillna(0.0), trend_weight)
 
     table = pd.DataFrame(index=index)
-    table['name'] = [str(INDUSTRY_DESC.get(c, c)) for c in index]
+    table['name'] = [sector_name(str(c)) for c in index]
     table['I'] = importance(span, shares, weights)
     table = table.join(V)
     table['IV'] = table['I'] * table['V'] * 100
@@ -439,11 +459,24 @@ if __name__ == '__main__':
         default=DEFAULT_TREND_WEIGHT,
         help='weight on the squared median annual change in V; 0 ignores a trend',
     )
+    parser.add_argument(
+        '--electricity-delivery-margin',
+        action='store_true',
+        help='split electricity into generation and delivery in every year',
+    )
     args = parser.parse_args()
+    run_dir = OUT_DIR
+    if args.electricity_delivery_margin:
+        bcd.CONFIG_OVERRIDES['electricity_delivery_margin'] = True
+        run_dir = OUT_DIR / DELIVERY_MARGIN_LABEL
     if args.check:
         check(domestic_span(load_or_build_span()))
     elif args.weights_csv:
         custom = pd.read_csv(args.weights_csv, dtype={'commodity': str})
-        main(custom.set_index('commodity')['weight'], trend_weight=args.trend_weight)
+        main(
+            custom.set_index('commodity')['weight'],
+            run_dir,
+            trend_weight=args.trend_weight,
+        )
     else:
-        main(args.weights, trend_weight=args.trend_weight)
+        main(args.weights, run_dir, trend_weight=args.trend_weight)
