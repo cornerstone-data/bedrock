@@ -353,6 +353,18 @@ def move_delivery_emissions(e: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def move_delivery_flows(
+    flows: pd.DataFrame, sector: str = 'SectorProducedBy', gas: str = 'Flowable'
+) -> pd.DataFrame:
+    """:func:`move_delivery_emissions` for a long table of flows, one row per flow."""
+    codes = flows[sector].astype(str)
+    out = flows.copy()
+    out[sector] = codes.mask(codes == DELIVERY_SLOT, BROKERS_HOST).mask(
+        (codes == GENERATION_SECTOR) & (flows[gas].astype(str) == 'SF6'), DELIVERY_SLOT
+    )
+    return out
+
+
 def delivery_margin_rate(split: DeliverySplit) -> float:
     """Delivery dollars per dollar of generation sold to buyers."""
     frame = split.buyers[split.buyers['class'] != OWN_USE]

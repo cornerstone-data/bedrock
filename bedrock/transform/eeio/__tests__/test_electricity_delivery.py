@@ -340,6 +340,29 @@ def test_sf6_moves_to_delivery_and_other_gases_stay() -> None:
     assert out.sum().sum() == pytest.approx(e.sum().sum())
 
 
+def test_long_flows_move_the_same_way_as_the_table() -> None:
+    flows = pd.DataFrame(
+        {
+            'SectorProducedBy': [G, G, D, D, HOST],
+            'Flowable': ['CO2', 'SF6', 'CO2', 'SF6', 'CO2'],
+            'FlowAmount': [100.0, 3.0, 1.0, 0.5, 2.0],
+        }
+    )
+    wide = flows.pivot_table(
+        index='Flowable', columns='SectorProducedBy', values='FlowAmount', aggfunc='sum'
+    ).fillna(0.0)
+    expected = ed.move_delivery_emissions(wide)
+    moved = ed.move_delivery_flows(flows).pivot_table(
+        index='Flowable', columns='SectorProducedBy', values='FlowAmount', aggfunc='sum'
+    )
+    for code in expected.columns:
+        for flow in expected.index:
+            got = moved.at[flow, code] if code in moved.columns else 0.0
+            assert (0.0 if pd.isna(got) else got) == pytest.approx(
+                expected.at[flow, code]
+            )
+
+
 def test_the_share_comes_from_delivery_against_other_production_costs() -> None:
     share = ed.non_fuel_delivery_share(
         {
