@@ -149,3 +149,57 @@ def test_the_pathway_is_off_and_needs_retail_output() -> None:
                 'electricity_accounting_residual': True,
             }
         )
+
+
+def test_the_excess_is_what_buyers_paid_above_revenue() -> None:
+    bills = pd.Series({'721000': 60.0, '311111': 30.0})
+    assert ear.base_year_excess(bills, 50.0, 25.0) == pytest.approx(15.0)
+
+
+def test_buyers_at_revenue_leave_no_excess() -> None:
+    assert ear.base_year_excess(pd.Series({'721000': 60.0}), 50.0, 25.0) == 0.0
+
+
+def test_at_the_base_year_the_residual_is_the_excess_on_eia_level() -> None:
+    total = ear.residual_total(
+        output_2017=400.0,
+        value_added_2017=250.0,
+        value_added=250.0,
+        fuel_2017=50.0,
+        fuel=50.0,
+        retail_relative=1.0,
+        input_price_relative=1.0,
+        kwh_relative=1.0,
+        excess_2017=60.0,
+    )
+    assert total == pytest.approx(60.0)
+
+
+def test_later_years_carry_the_excess_on_retail_revenue() -> None:
+    def total(excess: float) -> float:
+        return ear.residual_total(
+            output_2017=400.0,
+            value_added_2017=250.0,
+            value_added=350.0,
+            fuel_2017=50.0,
+            fuel=50.0,
+            retail_relative=1.2,
+            input_price_relative=1.1,
+            kwh_relative=1.0,
+            excess_2017=excess,
+        )
+
+    assert total(60.0) - total(0.0) == pytest.approx(60.0 * 1.2)
+
+
+def test_the_level_flag_is_off_and_needs_the_residual() -> None:
+    assert USAConfig.model_fields['electric_output_on_eia_level'].default is False
+    assert ear.level_excess() == 0.0
+    with pytest.raises(ValueError, match='electric_output_on_eia_level requires'):
+        USAConfig.model_validate(
+            {
+                **get_usa_config().model_dump(),
+                'electricity_accounting_residual': False,
+                'electric_output_on_eia_level': True,
+            }
+        )

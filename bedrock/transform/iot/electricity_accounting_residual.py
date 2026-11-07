@@ -21,6 +21,11 @@ residual value added equals BEA's, so total value added still equals final deman
 The residual has no inputs and no emissions. It is sold to intermediate buyers,
 never to households or exports, whose electricity follows EIA revenue.
 
+With ``electric_output_on_eia_level`` on, retail output starts below BEA's 2017
+level by what commercial and industrial buyers paid in 2017 above EIA revenue
+(:func:`level_excess`). Inputs don't change, so the difference comes out of
+electric value added and into the residual, in 2017 as well.
+
 Who buys it
 -----------
 
@@ -92,11 +97,17 @@ def residual_total(
     retail_relative: float,
     input_price_relative: float,
     kwh_relative: float,
+    excess_2017: float = 0.0,
 ) -> float:
-    """The residual in one year, $M, from all-electric totals. Never negative."""
+    """The residual in one year, $M, from all-electric totals. Never negative.
+
+    *excess_2017* is 2017 output taken out of retail output, which leaves the
+    non-fuel target where it is.
+    """
     non_fuel_2017 = output_2017 - value_added_2017 - fuel_2017
     non_fuel = non_fuel_2017 * input_price_relative * kwh_relative
-    electric_value_added = output_2017 * retail_relative - fuel - non_fuel
+    retail_output = (output_2017 - excess_2017) * retail_relative
+    electric_value_added = retail_output - fuel - non_fuel
     return max(value_added - electric_value_added, 0.0)
 
 
@@ -146,6 +157,40 @@ def _use_2017() -> pd.DataFrame:
     use.index = pd.Index([str(i).strip() for i in use.index])
     use.columns = pd.Index([str(c).strip() for c in use.columns])
     return use
+
+
+def base_year_excess(
+    bills: pd.Series, revenue_commercial: float, revenue_industrial: float
+) -> float:
+    """What commercial and industrial buyers paid above EIA revenue, $M."""
+    return max(float(bills.sum()) - revenue_commercial - revenue_industrial, 0.0)
+
+
+@functools.cache
+def _excess_2017() -> float:
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        eia_retail_revenue_usd,
+    )
+    from bedrock.utils.taxonomy.bea.v2017_industry import (  # noqa: PLC0415
+        USA_2017_INDUSTRY_CODES,
+    )
+
+    buyers = [c for c in USA_2017_INDUSTRY_CODES if c not in ELECTRIC_INDUSTRIES]
+    row = pd.to_numeric(pd.Series(_use_2017().loc[ELECTRICITY]), errors='coerce')
+    return base_year_excess(
+        row.reindex(buyers).fillna(0.0),
+        eia_retail_revenue_usd(BASE_YEAR, 'Commercial') / 1e6,
+        eia_retail_revenue_usd(BASE_YEAR, 'Industrial') / 1e6,
+    )
+
+
+def level_excess() -> float:
+    """2017 output above EIA's level, $M. Zero unless ``electric_output_on_eia_level``."""
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    if not get_usa_config().electric_output_on_eia_level:
+        return 0.0
+    return _excess_2017()
 
 
 def _step_3_bills(year: int, value_added: pd.Series) -> 'pd.Series[float]':
@@ -216,7 +261,8 @@ def value_added_transfers(
 
     codes = [code for code in ELECTRIC_INDUSTRIES if code in value_added.index]
     transfers = pd.Series(0.0, index=value_added.index)
-    if int(year) == BASE_YEAR or int(year) not in CONTROLLED_YEARS:
+    excess = level_excess()
+    if int(year) not in CONTROLLED_YEARS or (int(year) == BASE_YEAR and excess == 0.0):
         return transfers
     fuel = fuel_costs()[['coal', 'gas', 'oil']].sum(axis=1)
     total = residual_total(
@@ -228,6 +274,7 @@ def value_added_transfers(
         retail_relative=retail_index(int(year)),
         input_price_relative=input_price_relative(int(year)),
         kwh_relative=retail_sales_mwh(int(year)) / retail_sales_mwh(BASE_YEAR),
+        excess_2017=excess,
     )
     transfers[codes] = -split_across_columns(total, value_added[codes])
     shares = buyer_shares(

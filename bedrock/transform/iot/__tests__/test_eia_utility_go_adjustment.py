@@ -11,6 +11,7 @@ import pytest
 
 from bedrock.extract.disaggregation import egrid_generation
 from bedrock.transform.iot import eia_utility_go_adjustment as ug
+from bedrock.transform.iot import electricity_accounting_residual as ear
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 
 #: 2017 electric gross output totals 500 in the synthetic panel, so a retail
@@ -206,6 +207,17 @@ def test_real_output_follows_kwh_on_the_retail_price(
     for year in (2018, 2022):
         price = ug.retail_price_index(year) / ug.retail_price_index(2017)
         assert total[year] / price / total[2017] == pytest.approx(kwh[year] / 100.0)
+
+
+@pytest.mark.usefixtures('_retail_basis')
+def test_eia_level_takes_the_excess_out_in_proportion_to_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ear, 'level_excess', lambda: 50.0)
+    adjusted = ug.apply_eia_utility_adjustment(_panel())
+    for code, base in {'221100': 360.0, 'S00101': 45.0, 'S00202': 45.0}.items():
+        assert adjusted.at[code, 2017] == pytest.approx(base)
+        assert adjusted.at[code, 2022] == pytest.approx(base * 2.0)
 
 
 def test_retail_output_outside_the_span_raises() -> None:
