@@ -496,6 +496,29 @@ def test_v1_0_release_yaml_matches_2024_series_member() -> None:
     assert CANONICAL_USA_CONFIG == '2026_usa_cornerstone_v1_0'
 
 
+@pytest.mark.parametrize('year', range(2017, 2025))
+def test_v1_0_1_differs_from_v1_0_only_by_its_electricity_changes(year: int) -> None:
+    cfg = _load_usa_config_from_file_name(f'2026_usa_cornerstone_v1_0_1_{year}.yaml')
+    v1_0 = _load_usa_config_from_file_name(f'2026_usa_cornerstone_v1_0_{year}.yaml')
+    assert cfg.electric_output_on_eia_level and cfg.electricity_delivery_margin
+    assert not v1_0.electric_output_on_eia_level
+    assert not v1_0.electricity_delivery_margin
+    assert cfg.nowcast_mut_vintage == 'v1.0.0_e5fa35b'
+    exclude = {
+        'electric_output_on_eia_level',
+        'electricity_delivery_margin',
+        'nowcast_mut_vintage',
+        'cornerstone_ghg_fbs_filename',
+    }
+    assert cfg.model_dump(exclude=exclude) == v1_0.model_dump(exclude=exclude)
+
+
+def test_v1_0_1_release_yaml_matches_2024_series_member() -> None:
+    base = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_1.yaml')
+    y2024 = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_1_2024.yaml')
+    assert base.model_dump() == y2024.model_dump()
+
+
 def test_v0_4_release_yaml_loads() -> None:
     cfg = _load_usa_config_from_file_name('2025_usa_cornerstone_v0_4.yaml')
     assert cfg.usa_detail_io_source == 'nowcast'
