@@ -40,6 +40,7 @@ NAMED_BASELINES: dict[str, str] = {
     'v1.0': releases.v1_0_0,
     'v1.0.0': releases.v1_0_0,
     'v1.0.0-rc': releases.v1_0_0_rc,
+    'v1.0.0-pre-electricity-flags': releases.v1_0_0_pre_electricity_flags,
 }
 
 
