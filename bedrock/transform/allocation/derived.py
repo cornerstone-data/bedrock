@@ -474,6 +474,12 @@ def load_E_from_flowsa() -> pd.DataFrame:
         target_columns = [str(sector) for sector in INDUSTRIES]
     _warn_on_sectors_outside_model(E_usa, target_columns)
     E_usa = E_usa.reindex(columns=target_columns, fill_value=0)
+    if usa.electricity_delivery_margin:
+        from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+            move_delivery_emissions,
+        )
+
+        E_usa = move_delivery_emissions(E_usa)
 
     return E_usa
 

@@ -29,6 +29,7 @@ This doesn't change the older G/T/D allocator in
 
 from __future__ import annotations
 
+import functools
 import typing as ta
 from dataclasses import dataclass
 
@@ -181,3 +182,251 @@ def delivery_split(year: int, bills: pd.Series) -> DeliverySplit:
             export_mwh,
         ),
     )
+
+
+# --- the tables with a delivery sector (#1216, #1217) --------------------------------
+
+#: The Cornerstone slot delivery takes. The sector list stays at 405 and keeps this code
+#: on every axis, because released configs and snapshots use it. Outputs label it
+#: :data:`DELIVERY_CODE` (:func:`published_label`).
+DELIVERY_SLOT = '425000'
+DELIVERY_CODE = '42ELEC'
+#: Where wholesale agents and brokers go, the host that moves ``N`` least.
+BROKERS_HOST = '423A00'
+GENERATION_SECTOR = '221100'
+
+#: EIA-923's fuels: all generation.
+FUEL_ROWS = ('212100', '211000', '324110')
+IMPORTS_COLUMN = 'F05000'
+
+_DELIVERY_EXPENSES = (
+    'expenses: Transmission',
+    'expenses: Distribution',
+    'expenses: Customer Accounts',
+    'expenses: Customer Service',
+    'expenses: Sales',
+)
+_GENERATION_NON_FUEL_EXPENSE = 'expenses: Other'
+
+PUBLISHED_LABELS = {
+    DELIVERY_SLOT: (DELIVERY_CODE, 'Electricity transmission and distribution'),
+    GENERATION_SECTOR: (GENERATION_SECTOR, 'Electricity generation'),
+    BROKERS_HOST: (
+        BROKERS_HOST,
+        'Other durable goods merchant wholesalers, and wholesale agents and brokers',
+    ),
+}
+
+
+def delivery_margin_on() -> bool:
+    """Whether the active config models delivery as its own sector."""
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return bool(get_usa_config().electricity_delivery_margin)
+
+
+def published_label(code: str, name: str) -> tuple[str, str]:
+    """The code and name to show for a sector under the active config."""
+    if delivery_margin_on() and str(code) in PUBLISHED_LABELS:
+        return PUBLISHED_LABELS[str(code)]
+    return str(code), name
+
+
+def non_fuel_delivery_share(expenses: ta.Mapping[str, float]) -> float:
+    """Delivery's share of electric power's non-fuel inputs, from FERC Form 1 lines.
+
+    Transmission, distribution and customer costs against other production costs.
+    Administration and maintenance aren't split on the form, so they follow this share.
+    """
+    delivery = sum(float(expenses[name]) for name in _DELIVERY_EXPENSES)
+    generation = float(expenses[_GENERATION_NON_FUEL_EXPENSE])
+    return delivery / (delivery + generation)
+
+
+def merge_brokers(frame: pd.DataFrame, rows: bool, columns: bool) -> pd.DataFrame:
+    """*frame* with the slot's row and column added to the host, and zero in the slot."""
+    out = frame.astype(float).copy()
+    if rows and DELIVERY_SLOT in out.index:
+        out.loc[BROKERS_HOST] = out.loc[BROKERS_HOST] + out.loc[DELIVERY_SLOT]
+        out.loc[DELIVERY_SLOT] = 0.0
+    if columns and DELIVERY_SLOT in out.columns:
+        out[BROKERS_HOST] = out[BROKERS_HOST] + out[DELIVERY_SLOT]
+        out[DELIVERY_SLOT] = 0.0
+    return out
+
+
+def electricity_bills(udom: pd.DataFrame, y: pd.DataFrame) -> 'pd.Series[float]':
+    """Domestic Use and final demand on the electricity row, without imports. USD."""
+    final = y.loc[GENERATION_SECTOR].drop(labels=[IMPORTS_COLUMN], errors='ignore')
+    return pd.Series(pd.concat([udom.loc[GENERATION_SECTOR], final]), dtype=float)
+
+
+def _split_column(
+    column: pd.Series, share: float, whole_to_generation: ta.Sequence[str]
+) -> pd.Series:
+    """Delivery's part of an input column: *share* except for the named rows."""
+    delivery = column.astype(float) * share
+    delivery[[r for r in whole_to_generation if r in delivery.index]] = 0.0
+    return delivery
+
+
+def restructure_tables(
+    v: pd.DataFrame,
+    udom: pd.DataFrame,
+    uimp: pd.DataFrame,
+    va: pd.DataFrame,
+    y: pd.DataFrame,
+    split: DeliverySplit,
+    non_fuel_share: float,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """The tables with brokers merged and electric power split in two.
+
+    **Row.** Each buyer's bill divides into generation and delivery.
+    **Column.** Fuel and own purchases stay with generation. Other inputs divide by
+    *non_fuel_share*. ``42ELEC`` also buys line losses from generation, a new sale.
+    Value added is what each column's output leaves.
+
+    Raises rather than returning tables that leave generation or delivery with
+    non-positive output or value added.
+    """
+    v2 = merge_brokers(v, rows=True, columns=True)
+    u_dom = merge_brokers(udom, rows=True, columns=True)
+    u_imp = merge_brokers(uimp, rows=True, columns=True)
+    value = merge_brokers(va, rows=False, columns=True)
+    final = merge_brokers(y, rows=True, columns=False)
+
+    frame = split.buyers
+    delivery = pd.Series(frame['delivery'], dtype=float)
+    in_use = [c for c in delivery.index if c in u_dom.columns]
+    in_final = [c for c in delivery.index if c in final.columns]
+    missing = delivery.index.difference(pd.Index(in_use + in_final))
+    if len(missing) > 0:
+        raise ValueError(f'buyers in no table: {list(missing)[:5]}')
+    total = float(delivery.sum())
+    losses = split.losses_usd
+
+    for table in (u_dom, final):
+        amounts = delivery.reindex(table.columns).fillna(0.0)
+        table.loc[DELIVERY_SLOT] = amounts
+        table.loc[GENERATION_SECTOR] = table.loc[GENERATION_SECTOR] - amounts
+
+    held = [*FUEL_ROWS, GENERATION_SECTOR]
+    for table in (u_dom, u_imp):
+        part = _split_column(table[GENERATION_SECTOR], non_fuel_share, held)
+        table[DELIVERY_SLOT] = part
+        table[GENERATION_SECTOR] = table[GENERATION_SECTOR] - part
+    u_dom.loc[GENERATION_SECTOR, DELIVERY_SLOT] = losses
+
+    inputs = float(u_dom[DELIVERY_SLOT].sum() + u_imp[DELIVERY_SLOT].sum())
+    delivery_value = total - inputs
+    electric_value = pd.Series(value[GENERATION_SECTOR], dtype=float)
+    value_total = float(electric_value.sum())
+    if delivery_value <= 0 or delivery_value >= value_total:
+        raise ValueError(
+            f'delivery value added of {delivery_value:,.0f} USD does not fit '
+            f'electric value added of {value_total:,.0f} USD'
+        )
+    value[DELIVERY_SLOT] = electric_value * (delivery_value / value_total)
+    value[GENERATION_SECTOR] = electric_value - value[DELIVERY_SLOT]
+
+    v2.loc[DELIVERY_SLOT, DELIVERY_SLOT] = total
+    generation_output = (
+        float(pd.Series(v2.loc[GENERATION_SECTOR], dtype=float)[GENERATION_SECTOR])
+        - total
+        + losses
+    )
+    if generation_output <= 0:
+        raise ValueError('generation output is not positive after the split')
+    v2.loc[GENERATION_SECTOR, GENERATION_SECTOR] = generation_output
+    return v2, u_dom, u_imp, value, final
+
+
+def move_delivery_emissions(e: pd.DataFrame) -> pd.DataFrame:
+    """Emissions with brokers merged and SF6 from electric power moved to delivery.
+
+    Generation keeps eGRID. SF6 is what insulates transmission equipment.
+    """
+    out = merge_brokers(e, rows=False, columns=True)
+    if 'SF6' in out.index:
+        out.loc['SF6', DELIVERY_SLOT] = out.loc['SF6', GENERATION_SECTOR]
+        out.loc['SF6', GENERATION_SECTOR] = 0.0
+    return out
+
+
+def move_delivery_flows(
+    flows: pd.DataFrame, sector: str = 'SectorProducedBy', gas: str = 'Flowable'
+) -> pd.DataFrame:
+    """:func:`move_delivery_emissions` for a long table of flows, one row per flow."""
+    codes = flows[sector].astype(str)
+    out = flows.copy()
+    out[sector] = codes.mask(codes == DELIVERY_SLOT, BROKERS_HOST).mask(
+        (codes == GENERATION_SECTOR) & (flows[gas].astype(str) == 'SF6'), DELIVERY_SLOT
+    )
+    return out
+
+
+def delivery_margin_rate(split: DeliverySplit) -> float:
+    """Delivery dollars per dollar of generation sold to buyers."""
+    frame = split.buyers[split.buyers['class'] != OWN_USE]
+    return float(frame['delivery'].sum() / frame['gen'].sum())
+
+
+def restructure_margins(margins: pd.DataFrame, rate: float) -> pd.DataFrame:
+    """Margins by commodity with brokers merged and electricity's delivery shown.
+
+    Electricity's producers' value becomes generation, and delivery joins what the
+    purchaser pays. Adds the ``Electricity delivery`` column.
+    """
+    out = merge_brokers(margins, rows=True, columns=False)
+    out['Electricity delivery'] = 0.0
+    producers = "Producers' Value"
+    bill = float(pd.Series(out[producers], dtype=float)[GENERATION_SECTOR])
+    out.at[GENERATION_SECTOR, producers] = bill / (1.0 + rate)
+    out.at[GENERATION_SECTOR, 'Electricity delivery'] = bill * rate / (1.0 + rate)
+    return out
+
+
+def active_delivery_split() -> DeliverySplit:
+    """This model year's split, from the tables before it is applied."""
+    return _delivery_state()[0]
+
+
+def _year_expenses(year: int) -> dict[str, float]:
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        eia_table_8_3_line,
+    )
+
+    names = (*_DELIVERY_EXPENSES, _GENERATION_NON_FUEL_EXPENSE)
+    return {name: eia_table_8_3_line(int(year), name) for name in names}
+
+
+@functools.cache
+def _delivery_state() -> tuple[
+    DeliverySplit,
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame],
+]:
+    from bedrock.transform.eeio import sector_disagg_pipeline as pipe  # noqa: PLC0415
+    from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
+        reallocate_electricity_coproduction,
+    )
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    year = int(get_usa_config().usa_detail_original_year)
+    # Electric utilities' other products, $14bn of gas distribution in 2024, would
+    # otherwise take generation's factor per dollar.
+    v, udom, uimp, va = reallocate_electricity_coproduction(
+        pipe.derive_V_after_waste(),
+        *pipe.derive_U_after_waste(),
+        pipe.derive_VA_after_waste(),
+    )
+    y = pipe.derive_y_after_waste()
+    split = delivery_split(year, electricity_bills(udom, y))
+    share = non_fuel_delivery_share(_year_expenses(year))
+    return split, restructure_tables(v, udom, uimp, va, y, split, share)
+
+
+def restructured_tables() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
+    """V, Udom, Uimp, VA and Y for this model year with delivery as its own sector."""
+    return _delivery_state()[1]
