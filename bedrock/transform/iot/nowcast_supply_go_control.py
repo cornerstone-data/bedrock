@@ -403,6 +403,56 @@ def _set_government_electric_columns(
     return out
 
 
+def take_excess_from_electricity_row(
+    block: pd.DataFrame, excess: float, output: 'pd.Series[float]'
+) -> pd.DataFrame:
+    """*block* with *excess* off the electricity row, split across *output*'s columns.
+
+    Only the electricity row moves, as in :func:`_set_government_electric_columns`.
+    """
+    from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+        ELECTRICITY_COMMODITY,
+    )
+
+    out = block.copy()
+    for code in map(str, output.index):
+        cut = excess * float(output[code]) / float(output.sum())
+        cell = float(np.asarray(out.at[ELECTRICITY_COMMODITY, code], dtype=float))
+        if cell < cut:
+            raise ValueError(
+                f'{code}: the level needs {cut:,.0f} USD from an electricity '
+                f'cell of {cell:,.0f} USD'
+            )
+        out.at[ELECTRICITY_COMMODITY, code] = cell - cut
+    return out
+
+
+def _benchmark_block_on_eia_level(block: pd.DataFrame, year: int) -> pd.DataFrame:
+    """2017's block with electric output on EIA's level, if that option is on.
+
+    The electric columns' output falls in 2017 with the option on. Without this
+    the electricity row would stay at the published level, and the balance would
+    close the gap with taxes on products and imports.
+    """
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        BASE_YEAR,
+        ELECTRIC_INDUSTRIES,
+    )
+    from bedrock.transform.iot.electricity_accounting_residual import (  # noqa: PLC0415
+        level_excess,
+    )
+
+    excess = level_excess()
+    if int(year) != BASE_YEAR or excess == 0.0:
+        return block
+    published = detail_gross_output_panel(ec_adjusted=False)[BASE_YEAR]
+    return take_excess_from_electricity_row(
+        block,
+        excess * MILLION_CURRENCY_TO_CURRENCY,
+        published.reindex(list(ELECTRIC_INDUSTRIES)).astype(float),
+    )
+
+
 def fit_group(
     sub_block: pd.DataFrame,
     column_targets: 'pd.Series[float]',
@@ -629,13 +679,14 @@ def go_controlled_supply_block(
 
     Returns the seed unchanged for years outside :data:`CONTROLLED_YEARS` - 2017
     keeps the published benchmark split, which is an observation rather than a
-    carry-forward.
+    carry-forward. ``electric_output_on_eia_level`` is the one exception, and moves
+    only the electricity row (:func:`_benchmark_block_on_eia_level`).
 
     ⚠️ Callers must not mutate the returned frame; it is cached.
     """
     block = raw_supply_block(int(year), download_sources_ok)
     if int(year) not in CONTROLLED_YEARS:
-        return block
+        return _benchmark_block_on_eia_level(block, int(year))
 
     wedge = _wedge(year, block)
     fitted, moved = block, float('inf')

@@ -351,7 +351,9 @@ def retail_gross_output(panel: pd.DataFrame, year: int) -> pd.Series:
     sold, so real output follows physical sales by construction. ⚠️ The base
     year's level is kept, including the output above retail revenue that the
     benchmark Use table sells to ordinary buyers, unless
-    ``electric_output_on_eia_level`` takes that out in proportion to output.
+    ``electric_output_on_eia_level`` takes that out in proportion to output. The
+    2017 Supply block takes the same amount off its electricity row
+    (:func:`~.nowcast_supply_go_control.take_excess_from_electricity_row`).
     """
     if int(year) not in CONTROLLED_YEARS:
         raise ValueError(

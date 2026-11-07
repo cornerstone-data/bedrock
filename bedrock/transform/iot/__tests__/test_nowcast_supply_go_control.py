@@ -365,6 +365,30 @@ def test_a_cut_larger_than_the_electricity_cell_raises(
         gc._set_government_electric_columns(block, targets)
 
 
+def test_the_level_comes_off_the_electricity_row_in_proportion_to_output() -> None:
+    block = pd.DataFrame(
+        {'221100': [90.0, 10.0], 'S00101': [20.0, 5.0]},
+        index=['221100', '221200'],
+    )
+    output = pd.Series({'221100': 300.0, 'S00101': 100.0})
+    out = gc.take_excess_from_electricity_row(block, 40.0, output)
+    assert out.at['221100', '221100'] == pytest.approx(60.0)
+    assert out.at['221100', 'S00101'] == pytest.approx(10.0)
+    assert out.loc['221200'].tolist() == [10.0, 5.0]
+    with pytest.raises(ValueError, match='S00101'):
+        gc.take_excess_from_electricity_row(block, 100.0, output)
+
+
+def test_the_benchmark_block_only_moves_with_the_level_option(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    block = pd.DataFrame({'221100': [90.0]}, index=['221100'])
+    monkeypatch.setattr(get_usa_config(), 'electric_output_on_eia_level', False)
+    assert gc._benchmark_block_on_eia_level(block, 2017) is block
+    monkeypatch.setattr(get_usa_config(), 'electric_output_on_eia_level', True)
+    assert gc._benchmark_block_on_eia_level(block, 2016) is block
+
+
 def test_the_retail_basis_does_not_release_the_government_groups(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
