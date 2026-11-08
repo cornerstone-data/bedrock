@@ -68,9 +68,9 @@ The evidence on the 2017 level is mixed:
 
 - `221100` alone is $389.4bn against $390.3bn of retail revenue, which looks like sales to outsiders. But EIA's retail figure includes public power, which BEA books in `S00202` and `S00101`.
 - The `221100 x 221100` cell in the 2017 benchmark is $9.5bn, so internal power sales are not recorded in the Use table.
-- Distribution at $241.2bn is well below retail revenue. Distribution could therefore already be net of purchased power, which would make the ten-line sum a consolidated total in 2017. We have not tested this.
+- Distribution at $241.2bn is well below retail revenue. Distribution could therefore already be net of purchased power, which would make the ten-line sum a consolidated total in 2017. Distribution plus transmission, $256.4bn, is close to private retail revenue less investor-owned utilities' purchased power, about $260bn, which fits this. It is not confirmed.
 
-So the 2017 level may or may not be net. The movement after 2017 is not net (section 3). Section 6 lists the test.
+The ownership split in section 6 answers the level question. BEA nets part of the resale, but `221100` is still at least $36bn above what its own customers pay in 2017. The movement after 2017 is not net (section 3).
 
 ## 5. Our own use is not on the same basis as our gross output
 
@@ -116,11 +116,28 @@ Other industries show the same question:
 
 ### What is the $78bn of electric output above retail revenue?
 
-All electric gross output in 2017 is $468.7bn against $390.3bn of EIA retail revenue, a difference of $78.4bn. The rebase calls this difference the wholesale wedge, and allocates it across `221100`, `S00101` and `S00202` by output share. Numerically it is close to government electric output itself ($79.3bn), because `221100` alone is within $0.9bn of retail revenue.
+All electric gross output in 2017 is $468.7bn against $390.3bn of EIA retail revenue, a difference of $78.4bn. The rebase calls this difference the wholesale wedge, and allocates it across `221100`, `S00101` and `S00202` by output share. Numerically it is close to government electric output itself ($79.3bn), because `221100` alone is within $0.9bn of retail revenue. The ownership split below shows that closeness is a coincidence.
 
 In the 2017 Use table utilities buy only $11.5bn of electricity from each other ($9.5bn by `221100`, $2.0bn by `S00101` and `S00202`). Of the rest, $266.3bn goes to other industries and $180.4bn to final uses. So the benchmark books this output as sales to ordinary buyers, and the label "sales for resale between utilities" does not describe where the table puts it. As a share of EIA 861 resale revenue the difference is 55% in 2017 and 84% in 2022.
 
-Test: split EIA 861 retail revenue by ownership. Compare private retail revenue with `221100` and its distribution line, and public power retail revenue with `S00101` and `S00202`. This also tests the 2017 question in section 4.
+**Split by ownership (measured 2026-11-07).** EIA 861 retail and resale revenue by the seller's entity type, from the PUDL tables `core_eia861__yearly_sales` and `core_eia861__yearly_operational_data_revenue`. Federal sellers are federal. Municipal, political subdivision, state and municipal marketing authority sellers are state and local. Every other type is private, including cooperatives and power marketers. The 861 retail total is within $0.2bn of EIA Table 2.3 in every year.
+
+| 2017, $bn | BEA output | EIA retail | above retail | EIA resale |
+|---|---:|---:|---:|---:|
+| private sellers, `221100` | 389.4 | 332.9 | +56.5 | 117.2 |
+| state and local, `S00202` | 63.4 | 56.1 | +7.3 | 11.2 |
+| federal, `S00101` | 15.9 | 1.1 | +14.8 | 13.8 |
+| all electric | 468.7 | 390.1 | +78.6 | 142.2 |
+
+- **`221100` is above what its own customers pay.** It looked equal to retail revenue only because that total includes public power. Against private retail it is 17% high.
+- **Sales to public power don't close the gap.** State, local and federal utilities bought 502 TWh wholesale in 2017. At the private resale price of $39.8 per MWh that is at most $20.0bn, which leaves `221100` at least $36bn above its customers' payments.
+- **BEA nets part of the resale.** Private retail plus private resale is $450.1bn, $60.7bn above `221100`, so the ten lines are not a plain gross total either.
+- **Federal output is wholesale.** 87% of it is resale, yet the 2017 Use table sells it to ordinary buyers, whose bills are already in retail revenue.
+- **The ratio moves with the double count.** `221100` over private retail is 1.17, 1.22, 1.24, 1.18, 1.32, 1.32, 1.18 and 1.12 in 2017-2024.
+
+Limits: $5.2bn of 2017 revenue has no entity type and is counted as private. Other operating revenue, $15.1bn across all sellers, is not counted. Whether BEA books cooperatives and power marketers in `221100` is assumed. The split shows the level is too high against customers; it does not show how BEA builds the lines, which only BEA can confirm.
+
+An alternative model that takes the $54.4bn of 2017 commercial and industrial bills above EIA revenue out of electric output, in proportion to output, puts `221100` at $344bn. That is between private retail ($333bn) and private retail plus every public purchase ($353bn). Because the cut follows output, federal output stays near $14bn although most of it is wholesale. A cut by owner would follow the split more closely.
 
 ### Which Form 861 series does BEA use?
 
@@ -153,7 +170,7 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 ## 8. Proposed next steps (not decided)
 
 1. Done: about half of the IV score for electric power is the deflator mismatch (section 11).
-2. Split EIA 861 retail revenue by ownership (section 6). This answers the 2017 level question, the $78bn and the right input floor. It needs no rebuild.
+2. Done: EIA 861 revenue split by ownership (section 6). `221100` is at least $36bn above its customers' payments in 2017.
 3. Ask BEA which Form 861 series it uses for generation and distribution, and whether 2017 distribution is net of purchased power.
 4. Re-run the input floor on the ownership split.
 5. Grade the current two legs against all output on retail revenue with EIA's retail price as the deflator, behind flags, on an evaluation build, on implied price, the electricity row and the cells in section 5. Decide after that. A change would need a rebuild and reopens a #1009 decision.
@@ -164,7 +181,7 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | where | what it says | current state |
 |---|---|---|
 | `current/eia_gtd/About_1009_electricity_output_basis.md:204` | rebase off by default | on since #1030 |
-| `current/eia_gtd/About_1009_electricity_output_basis.md:295-309` | consolidation nets about $130bn | not established (section 4) |
+| `current/eia_gtd/About_1009_electricity_output_basis.md:295-309` | consolidation nets about $130bn | BEA nets part of the resale, but `221100` is still at least $36bn above its customers' payments (sections 4 and 6) |
 | `current/eia_gtd/About_990_target_attribution.md:177-181` | residential constraint off, "production flag stays off" | on, mode `eia_band` |
 | `current/eia_gtd/About_1008_pce_electricity_pin.md:313-318` | constraint defaults to false; mode default `'none'`; do not co-enable with the rebase unattributed | both on; both arms graded |
 | `current/eia_gtd/About_price_proposal.md:147` | MECS is the tie-breaker | on a dollar basis Census is closest to the Use table in 2018 and 2022 (#898) |
