@@ -267,3 +267,26 @@ def test_price_lines_follow_eia_and_keep_their_seams_closed(
     assert out.at['221100', 2025] == pytest.approx(187.0)
     assert out.at['221100', 2016] == pytest.approx(90.0)
     pd.testing.assert_frame_equal(out.loc[['111200']], original.loc[['111200']])
+
+
+def test_generation_and_delivery_take_their_own_prices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bedrock.transform.eeio import electricity_price as ep  # noqa: PLC0415
+    from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
+
+    generation = {year: 4.0 + 0.4 * (year - 2017) for year in ug.CONTROLLED_YEARS}
+    monkeypatch.setattr(ep, 'generation_price', lambda year: generation[int(year)])
+    monkeypatch.setattr(ep, 'delivery_price', lambda year: 6.0)
+    years = list(ug.CONTROLLED_YEARS)
+    levels = pd.DataFrame(
+        {year: [100.0, 50.0, 80.0] for year in years},
+        index=['221100', '425000', 'S00101'],
+        dtype=float,
+    )
+
+    out = helpers._generation_and_delivery_on_eia_prices(levels)
+
+    assert out.at['221100', 2022] == pytest.approx(150.0)
+    assert out.at['425000', 2022] == pytest.approx(50.0)
+    pd.testing.assert_frame_equal(out.loc[['S00101']], levels.loc[['S00101']])
