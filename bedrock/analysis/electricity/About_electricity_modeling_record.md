@@ -174,7 +174,7 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 3. Ask BEA which Form 861 series it uses for generation and distribution, and whether 2017 distribution is net of purchased power.
 4. Re-run the input floor on the ownership split.
 5. Grade the current two legs against all output on retail revenue with EIA's retail price as the deflator, behind flags, on an evaluation build, on implied price, the electricity row and the cells in section 5. Decide after that. A change would need a rebuild and reopens a #1009 decision.
-6. Correct the statements in section 9, and post a correction on #890 pointing here.
+6. Correct the statements in section 9. The correction on #890 was posted on 2026-11-07.
 
 ## 9. Statements elsewhere that are out of date
 
@@ -190,7 +190,7 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | `time_series_B_matrix/About_sector_trend_explanations.md`, earlier tracker row 8 | 2021 emissions rose on flat real output; "justified, do not smooth"; re-derive on eGRID | on the current build, real output falls 7.0% in 2021 on a mismatched price (section 11). The verdict needs re-deriving |
 | `time_series_B_matrix/About_sector_trend_explanations.md`, earlier tracker row 14 | pending #911; no eGRID 2017; Puerto Rico included | #911 and #947 merged; #913 and #914 closed |
 | `time_series_B_matrix/About_sector_trend_explanations.md`, earlier tracker row 18 | settle #896 first, then #922 and #923, then re-run | #896 and #923 closed; #922 open with #1187 in review; the ranking has not been re-run on the current build |
-| #890 comments of 2026-11-03 | benchmark nets about $130bn; recommends the "net basis"; describes the wedge as resale | see sections 4 to 6 |
+| #890 comments of 2026-11-03 | benchmark nets about $130bn; recommends the "net basis"; describes the wedge as resale | corrected on #890, 2026-11-07 (sections 4 to 6) |
 
 ## 10. Where the evidence is
 
