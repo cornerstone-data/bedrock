@@ -8,6 +8,8 @@ outside the chained years is touched.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -265,3 +267,102 @@ def test_a_pool_census_only_partly_observes_chains_each_member_alone(
     factors = ch.chain_factors(2024, ['327310', '327320'])
     assert _f(factors['327310']) == pytest.approx(10.6 / 11.7)
     assert np.isnan(_f(factors['327320']))
+
+
+#: All published levels per year, $M. AIES withholds ``325110`` and ``325199``
+#: in 2023 but publishes ``3251``; ``336110`` is Economic Census only (AIES
+#: uses NAICS 2017 auto codes), so it is a classification gap, not a withheld
+#: cell.
+LEVELS = {
+    2022: {
+        '3251': 300.0,
+        '325110': 78.0,
+        '325193': 50.0,
+        '325199': 100.0,
+        '325120': 72.0,
+        '3361': 390.0,
+        '336110': 357.0,
+        '336120': 33.0,
+    },
+    2023: {
+        '3251': 285.0,
+        '325193': 48.0,
+        '325120': 75.0,
+        '3361': 481.0,
+        '336120': 40.0,
+    },
+    2024: {
+        '3251': 304.0,
+        '325110': 68.0,
+        '325193': 41.0,
+        '325199': 122.0,
+        '325120': 73.0,
+        '3361': 425.0,
+        '336120': 33.0,
+    },
+}
+
+
+@pytest.fixture
+def levels(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    def fake(year: int) -> pd.Series:
+        return pd.Series(LEVELS[year], dtype=float).sort_index()
+
+    monkeypatch.setattr(ch, '_receipts_all_levels', fake)
+    ch.withheld_fill.cache_clear()
+    yield
+    ch.withheld_fill.cache_clear()
+
+
+def test_withheld_codes_share_the_parent_residual(levels: None) -> None:
+    """``3251`` less its published codes is split by the nearest published years."""
+    fill = ch.withheld_fill(2023)
+    residual = 285.0 - 48.0 - 75.0
+    assert float(fill['filled'].sum()) == pytest.approx(residual)
+    w110 = np.sqrt(78.0 * 68.0)
+    w199 = np.sqrt(100.0 * 122.0)
+    assert _f(fill.at['325110', 'filled']) == pytest.approx(
+        residual * w110 / (w110 + w199)
+    )
+    assert set(fill['parent']) == {'3251'}
+
+
+def test_a_census_only_code_is_not_filled(levels: None) -> None:
+    """``336110`` is in neither AIES year, so ``3361``'s residual is not it."""
+    assert '336110' not in ch.withheld_fill(2023).index
+
+
+def test_years_with_nothing_withheld_fill_nothing(
+    levels: None,
+) -> None:
+    fill = ch.withheld_fill(2024)
+    assert fill.empty  # 2024 publishes every code 2023 does
+    assert ch.withheld_fill(ch.ANCHOR_YEAR).empty
+
+
+def test_a_parent_with_nothing_left_over_fills_nothing(
+    monkeypatch: pytest.MonkeyPatch, levels: None
+) -> None:
+    exact = {year: dict(values) for year, values in LEVELS.items()}
+    exact[2023]['3251'] = 48.0 + 75.0
+    monkeypatch.setattr(
+        ch, '_receipts_all_levels', lambda year: pd.Series(exact[year], dtype=float)
+    )
+    ch.withheld_fill.cache_clear()
+    assert ch.withheld_fill(2023).empty
+
+
+def test_filled_codes_join_the_common_basis(levels: None) -> None:
+    """With the fill, 2023 compares the full industry with 2022."""
+    ch._common_naics.cache_clear()
+    try:
+        assert '325199' not in ch._common_naics(2023, False)
+        assert {'325110', '325199'} <= ch._common_naics(2023, True)
+    finally:
+        ch._common_naics.cache_clear()
+
+
+def test_the_fill_flag_is_off_by_default() -> None:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    assert get_usa_config().fill_withheld_aies_codes is False

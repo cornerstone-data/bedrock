@@ -141,8 +141,29 @@ def _f(value: object) -> float:
     return float(np.asarray(value).item())
 
 
+def _source_and_flow(year: int) -> tuple[str, str]:
+    """The FBA source and receipts flow name for one year."""
+    if year <= ANCHOR_YEAR:
+        return _EC_SOURCE, _EC_FLOW
+    return _AIES_SOURCE, _AIES_FLOW
+
+
 def _receipts_by_naics(year: int) -> pd.Series:
-    """Six-digit NAICS -> total receipts, $M, for one year.
+    """Six-digit NAICS -> total receipts, $M, for one year, as published."""
+    levels = _receipts_all_levels(year)
+    series = levels[levels.index.str.len() == 6]
+    if series.empty:
+        source, flow = _source_and_flow(year)
+        raise ValueError(f'no six-digit manufacturing {flow!r} in {source} {year}')
+    return series
+
+
+@functools.cache
+def _receipts_all_levels(year: int) -> pd.Series:
+    """NAICS code at three to six digits -> total receipts, $M, for one year.
+
+    The parent levels are what :func:`withheld_fill` recovers withheld six-digit
+    codes from.
 
     ⚠️ **Read through :func:`getFlowByActivity`, not a parquet glob.** An earlier
     version globbed ``extract/output_data`` directly and raised
@@ -164,9 +185,7 @@ def _receipts_by_naics(year: int) -> pd.Series:
         THOUSAND_TO_MILLION,
     )
 
-    is_ec = year <= ANCHOR_YEAR
-    source = _EC_SOURCE if is_ec else _AIES_SOURCE
-    flow = _EC_FLOW if is_ec else _AIES_FLOW
+    source, flow = _source_and_flow(year)
     frame = pd.DataFrame(
         getFlowByActivity(source, int(year), download_FBA_if_missing=True)
     )
@@ -178,7 +197,7 @@ def _receipts_by_naics(year: int) -> pd.Series:
         raise ValueError(f'{flow!r} not found in {source} {year}')
 
     codes = rows['ActivityConsumedBy'].astype(str)
-    keep = codes.str.fullmatch(r'\d{6}') & codes.str.startswith(PREFIXES)
+    keep = codes.str.fullmatch(r'\d{3,6}') & codes.str.startswith(PREFIXES)
     series = (
         pd.Series(
             rows['FlowAmount'].astype(float).to_numpy() * THOUSAND_TO_MILLION,
@@ -188,11 +207,107 @@ def _receipts_by_naics(year: int) -> pd.Series:
         .sum()
     )
     if series.empty:
-        raise ValueError(f'no six-digit manufacturing {flow!r} in {source} {year}')
+        raise ValueError(f'no manufacturing {flow!r} in {source} {year}')
     return series.sort_index()
 
 
+def _fill_withheld() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().fill_withheld_aies_codes
+
+
+def _nearest_published(code: str, year: int) -> float:
+    """*code*'s receipts in the nearest other year that publishes it, $M.
+
+    Two years equally near give their geometric mean, so a 2023 gap takes the
+    midpoint of 2022 and 2024. ``NaN`` if no other year publishes the code.
+    """
+    found = {
+        other: float(_receipts_by_naics(other)[code])
+        for other in (ANCHOR_YEAR, *CHAINED_YEARS)
+        if other != year and code in _receipts_by_naics(other).index
+    }
+    found = {other: value for other, value in found.items() if value > 0.0}
+    if not found:
+        return float('nan')
+    nearest = min(abs(other - year) for other in found)
+    values = [value for other, value in found.items() if abs(other - year) == nearest]
+    return float(np.exp(np.mean(np.log(values))))
+
+
 @functools.cache
+def withheld_fill(year: int) -> pd.DataFrame:
+    """Six-digit codes AIES withholds in *year*, recovered from published parents.
+
+    ⚠️ **AIES withholds a six-digit code in one year and publishes it in the
+    other**, but still publishes its parent at five, four or three digits. The
+    parent minus its published six-digit codes is then the withheld codes'
+    total. In 2023, ``3251`` less its published codes leaves $162bn for
+    ``325110`` and ``325199`` together, against $178bn in 2022 and $190bn in
+    2024. Without this, ``325110`` falls back to BEA's movement and ``325190``
+    chains on ethanol and ``325194`` alone (#1230).
+
+    Only codes AIES publishes in its **other** year are filled. Codes in the
+    Economic Census but in neither AIES year are a classification difference,
+    not a withheld cell: AIES reports automobiles as ``336111``/``336112``
+    (NAICS 2017) where the Economic Census has ``336110``. Several withheld
+    siblings under one parent share the residual in proportion to
+    :func:`_nearest_published`. A parent with nothing left over fills nothing.
+
+    Columns: ``parent``, ``filled`` ($M), ``nearest`` ($M, the split weight).
+    """
+    columns = ['parent', 'filled', 'nearest']
+    if year not in CHAINED_YEARS:
+        return pd.DataFrame(columns=columns)
+    levels = _receipts_all_levels(year)
+    published = _receipts_by_naics(year)
+    elsewhere: set[str] = set()
+    for other in CHAINED_YEARS:
+        if other != year:
+            elsewhere |= set(_receipts_by_naics(other).index.astype(str))
+    withheld = sorted(elsewhere - set(published.index.astype(str)))
+
+    by_parent: dict[str, list[str]] = {}
+    for code in withheld:
+        parent = next((code[:n] for n in (5, 4, 3) if code[:n] in levels.index), None)
+        if parent is not None:
+            by_parent.setdefault(parent, []).append(code)
+
+    rows = []
+    for parent, codes in by_parent.items():
+        children = [c for c in published.index.astype(str) if c.startswith(parent)]
+        residual = float(levels[parent]) - float(published.reindex(children).sum())
+        if residual <= RELEASE_DUST_USD_M:
+            continue
+        weights = pd.Series({c: _nearest_published(c, year) for c in codes}).dropna()
+        weights = weights[weights > 0.0]
+        if weights.empty:
+            continue
+        for naics, weight in weights.items():
+            rows.append(
+                {
+                    'naics': str(naics),
+                    'parent': parent,
+                    'filled': residual * float(weight) / float(weights.sum()),
+                    'nearest': float(weight),
+                }
+            )
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return pd.DataFrame(rows).set_index('naics')[columns].sort_index()
+
+
+def _chain_receipts(year: int, fill: bool) -> pd.Series:
+    """Six-digit receipts for the chain, with withheld codes filled if *fill*."""
+    published = _receipts_by_naics(year)
+    if not fill:
+        return published
+    filled = withheld_fill(year)['filled'].astype(float)
+    filled = filled[~filled.index.isin(published.index)]
+    return pd.concat([published, filled]).sort_index()
+
+
 def receipts_by_bea(year: int) -> pd.Series:
     """BEA detail industry -> census receipts, $M.
 
@@ -200,11 +315,16 @@ def receipts_by_bea(year: int) -> pd.Series:
     already uses, so a NAICS code feeding several BEA industries is split the
     way BEA splits it rather than the way the census does.
     """
+    return _receipts_by_bea(year, _fill_withheld())
+
+
+@functools.cache
+def _receipts_by_bea(year: int, fill: bool) -> pd.Series:
     from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
         _allocation,
     )
 
-    receipts = _receipts_by_naics(year)
+    receipts = _chain_receipts(year, fill)
     allocation = _allocation(PREFIXES)
     hit = allocation[allocation['naics'].isin(receipts.index)].copy()
     if hit.empty:
@@ -214,8 +334,10 @@ def receipts_by_bea(year: int) -> pd.Series:
 
 
 @functools.cache
-def _common_naics(year: int) -> frozenset[str]:
+def _common_naics(year: int, fill: bool = False) -> frozenset[str]:
     """NAICS codes the census publishes in BOTH the anchor year and *year*.
+
+    With *fill*, codes :func:`withheld_fill` recovers count as published.
 
     ⚠️ **Coverage is not stable across years** -- 909 six-digit codes in 2022,
     883 in 2023, 868 in 2024 -- so a ratio built from each year's full
@@ -227,19 +349,23 @@ def _common_naics(year: int) -> frozenset[str]:
     # ``.index``, not the Series: ``frozenset(series)`` iterates the VALUES and
     # silently yields an empty intersection of floats.
     return frozenset(_receipts_by_naics(ANCHOR_YEAR).index.astype(str)) & frozenset(
-        _receipts_by_naics(year).index.astype(str)
+        _chain_receipts(year, fill).index.astype(str)
     )
 
 
-@functools.cache
 def receipts_on_common_basis(year: int, against: int) -> pd.Series:
     """Receipts by BEA industry, restricted to NAICS reporting in both years."""
+    return _receipts_on_common_basis(year, against, _fill_withheld())
+
+
+@functools.cache
+def _receipts_on_common_basis(year: int, against: int, fill: bool) -> pd.Series:
     from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
         _allocation,
     )
 
-    common = _common_naics(against if year == ANCHOR_YEAR else year)
-    receipts = _receipts_by_naics(year)
+    common = _common_naics(against if year == ANCHOR_YEAR else year, fill)
+    receipts = _chain_receipts(year, fill)
     allocation = _allocation(PREFIXES)
     hit = allocation[allocation['naics'].isin(common)].copy()
     hit['value'] = hit['naics'].map(receipts).astype(float) * hit['share'].astype(float)
@@ -447,6 +573,77 @@ def report() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def filled_report() -> pd.DataFrame:
+    """Each filled code, its parent, and the growth it gives its BEA industry.
+
+    ``growth_published`` is the chain factor on published codes only and
+    ``growth_filled`` the factor with the fill, so the effect of the flag reads
+    off one row. Built here regardless of the flag.
+    """
+    from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
+        _allocation,
+    )
+
+    allocation = _allocation(PREFIXES)
+    frames = []
+    for year in CHAINED_YEARS:
+        fill = withheld_fill(year)
+        if fill.empty:
+            continue
+        frame = fill.reset_index().assign(year=year)
+        frame['bea'] = frame['naics'].map(
+            allocation.groupby('naics')['bea'].agg(lambda s: ','.join(sorted(set(s))))
+        )
+        for label, flag in (('growth_published', False), ('growth_filled', True)):
+            base = _receipts_on_common_basis(ANCHOR_YEAR, year, flag)
+            later = _receipts_on_common_basis(year, year, flag)
+            growth = (later / base.replace(0.0, np.nan)).astype(float)
+            frame[label] = frame['bea'].map(
+                lambda codes: growth.get(str(codes).split(',')[0], np.nan)
+            )
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True)
+    out[['filled', 'nearest']] = out[['filled', 'nearest']] / 1e3
+    return out.rename(columns={'filled': 'filled_bn', 'nearest': 'nearest_bn'})[
+        [
+            'year',
+            'naics',
+            'parent',
+            'filled_bn',
+            'nearest_bn',
+            'bea',
+            'growth_published',
+            'growth_filled',
+        ]
+    ]
+
+
+def _check_fill() -> list[str]:
+    """A fill never takes a parent past its published total, and is positive."""
+    failures = []
+    for year in CHAINED_YEARS:
+        fill = withheld_fill(year)
+        if fill.empty:
+            continue
+        levels = _receipts_all_levels(year)
+        published = _receipts_by_naics(year)
+        if (fill['filled'].astype(float) <= 0.0).any():
+            failures.append(f'{year} filled a code with a non-positive value')
+        for parent, rows in fill.groupby('parent'):
+            children = [c for c in published.index.astype(str) if c.startswith(parent)]
+            total = float(published.reindex(children).sum()) + float(
+                rows['filled'].sum()
+            )
+            if abs(total - float(levels[parent])) > RELEASE_DUST_USD_M:
+                failures.append(
+                    f'{year} {parent}: published children plus fill {total:,.1f} '
+                    f'!= parent {float(levels[parent]):,.1f}'
+                )
+    return failures
+
+
 def check() -> int:
     """Assert the invariants the module claims. Returns an exit code."""
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415, E501
@@ -496,6 +693,8 @@ def check() -> int:
         if not bea > 0:
             failures.append(f'{year} has no measured BEA deviation to fix')
 
+    failures.extend(_check_fill())
+
     for line in failures:
         print(f'FAIL {line}')
     if failures:
@@ -515,6 +714,8 @@ def main() -> int:
     if args.report:
         pd.set_option('display.width', 200)
         print(report().round(3).to_string(index=False))
+        print('\nWithheld codes filled from their published parent (#1230):')
+        print(filled_report().round(3).to_string(index=False))
     if args.check or not args.report:
         return check()
     return 0

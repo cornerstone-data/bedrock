@@ -226,6 +226,13 @@ class USAConfig(BaseModel):
     # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
     # believe rather than an option we are trialling, so it ships enabled.
     chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
+    # Fill six-digit NAICS codes AIES withholds in one year but publishes in
+    # the other from their published parent: the parent total less its
+    # published six-digit codes. Without it a withheld code drops out of the
+    # chain, so 325110 falls back to BEA's movement in 2023 and 325190 chains
+    # on ethanol and 325194 alone. Only matters when the chain above is on.
+    # See bedrock.transform.iot.aies_go_chaining.withheld_fill (#1230).
+    fill_withheld_aies_codes: bool = False  # DRI: WesIngwersen
     # Chain the services/transport expense seed across the SAS -> AIES survey
     # change instead of indexing AIES years against a SAS 2017 base: 2023 takes
     # 2022's (SAS) index and 2024 moves it by AIES's own 2024/2023 relative
