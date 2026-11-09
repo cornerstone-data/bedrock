@@ -20,9 +20,9 @@ imports are excluded from the four sales classes.
 
 Run::
 
-    python -m bedrock.analysis.electricity.PR1219.class_mwh_vs_eia
-    python -m bedrock.analysis.electricity.PR1219.class_mwh_vs_eia --years 2024
-    python -m bedrock.analysis.electricity.PR1219.class_mwh_vs_eia --mut-vintage v1.0.0_e5fa35b
+    python -m bedrock.analysis.electricity.v3.PR1219.class_mwh_vs_eia
+    python -m bedrock.analysis.electricity.v3.PR1219.class_mwh_vs_eia --years 2024
+    python -m bedrock.analysis.electricity.v3.PR1219.class_mwh_vs_eia --mut-vintage v1.0.0_e5fa35b
 """
 
 from __future__ import annotations
