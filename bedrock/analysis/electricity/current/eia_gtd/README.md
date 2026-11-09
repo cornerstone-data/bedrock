@@ -97,7 +97,7 @@ python -m bedrock.analysis.electricity.current.eia_gtd.electricity_split_checks 
 # options: --years 2017-2024  --skip-model  --mut-vintage VINTAGE
 ```
 
-Eight checks on `221100` generation and `42ELEC` delivery, each reported per year
+Nine checks on `221100` generation and `42ELEC` delivery, each reported per year
 (#903). A failing check names the buyers or sectors responsible. `--skip-model`
 leaves out the checks that build the full model twice per year.
 

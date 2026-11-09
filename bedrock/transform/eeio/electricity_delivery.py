@@ -32,6 +32,7 @@ from __future__ import annotations
 import functools
 import typing as ta
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 
@@ -208,6 +209,9 @@ def delivery_split(year: int, bills: pd.Series) -> DeliverySplit:
 #: The Cornerstone slot delivery takes. The sector list stays at 405 and keeps this code
 #: on every axis, because released configs and snapshots use it. Outputs label it
 #: :data:`DELIVERY_CODE` (:func:`published_label`).
+PAYROLL_SPLIT_CSV = (
+    Path(__file__).parents[1] / 'allocation' / 'data' / 'electricity_payroll_split.csv'
+)
 DELIVERY_SLOT = '425000'
 DELIVERY_CODE = '42ELEC'
 #: Where wholesale agents and brokers go, the host that moves ``N`` least.
@@ -235,6 +239,22 @@ PUBLISHED_LABELS = {
         'Other durable goods merchant wholesalers, and wholesale agents and brokers',
     ),
 }
+
+
+@functools.cache
+def delivery_payroll_share(year: int) -> float:
+    """Delivery's share of electric power's private payroll in *year*, from QCEW.
+
+    NAICS 22112 over 22111 plus 22112
+    (``bedrock.utils.mapping.write_electric_payroll_split``).
+    """
+    path = PAYROLL_SPLIT_CSV
+    table = pd.read_csv(path).set_index('year')
+    if int(year) not in table.index:
+        raise ValueError(f'{path.name} has no payroll for {year}; rerun the writer')
+    row = table.loc[int(year)]
+    delivery = float(row['delivery_payroll_usd'])
+    return delivery / (delivery + float(row['generation_payroll_usd']))
 
 
 def delivery_margin_on() -> bool:
@@ -289,6 +309,37 @@ def _split_column(
     return delivery
 
 
+COMPENSATION_ROW = 'V00100'
+
+
+def divide_value_added(
+    electric_value: pd.Series,
+    delivery_total: float,
+    compensation_share: float | None,
+) -> pd.Series:
+    """Delivery's part of each value added line, summing to *delivery_total*.
+
+    Without *compensation_share* every line divides in the same proportion. With it,
+    delivery takes that share of compensation, which QCEW payroll observes
+    (:func:`delivery_payroll_share`), and the other lines divide the rest in one
+    proportion. The total is unchanged, so the other lines carry the difference.
+    """
+    total = float(electric_value.sum())
+    if compensation_share is None:
+        return electric_value * (delivery_total / total)
+    compensation = float(electric_value[COMPENSATION_ROW])
+    other = total - compensation
+    rest = delivery_total - compensation * compensation_share
+    if other <= 0 or not 0.0 <= rest <= other:
+        raise ValueError(
+            f'delivery cannot take {compensation_share:.1%} of compensation: the other '
+            f'lines would have to give it {rest:,.0f} of {other:,.0f} USD'
+        )
+    out = electric_value * (rest / other)
+    out[COMPENSATION_ROW] = compensation * compensation_share
+    return out
+
+
 def restructure_tables(
     v: pd.DataFrame,
     udom: pd.DataFrame,
@@ -297,13 +348,17 @@ def restructure_tables(
     y: pd.DataFrame,
     split: DeliverySplit,
     non_fuel_share: float,
+    compensation_share: float | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """The tables with brokers merged and electric power split in two.
 
     **Row.** Each buyer's bill divides into generation and delivery.
     **Column.** Fuel and own purchases stay with generation. Other inputs divide by
     *non_fuel_share*. ``42ELEC`` also buys line losses from generation, a new sale.
-    Value added is what each column's output leaves.
+    Value added is what each column's output leaves. It divides in one proportion
+    across every line, unless *compensation_share* is given: then delivery takes that
+    share of compensation, and the other lines take the difference
+    (:func:`divide_value_added`).
 
     Raises rather than returning tables that leave generation or delivery with
     non-positive output or value added.
@@ -345,7 +400,9 @@ def restructure_tables(
             f'delivery value added of {delivery_value:,.0f} USD does not fit '
             f'electric value added of {value_total:,.0f} USD'
         )
-    value[DELIVERY_SLOT] = electric_value * (delivery_value / value_total)
+    value[DELIVERY_SLOT] = divide_value_added(
+        electric_value, delivery_value, compensation_share
+    )
     value[GENERATION_SECTOR] = electric_value - value[DELIVERY_SLOT]
 
     v2.loc[DELIVERY_SLOT, DELIVERY_SLOT] = total
@@ -441,7 +498,9 @@ def _delivery_state() -> tuple[
     y = pipe.derive_y_after_waste()
     split = delivery_split(year, electricity_bills(udom, y))
     share = non_fuel_delivery_share(_year_expenses(year))
-    return split, restructure_tables(v, udom, uimp, va, y, split, share)
+    return split, restructure_tables(
+        v, udom, uimp, va, y, split, share, delivery_payroll_share(year)
+    )
 
 
 def restructured_tables() -> (

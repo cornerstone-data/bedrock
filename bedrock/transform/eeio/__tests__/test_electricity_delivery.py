@@ -408,3 +408,37 @@ def test_labels_change_only_with_the_flag(monkeypatch: pytest.MonkeyPatch) -> No
         '531ORE',
         'Other real estate',
     )
+
+
+def _electric_value() -> 'pd.Series[float]':
+    return pd.Series({'V00100': 60.0, 'V00200': 10.0, 'V00300': 30.0})
+
+
+def test_value_added_divides_in_one_proportion_without_a_compensation_share() -> None:
+    part = ed.divide_value_added(_electric_value(), 60.0, None)
+    pd.testing.assert_series_equal(part, _electric_value() * 0.6)
+
+
+def test_delivery_takes_its_share_of_compensation_and_the_rest_make_up_the_total() -> (
+    None
+):
+    part = ed.divide_value_added(_electric_value(), 60.0, 0.5)
+    assert part['V00100'] == pytest.approx(30.0)
+    assert part.sum() == pytest.approx(60.0)
+    # The other two lines divide the remaining 30 of their 40 in their own proportion.
+    assert part['V00200'] == pytest.approx(7.5)
+    assert part['V00300'] == pytest.approx(22.5)
+
+
+def test_a_compensation_share_delivery_cannot_afford_raises() -> None:
+    with pytest.raises(ValueError, match='cannot take'):
+        ed.divide_value_added(_electric_value(), 20.0, 0.9)
+    with pytest.raises(ValueError, match='cannot take'):
+        ed.divide_value_added(_electric_value(), 95.0, 0.1)
+
+
+def test_the_payroll_share_is_delivery_over_electric_power() -> None:
+    shares = [ed.delivery_payroll_share(y) for y in range(2017, 2025)]
+    assert all(0.5 < s < 0.7 for s in shares)
+    with pytest.raises(ValueError, match='no payroll'):
+        ed.delivery_payroll_share(2016)
