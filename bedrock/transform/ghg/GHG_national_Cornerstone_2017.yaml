@@ -936,6 +936,8 @@ source_names:
             clean_fba_before_activity_sets: !script_function:UMD_GHGIA calc_per_fuel_emissions
             clean_parameter:
               annex_fba: UMD_GHGIA_T_A3_5
+              # A3-5 carbon coefficients and sequestration fractions.
+              # UMD only publishes these values for 2024
               annex_year: 2024
             activity_sets:
               coal:
