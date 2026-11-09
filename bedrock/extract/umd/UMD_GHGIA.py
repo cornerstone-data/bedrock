@@ -77,42 +77,30 @@ def _cell_get_name(value: str, default_flow_name: str) -> str:
     """
     if '(' not in value:
         return default_flow_name.replace('__type__', value.strip())
-
-    spl = value.split(' ')
-    name = ''
-    found_units = False
-    for sub in spl:
-        if '(' not in sub and not found_units:
-            name = f'{name.strip()} {sub}'
-        else:
-            found_units = True
-    return name.strip()
+    return value[: value.find('(')].strip()
 
 
-def _cell_get_units(value: str, default_units: str) -> str:
+def _cell_get_units(value: str, default_units: str | float | None) -> str | float:
     """
     Given a single string value (cell), separate the name and units.
     :param value: str
-    :param default_units: indicate return units string subset
+    :param default_units: fallback when header has no parenthetical unit
+        (YAML null → None → np.nan)
     :return: unit for row
     """
-    if '(' not in value:
+    if '(' not in value or ')' not in value:
+        if default_units is None or (
+            isinstance(default_units, float) and np.isnan(default_units)
+        ):
+            return np.nan
         return default_units
-
-    spl = value.split(' ')
-    name = ''
-    found_units = False
-    for sub in spl:
-        if ')' in sub:
-            found_units = False
-        if '(' in sub or found_units:
-            name = f'{name} {sub.replace("(", "").replace(")", "")} '
-            found_units = True
-    return name.strip()
+    return value[value.find('(') + 1 : value.rfind(')')].strip()
 
 
 def series_separate_name_and_units(
-    series: pd.Series, default_flow_name: str, default_units: str
+    series: pd.Series,
+    default_flow_name: str,
+    default_units: str | float | None,
 ) -> dict[str, pd.Series]:
     """
     Given a series (such as a df column), split the contents' strings into a name and units.

@@ -173,7 +173,7 @@ Annex:
       "A3-5":
         year: "2024"
         class: Energy
-        unit: MMT Carbon/QBTU
+        unit: null
         compartment: air
         flow: "__type__"
         melt_var: FlowName
