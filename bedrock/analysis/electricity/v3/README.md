@@ -6,6 +6,6 @@ price, delivery margin / `42ELEC`), tracked under [project 29](https://github.co
 | Path | What it is |
 |---|---|
 | `PR1219/` | Buyer delivered ¢/kWh (#901 / PR #1219): class MWh vs EIA |
-| `PR1220/` | Observed generation price (#1215 / PR #1220): review notes |
+| `PR1220/` | Observed generation price (#1215 / PR #1220): Table 8.3 check, 2021 marketer spike |
 
 Further stack analysis belongs under this `v3/` folder, one subfolder per PR or topic.
