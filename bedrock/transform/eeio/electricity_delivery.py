@@ -429,14 +429,19 @@ def move_delivery_emissions(e: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+#: SF6 as the GHG tables name it and as the FBS's ``Flowable`` does.
+SF6_NAMES = frozenset({'SF6', 'Sulfur hexafluoride'})
+
+
 def move_delivery_flows(
     flows: pd.DataFrame, sector: str = 'SectorProducedBy', gas: str = 'Flowable'
 ) -> pd.DataFrame:
     """:func:`move_delivery_emissions` for a long table of flows, one row per flow."""
     codes = flows[sector].astype(str)
     out = flows.copy()
+    sf6 = flows[gas].astype(str).isin(SF6_NAMES)
     out[sector] = codes.mask(codes == DELIVERY_SLOT, BROKERS_HOST).mask(
-        (codes == GENERATION_SECTOR) & (flows[gas].astype(str) == 'SF6'), DELIVERY_SLOT
+        (codes == GENERATION_SECTOR) & sf6, DELIVERY_SLOT
     )
     return out
 
