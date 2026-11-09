@@ -442,3 +442,14 @@ def test_the_payroll_share_is_delivery_over_electric_power() -> None:
     assert all(0.5 < s < 0.7 for s in shares)
     with pytest.raises(ValueError, match='no payroll'):
         ed.delivery_payroll_share(2016)
+
+
+def test_long_flows_move_sf6_under_its_full_name() -> None:
+    flows = pd.DataFrame(
+        {
+            'SectorProducedBy': ['221100', '221100', '425000'],
+            'Flowable': ['Sulfur hexafluoride', 'Carbon dioxide', 'Carbon dioxide'],
+        }
+    )
+    moved = ed.move_delivery_flows(flows)
+    assert moved['SectorProducedBy'].tolist() == ['425000', '221100', '423A00']
