@@ -68,10 +68,19 @@ class DeliverySplit:
 
 
 def delivery_classes(codes: ta.Iterable[str], base: ta.Mapping[str, str]) -> pd.Series:
-    """Each buyer's class: the end-use map, except own use and transportation."""
+    """Each buyer's class: the end-use map, except own use and transportation.
+
+    ⚠️ The end-use map is keyed on commodities, and the bills on buying industries.
+    An industry with no commodity of its own, secondary aluminum (``331314``), isn't
+    in it, so it takes the NAICS rule rather than defaulting to commercial.
+    """
+    from bedrock.transform.eeio.electricity_end_use_mapping import (  # noqa: PLC0415
+        classify_industry_end_use,
+    )
+
     out: dict[str, str] = {}
     for code in map(str, codes):
-        cls = base.get(code, COMMERCIAL)
+        cls = base[code] if code in base else classify_industry_end_use(code)[0]
         if code in ELECTRIC_BUYERS:
             cls = OWN_USE
         elif cls == TRANSPORTATION and code not in EIA_TRANSPORTATION_BUYERS:
@@ -85,16 +94,26 @@ def buyer_prices(
     manufacturing: pd.Series,
     class_price: ta.Callable[[str], float],
 ) -> 'pd.Series[float]':
-    """¢/kWh by buyer: the manufacturing price where there is one, else the class price."""
+    """¢/kWh by buyer: the manufacturing price for manufacturers, else the class price.
+
+    A manufacturer with no manufacturing price raises rather than taking the class
+    price, so a gap between the price crosswalk and the buyers can't pass unseen.
+    """
     prices: dict[str, float] = {}
+    missing: list[str] = []
     for code, cls in classes.items():
         key = str(code)
         if cls in (OWN_USE, EXPORTS):
             continue
-        if key.startswith(MANUFACTURING_PREFIXES) and key in manufacturing.index:
-            prices[key] = float(manufacturing[key])
+        if key.startswith(MANUFACTURING_PREFIXES):
+            if key in manufacturing.index:
+                prices[key] = float(manufacturing[key])
+            else:
+                missing.append(key)
         else:
             prices[key] = float(class_price(str(cls)))
+    if missing:
+        raise ValueError(f'no manufacturing price for {missing[:5]}')
     return pd.Series(prices, dtype=float)
 
 

@@ -170,13 +170,19 @@ def test_manufacturers_take_their_price_and_others_the_class_price() -> None:
     assert prices.to_dict() == {'331110': 6.0, '111200': 8.0, '531ORE': 12.0}
 
 
-def test_a_manufacturer_with_no_price_takes_the_class_price() -> None:
-    prices = ed.buyer_prices(
-        pd.Series({'339999': 'Industrial'}),
-        pd.Series(dtype=float),
-        {'Industrial': 8.0}.__getitem__,
-    )
-    assert prices['339999'] == 8.0
+def test_a_buyer_missing_from_the_end_use_map_takes_the_naics_rule() -> None:
+    classes = ed.delivery_classes(['331314', '541100'], {})
+    assert classes['331314'] == 'Industrial'
+    assert classes['541100'] == 'Commercial'
+
+
+def test_a_manufacturer_with_no_price_raises() -> None:
+    with pytest.raises(ValueError, match='no manufacturing price'):
+        ed.buyer_prices(
+            pd.Series({'339999': 'Industrial'}),
+            pd.Series(dtype=float),
+            {'Industrial': 8.0}.__getitem__,
+        )
 
 
 def test_losses_are_what_generation_leaves_after_end_use_and_exports() -> None:
