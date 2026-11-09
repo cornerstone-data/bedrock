@@ -95,7 +95,17 @@ v1_0_0_rc = (
 # interpolated suppressed BEA services trade cells (#1172) and Census trade on
 # the 2024 product-to-NAICS concordance (#1175). The GHG and Energy FBS are
 # rebuilt on that MUT, GHG_national_Cornerstone_{year}_v1.0.0_79273ed (#1189).
-v1_0_0 = "7f0bdab6e7d12f17a9c2a61437a22af1df7bed30"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
+v1_0_0_pre_electricity_flags = (
+    "7f0bdab6e7d12f17a9c2a61437a22af1df7bed30"  # config: 2026_usa_cornerstone_v1_0
+)
+
+# Output change: the v1.0 configs load the nowcast MUT v1.0.0_b17908f with the
+# electricity flags on (#1205): electric output on EIA retail revenue (#1198),
+# the electricity accounting residual and the hold on its gas (#1199), repriced
+# petroleum and oil and gas seeds (#1187), and the trade fixes (#1179, #1180).
+# GHG_national_Cornerstone_{year}_v1.0.0_edf6e0e is rebuilt on that MUT, with
+# the non-energy use split from #1201.
+v1_0_0 = "c9b69d94a20aecc8d858738eb87093e26e612dbe"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -119,6 +129,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_5_0: 2024,
     v0_6_0: 2024,
     v1_0_0_rc: 2024,
+    v1_0_0_pre_electricity_flags: 2024,
     v1_0_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
