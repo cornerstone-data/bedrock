@@ -158,19 +158,35 @@ def _value_added_weights_output() -> pd.DataFrame:
     keep BEA's output here. They share lines with the postal service and other
     enterprises, and rebased output would move value added onto those neighbours
     (postal service +$2.5bn in 2021) with nothing behind it.
+
+    ⚠️ With ``chain_gas_distribution_on_aies`` on, gas distribution keeps BEA's
+    output here too. It shares underlying line 14 with water and sewage
+    (``221300``), so chained output would move value added onto water. Kept on
+    BEA, its value added is unchanged and the output change lands on its
+    intermediate inputs, mostly the gas it buys to resell (#1004).
     """
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
+    config = get_usa_config()
     panel = detail_gross_output_panel()
-    if not get_usa_config().electric_output_on_retail_revenue:
-        return panel
-    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
-        GOVERNMENT_ELECTRIC,
-    )
+    held: list[str] = []
+    if config.electric_output_on_retail_revenue:
+        from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+            GOVERNMENT_ELECTRIC,
+        )
 
+        held.extend(GOVERNMENT_ELECTRIC)
+    if config.chain_gas_distribution_on_aies:
+        from bedrock.transform.iot.aies_go_chaining import (  # noqa: PLC0415
+            UTILITY_CHAINS,
+        )
+
+        held.extend(UTILITY_CHAINS)
+    if not held:
+        return panel
     published = detail_gross_output_panel(ec_adjusted=False)
     weights = panel.copy()
-    codes = [code for code in GOVERNMENT_ELECTRIC if code in weights.index]
+    codes = [code for code in held if code in weights.index]
     weights.loc[codes, :] = published.loc[codes, weights.columns]
     return weights
 
@@ -213,6 +229,11 @@ def detail_gross_output_panel(ec_adjusted: bool = True) -> pd.DataFrame:
     census conditioning, which touches manufacturing only and so cannot
     interact; unlike that adjustment it does **not** preserve the summary group
     total, because the level is the thing that disagrees with EIA.
+
+    ⚠️ **Gas distribution chains 2023-24 on census receipts when
+    ``chain_gas_distribution_on_aies`` is set** (#1004,
+    :func:`~bedrock.transform.iot.aies_go_chaining.apply_utility_chaining`),
+    also moving the level. Off by default.
     """
     if ec_adjusted:
         from bedrock.transform.iot.ec_go_adjustment import (  # noqa: PLC0415
@@ -234,6 +255,13 @@ def detail_gross_output_panel(ec_adjusted: bool = True) -> pd.DataFrame:
             )
 
             panel = apply_aies_chaining(panel, raw)
+        if config.chain_gas_distribution_on_aies:
+            from bedrock.transform.iot.aies_go_chaining import (  # noqa: PLC0415
+                apply_utility_chaining,
+            )
+
+            # Gas distribution only; the electricity rebase below touches 221100.
+            panel = apply_utility_chaining(panel)
         if config.rebase_utility_gross_output_on_eia:
             panel = apply_eia_utility_adjustment(panel)
         return panel

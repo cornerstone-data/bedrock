@@ -107,6 +107,19 @@ CHAINED_YEARS = (2023, 2024)
 #: break is there is #1013 work item 2 and is deliberately not assumed here.
 PREFIXES = ('31', '32', '33')
 
+#: Industries outside manufacturing chained on their own census receipts when
+#: ``chain_gas_distribution_on_aies`` is set, BEA industry -> NAICS code.
+#: **Their level moves**: no total is held, so the summary group is released.
+#:
+#: ⚠️ **Gas distribution** (``221200``, NAICS ``221210``): census receipts fall
+#: 9.5% from 2022 to 2023 and 14.5% to 2024 ($182.7bn, $165.3bn, $156.2bn), and
+#: EIA natural gas sales fall 9% and 17%. BEA's output falls only 5% both years,
+#: holding near its 2022 peak. From 2017 to 2022 BEA (1.79x) and the Economic
+#: Census (1.82x) agree. Because business purchases of the commodity are output
+#: less household purchases, BEA's level is what made them keep rising after
+#: 2022 while EIA's fell (#1004).
+UTILITY_CHAINS: dict[str, str] = {'221200': '221210'}
+
 #: Census receipts flow names. The Economic Census and AIES spell the same
 #: measure differently.
 _EC_FLOW = 'RCPTOT'
@@ -163,7 +176,9 @@ def _source_and_flow(year: int) -> tuple[str, str]:
 def _receipts_by_naics(year: int) -> pd.Series:
     """Six-digit NAICS -> total receipts, $M, for one year, as published."""
     levels = _receipts_all_levels(year)
-    series = levels[levels.index.str.len() == 6]
+    series = levels[
+        (levels.index.str.len() == 6) & levels.index.str.startswith(PREFIXES)
+    ]
     if series.empty:
         source, flow = _source_and_flow(year)
         raise ValueError(f'no six-digit manufacturing {flow!r} in {source} {year}')
@@ -174,8 +189,8 @@ def _receipts_by_naics(year: int) -> pd.Series:
 def _receipts_all_levels(year: int) -> pd.Series:
     """NAICS code at three to six digits -> total receipts, $M, for one year.
 
-    The parent levels are what :func:`withheld_fill` recovers withheld six-digit
-    codes from.
+    Manufacturing plus the codes in :data:`UTILITY_CHAINS`. The parent levels
+    are what :func:`withheld_fill` recovers withheld six-digit codes from.
 
     ⚠️ **Read through :func:`getFlowByActivity`, not a parquet glob.** An earlier
     version globbed ``extract/output_data`` directly and raised
@@ -209,7 +224,9 @@ def _receipts_all_levels(year: int) -> pd.Series:
         raise ValueError(f'{flow!r} not found in {source} {year}')
 
     codes = rows['ActivityConsumedBy'].astype(str)
-    keep = codes.str.fullmatch(r'\d{3,6}') & codes.str.startswith(PREFIXES)
+    keep = codes.str.fullmatch(r'\d{3,6}') & (
+        codes.str.startswith(PREFIXES) | codes.isin(list(UTILITY_CHAINS.values()))
+    )
     series = (
         pd.Series(
             rows['FlowAmount'].astype(float).to_numpy() * THOUSAND_TO_MILLION,
@@ -469,6 +486,46 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
     return out
 
 
+def utility_chain_factors(year: int) -> pd.Series:
+    """Census growth from :data:`ANCHOR_YEAR` to *year* for each of :data:`UTILITY_CHAINS`.
+
+    ``NaN`` where the census does not publish the code in both years, and the
+    caller then keeps BEA's own level.
+    """
+    base, later = _receipts_all_levels(ANCHOR_YEAR), _receipts_all_levels(year)
+    out = {}
+    for industry, naics in UTILITY_CHAINS.items():
+        b, y = base.get(naics, np.nan), later.get(naics, np.nan)
+        out[industry] = float(y) / float(b) if b > 0.0 and y > 0.0 else np.nan
+    return pd.Series(out, dtype=float)
+
+
+def apply_utility_chaining(panel: pd.DataFrame) -> pd.DataFrame:
+    """:data:`UTILITY_CHAINS` industries in 2023-24 on their census growth.
+
+    Each takes its own :data:`ANCHOR_YEAR` level times census growth. ⚠️ **No
+    total is held**, unlike :func:`apply_aies_chaining`: the level is what
+    disagrees with census and EIA, so holding a group would hand the correction
+    to a sibling (water, for gas distribution) on nothing observed. The summary
+    group is released instead (:func:`released_groups`), as
+    :func:`~bedrock.transform.iot.eia_utility_go_adjustment.apply_eia_utility_adjustment`
+    does for electricity. Returns a new frame; every other row and year is
+    returned unchanged.
+    """
+    out = panel.copy()
+    if ANCHOR_YEAR not in out.columns:
+        raise KeyError(f'the panel has no anchor year {ANCHOR_YEAR}')
+    for year in CHAINED_YEARS:
+        if year not in out.columns:
+            continue
+        factors = utility_chain_factors(year)
+        for industry in UTILITY_CHAINS:
+            factor = float(factors[industry])
+            if industry in out.index and np.isfinite(factor):
+                out.at[industry, year] = _f(out.at[industry, ANCHOR_YEAR]) * factor
+    return out
+
+
 #: A group total this conditioner does not move is free to stay held, so the
 #: release is not blanket. In $M; the panel's own dust scale.
 RELEASE_DUST_USD_M = 1.0
@@ -476,6 +533,9 @@ RELEASE_DUST_USD_M = 1.0
 
 def released_groups() -> frozenset[str]:
     """Summary groups whose published Supply row must give way, or empty.
+
+    With ``chain_gas_distribution_on_aies`` set, this always includes the group
+    of each :data:`UTILITY_CHAINS` industry, because that chain moves the level.
 
     ⚠️ **Why a release is needed at all.**
     :func:`~bedrock.transform.iot.nowcast_supply_go_control.fit_block`
@@ -522,8 +582,17 @@ def released_groups() -> frozenset[str]:
     )
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    if not get_usa_config().chain_manufacturing_on_aies:
-        return frozenset()
+    config = get_usa_config()
+    released: set[str] = set()
+    if config.chain_gas_distribution_on_aies:
+        # The chain moves the level, so the group always moves with it.
+        released.update(
+            _industry_parent()[code]
+            for code in UTILITY_CHAINS
+            if code in _industry_parent()
+        )
+    if not config.chain_manufacturing_on_aies:
+        return frozenset(released)
 
     raw = detail_gross_output_panel(ec_adjusted=False)
     held = apply_ec_adjustment(raw)
@@ -536,7 +605,6 @@ def released_groups() -> frozenset[str]:
     ]
     groups = pd.Series([parents[m] for m in members], index=members)
 
-    released: set[str] = set()
     for year in CHAINED_YEARS:
         if year not in raw.columns:
             continue
