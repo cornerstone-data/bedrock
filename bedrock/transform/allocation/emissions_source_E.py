@@ -103,6 +103,13 @@ def _mapped_rows() -> pd.DataFrame:
     mapped = tagged[tagged['status'] == 'mapped'].copy()
     if mapped['ceda_source'].str.contains(';').any():
         raise ValueError('mapped rows must not list multiple ceda_source codes')
+    if get_usa_config().electricity_delivery_margin:
+        # The same moves as E by gas: brokers to their host, SF6 to delivery.
+        from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+            move_delivery_flows,
+        )
+
+        mapped = move_delivery_flows(mapped)
     return mapped
 
 
