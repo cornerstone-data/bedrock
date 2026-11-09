@@ -23,8 +23,10 @@ year, and a failing check names the buyers or sectors responsible.
    required: industries whose published row changed take the 2022 price there.
 8. **Prices don't depend on the bills.** Doubling every bill leaves buyer prices, class kWh
    and the generation price unchanged.
+9. **Delivery's share of compensation is QCEW's.** Delivery holds the share of private
+   payroll that NAICS 22112 has in electric power (#1012).
 
-Checks 5 and 6, and the emissions half of 4, build the full model twice per year.
+Checks 5, 6 and 9, and the emissions half of 4, build the full model twice per year.
 ``--skip-model`` leaves them out.
 
 ::
@@ -70,6 +72,7 @@ CHECKS = (
     'spend_factor',
     'prices',
     'bills_independent',
+    'compensation_share',
 )
 
 
@@ -222,6 +225,8 @@ class ModelFacts:
     output_before: float
     output_after: float
     losses_usd: float
+    compensation_delivery: float
+    compensation_generation: float
 
 
 def _vector_n() -> 'pd.Series[float]':
@@ -285,6 +290,9 @@ def model_facts(year: int, mut_vintage: str | None) -> tuple[ta.Any, ModelFacts]
                 split = ed.active_delivery_split()
                 v_after = ed.restructured_tables()[0]
                 out['split'] = split
+                value = ed.restructured_tables()[3]
+                comp = pd.Series(value.loc[ed.COMPENSATION_ROW], dtype=float)
+                out['compensation'] = (float(comp[ed.DELIVERY_SLOT]), float(comp[gen]))
                 out['after'] = float(
                     pd.Series(v_after.loc[gen], dtype=float)[gen]
                     + pd.Series(v_after.loc[slot], dtype=float)[slot]
@@ -302,6 +310,8 @@ def model_facts(year: int, mut_vintage: str | None) -> tuple[ta.Any, ModelFacts]
         output_before=on['before'],
         output_after=on['after'],
         losses_usd=split.losses_usd,
+        compensation_delivery=on['compensation'][0],
+        compensation_generation=on['compensation'][1],
     )
     return split, facts
 
@@ -323,6 +333,22 @@ def check_output(facts: ModelFacts) -> list[str]:
         return [
             f'generation plus delivery less losses is ${after / 1e9:,.3f}bn, '
             f'electric power before the split ${facts.output_before / 1e9:,.3f}bn'
+        ]
+    return []
+
+
+def check_compensation_share(year: int, facts: ModelFacts) -> list[str]:
+    """Check 9: delivery's share of compensation against QCEW's private payroll share."""
+    from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+        delivery_payroll_share,
+    )
+
+    total = facts.compensation_delivery + facts.compensation_generation
+    ours = facts.compensation_delivery / total
+    observed = delivery_payroll_share(year)
+    if abs(ours - observed) > 1e-6:
+        return [
+            f'delivery holds {ours:.1%} of compensation, QCEW payroll {observed:.1%}'
         ]
     return []
 
@@ -414,6 +440,7 @@ def run_year(
         return figures
     report.record('emissions', year, [*check_emissions(facts), *uniform])
     report.record('output', year, check_output(facts))
+    report.record('compensation_share', year, check_compensation_share(year, facts))
     average, by_class, spend_problems = spend_factor(split, facts)
     report.record('spend_factor', year, spend_problems)
     figures.update(
