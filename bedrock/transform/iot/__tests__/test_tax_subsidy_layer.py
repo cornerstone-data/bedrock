@@ -99,6 +99,62 @@ def test_column_sums_reproduce_the_bridge(toy_layer: tsl.FiscalLayer) -> None:
     assert toy_layer.subsidies.sum(axis=1).loc['111200'] == pytest.approx(-4 * MILLION)
 
 
+# --- the re-spread onto a target table's live cells --------------------------
+
+
+def _cells(live: list[tuple[str, str]]) -> pd.DataFrame:
+    """A target table, commodity x buyer, nonzero on *live* only."""
+    commodities = sorted({c for c, _ in live})
+    buyers = sorted({b for _, b in live})
+    frame = pd.DataFrame(0.0, index=commodities, columns=buyers)
+    for commodity, buyer in live:
+        frame.loc[commodity, buyer] = 1.0
+    return frame
+
+
+def test_tax_on_a_dead_cell_moves_onto_the_live_cells(
+    toy_layer: tsl.FiscalLayer,
+) -> None:
+    """111200 loses F01000: its 15 of sales tax moves onto 1111A0, the only live cell."""
+    cells = _cells([('111200', '1111A0'), ('112120', '1111A0')])
+    layer = tsl.restrict_to_cells(toy_layer, cells)
+
+    assert layer.sales_tax.loc['111200', '1111A0'] == pytest.approx(20 * MILLION)
+    assert layer.sales_tax.loc['111200', 'F01000'] == 0.0
+    assert layer.top_rest.loc['111200', '1111A0'] == pytest.approx(10 * MILLION)
+
+
+def test_the_re_spread_keeps_every_commodity_total(
+    toy_layer: tsl.FiscalLayer,
+) -> None:
+    cells = _cells([('111200', '1111A0'), ('111200', 'F04000'), ('112120', '1111A0')])
+    layer = tsl.restrict_to_cells(toy_layer, cells)
+
+    for name in tsl.FISCAL_FRAMES:
+        before = getattr(toy_layer, name).sum(axis=1)
+        after = getattr(layer, name).sum(axis=1)
+        assert float((after - before).abs().max()) < tsl.CONSERVATION_TOLERANCE, name
+
+
+def test_build_with_cells_is_build_then_restrict(toy_layer: tsl.FiscalLayer) -> None:
+    cells = _cells([('111200', '1111A0'), ('112120', '1111A0')])
+    built = tsl.build_fiscal_layer(2017, cells=cells)
+    restricted = tsl.restrict_to_cells(toy_layer, cells)
+
+    for name in tsl.FISCAL_FRAMES:
+        pd.testing.assert_frame_equal(getattr(built, name), getattr(restricted, name))
+
+
+def test_tax_with_no_live_cell_in_its_commodity_is_refused(
+    toy_layer: tsl.FiscalLayer,
+) -> None:
+    """112120 has no live cell, so its 15 of TOP cannot be re-spread."""
+    cells = _cells([('111200', '1111A0')])
+
+    with pytest.raises(ValueError, match='no live cell'):
+        tsl.restrict_to_cells(toy_layer, cells)
+
+
 # --- the answer keys, against the published tables ---------------------------
 
 
@@ -129,3 +185,21 @@ def test_published_layer_reproduces_the_bridge_and_spares_exports(
     # inventory draw-down reverses the wedge), so only the commodity totals
     # carry the bridge's non-positive convention.
     assert float(layer.subsidies.sum(axis=1).max()) <= 1e-9
+
+
+def test_a_truncated_target_table_is_refused_rather_than_dropping_tax() -> None:
+    """Five commodities by three buyers cannot hold the 2017 layer's tax."""
+    from bedrock.transform.iot.margin_rates import (  # noqa: PLC0415
+        BUYER_CODES,
+        goods_commodities,
+    )
+
+    narrow = pd.DataFrame(
+        1_000.0,
+        index=goods_commodities()[:5],
+        columns=list(BUYER_CODES)[:3],
+        dtype=float,
+    )
+
+    with pytest.raises(ValueError, match='no live cell'):
+        tsl.build_fiscal_layer(2017, cells=narrow)
