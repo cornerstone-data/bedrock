@@ -101,6 +101,16 @@ Nine checks on `221100` generation and `42ELEC` delivery, each reported per year
 (#903). A failing check names the buyers or sectors responsible. `--skip-model`
 leaves out the checks that build the full model twice per year.
 
+## Electric power's value added on a consolidated basis
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.consolidated_basis_1012 --check
+# options: --fuel (builds the model for 2017-2024, about 4 minutes)  --year 2017
+```
+
+BEA's `221100` against FERC Form 1, on one basis (#1012). Findings are in
+`About_1012_consolidated_basis.md`.
+
 ## Why the flat generation price fails
 
 ```bash
