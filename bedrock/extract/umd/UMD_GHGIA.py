@@ -722,7 +722,12 @@ def umd_ghgia_parse(
                     else:
                         # apply header
                         apb_txt = strip_char(apb_value)
-                        df.loc[index, activity_col] = f'{apbe_value} {apb_txt}'  # type: ignore[index]
+                        if apbe_value == 'U.S. Territories':
+                            df = df.drop(index)
+                            continue
+                        df.loc[index, activity_col] = (  # type: ignore[index]
+                            f'{apbe_value} {apb_txt}'
+                        )
                     if 'Total' == apb_value or 'Total ' == apb_value:
                         df = df.drop(index)
 
@@ -843,6 +848,17 @@ def umd_ghgia_parse(
                         df.loc[index, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'  # type: ignore[index]
                 if 'Total' == apb_value or 'Total ' == apb_value:
                     df = df.drop(index)
+
+        elif table_name == 'A3-5':
+            # Fuel stays published; Stored/Sequester/Consum → ACB, else APB.
+            fuel = df['ActivityProducedBy']
+            consumed = (
+                df['FlowName']
+                .astype(str)
+                .str.contains('Stored|Sequester|Consum', case=False, regex=True)
+            )
+            df.loc[consumed, 'ActivityConsumedBy'] = fuel.loc[consumed]
+            df.loc[consumed, 'ActivityProducedBy'] = 'None'
 
         elif table_name == 'A-69':  # TODO: EPA table, update for umd
             fuel_name = ''
@@ -1268,56 +1284,48 @@ def prepare_facilities_mobile_combustion(
 
 
 def calc_per_fuel_emissions(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
-    """Weight NEU consumption (Table 3-15) by unsequestered carbon (Annex A3-5).
+    """Compute per-fuel NEU CO2 emissions (MMT CO2e)
+    from Table 3-15 TBtu and Annex A3-5.
 
-    ``clean_parameter`` keys: ``annex_fba`` (required), ``annex_year`` (optional,
-    default 2024). FlowAmount becomes consumption × coeff × (1 − fraction), a
-    proportional attribution weight (not MMT CO2).
+    FlowAmount becomes TBtu × coeff × (1 − fraction) × (44/12) / 1000.
+    Rows with no sequestration fraction are dropped.
     """
-    params = fba.config.get('clean_parameter') or {}
-    annex_name = params.get('annex_fba')
-    if not annex_name:
-        raise ValueError('calc_per_fuel_emissions requires clean_parameter.annex_fba')
-    annex_year = int(params.get('annex_year', 2024))
-
+    params = fba.config['clean_parameter']
     annex = load_fba_w_standardized_units(
-        datasource=str(annex_name),
-        year=annex_year,
+        datasource=params['annex_fba'],
+        year=int(params['annex_year']),
         download_FBA_if_missing=True,
     )
-    flow = annex['FlowName'].astype(str)
-    coeff = annex.loc[flow.str.startswith('Carbon Coefficient')]
-    frac = annex.loc[flow.str.startswith('Fraction Sequestered')]
-    if coeff.empty:
-        raise ValueError(f'No Carbon Coefficient rows in {annex_name} {annex_year}')
-
-    factors = (
-        coeff[['ActivityProducedBy', 'FlowAmount']]
-        .rename(columns={'FlowAmount': 'Coefficient'})
-        .merge(
-            frac[['ActivityProducedBy', 'FlowAmount']].rename(
-                columns={'FlowAmount': 'Fraction'}
-            ),
-            how='left',
-            on='ActivityProducedBy',
-        )
-        # A3-5 "Natural Gas" matches 3-15 "Natural Gas to Chemical Plants".
-        .replace(
-            {'ActivityProducedBy': {'Natural Gas': 'Natural Gas to Chemical Plants'}}
-        )
-        .rename(columns={'ActivityProducedBy': 'Fuel'})
+    # Coeff on APB; Fraction Sequestered on ACB (A3-5 extract split).
+    coefficient = annex.loc[annex['FlowName'].str.startswith('Carbon Coefficient')][
+        ['ActivityProducedBy', 'FlowAmount']
+    ].rename(columns={'ActivityProducedBy': 'Fuel', 'FlowAmount': 'Coefficient'})
+    sequestered = annex.loc[annex['FlowName'].str.startswith('Fraction Sequestered')][
+        ['ActivityConsumedBy', 'FlowAmount']
+    ].rename(columns={'ActivityConsumedBy': 'Fuel', 'FlowAmount': 'Fraction'})
+    # Rename: A3-5 "Natural Gas" ↔ 3-15 "Natural Gas to Chemical Plants".
+    factors = coefficient.merge(sequestered, how='left', on='Fuel').replace(
+        {'Fuel': {'Natural Gas': 'Natural Gas to Chemical Plants'}}
     )
 
-    # 3-15 fuels (ActivityConsumedBy, nested under Industry / Transportation)
-    # merge on A3-5 fuels (ActivityProducedBy).
-    merged = fba.assign(
-        Fuel=fba['ActivityConsumedBy']
-        .str.removeprefix('Industry ')
-        .str.removeprefix('Transportation ')
-    ).merge(factors, how='left', on='Fuel')
+    # 3-15 fuels (ActivityConsumedBy); strip section headers for A3-5 join.
+    merged = (
+        fba.assign(
+            Fuel=(
+                fba['ActivityConsumedBy']
+                .str.removeprefix('Industry ')
+                .str.removeprefix('Transportation ')
+            )
+        )
+        .merge(factors, how='left', on='Fuel')
+        .dropna(subset=['Fraction'])
+    )
     merged['FlowAmount'] = (
         merged['FlowAmount']
         * merged['Coefficient'].fillna(0)
-        * (1 - merged['Fraction'].fillna(0))
+        * (1 - merged['Fraction'])
+        * (44 / 12)
+        / 1000
     )
+    merged['Unit'] = 'MMT CO2e'
     return merged.drop(columns=['Fuel', 'Coefficient', 'Fraction'])
