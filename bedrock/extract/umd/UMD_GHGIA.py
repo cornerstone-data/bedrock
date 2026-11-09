@@ -77,42 +77,30 @@ def _cell_get_name(value: str, default_flow_name: str) -> str:
     """
     if '(' not in value:
         return default_flow_name.replace('__type__', value.strip())
-
-    spl = value.split(' ')
-    name = ''
-    found_units = False
-    for sub in spl:
-        if '(' not in sub and not found_units:
-            name = f'{name.strip()} {sub}'
-        else:
-            found_units = True
-    return name.strip()
+    return value[: value.find('(')].strip()
 
 
-def _cell_get_units(value: str, default_units: str) -> str:
+def _cell_get_units(value: str, default_units: str | float | None) -> str | float:
     """
     Given a single string value (cell), separate the name and units.
     :param value: str
-    :param default_units: indicate return units string subset
+    :param default_units: fallback when header has no parenthetical unit
+        (YAML null → None → np.nan)
     :return: unit for row
     """
-    if '(' not in value:
+    if '(' not in value or ')' not in value:
+        if default_units is None or (
+            isinstance(default_units, float) and np.isnan(default_units)
+        ):
+            return np.nan
         return default_units
-
-    spl = value.split(' ')
-    name = ''
-    found_units = False
-    for sub in spl:
-        if ')' in sub:
-            found_units = False
-        if '(' in sub or found_units:
-            name = f'{name} {sub.replace("(", "").replace(")", "")} '
-            found_units = True
-    return name.strip()
+    return value[value.find('(') + 1 : value.rfind(')')].strip()
 
 
 def series_separate_name_and_units(
-    series: pd.Series, default_flow_name: str, default_units: str
+    series: pd.Series,
+    default_flow_name: str,
+    default_units: str | float | None,
 ) -> dict[str, pd.Series]:
     """
     Given a series (such as a df column), split the contents' strings into a name and units.
@@ -229,7 +217,10 @@ def _load_umd_ghgia_table(
     if annex_match:
         annex_num = annex_match.group(1)
         rest = table[len(f'A{annex_num}-') :]
-        csv_label = f'A{annex_num}.{rest}'
+        # Annex 3 CSVs use hyphens (Table A3-5.csv); Annex 5 uses dots (Table A5.1-S1.csv).
+        csv_label = (
+            f'A{annex_num}-{rest}' if annex_num == '3' else f'A{annex_num}.{rest}'
+        )
         rel = posixpath.join(
             'Annexes_v1',
             annex_folder or f'Annex {annex_num}',
@@ -445,6 +436,9 @@ def strip_char(text: str) -> str:
     for key in footnotes:
         text = text.replace(key, footnotes[key])
 
+    # Align temperature labels with FBS activity names (no degree glyph).
+    text = text.replace('deg. F', 'F').replace('°', '').replace('Â', '')
+
     return ' '.join(text.split())  # remove extra spaces between words
 
 
@@ -520,8 +514,35 @@ def umd_ghgia_parse(
                     df.at[index, 'ActivityConsumedBy'] = source  # type: ignore[index]
 
         else:
-            # Standard years (one or more) as column headers
-            df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
+            # Year-header tables (e.g. 3-14, 3-15) vs factor-header tables (e.g. A3-5).
+            # year_cols: value columns whose first token is a 4-digit year.
+            value_cols = [c for c in df.columns if c not in id_vars]
+            year_cols = []
+            for col in value_cols:
+                token = str(col).strip().split()[0] if str(col).strip() else ''
+                if token.isdigit() and len(token) == 4:
+                    year_cols.append(col)
+            if year_cols:
+                # Standard years (one or more) as column headers
+                df = df.melt(id_vars=id_vars, var_name='Year', value_name='FlowAmount')
+            else:
+                # No year headers — melt attribute/factor columns to FlowName
+                df = df.melt(
+                    id_vars=id_vars,
+                    var_name=meta.get('melt_var'),
+                    value_name='FlowAmount',
+                )
+                name_unit = series_separate_name_and_units(
+                    df['FlowName'].str.split().str.join(' '),
+                    meta['flow'],
+                    meta['unit'],
+                )
+                df['FlowName'] = name_unit['names']
+                df['Unit'] = name_unit['units']
+                df['Year'] = year
+                df['ActivityProducedBy'] = (
+                    df['ActivityProducedBy'].astype(str).map(strip_char)
+                )
 
         # set suppressed values to 0 but mark as suppressed
         # otherwise set non-numeric to nan
@@ -666,27 +687,35 @@ def umd_ghgia_parse(
         elif table_name in source_No_activity:
             apbe_value = ''
             flow_name_list = ['Industry', 'Transportation', 'U.S. Territories']
+            activity_col = 'ActivityProducedBy'
+            if _is_consumption(source_name, config):
+                activity_col = 'ActivityConsumedBy'
             for index, row in df.iterrows():
                 unit = row['Unit']
                 if unit.strip() == 'MMT  CO2':
                     df.loc[index, 'Unit'] = 'MMT CO2e'  # type: ignore[index]
-                if df.loc[index, 'Unit'] != 'MMT CO2e':  # type: ignore[index]
+                if df.loc[index, 'Unit'] != meta.get('unit', 'MMT CO2e'):  # type: ignore[index]
                     df = df.drop(index)
                 else:
                     df.loc[index, 'FlowName'] = meta.get('flow')  # type: ignore[index]
                     # use .join and split to remove interior spaces
-                    apb_value = ' '.join(row['ActivityProducedBy'].split())
+                    apb_value = ' '.join(row[activity_col].split())
                     apb_value = apb_value.replace('°', '')
                     if apb_value in flow_name_list:
                         # set header
                         apbe_value = apb_value
-                        df.loc[index, 'ActivityProducedBy'] = (  # type: ignore[index]
+                        df.loc[index, activity_col] = (  # type: ignore[index]
                             f'{apbe_value} All activities'
                         )
                     else:
                         # apply header
                         apb_txt = strip_char(apb_value)
-                        df.loc[index, 'ActivityProducedBy'] = f'{apbe_value} {apb_txt}'  # type: ignore[index]
+                        if apbe_value == 'U.S. Territories':
+                            df = df.drop(index)
+                            continue
+                        df.loc[index, activity_col] = (  # type: ignore[index]
+                            f'{apbe_value} {apb_txt}'
+                        )
                     if 'Total' == apb_value or 'Total ' == apb_value:
                         df = df.drop(index)
 
@@ -807,6 +836,17 @@ def umd_ghgia_parse(
                         df.loc[index, 'ActivityProducedBy'] = f'{apb_txt} {apbe_value}'  # type: ignore[index]
                 if 'Total' == apb_value or 'Total ' == apb_value:
                     df = df.drop(index)
+
+        elif table_name == 'A3-5':
+            # Fuel stays published; Stored/Sequester/Consum → ACB, else APB.
+            fuel = df['ActivityProducedBy']
+            consumed = (
+                df['FlowName']
+                .astype(str)
+                .str.contains('Stored|Sequester|Consum', case=False, regex=True)
+            )
+            df.loc[consumed, 'ActivityConsumedBy'] = fuel.loc[consumed]
+            df.loc[consumed, 'ActivityProducedBy'] = 'None'
 
         elif table_name == 'A-69':  # TODO: EPA table, update for umd
             fuel_name = ''
@@ -1229,3 +1269,51 @@ def prepare_facilities_mobile_combustion(
             'prepare_facilities_mobile_combustion requires clean_parameter.year'
         )
     return assign_lng_liquefaction_gas(fba, dict(clean_parameter))
+
+
+def calc_per_fuel_emissions(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """Compute per-fuel NEU CO2 emissions (MMT CO2e)
+    from Table 3-15 TBtu and Annex A3-5.
+
+    FlowAmount becomes TBtu × coeff × (1 − fraction) × (44/12) / 1000.
+    Rows with no sequestration fraction are dropped.
+    """
+    params = fba.config['clean_parameter']
+    annex = load_fba_w_standardized_units(
+        datasource=params['annex_fba'],
+        year=int(params['annex_year']),
+        download_FBA_if_missing=True,
+    )
+    # Coeff on APB; Fraction Sequestered on ACB (A3-5 extract split).
+    coefficient = annex.loc[annex['FlowName'].str.startswith('Carbon Coefficient')][
+        ['ActivityProducedBy', 'FlowAmount']
+    ].rename(columns={'ActivityProducedBy': 'Fuel', 'FlowAmount': 'Coefficient'})
+    sequestered = annex.loc[annex['FlowName'].str.startswith('Fraction Sequestered')][
+        ['ActivityConsumedBy', 'FlowAmount']
+    ].rename(columns={'ActivityConsumedBy': 'Fuel', 'FlowAmount': 'Fraction'})
+    # Rename: A3-5 "Natural Gas" ↔ 3-15 "Natural Gas to Chemical Plants".
+    factors = coefficient.merge(sequestered, how='left', on='Fuel').replace(
+        {'Fuel': {'Natural Gas': 'Natural Gas to Chemical Plants'}}
+    )
+
+    # 3-15 fuels (ActivityConsumedBy); strip section headers for A3-5 join.
+    merged = (
+        fba.assign(
+            Fuel=(
+                fba['ActivityConsumedBy']
+                .str.removeprefix('Industry ')
+                .str.removeprefix('Transportation ')
+            )
+        )
+        .merge(factors, how='left', on='Fuel')
+        .dropna(subset=['Fraction'])
+    )
+    merged['FlowAmount'] = (
+        merged['FlowAmount']
+        * merged['Coefficient'].fillna(0)
+        * (1 - merged['Fraction'])
+        * (44 / 12)
+        / 1000
+    )
+    merged['Unit'] = 'MMT CO2e'
+    return merged.drop(columns=['Fuel', 'Coefficient', 'Fraction'])
