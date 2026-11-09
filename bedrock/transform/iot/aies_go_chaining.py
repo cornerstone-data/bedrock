@@ -131,6 +131,18 @@ _AIES_SOURCE = 'Census_AIES_Expenses'
 #: comes out about 16% too high in 2024 (#1032).
 POOLED_CHAINS: tuple[tuple[str, ...], ...] = (('327310', '327320'),)
 
+#: Industries kept on BEA's own movement when ``hold_aies_outliers_on_bea`` is
+#: set, because the census receipts disagree with every other measure.
+#:
+#: ⚠️ **Other basic organic chemicals** (``325190``): AIES has ``325199``
+#: receipts rising 22% from 2022 to 2024 ($100bn to $122bn). Over the same
+#: years the Federal Reserve production index for organic chemicals rises 0.4%,
+#: the producer price index for ``325199`` falls 4%, QCEW employment falls 1%,
+#: exports fall 20% ($40.0bn to $31.8bn), and AIES's own materials cost is flat
+#: (-1%), so receipts less materials would rise 53%. Price times production puts
+#: 2024 receipts near $96bn. BEA's own output rises 0.9%, which fits (#1211).
+BEA_HOLDS = frozenset({'325190'})
+
 
 def _f(value: object) -> float:
     """One frame or series scalar as a float.
@@ -215,6 +227,13 @@ def _fill_withheld() -> bool:
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
     return get_usa_config().fill_withheld_aies_codes
+
+
+def _held_on_bea() -> frozenset[str]:
+    """:data:`BEA_HOLDS` when ``hold_aies_outliers_on_bea`` is set, else empty."""
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return BEA_HOLDS if get_usa_config().hold_aies_outliers_on_bea else frozenset()
 
 
 def _nearest_published(code: str, year: int) -> float:
@@ -417,8 +436,9 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
     fallback movement.  Returns a new frame; neither argument is mutated.
 
     Industries the census does not observe keep BEA's own movement off the
-    anchor year, and the final rescale is over **all** manufacturing industries
-    so that the observed and unobserved move onto one consistent total.
+    anchor year, as do those in :data:`BEA_HOLDS` when the hold is on. The
+    final rescale is over **all** manufacturing industries so that the observed
+    and unobserved move onto one consistent total.
     """
     out = adjusted.copy()
     members = [code for code in out.index.astype(str) if str(code).startswith(PREFIXES)]
@@ -429,11 +449,13 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
 
     anchor = out.loc[members, ANCHOR_YEAR].astype(float)
     raw_anchor = raw.loc[members, ANCHOR_YEAR].astype(float)
+    held = [code for code in members if code in _held_on_bea()]
 
     for year in CHAINED_YEARS:
         if year not in out.columns:
             continue
         census = chain_factors(year, members)
+        census.loc[held] = np.nan
         bea = (
             raw.loc[members, year].astype(float) / raw_anchor.replace(0.0, np.nan)
         ).fillna(1.0)

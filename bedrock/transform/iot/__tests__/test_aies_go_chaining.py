@@ -366,3 +366,31 @@ def test_the_fill_flag_is_off_by_default() -> None:
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
     assert get_usa_config().fill_withheld_aies_codes is False
+
+
+def test_a_held_industry_keeps_bea_movement_though_census_observes_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``BEA_HOLDS`` overrides an observed census growth (#1211, ``325190``)."""
+    _receipts(monkeypatch, CENSUS)
+    monkeypatch.setattr(ch, '_held_on_bea', lambda: frozenset({'336411'}))
+    raw = _panel()
+    out = ch.apply_aies_chaining(raw, raw)
+    bea_growth = _f(raw.at['336411', 2024]) / _f(raw.at['336411', ch.ANCHOR_YEAR])
+    got_growth = _f(out.at['336411', 2024]) / _f(out.at['336411', ch.ANCHOR_YEAR])
+    other_growth = _f(out.at['324110', 2024]) / _f(out.at['324110', ch.ANCHOR_YEAR])
+    census_growth = CENSUS[2024]['324110'] / CENSUS[ch.ANCHOR_YEAR]['324110']
+    assert got_growth / bea_growth == pytest.approx(
+        other_growth / census_growth, rel=1e-10
+    )
+    assert float(out.loc[MFG, 2024].sum()) == pytest.approx(
+        float(raw.loc[MFG, 2024].sum()), rel=1e-12
+    )
+
+
+def test_the_hold_is_off_by_default_and_names_325190() -> None:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    assert get_usa_config().hold_aies_outliers_on_bea is False
+    assert ch._held_on_bea() == frozenset()
+    assert frozenset({'325190'}) == ch.BEA_HOLDS
