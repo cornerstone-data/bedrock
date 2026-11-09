@@ -118,7 +118,7 @@ UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,BEA_2017_Code,GSLGO,,,UMD_GHGIA_
 UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,BEA_2017_Code,S00203,,,UMD_GHGIA_T_3_14
 UMD_GHGIA,Emissions NEU Fossil Fuel Consumption,BEA_2017_Code,F01000,,,UMD_GHGIA_T_3_14
 UMD_GHGIA,Industry Industrial Coking Coal,NAICS_2017_Code,3311,,331110 coke-oven by-products (coal tar and light oil); was 212210 iron ore mining,UMD_GHGIA_T_3_15
-UMD_GHGIA,Industry Industrial Other Coal,NAICS_2017_Code,212210,,2122A0 (incorrect in original?),UMD_GHGIA_T_3_15
+UMD_GHGIA,Industry Industrial Other Coal,NAICS_2017_Code,324199,,324190 other petroleum and coal products,UMD_GHGIA_T_3_15
 UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,31,,"31, 32, 33",UMD_GHGIA_T_3_15
 UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324110,,,UMD_GHGIA_T_3_15
 UMD_GHGIA,Industry Petroleum Products Non-energy,NAICS_2017_Code,324199,,,UMD_GHGIA_T_3_15
