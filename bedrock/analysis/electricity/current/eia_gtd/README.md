@@ -90,6 +90,17 @@ UGO305-A / EPA Table 2.3 residential. Not a standing gate mode on
 `bedrock/analysis/nowcasting/census_alt/ec_alt_measures.csv` (refresh from
 Census with `python -m bedrock.utils.mapping.write_ec_alt_measures`).
 
+## Checks on the generation and delivery split
+
+```bash
+python -m bedrock.analysis.electricity.current.eia_gtd.electricity_split_checks --check
+# options: --years 2017-2024  --skip-model  --mut-vintage VINTAGE
+```
+
+Nine checks on `221100` generation and `42ELEC` delivery, each reported per year
+(#903). A failing check names the buyers or sectors responsible. `--skip-model`
+leaves out the checks that build the full model twice per year.
+
 ## Why the flat generation price fails
 
 ```bash
