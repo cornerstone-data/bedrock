@@ -94,6 +94,21 @@ ANCHORED_FAMILIES: frozenset[str] = frozenset(
     }
 )
 
+#: Single commodities anchored the same way, where the Census line misses
+#: BEA's level but moves smoothly and the rest of its family does not (#670).
+#: ``311910`` snack foods runs 0.27x published 2017; ``3119`` stays out as a
+#: family because ``311930`` and ``311990`` step 2.33x and 1.58x from 2017 to
+#: 2018 on their Census lines. ``336500`` railroad rolling stock runs 0.37x:
+#: all of HS chapter 86 is 1.7bn against 3.1bn published, so BEA counts
+#: products the trade data cannot name. On the 2012 holdout the anchor lands
+#: at 0.86x published 2017 for both, against 0.27x and 0.37x.
+ANCHORED_COMMODITIES: frozenset[str] = frozenset({'311910', '336500'})
+
+
+def is_anchored(code: str) -> bool:
+    """Whether *code*'s imports are anchored on its published 2017 cell."""
+    return str(code)[:4] in ANCHORED_FAMILIES or str(code) in ANCHORED_COMMODITIES
+
 
 @functools.cache
 def _commodity_to_summary() -> pd.Series:
@@ -137,7 +152,8 @@ def anchored_mcif(year: int) -> pd.Series:
     (Wes's requirement).
 
     ⚠️ **Applied only inside :data:`ANCHORED_FAMILIES`** — Wes's recorded
-    scope decision. Every commodity outside those families passes through at
+    scope decision, plus the single rows in :data:`ANCHORED_COMMODITIES`.
+    Every commodity outside those families passes through at
     its raw FBS value: full Census primary signal, levels included.
 
     Per-commodity rules inside an anchored family, in order:
@@ -177,9 +193,7 @@ def anchored_mcif(year: int) -> pd.Series:
     with np.errstate(divide='ignore', invalid='ignore'):
         growth = (raw_now / raw_base).replace([np.inf, -np.inf], np.nan)
 
-    in_family = pd.Series(
-        [str(c)[:4] in ANCHORED_FAMILIES for c in pub.index], index=pub.index
-    )
+    in_family = pd.Series([is_anchored(c) for c in pub.index], index=pub.index)
     anchored = raw_now.copy().rename('MCIF')
     both = in_family & has_anchor & has_base
     anchored[both] = pub[both] * growth[both].fillna(0.0)
