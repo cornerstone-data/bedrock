@@ -719,6 +719,53 @@ def published_trade_received_by_kind() -> pd.DataFrame:
     return published_gross_margin_by_kind() - trade_level_tax_by_kind_2017()
 
 
+@functools.cache
+def published_supply_by_commodity() -> pd.Series:
+    """The published 2017 Supply ``T013``, total supply at basic prices. USD."""
+    supply = _load_2017_detail_supply_use_usa('Supply_detail').rename(
+        columns=lambda column: column.strip()
+    )
+    commodities = [code for code in USA_2017_COMMODITY_CODES if code in supply.index]
+    total = supply.loc[commodities, 'T013'].astype(float) * MILLION_CURRENCY_TO_CURRENCY
+    total.index.name = nm.COMMODITY_LEVEL
+    return total.rename('T013')
+
+
+def supply_following_weight(kind: str, commodity_supply: pd.Series) -> pd.Series:
+    """
+    *kind*'s 2017 received margin per good, moved by the good's own supply. USD.
+
+    .. code-block:: text
+
+        weight[c] = received_2017[c] x supply[c, year] / supply[c, 2017]
+
+    with supply the basic-price ``T013``. Spread over this weight, each good
+    keeps its 2017 margin per dollar of supply, times one economy-wide factor
+    that closes the kind's control total.
+
+    ⚠️ **The frozen 2017 mix gives every good the economy-wide margin growth,
+    whatever its own output does** (#1194). Total trade margin grew 1.49x from
+    2017 to 2024 against 1.32x for the receivers' supply, so a good whose
+    supply shrank took a margin rate up to twice its 2017 one: motor homes
+    (``336213``) went from 0.70 to 1.17 of supply as their supply fell 7%,
+    which left equipment investment's purchase of them 99% margin. Applied
+    to the balanced v1.0 tables, this weight puts motor homes at 0.81. The
+    goods mix still comes from 2017; only its size moves (#615 is the
+    product-line method that would replace it).
+    """
+    received = published_trade_received_by_kind()[_check_kind(kind)]
+    base = published_supply_by_commodity().reindex(received.index)
+    now = commodity_supply.reindex(received.index).fillna(0.0).clip(lower=0.0)
+    growth = (now / base.where(base > 0.0)).fillna(0.0)
+    return (received * growth).rename(f'{kind}_received')
+
+
+def _receivers_follow_supply() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().trade_margin_receivers_follow_supply
+
+
 def trade_coverage_ratio(kind: str) -> float:
     """
     *kind*'s 2017 BEA give-up divided by its 2017 Census gross margin.
@@ -1086,6 +1133,7 @@ def trade_margin_components(
     year: int = ANCHOR_YEAR,
     allow_extrapolation: bool = False,
     commodity_output: pd.Series | None = None,
+    commodity_supply: pd.Series | None = None,
 ) -> pd.DataFrame:
     """
     Trade margin for *year* decomposed into wholesale, retail and tax. USD.
@@ -1119,14 +1167,26 @@ def trade_margin_components(
     (`#580 <https://github.com/cornerstone-data/bedrock/issues/580>`_) is the
     source that would fix it, at the cost of a dependency the column does not
     otherwise have.
+
+    With ``trade_margin_receivers_follow_supply`` set and *commodity_supply*
+    (the year's ``T013``) given, the receiving side is spread on
+    :func:`supply_following_weight` rather than the frozen 2017 mix (#1194).
     """
     frames: dict[str, pd.Series] = {}
     tax_2017 = trade_level_tax_by_kind_2017()
     taxes: list[pd.Series] = []
+    follow_supply = commodity_supply is not None and _receivers_follow_supply()
 
     for kind in TRADE_KINDS:
         control = trade_control_total(kind, year, allow_extrapolation)
-        received = receiving_allocation(year, control, kind=kind)
+        weight = (
+            supply_following_weight(kind, commodity_supply)
+            if follow_supply and commodity_supply is not None
+            else None
+        )
+        received = receiving_allocation(
+            year, control, within_commodity_weight=weight, kind=kind
+        )
         given_up = giver_allocation(
             kind, year, control, commodity_output=commodity_output
         )
@@ -1208,6 +1268,7 @@ def trade_margin_column(
     year: int = ANCHOR_YEAR,
     allow_extrapolation: bool = False,
     commodity_output: pd.Series | None = None,
+    commodity_supply: pd.Series | None = None,
 ) -> pd.Series:
     """
     The Supply table's ``TRADE`` column for *year*. USD, by BEA 2017 commodity.
@@ -1224,7 +1285,10 @@ def trade_margin_column(
     trade-level tax.
     """
     components = trade_margin_components(
-        year, allow_extrapolation, commodity_output=commodity_output
+        year,
+        allow_extrapolation,
+        commodity_output=commodity_output,
+        commodity_supply=commodity_supply,
     )
     column = components[list(TRADE_KINDS)].sum(axis=1).rename('TRADE')
 

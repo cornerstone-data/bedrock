@@ -864,8 +864,14 @@ def derive_initial_supply_bridge(
         # #769: pass T007 so the within-group give-up is water-filled under
         # each giver's own output; the check then proves no negative total
         # supply reaches Step 5 (the sign locks would refuse it there).
+        # #1194: the year's T013 lets the receiving side follow each good's
+        # own supply when trade_margin_receivers_follow_supply is set.
         bridge['TRADE'] = (
-            trade_margin_column(year, commodity_output=bridge['T007'])
+            trade_margin_column(
+                year,
+                commodity_output=bridge['T007'],
+                commodity_supply=bridge[['T007', 'MCIF', 'MADJ']].sum(axis=1),
+            )
             .reindex(bridge.index)
             .fillna(0.0)
         )
