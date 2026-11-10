@@ -705,8 +705,12 @@ def reconcile_waste_make_and_va_to_use(
 
     1. Split each non-waste industry's parent Make mass across waste commodities
        (default = Use-side ``q_target`` shares; special one-hot / GSLGO rules).
-    2. Zero waste×waste off-diagonals; put ``q_target[c] − fixed non-waste Make``
-       on the diagonal so each Make column equals ``q_target``.
+    2. Zero waste×waste off-diagonals. Close each waste commodity column to
+       ``q_target``: if non-waste Make fits, put the residual on the diagonal;
+       if it overflows (one-hot/GSLGO), scale non-waste cells down and set the
+       diagonal to 0 — never a negative diagonal. If ``q_target <= 0``, move
+       that column's non-waste Make onto positive-``q_target`` siblings (or
+       raise if none), rather than wiping the column.
     3. Split each non-waste commodity's parent Make mass across waste industries
        (default = Use industry-column shares; oil/scrap one-hots).
     4. Scale each waste industry's VA column to ``Make row − Use column``.
@@ -768,31 +772,72 @@ def reconcile_waste_make_and_va_to_use(
         for com in waste_codes:
             V_work.loc[ind, com] = mass * float(cast(float, shares.loc[com]))
 
-    # Waste×waste: off-diagonals zero; diagonal absorbs residual to q_target
+    # Waste×waste: off-diagonals zero; close each column to q_target without
+    # negative diagonals or silent deletion of non-waste Make mass.
     for i in waste_codes:
         for j in waste_codes:
             if i != j:
                 V_work.loc[i, j] = 0.0
 
+    positive_qt = [
+        c for c in waste_codes if float(cast(float, q_target.loc[c])) > 0.0
+    ]
     for com in waste_codes:
         qt = float(cast(float, q_target.loc[com]))
-        if qt <= 0:
-            warnings.warn(
-                f"waste diagonal absorb: q_target[{com}]={qt} <= 0; "
-                "zeroing waste commodity column",
-                stacklevel=2,
-            )
-            V_work.loc[:, com] = 0.0
+        if qt > 0.0:
             continue
-        fixed = float(V_work.loc[nonwaste_ind, com].astype(float).sum())
-        resid = qt - fixed
-        if resid < 0:
+        fixed_cells = V_work.loc[nonwaste_ind, com].astype(float)
+        fixed = float(fixed_cells.sum())
+        if fixed > 0.0:
+            others = [c for c in positive_qt if c != com]
+            if not others:
+                raise ValueError(
+                    "reconcile_waste_make_and_va_to_use: "
+                    f"q_target[{com}]={qt} <= 0 but non-waste Make mass="
+                    f"{fixed:.6g} with no positive-q_target waste commodity "
+                    "to absorb it (refusing to delete parent Make mass)"
+                )
+            weights = q_target.reindex(others).astype(float)
+            wsum = float(weights.sum())
+            for other in others:
+                share = float(cast(float, weights.loc[other])) / wsum
+                V_work.loc[nonwaste_ind, other] = (
+                    V_work.loc[nonwaste_ind, other].astype(float)
+                    + fixed_cells * share
+                )
             warnings.warn(
-                f"waste diagonal absorb: negative resid[{com}]={resid} "
-                "(placing negative; leaving non-waste Make cells unchanged)",
+                f"waste column close: q_target[{com}]={qt} <= 0; "
+                f"redistributed non-waste Make mass {fixed:.6g} onto "
+                f"{others} by positive q_target shares",
                 stacklevel=2,
             )
-        V_work.loc[com, com] = resid
+        V_work.loc[nonwaste_ind, com] = 0.0
+        V_work.loc[com, com] = 0.0
+        if qt < 0.0:
+            warnings.warn(
+                f"waste column close: q_target[{com}]={qt} < 0; "
+                "column left at 0 (cannot place negative commodity output)",
+                stacklevel=2,
+            )
+
+    for com in waste_codes:
+        qt = float(cast(float, q_target.loc[com]))
+        if qt <= 0.0:
+            continue
+        fixed_cells = V_work.loc[nonwaste_ind, com].astype(float)
+        fixed = float(fixed_cells.sum())
+        if fixed <= qt:
+            V_work.loc[com, com] = qt - fixed
+            continue
+        scale = qt / fixed
+        V_work.loc[nonwaste_ind, com] = fixed_cells * scale
+        V_work.loc[com, com] = 0.0
+        warnings.warn(
+            f"waste column close: non-waste Make in column {com} "
+            f"({fixed:.6g}) exceeds q_target={qt:.6g}; scaled non-waste "
+            "cells down and set diagonal to 0",
+            stacklevel=2,
+        )
 
     # Make rows: waste industries × non-waste commodities
     U_tot = Udom.add(Uimp, fill_value=0.0)

@@ -1160,19 +1160,47 @@ class TestReconcileWasteMakeAndVa:
                 V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
             )
 
-    def test_negative_resid_places_diagonal(self) -> None:
+    def test_onehot_overflow_scales_nonwaste_diagonal_zero(self) -> None:
+        """Review #1253 (4): one-hot mass > q_target scales down; no neg diagonal."""
         V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
-        # One-hot dump on 562111 so fixed > q_target; large parent row keeps MakeRow>0
+        # 484000 → one-hot 562111; dump more parent mass than q_target[562111].
         V.loc["484000", "562000"] = 100.0
         V.loc["562000", "111000"] = 500.0
         for w in _TOY_WASTE:
             Udom.loc[:, w] = 0.0
             Uimp.loc[:, w] = 0.0
-        with pytest.warns(UserWarning, match="negative resid"):
+        q = compute_waste_q_targets(Udom, Uimp, Y, waste_codes=_TOY_WASTE)
+        qt_111 = float(cast(float, q.loc["562111"]))
+        with pytest.warns(UserWarning, match="scaled non-waste"):
             V_out, _ = reconcile_waste_make_and_va_to_use(
                 V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
             )
-        assert float(cast(float, V_out.loc["562111", "562111"])) < 0
+        assert float(cast(float, V_out.loc["562111", "562111"])) == pytest.approx(0.0)
+        assert float(V_out["562111"].sum()) == pytest.approx(qt_111, abs=1e-9)
+        # One-hot cell was scaled down from 100, not deleted via whole-column wipe.
+        assert 0.0 < float(cast(float, V_out.loc["484000", "562111"])) < 100.0
+
+    def test_nonpositive_q_target_redistributes_nonwaste_mass(self) -> None:
+        """Review #1253 (3): qt<=0 must not wipe one-hot mass; move it to siblings."""
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        # Force q_target[562111] == 0 while 484000 still one-hots onto 562111.
+        Udom.loc["562111", :] = 0.0
+        Uimp.loc["562111", :] = 0.0
+        Y.loc["562111", :] = 0.0
+        # Only the one-hot industry carries parent column mass so siblings have
+        # room after redistribution (no secondary scale-down of the moved cells).
+        V.loc["111000", "562000"] = 0.0
+        V.loc["221300", "562000"] = 0.0
+        V.loc["484000", "562000"] = 10.0
+        with pytest.warns(UserWarning, match="redistributed non-waste Make"):
+            V_out, _ = reconcile_waste_make_and_va_to_use(
+                V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+            )
+        assert float(cast(float, V_out.loc["484000", "562111"])) == pytest.approx(0.0)
+        # Parent one-hot mass preserved on the other waste commodities.
+        moved = float(V_out.loc["484000", ["562HAZ", "562212"]].sum())
+        assert moved == pytest.approx(10.0, abs=1e-9)
+        assert float(V_out["562111"].sum()) == pytest.approx(0.0, abs=1e-9)
 
     def test_nonwaste_block_and_va_unchanged(self) -> None:
         V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
