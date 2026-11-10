@@ -58,4 +58,3 @@ def test_assert_refinery_row_room_passes_with_margin() -> None:
     use = pd.DataFrame({'a': [use_row]}, index=['sec'])
     supply = pd.DataFrame({'i1': [held]}, index=['sec'])
     _assert_refinery_row_room(2022, use, supply, 'i1', ['sec'])
-
