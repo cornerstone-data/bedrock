@@ -125,6 +125,7 @@ Tables:
       desc: "Table 4-35: Emissions of HFCs, PFCs, SF6, and NF3 from Production of Fluorochemicals Other Than HCFC-22 (MMT CO2 Eq.)"
       data_reliability: 4
     "4-43":
+      class: Other
       unit: Thousand Metric Tons
       flow: Mass
       desc: "Table 4-43: Production and Consumption Data for the Calculation of CO2 Emissions from Metallurgical Coke Production (Thousand Metric Tons)"

@@ -577,6 +577,10 @@ def umd_ghgia_parse(
             df['Class'] = meta.get('class')
             df['Description'] = meta.get('desc')
             df['Compartment'] = meta.get('compartment')
+            # Energy/Other are activity quantities (like MECS), not air emissions.
+            if meta.get('class') in ('Other', 'Energy'):
+                df['FlowType'] = 'TECHNOSPHERE_FLOW'
+                df['Compartment'] = None
 
         if 'Year' not in df.columns:
             df['Year'] = year
@@ -913,6 +917,17 @@ def umd_ghgia_parse(
         df['ActivityProducedBy'] = df['ActivityProducedBy'].str.strip()
         df['ActivityConsumedBy'] = df['ActivityConsumedBy'].str.strip()
         df['FlowName'] = df['FlowName'].str.strip()
+
+        # Consumption tables attribute every row on ACB when "consum" is in the
+        # table desc. Row names that include "production" still belong on APB.
+        acb = df['ActivityConsumedBy'].astype(str)
+        is_production_activity = acb.str.contains(
+            'production', case=False, na=False
+        ) & ~acb.isin(['None', 'nan', ''])
+        df.loc[is_production_activity, 'ActivityProducedBy'] = acb.loc[
+            is_production_activity
+        ]
+        df.loc[is_production_activity, 'ActivityConsumedBy'] = 'None'
 
         # Update location for terriory-based activities
         df.loc[
