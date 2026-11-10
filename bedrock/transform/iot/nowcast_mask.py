@@ -64,6 +64,14 @@ four carry three or four. For these, masking the cells and targeting the column
 total are the same constraint written twice - so **these six columns leave the
 target set** when they enter the mask.
 
+On the Supply block, Tier 1 is empty in this module. Under
+``pin_refinery_secondaries_at_go_mix``, assembly overlays Tier-1 on the
+refinery co-product cells after scaling them to seed share times the
+T17-at-seed column pin
+(:func:`~bedrock.transform.iot.nowcast_sut_assembly.apply_refinery_secondaries_go_mix_pin`,
+#1229). A cell is held only when it is nonzero in the 2017 published panel
+and above dust on the year seed.
+
 **Tier 2 - not masked.** ``F01000``, ``F02E00``, ``F02N00``, ``F02R00``,
 ``F02S00``, ``F03000``, ``F04000`` and the government equipment/structures
 columns. Their totals are targets; their splits stay free.
@@ -539,6 +547,22 @@ PCE_ELECTRICITY_ROW = '221100'
 PCE_ELECTRICITY_COL = 'F01000'
 
 
+def _hold_nonzero(
+    flags: pd.DataFrame,
+    values: pd.DataFrame,
+    rows: list[str] | tuple[str, ...],
+    cols: list[str] | tuple[str, ...],
+) -> None:
+    """Mark ``flags[r, c]`` when ``values[r, c]`` is nonzero for each pair."""
+    for row in rows:
+        if row not in values.index:
+            continue
+        for col in cols:
+            if col not in values.columns:
+                continue
+            flags.at[row, col] = bool(np.asarray(values.at[row, col]).item() != 0.0)
+
+
 def fixed_value_mask(
     block: Block,
     year: int = 2017,
@@ -548,11 +572,11 @@ def fixed_value_mask(
 ) -> pd.DataFrame:
     """Tier 1. Cells a source reports directly, held at their value.
 
-    The six 1:1 final-demand columns on the Use block, and **nothing on the
-    Supply block**: ``MCIF`` has a 2017 candidate and ``MDTY`` a sourced
-    method, but whether either is fixed rather than targeted is not yet decided.
-    An empty layer is the honest default - a
-    cell masked by accident cannot be corrected by the balance.
+    The six 1:1 final-demand columns on the Use block. On Supply, the layer is
+    empty here: ``MCIF`` has a 2017 candidate and ``MDTY`` a sourced method, but
+    whether either is fixed rather than targeted is not yet decided. Refinery
+    co-product holds (#1229) are overlaid in assembly, not in this pattern
+    builder. A cell masked by accident cannot be corrected by the balance.
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
 
@@ -590,18 +614,14 @@ def fixed_value_mask(
         )
 
         if ELECTRICITY_COMMODITY in values.index:
-            for buyer in pinned_electricity_buyers(int(year)):
-                if buyer in values.columns:
-                    flags.at[ELECTRICITY_COMMODITY, buyer] = bool(
-                        np.asarray(values.at[ELECTRICITY_COMMODITY, buyer]).item()
-                        != 0.0
-                    )
+            _hold_nonzero(
+                flags,
+                values,
+                (ELECTRICITY_COMMODITY,),
+                pinned_electricity_buyers(int(year)),
+            )
         if GAS_COMMODITY in values.index:
-            for buyer in pinned_gas_buyers():
-                if buyer in values.columns:
-                    flags.at[GAS_COMMODITY, buyer] = bool(
-                        np.asarray(values.at[GAS_COMMODITY, buyer]).item() != 0.0
-                    )
+            _hold_nonzero(flags, values, (GAS_COMMODITY,), pinned_gas_buyers())
     return flags
 
 
