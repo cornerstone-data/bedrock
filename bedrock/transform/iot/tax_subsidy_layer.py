@@ -128,12 +128,12 @@ def _shares(base: pd.DataFrame) -> pd.DataFrame:
 
 
 #: The four per-cell frames of a :class:`FiscalLayer`.
-FISCAL_FRAMES: tuple[str, ...] = ('sales_tax', 'top_rest', 'duties', 'subsidies')
+FISCAL_FRAMES: tuple[str, ...] = tuple(f for f in FiscalLayer._fields if f != 'year')
 
-#: How far a commodity total may move in the re-spread, USD. The module's
-#: 0.0 $M standard: the re-spread is a per-commodity rescale, so this is float
-#: noise on totals up to about 1e11 USD. Tax with no live cell to go to is not
-#: noise, so it is held to the same bound.
+#: How far any one commodity total may move in the re-spread, USD. The
+#: module's 0.0 $M standard: the re-spread conserves each total by
+#: construction, so this is float noise on totals up to about 1e11 USD. Tax
+#: with no live cell to go to is not noise, so it is held to the same bound.
 CONSERVATION_TOLERANCE: float = 1.0
 
 
@@ -152,7 +152,8 @@ def build_fiscal_layer(
     allocation runs on *year*'s own cell pattern. A Use table with another
     pattern - any nowcast year, or a subset - has no cell for some of that tax.
     *cells* is that table, commodity x buyer; its nonzero cells become the
-    layer's support through :func:`restrict_to_cells`.
+    layer's support, and its grid the layer's, through
+    :func:`restrict_to_cells`.
     """
     layer = _allocate(year)
     return layer if cells is None else restrict_to_cells(layer, cells)
@@ -161,40 +162,48 @@ def build_fiscal_layer(
 def restrict_to_cells(layer: FiscalLayer, cells: pd.DataFrame) -> FiscalLayer:
     """*layer* re-spread onto the nonzero cells of *cells*, USD.
 
-    Within each commodity, the tax on cells that *cells* does not have moves
-    onto the cells it has, in proportion to what those cells already carry.
-    The result keeps the layer's grid (goods commodity x buyer) and is zero
-    off the live cells.
+    Within each commodity, live cells keep the tax they carry, and the tax on
+    cells that *cells* does not have is added onto them in proportion to the
+    size of what they carry. Where the commodity's tax is one-signed that is
+    the plain rescale ``kept * before / after``; where it is mixed-signed
+    (``subsidies`` and ``top_rest`` follow producers' value, negative on
+    ``F03000``) weighting by size keeps it from blowing up or flipping sign.
+    A commodity whose live cells carry no anchor tax at all spreads on the
+    target's own purchases instead, by size - exports excepted for
+    ``sales_tax``, as in the allocation.
 
-    Raises ``ValueError`` if any commodity total moves by
-    :data:`CONSERVATION_TOLERANCE` or more. That includes a commodity whose
-    tax sits only on cells *cells* does not have: it has nowhere to go and
-    would vanish.
+    The result is on the grid of *cells* (the target table) and zero off its
+    live cells.
+
+    Raises ``ValueError`` if any one commodity total moves by
+    :data:`CONSERVATION_TOLERANCE` or more. That happens only where a
+    commodity has nowhere to go - no live cell, or for ``sales_tax`` only an
+    export cell - and its tax would vanish.
     """
-    live = (
-        cells.reindex(index=layer.sales_tax.index, columns=layer.sales_tax.columns)
-        .fillna(0.0)
-        .astype(float)
-        != 0.0
-    )
+    grid = cells.fillna(0.0).astype(float)
+    live = grid != 0.0
     frames = {}
     for name in FISCAL_FRAMES:
         frame = getattr(layer, name)
-        kept = frame.where(live, 0.0)
-        before, after = frame.sum(axis=1), kept.sum(axis=1)
-        stranded = float(before.where(after == 0.0, 0.0).abs().sum())
-        if stranded >= CONSERVATION_TOLERANCE:
+        before = frame.sum(axis=1)
+        kept = frame.reindex_like(grid).fillna(0.0).where(live, 0.0)
+        moved = before.reindex(grid.index).fillna(0.0) - kept.sum(axis=1)
+        purchases = grid.abs()
+        if name == 'sales_tax' and 'F04000' in purchases.columns:
+            purchases['F04000'] = 0.0
+        weight = kept.abs()
+        unweighted = weight.sum(axis=1) == 0.0
+        weight.loc[unweighted] = purchases.loc[unweighted]
+        spread = kept + _shares(weight).mul(moved, axis=0)
+
+        drift = (before - spread.sum(axis=1).reindex(before.index).fillna(0.0)).abs()
+        lost = drift[drift >= CONSERVATION_TOLERANCE]
+        if not lost.empty:
             raise ValueError(
-                f'{stranded:,.0f} USD of {name} sits on commodities the target '
-                f'table has no live cell for, so it cannot be re-spread and '
-                f'would vanish.'
-            )
-        spread = kept.mul((before / after.where(after != 0.0)).fillna(0.0), axis=0)
-        drift = (spread.sum(axis=1) - before).abs()
-        if float(drift.max()) >= CONSERVATION_TOLERANCE:
-            raise ValueError(
-                f'the re-spread of {name} moved commodity totals by up to '
-                f'{float(drift.max()):,.2f} USD ({drift.idxmax()}).'
+                f'{lost.sum():,.0f} USD of {name} on {len(lost)} commodities '
+                f'(largest {lost.idxmax()}, {lost.max():,.0f} USD) has no live '
+                f'cell in the target table to go to, so it cannot be re-spread '
+                f'and would vanish.'
             )
         frames[name] = spread
     return layer._replace(**frames)

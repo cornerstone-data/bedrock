@@ -120,7 +120,8 @@ def test_tax_on_a_dead_cell_moves_onto_the_live_cells(
     layer = tsl.restrict_to_cells(toy_layer, cells)
 
     assert layer.sales_tax.loc['111200', '1111A0'] == pytest.approx(20 * MILLION)
-    assert layer.sales_tax.loc['111200', 'F01000'] == 0.0
+    # The result is on the target table's grid, which has no F01000.
+    assert list(layer.sales_tax.columns) == ['1111A0']
     assert layer.top_rest.loc['111200', '1111A0'] == pytest.approx(10 * MILLION)
 
 
@@ -155,6 +156,71 @@ def test_tax_with_no_live_cell_in_its_commodity_is_refused(
         tsl.restrict_to_cells(toy_layer, cells)
 
 
+def _layer(**frames: pd.DataFrame) -> tsl.FiscalLayer:
+    """A layer with *frames* set and every other frame zero on the same grid."""
+    grid = next(iter(frames.values()))
+    zero = pd.DataFrame(0.0, index=grid.index, columns=grid.columns)
+    return tsl.FiscalLayer(
+        year=2017, **{name: frames.get(name, zero) for name in tsl.FISCAL_FRAMES}
+    )
+
+
+def test_mixed_signed_tax_re_spreads_by_size_without_blowing_up() -> None:
+    """Live +1 and -0.9 on a total of 10: the 9.9 dead cell moves 1:0.9.
+
+    A rescale by ``before / after`` would multiply both live cells by 100.
+    """
+    subsidies = pd.DataFrame(
+        {'1111A0': [1.0], 'F03000': [-0.9], 'F01000': [9.9]}, index=['111200']
+    )
+    cells = pd.DataFrame(
+        {'1111A0': [1.0], 'F03000': [-1.0], 'F01000': [0.0]}, index=['111200']
+    )
+    layer = tsl.restrict_to_cells(_layer(subsidies=subsidies * MILLION), cells)
+
+    assert layer.subsidies.loc['111200', '1111A0'] == pytest.approx(
+        (1.0 + 9.9 / 1.9) * MILLION
+    )
+    assert layer.subsidies.loc['111200', 'F03000'] == pytest.approx(
+        (-0.9 + 9.9 * 0.9 / 1.9) * MILLION
+    )
+    assert layer.subsidies.sum(axis=1).loc['111200'] == pytest.approx(10 * MILLION)
+
+
+def test_live_cells_without_anchor_tax_take_it_by_the_target_purchases() -> None:
+    """All of the anchor tax sits on a dead cell; the live cells split it 1:3."""
+    top_rest = pd.DataFrame(
+        {'1111A0': [0.0], 'F01000': [0.0], 'F02000': [8.0]}, index=['111200']
+    )
+    cells = pd.DataFrame(
+        {'1111A0': [10.0], 'F01000': [30.0], 'F02000': [0.0]}, index=['111200']
+    )
+    layer = tsl.restrict_to_cells(_layer(top_rest=top_rest * MILLION), cells)
+
+    assert layer.top_rest.loc['111200', '1111A0'] == pytest.approx(2 * MILLION)
+    assert layer.top_rest.loc['111200', 'F01000'] == pytest.approx(6 * MILLION)
+
+
+def test_sales_tax_does_not_fall_back_onto_exports() -> None:
+    """A commodity bought only by exports cannot hold margin-collected tax."""
+    sales_tax = pd.DataFrame({'F01000': [5.0], 'F04000': [0.0]}, index=['111200'])
+    cells = pd.DataFrame({'F01000': [0.0], 'F04000': [50.0]}, index=['111200'])
+
+    with pytest.raises(ValueError, match='no live cell'):
+        tsl.restrict_to_cells(_layer(sales_tax=sales_tax * MILLION), cells)
+
+
+def test_the_tolerance_is_per_commodity() -> None:
+    """Many sub-dollar losses do not pool into a refusal."""
+    commodities = [f'C{i:03d}' for i in range(200)]
+    top_rest = pd.DataFrame({'F01000': 0.01}, index=commodities)
+    cells = pd.DataFrame({'F01000': 0.0}, index=commodities)
+
+    layer = tsl.restrict_to_cells(_layer(top_rest=top_rest), cells)
+
+    assert float(layer.top_rest.abs().sum().sum()) == 0.0
+
+
 # --- the answer keys, against the published tables ---------------------------
 
 
@@ -185,21 +251,3 @@ def test_published_layer_reproduces_the_bridge_and_spares_exports(
     # inventory draw-down reverses the wedge), so only the commodity totals
     # carry the bridge's non-positive convention.
     assert float(layer.subsidies.sum(axis=1).max()) <= 1e-9
-
-
-def test_a_truncated_target_table_is_refused_rather_than_dropping_tax() -> None:
-    """Five commodities by three buyers cannot hold the 2017 layer's tax."""
-    from bedrock.transform.iot.margin_rates import (  # noqa: PLC0415
-        BUYER_CODES,
-        goods_commodities,
-    )
-
-    narrow = pd.DataFrame(
-        1_000.0,
-        index=goods_commodities()[:5],
-        columns=list(BUYER_CODES)[:3],
-        dtype=float,
-    )
-
-    with pytest.raises(ValueError, match='no live cell'):
-        tsl.build_fiscal_layer(2017, cells=narrow)
