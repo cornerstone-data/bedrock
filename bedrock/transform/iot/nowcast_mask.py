@@ -64,6 +64,12 @@ four carry three or four. For these, masking the cells and targeting the column
 total are the same constraint written twice - so **these six columns leave the
 target set** when they enter the mask.
 
+On the Supply block, Tier 1 is empty by default. Under
+``pin_refinery_secondaries_at_go_mix``, the nonzero
+:data:`REFINERY_INDUSTRY` × :data:`REFINERY_SECONDARY_COMMODITIES` cells are
+held at the year's GO-controlled seed so GRAS cannot invent co-product shares
+(#1229).
+
 **Tier 2 - not masked.** ``F01000``, ``F02E00``, ``F02N00``, ``F02R00``,
 ``F02S00``, ``F03000``, ``F04000`` and the government equipment/structures
 columns. Their totals are targets; their splits stay free.
@@ -538,6 +544,27 @@ DEFAULT_PCE_CONSTRAINT: PceConstraint = 'none'
 PCE_ELECTRICITY_ROW = '221100'
 PCE_ELECTRICITY_COL = 'F01000'
 
+#: Refinery industry whose co-product Supply cells GRAS must not invent (#1229).
+REFINERY_INDUSTRY = '324110'
+#: Co-product commodities held at the year's GO-controlled Supply seed when
+#: ``pin_refinery_secondaries_at_go_mix`` is on. ``424700`` is left free unless
+#: smoke shows it must move with these.
+REFINERY_SECONDARY_COMMODITIES = ('325110', '325190')
+
+
+def pinned_refinery_secondaries() -> tuple[str, ...]:
+    """Commodities whose ``324110`` Supply cell is held through GRAS (#1229).
+
+    Empty with ``pin_refinery_secondaries_at_go_mix`` off. The held value is the
+    year's GO-controlled seed cell (:func:`assemble_supply_seed`); own-product
+    ``324110 × 324110`` stays free so column residuals land there.
+    """
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    if get_usa_config().pin_refinery_secondaries_at_go_mix:
+        return REFINERY_SECONDARY_COMMODITIES
+    return ()
+
 
 def fixed_value_mask(
     block: Block,
@@ -548,11 +575,10 @@ def fixed_value_mask(
 ) -> pd.DataFrame:
     """Tier 1. Cells a source reports directly, held at their value.
 
-    The six 1:1 final-demand columns on the Use block, and **nothing on the
-    Supply block**: ``MCIF`` has a 2017 candidate and ``MDTY`` a sourced
-    method, but whether either is fixed rather than targeted is not yet decided.
-    An empty layer is the honest default - a
-    cell masked by accident cannot be corrected by the balance.
+    The six 1:1 final-demand columns on the Use block. On Supply, the layer is
+    empty by default: ``MCIF`` has a 2017 candidate and ``MDTY`` a sourced
+    method, but whether either is fixed rather than targeted is not yet
+    decided. A cell masked by accident cannot be corrected by the balance.
 
     Only *nonzero* cells are fixed, so this never collides with Tier 0.
 
@@ -564,6 +590,11 @@ def fixed_value_mask(
     ``221100 × F01000`` cell at its seed (#1008). That is a published-annual-
     counterpart / seed hold, **not** :data:`ONE_TO_ONE_FD` doctrine: EIA Form
     861 reports residential class revenue, not the BEA IO cell itself.
+
+    When ``pin_refinery_secondaries_at_go_mix`` is on, holds nonzero
+    :data:`REFINERY_INDUSTRY` × :data:`REFINERY_SECONDARY_COMMODITIES` Supply
+    cells at the seed (#1229). The seed is already GO-controlled; the mask
+    stops GRAS from moving those co-product shares.
     """
     values = _panel_or_default(block, panel)
     flags = pd.DataFrame(False, index=values.index, columns=values.columns)
@@ -601,6 +632,16 @@ def fixed_value_mask(
                 if buyer in values.columns:
                     flags.at[GAS_COMMODITY, buyer] = bool(
                         np.asarray(values.at[GAS_COMMODITY, buyer]).item() != 0.0
+                    )
+    elif block == 'supply':
+        # Held refinery co-products: GO-controlled seed, not a NIPA 1:1 line.
+        # Empty with the flag off. The held set does not vary by year.
+        if REFINERY_INDUSTRY in values.columns:
+            for commodity in pinned_refinery_secondaries():
+                if commodity in values.index:
+                    flags.at[commodity, REFINERY_INDUSTRY] = bool(
+                        np.asarray(values.at[commodity, REFINERY_INDUSTRY]).item()
+                        != 0.0
                     )
     return flags
 

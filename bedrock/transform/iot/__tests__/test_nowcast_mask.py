@@ -19,6 +19,8 @@ from bedrock.transform.iot.nowcast_mask import (
     NEVER_IMPORTED_COMMODITIES,
     NEVER_IMPORTED_TRADE_COMMODITIES,
     ONE_TO_ONE_FD,
+    REFINERY_INDUSTRY,
+    REFINERY_SECONDARY_COMMODITIES,
     SIGN_LOCKED_SUPPLY_COLUMNS,
     SIGN_LOCKED_USE_ROWS,
     SUPPLY_BRIDGE_COLUMNS,
@@ -35,6 +37,7 @@ from bedrock.transform.iot.nowcast_mask import (
     sign_lock_mask,
     structural_zero_mask,
 )
+from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.balance.mask import SutMask, assert_subsidies_negative
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
@@ -237,14 +240,48 @@ def test_pce_electricity_tier1_fixed_only_when_constraint_on() -> None:
     assert not pinned.loc['111120', PCE_ELECTRICITY_COL]
 
 
-def test_the_supply_block_has_no_fixed_values() -> None:
-    """An empty layer is the honest default while the Supply fixed-value layer is open.
+def test_the_supply_block_has_no_fixed_values_by_default() -> None:
+    """Supply Tier 1 stays empty with ``pin_refinery_secondaries_at_go_mix`` off.
 
-    A cell masked by accident cannot be corrected by the balance, so the
-    Supply side stays unmasked until ``MCIF``/``MDTY`` are actually decided.
+    ``MCIF``/``MDTY`` are still undecided as fixed vs targeted; a cell masked
+    by accident cannot be corrected by the balance.
     """
     fixed = fixed_value_mask('supply', 2017, _supply_panel())
     assert not fixed.to_numpy().any()
+
+
+def test_refinery_secondaries_pin_only_when_flag_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1229: 324110 -> 325110 / 325190 fixed under the GO-mix pin, free off."""
+    panel = _supply_panel()
+    for commodity in REFINERY_SECONDARY_COMMODITIES:
+        panel.loc[commodity] = 0.0
+    panel.loc[REFINERY_SECONDARY_COMMODITIES[0], '1111A0'] = 1.0
+    if REFINERY_INDUSTRY not in panel.columns:
+        panel[REFINERY_INDUSTRY] = 0.0
+    panel.loc[REFINERY_SECONDARY_COMMODITIES[0], REFINERY_INDUSTRY] = 50.0
+    panel.loc[REFINERY_SECONDARY_COMMODITIES[1], REFINERY_INDUSTRY] = 20.0
+    # Own-product stays free even when the pin is on.
+    panel.loc[REFINERY_INDUSTRY] = 0.0
+    panel.loc[REFINERY_INDUSTRY, REFINERY_INDUSTRY] = 800.0
+
+    off = get_usa_config().model_copy(
+        update={'pin_refinery_secondaries_at_go_mix': False}
+    )
+    monkeypatch.setattr('bedrock.utils.config.usa_config.get_usa_config', lambda: off)
+    free = fixed_value_mask('supply', 2017, panel)
+    assert not free.to_numpy().any()
+
+    on = get_usa_config().model_copy(
+        update={'pin_refinery_secondaries_at_go_mix': True}
+    )
+    monkeypatch.setattr('bedrock.utils.config.usa_config.get_usa_config', lambda: on)
+    pinned = fixed_value_mask('supply', 2017, panel)
+    assert pinned.at[REFINERY_SECONDARY_COMMODITIES[0], REFINERY_INDUSTRY]
+    assert pinned.at[REFINERY_SECONDARY_COMMODITIES[1], REFINERY_INDUSTRY]
+    assert not pinned.at[REFINERY_INDUSTRY, REFINERY_INDUSTRY]
+    assert not pinned.at[REFINERY_SECONDARY_COMMODITIES[0], '1111A0']
 
 
 def test_fixed_and_structural_layers_never_overlap() -> None:

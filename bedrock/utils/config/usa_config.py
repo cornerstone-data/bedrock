@@ -297,6 +297,15 @@ class USAConfig(BaseModel):
     # balanced table pin in the same change; on before that, a rebuild no longer
     # reproduces the pinned tables (test_nowcast_balanced_sut_pin).
     reprice_oil_gas_extraction_seed: bool = False  # DRI: WesIngwersen
+    # Hold refinery co-product Supply cells (324110 -> 325110 / 325190) at each
+    # year's GO-controlled seed through Step 5 GRAS. Without this, a negative
+    # 324110 column residual (2022: seed Make ~$19bn over the industry pin) lets
+    # GRAS fund short secondaries by cutting own-product, lifting the 325110
+    # share from ~3.35% (GO / EIA-near) to ~3.92%. Own-product stays free and
+    # absorbs the residual with other free cells in the column. OFF until smoke
+    # on v1.0.0_b17908f confirms 2022 stays near GO and 2024 near ~2.7%. See
+    # nowcast_mask.fixed_value_mask and #1229.
+    pin_refinery_secondaries_at_go_mix: bool = False  # DRI: bl-young
     # Hold electricity, utility gas, refined petroleum, coal and oil and gas
     # extraction at theta = 1 in the Step 3 price carry instead of at the
     # fitted two-regime default. theta = 1 freezes the REAL input mix; theta =
