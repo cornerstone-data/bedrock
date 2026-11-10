@@ -1127,30 +1127,21 @@ def scale_by_weight(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     Replace a matched activity's FlowAmount with
     ``activity_total * (weight_Y / weight_sum)``.
 
-    Loads one year of a weight FBA. Used
-    for Industrial Coking Coal NEU (#1202): keep the multi-year NEU sum; retime
-    years with Table 4-43 coal tar.
+    Sums ``activity_source`` / ``activity_source_name`` over
+    ``activity_years`` for ``activity_total``, and ``weight_source`` /
+    ``weight_source_name`` over ``weight_years`` for ``weight_sum``. Uses the
+    method year (``fba.config['year']``) for ``weight_Y``. Requires exactly
+    one matching ``activity`` row.
+
+    When ``annex_fba`` / ``annex_year`` are set, each activity-year FBA is
+    passed through ``calc_per_fuel_emissions`` before summing. Callers must
+    ensure ``activity_total`` and the scaled row share compatible units.
 
     :param fba: FlowByActivity whose matched activity FlowAmount is replaced
     :return: the FlowByActivity with the matched activity scaled
     """
     params = fba.config['clean_parameter']
     activity = params['activity']
-    activity_total = float(params['activity_total'])
-    weight_sum = float(params['weight_sum'])
-    weight_activity = params['weight_activity']
-    weight = load_fba_w_standardized_units(
-        datasource=params['weight_fba'],
-        year=int(params['weight_year']),
-        download_FBA_if_missing=True,
-    )
-    weight_y = float(
-        weight.loc[
-            (weight['ActivityProducedBy'].astype(str) == str(weight_activity))
-            | (weight['ActivityConsumedBy'].astype(str) == str(weight_activity))
-        ]['FlowAmount'].sum()
-    )
-    scaled = activity_total * (weight_y / weight_sum)
     mask = (fba['ActivityProducedBy'].astype(str) == str(activity)) | (
         fba['ActivityConsumedBy'].astype(str) == str(activity)
     )
@@ -1160,6 +1151,111 @@ def scale_by_weight(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
             f'skipping scale_by_weight'
         )
         return fba
+    if int(mask.sum()) != 1:
+        raise ValueError(
+            f'scale_by_weight expects exactly one row matching activity '
+            f'{activity} in {fba.full_name}; found {int(mask.sum())}'
+        )
+
+    activity_source_name = params['activity_source_name']
+    weight_source_name = params['weight_source_name']
+    activity_years = params['activity_years']
+    weight_years = params['weight_years']
+
+    activity_total = 0.0
+    for year in range(int(activity_years[0]), int(activity_years[1]) + 1):
+        activity_fba: pd.DataFrame
+        if 'annex_fba' in params:
+            from bedrock.extract.umd.UMD_GHGIA import (  # noqa: PLC0415
+                calc_per_fuel_emissions,
+            )
+
+            activity_fba = calc_per_fuel_emissions(
+                FlowByActivity.return_FBA(
+                    full_name=params['activity_source'],
+                    year=year,
+                    config={
+                        'year': year,
+                        'clean_parameter': {
+                            'annex_fba': params['annex_fba'],
+                            'annex_year': params['annex_year'],
+                        },
+                    },
+                    download_ok=True,
+                )
+            )
+        else:
+            activity_fba = load_fba_w_standardized_units(
+                datasource=params['activity_source'],
+                year=year,
+                download_FBA_if_missing=True,
+            )
+        activity_total += float(
+            activity_fba.loc[
+                (
+                    activity_fba['ActivityProducedBy'].astype(str)
+                    == str(activity_source_name)
+                )
+                | (
+                    activity_fba['ActivityConsumedBy'].astype(str)
+                    == str(activity_source_name)
+                )
+            ]['FlowAmount'].sum()
+        )
+
+    if activity_total <= 0:
+        raise ValueError(
+            f'scale_by_weight activity_total must be positive; got '
+            f'{activity_total} from {params["activity_source"]} '
+            f'{activity_source_name} over {activity_years}'
+        )
+
+    weight_sum = 0.0
+    for year in range(int(weight_years[0]), int(weight_years[1]) + 1):
+        weight_fba = load_fba_w_standardized_units(
+            datasource=params['weight_source'],
+            year=year,
+            download_FBA_if_missing=True,
+        )
+        weight_sum += float(
+            weight_fba.loc[
+                (
+                    weight_fba['ActivityProducedBy'].astype(str)
+                    == str(weight_source_name)
+                )
+                | (
+                    weight_fba['ActivityConsumedBy'].astype(str)
+                    == str(weight_source_name)
+                )
+            ]['FlowAmount'].sum()
+        )
+
+    if weight_sum <= 0:
+        raise ValueError(
+            f'scale_by_weight weight_sum must be positive; got {weight_sum} '
+            f'from {params["weight_source"]} {weight_source_name} over '
+            f'{weight_years}'
+        )
+
+    weight_year = int(fba.config['year'])
+    weight = load_fba_w_standardized_units(
+        datasource=params['weight_source'],
+        year=weight_year,
+        download_FBA_if_missing=True,
+    )
+    weight_y = float(
+        weight.loc[
+            (weight['ActivityProducedBy'].astype(str) == str(weight_source_name))
+            | (weight['ActivityConsumedBy'].astype(str) == str(weight_source_name))
+        ]['FlowAmount'].sum()
+    )
+    if weight_y <= 0:
+        raise ValueError(
+            f'scale_by_weight found no positive weight for '
+            f'{weight_source_name} in {params["weight_source"]} {weight_year}; '
+            f'got {weight_y}'
+        )
+    scaled = activity_total * (weight_y / weight_sum)
     out = fba.copy()
     out.loc[mask, 'FlowAmount'] = scaled
     log.info(
