@@ -109,6 +109,18 @@ def test_csv_loaders() -> None:
         )
     )
     assert concord[2023]['a'] == '1' and concord[2024]['a'] == '2'
+    overridden = concordance_by_year(
+        pd.DataFrame(
+            {
+                'year': ['2017', '2024', '2024'],
+                'commodity': ['8523510000', '8523510000', '8523290000'],
+                'naics': ['334613', '334610', '334610'],
+            }
+        )
+    )
+    assert overridden[2017]['8523510000'] == '334112'
+    assert overridden[2024]['8523510000'] == '334112'
+    assert overridden[2024]['8523290000'] == '334610'
     succ = hs6_successors(
         pd.DataFrame({'hs2022': ['940191', '940199'], 'hs2017': ['940190', '940190']})
     )
