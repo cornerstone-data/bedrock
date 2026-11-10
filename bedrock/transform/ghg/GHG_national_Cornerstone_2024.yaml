@@ -907,6 +907,18 @@ source_names:
                   PrimaryActivity:
                     - Industry Industrial Coking Coal
                     - Industry Industrial Other Coal
+                clean_fba: !clean_function:flowbyclean scale_by_weight
+                clean_parameter:
+                  activity: Industry Industrial Coking Coal
+                  # activity_total = sum of Industrial Coking Coal NEU Mt CO2e
+                  # for 2017-2024 UMD GHGIA T_3_14
+                  activity_total: 54.51  # MMT CO2e
+                  # weight_sum = sum of Coal Tar Production for 2017-2024
+                  # UMD GHGIA T_4_43
+                  weight_sum: 3625.25  # Thousand Metric Tons
+                  weight_fba: UMD_GHGIA_T_4_43
+                  weight_year: *ghgi_year
+                  weight_activity: Coal Tar Production
                 attribution_method: direct
 
               petroleum_neu_asphalt:
