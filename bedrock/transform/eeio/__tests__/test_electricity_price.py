@@ -192,6 +192,32 @@ def test_an_industry_only_in_the_anchor_survey_stays_at_the_anchor() -> None:
     assert ep.relative_path(early, anchor, 2018)[0]['NEW'] == pytest.approx(2.0)
 
 
+def test_relative_movers_flags_large_same_row_changes_only() -> None:
+    # Equal kWh and the same survey average (9.0) in both years, so fractional
+    # change in relative price equals the change in absolute price.
+    early = pd.DataFrame(
+        {
+            'price': [5.0, 10.0, 12.0],
+            'kwh': [10.0, 10.0, 10.0],
+            'rows': ['331313', '325110', '327'],
+        },
+        index=['ALUMINA', 'CHEM', 'MOVED'],
+    )
+    # Alumina 5 -> 8 (+60%); chem flat; MOVED changes rows so it is not flagged.
+    anchor = pd.DataFrame(
+        {
+            'price': [8.0, 10.0, 9.0],
+            'kwh': [10.0, 10.0, 10.0],
+            'rows': ['331313', '325110', '3271'],
+        },
+        index=['ALUMINA', 'CHEM', 'MOVED'],
+    )
+    movers = ep.relative_movers_from_surveys(early, anchor, threshold=0.20)
+    assert list(movers.index) == ['ALUMINA']
+    assert movers.loc['ALUMINA', 'fractional_change'] == pytest.approx(8.0 / 5.0 - 1.0)
+    assert ep.relative_movers_from_surveys(early, anchor, threshold=0.70).empty
+
+
 def test_resale_price_is_revenue_over_volume_in_cents() -> None:
     assert ep.resale_price(150_000.0, 3_000_000_000.0) == pytest.approx(5.0)
 

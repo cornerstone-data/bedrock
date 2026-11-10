@@ -324,6 +324,68 @@ def manufacturing_price(year: int) -> 'pd.Series[float]':
     )
 
 
+#: Fractional change in relative price between surveys that counts as a large mover.
+RELATIVE_MOVER_THRESHOLD = 0.20
+
+
+def relative_movers_from_surveys(
+    early: pd.DataFrame,
+    anchor: pd.DataFrame,
+    *,
+    threshold: float = RELATIVE_MOVER_THRESHOLD,
+) -> pd.DataFrame:
+    """Industries whose relative price moves by more than *threshold* between surveys.
+
+    *early* and *anchor* are :func:`survey_prices` frames (absolute ¢/kWh). Only
+    industries on the **same MECS rows** in both surveys are compared; different-row
+    industries stay on the anchor relative in :func:`relative_path` and are not
+    flagged here. Relatives are each survey's price over that survey's
+    :func:`survey_average`. Rows are sorted by absolute fractional change,
+    largest first. Large movers are named, not smoothed (#901).
+    """
+    shared = early.index.intersection(anchor.index)
+    if len(shared) == 0:
+        return pd.DataFrame(
+            columns=['early_relative', 'anchor_relative', 'fractional_change', 'rows']
+        )
+    early_avg = survey_average(early)
+    anchor_avg = survey_average(anchor)
+    early_rel = pd.Series(early.loc[shared, 'price'], dtype=float) / early_avg
+    anchor_rel = pd.Series(anchor.loc[shared, 'price'], dtype=float) / anchor_avg
+    same_row = early.loc[shared, 'rows'].astype(str) == anchor.loc[
+        shared, 'rows'
+    ].astype(str)
+    comparable = same_row[same_row].index
+    if len(comparable) == 0:
+        return pd.DataFrame(
+            columns=['early_relative', 'anchor_relative', 'fractional_change', 'rows']
+        )
+    change = anchor_rel[comparable] / early_rel[comparable] - 1.0
+    movers = change[change.abs() > float(threshold)].sort_values(
+        key=lambda s: s.abs(), ascending=False
+    )
+    if movers.empty:
+        return pd.DataFrame(
+            columns=['early_relative', 'anchor_relative', 'fractional_change', 'rows']
+        )
+    return pd.DataFrame(
+        {
+            'early_relative': early_rel[movers.index],
+            'anchor_relative': anchor_rel[movers.index],
+            'fractional_change': movers,
+            'rows': anchor.loc[movers.index, 'rows'].astype(str),
+        }
+    )
+
+
+def relative_movers(*, threshold: float = RELATIVE_MOVER_THRESHOLD) -> pd.DataFrame:
+    """:func:`relative_movers_from_surveys` on the live MECS 2018 and 2022 tables."""
+    industries = naics_by_industry()
+    early = survey_prices(mecs_table(EARLY_SURVEY), industries)
+    anchor = survey_prices(mecs_table(ANCHOR_SURVEY), industries)
+    return relative_movers_from_surveys(early, anchor, threshold=threshold)
+
+
 def class_price(year: int, customer_class: str) -> float:
     """The price for buyers outside manufacturing, ¢/kWh delivered."""
     return eia_class_price(year, customer_class)
