@@ -56,6 +56,7 @@ import argparse
 import json
 import posixpath
 import sys
+import typing as ta
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -129,9 +130,16 @@ DUST_USD_M = 1.0
 #: the Supply row for other producers.
 REFINERY_ROW_ROOM_FRAC = 0.05
 
-#: Absolute share gap (percentage points) between balanced and pre-scale seed
-#: share accepted as a pass for the GO-mix pin smoke / hermetic checks.
+#: Absolute share gap (percentage points) between a held refinery co-product's
+#: balanced share of its column and its pre-scale seed share. Enforced after
+#: every balance with the pin on (:func:`balance_with_column_pin`).
 REFINERY_SHARE_TOL_PP = 0.05
+
+#: Balances :func:`balance_with_column_pin` runs before refusing. Each re-pin
+#: moves the held cells only by their share of how far the balance moved the
+#: column's tax rows, so the gap shrinks every round. Three leaves room for
+#: that; it is not a measured count, and a year that needs more is worth a look.
+REFINERY_PIN_ROUNDS = 3
 
 
 def resolve_pce_constraint(
@@ -587,6 +595,32 @@ def conform_seeds(
 
 
 @dataclass(frozen=True)
+class ColumnPin:
+    """Held cells of one Supply industry column and the share each keeps (#1229).
+
+    *shares* are each held cell's share of the column on the seed, before any
+    scaling. The balance holds the cells at ``share × column total``; the
+    column total is what the balance decides, so the pin is re-applied on the
+    balanced column until the shares hold (:func:`balance_with_column_pin`).
+    """
+
+    industry: str
+    shares: dict[str, float]
+
+    def drift_pp(self, supply: pd.DataFrame) -> pd.Series:
+        """Each held cell's share of *supply*'s column less its pin share, pp."""
+        total = float(supply[self.industry].astype(float).sum())
+        return pd.Series(
+            {
+                c: 100.0
+                * (float(np.asarray(supply.at[c, self.industry]).item()) / total - s)
+                for c, s in self.shares.items()
+            },
+            dtype=float,
+        )
+
+
+@dataclass(frozen=True)
 class YearBalance:
     """One year's assembled inputs and (when run) balanced output."""
 
@@ -597,6 +631,54 @@ class YearBalance:
     sweep: pd.DataFrame
     result: SutBalanceResult | None
     balanced: dict[str, pd.DataFrame] | None
+    #: The held refinery co-products, when ``pin_refinery_secondaries_at_go_mix``
+    #: is on and any cell is held.
+    column_pin: ColumnPin | None = None
+
+
+def write_column_shares(
+    supply: pd.DataFrame,
+    industry: str,
+    shares: ta.Mapping[str, float],
+    column_total_m: float,
+) -> pd.DataFrame:
+    """A copy of *supply* with each held cell at ``share × column_total_m``.
+
+    Raises when the held cells together would exceed ``column_total_m``.
+    """
+    out = supply.copy()
+    for commodity, share in shares.items():
+        out.at[commodity, industry] = share * float(column_total_m)
+    held_total = sum(shares.values()) * float(column_total_m)
+    if held_total > float(column_total_m) + 1e-9:
+        raise ValueError(
+            f'hold_column_shares: scaled held mass {held_total:,.3f} $M on '
+            f'{industry} exceeds column pin {column_total_m:,.3f} $M'
+        )
+    return out
+
+
+def _column_shares(
+    supply: pd.DataFrame,
+    industry: str,
+    commodities: Sequence[str],
+    *,
+    dust_usd_m: float = DUST_USD_M,
+) -> dict[str, float]:
+    """Each above-dust cell's share of the *industry* column, before scaling."""
+    if industry not in supply.columns:
+        return {}
+    col_sum = float(supply[industry].astype(float).sum())
+    if abs(col_sum) <= dust_usd_m:
+        return {}
+    shares: dict[str, float] = {}
+    for commodity in commodities:
+        if commodity not in supply.index:
+            continue
+        cell = float(np.asarray(supply.at[commodity, industry]).item())
+        if abs(cell) > dust_usd_m:
+            shares[str(commodity)] = cell / col_sum
+    return shares
 
 
 def hold_column_shares(
@@ -619,30 +701,9 @@ def hold_column_shares(
     **scaled** cells, so seed-vs-balanced movement reports count the scaling as
     seed.
     """
-    out = supply.copy()
-    if industry not in out.columns:
-        return out, []
-    col_sum = float(out[industry].astype(float).sum())
-    if abs(col_sum) <= dust_usd_m:
-        return out, []
-    held: list[str] = []
-    scaled_total = 0.0
-    for commodity in commodities:
-        if commodity not in out.index:
-            continue
-        cell = float(np.asarray(out.at[commodity, industry]).item())
-        if abs(cell) <= dust_usd_m:
-            continue
-        new_val = (cell / col_sum) * float(column_total_m)
-        out.at[commodity, industry] = new_val
-        held.append(str(commodity))
-        scaled_total += new_val
-    if scaled_total > float(column_total_m) + 1e-9:
-        raise ValueError(
-            f'hold_column_shares: scaled held mass {scaled_total:,.3f} $M on '
-            f'{industry} exceeds column pin {column_total_m:,.3f} $M'
-        )
-    return out, held
+    shares = _column_shares(supply, industry, commodities, dust_usd_m=dust_usd_m)
+    scaled = write_column_shares(supply, industry, shares, column_total_m)
+    return scaled, list(shares)
 
 
 def t17_at_seed_column_pin_m(
@@ -654,6 +715,9 @@ def t17_at_seed_column_pin_m(
 
     ``GO(producer) - (T00TOP + T00SUB) - S00900 make``. Same series
     :func:`assemble_targets` injects for T1; ``T00SUB`` is stored negative.
+    This is only the first round's pin: the balance moves ``T00TOP`` and
+    ``T00SUB``, so :func:`balance_with_column_pin` re-pins on the balanced
+    column.
     """
     t1 = next(t for t in targets if t.name == 'T1')
     if industry not in t1.values.index:
@@ -671,41 +735,24 @@ def t17_at_seed_column_pin_m(
     return go - wedge - s009
 
 
-def _refinery_hold_candidates(
-    supply: pd.DataFrame,
-    industry: str,
-    commodities: Sequence[str],
-    *,
-    dust_usd_m: float = DUST_USD_M,
-) -> list[str]:
-    """Commodities nonzero in 2017 and above dust on the year seed."""
-    panel_2017 = published_2017_panel('supply')
-    held: list[str] = []
-    for commodity in commodities:
-        if commodity not in supply.index or industry not in supply.columns:
-            continue
-        year_val = float(np.asarray(supply.at[commodity, industry]).item())
-        if abs(year_val) <= dust_usd_m:
-            continue
-        if commodity not in panel_2017.index or industry not in panel_2017.columns:
-            continue
-        pub = float(np.asarray(panel_2017.at[commodity, industry]).item())
-        if pub == 0.0:
-            continue
-        held.append(str(commodity))
-    return held
-
-
 def _assert_refinery_row_room(
     year: int,
     use_seed: pd.DataFrame,
     supply: pd.DataFrame,
+    mask: SutMask,
     industry: str,
     held: Sequence[str],
     *,
     room_frac: float = REFINERY_ROW_ROOM_FRAC,
 ) -> None:
-    """Refuse when a held cell leaves too little free mass on its Use row."""
+    """Refuse when a held cell leaves the free Supply row too little to carry.
+
+    T11 asks the commodity's Supply row to match its Use row. With the held
+    cell fixed, the row's **free** cells must carry the Use row total less the
+    held cell and every other fixed cell on the row. Refuses when that need is
+    at or below ``room_frac`` of the Use row, or when the free cells hold no
+    positive mass to scale.
+    """
     for commodity in held:
         if commodity not in use_seed.index:
             raise KeyError(
@@ -713,12 +760,19 @@ def _assert_refinery_row_room(
             )
         held_m = float(np.asarray(supply.at[commodity, industry]).item())
         use_row = float(use_seed.loc[commodity].sum())
-        room = use_row - held_m
-        if room <= room_frac * use_row:
+        others = supply.loc[commodity].drop(industry).astype(float).to_numpy()
+        fixed = mask.fixed_value.loc[commodity].drop(industry).to_numpy(dtype=bool)
+        frozen = fixed | mask.structural_zero.loc[commodity].drop(industry).to_numpy(
+            dtype=bool
+        )
+        need = use_row - held_m - float(others[fixed].sum())
+        free_positive = float(others[~frozen].clip(min=0.0).sum())
+        if need <= room_frac * use_row or free_positive <= 0.0:
             raise ValueError(
                 f'pin_refinery_secondaries_at_go_mix: {year} {commodity}×{industry} '
-                f'held {held_m:,.1f} $M leaves room {room:,.1f} $M on Use row '
-                f'total {use_row:,.1f} $M (need > {room_frac:.0%} of row)'
+                f'held {held_m:,.1f} $M leaves room {need:,.1f} $M for the free '
+                f'Supply cells ({free_positive:,.1f} $M positive on the seed) on '
+                f'Use row total {use_row:,.1f} $M (need > {room_frac:.0%} of row)'
             )
 
 
@@ -728,12 +782,17 @@ def _overlay_supply_fixed(
     industry: str,
     held: Sequence[str],
 ) -> SutMask:
-    """New Supply mask with ``held`` cells Tier-1 fixed against ``supply``."""
+    """New Supply mask with ``held`` cells Tier-1 fixed against ``supply``.
+
+    Held cells are never structural zeros: the seed is already conformed to
+    the mask, so a 2017 zero is zero and :func:`_column_shares` skips it.
+    :class:`SutMask` refuses the overlap if one ever is held.
+    """
     fixed = mask.fixed_value.copy()
     for commodity in held:
         fixed.at[commodity, industry] = True
     out = SutMask(
-        structural_zero=mask.structural_zero & ~fixed,
+        structural_zero=mask.structural_zero,
         fixed_value=fixed,
         sign_lock=mask.sign_lock,
     )
@@ -746,36 +805,90 @@ def apply_refinery_secondaries_go_mix_pin(
     seeds: dict[str, pd.DataFrame],
     masks: dict[str, SutMask],
     targets: TargetSet,
-) -> tuple[dict[str, pd.DataFrame], dict[str, SutMask]]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, SutMask], ColumnPin | None]:
     """Scale-then-fix refinery co-products when the flag is on (#1229).
 
-    No-op with the flag off. With it on: hold candidates that are nonzero in
-    the 2017 published panel and above :data:`DUST_USD_M` on the year seed;
-    scale them to seed share × T17-at-seed ``324110`` pin; refuse when a held
-    cell leaves too little Use-row room; overlay Tier-1 from the helper's
-    returned list only.
+    No-op with the flag off. With it on: hold the pinned cells above
+    :data:`DUST_USD_M` on the year seed; scale them to seed share ×
+    T17-at-seed ``324110`` pin; refuse when a held cell leaves the free Supply
+    row too little; overlay Tier-1 from that list only. Returns the pin too,
+    for :func:`balance_with_column_pin`.
+
+    The 2017 pattern bounds which cells can be held without a check of its
+    own: :func:`conform_seeds` has already put the seed on the mask, so a cell
+    that is zero in 2017 is zero here and is skipped as dust. A co-product
+    that appears only after 2017 is never held.
     """
     commodities = pinned_refinery_secondaries()
     if not commodities:
-        return seeds, masks
+        return seeds, masks, None
 
     industry = REFINERY_INDUSTRY
     supply = seeds['supply']
     use = seeds['use']
-    candidates = _refinery_hold_candidates(supply, industry, commodities)
-    if not candidates:
-        return seeds, masks
+    shares = _column_shares(supply, industry, commodities)
+    if not shares:
+        return seeds, masks, None
 
     pin_m = t17_at_seed_column_pin_m(industry, use, targets)
-    scaled, held = hold_column_shares(supply, industry, candidates, pin_m)
-    if not held:
-        return seeds, masks
-    _assert_refinery_row_room(int(year), use, scaled, industry, held)
+    scaled = write_column_shares(supply, industry, shares, pin_m)
+    held = list(shares)
+    _assert_refinery_row_room(int(year), use, scaled, masks['supply'], industry, held)
     new_masks = {
         **masks,
         'supply': _overlay_supply_fixed(masks['supply'], scaled, industry, held),
     }
-    return {**seeds, 'supply': scaled}, new_masks
+    return {**seeds, 'supply': scaled}, new_masks, ColumnPin(industry, shares)
+
+
+def balance_with_column_pin(
+    year: int,
+    seeds: dict[str, pd.DataFrame],
+    masks: dict[str, SutMask],
+    pin: ColumnPin | None,
+    run: ta.Callable[
+        [dict[str, pd.DataFrame]], tuple[SutBalanceResult, dict[str, pd.DataFrame]]
+    ],
+    *,
+    rounds: int = REFINERY_PIN_ROUNDS,
+    tol_pp: float = REFINERY_SHARE_TOL_PP,
+) -> tuple[dict[str, pd.DataFrame], SutBalanceResult, dict[str, pd.DataFrame]]:
+    """Balance with *run*, re-pinning the held cells until their shares hold.
+
+    The first round's pin is T17 at the seed, but the balance moves the
+    column's ``T00TOP``/``T00SUB``, so the balanced column total differs and the
+    held cells end up a different share of it. Each further round re-pins them
+    at ``share × balanced column total`` and balances again. Raises when any
+    share is still more than *tol_pp* off after *rounds* balances, or when a
+    re-pin leaves its Supply row too little room. Returns the seeds of the
+    last round with its result.
+    """
+    worst = 0.0
+    for _ in range(max(1, int(rounds))):
+        out, balanced = run(seeds)
+        if pin is None:
+            return seeds, out, balanced
+        drift = pin.drift_pp(balanced['supply'])
+        worst = float(drift.abs().max())
+        if worst <= tol_pp:
+            return seeds, out, balanced
+        total = float(balanced['supply'][pin.industry].astype(float).sum())
+        repinned = write_column_shares(seeds['supply'], pin.industry, pin.shares, total)
+        _assert_refinery_row_room(
+            int(year),
+            seeds['use'],
+            repinned,
+            masks['supply'],
+            pin.industry,
+            list(pin.shares),
+        )
+        seeds = {**seeds, 'supply': repinned}
+    assert pin is not None
+    raise ValueError(
+        f'pin_refinery_secondaries_at_go_mix: {year} held shares of '
+        f'{pin.industry} still off by up to {worst:.3f} pp after {rounds} '
+        f'balances (tolerance {tol_pp} pp)'
+    )
 
 
 def assemble(
@@ -805,7 +918,7 @@ def assemble(
     targets = assemble_targets(
         int(year), seeds['use'], seeds['supply'], pce_constraint=mode
     )
-    seeds, masks = apply_refinery_secondaries_go_mix_pin(
+    seeds, masks, pin = apply_refinery_secondaries_go_mix_pin(
         int(year), seeds, masks, targets
     )
     return YearBalance(
@@ -816,6 +929,7 @@ def assemble(
         sweep=sweep,
         result=None,
         balanced=None,
+        column_pin=pin,
     )
 
 
@@ -828,35 +942,48 @@ def balance_year(
     pce_constraint: PceConstraint | None = None,
     constrain_electricity_pce_cell: bool | None = None,
 ) -> YearBalance:
-    """Assemble and balance one year: split, offset, engine, restore."""
+    """Assemble and balance one year: split, offset, engine, restore.
+
+    With held refinery co-products, :func:`balance_with_column_pin` repeats the
+    balance until their shares of the balanced column hold.
+    """
     mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     assembled = assemble(
         int(year),
         fitted=fitted,
         pce_constraint=mode,
     )
-    frozen, free = split_fixed_blocks(assembled.seeds, assembled.masks)
-    residual = offset_targets(assembled.targets, frozen)
     band = _pce_eia_band_m(int(year)) if mode == 'eia_band' else None
-    out = engine(
-        free,
-        residual,
-        assembled.masks,
-        impose_soft=impose_soft,
-        max_outer=max_outer,
-        pce_constraint=mode,
-        pce_eia_band_m=band,
+
+    def run(
+        seeds: dict[str, pd.DataFrame],
+    ) -> tuple[SutBalanceResult, dict[str, pd.DataFrame]]:
+        frozen, free = split_fixed_blocks(seeds, assembled.masks)
+        residual = offset_targets(assembled.targets, frozen)
+        out = engine(
+            free,
+            residual,
+            assembled.masks,
+            impose_soft=impose_soft,
+            max_outer=max_outer,
+            pce_constraint=mode,
+            pce_eia_band_m=band,
+        )
+        return out, restore_fixed_blocks(out.blocks, frozen)
+
+    seeds, out, restored = balance_with_column_pin(
+        assembled.year, assembled.seeds, assembled.masks, assembled.column_pin, run
     )
-    restored = restore_fixed_blocks(out.blocks, frozen)
     assert_post_balance_hygiene(assembled.year, restored, assembled.masks)
     return YearBalance(
         year=assembled.year,
-        seeds=assembled.seeds,
+        seeds=seeds,
         masks=assembled.masks,
         targets=assembled.targets,
         sweep=assembled.sweep,
         result=out,
         balanced=restored,
+        column_pin=assembled.column_pin,
     )
 
 
