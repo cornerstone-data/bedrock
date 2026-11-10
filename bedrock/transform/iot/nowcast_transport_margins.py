@@ -1183,9 +1183,88 @@ def mode_control_total(
     and spread 11.8% by 2022. It avoids all three of their problems: no Use
     matrix, so no circularity with Step 6b; no industry-versus-commodity output
     gap, since revenue is neither; and no passenger contamination.
+
+    ⚠️ **Truck and water chain across the SAS -> AIES change** when
+    ``chain_transport_margins_across_aies`` is set: see
+    :func:`chained_control_total`.
     """
+    if (
+        int(year) >= FIRST_AIES_YEAR
+        and mode_name in CHAINED_ACROSS_AIES_MODES
+        and _chain_transport_across_aies()
+    ):
+        return chained_control_total(mode_name, year, margins)
     return mode_coverage_ratio(mode_name, margins) * mode_freight_revenue(
         mode_name, year
+    )
+
+
+#: The modes whose revenue source changes at :data:`FIRST_AIES_YEAR` *and*
+#: changes scope with it, so the 2017 coverage ratio stops holding.
+#:
+#: * **truck**: SAS Table 8 motor carrier revenue was 0.930-0.936 of the
+#:   industry's own revenue in every year 2017-2022; AIES's Table 8 is 0.838 in
+#:   2023 and 0.826 in 2024. The margin fell to 0.83 of BEA's published truck
+#:   margin, which itself holds at 84% of truck output every year (#890).
+#: * **water**: AIES freight sales put the margin at 0.86 of BEA's from 2023,
+#:   against 0.98-1.06 before.
+#:
+#: Rail is on STB throughout. Pipeline also moves to AIES, but its four NAICS
+#: items still partition the industry there and the margin stays at 0.96-0.99
+#: of BEA's. Air is on its own volume path after
+#: ``_AIR_LAST_OBSERVED_REVENUE_YEAR``, not on an AIES revenue series.
+CHAINED_ACROSS_AIES_MODES: tuple[str, ...] = ('truck', 'water')
+
+
+def _chain_transport_across_aies() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().chain_transport_margins_across_aies
+
+
+def _mode_gross_output(mode_name: str, year: int) -> float:
+    """The mode's industry gross output in *year*, $M: the series Step 5 holds
+    the industry's Supply column to (T1)."""
+    from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415 - heavy import
+        detail_gross_output_panel,
+    )
+
+    panel = detail_gross_output_panel()
+    return float(np.asarray(panel.loc[MODE_COMMODITIES[mode_name], year]).item())
+
+
+def chained_control_total(
+    mode_name: str, year: int, margins: pd.DataFrame | None = None
+) -> float:
+    """The margin in an AIES *year*, chained so no ratio crosses the survey change. USD.
+
+    ``FIRST_AIES_YEAR`` keeps the last SAS year's margin as a share of the
+    industry's gross output; later years move that level by AIES's own revenue
+    relative to ``FIRST_AIES_YEAR``. Every ratio then sits inside one source:
+    the share inside SAS and BEA, the growth inside AIES. It is the transport
+    counterpart of ``chain_services_seed_across_aies``.
+
+    The share is the industry's, not the commodity's, so it would move with a
+    change in the mode's passenger or non-freight mix. For water that is real
+    (its 2017 margin is 17.3% of output) but small next to the scope step it
+    replaces; for truck the margin is about 80% of output.
+    """
+    if int(year) < FIRST_AIES_YEAR:
+        raise ValueError(
+            f'{year} is a SAS year; only {FIRST_AIES_YEAR} on chain across AIES.'
+        )
+    last_sas = FIRST_AIES_YEAR - 1
+    sas_margin = mode_coverage_ratio(mode_name, margins) * mode_freight_revenue(
+        mode_name, last_sas
+    )
+    share = sas_margin / _mode_gross_output(mode_name, last_sas)
+    first = share * _mode_gross_output(mode_name, FIRST_AIES_YEAR)
+    if int(year) == FIRST_AIES_YEAR:
+        return first
+    return (
+        first
+        * mode_freight_revenue(mode_name, year)
+        / mode_freight_revenue(mode_name, FIRST_AIES_YEAR)
     )
 
 

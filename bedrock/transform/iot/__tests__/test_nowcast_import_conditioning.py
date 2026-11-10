@@ -15,11 +15,13 @@ import pytest
 from bedrock.analysis.nowcasting.trade_data.family_resplit import benchmark_mcif
 from bedrock.extract.iot.io_2017 import _load_usa_summary_sut
 from bedrock.transform.iot.nowcast_import_conditioning import (
+    ANCHORED_COMMODITIES,
     ANCHORED_FAMILIES,
     EMPTY_GROUP_USD,
     _commodity_to_summary,
     anchored_mcif,
     conditioned_mcif,
+    is_anchored,
     mcif_condition_factors,
     raw_import_vector,
 )
@@ -70,9 +72,7 @@ def test_zeros_stay_zero_and_outside_families_pass_raw() -> None:
     assert (out.reindex(never).fillna(0.0) == 0.0).all()
     assert (factors >= 0.0).all()
 
-    outside = pd.Series(
-        [str(c)[:4] not in ANCHORED_FAMILIES for c in raw.index], index=raw.index
-    )
+    outside = pd.Series([not is_anchored(c) for c in raw.index], index=raw.index)
     pd.testing.assert_series_equal(
         pd.Series(anchored[outside]),
         pd.Series(raw[outside]),
@@ -88,14 +88,29 @@ def test_2017_anchoring_reproduces_the_published_cells_in_the_families() -> None
     raw = raw_import_vector(2017)
     pub = benchmark_mcif(2017).reindex(anchored.index).fillna(0.0)
     in_family = pd.Series(
-        [str(c)[:4] in ANCHORED_FAMILIES for c in anchored.index],
-        index=anchored.index,
+        [is_anchored(c) for c in anchored.index], index=anchored.index
     )
     both = in_family & (pub >= 1e6) & (raw >= 1e6)
     assert both.sum() > 20
+    assert set(ANCHORED_COMMODITIES) <= set(anchored.index[both])
     pd.testing.assert_series_equal(
         pd.Series(anchored[both]), pd.Series(pub[both]), check_names=False, rtol=1e-9
     )
+
+
+def test_single_anchored_rows_leave_their_siblings_raw() -> None:
+    """``311910`` is anchored alone; the rest of ``3119`` keeps its Census line."""
+    assert '3119' not in ANCHORED_FAMILIES
+    raw, anchored = raw_import_vector(2018), anchored_mcif(2018)
+    siblings = [c for c in raw.index if str(c).startswith('3119') and c != '311910']
+    assert siblings
+    pd.testing.assert_series_equal(
+        pd.Series(anchored[siblings]),
+        pd.Series(raw[siblings]),
+        check_names=False,
+        rtol=1e-12,
+    )
+    assert float(anchored['311910']) != pytest.approx(float(raw['311910']))
 
 
 def test_the_2017_between_group_gap_closes() -> None:

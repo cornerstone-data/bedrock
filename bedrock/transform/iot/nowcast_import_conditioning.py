@@ -72,9 +72,42 @@ EMPTY_GROUP_USD = 1e6
 #: key-informed by construction; that is the override being recorded, not an
 #: oversight. Excluded on the same review: 3119 (net negative — the 311930
 #: concentrates story), 3314, 3251, 3363 (mixed).
+#:
+#: ``3353`` switchgear and ``3359`` other electrical equipment were added for
+#: #670. Census sends the HS ``8537109170`` catch-all of control and
+#: distribution boards (7.2bn in 2017) to ``335313``, so switchgear ran 2.5x
+#: published and relays and controls 0.53x; ``335999`` ran 1.7x and
+#: ``335920`` 0.28x. On the 2012 holdout the carried mix lands within L1 0.049
+#: of published 2017 for both, against 0.398 and 0.520 for the Census split.
 ANCHORED_FAMILIES: frozenset[str] = frozenset(
-    {'3254', '3344', '3341', '3399', '3259', '3332', '3371', '3221'}
+    {
+        '3254',
+        '3344',
+        '3341',
+        '3399',
+        '3259',
+        '3332',
+        '3371',
+        '3221',
+        '3353',
+        '3359',
+    }
 )
+
+#: Single commodities anchored the same way, where the Census line misses
+#: BEA's level but moves smoothly and the rest of its family does not (#670).
+#: ``311910`` snack foods runs 0.27x published 2017; ``3119`` stays out as a
+#: family because ``311930`` and ``311990`` step 2.33x and 1.58x from 2017 to
+#: 2018 on their Census lines. ``336500`` railroad rolling stock runs 0.37x:
+#: all of HS chapter 86 is 1.7bn against 3.1bn published, so BEA counts
+#: products the trade data cannot name. On the 2012 holdout the anchor lands
+#: at 0.86x published 2017 for both, against 0.27x and 0.37x.
+ANCHORED_COMMODITIES: frozenset[str] = frozenset({'311910', '336500'})
+
+
+def is_anchored(code: str) -> bool:
+    """Whether *code*'s imports are anchored on its published 2017 cell."""
+    return str(code)[:4] in ANCHORED_FAMILIES or str(code) in ANCHORED_COMMODITIES
 
 
 @functools.cache
@@ -119,7 +152,8 @@ def anchored_mcif(year: int) -> pd.Series:
     (Wes's requirement).
 
     ⚠️ **Applied only inside :data:`ANCHORED_FAMILIES`** — Wes's recorded
-    scope decision. Every commodity outside those families passes through at
+    scope decision, plus the single rows in :data:`ANCHORED_COMMODITIES`.
+    Every commodity outside those families passes through at
     its raw FBS value: full Census primary signal, levels included.
 
     Per-commodity rules inside an anchored family, in order:
@@ -159,9 +193,7 @@ def anchored_mcif(year: int) -> pd.Series:
     with np.errstate(divide='ignore', invalid='ignore'):
         growth = (raw_now / raw_base).replace([np.inf, -np.inf], np.nan)
 
-    in_family = pd.Series(
-        [str(c)[:4] in ANCHORED_FAMILIES for c in pub.index], index=pub.index
-    )
+    in_family = pd.Series([is_anchored(c) for c in pub.index], index=pub.index)
     anchored = raw_now.copy().rename('MCIF')
     both = in_family & has_anchor & has_base
     anchored[both] = pub[both] * growth[both].fillna(0.0)
