@@ -9,11 +9,33 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.disaggregation import derive_waste_weights as m
+from bedrock.extract.disaggregation import sas_waste_metrics as sas
 from bedrock.extract.disaggregation.waste_static_rules import WASTE_CHILDREN
 
 
 def _uniform() -> pd.Series:
     return pd.Series(1.0 / len(WASTE_CHILDREN), index=WASTE_CHILDREN)
+
+
+def _forbid_sas_table2(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    """Fail the test if SAS Table 2 revenue shares are used for Use row-sum.
+
+    Patches the real ``sas_waste_metrics`` entry point (not a dead name on the
+    derive module) and also asserts derive does not re-bind that loader.
+    """
+    assert not hasattr(
+        m, "load_sas_table2_revenue_shares"
+    ), "derive_waste_weights must not import load_sas_table2_revenue_shares"
+    calls: list[object] = []
+
+    def _boom(*_a: object, **_k: object) -> pd.Series:
+        calls.append((_a, _k))
+        raise AssertionError(
+            "SAS Table 2 revenue shares must not be used for Use row-sum"
+        )
+
+    monkeypatch.setattr(sas, "load_sas_table2_revenue_shares", _boom)
+    return calls
 
 
 def _stub_common_derive(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,6 +109,7 @@ def test_non_match_io_keeps_bundled_row_sum_not_sas(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _stub_common_derive(monkeypatch)
+    sas_calls = _forbid_sas_table2(monkeypatch)
     monkeypatch.setattr(m, "_match_io_active", lambda: False)
     monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2022)
 
@@ -97,6 +120,7 @@ def test_non_match_io_keeps_bundled_row_sum_not_sas(
     weights, prov = m.derive_waste_weights(2022)
     assert any("bundled 2017 Use row-sum" in n for n in prov.fallback_notes)
     assert any("not SAS Table 2" in n for n in prov.fallback_notes)
+    assert sas_calls == []
     del weights
 
 
@@ -104,6 +128,7 @@ def test_business_firms_shares_replace_row_sum(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _stub_common_derive(monkeypatch)
+    sas_calls = _forbid_sas_table2(monkeypatch)
     monkeypatch.setattr(m, "_match_io_active", lambda: False)
     monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2017)
     shares = pd.Series(
@@ -139,6 +164,7 @@ def test_business_firms_shares_replace_row_sum(
     assert not any("Business firms" in n for n in prov.fallback_notes)
     # One FBA load shared with customer-class path.
     assert load_calls["n"] == 1
+    assert sas_calls == []
 
 
 def test_single_ec_fba_reused_for_customer_class(
