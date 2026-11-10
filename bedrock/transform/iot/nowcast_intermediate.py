@@ -1329,6 +1329,29 @@ def pinned_gas_buyers() -> list[str]:
     return []
 
 
+#: Refinery industry whose co-product Supply cells GRAS must not invent (#1229).
+REFINERY_INDUSTRY = '324110'
+#: Co-product commodities held at seed-share × T17-at-seed column pin when
+#: ``pin_refinery_secondaries_at_go_mix`` is on. ``424700`` is left free unless
+#: smoke shows it must move with these.
+REFINERY_SECONDARY_COMMODITIES = ('325110', '325190')
+
+
+def pinned_refinery_secondaries() -> tuple[str, ...]:
+    """Commodities whose ``324110`` Supply cell is held through GRAS (#1229).
+
+    Empty with ``pin_refinery_secondaries_at_go_mix`` off. Assembly scales each
+    held cell to its pre-scale seed share of the T17-at-seed ``324110`` column
+    pin, then overlays Tier-1 on the returned list
+    (:func:`~bedrock.transform.iot.nowcast_sut_assembly.apply_refinery_secondaries_go_mix_pin`).
+    Own-product ``324110 × 324110`` stays free so column residuals land on the
+    free cells of the column, mostly own-product.
+    """
+    if get_usa_config().pin_refinery_secondaries_at_go_mix:
+        return REFINERY_SECONDARY_COMMODITIES
+    return ()
+
+
 def allocate_electric_gas(
     total: float,
     base_cells: pd.Series,
@@ -1500,6 +1523,9 @@ __all__ = [
     'pin_electricity_cells',
     'pinned_electricity_buyers',
     'pinned_gas_buyers',
+    'pinned_refinery_secondaries',
+    'REFINERY_INDUSTRY',
+    'REFINERY_SECONDARY_COMMODITIES',
     'carried_column_shares',
     'carry_shares',
     'commodity_deflator',
