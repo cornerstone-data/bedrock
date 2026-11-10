@@ -374,7 +374,7 @@ def test_the_level_comes_off_the_electricity_row_in_proportion_to_output() -> No
     out = gc.take_excess_from_electricity_row(block, 40.0, output)
     assert out.at['221100', '221100'] == pytest.approx(60.0)
     assert out.at['221100', 'S00101'] == pytest.approx(10.0)
-    assert out.loc['221200'].tolist() == [10.0, 5.0]
+    assert pd.Series(out.loc['221200'], dtype=float).tolist() == [10.0, 5.0]
     with pytest.raises(ValueError, match='S00101'):
         gc.take_excess_from_electricity_row(block, 100.0, output)
 

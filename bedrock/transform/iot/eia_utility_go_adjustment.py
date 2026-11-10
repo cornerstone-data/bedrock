@@ -368,7 +368,9 @@ def retail_gross_output(panel: pd.DataFrame, year: int) -> pd.Series:
     )
 
     base = panel.loc[codes, BASE_YEAR].astype(float)
-    base = base * (1.0 - level_excess() / float(base.sum()))
+    excess = level_excess()
+    if excess:
+        base = base * (1.0 - excess / float(base.sum()))
     return base * retail_index(int(year))
 
 
@@ -377,9 +379,9 @@ def apply_eia_utility_adjustment(raw: pd.DataFrame) -> pd.DataFrame:
 
     ``raw`` is industries x years in million USD; a new frame is returned and
     the argument is not mutated. Rows outside :data:`CONTROLLED` and years
-    outside :data:`CONTROLLED_YEARS` come back bit-identical, and
-    :data:`BASE_YEAR` is unchanged for every row because both indices are 1.0
-    there.
+    outside :data:`CONTROLLED_YEARS` come back bit-identical. With the indices
+    at 1.0 in :data:`BASE_YEAR`, that year's cells stay as published unless
+    ``electric_output_on_eia_level`` cuts them in :func:`retail_gross_output`.
 
     ⚠️ **Group totals are not preserved**, unlike
     :func:`~bedrock.transform.iot.ec_go_adjustment.apply_ec_adjustment`. That
