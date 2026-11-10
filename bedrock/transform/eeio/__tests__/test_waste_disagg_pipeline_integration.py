@@ -8,7 +8,7 @@ the Cornerstone-space path when enabled, and that feature-off is a no-op.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, cast
 
 import numpy as np
 import pandas as pd
@@ -21,9 +21,12 @@ from bedrock.transform.eeio import (
 )
 from bedrock.transform.eeio.sector_disagg_pipeline import (
     _WASTE_NEW_CODES,
+    _derive_waste_balanced_io,
     clear_waste_disagg_weights_cache,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    derive_U_after_waste,
+    derive_V_after_waste,
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
@@ -46,6 +49,7 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_y_nab,
     derive_Ytot_matrix_set,
 )
+from bedrock.transform.eeio.waste_disaggregation import compute_waste_q_targets
 from bedrock.utils.config.usa_config import (
     get_usa_config,
     reset_usa_config,
@@ -63,6 +67,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
+    _derive_waste_balanced_io,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     derive_V,
@@ -545,3 +550,38 @@ class TestFeatureOffRegression:
             off_diag, 0.0
         ), "With feature off, intragroup treatment should zero waste cross-terms"
         _teardown()
+
+
+# ---------------------------------------------------------------------------
+# Waste commodity identity + cache isolation
+# ---------------------------------------------------------------------------
+
+
+class TestWasteCommodityIdentity:
+
+    def teardown_method(self) -> None:
+        _teardown()
+
+    def test_waste_commodity_q_matches_use_plus_fd_within_1pct(self) -> None:
+        """Always-on: each 562* Make column ≈ Udom+Uimp+Y row within 1%."""
+        _setup_config("test_usa_config_waste_disagg")
+        V = derive_V_after_waste()
+        Udom, Uimp = derive_U_after_waste()
+        Y = derive_disagg_Ytot_with_trade()
+        present = [c for c in _WASTE_NEW_CODES if c in V.columns and c in Udom.index]
+        q_target = compute_waste_q_targets(Udom, Uimp, Y, waste_codes=present)
+        for c in present:
+            q_make = float(V[c].sum())
+            qt = float(cast(float, q_target.loc[c]))
+            denom = max(1.0, abs(qt))
+            assert (
+                abs(q_make - qt) / denom <= 0.01
+            ), f"{c}: Make col={q_make} vs q_target={qt}"
+
+    def test_wrapper_copy_does_not_poison_cache(self) -> None:
+        _setup_config("test_usa_config_waste_disagg")
+        V1 = derive_V_after_waste()
+        marker = float(cast(float, V1.iloc[0, 0]))
+        V1.iloc[0, 0] = marker + 12345.0
+        V2 = derive_V_after_waste()
+        assert float(cast(float, V2.iloc[0, 0])) == pytest.approx(marker)

@@ -17,13 +17,13 @@ from bedrock.extract.disaggregation.disagg_weights import (
 from bedrock.extract.disaggregation.ec_waste_customer_class import (
     CUSTOMER_CLASS_CODES,
     load_bundled_customer_class_rows,
+    load_ec_business_firms_row_sum_shares,
     load_ec_customer_class_shares,
 )
 from bedrock.extract.disaggregation.rcra_waste_flows import (
     load_rcra_intersection_shares,
 )
 from bedrock.extract.disaggregation.sas_waste_metrics import (
-    load_sas_table2_revenue_shares,
     load_sas_table3_expense_shares,
 )
 from bedrock.extract.disaggregation.waste_static_rules import (
@@ -36,7 +36,6 @@ from bedrock.extract.disaggregation.waste_year_resolvers import (
     resolve_ec_year,
     resolve_industry_mix_source,
     resolve_rcra_year,
-    resolve_sas_year,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
@@ -271,7 +270,7 @@ def _replace_make_intersection_diagonal(
 
 
 def _replace_va_from_column_sum(use: pd.DataFrame, shares: pd.Series) -> pd.DataFrame:
-    """VA shares follow industry mix (workbook Step 7)."""
+    """VA shares copy the industry-mix column-sum prior (final VA set later)."""
     va_set = set(VALUE_ADDEDS)
     keep = use[~use["CommodityCode"].isin(va_set)]
     # Keep structure of bundled VA rows: each VA commodity × waste industry
@@ -330,21 +329,24 @@ def derive_waste_weights(
     make = _replace_make_column_sum(make, col_shares)
     make = _replace_make_intersection_diagonal(make, col_shares)
 
-    # Use row sum: 2023–2024 carry 2022 SAS Table 2 revenue
+    # Default Use row-sum: EC Business firms and farms child-mix (who buys waste).
+    # Never SAS Table 2. match_io hard-raises; non-match_io keeps bundled 2017 row-sum.
     try:
-        sas_row_year = resolve_sas_year(min(target_year, 2022))
-        if target_year >= 2023:
-            sas_row_year = 2022
-        row_shares, table2_notes = load_sas_table2_revenue_shares(
-            sas_row_year, require_complete_priors=_match_io_active()
-        )
+        row_shares = load_ec_business_firms_row_sum_shares(ec_year)
         use = _replace_row_sum(use, row_shares)
-        if prov.sas_source_year is None:
-            prov.sas_source_year = sas_row_year
-        prov.fallback_notes.extend(table2_notes)
-    except Exception as exc:  # noqa: BLE001
         prov.fallback_notes.append(
-            f"SAS Table 2 row-sum failed ({type(exc).__name__}); keeping 2017 bundled"
+            f"Use row sum from EC {ec_year} Business firms and farms"
+        )
+    except Exception as exc:
+        if _match_io_active():
+            raise RuntimeError(
+                "EC Business firms Use row-sum failed under "
+                f"match_io ({type(exc).__name__}: {exc}); refusing SAS Table 2 / "
+                "bundled fallback"
+            ) from exc
+        prov.fallback_notes.append(
+            f"EC Business firms row-sum failed ({type(exc).__name__}); "
+            "keeping bundled 2017 Use row-sum (not SAS Table 2)"
         )
 
     # RCRA intersection

@@ -1,0 +1,125 @@
+"""EC Business firms Use row-sum replaces SAS Table 2 on the derive path."""
+
+from __future__ import annotations
+
+from typing import cast
+from unittest.mock import MagicMock
+
+import pandas as pd
+import pytest
+
+from bedrock.extract.disaggregation import derive_waste_weights as m
+from bedrock.extract.disaggregation.waste_static_rules import WASTE_CHILDREN
+
+
+def _uniform() -> pd.Series:
+    return pd.Series(1.0 / len(WASTE_CHILDREN), index=WASTE_CHILDREN)
+
+
+def _stub_common_derive(monkeypatch: pytest.MonkeyPatch) -> None:
+    use = pd.DataFrame(
+        {
+            "IndustryCode": ["562000"] * len(WASTE_CHILDREN),
+            "CommodityCode": list(WASTE_CHILDREN),
+            "PercentUsed": list(_uniform().values),
+            "Note": ["Use row sum, commodity output"] * len(WASTE_CHILDREN),
+        }
+    )
+    make = pd.DataFrame(
+        {
+            "IndustryCode": ["562000"] * len(WASTE_CHILDREN),
+            "CommodityCode": list(WASTE_CHILDREN),
+            "PercentMake": list(_uniform().values),
+            "Note": ["Make column sum"] * len(WASTE_CHILDREN),
+        }
+    )
+    monkeypatch.setattr(m, "_load_bundled_long", lambda: (use.copy(), make.copy()))
+    monkeypatch.setattr(m, "_industry_mix_shares", lambda *_a, **_k: _uniform())
+    monkeypatch.setattr(
+        m,
+        "load_rcra_intersection_shares",
+        lambda *_a, **_k: (
+            pd.DataFrame(
+                1.0 / len(WASTE_CHILDREN),
+                index=WASTE_CHILDREN,
+                columns=WASTE_CHILDREN,
+            ),
+            [],
+        ),
+    )
+    monkeypatch.setattr(m, "load_ec_customer_class_shares", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        m,
+        "load_bundled_customer_class_rows",
+        lambda *_a, **_k: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        m,
+        "build_disagg_weights_from_long_format",
+        lambda use, make, **_k: MagicMock(name="weights", use=use, make=make),
+    )
+
+
+def test_match_io_hard_raises_on_business_firms_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_common_derive(monkeypatch)
+    monkeypatch.setattr(m, "_match_io_active", lambda: True)
+    monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2022)
+
+    def _boom(*_a: object, **_k: object) -> pd.Series:
+        raise RuntimeError("injected EC failure")
+
+    monkeypatch.setattr(m, "load_ec_business_firms_row_sum_shares", _boom)
+    with pytest.raises(RuntimeError, match="match_io"):
+        m.derive_waste_weights(2022)
+
+
+def test_non_match_io_keeps_bundled_row_sum_not_sas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_common_derive(monkeypatch)
+    monkeypatch.setattr(m, "_match_io_active", lambda: False)
+    monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2022)
+
+    def _boom(*_a: object, **_k: object) -> pd.Series:
+        raise RuntimeError("injected EC failure")
+
+    monkeypatch.setattr(m, "load_ec_business_firms_row_sum_shares", _boom)
+    # Guard: SAS Table 2 must never be called for this slice.
+    monkeypatch.setattr(
+        m,
+        "load_sas_table2_revenue_shares",
+        MagicMock(side_effect=AssertionError("SAS Table 2 must not be used")),
+        raising=False,
+    )
+    weights, prov = m.derive_waste_weights(2022)
+    assert any("bundled 2017 Use row-sum" in n for n in prov.fallback_notes)
+    assert any("not SAS Table 2" in n for n in prov.fallback_notes)
+    del weights
+
+
+def test_business_firms_shares_replace_row_sum(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_common_derive(monkeypatch)
+    monkeypatch.setattr(m, "_match_io_active", lambda: False)
+    monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2017)
+    shares = pd.Series(
+        [0.5, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05], index=WASTE_CHILDREN, dtype=float
+    )
+    monkeypatch.setattr(
+        m, "load_ec_business_firms_row_sum_shares", lambda *_a, **_k: shares
+    )
+
+    captured: dict[str, pd.DataFrame] = {}
+
+    def _capture(use: pd.DataFrame, make: pd.DataFrame, **_k: object) -> MagicMock:
+        captured["use"] = use
+        return MagicMock(name="weights")
+
+    monkeypatch.setattr(m, "build_disagg_weights_from_long_format", _capture)
+    m.derive_waste_weights(2017)
+    row = captured["use"]
+    row = row[row["Note"] == "Use row sum, commodity output"].set_index("CommodityCode")
+    assert float(cast(float, row.loc["562111", "PercentUsed"])) == pytest.approx(0.5)

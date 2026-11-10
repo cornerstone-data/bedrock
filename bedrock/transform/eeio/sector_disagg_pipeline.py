@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import functools
 import pathlib
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, cast
@@ -22,7 +23,10 @@ import pandas as pd
 
 from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
-from bedrock.extract.disaggregation.waste_static_rules import NAICS_MAP_VERSION
+from bedrock.extract.disaggregation.waste_static_rules import (
+    NAICS_MAP_VERSION,
+    WASTE_CHILDREN,
+)
 from bedrock.extract.disaggregation.waste_weight_config import (
     EEIOWasteDisaggConfig,
     effective_waste_disagg_config,
@@ -42,9 +46,9 @@ from bedrock.transform.eeio.usa_expansion import (
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     apply_waste_disagg_to_U,
-    apply_waste_disagg_to_V,
     apply_waste_disagg_to_VA,
     apply_waste_disagg_to_Ytot,
+    reconcile_waste_make_and_va_to_use,
 )
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.math.formulas import backcompute_y_from_A_and_q, compute_x
@@ -197,9 +201,22 @@ def get_waste_disagg_provenance() -> WeightDerivationProvenance | None:
     return _WASTE_PROVENANCE_CACHE.get(key)
 
 
+def _clear_delivery_state_if_loaded() -> None:
+    """Invalidate electricity_delivery cache that snapshots after-waste tables."""
+    ed = sys.modules.get('bedrock.transform.eeio.electricity_delivery')
+    if ed is None:
+        return
+    delivery_state = getattr(ed, '_delivery_state', None)
+    cache_clear = getattr(delivery_state, 'cache_clear', None)
+    if callable(cache_clear):
+        cache_clear()
+
+
 def clear_waste_disagg_weights_cache() -> None:
     _WASTE_WEIGHTS_CACHE.clear()
     _WASTE_PROVENANCE_CACHE.clear()
+    _derive_waste_balanced_io.cache_clear()
+    _clear_delivery_state_if_loaded()
 
 
 @functools.cache
@@ -216,69 +233,90 @@ class CornerstoneDisaggIOBundle:
     VA: pd.DataFrame
 
 
-def derive_V_after_waste() -> pd.DataFrame:
-    V_detail = load_detail_V_usa()  # published 2017 or nowcast year, per the router
+@functools.cache
+def _derive_waste_balanced_io() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
+    """Correspondence + Use/Y waste weights, then Make/VA balanced to Use identity.
+
+    Whenever waste weights are on (not only ``match_io``), Make is not taken from
+    Make-CSV percentage splits (``apply_waste_disagg_to_V``).
+    ``reconcile_waste_make_and_va_to_use`` rewrites the waste border so each
+    child's Make column equals Use+FD. That replaces the old Make-CSV split for
+    every waste-on config, including before-redefinition and bundled-2017 /
+    USEEIOR / pre-v1.0 paths — those configs are no longer expected to match
+    prior Make-CSV waste V, VA, gross output, or emission factors. Production
+    scope is v1.0+ (nowcast, ``waste_weights_year: match_io``).
+
+    Returns cached frames — callers must ``.copy()``.
+    """
+    V_detail = load_detail_V_usa()
     V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        V = apply_waste_disagg_to_V(V, weights)
-        V.index.name = 'sector'
-        V.columns.name = 'sector'
-    return V
 
-
-def derive_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
     Utot = load_detail_Utot_usa()
     Uimp = load_detail_Uimp_usa()
     Udom = Utot - Uimp
-
     com_c = commodity_corresp()
     ind_c = industry_corresp()
-
-    Udom_cs = com_c @ Udom @ ind_c.T
-    Uimp_cs = com_c @ Uimp @ ind_c.T
-
-    for df in (Udom_cs, Uimp_cs):
+    Udom = com_c @ Udom @ ind_c.T
+    Uimp = com_c @ Uimp @ ind_c.T
+    for df in (Udom, Uimp):
         df.index.name = 'sector'
         df.columns.name = 'sector'
 
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        Udom_cs, Uimp_cs = apply_waste_disagg_to_U(Udom_cs, Uimp_cs, weights)
-        for df in (Udom_cs, Uimp_cs):
-            df.index.name = 'sector'
-            df.columns.name = 'sector'
+    ytot = commodity_corresp() @ load_detail_Ytot_usa()
+    ytot.index.name = 'sector'
 
-    return Udom_cs, Uimp_cs
+    VA = load_detail_value_added_usa() @ industry_corresp().T
+    VA.columns.name = 'sector'
+
+    weights = get_waste_disagg_weights()
+    if weights is None:
+        return V, Udom, Uimp, VA, ytot
+
+    Udom, Uimp = apply_waste_disagg_to_U(Udom, Uimp, weights)
+    for df in (Udom, Uimp):
+        df.index.name = 'sector'
+        df.columns.name = 'sector'
+    ytot = apply_waste_disagg_to_Ytot(ytot, weights)
+    ytot.index.name = 'sector'
+    VA = apply_waste_disagg_to_VA(VA, weights)
+    VA.columns.name = 'sector'
+
+    # Canonical child set — not derived from Make CSV intersection.
+    waste_codes = list(WASTE_CHILDREN)
+    V, VA = reconcile_waste_make_and_va_to_use(
+        V, Udom, Uimp, VA, ytot, waste_codes=waste_codes
+    )
+    V.index.name = 'sector'
+    V.columns.name = 'sector'
+    VA.columns.name = 'sector'
+    return V, Udom, Uimp, VA, ytot
+
+
+def derive_V_after_waste() -> pd.DataFrame:
+    return _derive_waste_balanced_io()[0].copy()
+
+
+def derive_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
+    _V, Udom, Uimp, _VA, _Y = _derive_waste_balanced_io()
+    return Udom.copy(), Uimp.copy()
 
 
 def derive_y_after_waste() -> pd.DataFrame:
     """Correspondence-mapped Y after waste disaggregation."""
-    return _derive_y_before_electricity_disagg()
+    return _derive_waste_balanced_io()[4].copy()
 
 
 def _derive_y_before_electricity_disagg() -> pd.DataFrame:
     """Correspondence-mapped Y after waste disagg, before electricity row split."""
-    ytot_orig = load_detail_Ytot_usa()
-    ytot = commodity_corresp() @ ytot_orig
-    ytot.index.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        ytot = apply_waste_disagg_to_Ytot(ytot, weights)
-        ytot.index.name = 'sector'
-    return ytot
+    return derive_y_after_waste()
 
 
 def derive_VA_after_waste() -> pd.DataFrame:
-    VA = load_detail_value_added_usa() @ industry_corresp().T
-    VA.columns.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        VA = apply_waste_disagg_to_VA(VA, weights)
-        VA.columns.name = 'sector'
-    return VA
+    return _derive_waste_balanced_io()[3].copy()
 
 
 @functools.cache
@@ -318,13 +356,7 @@ def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
         )
 
         return restructured_tables()[4]
-    Ytot_orig = load_detail_Ytot_usa()
-    Ytot = commodity_corresp() @ Ytot_orig
-    Ytot.index.name = 'sector'
-    weights = get_waste_disagg_weights()
-    if weights is not None:
-        Ytot = apply_waste_disagg_to_Ytot(Ytot, weights)
-        Ytot.index.name = 'sector'
+    Ytot = _derive_y_before_electricity_disagg()
     if electricity_disaggregation_enabled():
         from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
             apply_purchaser_allocation_to_y,

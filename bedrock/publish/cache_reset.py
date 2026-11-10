@@ -24,6 +24,7 @@ from bedrock.transform.eeio.derived import (
     derive_y_for_national_accounting_balance_usa,
 )
 from bedrock.transform.eeio.sector_disagg_pipeline import (
+    _derive_waste_balanced_io,
     clear_waste_disagg_weights_cache,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -102,6 +103,7 @@ UPSTREAM_CACHED_DERIVES: list[Callable[..., object]] = [
     electricity_reaggregation_enabled,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
+    _derive_waste_balanced_io,
     derive_V,
     derive_x,
     derive_x_after_redefinition,
@@ -153,6 +155,9 @@ def _clear_electricity_caches_if_loaded() -> None:
     After a flag-on run, leftover caches must still clear when switching to v0.3;
     under a never-loaded v0.3 process, this is a no-op and never imports elec.
     """
+    delivery = sys.modules.get('bedrock.transform.eeio.electricity_delivery')
+    if delivery is not None:
+        _clear_cached_attrs(delivery, ('_delivery_state',))
     ed = sys.modules.get('bedrock.transform.eeio.electricity_disaggregation')
     if ed is not None:
         _clear_cached_attrs(ed, _ELECTRICITY_DISAGG_CACHED_ATTRS)

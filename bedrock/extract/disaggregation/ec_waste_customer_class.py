@@ -1,6 +1,13 @@
-"""EC ecnclcust → fixed customer-class Use rows (2017 parity: 9 codes)."""
+"""EC ecnclcust → fixed customer-class Use rows (2017 parity: 9 codes).
+
+Business firms and farms feed default Use row-sum shares (ordinary industry
+buyers of waste commodities), not the special customer-class IndustryCode
+rows — see ``build_business_firms_row_sum_shares_from_ec_fba``.
+"""
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import pandas as pd
 
@@ -11,7 +18,7 @@ from bedrock.extract.disaggregation.waste_static_rules import WASTE_CHILDREN
 from bedrock.extract.flowbyactivity import getFlowByActivity
 from bedrock.utils.mapping.location import US_FIPS
 
-# Fixed 2017-parity customer-class industry codes (workbook / bundled CSV).
+# Fixed 2017-parity customer-class industry codes (bundled Use CSV).
 CUSTOMER_CLASS_CODES: tuple[str, ...] = (
     "F01000",  # FD / households
     "S00102",
@@ -24,9 +31,12 @@ CUSTOMER_CLASS_CODES: tuple[str, ...] = (
     "813B00",
 )
 
+# Default Use row-sum path — never emitted as IndustryCode rows.
+BUSINESS_FIRMS_LABEL = "Business firms and farms"
+
 # EC CLASSCUST_LABEL substring → Cornerstone industry codes that share the same
-# child-mix (workbook Notes / 3B_EC_USEEIO_Mapping). "Business firms and farms"
-# feeds the default Use row-sum path and is intentionally omitted here.
+# child-mix. "Business firms and farms" feeds the default Use row-sum path and
+# is intentionally omitted here.
 _CLASS_LABEL_TO_CODES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Household consumers and individuals", ("F01000",)),
     ("Federal government", ("S00102",)),
@@ -73,7 +83,15 @@ def _is_six_digit_naics(code: object) -> bool:
     return len(digits) == 6
 
 
-def _reconstruct_class_receipts(fba: pd.DataFrame) -> pd.DataFrame:
+def _is_business_firms_label(label: str) -> bool:
+    return BUSINESS_FIRMS_LABEL.lower() in str(label).lower()
+
+
+def _reconstruct_class_receipts(
+    fba: pd.DataFrame,
+    *,
+    label_keep: Callable[[str], bool] | None = None,
+) -> pd.DataFrame:
     """Build (NAICS, class_label, receipts) from EC FBA.
 
     EC 2022 often publishes class-level ``RCPTOT`` as 0 while ``RCPTOT_DIST`` and
@@ -83,7 +101,11 @@ def _reconstruct_class_receipts(fba: pd.DataFrame) -> pd.DataFrame:
 
     Prefer reconstructed values; fall back to published class sales when > 0
     (EC 2017 pattern).
+
+    ``label_keep`` defaults to special customer-class labels only (not Business
+    firms). Pass a predicate to include other class labels.
     """
+    keep = label_keep or (lambda lab: _match_class_label(lab) is not None)
     df = fba.copy()
     if "Location" in df.columns:
         df = df[df["Location"].astype(str) == US_FIPS]
@@ -112,7 +134,7 @@ def _reconstruct_class_receipts(fba: pd.DataFrame) -> pd.DataFrame:
         label = str(row["ActivityConsumedBy"])
         if _ALL_CLASSES.lower() in label.lower():
             continue
-        if _match_class_label(label) is None:
+        if not keep(label):
             continue
         naics = row["ActivityProducedBy"]
         try:
@@ -144,6 +166,45 @@ def _reconstruct_class_receipts(fba: pd.DataFrame) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def build_business_firms_row_sum_shares_from_ec_fba(fba: pd.DataFrame) -> pd.Series:
+    """Child-mix shares among waste commodities sold to Business firms and farms.
+
+    Indexed by ``WASTE_CHILDREN``. Never emits IndustryCode rows — callers feed
+    these into ``_replace_row_sum`` only.
+    """
+    receipts = _reconstruct_class_receipts(fba, label_keep=_is_business_firms_label)
+    if receipts.empty:
+        raise ValueError("No positive EC waste receipts for Business firms and farms")
+
+    mass: dict[str, float] = {child: 0.0 for child in WASTE_CHILDREN}
+    for _, row in receipts.iterrows():
+        child = map_sas_naics_to_cornerstone(row["ActivityProducedBy"])
+        if child is None:
+            continue
+        mass[child] = mass.get(child, 0.0) + float(row["FlowAmount"])
+
+    total = float(sum(mass.values()))
+    if total <= 0:
+        raise ValueError(
+            "No positive EC waste receipts for Business firms and farms "
+            "after NAICS→Cornerstone map"
+        )
+    return pd.Series(
+        {child: mass[child] / total for child in WASTE_CHILDREN}, dtype=float
+    )
+
+
+def load_ec_business_firms_row_sum_shares(ec_year: int) -> pd.Series:
+    """Load EC ecnclcust and return Business-firms default Use row-sum shares.
+
+    Raises on load/parse/empty failure (caller decides match_io vs soft fallback).
+    """
+    if ec_year not in (2012, 2017, 2022):
+        raise ValueError(f"EC business-firms row-sum unsupported for ec_year={ec_year}")
+    fba = getFlowByActivity(datasource="Census_EC", year=ec_year)
+    return build_business_firms_row_sum_shares_from_ec_fba(fba)
 
 
 def build_customer_class_rows_from_ec_fba(fba: pd.DataFrame) -> pd.DataFrame:
