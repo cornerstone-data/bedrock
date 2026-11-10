@@ -12,7 +12,7 @@
       "nowcast_mut": {
         "year": 2017,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -30,7 +30,7 @@
       "nowcast_mut": {
         "year": 2018,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -48,7 +48,7 @@
       "nowcast_mut": {
         "year": 2019,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -66,7 +66,7 @@
       "nowcast_mut": {
         "year": 2020,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -84,7 +84,7 @@
       "nowcast_mut": {
         "year": 2021,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -102,7 +102,7 @@
       "nowcast_mut": {
         "year": 2022,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -120,7 +120,7 @@
       "nowcast_mut": {
         "year": 2023,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
@@ -138,7 +138,7 @@
       "nowcast_mut": {
         "year": 2024,
         "stage": "after",
-        "vintage": "v1.0.0_e5fa35b",
+        "vintage": "v1.0.0_a2c697c",
         "tables": [
           "Make",
           "Use",
