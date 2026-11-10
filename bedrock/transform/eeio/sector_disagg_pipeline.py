@@ -25,7 +25,6 @@ from bedrock.extract.disaggregation import disagg_weights as _disagg_weights
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
 from bedrock.extract.disaggregation.waste_static_rules import (
     NAICS_MAP_VERSION,
-    WASTE_CHILDREN,
 )
 from bedrock.extract.disaggregation.waste_weight_config import (
     EEIOWasteDisaggConfig,
@@ -45,6 +44,7 @@ from bedrock.transform.eeio.usa_expansion import (
     industry_corresp,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
+    _waste_codes,
     apply_waste_disagg_to_U,
     apply_waste_disagg_to_VA,
     apply_waste_disagg_to_Ytot,
@@ -285,8 +285,8 @@ def _derive_waste_balanced_io() -> (
     VA = apply_waste_disagg_to_VA(VA, weights)
     VA.columns.name = 'sector'
 
-    # Canonical child set — not derived from Make CSV intersection.
-    waste_codes = list(WASTE_CHILDREN)
+    # Same child set the Use/VA/Y weight appliers use (Make intersection columns).
+    waste_codes = _waste_codes(weights)
     V, VA = reconcile_waste_make_and_va_to_use(
         V, Udom, Uimp, VA, ytot, waste_codes=waste_codes
     )

@@ -711,6 +711,9 @@ def reconcile_waste_make_and_va_to_use(
        (default = Use industry-column shares; oil/scrap one-hots).
     4. Scale each waste industry's VA column to ``Make row − Use column``.
 
+    ``waste_codes`` should be the weight-table child set (``_waste_codes(weights)``),
+    not a parallel hard-coded list.
+
     Returns ``(V_balanced, VA_balanced)``. ``Udom`` / ``Uimp`` / ``Y`` are inputs only.
     """
     if not waste_codes:
@@ -722,14 +725,18 @@ def reconcile_waste_make_and_va_to_use(
 
     V_work = V.copy()
     if parent not in V_work.index or parent not in V_work.columns:
-        if not waste_set.issubset(V_work.index) or not waste_set.issubset(
-            V_work.columns
-        ):
+        missing_idx = [c for c in waste_codes if c not in V_work.index]
+        missing_cols = [c for c in waste_codes if c not in V_work.columns]
+        if missing_idx or missing_cols:
+            # Old apply_waste_disagg_to_V returned V unchanged on a partial child
+            # set; reconcile cannot balance without the full weight child list.
             raise ValueError(
-                "reconcile_waste_make_and_va_to_use: parent 562000 missing and "
-                f"waste children not fully present in V "
-                f"(index missing={[c for c in waste_codes if c not in V_work.index]}, "
-                f"columns missing={[c for c in waste_codes if c not in V_work.columns]})"
+                "reconcile_waste_make_and_va_to_use: parent "
+                f"{parent} absent from Make and waste children from the weight "
+                "tables are only partly present on V (incomplete correspondence "
+                "or IO vintage). "
+                f"expected={list(waste_codes)}; "
+                f"index missing={missing_idx}; columns missing={missing_cols}"
             )
         V_work = _aggregate_waste_sector_in_V(V_work, waste_codes, parent)
 

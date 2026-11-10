@@ -1146,6 +1146,20 @@ class TestReconcileWasteMakeAndVa:
         # Not a single-child understatement (would be 10)
         assert float(border.max()) < 30.0
 
+    def test_partial_children_without_parent_raises_clear_error(self) -> None:
+        """Review #1253 (5): partial child set must name which codes are missing."""
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        V = V.drop(
+            index=["562000", "562HAZ", "562212"],
+            columns=["562000", "562HAZ", "562212"],
+            errors="ignore",
+        )
+        # Only 562111 remains — incomplete correspondence / IO vintage vs weights.
+        with pytest.raises(ValueError, match="index missing=.*562HAZ"):
+            reconcile_waste_make_and_va_to_use(
+                V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+            )
+
     def test_negative_resid_places_diagonal(self) -> None:
         V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
         # One-hot dump on 562111 so fixed > q_target; large parent row keeps MakeRow>0
@@ -1154,7 +1168,7 @@ class TestReconcileWasteMakeAndVa:
         for w in _TOY_WASTE:
             Udom.loc[:, w] = 0.0
             Uimp.loc[:, w] = 0.0
-        with pytest.warns(UserWarning, match="negative diagonal"):
+        with pytest.warns(UserWarning, match="negative resid"):
             V_out, _ = reconcile_waste_make_and_va_to_use(
                 V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
             )
