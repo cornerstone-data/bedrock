@@ -328,7 +328,7 @@ def test_a_truncated_purchaser_table_is_refused_rather_than_dropping_tax() -> No
         dtype=float,
     )
 
-    with pytest.raises(ValueError, match='no live cell'):
+    with pytest.raises(ValueError, match='would vanish'):
         price_bridge(2017, narrow)
 
 
