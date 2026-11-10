@@ -72,8 +72,26 @@ EMPTY_GROUP_USD = 1e6
 #: key-informed by construction; that is the override being recorded, not an
 #: oversight. Excluded on the same review: 3119 (net negative — the 311930
 #: concentrates story), 3314, 3251, 3363 (mixed).
+#:
+#: ``3353`` switchgear and ``3359`` other electrical equipment were added for
+#: #670. Census sends the HS ``8537109170`` catch-all of control and
+#: distribution boards (7.2bn in 2017) to ``335313``, so switchgear ran 2.5x
+#: published and relays and controls 0.53x; ``335999`` ran 1.7x and
+#: ``335920`` 0.28x. On the 2012 holdout the carried mix lands within L1 0.049
+#: of published 2017 for both, against 0.398 and 0.520 for the Census split.
 ANCHORED_FAMILIES: frozenset[str] = frozenset(
-    {'3254', '3344', '3341', '3399', '3259', '3332', '3371', '3221'}
+    {
+        '3254',
+        '3344',
+        '3341',
+        '3399',
+        '3259',
+        '3332',
+        '3371',
+        '3221',
+        '3353',
+        '3359',
+    }
 )
 
 
