@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+import warnings
 from typing import cast
 
 import numpy as np
 import pandas as pd
 
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
+from bedrock.extract.disaggregation.waste_static_rules import (
+    GSLGO_MEMBERSHIP,
+    MAKE_COLUMN_GSLGO_INDUSTRIES,
+    MAKE_COLUMN_ONEHOT_INDUSTRIES,
+    MAKE_ROW_ONEHOT_COMMODITIES,
+    WASTE_PARENT,
+)
+
+# Aligned with electricity_disaggregation.DISAGG_BALANCE_ATOL (avoid circular import).
+DISAGG_BALANCE_ATOL = 1.0
 
 
 def _assert_non_waste_unchanged(
@@ -94,7 +105,12 @@ def apply_waste_disagg_to_V(
     weights: DisaggWeights,
     original_code: str = "562000",
 ) -> pd.DataFrame:
-    """Disaggregate the 562 waste sector in Make matrix V.
+    """Disaggregate a parent sector in Make matrix V via percentage weights.
+
+    Unused on the waste IO path: ``_derive_waste_balanced_io`` /
+    ``reconcile_waste_make_and_va_to_use`` replace Make-CSV splits for every
+    waste-on config. Kept for electricity ``disaggregate_make_intersection``
+    (same helper, ``original_code=221100``) and unit tests.
 
     Mirrors useeior's specifiedMakeDisagg():
     - Intersection: the (original_code, original_code) cell is split into
@@ -518,3 +534,381 @@ def apply_waste_disagg_to_Ytot(
     )
     _assert_non_waste_unchanged(Ytot_orig, output_reindexed, waste_set, original_code)
     return output_reindexed
+
+
+def compute_waste_q_targets(
+    Udom: pd.DataFrame,
+    Uimp: pd.DataFrame,
+    Y: pd.DataFrame,
+    *,
+    waste_codes: list[str],
+) -> pd.Series:
+    """Commodity identity targets: ``q_target[c] = Udom+Y+Uimp`` row sums for waste ``c``."""
+    missing = [c for c in waste_codes if c not in Udom.index]
+    if missing:
+        raise ValueError(
+            f"compute_waste_q_targets: waste codes missing from Udom: {missing}"
+        )
+    missing_y = [c for c in waste_codes if c not in Y.index]
+    if missing_y:
+        raise ValueError(
+            f"compute_waste_q_targets: waste codes missing from Y: {missing_y}"
+        )
+    missing_imp = [c for c in waste_codes if c not in Uimp.index]
+    if missing_imp:
+        raise ValueError(
+            f"compute_waste_q_targets: waste codes missing from Uimp: {missing_imp}"
+        )
+    q = (
+        Udom.loc[waste_codes].sum(axis=1).astype(float)
+        + Y.loc[waste_codes].sum(axis=1).astype(float)
+        + Uimp.loc[waste_codes].sum(axis=1).astype(float)
+    )
+    q.name = "q_target"
+    return q
+
+
+def _make_column_default_shares(
+    q_target: pd.Series, waste_codes: list[str]
+) -> pd.Series:
+    """Proportional split of parent Make column mass across waste commodities.
+
+    Negative ``q_target`` entries are clipped to 0 before normalizing so they
+    cannot create >100% / negative shares (and so GSLGO, built from these
+    defaults, inherits the same clamp).
+    """
+    s = q_target.reindex(waste_codes).fillna(0.0).astype(float)
+    neg = s[s < 0.0]
+    if len(neg) > 0:
+        warnings.warn(
+            "waste Make-column default shares: negative q_target clipped to 0 for "
+            + ", ".join(f"{c}={float(v):.6g}" for c, v in neg.items()),
+            stacklevel=2,
+        )
+        s = s.clip(lower=0.0)
+    total = float(s.sum())
+    if total <= 0:
+        return pd.Series(0.0, index=waste_codes, dtype=float)
+    return s / total
+
+
+def _make_column_gslgo_shares(default: pd.Series, waste_codes: list[str]) -> pd.Series:
+    """Default shares renormalized onto ``GSLGO_MEMBERSHIP`` only (0 elsewhere)."""
+    out = pd.Series(0.0, index=waste_codes, dtype=float)
+    members = [c for c in waste_codes if c in GSLGO_MEMBERSHIP]
+    mass = default.reindex(members).fillna(0.0).astype(float)
+    total = float(mass.sum())
+    if total <= 0:
+        return out
+    out.loc[members] = (mass / total).values
+    return out
+
+
+def _make_column_shares_for_industry(
+    industry: str,
+    default: pd.Series,
+    gslgo: pd.Series,
+    waste_codes: list[str],
+) -> pd.Series:
+    """Child-mix for one non-waste industry's Make column across waste commodities."""
+    if industry in MAKE_COLUMN_ONEHOT_INDUSTRIES:
+        child = MAKE_COLUMN_ONEHOT_INDUSTRIES[industry]
+        out = pd.Series(0.0, index=waste_codes, dtype=float)
+        if child in out.index:
+            out.loc[child] = 1.0
+        return out
+    if industry in MAKE_COLUMN_GSLGO_INDUSTRIES:
+        return gslgo
+    return default
+
+
+def _make_row_shares_for_commodity(
+    commodity: str,
+    row_default: pd.Series,
+    waste_codes: list[str],
+) -> pd.Series:
+    """Child-mix for one non-waste commodity's Make row across waste industries."""
+    if commodity in MAKE_ROW_ONEHOT_COMMODITIES:
+        child = MAKE_ROW_ONEHOT_COMMODITIES[commodity]
+        out = pd.Series(0.0, index=waste_codes, dtype=float)
+        if child in out.index:
+            out.loc[child] = 1.0
+        return out
+    return row_default
+
+
+def _ensure_waste_axes(
+    V: pd.DataFrame, waste_codes: list[str], parent: str
+) -> pd.DataFrame:
+    """Ensure waste child (+ parent) rows/cols exist; return a writable copy."""
+    out = V.copy()
+    for code in [*waste_codes, parent]:
+        if code not in out.index:
+            out.loc[code] = 0.0
+        if code not in out.columns:
+            out[code] = 0.0
+    return out.astype(float)
+
+
+def _scale_va_column_to_target(
+    VA: pd.DataFrame,
+    industry: str,
+    va_target: float,
+    *,
+    make_row: float,
+) -> None:
+    """Scale VA[* , industry] to ``va_target``; clamp tiny/≤1% negatives; raise if >1%."""
+    if industry not in VA.columns:
+        raise ValueError(
+            f"waste VA balance: industry {industry!r} missing from VA columns"
+        )
+
+    if va_target < 0:
+        rel = abs(va_target) / abs(make_row) if make_row else 0.0
+        if abs(va_target) <= DISAGG_BALANCE_ATOL or rel <= 0.01:
+            warnings.warn(
+                f"waste VA balance: clamping negative va_target[{industry}]="
+                f"{va_target} to 0 (rel={rel:.4%})",
+                stacklevel=2,
+            )
+            va_target = 0.0
+        else:
+            raise ValueError(
+                f"waste VA balance: va_target[{industry}]={va_target} is more than 1% "
+                f"negative vs MakeRow={make_row}"
+            )
+
+    col = VA[industry].astype(float)
+    col_sum = float(col.sum())
+    if col_sum == 0.0:
+        n = len(VA.index)
+        if n == 0:
+            return
+        VA.loc[:, industry] = va_target / n
+        return
+
+    VA.loc[:, industry] = col * (va_target / col_sum)
+
+
+def reconcile_waste_make_and_va_to_use(
+    V: pd.DataFrame,
+    Udom: pd.DataFrame,
+    Uimp: pd.DataFrame,
+    VA: pd.DataFrame,
+    Y: pd.DataFrame,
+    *,
+    waste_codes: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rewrite waste-border Make and waste VA so each waste child closes commodity identity.
+
+    After Use/Y are already disaggregated:
+
+    1. Split each non-waste industry's parent Make mass across waste commodities
+       (default = Use-side ``q_target`` shares; special one-hot / GSLGO rules).
+    2. Zero waste×waste off-diagonals. Close each waste commodity column to
+       ``q_target``: if non-waste Make fits, put the residual on the diagonal;
+       if it overflows (one-hot/GSLGO), scale non-waste cells down and set the
+       diagonal to 0 — never a negative diagonal. If ``q_target <= 0``, move
+       that column's non-waste Make onto positive-``q_target`` siblings (or
+       raise if none), rather than wiping the column.
+    3. Split each non-waste commodity's parent Make mass across waste industries
+       (default = Use industry-column shares; oil/scrap one-hots).
+    4. Scale each waste industry's VA column to ``Make row − Use column``.
+
+    ``waste_codes`` should be the weight-table child set (``_waste_codes(weights)``),
+    not a parallel hard-coded list.
+
+    Returns ``(V_balanced, VA_balanced)``. ``Udom`` / ``Uimp`` / ``Y`` are inputs only.
+    """
+    if not waste_codes:
+        raise ValueError("reconcile_waste_make_and_va_to_use: waste_codes is empty")
+
+    parent = WASTE_PARENT
+    waste_set = set(waste_codes)
+    q_target = compute_waste_q_targets(Udom, Uimp, Y, waste_codes=waste_codes)
+
+    V_work = V.copy()
+    if parent not in V_work.index or parent not in V_work.columns:
+        missing_idx = [c for c in waste_codes if c not in V_work.index]
+        missing_cols = [c for c in waste_codes if c not in V_work.columns]
+        if missing_idx or missing_cols:
+            # Old apply_waste_disagg_to_V returned V unchanged on a partial child
+            # set; reconcile cannot balance without the full weight child list.
+            raise ValueError(
+                "reconcile_waste_make_and_va_to_use: parent "
+                f"{parent} absent from Make and waste children from the weight "
+                "tables are only partly present on V (incomplete correspondence "
+                "or IO vintage). "
+                f"expected={list(waste_codes)}; "
+                f"index missing={missing_idx}; columns missing={missing_cols}"
+            )
+        V_work = _aggregate_waste_sector_in_V(V_work, waste_codes, parent)
+
+    V_work = _ensure_waste_axes(V_work, waste_codes, parent)
+
+    nonwaste_ind = [i for i in V_work.index if i not in waste_set and i != parent]
+    nonwaste_com = [j for j in V_work.columns if j not in waste_set and j != parent]
+
+    parent_col = pd.Series(V_work[parent].reindex(nonwaste_ind), dtype=float)
+    parent_row = pd.Series(V_work.loc[parent].reindex(nonwaste_com), dtype=float)
+
+    parent_mass = float(parent_col.sum())
+    q_sum = float(q_target.sum())
+    denom = max(1.0, abs(q_sum))
+    if abs(q_sum - parent_mass) > 0.01 * denom:
+        warnings.warn(
+            "waste reconcile: parent Make vs Use gap "
+            f"|sum(q_target)-sum(parent_col)|={abs(q_sum - parent_mass):.6g} "
+            f"(>{0.01 * denom:.6g}); children follow Use",
+            stacklevel=2,
+        )
+
+    # Make columns: non-waste industries × waste commodities
+    default = _make_column_default_shares(q_target, waste_codes)
+    gslgo = _make_column_gslgo_shares(default, waste_codes)
+    for ind in nonwaste_ind:
+        shares = _make_column_shares_for_industry(str(ind), default, gslgo, waste_codes)
+        mass = float(cast(float, parent_col.loc[ind]))
+        for com in waste_codes:
+            V_work.loc[ind, com] = mass * float(cast(float, shares.loc[com]))
+
+    # Waste×waste: off-diagonals zero; close each column to q_target without
+    # negative diagonals or silent deletion of non-waste Make mass.
+    for i in waste_codes:
+        for j in waste_codes:
+            if i != j:
+                V_work.loc[i, j] = 0.0
+
+    positive_qt = [c for c in waste_codes if float(cast(float, q_target.loc[c])) > 0.0]
+    for com in waste_codes:
+        qt = float(cast(float, q_target.loc[com]))
+        if qt > 0.0:
+            continue
+        fixed_cells = V_work.loc[nonwaste_ind, com].astype(float)
+        fixed = float(fixed_cells.sum())
+        if fixed > 0.0:
+            others = [c for c in positive_qt if c != com]
+            if not others:
+                raise ValueError(
+                    "reconcile_waste_make_and_va_to_use: "
+                    f"q_target[{com}]={qt} <= 0 but non-waste Make mass="
+                    f"{fixed:.6g} with no positive-q_target waste commodity "
+                    "to absorb it (refusing to delete parent Make mass)"
+                )
+            weights = q_target.reindex(others).astype(float)
+            wsum = float(weights.sum())
+            for other in others:
+                share = float(weights.loc[other]) / wsum
+                V_work.loc[nonwaste_ind, other] = (
+                    V_work.loc[nonwaste_ind, other].astype(float) + fixed_cells * share
+                )
+            warnings.warn(
+                f"waste column close: q_target[{com}]={qt} <= 0; "
+                f"redistributed non-waste Make mass {fixed:.6g} onto "
+                f"{others} by positive q_target shares",
+                stacklevel=2,
+            )
+        V_work.loc[nonwaste_ind, com] = 0.0
+        V_work.loc[com, com] = 0.0
+        if qt < 0.0:
+            warnings.warn(
+                f"waste column close: q_target[{com}]={qt} < 0; "
+                "column left at 0 (cannot place negative commodity output)",
+                stacklevel=2,
+            )
+
+    for com in waste_codes:
+        qt = float(cast(float, q_target.loc[com]))
+        if qt <= 0.0:
+            continue
+        fixed_cells = V_work.loc[nonwaste_ind, com].astype(float)
+        fixed = float(fixed_cells.sum())
+        if fixed <= qt:
+            V_work.loc[com, com] = qt - fixed
+            continue
+        scale = qt / fixed
+        V_work.loc[nonwaste_ind, com] = fixed_cells * scale
+        V_work.loc[com, com] = 0.0
+        warnings.warn(
+            f"waste column close: non-waste Make in column {com} "
+            f"({fixed:.6g}) exceeds q_target={qt:.6g}; scaled non-waste "
+            "cells down and set diagonal to 0",
+            stacklevel=2,
+        )
+
+    # Make rows: waste industries × non-waste commodities
+    U_tot = Udom.add(Uimp, fill_value=0.0)
+    use_col = (
+        U_tot.reindex(columns=waste_codes).fillna(0.0).sum(axis=0).astype(float)
+    )  # Use column totals over waste industries (includes intersection)
+    denom_u = float(use_col.sum())
+    if denom_u <= 0:
+        warnings.warn(
+            "waste Make-row split: zero Use column sum over waste industries; "
+            "using uniform shares",
+            stacklevel=2,
+        )
+        row_default = pd.Series(1.0 / len(waste_codes), index=waste_codes, dtype=float)
+    else:
+        row_default = use_col / denom_u
+
+    for com in nonwaste_com:
+        shares = _make_row_shares_for_commodity(str(com), row_default, waste_codes)
+        mass = float(cast(float, parent_row.loc[com]))
+        for ind in waste_codes:
+            V_work.loc[ind, com] = mass * float(cast(float, shares.loc[ind]))
+
+    # Drop parent aggregate
+    V_out = V_work.drop(index=parent, columns=parent, errors="ignore")
+
+    # Preserve original non-waste×non-waste; reindex to drop parent from input shape
+    desired_index = [i for i in V.index if i != parent]
+    desired_columns = [j for j in V.columns if j != parent]
+    # Ensure waste codes present when input already had children
+    for code in waste_codes:
+        if code not in desired_index:
+            desired_index = list(desired_index) + [code]
+        if code not in desired_columns:
+            desired_columns = list(desired_columns) + [code]
+    # Deduplicate while preserving order
+    desired_index = list(dict.fromkeys(desired_index))
+    desired_columns = list(dict.fromkeys(desired_columns))
+
+    V_balanced = V_out.reindex(
+        index=desired_index, columns=desired_columns, fill_value=0.0
+    )
+    _assert_non_waste_unchanged(V, V_balanced, waste_set, parent)
+
+    # VA: waste industry columns only → Make row − Use column
+    VA_balanced = VA.copy()
+    va_pre = VA.copy()
+    for ind in waste_codes:
+        if ind not in VA_balanced.columns:
+            raise ValueError(f"waste VA balance: industry {ind!r} missing from VA")
+        make_row = float(V_balanced.loc[ind].sum()) if ind in V_balanced.index else 0.0
+        use_col_i = 0.0
+        if ind in Udom.columns:
+            use_col_i += float(Udom.loc[:, ind].sum())
+        if ind in Uimp.columns:
+            use_col_i += float(Uimp.loc[:, ind].sum())
+        va_target = make_row - use_col_i
+        _scale_va_column_to_target(VA_balanced, ind, va_target, make_row=make_row)
+        residual = make_row - use_col_i - float(VA_balanced[ind].sum())
+        tol = max(DISAGG_BALANCE_ATOL, 0.01 * abs(make_row))
+        if abs(residual) > tol:
+            raise ValueError(
+                f"waste VA balance post-condition failed for {ind}: "
+                f"|MakeRow-UseCol-VA|={abs(residual)} > tol={tol}"
+            )
+
+    nonwaste_va_cols = [c for c in va_pre.columns if c not in waste_set and c != parent]
+    if nonwaste_va_cols:
+        np.testing.assert_allclose(
+            VA_balanced.loc[:, nonwaste_va_cols].values,
+            va_pre.loc[:, nonwaste_va_cols].values,
+            rtol=1e-9,
+            atol=1e-12,
+            err_msg="Non-waste VA columns changed by waste VA balance",
+        )
+
+    return V_balanced, VA_balanced
