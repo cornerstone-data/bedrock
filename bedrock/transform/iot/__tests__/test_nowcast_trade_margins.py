@@ -419,6 +419,48 @@ def test_receiving_shares_are_frozen_at_2017() -> None:
     ), 'the levels are identical too, so the shares matching proves nothing'
 
 
+# --- #1194: receivers that follow their own supply -------------------------
+
+
+def test_the_supply_weight_reproduces_2017_on_2017_supply() -> None:
+    """On the published 2017 ``T013`` the weight is the 2017 received column."""
+    supply = tr.published_supply_by_commodity()
+    for kind in tr.TRADE_KINDS:
+        weight = tr.supply_following_weight(kind, supply)
+        received = tr.published_trade_received_by_kind()[kind]
+        assert (weight - received).abs().max() < 1
+
+
+def test_a_good_whose_supply_halves_takes_half_the_weight() -> None:
+    supply = tr.published_supply_by_commodity().copy()
+    supply['336213'] /= 2
+    weight = tr.supply_following_weight('retail', supply)
+    received = tr.published_trade_received_by_kind()['retail']
+    assert weight['336213'] == pytest.approx(received['336213'] / 2)
+    others = received.index.drop('336213')
+    assert (weight[others] - received[others]).abs().max() < 1
+
+
+def test_the_supply_weight_needs_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without ``trade_margin_receivers_follow_supply`` a passed supply is ignored;
+    with it, a shrinking good receives less and the kind still nets to zero."""
+    supply = tr.published_supply_by_commodity().copy()
+    supply['336213'] /= 2
+    frozen = tr.trade_margin_components(2022)
+
+    monkeypatch.setattr(tr, '_receivers_follow_supply', lambda: False)
+    off = tr.trade_margin_components(2022, commodity_supply=supply)
+    assert (
+        off[list(tr.TRADE_KINDS)] - frozen[list(tr.TRADE_KINDS)]
+    ).abs().max().max() < 1
+
+    monkeypatch.setattr(tr, '_receivers_follow_supply', lambda: True)
+    on = tr.trade_margin_components(2022, commodity_supply=supply)
+    assert on['retail']['336213'] < 0.6 * frozen['retail']['336213']
+    for kind in tr.TRADE_KINDS:
+        assert abs(on[kind].sum()) / on[kind].abs().sum() < 1e-9
+
+
 # --- #769: published levels, the cap, and the guard -------------------------
 
 

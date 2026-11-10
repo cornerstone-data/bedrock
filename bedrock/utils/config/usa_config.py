@@ -285,6 +285,14 @@ class USAConfig(BaseModel):
     # their margins, keeping each good's give-up and each margin commodity's
     # book (#1177). See nowcast_mut._cap_at_purchase.
     cap_margins_at_purchase: bool = False  # DRI: WesIngwersen
+    # Spread each year's trade margin over the receiving goods by their 2017
+    # margin times their own supply growth, instead of the frozen 2017 mix.
+    # The frozen mix gives every good the economy-wide margin growth (1.49x
+    # 2017-2024 against 1.32x for supply), so goods whose supply shrank took
+    # up to twice their 2017 margin rate: motor homes 0.70 -> 1.17 of supply,
+    # and a purchaser-to-producer ratio of 0.011 (#1194). See
+    # nowcast_trade_margins.supply_following_weight.
+    trade_margin_receivers_follow_supply: bool = False  # DRI: WesIngwersen
     # Smooth each manufacturing industry's share of the expense seed's survey
     # total across the survey changes (census 2017 -> ASM 2018-21 -> census
     # 2022 -> AIES): ASM shares benchmarked to both censuses, a 3-year centred
