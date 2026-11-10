@@ -107,6 +107,19 @@ CHAINED_YEARS = (2023, 2024)
 #: break is there is #1013 work item 2 and is deliberately not assumed here.
 PREFIXES = ('31', '32', '33')
 
+#: Industries outside manufacturing chained on their own census receipts when
+#: ``chain_gas_distribution_on_aies`` is set, BEA industry -> NAICS code.
+#: **Their level moves**: no total is held, so the summary group is released.
+#:
+#: ⚠️ **Gas distribution** (``221200``, NAICS ``221210``): census receipts fall
+#: 9.5% from 2022 to 2023 and 14.5% to 2024 ($182.7bn, $165.3bn, $156.2bn), and
+#: EIA natural gas sales fall 9% and 17%. BEA's output falls only 5% both years,
+#: holding near its 2022 peak. From 2017 to 2022 BEA (1.79x) and the Economic
+#: Census (1.82x) agree. Because business purchases of the commodity are output
+#: less household purchases, BEA's level is what made them keep rising after
+#: 2022 while EIA's fell (#1004).
+UTILITY_CHAINS: dict[str, str] = {'221200': '221210'}
+
 #: Census receipts flow names. The Economic Census and AIES spell the same
 #: measure differently.
 _EC_FLOW = 'RCPTOT'
@@ -131,6 +144,18 @@ _AIES_SOURCE = 'Census_AIES_Expenses'
 #: comes out about 16% too high in 2024 (#1032).
 POOLED_CHAINS: tuple[tuple[str, ...], ...] = (('327310', '327320'),)
 
+#: Industries kept on BEA's own movement when ``hold_aies_outliers_on_bea`` is
+#: set, because the census receipts disagree with every other measure.
+#:
+#: ⚠️ **Other basic organic chemicals** (``325190``): AIES has ``325199``
+#: receipts rising 22% from 2022 to 2024 ($100bn to $122bn). Over the same
+#: years the Federal Reserve production index for organic chemicals rises 0.4%,
+#: the producer price index for ``325199`` falls 4%, QCEW employment falls 1%,
+#: exports fall 20% ($40.0bn to $31.8bn), and AIES's own materials cost is flat
+#: (-1%), so receipts less materials would rise 53%. Price times production puts
+#: 2024 receipts near $96bn. BEA's own output rises 0.9%, which fits (#1211).
+BEA_HOLDS = frozenset({'325190'})
+
 
 def _f(value: object) -> float:
     """One frame or series scalar as a float.
@@ -141,8 +166,31 @@ def _f(value: object) -> float:
     return float(np.asarray(value).item())
 
 
+def _source_and_flow(year: int) -> tuple[str, str]:
+    """The FBA source and receipts flow name for one year."""
+    if year <= ANCHOR_YEAR:
+        return _EC_SOURCE, _EC_FLOW
+    return _AIES_SOURCE, _AIES_FLOW
+
+
 def _receipts_by_naics(year: int) -> pd.Series:
-    """Six-digit NAICS -> total receipts, $M, for one year.
+    """Six-digit NAICS -> total receipts, $M, for one year, as published."""
+    levels = _receipts_all_levels(year)
+    series = levels[
+        (levels.index.str.len() == 6) & levels.index.str.startswith(PREFIXES)
+    ]
+    if series.empty:
+        source, flow = _source_and_flow(year)
+        raise ValueError(f'no six-digit manufacturing {flow!r} in {source} {year}')
+    return series
+
+
+@functools.cache
+def _receipts_all_levels(year: int) -> pd.Series:
+    """NAICS code at three to six digits -> total receipts, $M, for one year.
+
+    Manufacturing plus the codes in :data:`UTILITY_CHAINS`. The parent levels
+    are what :func:`withheld_fill` recovers withheld six-digit codes from.
 
     ⚠️ **Read through :func:`getFlowByActivity`, not a parquet glob.** An earlier
     version globbed ``extract/output_data`` directly and raised
@@ -164,9 +212,7 @@ def _receipts_by_naics(year: int) -> pd.Series:
         THOUSAND_TO_MILLION,
     )
 
-    is_ec = year <= ANCHOR_YEAR
-    source = _EC_SOURCE if is_ec else _AIES_SOURCE
-    flow = _EC_FLOW if is_ec else _AIES_FLOW
+    source, flow = _source_and_flow(year)
     frame = pd.DataFrame(
         getFlowByActivity(source, int(year), download_FBA_if_missing=True)
     )
@@ -178,7 +224,9 @@ def _receipts_by_naics(year: int) -> pd.Series:
         raise ValueError(f'{flow!r} not found in {source} {year}')
 
     codes = rows['ActivityConsumedBy'].astype(str)
-    keep = codes.str.fullmatch(r'\d{6}') & codes.str.startswith(PREFIXES)
+    keep = codes.str.fullmatch(r'\d{3,6}') & (
+        codes.str.startswith(PREFIXES) | codes.isin(list(UTILITY_CHAINS.values()))
+    )
     series = (
         pd.Series(
             rows['FlowAmount'].astype(float).to_numpy() * THOUSAND_TO_MILLION,
@@ -188,11 +236,114 @@ def _receipts_by_naics(year: int) -> pd.Series:
         .sum()
     )
     if series.empty:
-        raise ValueError(f'no six-digit manufacturing {flow!r} in {source} {year}')
+        raise ValueError(f'no manufacturing {flow!r} in {source} {year}')
     return series.sort_index()
 
 
+def _fill_withheld() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().fill_withheld_aies_codes
+
+
+def _held_on_bea() -> frozenset[str]:
+    """:data:`BEA_HOLDS` when ``hold_aies_outliers_on_bea`` is set, else empty."""
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return BEA_HOLDS if get_usa_config().hold_aies_outliers_on_bea else frozenset()
+
+
+def _nearest_published(code: str, year: int) -> float:
+    """*code*'s receipts in the nearest other year that publishes it, $M.
+
+    Two years equally near give their geometric mean, so a 2023 gap takes the
+    midpoint of 2022 and 2024. ``NaN`` if no other year publishes the code.
+    """
+    found = {
+        other: float(_receipts_by_naics(other)[code])
+        for other in (ANCHOR_YEAR, *CHAINED_YEARS)
+        if other != year and code in _receipts_by_naics(other).index
+    }
+    found = {other: value for other, value in found.items() if value > 0.0}
+    if not found:
+        return float('nan')
+    nearest = min(abs(other - year) for other in found)
+    values = [value for other, value in found.items() if abs(other - year) == nearest]
+    return float(np.exp(np.mean(np.log(values))))
+
+
 @functools.cache
+def withheld_fill(year: int) -> pd.DataFrame:
+    """Six-digit codes AIES withholds in *year*, recovered from published parents.
+
+    ⚠️ **AIES withholds a six-digit code in one year and publishes it in the
+    other**, but still publishes its parent at five, four or three digits. The
+    parent minus its published six-digit codes is then the withheld codes'
+    total. In 2023, ``3251`` less its published codes leaves $162bn for
+    ``325110`` and ``325199`` together, against $178bn in 2022 and $190bn in
+    2024. Without this, ``325110`` falls back to BEA's movement and ``325190``
+    chains on ethanol and ``325194`` alone (#1230).
+
+    Only codes AIES publishes in its **other** year are filled. Codes in the
+    Economic Census but in neither AIES year are a classification difference,
+    not a withheld cell: AIES reports automobiles as ``336111``/``336112``
+    (NAICS 2017) where the Economic Census has ``336110``. Several withheld
+    siblings under one parent share the residual in proportion to
+    :func:`_nearest_published`. A parent with nothing left over fills nothing.
+
+    Columns: ``parent``, ``filled`` ($M), ``nearest`` ($M, the split weight).
+    """
+    columns = ['parent', 'filled', 'nearest']
+    if year not in CHAINED_YEARS:
+        return pd.DataFrame(columns=columns)
+    levels = _receipts_all_levels(year)
+    published = _receipts_by_naics(year)
+    elsewhere: set[str] = set()
+    for other in CHAINED_YEARS:
+        if other != year:
+            elsewhere |= set(_receipts_by_naics(other).index.astype(str))
+    withheld = sorted(elsewhere - set(published.index.astype(str)))
+
+    by_parent: dict[str, list[str]] = {}
+    for code in withheld:
+        parent = next((code[:n] for n in (5, 4, 3) if code[:n] in levels.index), None)
+        if parent is not None:
+            by_parent.setdefault(parent, []).append(code)
+
+    rows = []
+    for parent, codes in by_parent.items():
+        children = [c for c in published.index.astype(str) if c.startswith(parent)]
+        residual = float(levels[parent]) - float(published.reindex(children).sum())
+        if residual <= RELEASE_DUST_USD_M:
+            continue
+        weights = pd.Series({c: _nearest_published(c, year) for c in codes}).dropna()
+        weights = weights[weights > 0.0]
+        if weights.empty:
+            continue
+        for naics, weight in weights.items():
+            rows.append(
+                {
+                    'naics': str(naics),
+                    'parent': parent,
+                    'filled': residual * float(weight) / float(weights.sum()),
+                    'nearest': float(weight),
+                }
+            )
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return pd.DataFrame(rows).set_index('naics')[columns].sort_index()
+
+
+def _chain_receipts(year: int, fill: bool) -> pd.Series:
+    """Six-digit receipts for the chain, with withheld codes filled if *fill*."""
+    published = _receipts_by_naics(year)
+    if not fill:
+        return published
+    filled = withheld_fill(year)['filled'].astype(float)
+    filled = filled[~filled.index.isin(published.index)]
+    return pd.concat([published, filled]).sort_index()
+
+
 def receipts_by_bea(year: int) -> pd.Series:
     """BEA detail industry -> census receipts, $M.
 
@@ -200,11 +351,16 @@ def receipts_by_bea(year: int) -> pd.Series:
     already uses, so a NAICS code feeding several BEA industries is split the
     way BEA splits it rather than the way the census does.
     """
+    return _receipts_by_bea(year, _fill_withheld())
+
+
+@functools.cache
+def _receipts_by_bea(year: int, fill: bool) -> pd.Series:
     from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
         _allocation,
     )
 
-    receipts = _receipts_by_naics(year)
+    receipts = _chain_receipts(year, fill)
     allocation = _allocation(PREFIXES)
     hit = allocation[allocation['naics'].isin(receipts.index)].copy()
     if hit.empty:
@@ -214,8 +370,10 @@ def receipts_by_bea(year: int) -> pd.Series:
 
 
 @functools.cache
-def _common_naics(year: int) -> frozenset[str]:
+def _common_naics(year: int, fill: bool = False) -> frozenset[str]:
     """NAICS codes the census publishes in BOTH the anchor year and *year*.
+
+    With *fill*, codes :func:`withheld_fill` recovers count as published.
 
     ⚠️ **Coverage is not stable across years** -- 909 six-digit codes in 2022,
     883 in 2023, 868 in 2024 -- so a ratio built from each year's full
@@ -227,19 +385,23 @@ def _common_naics(year: int) -> frozenset[str]:
     # ``.index``, not the Series: ``frozenset(series)`` iterates the VALUES and
     # silently yields an empty intersection of floats.
     return frozenset(_receipts_by_naics(ANCHOR_YEAR).index.astype(str)) & frozenset(
-        _receipts_by_naics(year).index.astype(str)
+        _chain_receipts(year, fill).index.astype(str)
     )
 
 
-@functools.cache
 def receipts_on_common_basis(year: int, against: int) -> pd.Series:
     """Receipts by BEA industry, restricted to NAICS reporting in both years."""
+    return _receipts_on_common_basis(year, against, _fill_withheld())
+
+
+@functools.cache
+def _receipts_on_common_basis(year: int, against: int, fill: bool) -> pd.Series:
     from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
         _allocation,
     )
 
-    common = _common_naics(against if year == ANCHOR_YEAR else year)
-    receipts = _receipts_by_naics(year)
+    common = _common_naics(against if year == ANCHOR_YEAR else year, fill)
+    receipts = _chain_receipts(year, fill)
     allocation = _allocation(PREFIXES)
     hit = allocation[allocation['naics'].isin(common)].copy()
     hit['value'] = hit['naics'].map(receipts).astype(float) * hit['share'].astype(float)
@@ -291,8 +453,9 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
     fallback movement.  Returns a new frame; neither argument is mutated.
 
     Industries the census does not observe keep BEA's own movement off the
-    anchor year, and the final rescale is over **all** manufacturing industries
-    so that the observed and unobserved move onto one consistent total.
+    anchor year, as do those in :data:`BEA_HOLDS` when the hold is on. The
+    final rescale is over **all** manufacturing industries so that the observed
+    and unobserved move onto one consistent total.
     """
     out = adjusted.copy()
     members = [code for code in out.index.astype(str) if str(code).startswith(PREFIXES)]
@@ -303,11 +466,13 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
 
     anchor = out.loc[members, ANCHOR_YEAR].astype(float)
     raw_anchor = raw.loc[members, ANCHOR_YEAR].astype(float)
+    held = [code for code in members if code in _held_on_bea()]
 
     for year in CHAINED_YEARS:
         if year not in out.columns:
             continue
         census = chain_factors(year, members)
+        census.loc[held] = np.nan
         bea = (
             raw.loc[members, year].astype(float) / raw_anchor.replace(0.0, np.nan)
         ).fillna(1.0)
@@ -321,6 +486,46 @@ def apply_aies_chaining(adjusted: pd.DataFrame, raw: pd.DataFrame) -> pd.DataFra
     return out
 
 
+def utility_chain_factors(year: int) -> pd.Series:
+    """Census growth from :data:`ANCHOR_YEAR` to *year* for each of :data:`UTILITY_CHAINS`.
+
+    ``NaN`` where the census does not publish the code in both years, and the
+    caller then keeps BEA's own level.
+    """
+    base, later = _receipts_all_levels(ANCHOR_YEAR), _receipts_all_levels(year)
+    out = {}
+    for industry, naics in UTILITY_CHAINS.items():
+        b, y = base.get(naics, np.nan), later.get(naics, np.nan)
+        out[industry] = float(y) / float(b) if b > 0.0 and y > 0.0 else np.nan
+    return pd.Series(out, dtype=float)
+
+
+def apply_utility_chaining(panel: pd.DataFrame) -> pd.DataFrame:
+    """:data:`UTILITY_CHAINS` industries in 2023-24 on their census growth.
+
+    Each takes its own :data:`ANCHOR_YEAR` level times census growth. ⚠️ **No
+    total is held**, unlike :func:`apply_aies_chaining`: the level is what
+    disagrees with census and EIA, so holding a group would hand the correction
+    to a sibling (water, for gas distribution) on nothing observed. The summary
+    group is released instead (:func:`released_groups`), as
+    :func:`~bedrock.transform.iot.eia_utility_go_adjustment.apply_eia_utility_adjustment`
+    does for electricity. Returns a new frame; every other row and year is
+    returned unchanged.
+    """
+    out = panel.copy()
+    if ANCHOR_YEAR not in out.columns:
+        raise KeyError(f'the panel has no anchor year {ANCHOR_YEAR}')
+    for year in CHAINED_YEARS:
+        if year not in out.columns:
+            continue
+        factors = utility_chain_factors(year)
+        for industry in UTILITY_CHAINS:
+            factor = float(factors[industry])
+            if industry in out.index and np.isfinite(factor):
+                out.at[industry, year] = _f(out.at[industry, ANCHOR_YEAR]) * factor
+    return out
+
+
 #: A group total this conditioner does not move is free to stay held, so the
 #: release is not blanket. In $M; the panel's own dust scale.
 RELEASE_DUST_USD_M = 1.0
@@ -328,6 +533,9 @@ RELEASE_DUST_USD_M = 1.0
 
 def released_groups() -> frozenset[str]:
     """Summary groups whose published Supply row must give way, or empty.
+
+    With ``chain_gas_distribution_on_aies`` set, this always includes the group
+    of each :data:`UTILITY_CHAINS` industry, because that chain moves the level.
 
     ⚠️ **Why a release is needed at all.**
     :func:`~bedrock.transform.iot.nowcast_supply_go_control.fit_block`
@@ -374,8 +582,17 @@ def released_groups() -> frozenset[str]:
     )
     from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
 
-    if not get_usa_config().chain_manufacturing_on_aies:
-        return frozenset()
+    config = get_usa_config()
+    released: set[str] = set()
+    if config.chain_gas_distribution_on_aies:
+        # The chain moves the level, so the group always moves with it.
+        released.update(
+            _industry_parent()[code]
+            for code in UTILITY_CHAINS
+            if code in _industry_parent()
+        )
+    if not config.chain_manufacturing_on_aies:
+        return frozenset(released)
 
     raw = detail_gross_output_panel(ec_adjusted=False)
     held = apply_ec_adjustment(raw)
@@ -388,7 +605,6 @@ def released_groups() -> frozenset[str]:
     ]
     groups = pd.Series([parents[m] for m in members], index=members)
 
-    released: set[str] = set()
     for year in CHAINED_YEARS:
         if year not in raw.columns:
             continue
@@ -447,6 +663,77 @@ def report() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def filled_report() -> pd.DataFrame:
+    """Each filled code, its parent, and the growth it gives its BEA industry.
+
+    ``growth_published`` is the chain factor on published codes only and
+    ``growth_filled`` the factor with the fill, so the effect of the flag reads
+    off one row. Built here regardless of the flag.
+    """
+    from bedrock.analysis.nowcasting.ec_manufacturing_output_check import (  # noqa: PLC0415, E501
+        _allocation,
+    )
+
+    allocation = _allocation(PREFIXES)
+    frames = []
+    for year in CHAINED_YEARS:
+        fill = withheld_fill(year)
+        if fill.empty:
+            continue
+        frame = fill.reset_index().assign(year=year)
+        frame['bea'] = frame['naics'].map(
+            allocation.groupby('naics')['bea'].agg(lambda s: ','.join(sorted(set(s))))
+        )
+        for label, flag in (('growth_published', False), ('growth_filled', True)):
+            base = _receipts_on_common_basis(ANCHOR_YEAR, year, flag)
+            later = _receipts_on_common_basis(year, year, flag)
+            growth = (later / base.replace(0.0, np.nan)).astype(float)
+            frame[label] = frame['bea'].map(
+                lambda codes: growth.get(str(codes).split(',')[0], np.nan)
+            )
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True)
+    out[['filled', 'nearest']] = out[['filled', 'nearest']] / 1e3
+    return out.rename(columns={'filled': 'filled_bn', 'nearest': 'nearest_bn'})[
+        [
+            'year',
+            'naics',
+            'parent',
+            'filled_bn',
+            'nearest_bn',
+            'bea',
+            'growth_published',
+            'growth_filled',
+        ]
+    ]
+
+
+def _check_fill() -> list[str]:
+    """A fill never takes a parent past its published total, and is positive."""
+    failures = []
+    for year in CHAINED_YEARS:
+        fill = withheld_fill(year)
+        if fill.empty:
+            continue
+        levels = _receipts_all_levels(year)
+        published = _receipts_by_naics(year)
+        if (fill['filled'].astype(float) <= 0.0).any():
+            failures.append(f'{year} filled a code with a non-positive value')
+        for parent, rows in fill.groupby('parent'):
+            children = [c for c in published.index.astype(str) if c.startswith(parent)]
+            total = float(published.reindex(children).sum()) + float(
+                rows['filled'].sum()
+            )
+            if abs(total - float(levels[parent])) > RELEASE_DUST_USD_M:
+                failures.append(
+                    f'{year} {parent}: published children plus fill {total:,.1f} '
+                    f'!= parent {float(levels[parent]):,.1f}'
+                )
+    return failures
+
+
 def check() -> int:
     """Assert the invariants the module claims. Returns an exit code."""
     from bedrock.transform.iot.derived_intermediate_and_value_added import (  # noqa: PLC0415, E501
@@ -496,6 +783,8 @@ def check() -> int:
         if not bea > 0:
             failures.append(f'{year} has no measured BEA deviation to fix')
 
+    failures.extend(_check_fill())
+
     for line in failures:
         print(f'FAIL {line}')
     if failures:
@@ -515,6 +804,8 @@ def main() -> int:
     if args.report:
         pd.set_option('display.width', 200)
         print(report().round(3).to_string(index=False))
+        print('\nWithheld codes filled from their published parent (#1230):')
+        print(filled_report().round(3).to_string(index=False))
     if args.check or not args.report:
         return check()
     return 0
