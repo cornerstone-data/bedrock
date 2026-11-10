@@ -179,6 +179,7 @@ def test_balance_year_calls_assert_post_balance_hygiene(
     assembled.masks = {'use': mask, 'supply': mask}
     assembled.targets = MagicMock()
     assembled.sweep = pd.DataFrame()
+    assembled.column_pin = None  # no refinery pin (#1245); a mock would re-pin
 
     monkeypatch.setattr(
         'bedrock.transform.iot.nowcast_sut_assembly.assemble',

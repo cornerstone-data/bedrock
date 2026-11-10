@@ -30,6 +30,14 @@ stays on the old assignment, because in 2022 Census replaced several large
 "not elsewhere specified" codes and assigned the replacements differently from
 the codes that survived; ``335210`` small appliances exports then still fall
 from 6.4bn to 2.1bn between 2021 and 2022.
+
+Before any rule runs, the HS6 headings in ``NAICS_OVERRIDES`` take the NAICS
+code given there in every year's file (#670). Census assigns HS ``852351``,
+solid-state storage (SSDs, flash drives, memory cards), to blank recording
+media (``334613``, ``334610`` from 2023). BEA does not: it publishes 0.5bn of
+2017 imports for ``334610`` against 9.4bn of ``852351`` imports, and the
+computers family (``3341``) runs about 10bn short of published while
+``334610`` runs 9bn over.
 """
 
 from __future__ import annotations
@@ -55,6 +63,11 @@ LOW_VALUE_PREFIX = '988'
 LOW_VALUE_NAICS = '990000'
 
 HS_CORRELATION_CSV = 'HS2022_HS2017_correlation.csv'
+
+#: HS6 heading -> the NAICS code its product codes take in every year (#670).
+NAICS_OVERRIDES: dict[str, str] = {
+    '852351': '334112',  # solid-state storage: computer storage devices
+}
 
 _CONCORDANCE_PREFIX: dict[Flow, str] = {'exports': 'exp', 'imports': 'imp'}
 _CONCORDANCE_URL = (
@@ -201,8 +214,13 @@ def refresh_hs_correlation(out_dir: str) -> str:
 
 
 def concordance_by_year(frame: pd.DataFrame) -> dict[int, pd.Series]:
-    """The stacked concordance CSV as product code -> NAICS, per year."""
+    """The stacked concordance CSV as product code -> NAICS, per year.
+
+    Headings in ``NAICS_OVERRIDES`` take their override in every year.
+    """
     frame = frame.astype({'year': int, 'commodity': str, 'naics': str})
+    hs6 = frame['commodity'].str[:6]
+    frame['naics'] = hs6.map(NAICS_OVERRIDES).fillna(frame['naics'])
     return {
         year: frame.loc[frame['year'] == year].set_index('commodity')['naics']
         for year in sorted(int(y) for y in frame['year'].unique())

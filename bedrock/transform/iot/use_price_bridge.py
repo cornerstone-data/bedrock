@@ -39,7 +39,11 @@ from bedrock.transform.iot.margin_rates import (
     goods_commodities,
 )
 from bedrock.transform.iot.sut_use_to_mut_use import ReplayReport, score_replay
-from bedrock.transform.iot.tax_subsidy_layer import FiscalLayer, build_fiscal_layer
+from bedrock.transform.iot.tax_subsidy_layer import (
+    FiscalLayer,
+    build_fiscal_layer,
+    restrict_to_cells,
+)
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.matrix_mappings import USA_BENCHMARK_DETAIL_SUT_YEARS
 
@@ -61,10 +65,13 @@ def price_bridge(
         transactions' ``Purchasers' Value``.
     """
     rates = panel if panel is not None else build_rate_panel(year)
-    layer = fiscal if fiscal is not None else build_fiscal_layer(year)
     purchaser = _goods_grid(use_purchaser)
-
-    layer = _restrict_fiscal(layer, purchaser)
+    trade = (rates.rates['whl'] + rates.rates['ret']) * purchaser
+    layer = (
+        restrict_to_cells(fiscal, purchaser, trade)
+        if fiscal is not None
+        else build_fiscal_layer(year, cells=purchaser, trade=trade)
+    )
     producer = rates.rates['pro'] * purchaser
     margins = margin_columns(purchaser, rates, layer)
     sales_tax = layer.sales_tax
@@ -559,10 +566,6 @@ REPLAYS: tuple[
 #: Both row identities are exact arithmetic; this is float noise, not slack.
 ROW_IDENTITY_TOLERANCE = 1.0
 
-#: How much of a fiscal wedge may land on a commodity the purchaser table has
-#: no live cell for before it counts as lost rather than rounded.
-UNREACHABLE_FISCAL_TOLERANCE: float = 100 * MILLION_CURRENCY_TO_CURRENCY
-
 #: How far each collapsed column may sit from the published table on a
 #: same-year replay, $M. Measured; the residual is the rate panel's cell-floor
 #: fallback, not this module's placement.
@@ -616,33 +619,6 @@ def _goods_grid(use_purchaser: pd.DataFrame) -> pd.DataFrame:
     grid.index.name = 'Commodity Code'
     grid.columns.name = 'Industry Code'
     return grid.astype(float)
-
-
-def _restrict_fiscal(layer: FiscalLayer, purchaser: pd.DataFrame) -> FiscalLayer:
-    """*layer* re-spread onto the cells *purchaser* actually has. USD.
-
-    ⚠️ **``build_fiscal_layer`` allocates on the anchor's cell pattern**, so a
-    Use table with a different one - any nowcast year, or a subset - would book
-    tax on cells that do not exist and miss the ones that do. Rescaling within
-    each commodity keeps the column identity against the Supply bridge, which
-    is the only thing grading this layer.
-    """
-    frames = {}
-    live = purchaser != 0.0
-    for name in ('sales_tax', 'top_rest', 'duties', 'subsidies'):
-        frame = getattr(layer, name).reindex_like(purchaser).fillna(0.0)
-        kept = frame.where(live, 0.0)
-        before, after = frame.sum(axis=1), kept.sum(axis=1)
-        stranded = float((before - after)[after == 0.0].abs().sum())
-        assert stranded < UNREACHABLE_FISCAL_TOLERANCE, (
-            f'{stranded / MILLION_CURRENCY_TO_CURRENCY:,.0f} $M of {name} sits '
-            f'on commodities the purchaser table has no cell for, so it cannot '
-            f'be re-spread and would vanish.'
-        )
-        frames[name] = kept.mul(
-            (before / after.where(after != 0.0)).fillna(0.0), axis=0
-        )
-    return layer._replace(**frames)
 
 
 def _strip_sales_tax(

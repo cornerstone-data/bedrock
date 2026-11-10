@@ -192,8 +192,13 @@ def test_later_years_carry_the_excess_on_retail_revenue() -> None:
     assert total(60.0) - total(0.0) == pytest.approx(60.0 * 1.2)
 
 
-def test_the_level_flag_is_off_and_needs_the_residual() -> None:
+def test_the_level_flag_is_off_by_default_and_needs_the_residual(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     assert USAConfig.model_fields['electric_output_on_eia_level'].default is False
+    monkeypatch.setattr(
+        get_usa_config(), 'electric_output_on_eia_level', False, raising=True
+    )
     assert ear.level_excess() == 0.0
     with pytest.raises(ValueError, match='electric_output_on_eia_level requires'):
         USAConfig.model_validate(

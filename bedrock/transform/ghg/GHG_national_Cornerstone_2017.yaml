@@ -1,7 +1,7 @@
 # Cornerstone GHG national method, inventory year 2017.
 # Nowcast Use attribution, facility combustion, and on-road gasoline and
 # diesel via highway fuel shares. Uses UMD GHGIA FBAs. Some nested EPA GHGI
-# tables remain for soils / NEU allocation and fluorochemical MT detail.
+# tables remain for agricultural soils N2O attribution.
 # Nested EPA attribution FBAs for 2017/2018 are only available on GCS
 # (labeled v2.0.3); raw EPA GHGI releases do not go back before 2019.
 # When running generateFlowBySector(), set download_sources_ok=True.
@@ -1040,25 +1040,25 @@ source_names:
       PrimaryActivity: HCFC-22 Production
     attribution_method: direct
 
-  UMD_GHGIA_T_4_35: # Fluorochemical production (in CO2e)
+  UMD_GHGIA_T_4_35: # Fluorochemical production
     year: *ghgi_year
     activity_to_sector_mapping: UMD_GHGIA
     fedefl_mapping: UMD_GHGIA_AR5_100
-    selection_fields:
-      PrimaryActivity: Fluorochemical Production
-      FlowName: ["Other PFCs", "Other HFCs"]
-    attribution_method: direct
-
-  # TODO: Note that this is EPA GHGI data, not UMD GHGIA, as UMD does not publish this data
-  EPA_GHGI_T_4_64: # Fluorochemical production (MT)
-     year: *epa_ghgi_year
-     activity_to_sector_mapping: EPA_GHGI_Cornerstone
-     fedefl_mapping: GHGI_AR5_100
-     selection_fields:
-       PrimaryActivity: Fluorochemical Production
-     exclusion_fields:
-       FlowName: ["Other PFCs", "Other HFCs"]
-     attribution_method: direct
+    activity_sets:
+      other_co2e:
+        selection_fields:
+          PrimaryActivity: Fluorochemical Production
+          FlowName: ["Other PFCs", "Other HFCs"]
+        attribution_method: direct
+      named_gases:
+        selection_fields:
+          PrimaryActivity: Fluorochemical Production
+        exclusion_fields:
+          FlowName: ["Other PFCs", "Other HFCs"]
+        clean_fba_before_mapping: !script_function:UMD_GHGIA convert_co2e_to_mt_by_gwp
+        clean_parameter:
+          gwp: AR5
+        attribution_method: direct
 
   UMD_GHGIA_T_4_52: # HFCs, SF6, CO2 from magnesium production
     year: *ghgi_year

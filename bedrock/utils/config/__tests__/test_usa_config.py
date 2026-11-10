@@ -423,10 +423,10 @@ def test_v0_6_matches_v0_5_9_transport() -> None:
 @pytest.mark.parametrize('year', range(2017, 2025))
 def test_v1_0_yearly_yamls_load(year: int) -> None:
     """v1.0 year series: v0.6 methodology on retained-activity year FBS, plus the
-    electricity flags its MUT was built with.
+    electricity flags its MUT was built with and the delivery sector.
 
     Named ``2026_usa_cornerstone_v1_0_{year}``. Each member pins
-    ``GHG_national_Cornerstone_{year}_v1.0.0_edf6e0e``. The unsuffixed
+    ``GHG_national_Cornerstone_{year}_v1.0.0_038e753``. The unsuffixed
     ``2026_usa_cornerstone_v1_0`` (live ``CANONICAL_USA_CONFIG``) matches
     the 2024 series member. ``2025_usa_cornerstone_v0_6`` keeps the
     facilities-transportation 2024 pin for the v0.6 release / waterfall FINAL.
@@ -444,17 +444,29 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
     assert not cfg.deflate_x_to_detail_io_year_for_B
     assert cfg.bea_price_index_vintage == '2026Q2'
     assert cfg.cornerstone_ghg_fbs_filename == (
-        f'GHG_national_Cornerstone_{year}_v1.0.0_edf6e0e.parquet'
+        f'GHG_national_Cornerstone_{year}_v1.0.0_038e753.parquet'
     )
-    assert cfg.nowcast_mut_vintage == 'v1.0.0_b17908f'
+    assert cfg.nowcast_mut_vintage == 'v1.0.0_e5fa35b'
     electricity_flags = {
         'electric_output_on_retail_revenue',
         'electricity_accounting_residual',
         'carry_power_petroleum_on_price',
         'reprice_oil_gas_extraction_seed',
         'hold_electric_gas_on_eia',
+        'electric_output_on_eia_level',
+        'electricity_delivery_margin',
     }
     assert all(getattr(cfg, flag) for flag in electricity_flags)
+    # Fixes merged 2026-11-10 for the next rebuild (#1249).
+    rebuild_flags = {
+        'fill_withheld_aies_codes',
+        'hold_aies_outliers_on_bea',
+        'chain_gas_distribution_on_aies',
+        'chain_transport_margins_across_aies',
+        'cap_margins_at_purchase',
+        'pin_refinery_secondaries_at_go_mix',
+    }
+    assert all(getattr(cfg, flag) for flag in rebuild_flags)
 
     exclude = {
         'model_base_year',
@@ -463,6 +475,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'cornerstone_ghg_fbs_filename',
         'nowcast_mut_vintage',
         *electricity_flags,
+        *rebuild_flags,
     }
     assert cfg.model_dump(exclude=exclude) == release.model_dump(exclude=exclude)
 
@@ -488,35 +501,12 @@ def test_v1_0_release_yaml_matches_2024_series_member() -> None:
     y2024 = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_2024.yaml')
     assert base.model_dump() == y2024.model_dump()
     assert base.cornerstone_ghg_fbs_filename == (
-        'GHG_national_Cornerstone_2024_v1.0.0_edf6e0e.parquet'
+        'GHG_national_Cornerstone_2024_v1.0.0_038e753.parquet'
     )
     set_global_usa_config('2026_usa_cornerstone_v1_0.yaml')
     assert _select_cornerstone_ghg_fbs_base_name() == 'GHG_national_Cornerstone_2024'
     reset_usa_config(should_reset_env_var=True)
     assert CANONICAL_USA_CONFIG == '2026_usa_cornerstone_v1_0'
-
-
-@pytest.mark.parametrize('year', range(2017, 2025))
-def test_v1_0_1_differs_from_v1_0_only_by_its_electricity_changes(year: int) -> None:
-    cfg = _load_usa_config_from_file_name(f'2026_usa_cornerstone_v1_0_1_{year}.yaml')
-    v1_0 = _load_usa_config_from_file_name(f'2026_usa_cornerstone_v1_0_{year}.yaml')
-    assert cfg.electric_output_on_eia_level and cfg.electricity_delivery_margin
-    assert not v1_0.electric_output_on_eia_level
-    assert not v1_0.electricity_delivery_margin
-    assert cfg.nowcast_mut_vintage == 'v1.0.0_e5fa35b'
-    exclude = {
-        'electric_output_on_eia_level',
-        'electricity_delivery_margin',
-        'nowcast_mut_vintage',
-        'cornerstone_ghg_fbs_filename',
-    }
-    assert cfg.model_dump(exclude=exclude) == v1_0.model_dump(exclude=exclude)
-
-
-def test_v1_0_1_release_yaml_matches_2024_series_member() -> None:
-    base = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_1.yaml')
-    y2024 = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_1_2024.yaml')
-    assert base.model_dump() == y2024.model_dump()
 
 
 def test_v0_4_release_yaml_loads() -> None:
