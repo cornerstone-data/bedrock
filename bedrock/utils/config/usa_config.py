@@ -324,12 +324,14 @@ class USAConfig(BaseModel):
     # reproduces the pinned tables (test_nowcast_balanced_sut_pin).
     reprice_oil_gas_extraction_seed: bool = False  # DRI: WesIngwersen
     # Hold refinery co-product Supply cells (324110 -> 325110 / 325190) at each
-    # year's seed share times the T17-at-seed 324110 column pin through Step 5
-    # GRAS. Without this, a negative 324110 column residual (2022: seed Make
-    # ~$19bn over the industry pin) lets GRAS fund short secondaries by cutting
-    # own-product, lifting the 325110 share from ~3.35% (GO / EIA-near) to
-    # ~3.92%. The free cells of the column, mostly own-product, absorb the
-    # residual (424700 stays free unless smoke shows otherwise). OFF until
+    # year's seed share of the 324110 column through Step 5 GRAS, re-pinned on
+    # the balanced column until each share is within 0.05 pp (the balance moves
+    # the column's tax rows). Without this, a negative 324110 column residual
+    # (2022: seed Make ~$19bn over the industry pin) lets GRAS fund short
+    # secondaries by cutting own-product, lifting the 325110 share from ~3.35%
+    # (GO / EIA-near) to ~3.92%. The free cells of the column, mostly
+    # own-product, absorb the residual (424700 stays free unless smoke shows
+    # otherwise). OFF until
     # smoke on 2026_usa_cornerstone_v1_0_* confirms 2022 stays near GO and 2024
     # near ~2.7%. See nowcast_sut_assembly.apply_refinery_secondaries_go_mix_pin
     # and #1229.
