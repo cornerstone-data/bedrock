@@ -203,7 +203,7 @@ def get_waste_disagg_provenance() -> WeightDerivationProvenance | None:
 
 
 def _clear_delivery_state_if_loaded() -> None:
-    """Invalidate electricity_delivery cache that snapshots after-waste tables."""
+    """Sole clearer for electricity_delivery ``_delivery_state`` (after-waste snapshot)."""
     ed = sys.modules.get('bedrock.transform.eeio.electricity_delivery')
     if ed is None:
         return
@@ -214,6 +214,7 @@ def _clear_delivery_state_if_loaded() -> None:
 
 
 def clear_waste_disagg_weights_cache() -> None:
+    """Clear waste weights/provenance and ``_derive_waste_balanced_io`` (sole site)."""
     _WASTE_WEIGHTS_CACHE.clear()
     _WASTE_PROVENANCE_CACHE.clear()
     _derive_waste_balanced_io.cache_clear()
