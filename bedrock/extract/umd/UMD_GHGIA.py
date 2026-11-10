@@ -30,7 +30,7 @@ from bedrock.transform.flowbyfunctions import (
     load_fba_w_standardized_units,
 )
 from bedrock.transform.ghg import ghgrp_subpart_w
-from bedrock.utils.emissions.gwp import GWP100_AR5
+from bedrock.utils.emissions.gwp import GWP100_AR5, GWP100_AR5_CEDA, GWP100_AR6_CEDA
 from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -1317,3 +1317,29 @@ def calc_per_fuel_emissions(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivi
     )
     merged['Unit'] = 'MMT CO2e'
     return merged.drop(columns=['Fuel', 'Coefficient', 'Fraction'])
+
+
+def convert_co2e_to_mt_by_gwp(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """Convert MMT CO2e emissions to MT using clean_parameter.gwp (AR5 or AR6).
+
+    Uses GWP100_*_CEDA (named F-gas GWPs). Plain GWP100_AR5/AR6 only have
+    CO2/CH4/N2O/SF6. FlowName unchanged for FEDEFL; aliases are GWP keys only.
+    """
+    params = fba.config['clean_parameter']
+    gwp_tables: dict[str, dict[str, float]] = {
+        'AR5': {str(k): float(v) for k, v in GWP100_AR5_CEDA.items()},
+        'AR6': {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()},
+    }
+    gwp_table = gwp_tables[params['gwp']]
+    gwp_keys = fba['FlowName'].replace(
+        {
+            'Perfluorocyclobutane': 'c-C4F8',
+            'PFC-14 (Perfluoromethane)': 'CF4',
+            'Nitrogen trifluoride': 'NF3',
+            'Sulfur hexafluoride': 'SF6',
+        }
+    )
+    return fba.assign(
+        FlowAmount=fba['FlowAmount'] * 1e6 / gwp_keys.map(gwp_table),
+        Unit='MT',
+    )
