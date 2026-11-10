@@ -19,10 +19,11 @@ Skips rather than fails when the 2017 after-redef artifact is not on GCS.
 
 ⚠️ **The build is pinned here, not resolved as the latest upload.** The config
 omits ``nowcast_mut_vintage``, so the loader takes whatever 2017 Make was
-uploaded last. On 2026-11-09 that became ``v1.0.0_e5fa35b``, from the v1.0.1
-alternative model, which deliberately moves 2017 electricity output to the EIA
-level. Its 2017 totals sit $57bn (0.17%) off the published Make, and the test
-failed on every branch. :data:`PINNED_VINTAGE` is the v1.0 release build.
+uploaded last. On 2026-11-09 that became ``v1.0.0_e5fa35b``, which
+deliberately moves 2017 electricity output to the EIA level (now the v1.0
+build). Its 2017 totals sit $57bn (0.17%) off the published Make, and the test
+failed on every branch. :data:`PINNED_VINTAGE` is the last v1.0 build with
+electricity output on BEA's 2017 level.
 """
 
 from __future__ import annotations
