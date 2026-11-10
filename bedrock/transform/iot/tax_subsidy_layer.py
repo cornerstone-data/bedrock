@@ -123,78 +123,147 @@ def top_sales_share(year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017) -> pd.Series:
 
 
 def _shares(base: pd.DataFrame) -> pd.DataFrame:
-    total = base.sum(axis=1)
-    return base.div(total.where(total != 0.0), axis=0).fillna(0.0)
+    """Row shares of the *positive* part of *base*.
+
+    ⚠️ Negative cells (inventory draw-downs on ``F03000``) take no share. A
+    signed base nets toward zero on some rows - ``S00402`` nets to $3M on
+    $287bn gross - and the shares then put huge offsetting amounts on its
+    cells (#1240). On a positive base every share is in ``[0, 1]``, so each
+    cell carries the sign of its commodity's total.
+    """
+    positive = base.clip(lower=0.0)
+    total = positive.sum(axis=1)
+    return positive.div(total.where(total != 0.0), axis=0).fillna(0.0)
 
 
 #: The four per-cell frames of a :class:`FiscalLayer`.
-FISCAL_FRAMES: tuple[str, ...] = ('sales_tax', 'top_rest', 'duties', 'subsidies')
+FISCAL_FRAMES: tuple[str, ...] = tuple(f for f in FiscalLayer._fields if f != 'year')
 
-#: How far a commodity total may move in the re-spread, USD. The module's
-#: 0.0 $M standard: the re-spread is a per-commodity rescale, so this is float
-#: noise on totals up to about 1e11 USD. Tax with no live cell to go to is not
-#: noise, so it is held to the same bound.
+#: How far any one commodity total may move in the re-spread, USD. The
+#: module's 0.0 $M standard: the re-spread conserves each total by
+#: construction, so this is float noise on totals up to about 1e11 USD. Tax
+#: with no live cell to go to is not noise, so it is held to the same bound.
 CONSERVATION_TOLERANCE: float = 1.0
 
 
 def build_fiscal_layer(
     year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017,
     cells: pd.DataFrame | None = None,
+    trade: pd.DataFrame | None = None,
 ) -> FiscalLayer:
     """Allocate the year's published wedges per cell. See the module docstring.
 
     Bases: the sales-tax wedge follows retail-margin dollars (wholesale
     dollars where a commodity has a wedge but no retail base - those are
     wholesale-collected excises); ``top_rest``/``duties``/``subsidies``
-    follow producers'-value use.
+    follow producers'-value use. Both bases count positive cells only.
 
     ⚠️ **Pass *cells* for any table other than the anchor itself.** The
     allocation runs on *year*'s own cell pattern. A Use table with another
     pattern - any nowcast year, or a subset - has no cell for some of that tax.
-    *cells* is that table, commodity x buyer; its nonzero cells become the
-    layer's support through :func:`restrict_to_cells`.
+    *cells* is that table, commodity x buyer, and *trade* its wholesale plus
+    retail margin per cell; see :func:`restrict_to_cells`.
     """
     layer = _allocate(year)
-    return layer if cells is None else restrict_to_cells(layer, cells)
+    return layer if cells is None else restrict_to_cells(layer, cells, trade)
 
 
-def restrict_to_cells(layer: FiscalLayer, cells: pd.DataFrame) -> FiscalLayer:
-    """*layer* re-spread onto the nonzero cells of *cells*, USD.
+def _target_grid(cells: pd.DataFrame) -> pd.DataFrame:
+    """*cells* on the layer's grid, goods x :data:`BUYER_CODES`, zero-filled.
 
-    Within each commodity, the tax on cells that *cells* does not have moves
-    onto the cells it has, in proportion to what those cells already carry.
-    The result keeps the layer's grid (goods commodity x buyer) and is zero
-    off the live cells.
-
-    Raises ``ValueError`` if any commodity total moves by
-    :data:`CONSERVATION_TOLERANCE` or more. That includes a commodity whose
-    tax sits only on cells *cells* does not have: it has nowhere to go and
-    would vanish.
+    Raises ``ValueError`` if *cells* carries values outside that grid - a total
+    column such as ``T001``, or a non-goods row - so they cannot become live
+    cells by accident.
     """
-    live = (
-        cells.reindex(index=layer.sales_tax.index, columns=layer.sales_tax.columns)
-        .fillna(0.0)
-        .astype(float)
-        != 0.0
+    frame = cells.fillna(0.0).astype(float)
+    goods, buyers = goods_commodities(), list(BUYER_CODES)
+    outside = frame.loc[~frame.index.isin(goods)].abs().sum(axis=1).gt(0.0).sum() + (
+        frame.loc[:, ~frame.columns.isin(buyers)].abs().sum().gt(0.0).sum()
     )
+    if outside:
+        extra = [c for c in frame.columns if c not in buyers][:5]
+        raise ValueError(
+            f'cells has {outside} nonzero rows or columns off the goods x buyer '
+            f'grid (columns such as {extra}); pass the buyer block only.'
+        )
+    return frame.reindex(index=goods, columns=buyers).fillna(0.0)
+
+
+def restrict_to_cells(
+    layer: FiscalLayer,
+    cells: pd.DataFrame,
+    trade: pd.DataFrame | None = None,
+) -> FiscalLayer:
+    """*layer* re-spread onto the live cells of *cells*, USD.
+
+    A cell is live where the target buys a positive amount. For ``sales_tax``
+    it must also carry a positive trade margin in *trade* (the target's
+    wholesale plus retail margin per cell), because the tax comes back out of
+    that margin in ``use_price_bridge._strip_sales_tax``; exports are never
+    live for it. Leave *trade* off only for a table with no margins, and the
+    sales tax then follows purchases.
+
+    Within each commodity, live cells keep the tax they carry and the tax on
+    dead cells is added onto them pro rata: the rescale ``kept * before /
+    after``. The allocation puts each commodity's tax on one sign only, so the
+    rescale cannot flip a cell. A commodity whose live cells carry no anchor
+    tax spreads on the target's own base instead: its purchases, or its trade
+    margin for ``sales_tax``.
+
+    The result is on the goods x :data:`BUYER_CODES` grid and zero off the
+    live cells.
+
+    Raises ``ValueError`` if any one commodity total, or the total across
+    commodities, moves by :data:`CONSERVATION_TOLERANCE` or more. That happens
+    only where a commodity has nowhere to go, and its tax would vanish. Also
+    raises if a cell's tax flips sign, which only a hand-built layer that
+    mixes signs within a commodity can cause.
+    """
+    grid = _target_grid(cells)
+    purchases = grid.clip(lower=0.0)
+    if trade is not None:
+        margin = _target_grid(trade).clip(lower=0.0).where(purchases > 0.0, 0.0)
+    else:
+        margin = purchases.copy()
+    margin['F04000'] = 0.0
+    bases = {
+        name: margin if name == 'sales_tax' else purchases for name in FISCAL_FRAMES
+    }
+
     frames = {}
     for name in FISCAL_FRAMES:
         frame = getattr(layer, name)
-        kept = frame.where(live, 0.0)
-        before, after = frame.sum(axis=1), kept.sum(axis=1)
-        stranded = float(before.where(after == 0.0, 0.0).abs().sum())
-        if stranded >= CONSERVATION_TOLERANCE:
+        base = bases[name]
+        before = frame.sum(axis=1)
+        kept = frame.reindex_like(grid).fillna(0.0).where(base > 0.0, 0.0)
+        moved = before.reindex(grid.index).fillna(0.0) - kept.sum(axis=1)
+        weight = kept.abs()
+        unweighted = weight.sum(axis=1) == 0.0
+        weight.loc[unweighted] = base.loc[unweighted]
+        spread = kept + _shares(weight).mul(moved, axis=0)
+
+        drift = before - spread.sum(axis=1).reindex(before.index).fillna(0.0)
+        lost = drift.abs()[drift.abs() >= CONSERVATION_TOLERANCE]
+        if not lost.empty or abs(drift.sum()) >= CONSERVATION_TOLERANCE:
+            if name != 'sales_tax':
+                where = 'no cell the target buys'
+            elif trade is not None:
+                where = 'no cell with a trade margin, exports excepted'
+            else:
+                where = 'no live cell other than exports'
+            largest = lost.idxmax() if not lost.empty else drift.abs().idxmax()
             raise ValueError(
-                f'{stranded:,.0f} USD of {name} sits on commodities the target '
-                f'table has no live cell for, so it cannot be re-spread and '
-                f'would vanish.'
+                f'{drift.abs().sum():,.0f} USD of {name} on {len(lost)} commodities '
+                f'(largest {largest}, {drift.abs().max():,.0f} USD) would vanish: '
+                f'the target table has {where} to re-spread it onto.'
             )
-        spread = kept.mul((before / after.where(after != 0.0)).fillna(0.0), axis=0)
-        drift = (spread.sum(axis=1) - before).abs()
-        if float(drift.max()) >= CONSERVATION_TOLERANCE:
+        flipped = (spread * kept < 0.0) & (spread.abs() >= CONSERVATION_TOLERANCE)
+        if flipped.to_numpy().any():
+            commodity = flipped.any(axis=1).idxmax()
             raise ValueError(
-                f'the re-spread of {name} moved commodity totals by up to '
-                f'{float(drift.max()):,.2f} USD ({drift.idxmax()}).'
+                f'{name} on {int(flipped.to_numpy().sum())} cells flips sign in the '
+                f're-spread (first {commodity}): the layer mixes signs within a '
+                f'commodity, which the allocation never does.'
             )
         frames[name] = spread
     return layer._replace(**frames)

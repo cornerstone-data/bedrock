@@ -66,10 +66,11 @@ def price_bridge(
     """
     rates = panel if panel is not None else build_rate_panel(year)
     purchaser = _goods_grid(use_purchaser)
+    trade = (rates.rates['whl'] + rates.rates['ret']) * purchaser
     layer = (
-        restrict_to_cells(fiscal, purchaser)
+        restrict_to_cells(fiscal, purchaser, trade)
         if fiscal is not None
-        else build_fiscal_layer(year, cells=purchaser)
+        else build_fiscal_layer(year, cells=purchaser, trade=trade)
     )
     producer = rates.rates['pro'] * purchaser
     margins = margin_columns(purchaser, rates, layer)
