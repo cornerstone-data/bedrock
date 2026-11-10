@@ -166,6 +166,9 @@ def _build_model_info_df(config_name: str) -> pd.DataFrame:
 
 
 def _build_commodities_meta_df() -> pd.DataFrame:
+    from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+        published_label,
+    )
     from bedrock.utils.taxonomy.cornerstone.commodities import (
         COMMODITIES,
         COMMODITY_DESC,
@@ -177,7 +180,8 @@ def _build_commodities_meta_df() -> pd.DataFrame:
                 'Code': code,
                 'Code_Loc': f'{code}/{PUBLISH_LOCATION}',
                 'Location': PUBLISH_LOCATION,
-                'Name': COMMODITY_DESC[code],
+                # The code stays on the matrix axes; only the name changes here.
+                'Name': published_label(code, COMMODITY_DESC[code])[1],
             }
             for code in COMMODITIES
         ]

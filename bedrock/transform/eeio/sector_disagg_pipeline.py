@@ -254,6 +254,11 @@ def derive_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
     return Udom_cs, Uimp_cs
 
 
+def derive_y_after_waste() -> pd.DataFrame:
+    """Correspondence-mapped Y after waste disaggregation."""
+    return _derive_y_before_electricity_disagg()
+
+
 def _derive_y_before_electricity_disagg() -> pd.DataFrame:
     """Correspondence-mapped Y after waste disagg, before electricity row split."""
     ytot_orig = load_detail_Ytot_usa()
@@ -279,6 +284,13 @@ def derive_VA_after_waste() -> pd.DataFrame:
 @functools.cache
 def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
     """Correspondence + waste (+ optional electricity). Uninflated dollars of the detail IO year."""
+    if get_usa_config().electricity_delivery_margin:
+        from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+            restructured_tables,
+        )
+
+        V, Udom, Uimp, VA, _ = restructured_tables()
+        return CornerstoneDisaggIOBundle(V=V, Udom=Udom, Uimp=Uimp, VA=VA)
     V = derive_V_after_waste()
     Udom, Uimp = derive_U_after_waste()
     VA = derive_VA_after_waste()
@@ -300,6 +312,12 @@ def derive_disagg_io_bundle() -> CornerstoneDisaggIOBundle:
 @functools.cache
 def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
     """Correspondence-mapped Y with optional waste and electricity disagg."""
+    if get_usa_config().electricity_delivery_margin:
+        from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+            restructured_tables,
+        )
+
+        return restructured_tables()[4]
     Ytot_orig = load_detail_Ytot_usa()
     Ytot = commodity_corresp() @ Ytot_orig
     Ytot.index.name = 'sector'
