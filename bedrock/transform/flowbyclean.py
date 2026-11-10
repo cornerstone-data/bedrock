@@ -11,6 +11,7 @@ from typing_extensions import deprecated
 
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.flowby import FB, _FlowBy, get_flowby_from_config
+from bedrock.transform.flowbyfunctions import load_fba_w_standardized_units
 from bedrock.transform.flowbysector import FlowBySector
 from bedrock.utils.config.common import get_catalog_info
 from bedrock.utils.logging.flowsa_log import log
@@ -1119,3 +1120,51 @@ def negate_flows(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     :return: the FlowByActivity with FlowAmount negated
     """
     return fba.assign(FlowAmount=-fba['FlowAmount'])
+
+
+def scale_by_weight(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    """
+    Replace a matched activity's FlowAmount with
+    ``activity_total * (weight_Y / weight_sum)``.
+
+    Loads one year of a weight FBA. Used
+    for Industrial Coking Coal NEU (#1202): keep the multi-year NEU sum; retime
+    years with Table 4-43 coal tar.
+
+    :param fba: FlowByActivity whose matched activity FlowAmount is replaced
+    :return: the FlowByActivity with the matched activity scaled
+    """
+    params = fba.config['clean_parameter']
+    activity = params['activity']
+    activity_total = float(params['activity_total'])
+    weight_sum = float(params['weight_sum'])
+    weight_activity = params['weight_activity']
+    weight = load_fba_w_standardized_units(
+        datasource=params['weight_fba'],
+        year=int(params['weight_year']),
+        download_FBA_if_missing=True,
+    )
+    weight_y = float(
+        weight.loc[
+            (weight['ActivityProducedBy'].astype(str) == str(weight_activity))
+            | (weight['ActivityConsumedBy'].astype(str) == str(weight_activity))
+        ]['FlowAmount'].sum()
+    )
+    scaled = activity_total * (weight_y / weight_sum)
+    mask = (fba['ActivityProducedBy'].astype(str) == str(activity)) | (
+        fba['ActivityConsumedBy'].astype(str) == str(activity)
+    )
+    if not mask.any():
+        log.warning(
+            f'No rows matching activity {activity} in {fba.full_name}; '
+            f'skipping scale_by_weight'
+        )
+        return fba
+    out = fba.copy()
+    out.loc[mask, 'FlowAmount'] = scaled
+    log.info(
+        f'Scaled {activity} in {fba.full_name} to {scaled} '
+        f'(activity_total={activity_total}, weight_Y={weight_y}, '
+        f'weight_sum={weight_sum})'
+    )
+    return out
