@@ -22,7 +22,10 @@ from bedrock.extract.disaggregation.waste_static_rules import (
 )
 from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
 from bedrock.extract.iot.io_2017 import load_2017_value_added_usa
+from bedrock.publish.cache_reset import clear_all_publish_caches
+from bedrock.transform.eeio import sector_disagg_pipeline as sdp
 from bedrock.transform.eeio.sector_disagg_pipeline import (
+    clear_waste_disagg_weights_cache,
     derive_disagg_Ytot_with_trade,
 )
 from bedrock.transform.eeio.usa_expansion import industry_corresp
@@ -41,7 +44,26 @@ from bedrock.transform.eeio.waste_disaggregation import (
     compute_waste_q_targets,
     reconcile_waste_make_and_va_to_use,
 )
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.economic.inflation_helpers_usa import clear_usa_inflation_caches
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+
+
+def _setup_waste_off_for_real_matrices() -> None:
+    """Load real matrices under waste-off so fixtures never hit match_io/EC."""
+    clear_waste_disagg_weights_cache()
+    clear_usa_inflation_caches()
+    clear_all_publish_caches()
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config("test_usa_config_waste_disagg_off")
+
+
+def _teardown_usa_config() -> None:
+    clear_waste_disagg_weights_cache()
+    clear_usa_inflation_caches()
+    clear_all_publish_caches()
+    reset_usa_config(should_reset_env_var=True)
+
 
 WASTE = ["562111", "562212", "562910"]
 ORIG = "562000"
@@ -551,18 +573,29 @@ def weights_2017() -> DisaggWeights:
 @pytest.fixture(scope="module")
 def real_V() -> pd.DataFrame:
     """Cornerstone Make matrix (industry x commodity) from usa_matrices.
-    May already have waste disaggregated (7 subsectors, no 562000) via correspondence.
+
+    Loaded under waste-off so canonical match_io does not pull Census EC.
+    May already have waste children via correspondence (no 562000).
     """
-    return derive_V()
+    _setup_waste_off_for_real_matrices()
+    try:
+        return derive_V()
+    finally:
+        _teardown_usa_config()
 
 
 @pytest.fixture(scope="module")
 def real_U() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Cornerstone Use (Udom, Uimp), commodity x industry, from usa_matrices.
-    May already have waste disaggregated (7 subsectors, no 562000).
+
+    Loaded under waste-off so canonical match_io does not pull Census EC.
     """
-    uset = derive_U_with_negatives()
-    return pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp)
+    _setup_waste_off_for_real_matrices()
+    try:
+        uset = derive_U_with_negatives()
+        return pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp)
+    finally:
+        _teardown_usa_config()
 
 
 @pytest.fixture(scope="module")
@@ -571,16 +604,25 @@ def real_va() -> pd.DataFrame:
     Built as BEA VA @ industry_corresp().T to match usa_matrices sector space.
     May already have waste as 7 subsector columns (no 562000).
     """
-    va_bea = load_2017_value_added_usa()
-    return va_bea @ industry_corresp().T
+    _setup_waste_off_for_real_matrices()
+    try:
+        va_bea = load_2017_value_added_usa()
+        return va_bea @ industry_corresp().T
+    finally:
+        _teardown_usa_config()
 
 
 @pytest.fixture(scope="module")
 def real_Ytot() -> pd.DataFrame:
     """Cornerstone Final Demand (commodity x FD columns) from usa_matrices.
-    May already have waste disaggregated (7 subsectors, no 562000 in index).
+
+    Loaded under waste-off so canonical match_io does not pull Census EC.
     """
-    return derive_disagg_Ytot_with_trade()
+    _setup_waste_off_for_real_matrices()
+    try:
+        return derive_disagg_Ytot_with_trade()
+    finally:
+        _teardown_usa_config()
 
 
 def _build_V(waste_codes: list[str]) -> pd.DataFrame:
@@ -1071,7 +1113,7 @@ class TestComputeWasteQTargets:
 
 class TestMakeColumnDefaultShares:
     def test_negative_q_target_clipped_before_normalize(self) -> None:
-        """Review #1253 (6): negative targets must not create >100% / neg shares."""
+        """Negative q_target entries must not create >100% / negative shares."""
         codes = ["562111", "562HAZ", "562212"]
         q = pd.Series({"562111": 100.0, "562HAZ": -10.0, "562212": 0.0})
         with pytest.warns(UserWarning, match="negative q_target clipped"):
@@ -1147,7 +1189,7 @@ class TestReconcileWasteMakeAndVa:
         assert float(border.max()) < 30.0
 
     def test_partial_children_without_parent_raises_clear_error(self) -> None:
-        """Review #1253 (5): partial child set must name which codes are missing."""
+        """Partial child set without parent must name which codes are missing."""
         V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
         V = V.drop(
             index=["562000", "562HAZ", "562212"],
@@ -1161,7 +1203,7 @@ class TestReconcileWasteMakeAndVa:
             )
 
     def test_onehot_overflow_scales_nonwaste_diagonal_zero(self) -> None:
-        """Review #1253 (4): one-hot mass > q_target scales down; no neg diagonal."""
+        """One-hot mass above q_target scales non-waste down; diagonal stays 0."""
         V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
         # 484000 → one-hot 562111; dump more parent mass than q_target[562111].
         V.loc["484000", "562000"] = 100.0
@@ -1181,7 +1223,7 @@ class TestReconcileWasteMakeAndVa:
         assert 0.0 < float(cast(float, V_out.loc["484000", "562111"])) < 100.0
 
     def test_nonpositive_q_target_redistributes_nonwaste_mass(self) -> None:
-        """Review #1253 (3): qt<=0 must not wipe one-hot mass; move it to siblings."""
+        """Non-positive q_target must not wipe one-hot mass; move it to siblings."""
         V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
         # Force q_target[562111] == 0 while 484000 still one-hots onto 562111.
         Udom.loc["562111", :] = 0.0
@@ -1229,9 +1271,7 @@ class TestDistributeWasteParentX:
     def test_drops_nonpositive_v_row_shares(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Review #1253 (2): negative/zero V rows must not yield negative child x."""
-        import bedrock.transform.eeio.sector_disagg_pipeline as sdp
-
+        """Non-positive V row shares must not yield negative child x."""
         codes = list(sdp._WASTE_NEW_CODES)
         a, b, c = codes[0], codes[1], codes[2]
         inds = [*codes, "111000"]

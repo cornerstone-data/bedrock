@@ -410,9 +410,7 @@ def distribute_waste_parent_x_using_v_row_shares(
                     warnings.warn(
                         "distribute_waste_parent_x_using_v_row_shares: "
                         "dropping non-positive V row shares for "
-                        + ", ".join(
-                            f"{c}={float(v):.6g}" for c, v in nonpos.items()
-                        ),
+                        + ", ".join(f"{c}={float(v):.6g}" for c, v in nonpos.items()),
                         stacklevel=2,
                     )
                     for code in nonpos.index:

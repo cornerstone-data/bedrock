@@ -779,9 +779,7 @@ def reconcile_waste_make_and_va_to_use(
             if i != j:
                 V_work.loc[i, j] = 0.0
 
-    positive_qt = [
-        c for c in waste_codes if float(cast(float, q_target.loc[c])) > 0.0
-    ]
+    positive_qt = [c for c in waste_codes if float(cast(float, q_target.loc[c])) > 0.0]
     for com in waste_codes:
         qt = float(cast(float, q_target.loc[com]))
         if qt > 0.0:
@@ -800,10 +798,9 @@ def reconcile_waste_make_and_va_to_use(
             weights = q_target.reindex(others).astype(float)
             wsum = float(weights.sum())
             for other in others:
-                share = float(cast(float, weights.loc[other])) / wsum
+                share = float(weights.loc[other]) / wsum
                 V_work.loc[nonwaste_ind, other] = (
-                    V_work.loc[nonwaste_ind, other].astype(float)
-                    + fixed_cells * share
+                    V_work.loc[nonwaste_ind, other].astype(float) + fixed_cells * share
                 )
             warnings.warn(
                 f"waste column close: q_target[{com}]={qt} <= 0; "
