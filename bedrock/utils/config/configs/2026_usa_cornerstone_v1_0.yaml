@@ -46,3 +46,15 @@ hold_electric_gas_on_eia: True
 # applied after Step 7.
 electric_output_on_eia_level: True
 electricity_delivery_margin: True
+# Fixes merged 2026-11-10 for the next 2017-2024 rebuild (#1249). The MUT
+# pinned above predates them; re-pin once the rebuild is done.
+# AIES output chain (#1231): withheld codes, 325190 on BEA, gas distribution.
+fill_withheld_aies_codes: True
+hold_aies_outliers_on_bea: True
+chain_gas_distribution_on_aies: True
+# Truck and water margins chained across the AIES change (#1248).
+chain_transport_margins_across_aies: True
+# Each buyer's Step 6 margins capped at its purchase (#1257).
+cap_margins_at_purchase: True
+# Refinery co-product Supply cells held at the GO mix through GRAS (#1237).
+pin_refinery_secondaries_at_go_mix: True

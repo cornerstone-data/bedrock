@@ -457,6 +457,16 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'electricity_delivery_margin',
     }
     assert all(getattr(cfg, flag) for flag in electricity_flags)
+    # Fixes merged 2026-11-10 for the next rebuild (#1249).
+    rebuild_flags = {
+        'fill_withheld_aies_codes',
+        'hold_aies_outliers_on_bea',
+        'chain_gas_distribution_on_aies',
+        'chain_transport_margins_across_aies',
+        'cap_margins_at_purchase',
+        'pin_refinery_secondaries_at_go_mix',
+    }
+    assert all(getattr(cfg, flag) for flag in rebuild_flags)
 
     exclude = {
         'model_base_year',
@@ -465,6 +475,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'cornerstone_ghg_fbs_filename',
         'nowcast_mut_vintage',
         *electricity_flags,
+        *rebuild_flags,
     }
     assert cfg.model_dump(exclude=exclude) == release.model_dump(exclude=exclude)
 
