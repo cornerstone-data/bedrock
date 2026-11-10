@@ -1,13 +1,14 @@
 # Cornerstone 2026 model - v1.0, calendar year 2018.
 #
 # Same methodology as 2026_usa_cornerstone_v1_0 for year 2018.
-# nowcast_mut_vintage v1.0.0_b17908f is the 2017-2024 rebuild on the 2026 BEA
-# annual update. bea_price_index_vintage 2026Q2 is the index those tables were
-# built with. The GHG loader returns GHG_national_Cornerstone_2018.
+# nowcast_mut_vintage v1.0.0_e5fa35b is the 2017-2024 rebuild on the 2026 BEA
+# annual update, with electric output on EIA's 2017 level.
+# bea_price_index_vintage 2026Q2 is the index those tables were built with. The
+# GHG loader returns GHG_national_Cornerstone_2018.
 # cornerstone_ghg_fbs_filename names the GCS object loaded for E. When
 # nowcast_mut_vintage or GHG inputs move, follow
-# bedrock/utils/snapshots/README.md (Bump cascade / Phase A A2).
-# Waste disaggregation, industry-average margins, and no IO year adjustments.
+# bedrock/utils/snapshots/README.md (Bump cascade / Phase A A2). Waste
+# disaggregation, industry-average margins, and no IO year adjustments.
 
 #####
 # Model base settings
@@ -19,7 +20,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v1.0.0_b17908f'
+nowcast_mut_vintage: 'v1.0.0_e5fa35b'
 usa_base_io_data_year: 2018
 usa_ghg_data_year: 2018
 bea_price_index_vintage: '2026Q2'
@@ -27,7 +28,7 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2018_v1.0.0_edf6e0e.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2018_v1.0.0_038e753.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
@@ -39,3 +40,8 @@ electricity_accounting_residual: True
 carry_power_petroleum_on_price: True
 reprice_oil_gas_extraction_seed: True
 hold_electric_gas_on_eia: True
+# Electric output starts from EIA's 2017 level (the MUT above was built
+# with it on), and delivery is its own sector with buyer-specific margins,
+# applied after Step 7.
+electric_output_on_eia_level: True
+electricity_delivery_margin: True
