@@ -436,6 +436,27 @@ def generation_price(year: int) -> float:
     return pooled_resale_price(year, resale_revenue(), resale_volume())
 
 
+def delivery_price(year: int) -> float:
+    """EIA's average retail price less :func:`generation_price`, ¢/kWh delivered (#1217).
+
+    What a kWh's bill pays beyond generation: the price of the delivery sector's
+    output, from the same EIA series as the split, not from the tables it feeds.
+    """
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        eia_retail_revenue_usd,
+    )
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        retail_sales_mwh,
+    )
+
+    # USD per MWh is a tenth of a cent per kWh.
+    retail = eia_retail_revenue_usd(int(year)) / retail_sales_mwh(int(year)) / 10.0
+    margin = retail - generation_price(year)
+    if margin <= 0:
+        raise ValueError(f'{year}: retail price is not above the generation price')
+    return margin
+
+
 def annual_generation_price(year: int) -> float:
     """Sales for resale in *year* alone, ¢/kWh. Reported, not used in the split."""
     from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415

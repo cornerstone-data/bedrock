@@ -350,7 +350,10 @@ def retail_gross_output(panel: pd.DataFrame, year: int) -> pd.Series:
     :func:`retail_price_index`, the total is the base year's output times kWh
     sold, so real output follows physical sales by construction. ⚠️ The base
     year's level is kept, including the output above retail revenue that the
-    benchmark Use table sells to ordinary buyers.
+    benchmark Use table sells to ordinary buyers, unless
+    ``electric_output_on_eia_level`` takes that out in proportion to output. The
+    2017 Supply block takes the same amount off its electricity row
+    (:func:`~.nowcast_supply_go_control.take_excess_from_electricity_row`).
     """
     if int(year) not in CONTROLLED_YEARS:
         raise ValueError(
@@ -360,7 +363,15 @@ def retail_gross_output(panel: pd.DataFrame, year: int) -> pd.Series:
     codes = _electric_industries_in(panel)
     if not codes:
         raise KeyError(f'none of {ELECTRIC_INDUSTRIES} is in the gross-output panel')
-    return panel.loc[codes, BASE_YEAR].astype(float) * retail_index(int(year))
+    from bedrock.transform.iot.electricity_accounting_residual import (  # noqa: PLC0415
+        level_excess,
+    )
+
+    base = panel.loc[codes, BASE_YEAR].astype(float)
+    excess = level_excess()
+    if excess:
+        base = base * (1.0 - excess / float(base.sum()))
+    return base * retail_index(int(year))
 
 
 def apply_eia_utility_adjustment(raw: pd.DataFrame) -> pd.DataFrame:
@@ -368,9 +379,9 @@ def apply_eia_utility_adjustment(raw: pd.DataFrame) -> pd.DataFrame:
 
     ``raw`` is industries x years in million USD; a new frame is returned and
     the argument is not mutated. Rows outside :data:`CONTROLLED` and years
-    outside :data:`CONTROLLED_YEARS` come back bit-identical, and
-    :data:`BASE_YEAR` is unchanged for every row because both indices are 1.0
-    there.
+    outside :data:`CONTROLLED_YEARS` come back bit-identical. With the indices
+    at 1.0 in :data:`BASE_YEAR`, that year's cells stay as published unless
+    ``electric_output_on_eia_level`` cuts them in :func:`retail_gross_output`.
 
     ⚠️ **Group totals are not preserved**, unlike
     :func:`~bedrock.transform.iot.ec_go_adjustment.apply_ec_adjustment`. That
@@ -536,8 +547,12 @@ def check() -> int:
     adjusted = apply_eia_utility_adjustment(raw)
     failures: list[str] = []
 
+    from bedrock.transform.iot.electricity_accounting_residual import (  # noqa: PLC0415
+        level_excess,
+    )
+
     base_gap = (adjusted[BASE_YEAR] - raw[BASE_YEAR]).abs().max()
-    if base_gap > 1e-6:
+    if base_gap > 1e-6 and level_excess() == 0.0:
         failures.append(f'{BASE_YEAR} moved by {base_gap:,.3f} $M; it must not')
 
     controlled = controlled_industries()

@@ -104,37 +104,86 @@ def _industry_price_index_levels() -> pd.DataFrame:
         else obtain_inflation_factors_from_reference_data()
     )
     if cfg.electric_output_on_retail_revenue:
-        return _electric_lines_on_eia_retail_price(levels)
+        levels = _electric_lines_on_eia_retail_price(levels)
+    if cfg.electricity_delivery_margin:
+        levels = _generation_and_delivery_on_eia_prices(levels)
     return levels
 
 
 def _electric_lines_on_eia_retail_price(levels: pd.DataFrame) -> pd.DataFrame:
     """*levels* with the three electric lines on EIA's average retail price.
 
-    The base year's level times EIA's price relative to it, over EIA's span. A
-    year after the span keeps BEA's change from the span's last year, and a year
-    before it stays as published, so neither side has a seam at 2017 or 2024. The
-    published price index and :func:`derive_industry_price_index` are unchanged:
-    the published file is shared with CEDA.
+    The published price index and :func:`derive_industry_price_index` are
+    unchanged: the published file is shared with CEDA.
     """
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         BASE_YEAR,
-        CONTROLLED_YEARS,
         ELECTRIC_INDUSTRIES,
         retail_price_index,
     )
 
+    return _lines_on_relative_price(
+        levels,
+        ELECTRIC_INDUSTRIES,
+        lambda year: retail_price_index(year) / retail_price_index(BASE_YEAR),
+    )
+
+
+def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame:
+    """*levels* with generation and delivery each on its own EIA price (#1217).
+
+    With ``electricity_delivery_margin`` on, ``221100`` sells kWh at the generation
+    price and the delivery sector in its slot sells the rest of each bill. On these
+    prices their real output follows kWh, so their factors follow emissions per kWh.
+    """
+    from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
+        DELIVERY_SLOT,
+        GENERATION_SECTOR,
+    )
+    from bedrock.transform.eeio.electricity_price import (  # noqa: PLC0415
+        delivery_price,
+        generation_price,
+    )
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        BASE_YEAR,
+    )
+
+    out = _lines_on_relative_price(
+        levels,
+        [GENERATION_SECTOR],
+        lambda year: generation_price(year) / generation_price(BASE_YEAR),
+    )
+    return _lines_on_relative_price(
+        out,
+        [DELIVERY_SLOT],
+        lambda year: delivery_price(year) / delivery_price(BASE_YEAR),
+    )
+
+
+def _lines_on_relative_price(
+    levels: pd.DataFrame,
+    codes: ta.Iterable[str],
+    relative: ta.Callable[[int], float],
+) -> pd.DataFrame:
+    """*levels* with *codes* at the base year's level times *relative*, over EIA's span.
+
+    A year after the span keeps BEA's change from the span's last year, and a year
+    before it stays as published, so neither side has a seam at 2017 or 2024.
+    """
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        BASE_YEAR,
+        CONTROLLED_YEARS,
+    )
+
     out = levels.copy()
     last = CONTROLLED_YEARS[-1]
-    relative = {
-        year: retail_price_index(year) / retail_price_index(BASE_YEAR)
-        for year in CONTROLLED_YEARS
-        if year in out.columns
+    relative_by_year = {
+        year: relative(year) for year in CONTROLLED_YEARS if year in out.columns
     }
-    for code in (code for code in ELECTRIC_INDUSTRIES if code in out.index):
+    for code in (code for code in codes if code in out.index):
         published = pd.Series(levels.loc[code], dtype=float)
         rebased = published.copy()
-        for year, value in relative.items():
+        for year, value in relative_by_year.items():
             rebased[year] = float(published[BASE_YEAR]) * value
         after = [year for year in out.columns if int(year) > last]
         rebased[after] = published[after] * (

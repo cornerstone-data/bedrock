@@ -11,6 +11,7 @@ import pytest
 
 from bedrock.extract.disaggregation import egrid_generation
 from bedrock.transform.iot import eia_utility_go_adjustment as ug
+from bedrock.transform.iot import electricity_accounting_residual as ear
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 
 #: 2017 electric gross output totals 500 in the synthetic panel, so a retail
@@ -208,6 +209,17 @@ def test_real_output_follows_kwh_on_the_retail_price(
         assert total[year] / price / total[2017] == pytest.approx(kwh[year] / 100.0)
 
 
+@pytest.mark.usefixtures('_retail_basis')
+def test_eia_level_takes_the_excess_out_in_proportion_to_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ear, 'level_excess', lambda: 50.0)
+    adjusted = ug.apply_eia_utility_adjustment(_panel())
+    for code, base in {'221100': 360.0, 'S00101': 45.0, 'S00202': 45.0}.items():
+        assert adjusted.at[code, 2017] == pytest.approx(base)
+        assert adjusted.at[code, 2022] == pytest.approx(base * 2.0)
+
+
 def test_retail_output_outside_the_span_raises() -> None:
     with pytest.raises(ValueError, match='outside the controlled span'):
         ug.retail_gross_output(_panel(), max(ug.CONTROLLED_YEARS) + 1)
@@ -255,3 +267,26 @@ def test_price_lines_follow_eia_and_keep_their_seams_closed(
     assert out.at['221100', 2025] == pytest.approx(187.0)
     assert out.at['221100', 2016] == pytest.approx(90.0)
     pd.testing.assert_frame_equal(out.loc[['111200']], original.loc[['111200']])
+
+
+def test_generation_and_delivery_take_their_own_prices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bedrock.transform.eeio import electricity_price as ep  # noqa: PLC0415
+    from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
+
+    generation = {year: 4.0 + 0.4 * (year - 2017) for year in ug.CONTROLLED_YEARS}
+    monkeypatch.setattr(ep, 'generation_price', lambda year: generation[int(year)])
+    monkeypatch.setattr(ep, 'delivery_price', lambda year: 6.0)
+    years = list(ug.CONTROLLED_YEARS)
+    levels = pd.DataFrame(
+        {year: [100.0, 50.0, 80.0] for year in years},
+        index=['221100', '425000', 'S00101'],
+        dtype=float,
+    )
+
+    out = helpers._generation_and_delivery_on_eia_prices(levels)
+
+    assert out.at['221100', 2022] == pytest.approx(150.0)
+    assert out.at['425000', 2022] == pytest.approx(50.0)
+    pd.testing.assert_frame_equal(out.loc[['S00101']], levels.loc[['S00101']])

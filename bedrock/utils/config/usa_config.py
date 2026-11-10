@@ -205,6 +205,12 @@ class USAConfig(BaseModel):
     # publishes tables: Steps 6 and 7 do not read the pair yet. See
     # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
     electricity_accounting_residual: bool = False  # DRI: WesIngwersen
+    # Starts electric output from EIA's level rather than BEA's 2017 level, and
+    # moves the difference to the accounting residual, including in 2017. Needs
+    # the flag above. Takes out what commercial and industrial buyers paid in
+    # 2017 above EIA revenue. OFF. See
+    # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
+    electric_output_on_eia_level: bool = False  # DRI: WesIngwersen
     # Hold electric power's total purchases of oil and gas extraction (211000)
     # on BEA's 2017 total times EIA-923's gas bill relative to 2017, through the
     # interior fit and GRAS. Column controls and the fixed gas row otherwise take
@@ -504,6 +510,14 @@ class USAConfig(BaseModel):
             raise ValueError(
                 'electricity_accounting_residual requires '
                 'electric_output_on_retail_revenue'
+            )
+        if (
+            self.electric_output_on_eia_level
+            and not self.electricity_accounting_residual
+        ):
+            raise ValueError(
+                'electric_output_on_eia_level requires '
+                'electricity_accounting_residual'
             )
         if self.electricity_delivery_margin and (
             self.implement_electricity_disaggregation

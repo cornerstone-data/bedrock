@@ -1,0 +1,43 @@
+# Cornerstone 2026 model - v1.0.1.
+#
+# An alternative model alongside v1.0, which stays the canonical release.
+# Same as 2026_usa_cornerstone_v1_0 except that electric output
+# starts from EIA's 2017 level and delivery is its own sector. Detail MUT
+# v1.0.0_e5fa35b was built with electric_output_on_eia_level on; the
+# delivery sector is applied after Step 7, so it needs no MUT of its own.
+# Pins are its own: upstream_inputs_pin_v1_0_1.json.
+
+#####
+# Model base settings
+#####
+model_base_year: 2024
+iot_before_or_after_redefinition: after
+
+#####
+# Data selection
+#####
+usa_detail_io_source: nowcast
+nowcast_mut_vintage: 'v1.0.0_e5fa35b'
+usa_base_io_data_year: 2024
+usa_ghg_data_year: 2024
+bea_price_index_vintage: '2026Q2'
+
+#####
+# Methodology selection
+#####
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2024_v1.0.0_038e753.parquet
+apply_io_year_adjustments: False
+implement_waste_disaggregation: True
+waste_weights_year: match_io
+cornerstone_industry_avg_margins: True
+# Electric power on EIA retail revenue and the electricity accounting residual.
+# nowcast_mut_vintage above was built with all five on.
+electric_output_on_retail_revenue: True
+electricity_accounting_residual: True
+carry_power_petroleum_on_price: True
+reprice_oil_gas_extraction_seed: True
+hold_electric_gas_on_eia: True
+# Alternative to v1.0: electric output starts from EIA's 2017 level, and
+# delivery is its own sector with buyer-specific margins.
+electric_output_on_eia_level: True
+electricity_delivery_margin: True
