@@ -363,9 +363,9 @@ def test_filled_codes_join_the_common_basis(levels: None) -> None:
 
 
 def test_the_fill_flag_is_off_by_default() -> None:
-    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+    from bedrock.utils.config.usa_config import USAConfig  # noqa: PLC0415
 
-    assert get_usa_config().fill_withheld_aies_codes is False
+    assert USAConfig.model_fields['fill_withheld_aies_codes'].default is False
 
 
 def test_a_held_industry_keeps_bea_movement_though_census_observes_it(
@@ -388,11 +388,19 @@ def test_a_held_industry_keeps_bea_movement_though_census_observes_it(
     )
 
 
-def test_the_hold_is_off_by_default_and_names_325190() -> None:
-    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+def test_the_hold_is_off_by_default_and_names_325190(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from bedrock.utils.config.usa_config import (  # noqa: PLC0415
+        USAConfig,
+        get_usa_config,
+    )
 
-    assert get_usa_config().hold_aies_outliers_on_bea is False
+    assert USAConfig.model_fields['hold_aies_outliers_on_bea'].default is False
+    monkeypatch.setattr(get_usa_config(), 'hold_aies_outliers_on_bea', False)
     assert ch._held_on_bea() == frozenset()
+    monkeypatch.setattr(get_usa_config(), 'hold_aies_outliers_on_bea', True)
+    assert ch._held_on_bea() == ch.BEA_HOLDS
     assert frozenset({'325190'}) == ch.BEA_HOLDS
 
 
@@ -455,6 +463,6 @@ def test_gas_distribution_keeps_bea_where_census_is_missing(
 
 
 def test_the_gas_chain_flag_is_off_by_default() -> None:
-    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+    from bedrock.utils.config.usa_config import USAConfig  # noqa: PLC0415
 
-    assert get_usa_config().chain_gas_distribution_on_aies is False
+    assert USAConfig.model_fields['chain_gas_distribution_on_aies'].default is False

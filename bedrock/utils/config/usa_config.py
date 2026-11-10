@@ -268,6 +268,31 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # Chain the truck and water transport margins across the SAS -> AIES
+    # change: 2023 keeps 2022's margin as a share of the mode's gross output,
+    # and 2024 moves on AIES's own 2024/2023 revenue. AIES's Table 8 covers
+    # 0.84 of truck revenue against SAS's 0.93, so without this the 2023 truck
+    # margin falls 17.8% while output falls 5.5%, to 0.83 of BEA's published
+    # margin. The truck output the margin no longer absorbs lands on truck's
+    # direct purchases, so its own use goes from $23bn to $35bn (#890). See
+    # nowcast_transport_margins.chained_control_total.
+    chain_transport_margins_across_aies: bool = False  # DRI: WesIngwersen
+    # Hold each buyer's Step 6 margins to its purchase. Reconciling the
+    # margins to the Supply give-up scales every buyer of a good alike, so a
+    # high-rate buyer's producers' value goes negative: 84 cells and -$701M in
+    # 2024, the largest 621100's $3.1bn wholesale margin on a $2.8bn purchase
+    # of 325411. The excess moves to the good's other buyers in proportion to
+    # their margins, keeping each good's give-up and each margin commodity's
+    # book (#1177). See nowcast_mut._cap_at_purchase.
+    cap_margins_at_purchase: bool = False  # DRI: WesIngwersen
+    # Spread each year's trade margin over the receiving goods by their 2017
+    # margin times their own supply growth, instead of the frozen 2017 mix.
+    # The frozen mix gives every good the economy-wide margin growth (1.49x
+    # 2017-2024 against 1.32x for supply), so goods whose supply shrank took
+    # up to twice their 2017 margin rate: motor homes 0.70 -> 1.17 of supply,
+    # and a purchaser-to-producer ratio of 0.011 (#1194). See
+    # nowcast_trade_margins.supply_following_weight.
+    trade_margin_receivers_follow_supply: bool = False  # DRI: WesIngwersen
     # Smooth each manufacturing industry's share of the expense seed's survey
     # total across the survey changes (census 2017 -> ASM 2018-21 -> census
     # 2022 -> AIES): ASM shares benchmarked to both censuses, a 3-year centred

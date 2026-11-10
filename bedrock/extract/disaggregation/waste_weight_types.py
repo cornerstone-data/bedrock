@@ -16,6 +16,14 @@ class WasteWeightLongRow(TypedDict):
 
 @dataclass
 class WeightDerivationProvenance:
+    """Source years and notes for a waste-weight derive run.
+
+    Successful primary sources are recorded on the year fields (``ec_source_year``,
+    ``sas_source_year``, ``aies_source_year``, …). ``fallback_notes`` is only for
+    real fallbacks and path anomalies — not the happy-path description of those
+    sources.
+    """
+
     target_year: int
     rcra_source_year: int
     ec_source_year: int

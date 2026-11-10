@@ -59,6 +59,10 @@ def test_margin_levels_follow_the_vintage(
     monkeypatch.setattr(cfg, 'useeio_margins', False)
     monkeypatch.setattr(cfg, 'apply_io_year_adjustments', apply_io)
     monkeypatch.setattr(cfg, 'bea_price_index_vintage', '2026Q2')
+    # Off so the levels are the loader's own; the electric repricing has its
+    # own tests.
+    monkeypatch.setattr(cfg, 'electric_output_on_retail_revenue', False)
+    monkeypatch.setattr(cfg, 'electricity_delivery_margin', False)
     loader = (
         'derive_industry_price_index'
         if apply_io

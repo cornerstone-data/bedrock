@@ -39,10 +39,14 @@ def _panel() -> pd.DataFrame:
 def _stub_eia(monkeypatch: pytest.MonkeyPatch) -> None:
     """Retail doubles by 2022, wholesale halves; both are 1.0 at the base year.
 
-    On the two-leg basis unless a test asks for ``_retail_basis``.
+    On the two-leg basis unless a test asks for ``_retail_basis``, and on
+    BEA's 2017 level unless it sets ``electric_output_on_eia_level`` itself.
     """
     monkeypatch.setattr(
         get_usa_config(), 'electric_output_on_retail_revenue', False, raising=True
+    )
+    monkeypatch.setattr(
+        get_usa_config(), 'electric_output_on_eia_level', False, raising=True
     )
     monkeypatch.setattr(
         egrid_generation, 'eia_retail_revenue_usd', lambda year: RETAIL_USD_2017

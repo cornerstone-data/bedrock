@@ -213,6 +213,7 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | IV score | `time_series_B_matrix/About_IV_score.md` |
 | How much each A cell moves `N`, and the electricity row across commodities | `nowcasting/About_the_L_flux_priority.md` |
 | Electricity emissions source: eGRID, Puerto Rico, 2017 | #911, #913, #914, #947 |
+| Gas distribution's factor with the delivery margin | section 12, #1223 |
 
 ## 11. Electric power in the B tracker
 
@@ -306,3 +307,39 @@ These are the same movements reached from the buyer side, so their explanations 
 | Row 14, switch to eGRID | #911 and #947 merged; #913 and #914 closed | 2017 is indexed to the inventory, not observed. We did not find a check of the 2017/2018 boundary on the current build |
 | Row 18, ranked `L` movers | see above | re-run on the current build |
 | #1002, EIA 923 against eGRID | closed; no comparison was run | nothing checks that the fuel we book agrees with the emissions we attribute. Expect a gap, because receipts are purchases and eGRID is combustion |
+
+## 12. Gas distribution falls 40% with the delivery margin
+
+With `electricity_delivery_margin` on (#1223), the total factor for gas distribution (`221200`) falls 40% in 2024, from 0.644 to 0.388 kg CO2e/$. It is the largest fall of any commodity. Almost all of it is in gas distribution's own direct factor, which falls from 0.542 to 0.281. What it buys upstream barely moves.
+
+The cause is the coproduction step that the flag also runs, `reallocate_electricity_coproduction`. Electric utilities that also run gas systems report part of their output as gas distribution. In the 2024 Make table:
+
+| producer of the `221200` commodity | output, $bn | share | emissions per $ of the producer's output |
+|---|---:|---:|---:|
+| `221200` gas distribution industry | 108.2 | 83% | 0.330 (37.2 Mt on $112.8bn) |
+| `221100` electric power | 14.2 | 11% | 2.445 (1,471 Mt on $601.8bn) |
+| `S00203` | 7.7 | 6% | small |
+| total | 130.1 | | |
+
+A commodity's direct factor is the output-weighted average over the industries that make it. Before the step, the $14.2bn made by electric power carried electric power's factor, which is mostly power plant combustion. That one share supplied about half of gas distribution's direct factor: 0.267 of 0.546 kg CO2e/$.
+
+The step moves that $14.2bn of output to the gas distribution industry, with the same share (2.4%) of electric power's inputs and value added. Emissions don't move. The power plant emissions stay with electric power. Gas distribution's 37.2 Mt, mostly methane, is the inventory's total for distributing gas, whoever owns the system, so it already included the gas systems that electric utilities run. Only the output was split. After the step, the gas distribution industry makes $124.8bn on the same 37.2 Mt, or 0.298 kg CO2e/$.
+
+| direct factor of `221200`, kg CO2e/$ | before | after | change |
+|---|---:|---:|---:|
+| the $14.2bn made by electric power | 0.267 | 0.033 | -0.234 |
+| the $108.2bn made by the gas distribution industry | 0.274 | 0.248 | -0.027 |
+| the $7.7bn made by `S00203` | 0.005 | 0.005 | 0 |
+| total, from the shares above | 0.546 | 0.285 | -0.261 |
+| total, in the model | 0.542 | 0.281 | -0.261 |
+
+Nine-tenths of the fall is the electric share no longer taking a power plant's factor. The rest is the gas distribution industry's emissions spread over the output it now includes.
+
+This is a correction. Without the step, every buyer of natural gas paid part of electric power's emissions through gas distribution. A grain farm's factor, for example, has 0.0093 kg CO2e/$ from gas distribution before and 0.0048 after.
+
+Limits of this check:
+
+- It is 2024 only. The share of gas distribution made by electric power in other years has not been measured.
+- The Make table and outputs come from `2026_usa_cornerstone_v1_0` for 2024. Emissions are from the snapshot `c9b69d94` that the #1223 diagnostics compare against. The model totals are from those diagnostics.
+- The inputs move in proportion to electric power's whole input mix, so the gas distribution industry now buys some coal and fuel oil ($0.18bn of coal mining). The commodity's upstream already came 11% from that mix before the step, so it hardly changes: oil and gas extraction contributes 0.034 kg CO2e/$ both before and after. Electricity's contribution rises from 0.019 to 0.024, from the delivery split's change to the electricity factor, not from this step.
+- `S00203`'s share is estimated from its commodity's factor, 0.084, and doesn't change.

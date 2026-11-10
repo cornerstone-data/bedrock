@@ -13,16 +13,20 @@ The schema contract is conservation net of the one deliberate drop: the
 commodity correspondence weights scrap (``S00401``) to zero - the
 established treatment, compensated by the scrap-corrected market-share
 matrix - so Cornerstone x must equal the Make row-sum total minus exactly
-the mass the correspondence's weights discard, to the $1M floor.
+the mass the correspondence's weights discard, to the $1M floor. When
+waste Use→Make reconcile is on, waste-border Make is rewritten to Use+FD
+identity, so totals may move by the parent Make↔Use gap; then a tiny
+relative slack on the full total is allowed.
 
 Skips rather than fails when the 2017 after-redef artifact is not on GCS.
 
 ⚠️ **The build is pinned here, not resolved as the latest upload.** The config
 omits ``nowcast_mut_vintage``, so the loader takes whatever 2017 Make was
-uploaded last. On 2026-11-09 that became ``v1.0.0_e5fa35b``, from the v1.0.1
-alternative model, which deliberately moves 2017 electricity output to the EIA
-level. Its 2017 totals sit $57bn (0.17%) off the published Make, and the test
-failed on every branch. :data:`PINNED_VINTAGE` is the v1.0 release build.
+uploaded last. On 2026-11-09 that became ``v1.0.0_e5fa35b``, which
+deliberately moves 2017 electricity output to the EIA level (now the v1.0
+build). Its 2017 totals sit $57bn (0.17%) off the published Make, and the test
+failed on every branch. :data:`PINNED_VINTAGE` is the last v1.0 build with
+electricity output on BEA's 2017 level.
 """
 
 from __future__ import annotations
@@ -43,6 +47,7 @@ from bedrock.transform.eeio.usa_matrices import (
 )
 from bedrock.utils.config.usa_config import (
     _load_usa_config_from_file_name,
+    get_usa_config,
     reset_usa_config,
     set_global_usa_config_object,
 )
@@ -113,6 +118,8 @@ def test_nowcast_2017_cornerstone_x_is_the_make_row_sum(
     # enterprises into 221100/485000) without creating or destroying output,
     # net of the one deliberate drop: commodity-correspondence weights below
     # one discard that share of the column (scrap S00401 at weight zero).
+    # Waste Use→Make reconcile then rewrites the waste border, so totals may
+    # move vs BEA Make by the parent Make↔Use gap.
     weights = commodity_corresp().sum(axis=0)
     discarded = sum(
         float(make[str(code)].sum()) * (1.0 - float(weight))
@@ -120,4 +127,8 @@ def test_nowcast_2017_cornerstone_x_is_the_make_row_sum(
         if str(code) in make.columns and abs(weight - 1.0) > 1e-9
     )
     expected = float(x_bea.sum()) - discarded
-    assert abs(float(x_cs.sum()) - expected) <= ATOL_USD
+    gap = abs(float(x_cs.sum()) - expected)
+    if get_usa_config().implement_waste_disaggregation:
+        assert gap <= max(ATOL_USD, 1e-6 * abs(expected))
+    else:
+        assert gap <= ATOL_USD

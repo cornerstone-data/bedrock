@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+from types import SimpleNamespace
 from typing import cast
 
 import numpy as np
@@ -14,9 +15,18 @@ from bedrock.extract.disaggregation.disagg_weights import (
     _empty_weight_table,
     load_disagg_weights,
 )
+from bedrock.extract.disaggregation.waste_static_rules import (
+    GSLGO_MEMBERSHIP,
+    MAKE_COLUMN_GSLGO_INDUSTRIES,
+    MAKE_COLUMN_ONEHOT_INDUSTRIES,
+    MAKE_ROW_ONEHOT_COMMODITIES,
+)
 from bedrock.extract.disaggregation.waste_weight_config import EEIOWasteDisaggConfig
 from bedrock.extract.iot.io_2017 import load_2017_value_added_usa
+from bedrock.publish.cache_reset import clear_all_publish_caches
+from bedrock.transform.eeio import sector_disagg_pipeline as sdp
 from bedrock.transform.eeio.sector_disagg_pipeline import (
+    clear_waste_disagg_weights_cache,
     derive_disagg_Ytot_with_trade,
 )
 from bedrock.transform.eeio.usa_expansion import industry_corresp
@@ -25,12 +35,36 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_V,
 )
 from bedrock.transform.eeio.waste_disaggregation import (
+    DISAGG_BALANCE_ATOL,
+    _make_column_default_shares,
+    _make_column_gslgo_shares,
     apply_waste_disagg_to_U,
     apply_waste_disagg_to_V,
     apply_waste_disagg_to_VA,
     apply_waste_disagg_to_Ytot,
+    compute_waste_q_targets,
+    reconcile_waste_make_and_va_to_use,
 )
+from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.economic.inflation_helpers_usa import clear_usa_inflation_caches
 from bedrock.utils.taxonomy.cornerstone.commodities import WASTE_DISAGG_COMMODITIES
+
+
+def _setup_waste_off_for_real_matrices() -> None:
+    """Load real matrices under waste-off so fixtures never hit match_io/EC."""
+    clear_waste_disagg_weights_cache()
+    clear_usa_inflation_caches()
+    clear_all_publish_caches()
+    reset_usa_config(should_reset_env_var=True)
+    set_global_usa_config("test_usa_config_waste_disagg_off")
+
+
+def _teardown_usa_config() -> None:
+    clear_waste_disagg_weights_cache()
+    clear_usa_inflation_caches()
+    clear_all_publish_caches()
+    reset_usa_config(should_reset_env_var=True)
+
 
 WASTE = ["562111", "562212", "562910"]
 ORIG = "562000"
@@ -540,18 +574,29 @@ def weights_2017() -> DisaggWeights:
 @pytest.fixture(scope="module")
 def real_V() -> pd.DataFrame:
     """Cornerstone Make matrix (industry x commodity) from usa_matrices.
-    May already have waste disaggregated (7 subsectors, no 562000) via correspondence.
+
+    Loaded under waste-off so canonical match_io does not pull Census EC.
+    May already have waste children via correspondence (no 562000).
     """
-    return derive_V()
+    _setup_waste_off_for_real_matrices()
+    try:
+        return derive_V()
+    finally:
+        _teardown_usa_config()
 
 
 @pytest.fixture(scope="module")
 def real_U() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Cornerstone Use (Udom, Uimp), commodity x industry, from usa_matrices.
-    May already have waste disaggregated (7 subsectors, no 562000).
+
+    Loaded under waste-off so canonical match_io does not pull Census EC.
     """
-    uset = derive_U_with_negatives()
-    return pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp)
+    _setup_waste_off_for_real_matrices()
+    try:
+        uset = derive_U_with_negatives()
+        return pd.DataFrame(uset.Udom), pd.DataFrame(uset.Uimp)
+    finally:
+        _teardown_usa_config()
 
 
 @pytest.fixture(scope="module")
@@ -560,16 +605,25 @@ def real_va() -> pd.DataFrame:
     Built as BEA VA @ industry_corresp().T to match usa_matrices sector space.
     May already have waste as 7 subsector columns (no 562000).
     """
-    va_bea = load_2017_value_added_usa()
-    return va_bea @ industry_corresp().T
+    _setup_waste_off_for_real_matrices()
+    try:
+        va_bea = load_2017_value_added_usa()
+        return va_bea @ industry_corresp().T
+    finally:
+        _teardown_usa_config()
 
 
 @pytest.fixture(scope="module")
 def real_Ytot() -> pd.DataFrame:
     """Cornerstone Final Demand (commodity x FD columns) from usa_matrices.
-    May already have waste disaggregated (7 subsectors, no 562000 in index).
+
+    Loaded under waste-off so canonical match_io does not pull Census EC.
     """
-    return derive_disagg_Ytot_with_trade()
+    _setup_waste_off_for_real_matrices()
+    try:
+        return derive_disagg_Ytot_with_trade()
+    finally:
+        _teardown_usa_config()
 
 
 def _build_V(waste_codes: list[str]) -> pd.DataFrame:
@@ -988,3 +1042,256 @@ class TestIntegrationYtot:
 
         col_sum = sum(cast(float, result.loc[c, "F99999"]) for c in _WASTE_CODES_2017)
         assert col_sum == pytest.approx(1000.0, rel=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Make/VA reconcile to Use commodity identity
+# ---------------------------------------------------------------------------
+
+_TOY_WASTE = ["562111", "562HAZ", "562212"]
+
+
+def _toy_balanced_inputs() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+):
+    """Tiny V/U/Y/VA with parent 562000 present for reconcile tests.
+
+    Parent Make column mass (60) is below sum(q_target)=120 so diagonal residuals
+    stay positive; Use waste-industry columns stay below Make rows for VA balance.
+    """
+    inds = ["111000", "484000", "221300", *_TOY_WASTE, "562000"]
+    coms = ["111000", "211000", *_TOY_WASTE, "562000"]
+    V = pd.DataFrame(0.0, index=inds, columns=coms)
+    # Parent Make column mass (non-waste industries × waste commodities)
+    V.loc["111000", "562000"] = 30.0
+    V.loc["484000", "562000"] = 10.0
+    V.loc["221300", "562000"] = 20.0
+    # Parent Make row mass (waste industries × non-waste commodities)
+    V.loc["562000", "111000"] = 40.0
+    V.loc["562000", "211000"] = 20.0
+    V.loc["562000", "562000"] = 10.0
+    # Non-waste block
+    V.loc["111000", "111000"] = 500.0
+    V.loc["484000", "111000"] = 50.0
+
+    Udom = pd.DataFrame(0.0, index=coms, columns=inds)
+    # Waste commodity rows → industry purchases (build q_target = 60/30/30)
+    Udom.loc["562111", "111000"] = 40.0
+    Udom.loc["562HAZ", "111000"] = 20.0
+    Udom.loc["562212", "111000"] = 20.0
+    # Waste industry columns (Use of waste industries)
+    Udom.loc["111000", "562111"] = 10.0
+    Udom.loc["111000", "562HAZ"] = 5.0
+    Udom.loc["111000", "562212"] = 5.0
+    Udom.loc["562111", "562111"] = 2.0
+    Uimp = pd.DataFrame(0.0, index=coms, columns=inds)
+
+    Y = pd.DataFrame(0.0, index=coms, columns=["F01000"])
+    Y.loc["562111", "F01000"] = 20.0
+    Y.loc["562HAZ", "F01000"] = 10.0
+    Y.loc["562212", "F01000"] = 10.0
+
+    VA = pd.DataFrame(0.0, index=["V00100", "V00300"], columns=inds)
+    for w in _TOY_WASTE:
+        VA.loc["V00100", w] = 3.0
+        VA.loc["V00300", w] = 1.0
+    VA.loc["V00100", "111000"] = 100.0
+    return V, Udom, Uimp, VA, Y
+
+
+class TestComputeWasteQTargets:
+    def test_algebra_matches_udom_y_uimp(self) -> None:
+        _V, Udom, Uimp, _VA, Y = _toy_balanced_inputs()
+        q = compute_waste_q_targets(Udom, Uimp, Y, waste_codes=_TOY_WASTE)
+        for c in _TOY_WASTE:
+            expected = (
+                float(Udom.loc[c].sum())
+                + float(Y.loc[c].sum())
+                + float(Uimp.loc[c].sum())
+            )
+            assert float(q.loc[c]) == pytest.approx(expected)
+
+
+class TestMakeColumnDefaultShares:
+    def test_negative_q_target_clipped_before_normalize(self) -> None:
+        """Negative q_target entries must not create >100% / negative shares."""
+        codes = ["562111", "562HAZ", "562212"]
+        q = pd.Series({"562111": 100.0, "562HAZ": -10.0, "562212": 0.0})
+        with pytest.warns(UserWarning, match="negative q_target clipped"):
+            shares = _make_column_default_shares(q, codes)
+        assert float(shares.sum()) == pytest.approx(1.0)
+        assert float(shares.loc["562111"]) == pytest.approx(1.0)
+        assert float(shares.loc["562HAZ"]) == pytest.approx(0.0)
+        assert float(shares.loc["562212"]) == pytest.approx(0.0)
+        # GSLGO inherits the clipped defaults (no negative mass on members).
+        gslgo = _make_column_gslgo_shares(shares, codes)
+        assert float(gslgo.loc["562HAZ"]) == pytest.approx(0.0)
+        assert float(gslgo.sum()) == pytest.approx(1.0)
+        assert all(float(v) >= 0.0 for v in gslgo)
+
+
+class TestReconcileWasteMakeAndVa:
+    def test_columns_match_q_target_and_offdiag_zero(self) -> None:
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        V_out, VA_out = reconcile_waste_make_and_va_to_use(
+            V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+        )
+        q = compute_waste_q_targets(Udom, Uimp, Y, waste_codes=_TOY_WASTE)
+        for c in _TOY_WASTE:
+            assert float(V_out[c].sum()) == pytest.approx(
+                float(cast(float, q.loc[c])), abs=1e-9
+            )
+        for i in _TOY_WASTE:
+            for j in _TOY_WASTE:
+                if i != j:
+                    assert float(cast(float, V_out.loc[i, j])) == pytest.approx(0.0)
+
+    def test_onehot_and_gslgo_assignment_rules(self) -> None:
+        assert MAKE_COLUMN_ONEHOT_INDUSTRIES["484000"] == "562111"
+        assert "221300" in MAKE_COLUMN_GSLGO_INDUSTRIES
+        assert GSLGO_MEMBERSHIP == frozenset({"562111", "562212", "562213", "562920"})
+        assert MAKE_ROW_ONEHOT_COMMODITIES["211000"] == "562212"
+
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        V_out, _ = reconcile_waste_make_and_va_to_use(
+            V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+        )
+        # 484000 → one-hot 562111
+        assert float(cast(float, V_out.loc["484000", "562111"])) == pytest.approx(10.0)
+        assert float(cast(float, V_out.loc["484000", "562HAZ"])) == pytest.approx(0.0)
+        # 211000 commodity → one-hot 562212 industry row
+        assert float(cast(float, V_out.loc["562212", "211000"])) == pytest.approx(20.0)
+        assert float(cast(float, V_out.loc["562111", "211000"])) == pytest.approx(0.0)
+
+    def test_parent_sum_collapse_when_562000_absent(self) -> None:
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        # Expand parent into equal children first (simulates correspondence)
+        V_exp = V.drop(index="562000", columns="562000", errors="ignore").copy()
+        for w in _TOY_WASTE:
+            if w not in V_exp.index:
+                V_exp.loc[w] = 0.0
+            if w not in V_exp.columns:
+                V_exp[w] = 0.0
+        # Distribute parent border equally across children
+        for ind in ["111000", "484000", "221300"]:
+            for w in _TOY_WASTE:
+                V_exp.loc[ind, w] = float(cast(float, V.loc[ind, "562000"])) / 3.0
+        for com in ["111000", "211000"]:
+            for w in _TOY_WASTE:
+                V_exp.loc[w, com] = float(cast(float, V.loc["562000", com])) / 3.0
+
+        V_out, _ = reconcile_waste_make_and_va_to_use(
+            V_exp, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+        )
+        # Parent column mass for 111000 recovered as sum of children (=30)
+        border = pd.Series(V_out.loc["111000"].reindex(_TOY_WASTE), dtype=float)
+        assert float(border.sum()) == pytest.approx(30.0)
+        # Not a single-child understatement (would be 10)
+        assert float(border.max()) < 30.0
+
+    def test_partial_children_without_parent_raises_clear_error(self) -> None:
+        """Partial child set without parent must name which codes are missing."""
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        V = V.drop(
+            index=["562000", "562HAZ", "562212"],
+            columns=["562000", "562HAZ", "562212"],
+            errors="ignore",
+        )
+        # Only 562111 remains — incomplete correspondence / IO vintage vs weights.
+        with pytest.raises(ValueError, match="index missing=.*562HAZ"):
+            reconcile_waste_make_and_va_to_use(
+                V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+            )
+
+    def test_onehot_overflow_scales_nonwaste_diagonal_zero(self) -> None:
+        """One-hot mass above q_target scales non-waste down; diagonal stays 0."""
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        # 484000 → one-hot 562111; dump more parent mass than q_target[562111].
+        V.loc["484000", "562000"] = 100.0
+        V.loc["562000", "111000"] = 500.0
+        for w in _TOY_WASTE:
+            Udom.loc[:, w] = 0.0
+            Uimp.loc[:, w] = 0.0
+        q = compute_waste_q_targets(Udom, Uimp, Y, waste_codes=_TOY_WASTE)
+        qt_111 = float(cast(float, q.loc["562111"]))
+        with pytest.warns(UserWarning, match="scaled non-waste"):
+            V_out, _ = reconcile_waste_make_and_va_to_use(
+                V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+            )
+        assert float(cast(float, V_out.loc["562111", "562111"])) == pytest.approx(0.0)
+        assert float(V_out["562111"].sum()) == pytest.approx(qt_111, abs=1e-9)
+        # One-hot cell was scaled down from 100, not deleted via whole-column wipe.
+        assert 0.0 < float(cast(float, V_out.loc["484000", "562111"])) < 100.0
+
+    def test_nonpositive_q_target_redistributes_nonwaste_mass(self) -> None:
+        """Non-positive q_target must not wipe one-hot mass; move it to siblings."""
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        # Force q_target[562111] == 0 while 484000 still one-hots onto 562111.
+        Udom.loc["562111", :] = 0.0
+        Uimp.loc["562111", :] = 0.0
+        Y.loc["562111", :] = 0.0
+        # Only the one-hot industry carries parent column mass so siblings have
+        # room after redistribution (no secondary scale-down of the moved cells).
+        V.loc["111000", "562000"] = 0.0
+        V.loc["221300", "562000"] = 0.0
+        V.loc["484000", "562000"] = 10.0
+        with pytest.warns(UserWarning, match="redistributed non-waste Make"):
+            V_out, _ = reconcile_waste_make_and_va_to_use(
+                V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+            )
+        assert float(cast(float, V_out.loc["484000", "562111"])) == pytest.approx(0.0)
+        # Parent one-hot mass preserved on the other waste commodities.
+        moved = float(V_out.loc["484000"][["562HAZ", "562212"]].sum())
+        assert moved == pytest.approx(10.0, abs=1e-9)
+        assert float(V_out["562111"].sum()) == pytest.approx(0.0, abs=1e-9)
+
+    def test_nonwaste_block_and_va_unchanged(self) -> None:
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        V_out, VA_out = reconcile_waste_make_and_va_to_use(
+            V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+        )
+        assert float(cast(float, V_out.loc["111000", "111000"])) == pytest.approx(500.0)
+        assert float(cast(float, VA_out.loc["V00100", "111000"])) == pytest.approx(
+            100.0
+        )
+
+    def test_waste_va_balances_make_row(self) -> None:
+        V, Udom, Uimp, VA, Y = _toy_balanced_inputs()
+        V_out, VA_out = reconcile_waste_make_and_va_to_use(
+            V, Udom, Uimp, VA, Y, waste_codes=_TOY_WASTE
+        )
+        for ind in _TOY_WASTE:
+            make_row = float(V_out.loc[ind].sum())
+            use_col = float(Udom.loc[:, ind].sum()) + float(Uimp.loc[:, ind].sum())
+            va = float(VA_out[ind].sum())
+            tol = max(DISAGG_BALANCE_ATOL, 0.01 * abs(make_row))
+            assert abs(make_row - use_col - va) <= tol
+
+
+class TestDistributeWasteParentX:
+    def test_drops_nonpositive_v_row_shares(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Non-positive V row shares must not yield negative child x."""
+        codes = list(sdp._WASTE_NEW_CODES)
+        a, b, c = codes[0], codes[1], codes[2]
+        inds = [*codes, "111000"]
+        coms = [*codes, "111000"]
+        V = pd.DataFrame(0.0, index=inds, columns=coms)
+        V.loc[a, a] = 80.0
+        V.loc[b, b] = -10.0
+        V.loc[c, c] = 0.0
+
+        bundle = SimpleNamespace(V=V)
+        monkeypatch.setattr(sdp, "get_waste_disagg_weights", lambda: object())
+        monkeypatch.setattr(sdp, "derive_disagg_io_bundle", lambda: bundle)
+        monkeypatch.setattr(sdp, "electricity_disaggregation_enabled", lambda: False)
+
+        x = pd.Series(100.0, index=codes)
+        with pytest.warns(UserWarning, match="non-positive V row shares"):
+            out = sdp.distribute_waste_parent_x_using_v_row_shares(x)
+        assert float(out.loc[a]) == pytest.approx(100.0)
+        assert float(out.loc[b]) == pytest.approx(0.0)
+        assert float(out.loc[c]) == pytest.approx(0.0)
+        assert float(out.loc[a]) >= 0.0
+        assert all(float(out.loc[code]) >= 0.0 for code in codes)

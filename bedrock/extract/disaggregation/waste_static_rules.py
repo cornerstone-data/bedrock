@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-# Map id for WeightDerivationProvenance.naics_map_version
-NAICS_MAP_VERSION = "workbook_ec_tab+Sector_Crosswalk_Cornerstone_2025_v1"
+# Provenance id for WeightDerivationProvenance.naics_map_version.
+# Ultimate source of the 6-digit rolls is Sector_Crosswalk_Cornerstone_2025
+# (Cornerstone Activity ← NAICS_2017_Code)
+NAICS_MAP_VERSION = "Sector_Crosswalk_Cornerstone_2025"
 
-# Locked Decision (plan): workbook EC tab + Cornerstone_2025 crosswalk.
+# Locked Decision: match Sector_Crosswalk_Cornerstone_2025 waste children.
 # Do NOT use preview_sas_rcra_shares.py map (562119→562HAZ was wrong).
 SAS_NAICS_TO_CORNERSTONE: dict[str, str] = {
     "562111": "562111",
@@ -43,10 +45,28 @@ RCRA_FIVE_DIGIT_RESIDUAL: dict[str, str] = {
     "56299": "562OTH",
 }
 
-# Make static commodity→industry rules (workbook) — time-invariant.
-# IndustryCode (row) → CommodityCode → share among waste children for that cell.
-# Encoded as long-format Note patterns in bundled Make CSV; kept here for docs.
+# Documented Note strings for special Make cells in the bundled long-format CSV.
 MAKE_STATIC_RULE_NOTES = (
     "Make table, truck transport to solid waste collection",
     "Make table, landfill gas",
 )
+
+# Make-column assignment (non-waste industries × waste commodities): which child
+# receives each industry's parent Make mass when balancing waste Make to Use.
+# One-hot: that industry's entire parent mass goes to a single waste commodity.
+MAKE_COLUMN_ONEHOT_INDUSTRIES: dict[str, str] = {
+    "484000": "562111",
+    "511110": "562111",
+    "561700": "562910",
+}
+MAKE_COLUMN_GSLGO_INDUSTRIES: frozenset[str] = frozenset({"221300", "GSLGO"})
+# Waste children that share the GSLGO / water-sewer Make-column mix (zeros elsewhere).
+GSLGO_MEMBERSHIP: frozenset[str] = frozenset({"562111", "562212", "562213", "562920"})
+
+# Make-row assignment (waste industries × non-waste commodities): which waste
+# industry produces each commodity when balancing secondary production.
+# One-hot: that commodity's entire parent Make mass goes to a single waste industry.
+MAKE_ROW_ONEHOT_COMMODITIES: dict[str, str] = {
+    "211000": "562212",
+    "S00401": "562920",
+}

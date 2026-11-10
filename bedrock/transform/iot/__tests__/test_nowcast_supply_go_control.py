@@ -58,11 +58,20 @@ def _summary_cells(block: pd.DataFrame) -> pd.DataFrame:
 
 
 def test_2017_passes_through_untouched() -> None:
-    """The benchmark year's detail split is observed and outranks GO's."""
+    """The benchmark year's detail split is observed and outranks GO's.
+
+    ``electric_output_on_eia_level`` is the one exception, and it moves only
+    the electricity row.
+    """
     raw = gc.raw_supply_block(2017, download_sources_ok=True)
     out = gc.go_controlled_supply_block(2017, download_sources_ok=True)
 
-    pd.testing.assert_frame_equal(out, raw)
+    if get_usa_config().electric_output_on_eia_level:
+        others = [c for c in raw.index if c != '221100']
+        pd.testing.assert_frame_equal(out.loc[others], raw.loc[others])
+        assert float(out.loc['221100'].sum()) < float(raw.loc['221100'].sum())
+    else:
+        pd.testing.assert_frame_equal(out, raw)
 
 
 def test_a_summary_cell_moves_only_inside_a_released_INDUSTRY_column(
