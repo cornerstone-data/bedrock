@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+from types import SimpleNamespace
 from typing import cast
 
 import numpy as np
@@ -1240,7 +1241,7 @@ class TestReconcileWasteMakeAndVa:
             )
         assert float(cast(float, V_out.loc["484000", "562111"])) == pytest.approx(0.0)
         # Parent one-hot mass preserved on the other waste commodities.
-        moved = float(V_out.loc["484000", ["562HAZ", "562212"]].sum())
+        moved = float(V_out.loc["484000"][["562HAZ", "562212"]].sum())
         assert moved == pytest.approx(10.0, abs=1e-9)
         assert float(V_out["562111"].sum()) == pytest.approx(0.0, abs=1e-9)
 
@@ -1281,11 +1282,7 @@ class TestDistributeWasteParentX:
         V.loc[b, b] = -10.0
         V.loc[c, c] = 0.0
 
-        class _Bundle:
-            pass
-
-        bundle = _Bundle()
-        bundle.V = V
+        bundle = SimpleNamespace(V=V)
         monkeypatch.setattr(sdp, "get_waste_disagg_weights", lambda: object())
         monkeypatch.setattr(sdp, "derive_disagg_io_bundle", lambda: bundle)
         monkeypatch.setattr(sdp, "electricity_disaggregation_enabled", lambda: False)
