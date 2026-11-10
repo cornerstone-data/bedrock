@@ -41,6 +41,13 @@ code's tax row and tax column apart, and the margin columns' failure to net
 (#809). :func:`_commodity_identity` checks that nothing else is left and the
 sidecar records both.
 
+⚠️ **The reconciliation can strip more margin than a buyer paid** (#1177):
+it scales every buyer of a good alike, so a high-rate buyer's producers'
+value goes negative. With ``cap_margins_at_purchase`` set,
+:func:`_cap_at_purchase` holds each buyer to its purchase and moves the
+excess to the good's other buyers; :func:`_negative_producer_value` reports
+what is left either way and, with the cap on, refuses the build on it.
+
 ⚠️ **The import control is ``MCIF + MDTY``** per #816's benchmark finding;
 whether a nowcast-year ``MCIF`` is c.i.f. per commodity (making that control
 carry over unchanged) is #822 and open. The sidecar names the control used.
@@ -55,7 +62,9 @@ States) and the same amount in exports (#1158).
 Testing: no direct unit tests, on purpose - like
 :mod:`nowcast_sut_assembly`, this is wiring over heavy cached inputs, and the
 per-year identity gates in :func:`mut_from_balanced` are the test: they run
-on the real objects every build, and a violation refuses the save.
+on the real objects every build, and a violation refuses the save. The one
+exception is the margin cap, which is arithmetic rather than wiring
+(``test_nowcast_mut_margin_cap``).
 """
 
 from __future__ import annotations
@@ -163,6 +172,9 @@ class MutTables(ta.NamedTuple):
     sources: tuple[str, ...]
     #: The commodity identity residual Step 5 hands over, $M (#1161).
     identity_residual: ta.Mapping[str, float] = {}
+    #: Goods cells with producers' value below zero on a positive purchase,
+    #: $M, and whether the margin cap ran (#1177).
+    negative_producer_value: ta.Mapping[str, ta.Any] = {}
 
 
 # --- loading the Step 5 products -------------------------------------------
@@ -438,12 +450,83 @@ def _reconcile_placement(
     return out
 
 
+def _fill_to_limit(margin: pd.Series, limit: pd.Series) -> pd.Series | None:
+    """Each buyer's margin held to its *limit*, the excess moved to the others.
+
+    The excess goes to the buyers still under their limit in proportion to
+    their margin (to their room, where none of them carries any), repeated
+    until no buyer is over. The total is unchanged. ``None`` where the total
+    exceeds the buyers' combined limit, so no placement meets it.
+    """
+    if float(margin.sum()) > float(limit.sum()) + _FIT_TOLERANCE:
+        return None
+    target = margin.copy()
+    for _ in range(len(target)):
+        over = target > limit
+        excess = float((target - limit)[over].sum())
+        if excess <= _FIT_TOLERANCE:
+            break
+        target[over] = limit[over]
+        room = (limit - target).clip(lower=0.0)
+        weight = margin.where(room > 0.0, 0.0)
+        if float(weight.sum()) <= 0.0:
+            weight = room
+        target += excess * weight / float(weight.sum())
+    return target
+
+
+def _cap_at_purchase(
+    placed: ta.Mapping[str, pd.DataFrame], purchaser: pd.DataFrame
+) -> dict[str, pd.DataFrame]:
+    """Placed margin held to each buyer's purchase, so no producers' value is
+    negative (#1177).
+
+    :func:`_reconcile_placement` scales every buyer of a good by the same
+    factor, so a good whose Supply margin is well above its 2017 rate pushes
+    its high-rate buyers past their purchase - ``621100``'s $3.1bn wholesale
+    margin on a $2.8bn purchase of ``325411`` in 2024. Per good with such a
+    cell, :func:`_fill_to_limit` sets each buyer's total margin, and the
+    good's margin commodity x buyer block is fitted to those totals with each
+    margin commodity's total for the good exact (:func:`_fit`). The rows are
+    what keeps the Supply give-up of both families and each margin
+    commodity's book where :func:`_reconcile_placement` put them; scaling a
+    buyer's margins uniformly would move margin between transport and trade.
+
+    Only buyers with a positive purchase and no negative margin cell on the
+    good take part: change in inventories (``F03000``) carries negative
+    margins on negative purchases and is left as placed. A good whose margin
+    exceeds all its positive purchases is left as placed too, for the gate
+    (:func:`_negative_producer_value`) to name.
+    """
+    codes = list(placed)
+    stripped = functools.reduce(lambda a, b: a + b, placed.values())
+    out = {code: frame.copy() for code, frame in placed.items()}
+    over = (stripped - purchaser > _FIT_TOLERANCE) & (purchaser > 0.0)
+    for good in over.index[over.any(axis=1)]:
+        block = pd.DataFrame({code: placed[code].loc[good] for code in codes}).T
+        live = (purchaser.loc[good] > 0.0) & (block >= 0.0).all(axis=0)
+        block = block.loc[:, live]
+        target = _fill_to_limit(block.sum(axis=0), purchaser.loc[good, live])
+        if target is None:
+            continue
+        rows = block.sum(axis=1)
+        share = rows / float(rows.sum())
+        fallback = pd.DataFrame(
+            {buyer: share for buyer in block.columns}, index=block.index
+        )
+        fitted = _fit(block, rows, target, fallback)
+        for code in codes:
+            out[code].loc[good, fitted.columns] = fitted.loc[code]
+    return out
+
+
 def margins_table(
     use_sut: pd.DataFrame,
     panel: RatePanel | None = None,
     prior: ta.Mapping[str, pd.DataFrame] | None = None,
     give_up: ta.Mapping[str, pd.Series] | None = None,
     book: pd.Series | None = None,
+    cap: bool = False,
 ) -> pd.DataFrame:
     """The year's hyper-detailed Margins table, USD, from the purchaser Use.
 
@@ -466,7 +549,8 @@ def margins_table(
     after the anchor placement is gated (:func:`_reconcile_placement`, #1161).
     Without them the table is the anchor placement alone, which conserves
     margin mass but leaves each commodity's producer-price Use row off its
-    Make output.
+    Make output. With *cap*, the reconciled placement is then held to each
+    buyer's purchase (:func:`_cap_at_purchase`, #1177).
     """
     rates = panel if panel is not None else build_rate_panel(2017)
     goods = goods_commodities()
@@ -508,6 +592,8 @@ def margins_table(
         if book is None:
             raise ValueError("give_up needs the margin commodities' book too")
         placed = _reconcile_placement(placed, purchaser, give_up, book)
+        if cap:
+            placed = _cap_at_purchase(placed, purchaser)
 
     stripped = functools.reduce(lambda a, b: a + b, placed.values())
     wide: dict[str, pd.DataFrame] = {_PRO: purchaser - stripped, _PUR: purchaser}
@@ -601,6 +687,52 @@ def _commodity_identity(
     }
 
 
+def _negative_producer_value(
+    year: int, margins: pd.DataFrame, *, enforce: bool
+) -> dict[str, ta.Any]:
+    """Report goods cells whose producers' value is below zero on a positive
+    purchase; with *enforce*, refuse the build past :data:`GATE_ATOL` (#1177).
+
+    Negative cells on negative purchases (change in inventories) and on the
+    margin commodities' own rows are BEA's convention and not counted. What
+    is left once :func:`_cap_at_purchase` has run is a good whose Supply
+    margin exceeds all its positive purchases: no placement meets that, and
+    the fix is in the Step 5 balance, not here. Returned in $M for the
+    sidecar.
+    """
+    commodity = margins.index.get_level_values('Commodity Code')
+    goods = margins.loc[~commodity.isin(MARGIN_COMMODITIES)]
+    value = goods.loc[goods[_PUR] > 0.0, _PRO]
+    short = value[value < 0.0]
+    million = MILLION_CURRENCY_TO_CURRENCY
+    by_commodity = short.groupby(level='Commodity Code').sum().sort_values() / million
+    report: dict[str, ta.Any] = {
+        'capped': enforce,
+        'cells': int(len(short)),
+        'sum_usd_m': float(short.sum()) / million,
+        'by_commodity_usd_m': by_commodity.head(10).round(3).to_dict(),
+    }
+    if short.empty:
+        return report
+    buyer, good = ta.cast(tuple[str, str], short.idxmin())
+    report['worst_cell'] = f'{buyer}/{good}'
+    report['worst_usd_m'] = float(short.min()) / million
+    if enforce and float(-short.min()) > GATE_ATOL:
+        raise AssertionError(
+            f"{year} producers' value is ${-report['worst_usd_m']:,.3f}M below "
+            f"zero at {report['worst_cell']} with the margin cap on; the "
+            f"{good} margin given up exceeds what its buyers purchase, which "
+            'is a Step 5 balance to fix, not a placement'
+        )
+    return report
+
+
+def _cap_margins_at_purchase() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().cap_margins_at_purchase
+
+
 def mut_from_balanced(
     year: int,
     supply: pd.DataFrame,
@@ -638,7 +770,11 @@ def mut_from_balanced(
         + _supply_column(supply, 'TOP')
         * trade_level_share().reindex(commodities).fillna(0.0),
     }
-    margins = margins_table(use_sut, panel=panel, give_up=give_up, book=shortfall)
+    cap = _cap_margins_at_purchase()
+    margins = margins_table(
+        use_sut, panel=panel, give_up=give_up, book=shortfall, cap=cap
+    )
+    negative = _negative_producer_value(year, margins, enforce=cap)
     goods_rows = margins.loc[
         ~margins.index.get_level_values('Commodity Code').isin(MARGIN_COMMODITIES)
     ]
@@ -691,6 +827,7 @@ def mut_from_balanced(
         margins=margins,
         sources=sources,
         identity_residual=residual,
+        negative_producer_value=negative,
     )
 
 
@@ -768,6 +905,7 @@ def save_mut(
                 ),
                 'import_control': 'MCIF + MDTY per #816; nowcast basis is #822',
                 'commodity_identity_residual': dict(tables.identity_residual),
+                'negative_producer_value': dict(tables.negative_producer_value),
                 'builder': 'bedrock.transform.iot.nowcast_mut',
             },
         }
