@@ -268,6 +268,15 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # Chain the truck and water transport margins across the SAS -> AIES
+    # change: 2023 keeps 2022's margin as a share of the mode's gross output,
+    # and 2024 moves on AIES's own 2024/2023 revenue. AIES's Table 8 covers
+    # 0.84 of truck revenue against SAS's 0.93, so without this the 2023 truck
+    # margin falls 17.8% while output falls 5.5%, to 0.83 of BEA's published
+    # margin. The truck output the margin no longer absorbs lands on truck's
+    # direct purchases, so its own use goes from $23bn to $35bn (#890). See
+    # nowcast_transport_margins.chained_control_total.
+    chain_transport_margins_across_aies: bool = False  # DRI: WesIngwersen
     # Smooth each manufacturing industry's share of the expense seed's survey
     # total across the survey changes (census 2017 -> ASM 2018-21 -> census
     # 2022 -> AIES): ASM shares benchmarked to both censuses, a 3-year centred

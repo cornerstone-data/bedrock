@@ -989,3 +989,56 @@ def test_2024_margins_are_sourced_not_zero_filled() -> None:
         bridge_2024['T016']
         - (bridge_2024['T013'] + bridge_2024['T014'] + bridge_2024['T015'])
     ).abs().max() < 1
+
+
+# --- chaining the truck and water margins across the SAS -> AIES change -----
+
+
+@pytest.fixture
+def seam(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Truck revenue 400 in 2022 (SAS), 330 in 2023 and 340 in 2024 (AIES, which
+    covers less of the industry); output 500, 475, 480; coverage 1.05."""
+    revenue = {2022: 400.0, 2023: 330.0, 2024: 340.0}
+    output = {2022: 500.0, 2023: 475.0, 2024: 480.0}
+    monkeypatch.setattr(tm, 'mode_freight_revenue', lambda mode, year: revenue[year])
+    monkeypatch.setattr(tm, 'mode_coverage_ratio', lambda mode, margins=None: 1.05)
+    monkeypatch.setattr(tm, '_mode_gross_output', lambda mode, year: output[year])
+
+
+@pytest.mark.usefixtures('seam')
+def test_the_first_aies_year_keeps_the_last_sas_margin_share_of_output() -> None:
+    """2022 margin 1.05 x 400 = 420 is 84% of output; 2023 is 84% of 475."""
+    assert tm.chained_control_total('truck', 2023) == pytest.approx(0.84 * 475.0)
+
+
+@pytest.mark.usefixtures('seam')
+def test_later_aies_years_move_on_aies_revenue_alone() -> None:
+    first = tm.chained_control_total('truck', 2023)
+    assert tm.chained_control_total('truck', 2024) == pytest.approx(
+        first * 340.0 / 330.0
+    )
+
+
+@pytest.mark.usefixtures('seam')
+def test_the_flag_routes_only_chained_modes_and_aies_years(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tm, '_chain_transport_across_aies', lambda: True)
+    assert tm.mode_control_total('truck', 2023) == pytest.approx(0.84 * 475.0)
+    assert tm.mode_control_total('water', 2023) == pytest.approx(0.84 * 475.0)
+    # A SAS year, and a mode outside the set, keep coverage x revenue.
+    assert tm.mode_control_total('truck', 2022) == pytest.approx(1.05 * 400.0)
+    assert tm.mode_control_total('pipeline', 2023) == pytest.approx(1.05 * 330.0)
+
+
+@pytest.mark.usefixtures('seam')
+def test_with_the_flag_off_aies_years_keep_coverage_times_revenue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tm, '_chain_transport_across_aies', lambda: False)
+    assert tm.mode_control_total('truck', 2023) == pytest.approx(1.05 * 330.0)
+
+
+def test_a_sas_year_cannot_be_chained() -> None:
+    with pytest.raises(ValueError, match='SAS year'):
+        tm.chained_control_total('truck', 2022)
