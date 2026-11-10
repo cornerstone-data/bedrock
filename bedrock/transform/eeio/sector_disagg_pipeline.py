@@ -214,9 +214,10 @@ def _clear_delivery_state_if_loaded() -> None:
 
 
 def clear_waste_disagg_weights_cache() -> None:
-    """Clear waste weights/provenance and ``_derive_waste_balanced_io`` (sole site)."""
+    """Clear waste weights/provenance and Use/Y + balanced-IO caches."""
     _WASTE_WEIGHTS_CACHE.clear()
     _WASTE_PROVENANCE_CACHE.clear()
+    _derive_waste_use_y.cache_clear()
     _derive_waste_balanced_io.cache_clear()
     _clear_delivery_state_if_loaded()
 
@@ -233,6 +234,41 @@ class CornerstoneDisaggIOBundle:
     Udom: pd.DataFrame
     Uimp: pd.DataFrame
     VA: pd.DataFrame
+
+
+@functools.cache
+def _derive_waste_use_y() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Correspondence + Use/Y waste weights only (no Make/VA reconcile).
+
+    U/Y-only callers (e.g. emissions re-split) use this path so they do not
+    build V/VA or fail when reconcile raises. Returns cached frames — callers
+    must ``.copy()``.
+    """
+    Utot = load_detail_Utot_usa()
+    Uimp = load_detail_Uimp_usa()
+    Udom = Utot - Uimp
+    com_c = commodity_corresp()
+    ind_c = industry_corresp()
+    Udom = com_c @ Udom @ ind_c.T
+    Uimp = com_c @ Uimp @ ind_c.T
+    for df in (Udom, Uimp):
+        df.index.name = 'sector'
+        df.columns.name = 'sector'
+
+    ytot = commodity_corresp() @ load_detail_Ytot_usa()
+    ytot.index.name = 'sector'
+
+    weights = get_waste_disagg_weights()
+    if weights is None:
+        return Udom, Uimp, ytot
+
+    Udom, Uimp = apply_waste_disagg_to_U(Udom, Uimp, weights)
+    for df in (Udom, Uimp):
+        df.index.name = 'sector'
+        df.columns.name = 'sector'
+    ytot = apply_waste_disagg_to_Ytot(ytot, weights)
+    ytot.index.name = 'sector'
+    return Udom, Uimp, ytot
 
 
 @functools.cache
@@ -255,26 +291,15 @@ def _derive_waste_balanced_io() -> (
     ``distribute_waste_parent_x_using_v_row_shares``, which rescales children
     to the BEA parent gross-output total — see that helper's docstring.
 
-    Returns cached frames — callers must ``.copy()``.
+    Reuses ``_derive_waste_use_y`` for U/Y. Returns cached frames — callers
+    must ``.copy()``.
     """
+    Udom, Uimp, ytot = _derive_waste_use_y()
+
     V_detail = load_detail_V_usa()
     V = industry_corresp() @ V_detail @ commodity_corresp().T
     V.index.name = 'sector'
     V.columns.name = 'sector'
-
-    Utot = load_detail_Utot_usa()
-    Uimp = load_detail_Uimp_usa()
-    Udom = Utot - Uimp
-    com_c = commodity_corresp()
-    ind_c = industry_corresp()
-    Udom = com_c @ Udom @ ind_c.T
-    Uimp = com_c @ Uimp @ ind_c.T
-    for df in (Udom, Uimp):
-        df.index.name = 'sector'
-        df.columns.name = 'sector'
-
-    ytot = commodity_corresp() @ load_detail_Ytot_usa()
-    ytot.index.name = 'sector'
 
     VA = load_detail_value_added_usa() @ industry_corresp().T
     VA.columns.name = 'sector'
@@ -283,12 +308,6 @@ def _derive_waste_balanced_io() -> (
     if weights is None:
         return V, Udom, Uimp, VA, ytot
 
-    Udom, Uimp = apply_waste_disagg_to_U(Udom, Uimp, weights)
-    for df in (Udom, Uimp):
-        df.index.name = 'sector'
-        df.columns.name = 'sector'
-    ytot = apply_waste_disagg_to_Ytot(ytot, weights)
-    ytot.index.name = 'sector'
     VA = apply_waste_disagg_to_VA(VA, weights)
     VA.columns.name = 'sector'
 
@@ -308,13 +327,14 @@ def derive_V_after_waste() -> pd.DataFrame:
 
 
 def derive_U_after_waste() -> tuple[pd.DataFrame, pd.DataFrame]:
-    _V, Udom, Uimp, _VA, _Y = _derive_waste_balanced_io()
+    """Use tables after waste weights; does not run Make/VA reconcile."""
+    Udom, Uimp, _Y = _derive_waste_use_y()
     return Udom.copy(), Uimp.copy()
 
 
 def derive_y_after_waste() -> pd.DataFrame:
-    """Correspondence-mapped Y after waste disaggregation."""
-    return _derive_waste_balanced_io()[4].copy()
+    """Correspondence-mapped Y after waste weights; does not run Make/VA reconcile."""
+    return _derive_waste_use_y()[2].copy()
 
 
 def _derive_y_before_electricity_disagg() -> pd.DataFrame:

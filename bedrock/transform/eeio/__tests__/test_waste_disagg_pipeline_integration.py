@@ -22,11 +22,13 @@ from bedrock.transform.eeio import (
 from bedrock.transform.eeio.sector_disagg_pipeline import (
     _WASTE_NEW_CODES,
     _derive_waste_balanced_io,
+    _derive_waste_use_y,
     clear_waste_disagg_weights_cache,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
     derive_U_after_waste,
     derive_V_after_waste,
+    derive_y_after_waste,
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
@@ -67,6 +69,7 @@ _CACHED_FUNCTIONS: list[Callable[..., object]] = [
     electricity_reallocation_enabled,
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
+    _derive_waste_use_y,
     _derive_waste_balanced_io,
     derive_disagg_io_bundle,
     derive_disagg_Ytot_with_trade,
@@ -585,3 +588,24 @@ class TestWasteCommodityIdentity:
         V1.iloc[0, 0] = marker + 12345.0
         V2 = derive_V_after_waste()
         assert float(cast(float, V2.iloc[0, 0])) == pytest.approx(marker)
+
+    def test_u_after_waste_skips_make_va_reconcile(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """U/Y-only path must not build or fail on Make/VA reconcile."""
+        _setup_config("test_usa_config_waste_disagg")
+
+        def _boom(*_a: object, **_k: object) -> tuple[object, object]:
+            raise RuntimeError("reconcile must not run for Use-only callers")
+
+        monkeypatch.setattr(
+            "bedrock.transform.eeio.sector_disagg_pipeline.reconcile_waste_make_and_va_to_use",
+            _boom,
+        )
+        Udom, Uimp = derive_U_after_waste()
+        Y = derive_y_after_waste()
+        assert not Udom.empty
+        assert not Uimp.empty
+        assert not Y.empty
+        with pytest.raises(RuntimeError, match="reconcile must not run"):
+            derive_V_after_waste()
