@@ -630,7 +630,7 @@ def test_held_co_product_share_survives_column_shrink() -> None:
         frozen['supply'].at['c2', 'i1']
     )
     bal_col = float(restored['supply']['i1'].sum())
-    bal_share = float(restored['supply'].at['c2', 'i1']) / bal_col
+    bal_share = float(np.asarray(restored['supply'].at['c2', 'i1']).item()) / bal_col
     assert abs(100.0 * (bal_share - seed_share)) <= REFINERY_SHARE_TOL_PP
     # Residual lands on more than the held cell: own-product moved.
     assert restored['supply'].at['c1', 'i1'] != pytest.approx(70.0, abs=1e-6)
