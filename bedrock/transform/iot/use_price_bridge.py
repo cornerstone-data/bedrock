@@ -34,6 +34,7 @@ from bedrock.extract.iot.io_2017 import load_benchmark_margins_before_redef_usa
 from bedrock.transform.iot.margin_rates import (
     BUYER_CODES,
     MARGIN_COMMODITIES,
+    MARGIN_FAMILIES,
     RatePanel,
     build_rate_panel,
     goods_commodities,
@@ -67,7 +68,10 @@ def price_bridge(
     """
     rates = panel if panel is not None else build_rate_panel(year)
     purchaser = _goods_grid(use_purchaser)
-    trade = (rates.rates['whl'] + rates.rates['ret']) * purchaser
+    trade = {
+        kind: rates.rates[RATE_COMPONENT_BY_FAMILY[kind]] * purchaser
+        for kind in SALES_TAX_COLUMNS
+    }
     layer = (
         restrict_to_cells(fiscal, purchaser, trade)
         if fiscal is not None
@@ -75,7 +79,6 @@ def price_bridge(
     )
     producer = rates.rates['pro'] * purchaser
     margins = margin_columns(purchaser, rates, layer)
-    sales_tax = layer.sales_tax
 
     columns: dict[str, 'pd.Series[float]'] = {}
     for name, frame in (
@@ -90,7 +93,8 @@ def price_bridge(
     )
     for commodity in MARGIN_COMMODITIES:
         columns[commodity] = _flatten(margins[commodity])
-    columns[SALES_TAX] = _flatten(sales_tax)
+    for kind, name in SALES_TAX_COLUMNS.items():
+        columns[name] = _flatten(getattr(layer, f'{kind}_tax'))
     columns[PURCHASERS_VALUE] = _flatten(purchaser)
 
     frame = pd.DataFrame(columns)[list(BRIDGE_COLUMNS)]
@@ -261,23 +265,20 @@ def collapse_to_bea(bridge: pd.DataFrame) -> pd.DataFrame:
     """BEA's five-column Margins layout, derived from *bridge*. USD.
 
     The published table embeds the sales tax in its trade columns, so the
-    collapse re-embeds it - split between ``Wholesale`` and ``Retail`` in
-    proportion to each cell's own tax-free trade margin. This is the view that
-    replays against the published table, and the only place the tax goes back
-    inside a margin column.
+    collapse re-embeds it: each kind's tax goes back into its own margin
+    column (#1247). This is the view that replays against the published
+    table, and the only place the tax goes back inside a margin column.
     """
-    wholesale = bridge[list(MARGIN_FAMILIES['wholesale'])].sum(axis=1)
-    retail = bridge[list(MARGIN_FAMILIES['retail'])].sum(axis=1)
-    trade = wholesale + retail
-    share = (wholesale / trade.where(trade != 0.0)).fillna(1.0)
-    tax = bridge[SALES_TAX]
-
+    trade = {
+        kind: bridge[list(MARGIN_FAMILIES[kind])].sum(axis=1) + bridge[name]
+        for kind, name in SALES_TAX_COLUMNS.items()
+    }
     return pd.DataFrame(
         {
             "Producers' Value": bridge[PRODUCERS_VALUE],
             'Transportation': bridge[list(MARGIN_FAMILIES['transport'])].sum(axis=1),
-            'Wholesale': wholesale + tax * share,
-            'Retail': retail + tax * (1.0 - share),
+            'Wholesale': trade['wholesale'],
+            'Retail': trade['retail'],
             "Purchasers' Value": bridge[PURCHASERS_VALUE],
         }
     )
@@ -289,30 +290,27 @@ PRODUCER_TAXES = 'Taxes on products'
 DUTIES = 'Import duties'
 SUBSIDIES = 'Subsidies'
 PRODUCERS_VALUE = "Producers' Value"
-SALES_TAX = 'Sales tax'
 PURCHASERS_VALUE = "Purchasers' Value"
 
 #: The three wedges between basic and producers' value. Subsidies are stored
 #: negative, the balance convention.
 FISCAL_COLUMNS: tuple[str, ...] = (PRODUCER_TAXES, DUTIES, SUBSIDIES)
 
+#: The margin-collected sales tax, one column per kind of trade margin it sits
+#: in (#1247).
+SALES_TAX_COLUMNS: dict[str, str] = {
+    'wholesale': 'Sales tax in wholesale margin',
+    'retail': 'Sales tax in retail margin',
+}
+
 BRIDGE_COLUMNS: tuple[str, ...] = (
     BASIC,
     *FISCAL_COLUMNS,
     PRODUCERS_VALUE,
     *MARGIN_COMMODITIES,
-    SALES_TAX,
+    *SALES_TAX_COLUMNS.values(),
     PURCHASERS_VALUE,
 )
-
-#: Which margin commodities earn which margin. ``MARGIN_COMMODITIES`` is
-#: written in this order - ten wholesale codes, nine retail, five transport
-#: modes - and the split is checked against that rather than assumed.
-MARGIN_FAMILIES: dict[str, tuple[str, ...]] = {
-    'wholesale': MARGIN_COMMODITIES[:10],
-    'retail': MARGIN_COMMODITIES[10:19],
-    'transport': MARGIN_COMMODITIES[19:],
-}
 
 #: The rate component each family is paid out of.
 RATE_COMPONENT_BY_FAMILY: dict[str, str] = {
@@ -339,7 +337,7 @@ def row_identities(bridge: pd.DataFrame) -> pd.DataFrame:
             - bridge[PRODUCERS_VALUE],
             'producer_to_purchaser': bridge[PRODUCERS_VALUE]
             + margins
-            + bridge[SALES_TAX]
+            + bridge[list(SALES_TAX_COLUMNS.values())].sum(axis=1)
             - bridge[PURCHASERS_VALUE],
         }
     )
@@ -366,7 +364,8 @@ def column_identities(
                 [*MARGIN_FAMILIES['wholesale'], *MARGIN_FAMILIES['retail']]
             ].sum(axis=1),
             'TRANS': by_commodity[list(MARGIN_FAMILIES['transport'])].sum(axis=1),
-            'TOP': by_commodity[SALES_TAX] + by_commodity[PRODUCER_TAXES],
+            'TOP': by_commodity[list(SALES_TAX_COLUMNS.values())].sum(axis=1)
+            + by_commodity[PRODUCER_TAXES],
             'MDTY': by_commodity[DUTIES],
             'SUB': by_commodity[SUBSIDIES],
         }
@@ -625,33 +624,33 @@ def _goods_grid(use_purchaser: pd.DataFrame) -> pd.DataFrame:
 def _strip_sales_tax(
     amounts: dict[str, pd.DataFrame], fiscal: FiscalLayer, purchaser: pd.DataFrame
 ) -> dict[str, pd.DataFrame]:
-    """Wholesale and retail net of the sales tax they collect.
+    """Wholesale and retail net of the sales tax each collects.
 
-    The tax comes out of the pair in proportion to each cell's own wholesale
-    and retail margin, so a cell with only retail margin gives it all up there.
+    Each kind's tax comes out of its own margin (#1247), so the split
+    :func:`~bedrock.transform.iot.tax_subsidy_layer.sales_tax_by_kind` fits
+    reaches the tax-free margins.
 
-    Raises ``ValueError`` where a cell's tax exceeds its trade margin, which
-    would leave it a negative tax-free margin: the layer caps each cell at
-    the margin it is given (#1247), so this means *fiscal* was built against
+    Raises ``ValueError`` where a kind's tax exceeds that kind's margin on a
+    cell, which would leave it a negative tax-free margin. The layer caps each
+    kind at the margin it is given, so this means *fiscal* was built against
     another table's margins.
     """
-    tax = fiscal.sales_tax.reindex_like(purchaser).fillna(0.0)
-    trade = amounts['wholesale'] + amounts['retail']
-    over = tax - trade.clip(lower=0.0)
-    if (over > CONSERVATION_TOLERANCE).to_numpy().any():
+    out = {}
+    for kind in SALES_TAX_COLUMNS:
+        tax = getattr(fiscal, f'{kind}_tax').reindex_like(purchaser).fillna(0.0)
+        over = tax - amounts[kind].clip(lower=0.0)
         cells = over > CONSERVATION_TOLERANCE
-        commodity = cells.any(axis=1).idxmax()
-        raise ValueError(
-            f'sales tax exceeds the trade margin on {int(cells.to_numpy().sum())} '
-            f'cells, by {over.where(cells, 0.0).to_numpy().sum():,.0f} USD (first '
-            f'{commodity}), which would leave a negative tax-free margin; the '
-            f'fiscal layer was restricted to another table\'s margins.'
-        )
-    share = (amounts['wholesale'] / trade.where(trade != 0.0)).fillna(1.0)
-    return {
-        'wholesale': amounts['wholesale'] - tax * share,
-        'retail': amounts['retail'] - tax * (1.0 - share),
-    }
+        if cells.to_numpy().any():
+            raise ValueError(
+                f'{kind} sales tax exceeds the {kind} margin on '
+                f'{int(cells.to_numpy().sum())} cells, by '
+                f'{over.where(cells, 0.0).to_numpy().sum():,.0f} USD (first '
+                f'{cells.any(axis=1).idxmax()}), which would leave a negative '
+                "tax-free margin; the fiscal layer was restricted to another "
+                "table's margins."
+            )
+        out[kind] = amounts[kind] - tax
+    return out
 
 
 def _flatten(frame: pd.DataFrame) -> 'pd.Series[float]':

@@ -93,6 +93,15 @@ MARGIN_COMMODITIES: tuple[str, ...] = (
     '486000',
 )
 
+#: Which margin commodities earn which margin. ``MARGIN_COMMODITIES`` is
+#: written in this order - ten wholesale codes, nine retail, five transport
+#: modes - and the split is checked against that rather than assumed.
+MARGIN_FAMILIES: dict[str, tuple[str, ...]] = {
+    'wholesale': MARGIN_COMMODITIES[:10],
+    'retail': MARGIN_COMMODITIES[10:19],
+    'transport': MARGIN_COMMODITIES[19:],
+}
+
 #: Routed-mass threshold for :func:`derive_margin_commodities`, USD.
 ROUTED_MASS_FLOOR = 500.0 * MILLION_CURRENCY_TO_CURRENCY
 

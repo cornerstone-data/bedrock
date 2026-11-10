@@ -37,7 +37,7 @@ from bedrock.transform.iot.use_price_bridge import (
     PURCHASERS_VALUE,
     REPLAYS,
     ROW_IDENTITY_TOLERANCE,
-    SALES_TAX,
+    SALES_TAX_COLUMNS,
     benchmark_bridge,
     collapse_to_bea,
     column_identities,
@@ -155,25 +155,27 @@ def test_the_sales_tax_comes_out_of_the_trade_pair_only() -> None:
 
 
 def test_sales_tax_above_the_trade_margin_is_refused() -> None:
-    """#1247: a tax of 25 on a trade margin of 20 would leave -5 tax-free."""
+    """#1247: 12.5 of each kind on a margin of 10 each would leave -2.5
+    tax-free."""
     panel = _panel(
         {'pro': 0.7, 'trans': 0.1, 'whl': 0.1, 'ret': 0.1},
         {WHOLESALE: 1.0, RETAIL: 1.0, TRANSPORT: 1.0},
     )
     purchaser = _purchaser(100.0)
 
-    with pytest.raises(ValueError, match='exceeds the trade margin'):
+    with pytest.raises(ValueError, match='sales tax exceeds the wholesale margin'):
         margin_columns(purchaser, panel, build_fiscal_stub(purchaser, tax=25.0))
 
 
 def build_fiscal_stub(purchaser: pd.DataFrame, tax: float) -> FiscalLayer:
-    """A fiscal layer carrying only a flat sales tax."""
+    """A fiscal layer carrying only a flat sales tax, half of it each kind."""
     zero = pd.DataFrame(
         0.0, index=purchaser.index, columns=purchaser.columns, dtype=float
     )
     return FiscalLayer(
         year=2017,
-        sales_tax=zero + tax,
+        wholesale_tax=zero + tax / 2,
+        retail_tax=zero + tax / 2,
         top_rest=zero,
         duties=zero,
         subsidies=zero,
@@ -200,7 +202,10 @@ def test_the_bridge_has_the_contract_columns_in_order() -> None:
     assert list(bridge.columns) == list(BRIDGE_COLUMNS)
     assert bridge.index.names == ['Industry Code', 'Commodity Code']
     assert list(BRIDGE_COLUMNS[:5]) == [BASIC, *FISCAL_COLUMNS, PRODUCERS_VALUE]
-    assert list(BRIDGE_COLUMNS[-2:]) == [SALES_TAX, PURCHASERS_VALUE]
+    assert list(BRIDGE_COLUMNS[-3:]) == [
+        *SALES_TAX_COLUMNS.values(),
+        PURCHASERS_VALUE,
+    ]
 
 
 def test_the_table_is_usd_not_million_usd() -> None:
@@ -232,19 +237,16 @@ def test_the_collapse_reproduces_the_published_five_columns(
         assert scores[column].gross / MILLION <= ceiling, column
 
 
-def test_the_collapse_re_embeds_the_sales_tax() -> None:
-    """Dropping the tax on the way out would understate the trade columns."""
+def test_the_collapse_re_embeds_each_kind_of_sales_tax() -> None:
+    """Dropping the tax on the way out would understate the trade columns, and
+    putting it back pro rata would move it between them (#1247)."""
     bridge = benchmark_bridge(2017)
     collapsed = collapse_to_bea(bridge)
 
-    trade = collapsed['Wholesale'] + collapsed['Retail']
-    tax_free = bridge[[*MARGIN_FAMILIES['wholesale'], *MARGIN_FAMILIES['retail']]].sum(
-        axis=1
-    )
-
-    assert float((trade - tax_free).sum()) == pytest.approx(
-        float(bridge[SALES_TAX].sum()), rel=1e-9
-    )
+    for kind, column in (('wholesale', 'Wholesale'), ('retail', 'Retail')):
+        tax_free = bridge[list(MARGIN_FAMILIES[kind])].sum(axis=1)
+        added = collapsed[column] - tax_free
+        assert float((added - bridge[SALES_TAX_COLUMNS[kind]]).abs().max()) < 1.0
 
 
 def test_the_margin_rows_come_back_from_their_columns() -> None:
@@ -360,7 +362,7 @@ def test_the_fiscal_layer_follows_the_input_cell_pattern() -> None:
     on_dropped = bridge.loc[bridge.index.get_level_values('Industry Code') == dropped]
 
     assert float(on_dropped[list(FISCAL_COLUMNS)].abs().to_numpy().sum()) == 0.0
-    assert float(on_dropped[SALES_TAX].abs().sum()) == 0.0
+    assert float(on_dropped[list(SALES_TAX_COLUMNS.values())].abs().sum().sum()) == 0.0
 
     gaps = column_identities(bridge, 2017)
     for name in ('TOP', 'MDTY', 'SUB'):

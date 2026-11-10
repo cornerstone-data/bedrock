@@ -50,6 +50,7 @@ collapse check, never cell by cell.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import typing as ta
 
@@ -62,13 +63,15 @@ from bedrock.extract.iot.io_2017 import (
 )
 from bedrock.transform.iot.margin_rates import (
     BUYER_CODES,
-    MARGIN_COMMODITIES,
+    MARGIN_FAMILIES,
     goods_commodities,
 )
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_BENCHMARK_DETAIL_SUT_YEARS,
 )
+
+logger = logging.getLogger(__name__)
 
 _PRO = "Producers' Value"
 _TRANS = 'Transportation'
@@ -80,17 +83,24 @@ _PUR = "Purchasers' Value"
 class FiscalLayer(ta.NamedTuple):
     """Per-cell allocations of one benchmark year's fiscal wedges, USD.
 
-    Each frame is goods-commodity x buyer. ``sales_tax`` is the
-    margin-collected part of ``TOP`` (post-producers'-value); ``top_rest``,
-    ``duties`` and ``subsidies`` are producer-level (``subsidies`` is
-    negative, balance convention).
+    Each frame is goods-commodity x buyer. ``wholesale_tax`` and
+    ``retail_tax`` are the margin-collected part of ``TOP``
+    (post-producers'-value), each inside its own kind of trade margin
+    (#1247); ``top_rest``, ``duties`` and ``subsidies`` are producer-level
+    (``subsidies`` is negative, balance convention).
     """
 
     year: int
-    sales_tax: pd.DataFrame
+    wholesale_tax: pd.DataFrame
+    retail_tax: pd.DataFrame
     top_rest: pd.DataFrame
     duties: pd.DataFrame
     subsidies: pd.DataFrame
+
+    @property
+    def sales_tax(self) -> pd.DataFrame:
+        """The margin-collected tax, both kinds."""
+        return self.wholesale_tax + self.retail_tax
 
 
 def _goods_wide(margins: pd.DataFrame, column: str) -> pd.DataFrame:
@@ -112,16 +122,20 @@ def _bridge(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.DataFrame:
     )
 
 
-def sales_tax_wedge(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.Series:
+def sales_tax_wedge(
+    year: USA_BENCHMARK_DETAIL_SUT_YEARS, clip: bool = True
+) -> pd.Series:
     """The margin-collected part of ``TOP`` per goods commodity, USD.
 
-    ``sum(Wholesale + Retail) - TRADE``, clipped to ``[0, TOP]`` - the clip
-    never binds beyond rounding in 2012 or 2017 (measured), it is a guard.
+    ``sum(Wholesale + Retail) - TRADE``, clipped to ``[0, TOP]`` unless
+    *clip* is off. The clip is a guard and binds only on rounding.
     """
     margins = load_benchmark_margins_before_redef_usa(year)
     whl_ret = _goods_wide(margins, _WHL) + _goods_wide(margins, _RET)
     bridge = _bridge(year)
     wedge = whl_ret.sum(axis=1) - bridge['TRADE']
+    if not clip:
+        return wedge
     return wedge.clip(lower=0.0, upper=bridge['TOP'].clip(lower=0.0))
 
 
@@ -136,15 +150,66 @@ def top_sales_share(year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017) -> pd.Series:
 #: The two kinds of trade margin and their Margins table columns.
 _KINDS: tuple[tuple[str, str], ...] = (('wholesale', _WHL), ('retail', _RET))
 
-#: Bisection bracket and steps for the wholesale tilt in
-#: :func:`sales_tax_by_kind`.
+#: Each kind's :class:`FiscalLayer` frame.
+SALES_TAX_FRAMES: dict[str, str] = {kind: f'{kind}_tax' for kind, _ in _KINDS}
+
+#: The published tables are in whole millions, so a total built from them
+#: matches another only to this, USD.
+_PUBLISHED_ROUNDING = 1.0 * MILLION_CURRENCY_TO_CURRENCY
+
+#: Bisection bracket and steps for :func:`fit_wholesale_tilt`. The bracket
+#: spans any split from all-retail to all-wholesale, and geometric bisection
+#: over it reaches machine precision well inside the step count.
 _TILT_BRACKET = (1e-9, 1e9)
 _TILT_STEPS = 200
 
 
+def fit_wholesale_tilt(
+    tax: pd.Series, share: pd.Series, target: float
+) -> tuple[pd.Series, float]:
+    """Each commodity's *tax* split so its wholesale part sums to *target*.
+
+    One scalar, solved by bisection::
+
+        wholesale[c] = tax[c] * tilt * s[c] / (tilt * s[c] + 1 - s[c])
+
+    with *share* ``s[c]`` the commodity's wholesale share of its trade margin.
+    The total is monotone in the tilt, so bisection hits *target*; the tilt is
+    the tax a dollar of wholesale margin carries against a dollar of retail.
+    Returns the wholesale part and the tilt.
+
+    Raises ``ValueError`` if no tilt reaches *target* to within
+    :data:`CONSERVATION_TOLERANCE`: the tax forced onto commodities with only
+    one kind of margin already exceeds it.
+    """
+
+    def wholesale_tax(tilt: float) -> pd.Series:
+        tilted = tilt * share
+        denominator = tilted + (1.0 - share)
+        return tax * (tilted / denominator.where(denominator > 0.0)).fillna(0.0)
+
+    low, high = _TILT_BRACKET
+    least, most = float(wholesale_tax(low).sum()), float(wholesale_tax(high).sum())
+    slack = CONSERVATION_TOLERANCE
+    if not least - slack <= target <= most + slack:
+        raise ValueError(
+            f'A wholesale total of {target:,.0f} USD is outside what any tilt '
+            f'reaches ({least:,.0f} to {most:,.0f}), so no split by kind exists.'
+        )
+    for _ in range(_TILT_STEPS):
+        middle = (low * high) ** 0.5
+        if wholesale_tax(middle).sum() < target:
+            low = middle
+        else:
+            high = middle
+    tilt = (low * high) ** 0.5
+    return wholesale_tax(tilt), tilt
+
+
 def sales_tax_by_kind(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.DataFrame:
     """The sales-tax wedge per goods commodity, split between wholesale and
-    retail. USD, columns ``wholesale`` and ``retail``.
+    retail. USD, columns ``wholesale`` and ``retail``; the fitted tilt is in
+    ``.attrs['tilt']``.
 
     Each kind's total is observed. A margin commodity's ``TRADE`` give-up is
     its margin net of the tax it collected, so::
@@ -152,16 +217,12 @@ def sales_tax_by_kind(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.DataFrame:
         tax[wholesale] = sum(Wholesale) - wholesale give-up
 
     and likewise for retail. Per commodity the split is one equation in two
-    unknowns, so the tax is tilted on one scalar, solved by bisection to hit
-    the wholesale total::
-
-        share[c] = tilt * s[c] / (tilt * s[c] + 1 - s[c])
-
-    with ``s[c]`` the commodity's wholesale share of its trade margin. The 2017
-    tilt is 0.796: a dollar of wholesale margin carries 0.8 of the tax a
-    dollar of retail margin does. This is
-    ``nowcast_trade_margins.trade_level_tax_by_kind_2017`` for any benchmark
-    year, on the clipped wedge.
+    unknowns, so :func:`fit_wholesale_tilt` tilts it on one scalar to hit the
+    wholesale total. The share it tilts is each commodity's wholesale share of
+    its *non-export* trade margin, because exports carry no sales tax (#815).
+    On that base the tilt is 0.852 in 2017 and 0.805 in 2012.
+    ``nowcast_trade_margins.trade_level_tax_by_kind_2017`` fits the same split
+    on gross shares, where it is 0.796.
 
     ⚠️ **Why by kind** (#1247). A split by retail margin alone put the whole
     wedge, wholesale's $175bn of it in 2017 included, on the retail buyers. A
@@ -169,8 +230,9 @@ def sales_tax_by_kind(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.DataFrame:
     trade margin: 34 cells in 2017 ($4.0bn), 22 in 2012 ($1.5bn). Split by
     kind, no cell carries more than 0.48 of its trade margin.
 
-    Raises ``ValueError`` if no tilt reaches the wholesale total, or if a
-    kind's tax on a commodity exceeds its margin of that kind.
+    Raises ``ValueError`` if no tilt reaches the wholesale total, if the
+    retail part misses the retail total by more than the wedge's clip, or if
+    a kind's tax on a commodity exceeds its non-export margin of that kind.
     """
     margins = load_benchmark_margins_before_redef_usa(year)
     wide = {kind: _goods_wide(margins, column) for kind, column in _KINDS}
@@ -185,38 +247,33 @@ def sales_tax_by_kind(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> pd.DataFrame:
         }
     )
     supply = _load_benchmark_detail_supply_use_usa('Supply_detail', year)
-    trade = (
-        pd.to_numeric(supply.rename(columns=str.strip)['TRADE'], errors='coerce')
-        .reindex(list(MARGIN_COMMODITIES[:10]))
-        .fillna(0.0)
+    give_up = pd.to_numeric(
+        supply.rename(columns=str.strip)['TRADE'], errors='coerce'
+    ).fillna(0.0)
+    target = {
+        kind: float(gross[kind].sum())
+        + float(give_up.reindex(list(MARGIN_FAMILIES[kind])).fillna(0.0).sum())
         * MILLION_CURRENCY_TO_CURRENCY
-    )
+        for kind, _ in _KINDS
+    }
     wedge = sales_tax_wedge(year)
-    target = float(gross['wholesale'].sum() + trade.sum())
 
     total = live.sum(axis=1)
     share = (live['wholesale'] / total.where(total > 0.0)).fillna(0.0)
-
-    def wholesale_tax(tilt: float) -> pd.Series:
-        tilted = tilt * share
-        denominator = tilted + (1.0 - share)
-        return wedge * (tilted / denominator.where(denominator > 0.0)).fillna(0.0)
-
-    low, high = _TILT_BRACKET
-    if not wholesale_tax(low).sum() <= target <= wholesale_tax(high).sum():
-        raise ValueError(
-            f'{year} wholesale sales tax of {target:,.0f} USD is outside what any '
-            'tilt reaches, so no split by kind exists.'
-        )
-    for _ in range(_TILT_STEPS):
-        middle = (low * high) ** 0.5
-        if wholesale_tax(middle).sum() < target:
-            low = middle
-        else:
-            high = middle
-    wholesale = wholesale_tax((low * high) ** 0.5)
+    wholesale, tilt = fit_wholesale_tilt(wedge, share, target['wholesale'])
     split = pd.DataFrame({'wholesale': wholesale, 'retail': wedge - wholesale})
+    split.attrs['tilt'] = tilt
 
+    # The wedge is clipped to [0, TOP], so the retail part can miss its
+    # observed total only by what the clip took off, to the tables' rounding.
+    clipped = float(sales_tax_wedge(year, clip=False).sum() - wedge.sum())
+    retail_gap = float(split['retail'].sum()) - target['retail']
+    if abs(retail_gap + clipped) > _PUBLISHED_ROUNDING:
+        raise ValueError(
+            f'{year} retail sales tax sums to {split["retail"].sum():,.0f} USD '
+            f'against {target["retail"]:,.0f} observed; the {retail_gap:,.0f} '
+            f'gap is not the wedge clip ({clipped:,.0f}).'
+        )
     above = (split > live + CONSERVATION_TOLERANCE).any(axis=1)
     if above.any():
         raise ValueError(
@@ -276,7 +333,7 @@ def _fill_under_cap(
 _FILL_TOLERANCE: float = 1e-3
 
 
-#: The four per-cell frames of a :class:`FiscalLayer`.
+#: The per-cell frames of a :class:`FiscalLayer`, sales tax first.
 FISCAL_FRAMES: tuple[str, ...] = tuple(f for f in FiscalLayer._fields if f != 'year')
 
 #: How far any one commodity total may move in the re-spread, USD. The
@@ -289,7 +346,7 @@ CONSERVATION_TOLERANCE: float = 1.0
 def build_fiscal_layer(
     year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017,
     cells: pd.DataFrame | None = None,
-    trade: pd.DataFrame | None = None,
+    trade: ta.Mapping[str, pd.DataFrame] | None = None,
 ) -> FiscalLayer:
     """Allocate the year's published wedges per cell. See the module docstring.
 
@@ -301,7 +358,7 @@ def build_fiscal_layer(
     ⚠️ **Pass *cells* for any table other than the anchor itself.** The
     allocation runs on *year*'s own cell pattern. A Use table with another
     pattern - any nowcast year, or a subset - has no cell for some of that tax.
-    *cells* is that table, commodity x buyer, and *trade* its wholesale plus
+    *cells* is that table, commodity x buyer, and *trade* its wholesale and
     retail margin per cell; see :func:`restrict_to_cells`.
     """
     layer = _allocate(year)
@@ -332,25 +389,31 @@ def _target_grid(cells: pd.DataFrame) -> pd.DataFrame:
 def restrict_to_cells(
     layer: FiscalLayer,
     cells: pd.DataFrame,
-    trade: pd.DataFrame | None = None,
+    trade: ta.Mapping[str, pd.DataFrame] | None = None,
 ) -> FiscalLayer:
     """*layer* re-spread onto the live cells of *cells*, USD.
 
-    A cell is live where the target buys a positive amount. For ``sales_tax``
-    it must also carry a positive trade margin in *trade* (the target's
-    wholesale plus retail margin per cell), because the tax comes back out of
-    that margin in ``use_price_bridge._strip_sales_tax``; exports are never
-    live for it. Leave *trade* off only for a table with no margins, and the
-    sales tax then follows purchases.
+    A cell is live where the target buys a positive amount. For each kind of
+    sales tax it must also carry a positive margin of that kind in *trade*
+    (``{'wholesale': ..., 'retail': ...}``, the target's margin per cell),
+    because the tax comes back out of that margin in
+    ``use_price_bridge._strip_sales_tax``; exports are never live for it.
+    Leave *trade* off only for a table with no margins, and the sales tax
+    then follows purchases.
 
     Within each commodity, live cells keep the tax they carry and the tax on
     dead cells is added onto them pro rata: the rescale ``kept * before /
     after``. The allocation puts each commodity's tax on one sign only, so the
-    rescale cannot flip a cell. With *trade*, ``sales_tax`` is held to each
-    live cell's trade margin on the way (:func:`_fill_under_cap`, #1247): a
-    pro-rata rescale alone can push a cell over it. A commodity whose live cells carry no anchor
-    tax spreads on the target's own base instead: its purchases, or its trade
-    margin for ``sales_tax``.
+    rescale cannot flip a cell. A commodity whose live cells carry no anchor
+    tax spreads on the target's own base instead: its purchases, or its
+    margin of the kind for sales tax.
+
+    With *trade*, each kind of sales tax is held to each live cell's margin of
+    that kind (:func:`_fill_under_cap`, #1247), since a pro-rata rescale alone
+    can push a cell over it. Sales tax the commodity's margins have no room
+    for is not margin-collected in the target table, so it joins the
+    commodity's ``top_rest`` and is re-spread with it: ``TOP`` is conserved
+    and the move is logged.
 
     The result is on the goods x :data:`BUYER_CODES` grid and zero off the
     live cells.
@@ -363,40 +426,46 @@ def restrict_to_cells(
     """
     grid = _target_grid(cells)
     purchases = grid.clip(lower=0.0)
-    if trade is not None:
-        margin = _target_grid(trade).clip(lower=0.0).where(purchases > 0.0, 0.0)
-    else:
-        margin = purchases.copy()
-    margin['F04000'] = 0.0
-    bases = {
-        name: margin if name == 'sales_tax' else purchases for name in FISCAL_FRAMES
-    }
+    bases = {name: purchases for name in FISCAL_FRAMES}
+    for kind, name in SALES_TAX_FRAMES.items():
+        margin = (
+            _target_grid(trade[kind]).clip(lower=0.0).where(purchases > 0.0, 0.0)
+            if trade is not None
+            else purchases.copy()
+        )
+        margin['F04000'] = 0.0
+        bases[name] = margin
 
     frames = {}
+    moved_to_top_rest = pd.Series(0.0, index=grid.index)
     for name in FISCAL_FRAMES:
         frame = getattr(layer, name)
         base = bases[name]
-        before = frame.sum(axis=1)
+        capped = trade is not None and name in SALES_TAX_FRAMES.values()
+        before = frame.sum(axis=1).reindex(grid.index).fillna(0.0)
+        if name == 'top_rest':
+            before = before + moved_to_top_rest
         kept = frame.reindex_like(grid).fillna(0.0).where(base > 0.0, 0.0)
-        capped = name == 'sales_tax' and trade is not None
         if capped:
             kept = kept.clip(upper=base)
-        moved = before.reindex(grid.index).fillna(0.0) - kept.sum(axis=1)
+        moved = before - kept.sum(axis=1)
         weight = kept.abs()
         unweighted = weight.sum(axis=1) == 0.0
         weight.loc[unweighted] = base.loc[unweighted]
         if capped:
             spread = kept + _fill_under_cap(moved, weight, base - kept)
+            no_room = before - spread.sum(axis=1)
+            moved_to_top_rest += no_room
         else:
             spread = kept + _shares(weight).mul(moved, axis=0)
 
-        drift = before - spread.sum(axis=1).reindex(before.index).fillna(0.0)
+        drift = before - spread.sum(axis=1)
+        if capped:
+            drift = drift - no_room
         lost = drift.abs()[drift.abs() >= CONSERVATION_TOLERANCE]
         if not lost.empty or abs(drift.sum()) >= CONSERVATION_TOLERANCE:
-            if name != 'sales_tax':
+            if name not in SALES_TAX_FRAMES.values():
                 where = 'no cell the target buys'
-            elif trade is not None:
-                where = 'no cell with a trade margin, exports excepted'
             else:
                 where = 'no live cell other than exports'
             largest = lost.idxmax() if not lost.empty else drift.abs().idxmax()
@@ -414,38 +483,62 @@ def restrict_to_cells(
                 f'commodity, which the allocation never does.'
             )
         frames[name] = spread
+
+    shifted = moved_to_top_rest[moved_to_top_rest >= CONSERVATION_TOLERANCE]
+    if not shifted.empty:
+        logger.warning(
+            'Sales tax of %s USD on %d commodities (largest %s, %s USD) has no '
+            'room in the target table\'s trade margins and moved to the '
+            'producer-level tax (top_rest).',
+            f'{shifted.sum():,.0f}',
+            len(shifted),
+            shifted.idxmax(),
+            f'{shifted.max():,.0f}',
+        )
     return layer._replace(**frames)
 
 
 def _allocate(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> FiscalLayer:
-    """The allocation on *year*'s own cell pattern. See :func:`build_fiscal_layer`."""
+    """The allocation on *year*'s own cell pattern. See :func:`build_fiscal_layer`.
+
+    Raises ``ValueError`` if a kind's tax lands above that kind's margin on a
+    cell, which :func:`sales_tax_by_kind` rules out per commodity; the check
+    is here so the error names the anchor rather than the strip, far
+    downstream.
+    """
     margins = load_benchmark_margins_before_redef_usa(year)
     bridge = _bridge(year)
 
     # The named exception (#815): exports carry none of the margin-collected
     # taxes, so they leave both bases.
     by_kind = sales_tax_by_kind(year)
-    sales_tax = sum(
-        _shares(_goods_wide(margins, column).assign(F04000=0.0)).mul(
-            by_kind[kind], axis=0
-        )
-        for kind, column in _KINDS
-    )
-    sales_tax = ta.cast(pd.DataFrame, sales_tax)
-    unplaced = (by_kind.sum(axis=1) - sales_tax.sum(axis=1)).abs()
-    if float(unplaced.max()) >= CONSERVATION_TOLERANCE:
-        raise ValueError(
-            f'{year} sales tax on {unplaced.idxmax()} has no non-export margin of '
-            f'its kind to sit on ({unplaced.max():,.0f} USD).'
-        )
+    taxes = {}
+    for kind, column in _KINDS:
+        margin = _goods_wide(margins, column).assign(F04000=0.0)
+        tax = _shares(margin).mul(by_kind[kind], axis=0)
+        unplaced = (by_kind[kind] - tax.sum(axis=1)).abs()
+        if float(unplaced.max()) >= CONSERVATION_TOLERANCE:
+            raise ValueError(
+                f'{year} {kind} sales tax on {unplaced.idxmax()} has no non-export '
+                f'{kind} margin to sit on ({unplaced.max():,.0f} USD).'
+            )
+        over = tax - margin.clip(lower=0.0)
+        if float(over.to_numpy().max()) >= CONSERVATION_TOLERANCE:
+            raise ValueError(
+                f'{year} {kind} sales tax exceeds the {kind} margin on '
+                f'{int((over >= CONSERVATION_TOLERANCE).to_numpy().sum())} cells '
+                f'(first {over.max(axis=1).idxmax()}).'
+            )
+        taxes[SALES_TAX_FRAMES[kind]] = tax
 
+    sales_tax = taxes['wholesale_tax'] + taxes['retail_tax']
     pro_share = _shares(_goods_wide(margins, _PRO))
     top_rest = pro_share.mul(bridge['TOP'] - sales_tax.sum(axis=1), axis=0)
     duties = pro_share.mul(bridge['MDTY'], axis=0)
     subsidies = pro_share.mul(bridge['SUB'], axis=0)
     return FiscalLayer(
         year=int(year),
-        sales_tax=sales_tax,
+        **taxes,
         top_rest=top_rest,
         duties=duties,
         subsidies=subsidies,

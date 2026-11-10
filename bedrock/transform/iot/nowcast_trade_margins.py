@@ -141,6 +141,7 @@ from bedrock.extract.iot.io_2017 import (
     _load_usa_summary_sut,
 )
 from bedrock.transform.iot import nowcast_margins as nm
+from bedrock.transform.iot.tax_subsidy_layer import fit_wholesale_tilt
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
@@ -230,12 +231,6 @@ LAST_OBSERVED_YEAR = 2024
 #: growth over. Five, so that 2021's post-pandemic 22-27% rebound is outvoted
 #: rather than decisive - see :func:`_extrapolated_margin`.
 EXTRAPOLATION_WINDOW = 5
-
-#: The bracket and step count for the trade-level tax tilt solve. The bracket is
-#: wide enough to span any split from all-retail to all-wholesale, and geometric
-#: bisection over it reaches machine precision well inside the step count.
-_TILT_BRACKET = (1e-9, 1e9)
-_TILT_BISECTION_STEPS = 200
 
 #: Slack when checking a commodity's tax against the margin it is levied on. The
 #: published table is in whole millions, so an exact comparison trips on rounding.
@@ -640,7 +635,8 @@ def trade_level_tax_by_kind_2017() -> pd.DataFrame:
     Per commodity it is one equation in two unknowns. With only two columns the
     whole family of solutions is one-dimensional, so rather than fitting
     biproportionally the tax is **tilted on a single scalar** and that scalar
-    solved by bisection::
+    solved by bisection
+    (:func:`~bedrock.transform.iot.tax_subsidy_layer.fit_wholesale_tilt`)::
 
         share[c] = tilt * s[c] / (tilt * s[c] + 1 - s[c])
 
@@ -663,28 +659,7 @@ def trade_level_tax_by_kind_2017() -> pd.DataFrame:
     total = gross.sum(axis=1)
     wholesale_share = (gross['wholesale'] / total.where(total > 0)).fillna(0.0)
 
-    def wholesale_tax(tilt: float) -> pd.Series:
-        tilted = tilt * wholesale_share
-        denominator = tilted + (1.0 - wholesale_share)
-        return tax * (tilted / denominator.where(denominator > 0)).fillna(0.0)
-
-    low, high = _TILT_BRACKET
-    if not (wholesale_tax(low).sum() <= target <= wholesale_tax(high).sum()):
-        raise ValueError(
-            f'The wholesale share of the trade-level tax, {target:,.0f} USD, is '
-            f'outside what any tilt can reach ('
-            f'{wholesale_tax(low).sum():,.0f} to {wholesale_tax(high).sum():,.0f}). '
-            f'That means the tax forced onto commodities bearing only one kind of '
-            f'margin already exceeds a column total, so no split exists.'
-        )
-    for _ in range(_TILT_BISECTION_STEPS):
-        middle = (low * high) ** 0.5
-        if wholesale_tax(middle).sum() < target:
-            low = middle
-        else:
-            high = middle
-
-    wholesale = wholesale_tax((low * high) ** 0.5)
+    wholesale, _ = fit_wholesale_tilt(tax, wholesale_share, target)
     fitted = pd.DataFrame({'wholesale': wholesale, 'retail': tax - wholesale})
 
     above_margin = (fitted > gross + _TILT_ROUNDING_TOLERANCE).any(axis=1)
