@@ -34,7 +34,15 @@ def _stub_common_derive(monkeypatch: pytest.MonkeyPatch) -> None:
         }
     )
     monkeypatch.setattr(m, "_load_bundled_long", lambda: (use.copy(), make.copy()))
-    monkeypatch.setattr(m, "_industry_mix_shares", lambda *_a, **_k: _uniform())
+
+    def _industry_mix(
+        target_year: int, prov: object, *_a: object, **_k: object
+    ) -> pd.Series:
+        # Mirror production: industry mix still sets sas_source_year when SAS feeds.
+        setattr(prov, "sas_source_year", min(int(target_year), 2022))
+        return _uniform()
+
+    monkeypatch.setattr(m, "_industry_mix_shares", _industry_mix)
     monkeypatch.setattr(
         m,
         "load_rcra_intersection_shares",
@@ -119,7 +127,11 @@ def test_business_firms_shares_replace_row_sum(
         return MagicMock(name="weights")
 
     monkeypatch.setattr(m, "build_disagg_weights_from_long_format", _capture)
-    m.derive_waste_weights(2017)
+    _weights, prov = m.derive_waste_weights(2017)
     row = captured["use"]
     row = row[row["Note"] == "Use row sum, commodity output"].set_index("CommodityCode")
     assert float(cast(float, row.loc["562111", "PercentUsed"])) == pytest.approx(0.5)
+    # Success uses ec_source_year; do not bury the happy path in fallback_notes.
+    assert prov.ec_source_year == 2017
+    assert prov.sas_source_year == 2017
+    assert not any("Business firms" in n for n in prov.fallback_notes)

@@ -330,13 +330,12 @@ def derive_waste_weights(
     make = _replace_make_intersection_diagonal(make, col_shares)
 
     # Default Use row-sum: EC Business firms and farms child-mix (who buys waste).
-    # Never SAS Table 2. match_io hard-raises; non-match_io keeps bundled 2017 row-sum.
+    # Never SAS Table 2. Success is recorded by ``ec_source_year`` only — do not
+    # file it under ``fallback_notes``. match_io hard-raises; non-match_io keeps
+    # bundled 2017 row-sum and notes that as a real fallback.
     try:
         row_shares = load_ec_business_firms_row_sum_shares(ec_year)
         use = _replace_row_sum(use, row_shares)
-        prov.fallback_notes.append(
-            f"Use row sum from EC {ec_year} Business firms and farms"
-        )
     except Exception as exc:
         if _match_io_active():
             raise RuntimeError(
