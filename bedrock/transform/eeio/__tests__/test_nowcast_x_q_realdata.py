@@ -16,6 +16,13 @@ matrix - so Cornerstone x must equal the Make row-sum total minus exactly
 the mass the correspondence's weights discard, to the $1M floor.
 
 Skips rather than fails when the 2017 after-redef artifact is not on GCS.
+
+⚠️ **The build is pinned here, not resolved as the latest upload.** The config
+omits ``nowcast_mut_vintage``, so the loader takes whatever 2017 Make was
+uploaded last. On 2026-11-09 that became ``v1.0.0_e5fa35b``, from the v1.0.1
+alternative model, which deliberately moves 2017 electricity output to the EIA
+level. Its 2017 totals sit $57bn (0.17%) off the published Make, and the test
+failed on every branch. :data:`PINNED_VINTAGE` is the v1.0 release build.
 """
 
 from __future__ import annotations
@@ -34,17 +41,29 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x,
     derive_x_after_redefinition,
 )
-from bedrock.utils.config.usa_config import reset_usa_config, set_global_usa_config
+from bedrock.utils.config.usa_config import (
+    _load_usa_config_from_file_name,
+    reset_usa_config,
+    set_global_usa_config_object,
+)
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 
 ATOL_USD = 1.0 * MILLION_CURRENCY_TO_CURRENCY
+
+CONFIG = '2025_usa_cornerstone_v0_4_nowcast_2017.yaml'
+
+#: The v1.0 release build, as pinned in ``2026_usa_cornerstone_v1_0_2017``.
+PINNED_VINTAGE = 'v1.0.0_b17908f'
 
 
 @pytest.fixture
 def nowcast_2017_config() -> Iterator[None]:
     reset_usa_config(should_reset_env_var=True)
     clear_all_publish_caches()
-    set_global_usa_config('2025_usa_cornerstone_v0_4_nowcast_2017.yaml')
+    config = _load_usa_config_from_file_name(CONFIG).model_copy(
+        update={'nowcast_mut_vintage': PINNED_VINTAGE}
+    )
+    set_global_usa_config_object(config, source_label=CONFIG)
     try:
         yield
     finally:

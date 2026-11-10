@@ -235,6 +235,26 @@ class USAConfig(BaseModel):
     # (SCB 2026-06 preview). Unlike the other flags here this is a correction we
     # believe rather than an option we are trialling, so it ships enabled.
     chain_manufacturing_on_aies: bool = True  # DRI: WesIngwersen
+    # Fill six-digit NAICS codes AIES withholds in one year but publishes in
+    # the other from their published parent: the parent total less its
+    # published six-digit codes. Without it a withheld code drops out of the
+    # chain, so 325110 falls back to BEA's movement in 2023 and 325190 chains
+    # on ethanol and 325194 alone. Only matters when the chain above is on.
+    # See bedrock.transform.iot.aies_go_chaining.withheld_fill (#1230).
+    fill_withheld_aies_codes: bool = False  # DRI: WesIngwersen
+    # Keep the industries in aies_go_chaining.BEA_HOLDS on BEA's own movement
+    # in the AIES chain, because their census receipts disagree with every
+    # other measure. Today that is 325190: AIES 325199 receipts rise 22% from
+    # 2022 to 2024, while production is flat, its price falls 4%, employment
+    # falls 1% and exports fall 20%. BEA's own output rises 0.9% (#1211).
+    hold_aies_outliers_on_bea: bool = False  # DRI: WesIngwersen
+    # Chain gas distribution (221200) gross output for 2023-24 on census
+    # receipts (NAICS 221210), moving its level. From 2022 to 2024 census
+    # receipts fall 14.5% and EIA gas sales 17%, while BEA's output falls 5%;
+    # business purchases of gas distribution are output less household
+    # purchases, so they kept rising after 2022 while EIA's fell. Releases the
+    # utilities summary group. See aies_go_chaining.UTILITY_CHAINS (#1004).
+    chain_gas_distribution_on_aies: bool = False  # DRI: WesIngwersen
     # Chain the services/transport expense seed across the SAS -> AIES survey
     # change instead of indexing AIES years against a SAS 2017 base: 2023 takes
     # 2022's (SAS) index and 2024 moves it by AIES's own 2024/2023 relative

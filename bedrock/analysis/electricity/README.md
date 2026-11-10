@@ -1,6 +1,7 @@
 # Electricity analysis
 
-Two eras, plus two live config ladders under `current/diagnostics/`.
+Two eras, plus two live config ladders under `current/diagnostics/`, plus
+Electricity v3 stack analysis under `v3/`.
 
 - **`current/`** — analyses of **today’s** EIA-anchored generation / transmission /
   distribution production (YAML flags `implement_electricity_disaggregation` /
@@ -9,6 +10,8 @@ Two eras, plus two live config ladders under `current/diagnostics/`.
   tables and figures (not live production).
 - **`shared/`** — helpers used by both (eGRID vs national totals; 221100
   reallocation matrix export).
+- **`v3/`** — Electricity v3 (generation + delivery margin / `42ELEC`) PR-scoped
+  analysis; see `v3/README.md`.
 
 **Live ladders** (pick one, then run an analysis — see `current/diagnostics/`):
 

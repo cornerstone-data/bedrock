@@ -8,6 +8,8 @@ outside the chained years is touched.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -265,3 +267,194 @@ def test_a_pool_census_only_partly_observes_chains_each_member_alone(
     factors = ch.chain_factors(2024, ['327310', '327320'])
     assert _f(factors['327310']) == pytest.approx(10.6 / 11.7)
     assert np.isnan(_f(factors['327320']))
+
+
+#: All published levels per year, $M. AIES withholds ``325110`` and ``325199``
+#: in 2023 but publishes ``3251``; ``336110`` is Economic Census only (AIES
+#: uses NAICS 2017 auto codes), so it is a classification gap, not a withheld
+#: cell.
+LEVELS = {
+    2022: {
+        '3251': 300.0,
+        '325110': 78.0,
+        '325193': 50.0,
+        '325199': 100.0,
+        '325120': 72.0,
+        '3361': 390.0,
+        '336110': 357.0,
+        '336120': 33.0,
+    },
+    2023: {
+        '3251': 285.0,
+        '325193': 48.0,
+        '325120': 75.0,
+        '3361': 481.0,
+        '336120': 40.0,
+    },
+    2024: {
+        '3251': 304.0,
+        '325110': 68.0,
+        '325193': 41.0,
+        '325199': 122.0,
+        '325120': 73.0,
+        '3361': 425.0,
+        '336120': 33.0,
+    },
+}
+
+
+@pytest.fixture
+def levels(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    def fake(year: int) -> pd.Series:
+        return pd.Series(LEVELS[year], dtype=float).sort_index()
+
+    monkeypatch.setattr(ch, '_receipts_all_levels', fake)
+    ch.withheld_fill.cache_clear()
+    yield
+    ch.withheld_fill.cache_clear()
+
+
+def test_withheld_codes_share_the_parent_residual(levels: None) -> None:
+    """``3251`` less its published codes is split by the nearest published years."""
+    fill = ch.withheld_fill(2023)
+    residual = 285.0 - 48.0 - 75.0
+    assert float(fill['filled'].sum()) == pytest.approx(residual)
+    w110 = np.sqrt(78.0 * 68.0)
+    w199 = np.sqrt(100.0 * 122.0)
+    assert _f(fill.at['325110', 'filled']) == pytest.approx(
+        residual * w110 / (w110 + w199)
+    )
+    assert set(fill['parent']) == {'3251'}
+
+
+def test_a_census_only_code_is_not_filled(levels: None) -> None:
+    """``336110`` is in neither AIES year, so ``3361``'s residual is not it."""
+    assert '336110' not in ch.withheld_fill(2023).index
+
+
+def test_years_with_nothing_withheld_fill_nothing(
+    levels: None,
+) -> None:
+    fill = ch.withheld_fill(2024)
+    assert fill.empty  # 2024 publishes every code 2023 does
+    assert ch.withheld_fill(ch.ANCHOR_YEAR).empty
+
+
+def test_a_parent_with_nothing_left_over_fills_nothing(
+    monkeypatch: pytest.MonkeyPatch, levels: None
+) -> None:
+    exact = {year: dict(values) for year, values in LEVELS.items()}
+    exact[2023]['3251'] = 48.0 + 75.0
+    monkeypatch.setattr(
+        ch, '_receipts_all_levels', lambda year: pd.Series(exact[year], dtype=float)
+    )
+    ch.withheld_fill.cache_clear()
+    assert ch.withheld_fill(2023).empty
+
+
+def test_filled_codes_join_the_common_basis(levels: None) -> None:
+    """With the fill, 2023 compares the full industry with 2022."""
+    ch._common_naics.cache_clear()
+    try:
+        assert '325199' not in ch._common_naics(2023, False)
+        assert {'325110', '325199'} <= ch._common_naics(2023, True)
+    finally:
+        ch._common_naics.cache_clear()
+
+
+def test_the_fill_flag_is_off_by_default() -> None:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    assert get_usa_config().fill_withheld_aies_codes is False
+
+
+def test_a_held_industry_keeps_bea_movement_though_census_observes_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``BEA_HOLDS`` overrides an observed census growth (#1211, ``325190``)."""
+    _receipts(monkeypatch, CENSUS)
+    monkeypatch.setattr(ch, '_held_on_bea', lambda: frozenset({'336411'}))
+    raw = _panel()
+    out = ch.apply_aies_chaining(raw, raw)
+    bea_growth = _f(raw.at['336411', 2024]) / _f(raw.at['336411', ch.ANCHOR_YEAR])
+    got_growth = _f(out.at['336411', 2024]) / _f(out.at['336411', ch.ANCHOR_YEAR])
+    other_growth = _f(out.at['324110', 2024]) / _f(out.at['324110', ch.ANCHOR_YEAR])
+    census_growth = CENSUS[2024]['324110'] / CENSUS[ch.ANCHOR_YEAR]['324110']
+    assert got_growth / bea_growth == pytest.approx(
+        other_growth / census_growth, rel=1e-10
+    )
+    assert float(out.loc[MFG, 2024].sum()) == pytest.approx(
+        float(raw.loc[MFG, 2024].sum()), rel=1e-12
+    )
+
+
+def test_the_hold_is_off_by_default_and_names_325190() -> None:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    assert get_usa_config().hold_aies_outliers_on_bea is False
+    assert ch._held_on_bea() == frozenset()
+    assert frozenset({'325190'}) == ch.BEA_HOLDS
+
+
+#: Gas distribution receipts, $M, as published for NAICS 221210 (#1004).
+GAS = {2022: 182_670.0, 2023: 165_320.0, 2024: 156_180.0}
+
+
+def _gas_levels(monkeypatch: pytest.MonkeyPatch, table: dict[int, float]) -> None:
+    monkeypatch.setattr(
+        ch,
+        '_receipts_all_levels',
+        lambda year: pd.Series({'221210': table[year]} if year in table else {}),
+    )
+
+
+def _gas_panel() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            2017: [69_550.0, 400_000.0, 15_000.0],
+            2022: [124_260.0, 480_000.0, 20_000.0],
+            2023: [117_710.0, 470_000.0, 20_500.0],
+            2024: [117_510.0, 490_000.0, 21_000.0],
+        },
+        index=pd.Index(['221200', '221100', '221300'], name='industry'),
+    )
+
+
+def test_gas_distribution_takes_census_growth_and_moves_its_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _gas_levels(monkeypatch, GAS)
+    raw = _gas_panel()
+    out = ch.apply_utility_chaining(raw)
+    for year in ch.CHAINED_YEARS:
+        want = 124_260.0 * GAS[year] / GAS[ch.ANCHOR_YEAR]
+        assert _f(out.at['221200', year]) == pytest.approx(want)
+    # the level moves: no group total is held
+    assert float(out.loc[:, 2024].sum()) < float(raw.loc[:, 2024].sum())
+
+
+def test_the_gas_chain_touches_nothing_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    _gas_levels(monkeypatch, GAS)
+    raw = _gas_panel()
+    out = ch.apply_utility_chaining(raw)
+    pd.testing.assert_frame_equal(
+        out.loc[['221100', '221300']], raw.loc[['221100', '221300']]
+    )
+    for year in (2017, ch.ANCHOR_YEAR):
+        pd.testing.assert_series_equal(out[year], raw[year])
+
+
+def test_gas_distribution_keeps_bea_where_census_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _gas_levels(monkeypatch, {2022: GAS[2022], 2024: GAS[2024]})
+    raw = _gas_panel()
+    out = ch.apply_utility_chaining(raw)
+    assert _f(out.at['221200', 2023]) == _f(raw.at['221200', 2023])
+    assert _f(out.at['221200', 2024]) != _f(raw.at['221200', 2024])
+
+
+def test_the_gas_chain_flag_is_off_by_default() -> None:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    assert get_usa_config().chain_gas_distribution_on_aies is False
