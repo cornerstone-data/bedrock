@@ -40,6 +40,7 @@ from bedrock.transform.iot.margin_rates import (
 )
 from bedrock.transform.iot.sut_use_to_mut_use import ReplayReport, score_replay
 from bedrock.transform.iot.tax_subsidy_layer import (
+    CONSERVATION_TOLERANCE,
     FiscalLayer,
     build_fiscal_layer,
     restrict_to_cells,
@@ -628,9 +629,24 @@ def _strip_sales_tax(
 
     The tax comes out of the pair in proportion to each cell's own wholesale
     and retail margin, so a cell with only retail margin gives it all up there.
+
+    Raises ``ValueError`` where a cell's tax exceeds its trade margin, which
+    would leave it a negative tax-free margin: the layer caps each cell at
+    the margin it is given (#1247), so this means *fiscal* was built against
+    another table's margins.
     """
     tax = fiscal.sales_tax.reindex_like(purchaser).fillna(0.0)
     trade = amounts['wholesale'] + amounts['retail']
+    over = tax - trade.clip(lower=0.0)
+    if (over > CONSERVATION_TOLERANCE).to_numpy().any():
+        cells = over > CONSERVATION_TOLERANCE
+        commodity = cells.any(axis=1).idxmax()
+        raise ValueError(
+            f'sales tax exceeds the trade margin on {int(cells.to_numpy().sum())} '
+            f'cells, by {over.where(cells, 0.0).to_numpy().sum():,.0f} USD (first '
+            f'{commodity}), which would leave a negative tax-free margin; the '
+            f'fiscal layer was restricted to another table\'s margins.'
+        )
     share = (amounts['wholesale'] / trade.where(trade != 0.0)).fillna(1.0)
     return {
         'wholesale': amounts['wholesale'] - tax * share,

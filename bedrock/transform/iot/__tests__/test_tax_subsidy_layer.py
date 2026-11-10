@@ -48,16 +48,18 @@ def toy_layer(monkeypatch: pytest.MonkeyPatch) -> tsl.FiscalLayer:
             ('F04000', '112120'): (50.0, 0.0, 10.0, 0.0, 60.0),
         }
     )
-    # W+R sums: 111200 -> 60, 112120 -> 40
+    # W+R sums: 111200 -> 60, 112120 -> 40. Wholesale margin is 60 in all
+    # and the wholesale giver 423100 gives up 50, so wholesale carries 10 of
+    # the tax: 112120's, the only commodity with non-export wholesale margin.
     supply = pd.DataFrame(
         {
-            'TRADE': [40.0, 30.0],
-            'TRANS': [0.0, 0.0],
-            'TOP': [30.0, 15.0],
-            'MDTY': [8.0, 0.0],
-            'SUB': [-4.0, 0.0],
+            'TRADE': [40.0, 30.0, -50.0],
+            'TRANS': [0.0, 0.0, 0.0],
+            'TOP': [30.0, 15.0, 0.0],
+            'MDTY': [8.0, 0.0, 0.0],
+            'SUB': [-4.0, 0.0, 0.0],
         },
-        index=['111200', '112120'],
+        index=['111200', '112120', '423100'],
     )
     monkeypatch.setattr(
         tsl, 'load_benchmark_margins_before_redef_usa', lambda year: margins
@@ -75,7 +77,8 @@ def test_sales_tax_follows_the_retail_base(toy_layer: tsl.FiscalLayer) -> None:
 
 
 def test_exports_carry_no_margin_collected_tax(toy_layer: tsl.FiscalLayer) -> None:
-    """F04000 gets zero even where the wholesale fallback is the base."""
+    """F04000 gets zero even where its wholesale margin is the commodity's only
+    other base."""
     assert float(toy_layer.sales_tax['F04000'].abs().sum()) == 0.0
     # 112120's wedge 40-30=10 lands entirely on the non-export wholesale buyer
     assert toy_layer.sales_tax.loc['112120', '1111A0'] == pytest.approx(10 * MILLION)
@@ -279,6 +282,37 @@ def test_sales_tax_falls_back_onto_the_trade_margin_only() -> None:
     assert layer.sales_tax.loc['111200', 'F02E00'] == 0.0
 
 
+def test_the_re_spread_holds_sales_tax_to_each_cells_trade_margin() -> None:
+    """#1247: F01000 is dead, so its 9 moves; pro rata it would put 12 on
+    1111A0's margin of 5. The cap stops 1111A0 at 5 and the rest goes to
+    F02E00."""
+    sales_tax = pd.DataFrame(
+        {'1111A0': [3.0], 'F01000': [9.0], 'F02E00': [1.0]}, index=['111200']
+    )
+    cells = pd.DataFrame(
+        {'1111A0': [40.0], 'F01000': [0.0], 'F02E00': [40.0]}, index=['111200']
+    )
+    trade = pd.DataFrame(
+        {'1111A0': [5.0], 'F01000': [0.0], 'F02E00': [20.0]}, index=['111200']
+    )
+    layer = tsl.restrict_to_cells(
+        _layer(sales_tax=sales_tax * MILLION), cells, trade * MILLION
+    )
+
+    assert layer.sales_tax.loc['111200', '1111A0'] == pytest.approx(5 * MILLION)
+    assert layer.sales_tax.loc['111200', 'F02E00'] == pytest.approx(8 * MILLION)
+
+
+def test_the_fill_moves_the_excess_past_a_cell_it_fills() -> None:
+    weight = pd.DataFrame({'a': [6.0], 'b': [3.0], 'c': [1.0]}, index=['x'])
+    cap = pd.DataFrame({'a': [4.0], 'b': [4.0], 'c': [10.0]}, index=['x'])
+    filled = tsl._fill_under_cap(
+        pd.Series({'x': 10.0}) * MILLION, weight, cap * MILLION
+    )
+
+    assert (filled.to_numpy()[0] / MILLION).tolist() == pytest.approx([4.0, 4.0, 2.0])
+
+
 def test_sales_tax_with_no_trade_margin_is_refused() -> None:
     sales_tax = pd.DataFrame({'F01000': [5.0], 'F02E00': [0.0]}, index=['111200'])
     cells = pd.DataFrame({'F01000': [0.0], 'F02E00': [40.0]}, index=['111200'])
@@ -326,6 +360,24 @@ def test_the_sales_tax_wedge_is_what_the_two_tables_pin(
     assert float(wedge.min()) >= 0.0
     share = tsl.top_sales_share(year)  # type: ignore[arg-type]
     assert float(share.max()) <= 1.0 + 1e-9
+
+
+def test_the_2017_split_by_kind_is_the_give_up_identity() -> None:
+    """Wholesale carries 175,339 $M and retail 215,824 $M of the 2017 tax:
+    each kind's margin less its give-up (#1247)."""
+    split = tsl.sales_tax_by_kind(2017)
+    assert split['wholesale'].sum() / MILLION == pytest.approx(175_339, abs=100)
+    assert split['retail'].sum() / MILLION == pytest.approx(215_824, abs=100)
+
+
+@pytest.mark.parametrize('year', [2012, 2017])
+def test_no_cell_carries_more_sales_tax_than_its_trade_margin(year: int) -> None:
+    """#1247: split by retail alone, 22 cells in 2012 and 34 in 2017 did."""
+    margins = tsl.load_benchmark_margins_before_redef_usa(year)
+    trade = tsl._goods_wide(margins, tsl._WHL) + tsl._goods_wide(margins, tsl._RET)
+    layer = tsl.build_fiscal_layer(year)  # type: ignore[arg-type]
+    over = layer.sales_tax - trade.clip(lower=0.0)
+    assert float(over.to_numpy().max()) < 1.0
 
 
 @pytest.mark.parametrize('year', [2012, 2017])

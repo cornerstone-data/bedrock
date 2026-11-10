@@ -154,6 +154,18 @@ def test_the_sales_tax_comes_out_of_the_trade_pair_only() -> None:
     assert float((trade_before - trade_after).to_numpy().max()) == pytest.approx(4.0)
 
 
+def test_sales_tax_above_the_trade_margin_is_refused() -> None:
+    """#1247: a tax of 25 on a trade margin of 20 would leave -5 tax-free."""
+    panel = _panel(
+        {'pro': 0.7, 'trans': 0.1, 'whl': 0.1, 'ret': 0.1},
+        {WHOLESALE: 1.0, RETAIL: 1.0, TRANSPORT: 1.0},
+    )
+    purchaser = _purchaser(100.0)
+
+    with pytest.raises(ValueError, match='exceeds the trade margin'):
+        margin_columns(purchaser, panel, build_fiscal_stub(purchaser, tax=25.0))
+
+
 def build_fiscal_stub(purchaser: pd.DataFrame, tax: float) -> FiscalLayer:
     """A fiscal layer carrying only a flat sales tax."""
     zero = pd.DataFrame(
