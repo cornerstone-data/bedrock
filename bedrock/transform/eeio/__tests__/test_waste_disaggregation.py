@@ -1223,3 +1223,38 @@ class TestReconcileWasteMakeAndVa:
             va = float(VA_out[ind].sum())
             tol = max(DISAGG_BALANCE_ATOL, 0.01 * abs(make_row))
             assert abs(make_row - use_col - va) <= tol
+
+
+class TestDistributeWasteParentX:
+    def test_drops_nonpositive_v_row_shares(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Review #1253 (2): negative/zero V rows must not yield negative child x."""
+        import bedrock.transform.eeio.sector_disagg_pipeline as sdp
+
+        codes = list(sdp._WASTE_NEW_CODES)
+        a, b, c = codes[0], codes[1], codes[2]
+        inds = [*codes, "111000"]
+        coms = [*codes, "111000"]
+        V = pd.DataFrame(0.0, index=inds, columns=coms)
+        V.loc[a, a] = 80.0
+        V.loc[b, b] = -10.0
+        V.loc[c, c] = 0.0
+
+        class _Bundle:
+            pass
+
+        bundle = _Bundle()
+        bundle.V = V
+        monkeypatch.setattr(sdp, "get_waste_disagg_weights", lambda: object())
+        monkeypatch.setattr(sdp, "derive_disagg_io_bundle", lambda: bundle)
+        monkeypatch.setattr(sdp, "electricity_disaggregation_enabled", lambda: False)
+
+        x = pd.Series(100.0, index=codes)
+        with pytest.warns(UserWarning, match="non-positive V row shares"):
+            out = sdp.distribute_waste_parent_x_using_v_row_shares(x)
+        assert float(out.loc[a]) == pytest.approx(100.0)
+        assert float(out.loc[b]) == pytest.approx(0.0)
+        assert float(out.loc[c]) == pytest.approx(0.0)
+        assert float(out.loc[a]) >= 0.0
+        assert all(float(out.loc[code]) >= 0.0 for code in codes)

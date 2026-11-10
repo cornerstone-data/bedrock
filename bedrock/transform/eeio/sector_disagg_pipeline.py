@@ -15,6 +15,7 @@ from __future__ import annotations
 import functools
 import pathlib
 import sys
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, cast
@@ -248,6 +249,11 @@ def _derive_waste_balanced_io() -> (
     prior Make-CSV waste V, VA, gross output, or emission factors. Production
     scope is v1.0+ (nowcast, ``waste_weights_year: match_io``).
 
+    On nowcast, industry ``x`` is the row sum of this reconciled ``V`` (so
+    ``x`` matches Use column + VA). ``bea_published`` / inflation still call
+    ``distribute_waste_parent_x_using_v_row_shares``, which rescales children
+    to the BEA parent gross-output total — see that helper's docstring.
+
     Returns cached frames — callers must ``.copy()``.
     """
     V_detail = load_detail_V_usa()
@@ -370,7 +376,20 @@ def derive_disagg_Ytot_with_trade() -> pd.DataFrame:
 def distribute_waste_parent_x_using_v_row_shares(
     x_cs: pd.Series[float],
 ) -> pd.Series[float]:
-    """Split duplicated BEA parent gross output across waste children using V row shares."""
+    """Split duplicated BEA parent gross output across waste children using V row shares.
+
+    Used on ``bea_published`` / inflation paths after
+    ``expand_industry_output_vector`` duplicates parent ``562000`` GO onto each
+    waste child. Shares come from reconciled Make row sums
+    (``derive_disagg_io_bundle().V``). Children are forced to sum to that BEA
+    parent total, so on these paths ``x`` may not equal Use column + VA — unlike
+    nowcast, where ``derive_x()`` is the reconciled V row sum directly and this
+    helper is not the source of ``x``.
+
+    Non-positive V row sums are dropped before normalizing (set to 0 on ``x``)
+    so a bad diagonal cannot yield negative child ``x``. If no positive shares
+    remain, the duplicated parent values are left unchanged.
+    """
     if get_waste_disagg_weights() is None:
         x = x_cs
     else:
@@ -383,12 +402,33 @@ def distribute_waste_parent_x_using_v_row_shares(
         ]
         if present:
             xv_w = x_v.reindex(present).astype(float)
-            total_v = float(xv_w.sum())
-            if total_v > 0:
-                parent_go = float(x.loc[present[0]])
-                shares = xv_w / total_v
-                for code in present:
+            nonpos = xv_w[xv_w <= 0.0]
+            usable = xv_w[xv_w > 0.0]
+            total_v = float(usable.sum())
+            if total_v > 0.0:
+                if len(nonpos) > 0:
+                    warnings.warn(
+                        "distribute_waste_parent_x_using_v_row_shares: "
+                        "dropping non-positive V row shares for "
+                        + ", ".join(
+                            f"{c}={float(v):.6g}" for c, v in nonpos.items()
+                        ),
+                        stacklevel=2,
+                    )
+                    for code in nonpos.index:
+                        x.loc[code] = 0.0
+                # Parent GO is the duplicated expand value on the input series.
+                parent_go = float(x_cs.loc[present[0]])
+                shares = usable / total_v
+                for code in usable.index:
                     x.loc[code] = parent_go * float(shares.loc[code])
+            else:
+                warnings.warn(
+                    "distribute_waste_parent_x_using_v_row_shares: "
+                    "no positive V row shares among waste children; "
+                    "leaving duplicated BEA parent x unchanged",
+                    stacklevel=2,
+                )
     if electricity_disaggregation_enabled():
         from bedrock.transform.eeio.electricity_disaggregation import (  # noqa: PLC0415
             distribute_electricity_aggregate_x_using_v_row_shares,
