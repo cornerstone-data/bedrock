@@ -196,15 +196,27 @@ def build_business_firms_row_sum_shares_from_ec_fba(fba: pd.DataFrame) -> pd.Ser
     )
 
 
+def load_census_ec_fba(ec_year: int) -> pd.DataFrame:
+    """Load Census_EC FlowByActivity for a supported ecnclcust year.
+
+    Raises ``ValueError`` for unsupported years; otherwise returns the FBA frame
+    (or propagates loader errors). Callers that need both Business-firms row-sum
+    and special customer-class rows should load once and pass the frame into the
+    ``build_*_from_ec_fba`` helpers.
+    """
+    if ec_year not in (2012, 2017, 2022):
+        raise ValueError(f"Census_EC ecnclcust unsupported for ec_year={ec_year}")
+    return getFlowByActivity(datasource="Census_EC", year=ec_year)
+
+
 def load_ec_business_firms_row_sum_shares(ec_year: int) -> pd.Series:
     """Load EC ecnclcust and return Business-firms default Use row-sum shares.
 
     Raises on load/parse/empty failure (caller decides match_io vs soft fallback).
+    Prefer ``load_census_ec_fba`` + ``build_business_firms_row_sum_shares_from_ec_fba``
+    when the same FBA is also needed for customer-class rows.
     """
-    if ec_year not in (2012, 2017, 2022):
-        raise ValueError(f"EC business-firms row-sum unsupported for ec_year={ec_year}")
-    fba = getFlowByActivity(datasource="Census_EC", year=ec_year)
-    return build_business_firms_row_sum_shares_from_ec_fba(fba)
+    return build_business_firms_row_sum_shares_from_ec_fba(load_census_ec_fba(ec_year))
 
 
 def build_customer_class_rows_from_ec_fba(fba: pd.DataFrame) -> pd.DataFrame:
@@ -268,16 +280,26 @@ def build_customer_class_rows_from_ec_fba(fba: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def customer_class_shares_from_ec_fba(fba: pd.DataFrame) -> pd.DataFrame | None:
+    """Build special customer-class Use rows from an already-loaded EC FBA.
+
+    Returns ``None`` on parse/empty failure (caller freezes bundled 2017 rows).
+    """
+    try:
+        return build_customer_class_rows_from_ec_fba(fba)
+    except Exception:  # noqa: BLE001 — pilot: any parse failure → freeze
+        return None
+
+
 def load_ec_customer_class_shares(ec_year: int) -> pd.DataFrame | None:
     """Load EC ecnclcust and return long-format customer-class Use rows.
 
     Returns ``None`` on load/parse failure so the caller can freeze bundled 2017
     rows (pilot failure-mode). Years other than 2012/2017/2022 return ``None``.
+    Prefer ``load_census_ec_fba`` + ``customer_class_shares_from_ec_fba`` when the
+    same FBA is also needed for Business-firms row-sum.
     """
-    if ec_year not in (2012, 2017, 2022):
-        return None
     try:
-        fba = getFlowByActivity(datasource="Census_EC", year=ec_year)
-        return build_customer_class_rows_from_ec_fba(fba)
-    except Exception:  # noqa: BLE001 — pilot: any load failure → freeze
+        return customer_class_shares_from_ec_fba(load_census_ec_fba(ec_year))
+    except Exception:  # noqa: BLE001 — unsupported year or load failure → freeze
         return None

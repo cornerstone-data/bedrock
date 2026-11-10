@@ -16,9 +16,10 @@ from bedrock.extract.disaggregation.disagg_weights import (
 )
 from bedrock.extract.disaggregation.ec_waste_customer_class import (
     CUSTOMER_CLASS_CODES,
+    build_business_firms_row_sum_shares_from_ec_fba,
+    customer_class_shares_from_ec_fba,
     load_bundled_customer_class_rows,
-    load_ec_business_firms_row_sum_shares,
-    load_ec_customer_class_shares,
+    load_census_ec_fba,
 )
 from bedrock.extract.disaggregation.rcra_waste_flows import (
     load_rcra_intersection_shares,
@@ -222,53 +223,6 @@ def _replace_use_intersection(use: pd.DataFrame, mat: pd.DataFrame) -> pd.DataFr
     return pd.concat([keep, pd.DataFrame(rows)], ignore_index=True)
 
 
-def _replace_make_column_sum(make: pd.DataFrame, shares: pd.Series) -> pd.DataFrame:
-    # Bundled Make uses IndustryCode=562000, CommodityCode=child for column sum
-    note_candidates = make["Note"].astype(str)
-    # Prefer rows matching parent industry + waste commodity
-    mask = (make["IndustryCode"] == WASTE_PARENT) & make["CommodityCode"].isin(
-        WASTE_CHILDREN
-    )
-    keep = make[~mask]
-    rows = [
-        {
-            "IndustryCode": WASTE_PARENT,
-            "CommodityCode": child,
-            "PercentMake": float(shares.loc[child]),
-            "Note": "Make column sum",
-        }
-        for child in WASTE_CHILDREN
-    ]
-    del note_candidates
-    return pd.concat([keep, pd.DataFrame(rows)], ignore_index=True)
-
-
-def _replace_make_intersection_diagonal(
-    make: pd.DataFrame, shares: pd.Series
-) -> pd.DataFrame:
-    """Diagonal Make intersection from industry-mix shares (adjusted_q / sum)."""
-    note = "Make table intersection"
-    keep = make[make["Note"] != note]
-    s = shares.reindex(WASTE_CHILDREN).fillna(0.0).astype(float)
-    total = float(s.sum())
-    if total <= 0:
-        s = pd.Series(1.0 / len(WASTE_CHILDREN), index=WASTE_CHILDREN)
-    else:
-        s = s / total
-    rows = []
-    for i in WASTE_CHILDREN:
-        for j in WASTE_CHILDREN:
-            rows.append(
-                {
-                    "IndustryCode": i,
-                    "CommodityCode": j,
-                    "PercentMake": float(s.loc[i]) if i == j else 0.0,
-                    "Note": note,
-                }
-            )
-    return pd.concat([keep, pd.DataFrame(rows)], ignore_index=True)
-
-
 def _replace_va_from_column_sum(use: pd.DataFrame, shares: pd.Series) -> pd.DataFrame:
     """VA shares copy the industry-mix column-sum prior (final VA set later)."""
     va_set = set(VALUE_ADDEDS)
@@ -322,19 +276,20 @@ def derive_waste_weights(
 
     use, make = _load_bundled_long()
 
-    # Industry mix → Use column sum, Make column sum, VA, Make intersection diagonal
+    # Industry mix → Use column sum + VA prior. Make long-format percents stay at
+    # bundled 2017 structure (child codes for DisaggWeights); live Make/VA balance
+    # is applied later by reconcile_waste_make_and_va_to_use, not Make CSV shares.
     col_shares = _industry_mix_shares(target_year, prov)
     use = _replace_column_sum(use, col_shares)
     use = _replace_va_from_column_sum(use, col_shares)
-    make = _replace_make_column_sum(make, col_shares)
-    make = _replace_make_intersection_diagonal(make, col_shares)
 
-    # Default Use row-sum: EC Business firms and farms child-mix (who buys waste).
-    # Never SAS Table 2. Success is recorded by ``ec_source_year`` only — do not
-    # file it under ``fallback_notes``. match_io hard-raises; non-match_io keeps
-    # bundled 2017 row-sum and notes that as a real fallback.
+    # One Census_EC FBA load feeds Business-firms Use row-sum and special
+    # customer-class rows. Never SAS Table 2 for default row-sum.
+    # Success for Business firms is recorded by ``ec_source_year`` only.
+    ec_fba: pd.DataFrame | None = None
     try:
-        row_shares = load_ec_business_firms_row_sum_shares(ec_year)
+        ec_fba = load_census_ec_fba(ec_year)
+        row_shares = build_business_firms_row_sum_shares_from_ec_fba(ec_fba)
         use = _replace_row_sum(use, row_shares)
     except Exception as exc:
         if _match_io_active():
@@ -359,8 +314,8 @@ def derive_waste_weights(
             f"(CRHW_national_{rcra_year}): {type(exc).__name__}: {exc}"
         ) from exc
 
-    # EC customer-class (2024 pilot: EC 2022 when wired; else bundled 2017 freeze)
-    ec_rows = load_ec_customer_class_shares(ec_year)
+    # EC customer-class from the same FBA when available; else freeze bundled 2017.
+    ec_rows = customer_class_shares_from_ec_fba(ec_fba) if ec_fba is not None else None
     if ec_rows is not None:
         use = _replace_customer_class(use, ec_rows)
     else:

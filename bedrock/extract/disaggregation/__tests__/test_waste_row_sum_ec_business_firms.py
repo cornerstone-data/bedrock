@@ -55,7 +55,7 @@ def _stub_common_derive(monkeypatch: pytest.MonkeyPatch) -> None:
             [],
         ),
     )
-    monkeypatch.setattr(m, "load_ec_customer_class_shares", lambda *_a, **_k: None)
+    monkeypatch.setattr(m, "customer_class_shares_from_ec_fba", lambda *_a, **_k: None)
     monkeypatch.setattr(
         m,
         "load_bundled_customer_class_rows",
@@ -75,10 +75,10 @@ def test_match_io_hard_raises_on_business_firms_failure(
     monkeypatch.setattr(m, "_match_io_active", lambda: True)
     monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2022)
 
-    def _boom(*_a: object, **_k: object) -> pd.Series:
+    def _boom(*_a: object, **_k: object) -> pd.DataFrame:
         raise RuntimeError("injected EC failure")
 
-    monkeypatch.setattr(m, "load_ec_business_firms_row_sum_shares", _boom)
+    monkeypatch.setattr(m, "load_census_ec_fba", _boom)
     with pytest.raises(RuntimeError, match="match_io"):
         m.derive_waste_weights(2022)
 
@@ -90,17 +90,10 @@ def test_non_match_io_keeps_bundled_row_sum_not_sas(
     monkeypatch.setattr(m, "_match_io_active", lambda: False)
     monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2022)
 
-    def _boom(*_a: object, **_k: object) -> pd.Series:
+    def _boom(*_a: object, **_k: object) -> pd.DataFrame:
         raise RuntimeError("injected EC failure")
 
-    monkeypatch.setattr(m, "load_ec_business_firms_row_sum_shares", _boom)
-    # Guard: SAS Table 2 must never be called for this slice.
-    monkeypatch.setattr(
-        m,
-        "load_sas_table2_revenue_shares",
-        MagicMock(side_effect=AssertionError("SAS Table 2 must not be used")),
-        raising=False,
-    )
+    monkeypatch.setattr(m, "load_census_ec_fba", _boom)
     weights, prov = m.derive_waste_weights(2022)
     assert any("bundled 2017 Use row-sum" in n for n in prov.fallback_notes)
     assert any("not SAS Table 2" in n for n in prov.fallback_notes)
@@ -116,8 +109,18 @@ def test_business_firms_shares_replace_row_sum(
     shares = pd.Series(
         [0.5, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05], index=WASTE_CHILDREN, dtype=float
     )
+    fake_fba = pd.DataFrame({"_": [1]})
+    load_calls = {"n": 0}
+
+    def _load(_year: int) -> pd.DataFrame:
+        load_calls["n"] += 1
+        return fake_fba
+
+    monkeypatch.setattr(m, "load_census_ec_fba", _load)
     monkeypatch.setattr(
-        m, "load_ec_business_firms_row_sum_shares", lambda *_a, **_k: shares
+        m,
+        "build_business_firms_row_sum_shares_from_ec_fba",
+        lambda _fba: shares,
     )
 
     captured: dict[str, pd.DataFrame] = {}
@@ -131,7 +134,45 @@ def test_business_firms_shares_replace_row_sum(
     row = captured["use"]
     row = row[row["Note"] == "Use row sum, commodity output"].set_index("CommodityCode")
     assert float(cast(float, row.loc["562111", "PercentUsed"])) == pytest.approx(0.5)
-    # Success uses ec_source_year; do not bury the happy path in fallback_notes.
     assert prov.ec_source_year == 2017
     assert prov.sas_source_year == 2017
     assert not any("Business firms" in n for n in prov.fallback_notes)
+    # One FBA load shared with customer-class path.
+    assert load_calls["n"] == 1
+
+
+def test_single_ec_fba_reused_for_customer_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_common_derive(monkeypatch)
+    monkeypatch.setattr(m, "_match_io_active", lambda: False)
+    monkeypatch.setattr(m, "resolve_ec_year", lambda *_a, **_k: 2022)
+    fake_fba = pd.DataFrame({"marker": [1]})
+    load_calls = {"n": 0}
+    seen: dict[str, pd.DataFrame] = {}
+
+    def _load(_year: int) -> pd.DataFrame:
+        load_calls["n"] += 1
+        return fake_fba
+
+    def _customer(fba: pd.DataFrame) -> pd.DataFrame:
+        seen["fba"] = fba
+        return pd.DataFrame(
+            {
+                "IndustryCode": ["F01000"],
+                "CommodityCode": ["562111"],
+                "PercentUsed": [1.0],
+                "Note": ["Use table, personal consumption"],
+            }
+        )
+
+    monkeypatch.setattr(m, "load_census_ec_fba", _load)
+    monkeypatch.setattr(
+        m,
+        "build_business_firms_row_sum_shares_from_ec_fba",
+        lambda _fba: _uniform(),
+    )
+    monkeypatch.setattr(m, "customer_class_shares_from_ec_fba", _customer)
+    m.derive_waste_weights(2022)
+    assert load_calls["n"] == 1
+    assert seen["fba"] is fake_fba
