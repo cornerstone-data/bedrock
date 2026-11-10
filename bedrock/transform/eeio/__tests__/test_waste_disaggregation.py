@@ -32,6 +32,8 @@ from bedrock.transform.eeio.usa_matrices import (
 )
 from bedrock.transform.eeio.waste_disaggregation import (
     DISAGG_BALANCE_ATOL,
+    _make_column_default_shares,
+    _make_column_gslgo_shares,
     apply_waste_disagg_to_U,
     apply_waste_disagg_to_V,
     apply_waste_disagg_to_VA,
@@ -1065,6 +1067,24 @@ class TestComputeWasteQTargets:
                 + float(Uimp.loc[c].sum())
             )
             assert float(q.loc[c]) == pytest.approx(expected)
+
+
+class TestMakeColumnDefaultShares:
+    def test_negative_q_target_clipped_before_normalize(self) -> None:
+        """Review #1253 (6): negative targets must not create >100% / neg shares."""
+        codes = ["562111", "562HAZ", "562212"]
+        q = pd.Series({"562111": 100.0, "562HAZ": -10.0, "562212": 0.0})
+        with pytest.warns(UserWarning, match="negative q_target clipped"):
+            shares = _make_column_default_shares(q, codes)
+        assert float(shares.sum()) == pytest.approx(1.0)
+        assert float(shares.loc["562111"]) == pytest.approx(1.0)
+        assert float(shares.loc["562HAZ"]) == pytest.approx(0.0)
+        assert float(shares.loc["562212"]) == pytest.approx(0.0)
+        # GSLGO inherits the clipped defaults (no negative mass on members).
+        gslgo = _make_column_gslgo_shares(shares, codes)
+        assert float(gslgo.loc["562HAZ"]) == pytest.approx(0.0)
+        assert float(gslgo.sum()) == pytest.approx(1.0)
+        assert all(float(v) >= 0.0 for v in gslgo)
 
 
 class TestReconcileWasteMakeAndVa:

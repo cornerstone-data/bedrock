@@ -571,8 +571,21 @@ def compute_waste_q_targets(
 def _make_column_default_shares(
     q_target: pd.Series, waste_codes: list[str]
 ) -> pd.Series:
-    """Proportional split of parent Make column mass across waste commodities."""
+    """Proportional split of parent Make column mass across waste commodities.
+
+    Negative ``q_target`` entries are clipped to 0 before normalizing so they
+    cannot create >100% / negative shares (and so GSLGO, built from these
+    defaults, inherits the same clamp).
+    """
     s = q_target.reindex(waste_codes).fillna(0.0).astype(float)
+    neg = s[s < 0.0]
+    if len(neg) > 0:
+        warnings.warn(
+            "waste Make-column default shares: negative q_target clipped to 0 for "
+            + ", ".join(f"{c}={float(v):.6g}" for c, v in neg.items()),
+            stacklevel=2,
+        )
+        s = s.clip(lower=0.0)
     total = float(s.sum())
     if total <= 0:
         return pd.Series(0.0, index=waste_codes, dtype=float)
