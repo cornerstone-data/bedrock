@@ -56,6 +56,7 @@ import argparse
 import json
 import posixpath
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -74,6 +75,10 @@ from bedrock.transform.iot.nowcast import (
     derive_initial_Y_pur,
 )
 from bedrock.transform.iot.nowcast_interior_fit import FIT_YEARS, fit_interior
+from bedrock.transform.iot.nowcast_intermediate import (
+    REFINERY_INDUSTRY,
+    pinned_refinery_secondaries,
+)
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
     DEFAULT_PCE_CONSTRAINT,
@@ -96,6 +101,7 @@ from bedrock.transform.iot.nowcast_targets import (
     build_target_set,
     industry_group_aggregator,
     pce_electricity_cell_target,
+    rest_of_world_adjustment_supply_make,
 )
 from bedrock.utils.config.settings import (
     FBS_DIR,
@@ -117,6 +123,15 @@ from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
 #: Sweep bound for mask-contradicting seed cells, in $M. BEA publishes no cell
 #: below 1 million, so a violation at or under this is rounding, not signal.
 DUST_USD_M = 1.0
+
+#: Minimum free share of a commodity Use row that must remain after a held
+#: refinery co-product cell is fixed (#1229). Below this, GRAS has no room on
+#: the Supply row for other producers.
+REFINERY_ROW_ROOM_FRAC = 0.05
+
+#: Absolute share gap (percentage points) between balanced and pre-scale seed
+#: share accepted as a pass for the GO-mix pin smoke / hermetic checks.
+REFINERY_SHARE_TOL_PP = 0.05
 
 
 def resolve_pce_constraint(
@@ -584,6 +599,185 @@ class YearBalance:
     balanced: dict[str, pd.DataFrame] | None
 
 
+def hold_column_shares(
+    supply: pd.DataFrame,
+    industry: str,
+    commodities: Sequence[str],
+    column_total_m: float,
+    *,
+    dust_usd_m: float = DUST_USD_M,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Scale selected Make cells to pre-scale seed share × ``column_total_m``.
+
+    Returns a copy of ``supply`` with those cells rewritten, and the list of
+    commodities that were scaled (the only cells that should be Tier-1 fixed).
+    Skips a cell when it or the industry column total is at or below
+    ``dust_usd_m``. Raises when the scaled held mass would exceed
+    ``column_total_m``.
+
+    When this runs inside :func:`assemble`, :attr:`YearBalance.seeds` holds the
+    **scaled** cells, so seed-vs-balanced movement reports count the scaling as
+    seed.
+    """
+    out = supply.copy()
+    if industry not in out.columns:
+        return out, []
+    col_sum = float(out[industry].astype(float).sum())
+    if abs(col_sum) <= dust_usd_m:
+        return out, []
+    held: list[str] = []
+    scaled_total = 0.0
+    for commodity in commodities:
+        if commodity not in out.index:
+            continue
+        cell = float(np.asarray(out.at[commodity, industry]).item())
+        if abs(cell) <= dust_usd_m:
+            continue
+        new_val = (cell / col_sum) * float(column_total_m)
+        out.at[commodity, industry] = new_val
+        held.append(str(commodity))
+        scaled_total += new_val
+    if scaled_total > float(column_total_m) + 1e-9:
+        raise ValueError(
+            f'hold_column_shares: scaled held mass {scaled_total:,.3f} $M on '
+            f'{industry} exceeds column pin {column_total_m:,.3f} $M'
+        )
+    return out, held
+
+
+def t17_at_seed_column_pin_m(
+    industry: str,
+    use_seed: pd.DataFrame,
+    targets: TargetSet,
+) -> float:
+    """T17 evaluated at the seed for one industry column, $M.
+
+    ``GO(producer) - (T00TOP + T00SUB) - S00900 make``. Same series
+    :func:`assemble_targets` injects for T1; ``T00SUB`` is stored negative.
+    """
+    t1 = next(t for t in targets if t.name == 'T1')
+    if industry not in t1.values.index:
+        raise KeyError(f'T1 has no industry {industry!r}')
+    go = float(np.asarray(t1.values.loc[industry]).item())
+    for row in ('T00TOP', 'T00SUB'):
+        if row not in use_seed.index:
+            raise KeyError(f'Use seed missing {row!r} for T17-at-seed pin')
+    if industry not in use_seed.columns:
+        raise KeyError(f'Use seed missing industry {industry!r}')
+    wedge = float(use_seed.loc[['T00TOP', 'T00SUB'], industry].sum())
+    s009 = float(
+        rest_of_world_adjustment_supply_make().reindex([industry]).fillna(0.0).iloc[0]
+    )
+    return go - wedge - s009
+
+
+def _refinery_hold_candidates(
+    supply: pd.DataFrame,
+    industry: str,
+    commodities: Sequence[str],
+    *,
+    dust_usd_m: float = DUST_USD_M,
+) -> list[str]:
+    """Commodities nonzero in 2017 and above dust on the year seed."""
+    panel_2017 = published_2017_panel('supply')
+    held: list[str] = []
+    for commodity in commodities:
+        if commodity not in supply.index or industry not in supply.columns:
+            continue
+        year_val = float(np.asarray(supply.at[commodity, industry]).item())
+        if abs(year_val) <= dust_usd_m:
+            continue
+        if commodity not in panel_2017.index or industry not in panel_2017.columns:
+            continue
+        pub = float(np.asarray(panel_2017.at[commodity, industry]).item())
+        if pub == 0.0:
+            continue
+        held.append(str(commodity))
+    return held
+
+
+def _assert_refinery_row_room(
+    year: int,
+    use_seed: pd.DataFrame,
+    supply: pd.DataFrame,
+    industry: str,
+    held: Sequence[str],
+    *,
+    room_frac: float = REFINERY_ROW_ROOM_FRAC,
+) -> None:
+    """Refuse when a held cell leaves too little free mass on its Use row."""
+    for commodity in held:
+        if commodity not in use_seed.index:
+            raise KeyError(
+                f'pin_refinery_secondaries_at_go_mix: Use seed missing {commodity!r}'
+            )
+        held_m = float(np.asarray(supply.at[commodity, industry]).item())
+        use_row = float(use_seed.loc[commodity].sum())
+        room = use_row - held_m
+        if room <= room_frac * use_row:
+            raise ValueError(
+                f'pin_refinery_secondaries_at_go_mix: {year} {commodity}×{industry} '
+                f'held {held_m:,.1f} $M leaves room {room:,.1f} $M on Use row '
+                f'total {use_row:,.1f} $M (need > {room_frac:.0%} of row)'
+            )
+
+
+def _overlay_supply_fixed(
+    mask: SutMask,
+    supply: pd.DataFrame,
+    industry: str,
+    held: Sequence[str],
+) -> SutMask:
+    """New Supply mask with ``held`` cells Tier-1 fixed against ``supply``."""
+    fixed = mask.fixed_value.copy()
+    for commodity in held:
+        fixed.at[commodity, industry] = True
+    out = SutMask(
+        structural_zero=mask.structural_zero & ~fixed,
+        fixed_value=fixed,
+        sign_lock=mask.sign_lock,
+    )
+    out.validate_against(supply)
+    return out
+
+
+def apply_refinery_secondaries_go_mix_pin(
+    year: int,
+    seeds: dict[str, pd.DataFrame],
+    masks: dict[str, SutMask],
+    targets: TargetSet,
+) -> tuple[dict[str, pd.DataFrame], dict[str, SutMask]]:
+    """Scale-then-fix refinery co-products when the flag is on (#1229).
+
+    No-op with the flag off. With it on: hold candidates that are nonzero in
+    the 2017 published panel and above :data:`DUST_USD_M` on the year seed;
+    scale them to seed share × T17-at-seed ``324110`` pin; refuse when a held
+    cell leaves too little Use-row room; overlay Tier-1 from the helper's
+    returned list only.
+    """
+    commodities = pinned_refinery_secondaries()
+    if not commodities:
+        return seeds, masks
+
+    industry = REFINERY_INDUSTRY
+    supply = seeds['supply']
+    use = seeds['use']
+    candidates = _refinery_hold_candidates(supply, industry, commodities)
+    if not candidates:
+        return seeds, masks
+
+    pin_m = t17_at_seed_column_pin_m(industry, use, targets)
+    scaled, held = hold_column_shares(supply, industry, candidates, pin_m)
+    if not held:
+        return seeds, masks
+    _assert_refinery_row_room(int(year), use, scaled, industry, held)
+    new_masks = {
+        **masks,
+        'supply': _overlay_supply_fixed(masks['supply'], scaled, industry, held),
+    }
+    return {**seeds, 'supply': scaled}, new_masks
+
+
 def assemble(
     year: int,
     *,
@@ -596,6 +790,10 @@ def assemble(
     The sweep runs **before** the target injection: T18 is injected from the
     seed's own value-added column sums, so sweeping afterwards would shift the
     seed under the injection by exactly the swept dust.
+
+    When ``pin_refinery_secondaries_at_go_mix`` is on, the Supply seed is then
+    rewritten so held co-product cells enter GRAS at seed share times the
+    T17-at-seed column pin, and Tier-1 is overlaid from that held list.
     """
     # Gross output and the summary supply-use controls must be one BEA annual
     # update; the targets balance one against the other (#1157).
@@ -606,6 +804,9 @@ def assemble(
     sweep = conform_seeds(seeds, masks)
     targets = assemble_targets(
         int(year), seeds['use'], seeds['supply'], pce_constraint=mode
+    )
+    seeds, masks = apply_refinery_secondaries_go_mix_pin(
+        int(year), seeds, masks, targets
     )
     return YearBalance(
         year=int(year),

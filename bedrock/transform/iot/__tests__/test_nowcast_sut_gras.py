@@ -581,6 +581,62 @@ def test_restore_fixed_nonzero_f_unchanged() -> None:
     assert restored['use'].loc['c1', 'F01000'] == 4.0
 
 
+def test_held_co_product_share_survives_column_shrink() -> None:
+    """#1229: scale-then-fix keeps seed share when the industry column falls."""
+    from bedrock.transform.iot.nowcast_sut_assembly import (  # noqa: PLC0415
+        REFINERY_SHARE_TOL_PP,
+        hold_column_shares,
+    )
+
+    use, supply = _use_seed(), _supply_seed()
+    # Industry i1 Make: own-product-like c1 free, co-product c2 held.
+    supply.loc['c1', 'i1'] = 70.0
+    supply.loc['c2', 'i1'] = 30.0
+    seed_share = 30.0 / 100.0
+    pin = 80.0
+    scaled, held = hold_column_shares(supply, 'i1', ['c2'], pin)
+    assert held == ['c2']
+    assert scaled.at['c2', 'i1'] == pytest.approx(24.0)
+
+    # Keep T11 feasible: Use commodity rows match Supply after the scale.
+    for commodity in COMMODITIES:
+        use.loc[commodity, list(INDUSTRIES) + ['F01000']] = 0.0
+        use.loc[commodity, 'F01000'] = float(scaled.loc[commodity].sum())
+
+    supply_fixed = pd.DataFrame(False, index=scaled.index, columns=scaled.columns)
+    supply_fixed.at['c2', 'i1'] = True
+    masks = _masks(use, scaled, supply_fixed=supply_fixed)
+    base = _hard_set(use, scaled)
+    # Force the Supply i1 column down by the seed-vs-pin gap; free cells absorb.
+    delta = float(scaled['i1'].sum()) - pin
+    t17 = next(t for t in base if t.name == 'T17')
+    t17_vals = t17.values.astype(float).copy()
+    t17_vals.loc['i1'] = float(t17_vals.loc['i1']) - delta
+    targets = TargetSet.of(
+        *(
+            Target(
+                terms=t.terms,
+                values=t17_vals if t.name == 'T17' else t.values,
+                source=t.source,
+                name=t.name,
+                hard=t.hard,
+                allow_negative=t.allow_negative,
+            )
+            for t in base
+        )
+    )
+    frozen, _free, out, restored = _run(use, scaled, targets, masks)
+    assert restored['supply'].at['c2', 'i1'] == pytest.approx(
+        frozen['supply'].at['c2', 'i1']
+    )
+    bal_col = float(restored['supply']['i1'].sum())
+    bal_share = float(np.asarray(restored['supply'].at['c2', 'i1']).item()) / bal_col
+    assert abs(100.0 * (bal_share - seed_share)) <= REFINERY_SHARE_TOL_PP
+    # Residual lands on more than the held cell: own-product moved.
+    assert restored['supply'].at['c1', 'i1'] != pytest.approx(70.0, abs=1e-6)
+    assert out.t11_max_abs_residual < 1.0
+
+
 def test_assert_free_seed_rejects_full_x() -> None:
     use, supply = _use_seed(), _supply_seed()
     use_fixed = pd.DataFrame(False, index=use.index, columns=use.columns)

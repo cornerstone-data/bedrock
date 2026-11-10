@@ -237,11 +237,12 @@ def test_pce_electricity_tier1_fixed_only_when_constraint_on() -> None:
     assert not pinned.loc['111120', PCE_ELECTRICITY_COL]
 
 
-def test_the_supply_block_has_no_fixed_values() -> None:
-    """An empty layer is the honest default while the Supply fixed-value layer is open.
+def test_the_supply_block_has_no_fixed_values_by_default() -> None:
+    """Supply Tier 1 stays empty in the pattern builder.
 
-    A cell masked by accident cannot be corrected by the balance, so the
-    Supply side stays unmasked until ``MCIF``/``MDTY`` are actually decided.
+    ``MCIF``/``MDTY`` are still undecided as fixed vs targeted; a cell masked
+    by accident cannot be corrected by the balance. Refinery co-product holds
+    are overlaid in assembly, not here.
     """
     fixed = fixed_value_mask('supply', 2017, _supply_panel())
     assert not fixed.to_numpy().any()
