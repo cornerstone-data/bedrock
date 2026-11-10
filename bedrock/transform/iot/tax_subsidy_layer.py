@@ -127,8 +127,19 @@ def _shares(base: pd.DataFrame) -> pd.DataFrame:
     return base.div(total.where(total != 0.0), axis=0).fillna(0.0)
 
 
+#: The four per-cell frames of a :class:`FiscalLayer`.
+FISCAL_FRAMES: tuple[str, ...] = ('sales_tax', 'top_rest', 'duties', 'subsidies')
+
+#: How far a commodity total may move in the re-spread, USD. The module's
+#: 0.0 $M standard: the re-spread is a per-commodity rescale, so this is float
+#: noise on totals up to about 1e11 USD. Tax with no live cell to go to is not
+#: noise, so it is held to the same bound.
+CONSERVATION_TOLERANCE: float = 1.0
+
+
 def build_fiscal_layer(
     year: USA_BENCHMARK_DETAIL_SUT_YEARS = 2017,
+    cells: pd.DataFrame | None = None,
 ) -> FiscalLayer:
     """Allocate the year's published wedges per cell. See the module docstring.
 
@@ -136,7 +147,61 @@ def build_fiscal_layer(
     dollars where a commodity has a wedge but no retail base - those are
     wholesale-collected excises); ``top_rest``/``duties``/``subsidies``
     follow producers'-value use.
+
+    ⚠️ **Pass *cells* for any table other than the anchor itself.** The
+    allocation runs on *year*'s own cell pattern. A Use table with another
+    pattern - any nowcast year, or a subset - has no cell for some of that tax.
+    *cells* is that table, commodity x buyer; its nonzero cells become the
+    layer's support through :func:`restrict_to_cells`.
     """
+    layer = _allocate(year)
+    return layer if cells is None else restrict_to_cells(layer, cells)
+
+
+def restrict_to_cells(layer: FiscalLayer, cells: pd.DataFrame) -> FiscalLayer:
+    """*layer* re-spread onto the nonzero cells of *cells*, USD.
+
+    Within each commodity, the tax on cells that *cells* does not have moves
+    onto the cells it has, in proportion to what those cells already carry.
+    The result keeps the layer's grid (goods commodity x buyer) and is zero
+    off the live cells.
+
+    Raises ``ValueError`` if any commodity total moves by
+    :data:`CONSERVATION_TOLERANCE` or more. That includes a commodity whose
+    tax sits only on cells *cells* does not have: it has nowhere to go and
+    would vanish.
+    """
+    live = (
+        cells.reindex(index=layer.sales_tax.index, columns=layer.sales_tax.columns)
+        .fillna(0.0)
+        .astype(float)
+        != 0.0
+    )
+    frames = {}
+    for name in FISCAL_FRAMES:
+        frame = getattr(layer, name)
+        kept = frame.where(live, 0.0)
+        before, after = frame.sum(axis=1), kept.sum(axis=1)
+        stranded = float(before.where(after == 0.0, 0.0).abs().sum())
+        if stranded >= CONSERVATION_TOLERANCE:
+            raise ValueError(
+                f'{stranded:,.0f} USD of {name} sits on commodities the target '
+                f'table has no live cell for, so it cannot be re-spread and '
+                f'would vanish.'
+            )
+        spread = kept.mul((before / after.where(after != 0.0)).fillna(0.0), axis=0)
+        drift = (spread.sum(axis=1) - before).abs()
+        if float(drift.max()) >= CONSERVATION_TOLERANCE:
+            raise ValueError(
+                f'the re-spread of {name} moved commodity totals by up to '
+                f'{float(drift.max()):,.2f} USD ({drift.idxmax()}).'
+            )
+        frames[name] = spread
+    return layer._replace(**frames)
+
+
+def _allocate(year: USA_BENCHMARK_DETAIL_SUT_YEARS) -> FiscalLayer:
+    """The allocation on *year*'s own cell pattern. See :func:`build_fiscal_layer`."""
     margins = load_benchmark_margins_before_redef_usa(year)
     bridge = _bridge(year)
 
