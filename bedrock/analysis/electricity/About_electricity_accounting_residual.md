@@ -132,7 +132,7 @@ Trade alone leaves these grades almost unchanged. It does move the 2024 balanced
 
 | part | status |
 |---|---|
-| residual amounts, class split, table split, identity checks | done, unit tested |
+| residual amounts, class split | done, unit tested |
 | config flag and value-added transfer in Step 5 | done, off by default, on in the v1.0 configs |
 | live balance 2017-2024 | done, published in `v1.0.0_e7715da` |
 | Step 6 and Step 7 | run on the 402-sector tables, checks pass in all eight years. No residual row or column; the residual is in buyers' `V00300` |
