@@ -1,24 +1,24 @@
-"""Cornerstone industry-to-MECS 3.1 mappings.
+"""Cornerstone industry-to-MECS 3.1 hand maps for G/T/D purchaser allocation.
+
+Sole production consumer: ``electricity_gtd_allocation`` (MECS Table 7.7
+purchased kWh onto Cornerstone industries). GHG Energy / FlowSA MECS paths
+do not import this module; they use ``Cornerstone_2025`` activity-to-sector
+mapping plus attribution helpers instead.
 
 331313 uses subtraction: mapped value 3313 minus 331314, 331315, and 331318.
-Cornerstone has aggregate 335220 (major household appliances) and not
-335221, 335222, 335224, 335228. Those four are dropped, and 335220 maps to
-MECS 335 so the aggregate receives allocation.
-
-Electricity generation, transmission, and distribution purchaser allocation
-uses these maps to put MECS Table 7.7 purchased kWh on Cornerstone industries.
+Major household appliances use aggregate industry 335220, which maps to MECS 335.
 """
 
 from __future__ import annotations
 
 _MECS_3_1: dict[tuple[str, ...], tuple[str, ...]] = {
-    # 1:1 CEDA industry to energy distribution
+    # 1:1 Cornerstone industry to energy distribution
     ("321100",): ("321113",),
-    ("321200",): ("3212",),  # CEDA 321200 covers all sub-industries under NAICS 3212
+    ("321200",): ("3212",),  # 321200 covers all sub-industries under NAICS 3212
     ("327310",): ("327310",),
     ("331110",): ("331110",),
     ("331200",): ("3312",),
-    ("331313",): ("3313",),  # CEDA 331313 covers all sub-industries under NAICS 3313
+    ("331313",): ("3313",),  # 331313 covers all sub-industries under NAICS 3313
     ("331410",): ("331410",),
     ("331510",): ("331511",),
     ("334413",): ("334413",),
@@ -120,10 +120,7 @@ _MECS_3_1: dict[tuple[str, ...], tuple[str, ...]] = {
         "335110",
         "335120",
         "335210",
-        "335221",
-        "335222",
-        "335224",
-        "335228",
+        "335220",
         "335311",
         "335312",
         "335313",
@@ -221,7 +218,7 @@ _MECS_3_1_SUBTRACTION: dict[
 ] = {
     # For each of these industries, they map to a subset of the total
     # energy distribution from MECS 3.1
-    # The ordering is {(CEDA industries): ((mapped values), (subtract values))}
+    # The ordering is {(Cornerstone industries): ((mapped values), (subtract values))}
     ("327320", "327330", "327390", "327910", "327991", "327992", "327999"): (
         ("327",),
         (
@@ -365,42 +362,15 @@ _MECS_3_1_SUBTRACTION: dict[
     ): (("3254",), ("325412",)),
 }
 
-# Single-sector keys to drop (Cornerstone has aggregate 335220 instead).
-_CORNERSTONE_MECS_EXCLUDED = (
-    ("335221",),
-    ("335222",),
-    ("335224",),
-    ("335228",),
-)
-# In multi-sector keys, replace these with this aggregate so allocation goes to 335220.
-_APPLIANCE_AGGREGATE = "335220"
-_APPLIANCE_SUBS = frozenset({"335221", "335222", "335224", "335228"})
-
-
-def _cornerstone_key(k: tuple[str, ...]) -> tuple[str, ...]:
-    """Replace 335221/335222/335224/335228 with aggregate 335220 in key."""
-    if not _APPLIANCE_SUBS.intersection(k):
-        return k
-    return tuple(s for s in k if s not in _APPLIANCE_SUBS) + (_APPLIANCE_AGGREGATE,)
-
-
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING: dict[
     tuple[str, ...], tuple[str, ...]
-] = {
-    _cornerstone_key(k): v
-    for k, v in _MECS_3_1.items()
-    if k != ("331313",) and k not in _CORNERSTONE_MECS_EXCLUDED
-}
+] = {k: v for k, v in _MECS_3_1.items() if k != ("331313",)}
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING[("331314",)] = ("331314",)
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_MAPPING[("33131B",)] = ("331315", "331318")
 
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING: dict[
     tuple[str, ...], tuple[tuple[str, ...], tuple[str, ...]]
-] = {
-    _cornerstone_key(k): v
-    for k, v in _MECS_3_1_SUBTRACTION.items()
-    if k not in _CORNERSTONE_MECS_EXCLUDED
-}
+] = dict(_MECS_3_1_SUBTRACTION)
 CORNERSTONE_INDUSTRY_TO_MECS_3_1_NAICS_SUBTRACTION_MAPPING[("331313",)] = (
     ("3313",),
     ("331314", "331315", "331318"),

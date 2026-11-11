@@ -117,13 +117,13 @@ def test_collect_activity_to_sector_mapping_names_top_level() -> None:
         dict[str, object],
         {
             'source_names': {
-                'Src1': {'activity_to_sector_mapping': 'CEDA_2025'},
-                'Src2': {'activity_to_sector_mapping': 'EPA_GHGI_CEDA'},
+                'Src1': {'activity_to_sector_mapping': 'Cornerstone_2025'},
+                'Src2': {'activity_to_sector_mapping': 'EPA_GHGI_Cornerstone'},
             },
         },
     )
     out = collect_activity_to_sector_mapping_names(config)
-    assert out == {'CEDA_2025', 'EPA_GHGI_CEDA'}
+    assert out == {'Cornerstone_2025', 'EPA_GHGI_Cornerstone'}
 
 
 def test_collect_activity_to_sector_mapping_names_nested_source_names() -> None:
