@@ -37,6 +37,35 @@ absolute values, so moves in opposite directions don't cancel.
 | `325211` | Plastics material and resin manufacturing | 0.21 → 0.16 | **0.144** → 0.093 | B 56%, L 44% | split, below 0.2: the 2023 step is gone, and about a quarter of the rise is supported | [#1210](https://github.com/cornerstone-data/bedrock/issues/1210), [#670](https://github.com/cornerstone-data/bedrock/issues/670), [#1196](https://github.com/cornerstone-data/bedrock/issues/1196), ~~[#1203](https://github.com/cornerstone-data/bedrock/issues/1203)~~ |
 | `325190` | Other basic organic chemical manufacturing | 0.23 → 0.16 | **0.128** → 0.091 | B 57%, L 43% | split, below 0.2: the N2O decline is justified. The fall in fossil routes and the 2024 output jump, which overshoots production reports, are not | [#1210](https://github.com/cornerstone-data/bedrock/issues/1210), ~~[#1211](https://github.com/cornerstone-data/bedrock/issues/1211)~~, ~~[#1177](https://github.com/cornerstone-data/bedrock/issues/1177)~~, ~~[#898](https://github.com/cornerstone-data/bedrock/issues/898)~~, [#1196](https://github.com/cornerstone-data/bedrock/issues/1196), ~~[#1203](https://github.com/cornerstone-data/bedrock/issues/1203)~~ |
 
+### The rest of the top 30
+
+The other commodities in the current top 30, ordered by current IV score, on the
+same builds and weights as the table above. None has been assessed on these builds.
+Grain farming and water transportation have earlier findings in
+[`About_sector_trend_explanations.md`](About_sector_trend_explanations.md).
+
+| Code | Sector | IV score | Volatility score | Driving factor | Status | Issues and PRs |
+|---|---|---|---|---|---|---|
+| `485000` | Transit and ground passenger transportation | 0.14 → 0.15 | **0.120** → **0.123** | B 66%, L 34% | unresolved | none yet |
+| `325310` | Fertilizer manufacturing | 0.18 → 0.14 | **0.178** → **0.145** | B 80%, L 20% | unresolved | none yet |
+| `1111B0` | Grain farming | 0.13 → 0.12 | 0.091 → 0.091 | B 74%, L 26% | unresolved | ~~[#934](https://github.com/cornerstone-data/bedrock/issues/934)~~ |
+| `541800` | Advertising, public relations, and related services | 0.11 → 0.11 | **0.156** → **0.163** | B 35%, L 65% | unresolved | none yet |
+| `212100` | Coal mining | 0.11 → 0.11 | **0.115** → **0.111** | B 87%, L 13% | unresolved | none yet |
+| `315000` | Apparel manufacturing | 0.11 → 0.11 | **0.535** → **0.541** | B 43%, L 57% | unresolved | none yet |
+| `325120` | Industrial gas manufacturing | 0.12 → 0.10 | **0.128** → **0.126** | B 71%, L 29% | unresolved | none yet |
+| `493000` | Warehousing and storage | 0.09 → 0.09 | 0.100 → **0.102** | B 37%, L 63% | unresolved | none yet |
+| `483000` | Water transportation | 0.08 → 0.07 | **0.311** → **0.311** | B 88%, L 12% | unresolved | [#936](https://github.com/cornerstone-data/bedrock/issues/936) |
+| `492000` | Couriers and messengers | 0.08 → 0.07 | 0.064 → 0.061 | B 46%, L 54% | unresolved | none yet |
+| `532100` | Automotive equipment rental and leasing | 0.07 → 0.07 | **0.217** → **0.217** | B 62%, L 38% | unresolved | none yet |
+| `322130` | Paperboard mills | 0.06 → 0.07 | 0.069 → 0.083 | B 22%, L 78% | unresolved | none yet |
+| `334413` | Semiconductor and related device manufacturing | 0.08 → 0.07 | 0.071 → 0.072 | B 42%, L 58% | unresolved | none yet |
+| `327310` | Cement manufacturing | 0.07 → 0.07 | 0.072 → 0.072 | B 90%, L 10% | unresolved | none yet |
+| `52A000` | Monetary authorities and depository credit intermediation | 0.06 → 0.06 | **0.247** → **0.250** | B 31%, L 69% | unresolved | none yet |
+| `327400` | Lime and gypsum product manufacturing | 0.06 → 0.06 | 0.062 → 0.062 | B 81%, L 19% | unresolved | none yet |
+| `486000` | Pipeline transportation | 0.06 → 0.05 | 0.052 → 0.050 | B 74%, L 26% | unresolved | none yet |
+| `339112` | Surgical and medical instrument manufacturing | 0.06 → 0.05 | **0.179** → **0.171** | B 25%, L 75% | unresolved | none yet |
+| `523A00` | Securities and commodity contracts intermediation and brokerage | 0.04 → 0.04 | **0.200** → **0.200** | B 47%, L 53% | unresolved | none yet |
+
 Status values:
 
 | verdict | meaning |
