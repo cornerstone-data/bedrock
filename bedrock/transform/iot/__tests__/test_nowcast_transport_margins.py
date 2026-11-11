@@ -953,6 +953,44 @@ def test_water_keeps_its_published_revenue_across_the_seam() -> None:
     assert tm.mode_freight_revenue('water', 2023) == pytest.approx(published)
 
 
+def _aies_air_revenue(year: int) -> float:
+    codes = tm._SAS_FREIGHT_NAICS['air']
+    fba = getFlowByActivity('Census_AIES', year)
+    rows = fba[fba['FlowName'].astype(str).str.strip() == 'Sales']
+    return float(
+        rows[rows['ActivityProducedBy'].astype(str).isin(codes)]['FlowAmount'].sum()
+    )
+
+
+@pytest.mark.parametrize('year', [2023, 2024])
+def test_with_the_flag_air_takes_the_aies_level(
+    monkeypatch: pytest.MonkeyPatch, year: int
+) -> None:
+    """``air_margin_on_aies_level`` reads air like water: AIES as published (#1251)."""
+    monkeypatch.setattr(tm, '_air_on_aies_level', lambda: True)
+    assert tm.mode_freight_revenue('air', year) == pytest.approx(
+        _aies_air_revenue(year)
+    )
+
+
+def test_with_the_flag_off_air_stays_on_the_volume_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tm, '_air_on_aies_level', lambda: False)
+    assert tm.mode_freight_revenue('air', 2023) == pytest.approx(
+        tm.air_revenue_from_volume(2023)
+    )
+
+
+def test_the_flag_leaves_air_sas_years_on_sas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(tm, '_air_on_aies_level', lambda: True)
+    assert tm.mode_freight_revenue('air', 2022) == pytest.approx(
+        tm._published_air_revenue(2022)
+    )
+
+
 def test_air_volume_index_refuses_years_with_a_published_revenue() -> None:
     """2022 and earlier have an observed SAS revenue and must use it."""
     with pytest.raises(ValueError, match='published SAS revenue'):
