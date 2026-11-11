@@ -151,10 +151,10 @@ def test_both_urls_read_hs10() -> None:
     )
 
 
-def test_gold_is_dropped_from_both_directions(
+def test_gold_is_booked_on_its_own_activity_in_both_directions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """HS 7108 never reaches a NAICS row; the rest of 331410 does (#1270)."""
+    """HS 7108 stays in the FBA, on ``HS7108`` instead of ``331410`` (#1270)."""
     concordance = pd.DataFrame(
         {
             'year': ['2024', '2024'],
@@ -194,6 +194,12 @@ def test_gold_is_dropped_from_both_directions(
     assert got[('331410', 'ALL_VAL_YR_DOM')] == pytest.approx(100.0)
     assert got[('331410', 'ALL_VAL_YR_FGN')] == pytest.approx(10.0)
     assert got[('331410', 'GEN_VAL_YR')] == pytest.approx(200.0)
+    gold = Census_USATrade.NONMONETARY_GOLD_ACTIVITY
+    assert got[(gold, 'ALL_VAL_YR_DOM')] == pytest.approx(900.0)
+    assert got[(gold, 'ALL_VAL_YR_FGN')] == pytest.approx(50.0)
+    assert got[(gold, 'GEN_VAL_YR')] == pytest.approx(500.0)
+    # the FBA still reconciles to the product-code totals
+    assert got.xs('GEN_VAL_YR', level='FlowName').sum() == pytest.approx(700.0)
 
 
 def test_import_fields_split_alike_on_the_customs_value_mix(
