@@ -97,7 +97,6 @@ and its Supply column is **zero**. See ``nowcast_mask.balance_industries``.
 from __future__ import annotations
 
 import functools
-import glob
 import math
 from typing import cast
 
@@ -106,6 +105,7 @@ import pandas as pd
 from bedrock.extract.iot.io_2017 import _load_2017_detail_supply_use_usa
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     derive_detail_value_added,
+    detail_gross_output_panel,
 )
 from bedrock.transform.iot.nowcast_mask import (
     BLOCKS,
@@ -130,10 +130,6 @@ from bedrock.utils.economic.balance.targets import (
 from bedrock.utils.taxonomy.bea.v2017_final_demand import SUT_FINAL_DEMAND_CODES
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
     load_bea_v2017_industry_to_bea_v2017_summary,
-)
-
-GROSS_OUTPUT_GLOB = (
-    'bedrock/extract/output_data/BEA_Detail_GrossOutput_IO_{year}_*.parquet'
 )
 
 #: The thirteen final-demand columns that stay targets. The other six are
@@ -210,24 +206,25 @@ def _supply_total(labels: list[str], name: str) -> Aggregator:
 
 
 def published_gross_output(year: int) -> pd.Series:
-    """Detail gross output at producer prices, from BEA's UGO305-A.
+    """Detail gross output at producer prices, from BEA's UGO305-A, million USD.
 
     A straight read - no 2017 shares anywhere - and published for all 402
     detail industries in every year 2017-2024, which is why the industry
     constraint can be imposed at detail rather than at summary level.
+
+    ⚠️ **Read through the workbook loader, not the stored FBA.** This is
+    :func:`~bedrock.transform.iot.derived_intermediate_and_value_added.detail_gross_output_panel`
+    without the Economic Census adjustment, so it reads the same UGO305-A
+    workbook as the rest of the build. The stored ``BEA_Detail_GrossOutput_IO``
+    parquet is cached under a git-commit version, and an older release with a
+    higher version string wins on download: a 2023 copy built from an earlier
+    BEA release was off UGO305-A by $1.57T summed over 401 of 402 industries.
     """
-    paths = sorted(glob.glob(GROSS_OUTPUT_GLOB.format(year=year)))
-    if not paths:
-        raise FileNotFoundError(
-            f'no extracted gross output for {year}: {GROSS_OUTPUT_GLOB.format(year=year)}'
-        )
-    series = (
-        pd.read_parquet(paths[0])
-        .set_index('ActivityProducedBy')['FlowAmount']
-        .astype(float)
-    )
+    panel = detail_gross_output_panel(ec_adjusted=False)
+    if int(year) not in panel.columns:
+        raise KeyError(f'UGO305-A carries no gross output for {year}')
     industries = list(balance_industries())
-    aligned = series.reindex(industries)
+    aligned = panel[int(year)].astype(float).reindex(industries)
     if aligned.isna().any():
         missing = list(aligned.index[aligned.isna()])
         raise KeyError(f'gross output for {year} is missing industries: {missing}')
@@ -244,9 +241,9 @@ def industry_output_target(year: int, gross_output: pd.Series | None = None) -> 
 
     ⚠️ **Use only.** There is no Supply term: the Supply industry column is at
     basic prices and is constrained by T17 instead. Passing ``gross_output``
-    injects the series rather than reading the extracted parquet, which is what
-    makes this testable - the parquet is a pipeline artefact and is not in the
-    repository.
+    injects the series rather than reading the UGO305-A workbook
+    (:func:`published_gross_output`), which is what makes this testable - the
+    workbook is downloaded, not in the repository.
     """
     values = published_gross_output(year) if gross_output is None else gross_output
     return Target.on_margin(
@@ -825,7 +822,6 @@ def target_set_summary(year: int = 2017) -> pd.DataFrame:
 
 __all__ = [
     'FD_TARGET_COLUMNS',
-    'GROSS_OUTPUT_GLOB',
     'NEGATIVE_FD_COLUMNS',
     'SUPPLY_BRIDGE_COLUMNS',
     'WEIGHTS',
