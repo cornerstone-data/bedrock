@@ -18,7 +18,7 @@ An ``A`` cell's contribution to the ``L_dom`` part uses
 contributes ``N_d_i,t * dA_ij * L_jk,t-1``. These add up to the ``L_dom`` part
 exactly, and ``--check`` asserts that. All of this is in constant 2017 dollars.
 
-The draft shows ``E`` and ``q`` as curves normalized to 2017 = 1, as in
+The draft shows ``B``, ``E`` and ``q`` as curves normalized to 2017 = 1, as in
 ``time_series_matrix_assessment``, drawn to one fixed scale so that sectors can be
 compared. They are written to ``images/sector_trends/``, and each run overwrites
 its sectors' curves. The CSV keeps the values.
@@ -80,6 +80,7 @@ CURVE_INK = '#768390'
 class Basis:
     """Everything the triage reads, in constant 2017 dollars on the domestic basis."""
 
+    B: pd.DataFrame
     E: pd.DataFrame
     sector_E: pd.DataFrame
     q: pd.DataFrame
@@ -98,6 +99,7 @@ def load_basis() -> Basis:
     changes = bcd.B_change(span, real=True)
     changes['commodity'] = changes['commodity'].astype(str)
     return Basis(
+        B=bcd.B_total(span, real=True),
         E=E,
         sector_E=sector_emissions_panel(span) / 1e9,
         q=span.q * bcd.commodity_rho(span).reindex(span.q.index)[span.q.columns],
@@ -256,6 +258,7 @@ def triage(iv: pd.DataFrame, basis: Basis) -> pd.DataFrame:
                 'code': code,
                 'name': name_of(code),
                 'IV': float(row['IV']),
+                'B': series(pd.Series(basis.B.loc[code])),
                 'E': series(pd.Series(basis.sector_E.loc[code])),
                 'E_sources': e_sources(basis, code),
                 'q': series(pd.Series(basis.q.loc[code]) / 1e9),
@@ -286,6 +289,7 @@ def draft(table: pd.DataFrame, basis: Basis) -> str:
     lines += ['', '## Log entries', '']
     for _, row in table.iterrows():
         code = str(row['code'])
+        B_cell = curve_cell(pd.Series(basis.B.loc[code]), code, 'B')
         E_cell = curve_cell(pd.Series(basis.sector_E.loc[code]), code, 'E')
         q_cell = curve_cell(pd.Series(basis.q.loc[code]) / 1e9, code, 'q')
         lines += [
@@ -293,6 +297,7 @@ def draft(table: pd.DataFrame, basis: Basis) -> str:
             '',
             '| Field | Value |',
             '|---|---|',
+            f'| **B** | {B_cell} |',
             f'| **E** | {E_cell} |',
             f"| **E source** | {row['E_sources']} |",
             f'| **E explanation** | {NOT_ASSESSED} |',
@@ -301,6 +306,7 @@ def draft(table: pd.DataFrame, basis: Basis) -> str:
             f"| **A explanation** | {NOT_ASSESSED} Largest cells, gross percent of "
             f"`N_d`: {row['top_A_cells']} |",
             f'| **L explanation** | {NOT_ASSESSED} |',
+            f'| **Conclusion** | {NOT_ASSESSED} |',
             '',
         ]
     return '\n'.join(lines)
@@ -362,7 +368,7 @@ def main(argv: list[str] | None = None) -> Path | None:
     draft_path = out.with_name(f'{out.stem}_draft.md')
     draft_path.write_text(draft(table, basis), encoding='utf-8')
 
-    columns = ['rank', 'code', 'IV', 'driving_factor', 'B_share_pct', 'E', 'q']
+    columns = ['rank', 'code', 'IV', 'driving_factor', 'B_share_pct', 'B', 'E', 'q']
     print(table[columns].round(2).to_string(index=False))
     print(f'\nWrote {out}\nWrote {draft_path}')
     return out

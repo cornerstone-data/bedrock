@@ -7,8 +7,10 @@ change or as a modeling problem. It does not say why a factor moved;
 [`About_sector_deep_dive.md`](About_sector_deep_dive.md) is the next step for a
 flagged factor.
 
-Code: `IV_score.py`. Results below use GHG FBS `v1.0.0_79273ed` and MUT
-`v1.0.0_5514c3b`.
+Code: `IV_score.py`. Results below use GHG FBS `v1.0.0_e7715da` and MUT
+`v1.0.0_e7715da`, the combined 2017-2024 rebuild (#1249). How the ranking moved
+from the earlier build is under
+[Change from the `5514c3b` build](#change-from-the-5514c3b-build).
 
 ## Calculation
 
@@ -76,34 +78,34 @@ score under all four named weightings.
 
 ## Results, equal weights
 
-The score is concentrated. The median is 0.006 across 405 commodities.
+The score is concentrated. The median is 0.005 across 405 commodities.
 
 | Top commodities | Share of summed score |
 |---|---|
-| 1 | 26.4% |
-| 10 | 47.2% |
-| 30 | 66.9% |
-| 100 | 85.6% |
+| 1 | 16.7% |
+| 10 | 39.6% |
+| 30 | 61.9% |
+| 100 | 83.5% |
 
-The top 30 hold 74.4% of emissions on the `B q` basis. The top 15:
+The top 30 hold 75.0% of emissions on the `B q` basis. The top 15:
 
 | Rank | Code | Commodity | IV | I | V | Trend per year | Peak year | Net change |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 221100 | Electric power | 2.81 | 28.0% | 0.100 | -5.2% | 2021 | -0.26 |
-| 2 | 2122A0 | Iron, gold, silver, other metal ore mining | 0.31 | 1.1% | 0.273 | -4.2% | 2022 | -0.70 |
-| 3 | 211000 | Oil and gas extraction | 0.28 | 2.9% | 0.095 | -8.4% | 2020 | -0.48 |
-| 4 | 325110 | Petrochemicals | 0.27 | 1.7% | 0.163 | +3.4% | 2019 | 0.30 |
-| 5 | 331110 | Iron and steel mills | 0.27 | 4.5% | 0.059 | -2.3% | 2022 | -0.13 |
-| 6 | 1111B0 | Grain farming | 0.26 | 2.8% | 0.091 | -0.7% | 2022 | 0.00 |
-| 7 | 325190 | Other basic organic chemicals | 0.24 | 1.9% | 0.128 | +1.8% | 2021 | -0.26 |
-| 8 | 325211 | Plastics and resin | 0.21 | 1.5% | 0.144 | +0.8% | 2021 | 0.47 |
-| 9 | 481000 | Air transportation | 0.19 | 1.6% | 0.121 | -1.4% | 2020 | -0.11 |
-| 10 | 212100 | Coal mining | 0.18 | 1.5% | 0.115 | -3.6% | 2020 | -0.03 |
-| 11 | 324110 | Petroleum refineries | 0.16 | 2.0% | 0.083 | -2.9% | 2020 | -0.09 |
-| 12 | 325120 | Industrial gases | 0.16 | 1.3% | 0.128 | -4.2% | 2018 | -0.31 |
-| 13 | 325310 | Fertilizer | 0.15 | 0.9% | 0.178 | -0.2% | 2023 | -0.11 |
-| 14 | 484000 | Truck transportation | 0.15 | 3.6% | 0.042 | -1.4% | 2021 | -0.03 |
-| 15 | 531ORE | Other real estate | 0.14 | 1.1% | 0.128 | -8.2% | 2020 | -0.71 |
+| 1 | 221100 | Electric power | 1.40 | 30.8% | 0.045 | -2.9% | 2021 | -0.26 |
+| 2 | 331110 | Iron and steel mills | 0.27 | 4.6% | 0.058 | -1.7% | 2022 | -0.13 |
+| 3 | 325110 | Petrochemicals | 0.26 | 1.7% | 0.154 | -0.2% | 2021 | 0.25 |
+| 4 | 211000 | Oil and gas extraction | 0.25 | 2.9% | 0.089 | -8.0% | 2024 | -0.47 |
+| 5 | 1111B0 | Grain farming | 0.25 | 2.7% | 0.091 | -0.7% | 2022 | 0.00 |
+| 6 | 562212 | Solid waste landfilling | 0.22 | 2.5% | 0.089 | +0.5% | 2022 | -0.11 |
+| 7 | 481000 | Air transportation | 0.19 | 1.6% | 0.119 | -1.3% | 2020 | -0.11 |
+| 8 | 212100 | Coal mining | 0.16 | 1.5% | 0.111 | -3.5% | 2020 | -0.04 |
+| 9 | 325211 | Plastics and resin | 0.16 | 1.8% | 0.093 | -1.0% | 2021 | 0.13 |
+| 10 | 325190 | Other basic organic chemicals | 0.16 | 1.8% | 0.091 | -3.8% | 2021 | -0.20 |
+| 11 | 324110 | Petroleum refineries | 0.16 | 1.9% | 0.081 | -2.7% | 2020 | -0.08 |
+| 12 | 325120 | Industrial gases | 0.15 | 1.2% | 0.126 | -2.4% | 2020 | -0.29 |
+| 13 | 531ORE | Other real estate | 0.14 | 1.1% | 0.128 | -7.8% | 2020 | -0.71 |
+| 14 | 484000 | Truck transportation | 0.13 | 3.4% | 0.039 | -0.3% | 2021 | -0.02 |
+| 15 | 327310 | Cement | 0.12 | 1.7% | 0.072 | -0.0% | 2022 | -0.17 |
 
 The trend is the median annual change, `median_change`. Net change is the sum of
 `d_jt` over the span.
@@ -112,11 +114,11 @@ Each year's share of the squared, `I`-weighted movement around the median:
 
 | | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
 |---|---|---|---|---|---|---|---|
-| All commodities | 7.1% | 1.2% | 9.0% | 64.9% | 2.4% | 14.3% | 1.1% |
-| Without electric power | 9.2% | 10.3% | 18.0% | 22.4% | 19.2% | 12.3% | 8.6% |
+| All commodities | 4.3% | 19.4% | 25.4% | 32.7% | 7.4% | 8.3% | 2.5% |
+| Without electric power | 12.7% | 6.9% | 21.7% | 22.3% | 22.0% | 7.3% | 7.1% |
 
-Electric power's 2021 move dominates the first row, so most of the 2021 share
-belongs to one factor.
+2021 is still the largest year, but electric power no longer dominates it: its
+2019 and 2020 moves count for nearly as much.
 
 ## Steady trends
 
@@ -128,27 +130,28 @@ the median. The top of the list under equal weights:
 
 | Code | Commodity | `IV_trend` | Trend per year | Years with trend |
 |---|---|---|---|---|
-| 221100 | Electric power | 1.46 | -5.2% | 5 |
-| 211000 | Oil and gas extraction | 0.25 | -8.4% | 7 |
-| 331110 | Iron and steel mills | 0.10 | -2.3% | 4 |
-| 531ORE | Other real estate | 0.09 | -8.2% | 6 |
-| 325110 | Petrochemicals | 0.06 | +3.4% | 5 |
-| 324110 | Petroleum refineries | 0.06 | -2.9% | 6 |
+| 221100 | Electric power | 0.89 | -2.9% | 6 |
+| 211000 | Oil and gas extraction | 0.23 | -8.0% | 7 |
+| 531ORE | Other real estate | 0.08 | -7.8% | 6 |
+| 331110 | Iron and steel mills | 0.08 | -1.7% | 4 |
+| 325190 | Other basic organic chemicals | 0.07 | -3.8% | 4 |
 | 1121A0 | Beef cattle ranching | 0.06 | -3.6% | 7 |
-| 212100 | Coal mining | 0.06 | -3.6% | 4 |
-| 325120 | Industrial gases | 0.05 | -4.2% | 5 |
-| 322130 | Paperboard mills | 0.05 | +5.9% | 7 |
+| 322130 | Paperboard mills | 0.05 | +7.2% | 6 |
+| 324110 | Petroleum refineries | 0.05 | -2.7% | 6 |
+| 212100 | Coal mining | 0.05 | -3.5% | 4 |
+| 325120 | Industrial gases | 0.03 | -2.4% | 4 |
 
-Counting the trend keeps 29 of the top 30 from a trend weight of 0. Oil and gas
-extraction moves from rank 14 to 3, and beef cattle from 46 to 29.
+Counting the trend keeps 28 of the top 30 from a trend weight of 0. Oil and gas
+extraction moves from rank 16 to 4, and beef cattle from 46 to 26.
 
 ## How much the basis matters
 
-Electric power ranks first and 29 of the top 30 stay when the score is computed
+Electric power ranks first and 28 of the top 30 stay when the score is computed
 on the full `L` and `N`, but scores change where the path runs through imports.
-Oil and gas extraction and alumina fall to 59% of their full-`L` score, and metal
-ore mining to 60%. Nonferrous metals leaves the top 30, from rank 26 to 141, and
-waste combustors enters.
+Oil and gas extraction falls to 58% of its full-`L` score, alumina to 59% and
+metal ore mining to 63%. Nonferrous metals leaves the top 30, from rank 29 to 158,
+and fruit and tree nut farming from 28 to 33. Warehousing and waste combustors
+enter.
 
 ## How much the weighting matters
 
@@ -158,8 +161,8 @@ ranks second under the three that are not equal.
 | Weighting | Of the equal-weight top 30, kept | Entering the top 30 |
 |---|---|---|
 | `final_demand` | 22 | state and local government (education), depository credit, other financial investment, pipelines, motor vehicle dealers, nondepository credit, residential maintenance, lime and gypsum |
-| `output` | 22 | depository credit, state and local government (education), other financial investment, warehousing, pipelines, nondepository credit, natural gas distribution, services to buildings |
-| `footprint` | 24 | state and local government (education), pipelines, natural gas distribution, vegetable farming, fruit and tree nut farming, dairy cattle |
+| `output` | 23 | depository credit, state and local government (education), other financial investment, pipelines, nondepository credit, services to buildings, lime and gypsum |
+| `footprint` | 22 | state and local government (education), pipelines, vegetable farming, natural gas distribution, fruit and tree nut farming, dairy cattle, mining support, other animal production |
 
 The commodities that leave are mostly small emitters whose rank came from their
 own `N_d`, such as alumina, forestry and private households.
@@ -170,13 +173,32 @@ own `N_d`, such as alumina, forestry and private households.
 its own `N` only, the `k = j` term. Summing that measure over the span on the
 domestic basis and ranking on it keeps 18 of this top 30.
 
-- **Enter under IV**, because they reach other commodities' `N_d`: other real
-  estate (rank 141 on the own-`N_d` measure, 15 here), refineries (106, 11), truck
-  transportation (103, 14), beef cattle (101, 29), iron and steel (80, 5), organic
-  chemicals (51, 7), plastics (48, 8), oil and gas extraction (35, 3).
+- **Enter under IV**, because they reach other commodities' `N_d`: electric power
+  (rank 43 on the own-`N_d` measure, 1 here), other real estate (127, 13),
+  paperboard mills (110, 27), refineries (101, 11), truck transportation (93, 14),
+  beef cattle (90, 26), plastics (84, 9), iron and steel (81, 2), organic chemicals
+  (63, 10).
 - **Leave under IV**, because they move their own `N_d` but little else: fishing
-  (rank 4 on the own-`N_d` measure, 42 here), vegetable farming (5, 40), pulp
-  mills (8, 39), schools (10, 52), storage batteries (16, 46).
+  (rank 3 on the own-`N_d` measure, 36 here), vegetable farming (4, 35), pulp
+  mills (5, 38), schools (7, 47), storage batteries (12, 44).
+
+## Change from the `5514c3b` build
+
+The earlier results used GHG FBS `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. The
+summed score fell from 10.63 to 8.41, and 28 of the top 30 stay. The largest
+moves:
+
+| Code | Commodity | IV before | IV now | Rank before | Rank now | Why |
+|---|---|---|---|---|---|---|
+| 221100 | Electric power | 2.81 | 1.40 | 1 | 1 | Electricity is now split into generation and delivery, with output on EIA's level. `221100` is the generation part: $186bn of output in 2017, against $461bn before. Its real output no longer falls in 2021, so `V` falls from 0.100 to 0.045. |
+| 2122A0 | Metal ore mining | 0.31 | 0.06 | 2 | 28 | Non-energy use emissions (UMD Table 3-14) no longer land on this commodity. They were 15.2 Mt in 2017 and swung between 4.9 and 17.8 Mt a year. Emissions in 2017 fall from 20.2 to 8.2 Mt. |
+| 562212 | Solid waste landfilling | 0.09 | 0.22 | 21 | 6 | Emissions are unchanged. Industry output is now flat at about $9bn from 2017 to 2021 and steps up 25% in 2022, where it used to rise steadily. The waste sectors' output is now set from their Use; check the step in the deep dive. |
+| 325190 | Other basic organic chemicals | 0.24 | 0.16 | 7 | 10 | 2024 real output is $126bn, against $136bn before, so the 2024 fall in `B` is smaller. |
+| 325180 | Other basic inorganic chemicals | 0.11 | 0.04 | 18 | 39 | Output is unchanged. Emissions over 2017-2022 are now closer to the 2023-24 level, so the 2021 step is gone. |
+| 324190 | Other petroleum and coal products | 0.08 | 0.04 | 23 | 42 | Output is unchanged. Emissions over 2017-2022 are now close to the 2023-24 level, so the 2023 step is gone. |
+
+Not every difference comes from a methods change. The `5514c3b` build read
+cached source tables built on older code, and the rebuild regenerated them.
 
 ## Limits
 
@@ -188,13 +210,13 @@ domestic basis and ranking on it keeps 18 of this top 30.
   rough guide to the size of this gap.
 - **A small commodity with no inputs can rank high under equal weights.** A
   commodity that buys nothing gets an own share of 1 at any size. Private
-  households (`814000`) ranks 27 on 0.006 Mt, with a 133% move in its own `N_d` in
-  2018. Its rank falls to 48, 78 and 391 under the three dollar or emissions
+  households (`814000`) ranks 22 on 0.006 Mt, with a 133% move in its own `N_d` in
+  2018. Its rank falls to 44, 77 and 391 under the three dollar or emissions
   weightings. Read `mean_emissions_Mt` alongside the score.
 - **Averaging over all `N_d` dilutes a factor that moves one `N_d` a long way.**
   `largest_N_move_pct`, `_year` and `_target` give the largest single move in any
   `N_d` from one factor's annual change, with `L_dom` held at the prior year. Water
-  transportation ranks 17 but moves its own `N_d` by 86% in 2021.
+  transportation ranks 16 but moves its own `N_d` by 86% in 2021.
 - **`jump_share` and `oscillation` describe the shape of the movement.**
   `jump_share` near 1 means one year dominates; `oscillation` near 1 means the
   series returns to where it started, and 0 means it moved one way. Both are
