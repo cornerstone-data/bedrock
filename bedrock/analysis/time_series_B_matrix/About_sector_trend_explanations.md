@@ -39,7 +39,7 @@ Keep each explanation short and simple. Describe trends in plain words, and don'
 | **q explanation** | `q` is generation only, with delivery a sector of its own and output on EIA's level. It rises 7%, close to the 6% rise in kWh sold. The whole-bill level check ($590bn model against $514bn EIA retail revenue in 2024) was for generation and delivery together; a gen-only dollar check against EIA has not been done. |
 | **A explanation** | Small. Own use moves most: 5.34 per $100 of generation output in 2020, 6.48 in 2021 and 4.09 in 2024 (the denominator is generation only, not the whole bill). Nothing explains the 2021 step yet. Upstream emissions are 7-10% of `N_d`, and their trend isn't fully supported, but holding them constant would only end `N_d` at 0.79 of 2017 rather than 0.76. Largest cells, gross percent of `N_d`: Electricity generation bought by Electricity generation (4.4); Oil and gas extraction bought by Electricity generation (1.9); Coal mining bought by Electricity generation (1.0) |
 | **L explanation** | Little: 18% of the movement in `N_d`, because the sector's own direct emissions are about 90% of its factor. |
-| **Conclusion** | **Trend justified, level open.** `N_d` falls 24% (to 0.76 of 2017), and EIA's CO2 per kWh falls 23%. Less coal explains the Direct/`B` path, so the trend should not be smoothed. In each year's own dollars the factor falls 36%, because generation prices rise about 21%. `q` is generation only and on EIA's physical level (2017 factor 9.6 kg per dollar, against 3.9 for the earlier whole-bill sector). Open: gen-only dollar level vs EIA; the 2021 own-use step. |
+| **Conclusion** | **Justified** `N_d` falls 24% (to 0.76 of 2017), and EIA's CO2 per kWh falls 23%. Less coal explains the Direct/`B` path, so the trend should not be smoothed. In each year's own dollars the factor falls 36%, because generation prices rise about 21%. `q` is generation only and on EIA's physical level (2017 factor 9.6 kg per dollar, against 3.9 for the earlier whole-bill sector). |
 
 ### 481000 Air transportation
 
@@ -117,7 +117,7 @@ Earlier findings:
 | **q explanation** | Not yet assessed. |
 | **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Truck transportation (8.0); Electric power generation, transmission, and distribution bought by Truck transportation (6.0); Truck transportation bought by Truck transportation (1.8) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Provisional.** There's no trend to explain: `B` stays within 5% of 2017 every year and ends 2% lower, with `E` up 6% and `q` up 8%. The largest move is 2021, when diesel emissions rise 11%. Own use no longer steps up in 2023: it rises steadily from 3.33 per $100 of output in 2017 to 4.50 in 2024. `L` is 46% of the movement. |
+| **Conclusion** | **Justified.** There's no trend to explain: `B` stays within 5% of 2017 every year and ends 2% lower, with `E` up 6% and `q` up 8%. Own use no longer steps up in 2023: it rises steadily from 3.33 per $100 of output in 2017 to 4.50 in 2024. Still open: the 2021 diesel rise (emissions up 11%) and `L`, which is 46% of the movement. |
 
 ### 324110 Petroleum refineries
 
