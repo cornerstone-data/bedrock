@@ -1,9 +1,10 @@
-"""Electricity accounting residual: a second pathway for electric power, 2018-2024.
+"""Electricity accounting residual: a second pathway for electric power, 2017-2024.
 
 The BEA-based pathway stays as it is. With ``electricity_accounting_residual`` on,
 electric output follows EIA retail revenue, electric non-fuel inputs follow a
-target, and what is left of BEA's electric value added moves to a residual
-commodity and industry.
+target, and what is left of BEA's electric value added moves to commercial and
+industrial buyers' operating surplus (``V00300``). 2017 moves only with
+``electric_output_on_eia_level`` on.
 
 The residual
 ------------
@@ -18,8 +19,8 @@ The non-fuel target holds the real input mix per kWh fixed. Input prices are eac
 commodity's own price, weighted by the 2017 cells. Electric value added plus
 residual value added equals BEA's, so total value added still equals final demand.
 
-The residual has no inputs and no emissions. It is sold to intermediate buyers,
-never to households or exports, whose electricity follows EIA revenue.
+The residual has no inputs and no emissions. Only intermediate buyers take it,
+never households or exports, whose electricity follows EIA revenue.
 
 With ``electric_output_on_eia_level`` on, retail output starts below BEA's 2017
 level by what commercial and industrial buyers paid in 2017 above EIA revenue
@@ -42,11 +43,18 @@ How it reaches the balance
 The balance has no row or column for the pair. It sees a transfer of value added
 (:func:`value_added_transfers`): electric value added falls and each buyer's rises
 by what it pays for the residual, so the total is unchanged, and every target
-built on ``GO - VAPRO`` follows. :func:`split_residual` then moves those buyer
-amounts out of surplus into the residual row, on the balanced tables.
+built on ``GO - VAPRO`` follows. The balance puts each industry's change on its
+``V00300``.
 
-Not yet wired past Step 5: Steps 6 and 7, the taxonomy and ``A`` do not read the
-pair, so the flag must stay off in any build that publishes tables.
+Where it stays
+--------------
+
+The residual stays in buyers' surplus through Steps 6 and 7, the delivery split
+and the released tables. No table has a residual row or column. Buyers' output is
+fixed, so the transfer moves real inputs from their columns to electric power's.
+Booking it as a residual commodity instead would give the same factors, because it
+has no inputs and no emissions (#1271). :func:`split_residual` builds that view but
+the build doesn't call it.
 """
 
 from __future__ import annotations

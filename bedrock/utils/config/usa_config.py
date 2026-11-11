@@ -199,16 +199,16 @@ class USAConfig(BaseModel):
     electricity_delivery_margin: bool = False  # DRI: WesIngwersen
     # Second pathway for electric power; needs the flag above. Electric non-fuel
     # inputs follow 2017 cells x input prices x EIA kWh, and what is left of BEA's
-    # electric value added moves to a residual commodity and industry (S00700)
-    # sold to commercial and industrial buyers. Keeps electric inputs from being
-    # squeezed by pinned value added. OFF, and not to be set in a build that
-    # publishes tables: Steps 6 and 7 do not read the pair yet. See
+    # electric value added moves to commercial and industrial buyers' operating
+    # surplus (V00300), where it stays in the released tables (#1271). Keeps
+    # electric inputs from being squeezed by pinned value added. OFF by default,
+    # on in the v1.0 configs. See
     # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
     electricity_accounting_residual: bool = False  # DRI: WesIngwersen
     # Starts electric output from EIA's level rather than BEA's 2017 level, and
     # moves the difference to the accounting residual, including in 2017. Needs
     # the flag above. Takes out what commercial and industrial buyers paid in
-    # 2017 above EIA revenue. OFF. See
+    # 2017 above EIA revenue. OFF by default, on in the v1.0 configs. See
     # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
     electric_output_on_eia_level: bool = False  # DRI: WesIngwersen
     # Hold electric power's total purchases of oil and gas extraction (211000)

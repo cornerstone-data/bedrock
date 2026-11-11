@@ -36,7 +36,13 @@ An earlier design sold the residual to electric power. That doesn't work: the el
 
 The balance has no row or column for the pair. It sees a transfer of value added that sums to zero (`value_added_transfers`): electric value added falls, and each buyer's rises by what it pays for the residual. Every target built on gross output less value added follows, so no balancing code changes.
 
-After the balance, `split_residual` moves those buyer amounts out of surplus into the residual row and adds the pair. It raises if an identity breaks.
+The balance puts each industry's change on its gross operating surplus (`V00300`). The residual stays there through Steps 6 and 7, the delivery split and the released tables, in 2017-2024 (2017 with `electric_output_on_eia_level` on).
+
+### Why it stays in surplus (#1271)
+
+Buyers' output is fixed, so whatever they pay for the residual comes out of their real inputs. Booking it as a residual commodity, with a row in each buyer's column, gives the same factors, because the residual has no inputs and no emissions. A separate industry sold to final demand would leave buyers' inputs alone, but final demand is controlled to NIPA, and households and exports follow EIA revenue. So the residual stays a transfer in surplus, and there is no residual sector to overlap with the delivery margin in `42ELEC`.
+
+`split_residual` builds the view with the pair added, and raises if an identity breaks. The build doesn't call it.
 
 Balanced bills can't set the class split, because they come out of the balance this feeds. It uses Step 3's electricity cells, on column totals before the transfer. Commercial's share of the excess:
 
@@ -127,10 +133,10 @@ Trade alone leaves these grades almost unchanged. It does move the 2024 balanced
 | part | status |
 |---|---|
 | residual amounts, class split, table split, identity checks | done, unit tested |
-| config flag and value-added transfer in Step 5 | done, off by default |
-| live balance 2021-2024 | done, no publishing |
+| config flag and value-added transfer in Step 5 | done, off by default, on in the v1.0 configs |
+| live balance 2017-2024 | done, published in `v1.0.0_e7715da` |
 | Step 6 and Step 7 | run on the 402-sector tables, checks pass in all eight years. The pair stays out of them |
-| reporting tables with the pair | `split_residual` exists; not yet written by the build |
-| the pair in the taxonomy | not yet |
+| reporting tables with the pair | not planned (#1271); `split_residual` exists but the build doesn't call it |
+| the pair in the taxonomy | not planned (#1271) |
 | released schema stays at 405 | yes: `A` and `B` read the 402-sector tables, and the residual has no inputs or emissions |
 | evaluation on the IV score and tracker sectors | done on `v1.0.0_79273ed`; repeat on the rebuilt FBS |
