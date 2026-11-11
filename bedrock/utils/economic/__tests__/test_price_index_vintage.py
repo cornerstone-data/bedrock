@@ -138,7 +138,7 @@ def test_unpinned_vintage_names_the_publish_step() -> None:
         patch.dict(bea.PUBLISHED_PRICE_INDEX_STEMS, {}, clear=True),
         pytest.raises(KeyError, match='publish_price_index'),
     ):
-        bea.load_published_price_index('2026Q2')
+        bea.load_published_price_index('2026Q2', flavor='bea')
 
 
 def test_stem_pinned_under_the_wrong_vintage_is_refused() -> None:
@@ -147,7 +147,7 @@ def test_stem_pinned_under_the_wrong_vintage_is_refused() -> None:
         patch.dict(bea.PUBLISHED_PRICE_INDEX_STEMS, wrong),
         pytest.raises(ValueError, match='names another'),
     ):
-        bea.load_published_price_index('2026Q2')
+        bea.load_published_price_index('2026Q2', flavor='bea')
 
 
 def test_published_file_reads_back_as_the_derived_index(tmp_path: Path) -> None:

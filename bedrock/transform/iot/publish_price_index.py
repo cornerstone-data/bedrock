@@ -5,12 +5,12 @@ is BEA data with light processing, not model output, so it is written beside
 the other processed sources under ``extract/output-data`` rather than into a
 model snapshot.
 
-Two flavors share the same BEA release vintage:
+Two flavors share the same BEA release vintage (``--flavor`` is required):
 
 * ``bea`` -- pure derived BEA index (``BEA_PriceIndex_*``).
-* ``cornerstone`` (default) -- the same derive plus model overlays; the first
-  overlay puts ``221100``, ``S00101``, and ``S00202`` on EIA average retail
-  price. CEDA and retail-output US configs pin this family.
+* ``cornerstone`` -- the same derive plus model overlays; the first overlay
+  puts ``221100``, ``S00101``, and ``S00202`` on EIA average retail price.
+  CEDA and retail-output US configs pin this family.
 
 The file name carries the flavor and the BEA release it was built from::
 
@@ -31,9 +31,8 @@ their numbers silently; publish a new stem instead.
 
 Usage::
 
-    uv run python -m bedrock.transform.iot.publish_price_index --vintage 2026Q2
-    uv run python -m bedrock.transform.iot.publish_price_index --vintage 2026Q2 --upload
-    uv run python -m bedrock.transform.iot.publish_price_index --vintage 2026Q2 --flavor bea
+    uv run python -m bedrock.transform.iot.publish_price_index --vintage 2026Q2 --flavor cornerstone --upload
+    uv run python -m bedrock.transform.iot.publish_price_index --vintage 2026Q2 --flavor bea --upload
 """
 
 from __future__ import annotations
@@ -72,7 +71,7 @@ _ARTIFACT_BY_FLAVOR: dict[PriceIndexFlavor, str] = {
 }
 
 
-def artifact_name(flavor: PriceIndexFlavor = 'cornerstone') -> str:
+def artifact_name(flavor: PriceIndexFlavor) -> str:
     return _ARTIFACT_BY_FLAVOR[flavor]
 
 
@@ -118,7 +117,7 @@ def _cornerstone_overlay_meta() -> dict[str, object]:
 
 
 def price_index_long(
-    vintage: BeaDataVersion, flavor: PriceIndexFlavor = 'cornerstone'
+    vintage: BeaDataVersion, *, flavor: PriceIndexFlavor
 ) -> pd.DataFrame:
     """The index for ``vintage`` / ``flavor`` as sector x year rows."""
     wide = _wide_price_index(vintage, flavor)
@@ -128,9 +127,7 @@ def price_index_long(
     return long.astype({'sector_code': str, 'year': int, 'price_index': float})
 
 
-def artifact_stem(
-    vintage: BeaDataVersion, flavor: PriceIndexFlavor = 'cornerstone'
-) -> str:
+def artifact_stem(vintage: BeaDataVersion, *, flavor: PriceIndexFlavor) -> str:
     stem = f'{artifact_name(flavor)}_{vintage}_v{PKG_VERSION_NUMBER}'
     return f'{stem}_{GIT_HASH}' if GIT_HASH is not None else stem
 
@@ -139,16 +136,16 @@ def save_price_index(
     vintage: BeaDataVersion,
     out_dir: Path | None = None,
     *,
+    flavor: PriceIndexFlavor,
     upload: bool = False,
-    flavor: PriceIndexFlavor = 'cornerstone',
 ) -> list[Path]:
     """Write the parquet and its metadata sidecar; optionally upload both."""
     directory = Path(out_dir) if out_dir is not None else FBA_DIR
     directory.mkdir(parents=True, exist_ok=True)
     name = artifact_name(flavor)
-    stem = artifact_stem(vintage, flavor)
+    stem = artifact_stem(vintage, flavor=flavor)
 
-    df = price_index_long(vintage, flavor)
+    df = price_index_long(vintage, flavor=flavor)
     parquet_path = directory / f'{stem}.parquet'
     df.to_parquet(parquet_path, index=False)
     tool_meta: dict[str, object] = {
@@ -209,8 +206,8 @@ def save_price_index(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            'Publish the industry price index (Cornerstone with overlays by '
-            'default; pure BEA via --flavor bea).'
+            'Publish the industry price index. --flavor is required: '
+            'cornerstone (BEA derive + overlays) or bea (pure BEA).'
         )
     )
     parser.add_argument(
@@ -218,8 +215,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         '--flavor',
+        required=True,
         choices=list(ta.get_args(PriceIndexFlavor)),
-        default='cornerstone',
     )
     parser.add_argument('--out-dir', type=Path, default=None)
     parser.add_argument('--upload', action='store_true')

@@ -88,9 +88,13 @@ def _load_reference_parquet() -> pd.DataFrame:
 def load_published_price_index(
     vintage: BeaDataVersion,
     *,
-    flavor: PriceIndexFlavor = 'bea',
+    flavor: PriceIndexFlavor,
 ) -> pd.DataFrame:
-    """Wide sector x year index from the published ``vintage`` / ``flavor``."""
+    """Wide sector x year index from the published ``vintage`` / ``flavor``.
+
+    ``flavor`` is required so callers choose BEA vs Cornerstone explicitly
+    (same rule as ``publish_price_index --flavor``).
+    """
     stems = (
         PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS
         if flavor == 'cornerstone'

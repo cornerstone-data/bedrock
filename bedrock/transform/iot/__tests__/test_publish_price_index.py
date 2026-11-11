@@ -58,8 +58,12 @@ def test_cornerstone_electric_matches_eia_helper_non_electric_unchanged(
     pd.testing.assert_frame_equal(
         back.reindex_like(expected), expected, check_names=False
     )
+    non_electric = back.loc['111200']
+    expected_non_electric = _WIDE.loc['111200']
+    assert isinstance(non_electric, pd.Series)
+    assert isinstance(expected_non_electric, pd.Series)
     pd.testing.assert_series_equal(
-        back.loc['111200'], _WIDE.loc['111200'], check_names=False
+        non_electric, expected_non_electric, check_names=False
     )
 
     parquet, meta = module.save_price_index('2026Q2', tmp_path, flavor='cornerstone')
