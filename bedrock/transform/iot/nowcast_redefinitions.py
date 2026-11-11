@@ -194,38 +194,43 @@ def _close_rows(
     before: pd.DataFrame,
     frozen: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Zero each commodity row's net change, weighted by the carry's own deltas.
+    """Zero each commodity row's net change on the cells that moved its way.
 
     Redefinitions reallocate use across industry columns inside a row;
-    commodity totals never change. Closing the carry's drift this way both
-    restores that identity and scores better than leaving it (measured on
-    the summary span). Rows the carry did not touch pass through untouched.
+    commodity totals never change. A row the carry overshoots gives the excess
+    back from the cells that gained, in proportion to their gains; a row it
+    undershoots takes the shortfall back on the cells that lost. The net
+    change is never larger than the same-sign deltas, so every cell ends
+    between its before and carried values, and a row of non-negative cells
+    stays non-negative. Rows the carry did not touch pass through untouched.
+
+    ❌ **Weighting on every changed cell pushed emptied cells negative.** For
+    ``541100`` legal services in 2024 the carry moves $41.6bn to ``541700``
+    R&D and leaves aerospace ``33641A`` at $15M of $1,808M (2017 ratio
+    0.008); the row ends $17.9bn over, and spreading that over all deltas
+    took $463M from the $15M cell. That closure left 146 negative cells,
+    -$7.6bn, in 2024, against 8 from the carry alone (#1270).
 
     *frozen* marks cells the anchor zeroes deliberately (carry ratio 0):
-    they take no closure weight, so a cell the redefinition empties by rule
-    is never pushed negative by the row's residual. Measured on the span,
-    the exclusion is slightly better in every year and removes every
-    negative it used to create. A row whose only changed cells are frozen
-    falls back to unexcluded weights - its residual has nowhere else to go.
+    they take no closure weight, so an undershooting row never reopens a
+    cell the redefinition empties by rule. A row whose only same-sign cells
+    are frozen falls back to them - its residual has nowhere else to go.
 
-    ⚠️ A row whose carried deltas all share one sign returns exactly to its
-    before values: conserving the row total means giving the whole net
-    change back, and proportional-to-|delta| weights give it back cell for
-    cell. Within-row reallocation survives only through mixed-sign rows.
-    That conservatism is a property, not an accident - the closure was
-    adopted on its measured span score.
+    ⚠️ A row whose carried deltas all share one sign still returns exactly
+    to its before values: conserving the row total means giving the whole
+    net change back. Within-row reallocation survives only through
+    mixed-sign rows.
     """
     delta = carried - before
-    weight = delta.abs()
+    net = delta.sum(axis=1)
+    weight = delta.mul(np.sign(net), axis=0).clip(lower=0.0)
     if frozen is not None:
         excluded = weight.where(~frozen, 0.0)
         # Fallback: rows with residual but no unfrozen weight to place it on.
-        needs_fallback = (excluded.sum(axis=1) == 0.0) & (
-            delta.sum(axis=1).abs() > ATOL
-        )
+        needs_fallback = (excluded.sum(axis=1) == 0.0) & (net.abs() > ATOL)
         weight = excluded.where(~needs_fallback, weight)
     weight = weight.div(weight.sum(axis=1).replace(0.0, np.nan), axis=0).fillna(0.0)
-    return carried - weight.mul(delta.sum(axis=1), axis=0)
+    return carried - weight.mul(net, axis=0)
 
 
 def use_after_redef(
