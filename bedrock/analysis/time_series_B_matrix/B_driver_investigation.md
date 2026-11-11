@@ -66,6 +66,100 @@ Grain farming and water transportation have earlier findings in
 | `339112` | Surgical and medical instrument manufacturing | 0.06 → 0.05 | **0.179** → **0.171** | B 25%, L 75% | unresolved | none yet |
 | `523A00` | Securities and commodity contracts intermediation and brokerage | 0.04 → 0.04 | **0.200** → **0.200** | B 47%, L 53% | unresolved | none yet |
 
+### High-volatility factors
+
+Every other commodity whose current volatility score is above 0.200, highest
+first, on the same builds and weights as the tables above. Most rank low on the
+IV score because they emit little and reach few other `N_d`, so read **Emissions**
+(mean Mt CO2e a year over 2017-2024) alongside the volatility. None has been
+assessed on these builds. Fishing and abrasives have earlier findings in
+[`About_sector_trend_explanations.md`](About_sector_trend_explanations.md).
+
+| Code | Sector | IV score | Volatility score | Emissions | Driving factor | Status | Issues and PRs |
+|---|---|---|---|---|---|---|---|
+| `333316` | Photographic and photocopying equipment manufacturing | 0.01 → 0.00 | **0.651** → **0.655** | 0.02 | B 54%, L 46% | unresolved | none yet |
+| `519130` | Internet publishing and broadcasting and Web search portals | 0.01 → 0.01 | **0.571** → **0.573** | 0.08 | B 19%, L 81% | unresolved | none yet |
+| `532A00` | General and consumer goods rental | 0.01 → 0.01 | **0.515** → **0.527** | 0.49 | B 41%, L 59% | unresolved | none yet |
+| `335991` | Carbon and graphite product manufacturing | 0.01 → 0.01 | **0.501** → **0.483** | 0.16 | B 17%, L 83% | unresolved | none yet |
+| `336111` | Automobile manufacturing | 0.00 → 0.00 | **0.465** → **0.465** | 0.76 | B 33%, L 67% | unresolved | none yet |
+| `541940` | Veterinary services | 0.00 → 0.00 | **0.435** → **0.433** | 0.09 | B 9%, L 91% | unresolved | none yet |
+| `336992` | Military armored vehicle, tank, and tank component manufacturing | 0.00 → 0.00 | **0.420** → **0.428** | 0.07 | B 20%, L 80% | unresolved | none yet |
+| `333991` | Power-driven handtool manufacturing | 0.00 → 0.00 | **0.426** → **0.425** | 0.02 | B 35%, L 65% | unresolved | none yet |
+| `335120` | Lighting fixture manufacturing | 0.01 → 0.01 | **0.428** → **0.404** | 0.19 | B 40%, L 60% | unresolved | none yet |
+| `33299A` | Ammunition, arms, ordnance, and accessories manufacturing | 0.00 → 0.00 | **0.402** → **0.403** | 0.41 | B 30%, L 70% | unresolved | none yet |
+| `335110` | Electric lamp bulb and part manufacturing | 0.00 → 0.00 | **0.426** → **0.395** | 0.02 | B 45%, L 55% | unresolved | none yet |
+| `114000` | Fishing, hunting and trapping | 0.00 → 0.00 | **0.366** → **0.394** | 0.33 | B 43%, L 57% | unresolved | ~~[#912](https://github.com/cornerstone-data/bedrock/issues/912)~~ |
+| `512200` | Sound recording industries | 0.00 → 0.00 | **0.364** → **0.373** | 0.01 | B 12%, L 88% | unresolved | none yet |
+| `332430` | Metal can, box, and other metal container (light gauge) manufacturing | 0.01 → 0.00 | **0.368** → **0.371** | 0.51 | B 33%, L 67% | unresolved | none yet |
+| `334511` | Search, detection, and navigation instruments manufacturing | 0.00 → 0.00 | **0.376** → **0.365** | 0.43 | B 25%, L 75% | unresolved | none yet |
+| `325413` | In-vitro diagnostic substance manufacturing | 0.00 → 0.00 | **0.376** → **0.360** | 0.42 | B 31%, L 69% | unresolved | none yet |
+| `312110` | Soft drink and ice manufacturing | 0.01 → 0.01 | **0.346** → **0.355** | 3.61 | B 73%, L 27% | unresolved | none yet |
+| `336413` | Other aircraft parts and auxiliary equipment manufacturing | 0.00 → 0.00 | **0.348** → **0.353** | 0.23 | B 16%, L 84% | unresolved | none yet |
+| `335313` | Switchgear and switchboard apparatus manufacturing | 0.00 → 0.00 | **0.390** → **0.352** | 0.14 | B 34%, L 66% | unresolved | none yet |
+| `334111` | Electronic computer manufacturing | 0.00 → 0.00 | **0.350** → **0.351** | 0.00 | B 10%, L 90% | unresolved | none yet |
+| `33641A` | Propulsion units and parts for space vehicles and guided missiles | 0.00 → 0.00 | **0.351** → **0.347** | 0.26 | B 20%, L 80% | unresolved | none yet |
+| `327910` | Abrasive product manufacturing | 0.00 → 0.00 | **0.347** → **0.347** | 0.15 | B 31%, L 69% | unresolved | ~~[#912](https://github.com/cornerstone-data/bedrock/issues/912)~~ |
+| `335312` | Motor and generator manufacturing | 0.01 → 0.01 | **0.380** → **0.346** | 0.11 | B 44%, L 56% | unresolved | none yet |
+| `333611` | Turbine and turbine generator set units manufacturing | 0.00 → 0.00 | **0.356** → **0.343** | 0.11 | B 43%, L 57% | unresolved | none yet |
+| `332310` | Plate work and fabricated structural product manufacturing | 0.01 → 0.01 | **0.347** → **0.342** | 1.36 | B 48%, L 52% | unresolved | none yet |
+| `334512` | Automatic environmental control manufacturing | 0.00 → 0.00 | **0.354** → **0.339** | 0.00 | B 15%, L 85% | unresolved | none yet |
+| `311210` | Flour milling and malt manufacturing | 0.00 → 0.00 | **0.322** → **0.337** | 1.49 | B 76%, L 24% | unresolved | none yet |
+| `336414` | Guided missile and space vehicle manufacturing | 0.00 → 0.00 | **0.337** → **0.335** | 0.15 | B 19%, L 81% | unresolved | none yet |
+| `334290` | Other communications equipment manufacturing | 0.00 → 0.00 | **0.329** → **0.330** | 0.00 | B 18%, L 82% | unresolved | none yet |
+| `336360` | Motor vehicle seating and interior trim manufacturing | 0.00 → 0.00 | **0.326** → **0.324** | 0.68 | B 22%, L 78% | unresolved | none yet |
+| `335911` | Storage battery manufacturing | 0.01 → 0.01 | **0.291** → **0.320** | 1.39 | B 50%, L 50% | unresolved | none yet |
+| `814000` | Private households | 0.00 → 0.00 | **0.317** → **0.317** | 0.01 | B 100%, L 0% | unresolved | none yet |
+| `335314` | Relay and industrial control manufacturing | 0.00 → 0.00 | **0.345** → **0.306** | 0.03 | B 46%, L 54% | unresolved | none yet |
+| `332996` | Fabricated pipe and pipe fitting manufacturing | 0.00 → 0.00 | **0.293** → **0.293** | 0.13 | B 46%, L 54% | unresolved | none yet |
+| `335930` | Wiring device manufacturing | 0.00 → 0.00 | **0.315** → **0.293** | 0.14 | B 26%, L 74% | unresolved | none yet |
+| `334610` | Manufacturing and reproducing magnetic and optical media | 0.00 → 0.00 | **0.310** → **0.290** | 0.00 | B 6%, L 94% | unresolved | none yet |
+| `332420` | Metal tank (heavy gauge) manufacturing | 0.00 → 0.00 | **0.295** → **0.288** | 0.27 | B 42%, L 58% | unresolved | none yet |
+| `332320` | Ornamental and architectural metal products manufacturing | 0.02 → 0.01 | **0.285** → **0.284** | 1.23 | B 50%, L 50% | unresolved | none yet |
+| `335912` | Primary battery manufacturing | 0.00 → 0.00 | **0.284** → **0.283** | 0.03 | B 23%, L 77% | unresolved | none yet |
+| `334515` | Electricity and signal testing instruments manufacturing | 0.00 → 0.00 | **0.298** → **0.282** | 0.01 | B 13%, L 87% | unresolved | none yet |
+| `441000` | Motor vehicle and parts dealers | 0.01 → 0.01 | **0.272** → **0.278** | 6.57 | B 25%, L 75% | unresolved | none yet |
+| `336991` | Motorcycle, bicycle, and parts manufacturing | 0.01 → 0.01 | **0.273** → **0.274** | 0.03 | B 2%, L 98% | unresolved | none yet |
+| `334300` | Audio and video equipment manufacturing | 0.00 → 0.00 | **0.265** → **0.268** | 0.00 | B 18%, L 82% | unresolved | none yet |
+| `333618` | Other engine equipment manufacturing | 0.00 → 0.00 | **0.264** → **0.262** | 0.25 | B 35%, L 65% | unresolved | none yet |
+| `533000` | Lessors of nonfinancial intangible assets | 0.01 → 0.01 | **0.253** → **0.257** | 0.64 | B 24%, L 76% | unresolved | none yet |
+| `327993` | Mineral wool manufacturing | 0.00 → 0.00 | **0.259** → **0.254** | 1.23 | B 46%, L 54% | unresolved | none yet |
+| `611B00` | Other educational services | 0.02 → 0.02 | **0.254** → **0.253** | 2.50 | B 58%, L 42% | unresolved | none yet |
+| `532400` | Commercial and industrial machinery and equipment rental and leasing | 0.04 → 0.04 | **0.255** → **0.252** | 2.18 | B 35%, L 65% | unresolved | none yet |
+| `334210` | Telephone apparatus manufacturing | 0.00 → 0.00 | **0.249** → **0.247** | 0.00 | B 19%, L 81% | unresolved | none yet |
+| `446000` | Health and personal care stores | 0.00 → 0.00 | **0.233** → **0.245** | 0.57 | B 38%, L 62% | unresolved | none yet |
+| `515200` | Cable and other subscription programming | 0.00 → 0.00 | **0.245** → **0.243** | 0.69 | B 61%, L 39% | unresolved | none yet |
+| `515100` | Radio and television broadcasting | 0.04 → 0.04 | **0.239** → **0.240** | 1.49 | B 51%, L 49% | unresolved | none yet |
+| `523900` | Other financial investment activities | 0.03 → 0.03 | **0.238** → **0.238** | 7.39 | B 39%, L 61% | unresolved | none yet |
+| `33451A` | Watch, clock, and other measuring and controlling device manufacturing | 0.00 → 0.00 | **0.242** → **0.238** | 0.01 | B 16%, L 84% | unresolved | none yet |
+| `334112` | Computer storage device manufacturing | 0.01 → 0.01 | **0.231** → **0.237** | 0.03 | B 16%, L 84% | unresolved | none yet |
+| `511120` | Periodical Publishers | 0.00 → 0.00 | **0.240** → **0.236** | 0.01 | B 18%, L 82% | unresolved | none yet |
+| `326160` | Plastics bottle manufacturing | 0.00 → 0.00 | **0.240** → **0.236** | 0.31 | B 50%, L 50% | unresolved | none yet |
+| `336611` | Ship building and repairing | 0.00 → 0.00 | **0.256** → **0.234** | 0.24 | B 21%, L 79% | unresolved | none yet |
+| `531HST` | Tenant-occupied housing | 0.00 → 0.00 | **0.199** → **0.233** | 0.10 | B 20%, L 80% | unresolved | none yet |
+| `713900` | Other amusement and recreation industries | 0.01 → 0.01 | **0.223** → **0.233** | 4.59 | B 61%, L 39% | unresolved | none yet |
+| `334510` | Electromedical and electrotherapeutic apparatus manufacturing | 0.00 → 0.00 | **0.204** → **0.232** | 0.18 | B 18%, L 82% | unresolved | none yet |
+| `213111` | Drilling oil and gas wells | 0.00 → 0.00 | **0.245** → **0.228** | 1.29 | B 34%, L 66% | unresolved | none yet |
+| `336310` | Motor vehicle gasoline engine and engine parts manufacturing | 0.00 → 0.00 | **0.226** → **0.228** | 0.58 | B 34%, L 66% | unresolved | none yet |
+| `336500` | Railroad rolling stock manufacturing | 0.00 → 0.00 | **0.235** → **0.226** | 0.08 | B 20%, L 80% | unresolved | none yet |
+| `332720` | Turned product and screw, nut, and bolt manufacturing | 0.02 → 0.01 | **0.232** → **0.226** | 0.90 | B 57%, L 43% | unresolved | none yet |
+| `561300` | Employment services | 0.01 → 0.01 | **0.228** → **0.223** | 0.17 | B 20%, L 80% | unresolved | none yet |
+| `518200` | Data processing, hosting, and related services | 0.03 → 0.02 | **0.218** → **0.222** | 1.57 | B 38%, L 62% | unresolved | none yet |
+| `339930` | Doll, toy, and game manufacturing | 0.00 → 0.00 | **0.226** → **0.222** | 0.03 | B 26%, L 74% | unresolved | none yet |
+| `333914` | Measuring, dispensing, and other pumping equipment manufacturing | 0.00 → 0.00 | **0.224** → **0.219** | 0.15 | B 23%, L 77% | unresolved | none yet |
+| `312120` | Breweries | 0.00 → 0.00 | **0.215** → **0.215** | 1.60 | B 50%, L 50% | unresolved | none yet |
+| `311920` | Coffee and tea manufacturing | 0.00 → 0.00 | **0.219** → **0.215** | 0.19 | B 31%, L 69% | unresolved | none yet |
+| `48A000` | Scenic and sightseeing transportation and support activities | 0.03 → 0.03 | **0.224** → **0.213** | 0.86 | B 15%, L 85% | unresolved | none yet |
+| `336370` | Motor vehicle metal stamping | 0.00 → 0.00 | **0.212** → **0.211** | 0.60 | B 26%, L 74% | unresolved | none yet |
+| `336350` | Motor vehicle transmission and power train parts manufacturing | 0.00 → 0.00 | **0.211** → **0.210** | 0.43 | B 20%, L 80% | unresolved | none yet |
+| `337122` | Nonupholstered wood household furniture manufacturing | 0.01 → 0.01 | **0.222** → **0.208** | 0.07 | B 8%, L 92% | unresolved | none yet |
+| `611100` | Elementary and secondary schools | 0.00 → 0.00 | **0.207** → **0.207** | 7.27 | B 84%, L 16% | unresolved | none yet |
+| `335210` | Small electrical appliance manufacturing | 0.00 → 0.00 | **0.223** → **0.206** | 0.00 | B 44%, L 56% | unresolved | none yet |
+| `325510` | Paint and coating manufacturing | 0.02 → 0.01 | **0.243** → **0.206** | 2.24 | B 35%, L 65% | unresolved | none yet |
+| `334418` | Printed circuit assembly (electronic assembly) manufacturing | 0.03 → 0.03 | **0.203** → **0.205** | 0.14 | B 32%, L 68% | unresolved | none yet |
+| `333130` | Mining and oil and gas field machinery manufacturing | 0.00 → 0.00 | **0.203** → **0.201** | 0.40 | B 24%, L 76% | unresolved | none yet |
+| `336320` | Motor vehicle electrical and electronic equipment manufacturing | 0.00 → 0.00 | **0.205** → **0.201** | 0.21 | B 36%, L 64% | unresolved | none yet |
+| `621200` | Offices of dentists | 0.00 → 0.00 | **0.195** → **0.200** | 0.30 | B 26%, L 74% | unresolved | none yet |
+
 Status values:
 
 | verdict | meaning |
