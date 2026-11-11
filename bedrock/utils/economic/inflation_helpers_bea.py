@@ -41,9 +41,9 @@ PUBLISHED_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
 }
 
 #: Cornerstone published stem (BEA derive + overlays such as EIA electric).
-#: Empty until ``publish_price_index --flavor cornerstone --upload`` lands a
-#: stem; retail-output configs keep the runtime EIA overlay until then.
-PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {}
+PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
+    "2026Q2": "Cornerstone_PriceIndex_2026Q2_v1.0.0_983121d",
+}
 
 
 def obtain_inflation_factors_from_reference_data(
