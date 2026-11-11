@@ -98,9 +98,11 @@ class USAConfig(BaseModel):
             'inflation, the diagnostics EF dollar-year adjustment) goes '
             'through obtain_inflation_factors_from_reference_data: 2025Q2 keeps the '
             'Watershed-derived BEA_PriceIndex parquet, which is not the '
-            'derived 2025Q2 index; later vintages load the published index '
-            'CEDA pins (PUBLISHED_PRICE_INDEX_STEMS). Gross output, '
-            'intermediate inputs and value added stay on gdp.BEA_DATA_VERSION.'
+            'derived 2025Q2 index; later vintages load the published pure-BEA '
+            'stem (PUBLISHED_PRICE_INDEX_STEMS) or the Cornerstone stem with '
+            'overlays when electric_output_on_retail_revenue is on. Gross '
+            'output, intermediate inputs and value added stay on '
+            'gdp.BEA_DATA_VERSION.'
         ),
     )
     usa_base_io_data_year: ta.Literal[

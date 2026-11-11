@@ -16,8 +16,13 @@ from bedrock.transform.iot import publish_price_index
 from bedrock.utils.config.usa_config import get_usa_config, reset_usa_config
 
 STEM = 'BEA_PriceIndex_2026Q2_v0.5.0_abc1234'
+CS_STEM = 'Cornerstone_PriceIndex_2026Q2_v0.5.0_abc1234'
 _WIDE = pd.DataFrame(
     {2024: [110.0, 95.5], 2025: [112.0, 97.0]},
+    index=pd.Index(['111110', '562111'], name='sector_code'),
+)
+_CS_WIDE = pd.DataFrame(
+    {2024: [105.0, 95.5], 2025: [107.0, 97.0]},
     index=pd.Index(['111110', '562111'], name='sector_code'),
 )
 
@@ -48,7 +53,7 @@ def test_vintage_defaults_to_the_config(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(get_usa_config(), 'bea_price_index_vintage', '2026Q2')
     with patch.object(bea, 'load_published_price_index', return_value=_WIDE) as load:
         bea.obtain_inflation_factors_from_reference_data()
-    load.assert_called_once_with('2026Q2')
+    load.assert_called_once_with('2026Q2', flavor='bea')
 
 
 @pytest.mark.parametrize('apply_io', [False, True])
@@ -71,6 +76,61 @@ def test_margin_levels_follow_the_vintage(
     with patch.object(cornerstone, loader, return_value=_WIDE) as load:
         assert cornerstone._industry_price_index_levels() is _WIDE
     load.assert_called_once()
+
+
+def test_retail_electric_loads_cornerstone_stem_when_pinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = get_usa_config()
+    monkeypatch.setattr(cfg, 'useeio_margins', False)
+    monkeypatch.setattr(cfg, 'apply_io_year_adjustments', False)
+    monkeypatch.setattr(cfg, 'bea_price_index_vintage', '2026Q2')
+    monkeypatch.setattr(cfg, 'electric_output_on_retail_revenue', True)
+    monkeypatch.setattr(cfg, 'electricity_delivery_margin', False)
+    with (
+        patch.dict(bea.PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS, {'2026Q2': CS_STEM}),
+        patch.object(
+            cornerstone,
+            'load_published_price_index',
+            return_value=_CS_WIDE.copy(),
+        ) as load,
+        patch.object(
+            cornerstone,
+            '_electric_lines_on_eia_retail_price',
+            side_effect=lambda levels: levels,
+        ),
+    ):
+        out = cornerstone._industry_price_index_levels()
+    load.assert_called_once_with('2026Q2', flavor='cornerstone')
+    pd.testing.assert_frame_equal(out, _CS_WIDE)
+
+
+def test_retail_electric_keeps_bea_plus_runtime_when_cornerstone_unpinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = get_usa_config()
+    monkeypatch.setattr(cfg, 'useeio_margins', False)
+    monkeypatch.setattr(cfg, 'apply_io_year_adjustments', False)
+    monkeypatch.setattr(cfg, 'bea_price_index_vintage', '2026Q2')
+    monkeypatch.setattr(cfg, 'electric_output_on_retail_revenue', True)
+    monkeypatch.setattr(cfg, 'electricity_delivery_margin', False)
+    with (
+        patch.dict(bea.PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS, {}, clear=True),
+        patch.object(
+            cornerstone,
+            'obtain_inflation_factors_from_reference_data',
+            return_value=_WIDE.copy(),
+        ) as load_bea,
+        patch.object(
+            cornerstone,
+            '_electric_lines_on_eia_retail_price',
+            return_value=_CS_WIDE.copy(),
+        ) as eia,
+    ):
+        out = cornerstone._industry_price_index_levels()
+    load_bea.assert_called_once()
+    eia.assert_called_once()
+    pd.testing.assert_frame_equal(out, _CS_WIDE)
 
 
 def test_unpinned_vintage_names_the_publish_step() -> None:
@@ -97,12 +157,12 @@ def test_published_file_reads_back_as_the_derived_index(tmp_path: Path) -> None:
         ),
         patch.object(publish_price_index, 'artifact_stem', return_value=STEM),
     ):
-        publish_price_index.save_price_index('2026Q2', tmp_path)
+        publish_price_index.save_price_index('2026Q2', tmp_path, flavor='bea')
     with (
         patch.dict(bea.PUBLISHED_PRICE_INDEX_STEMS, {'2026Q2': STEM}),
         patch.object(bea, 'FBA_DIR', tmp_path),
         patch.object(bea, 'download_gcs_file') as download,
     ):
-        loaded = bea.load_published_price_index('2026Q2')
+        loaded = bea.load_published_price_index('2026Q2', flavor='bea')
     download.assert_not_called()
     pd.testing.assert_frame_equal(loaded, _WIDE, check_names=False)
