@@ -911,6 +911,23 @@ source_names:
                   PrimaryActivity:
                     - Industry Industrial Coking Coal
                     - Industry Industrial Other Coal
+                clean_fba: !clean_function:flowbyclean scale_by_weight
+                clean_parameter:
+                  # Set this year's coking-coal NEU to its share of the
+                  # 2017-2024 total, using coal-tar production as year weights.
+                  # activity: row to rewrite
+                  # activity_*: sum that fuel over the years (T_3_15)
+                  # annex_*: convert that sum TBtu -> MMT CO2e (A3-5)
+                  # weight_*: coal-tar amounts for the year shares (T_4_43)
+                  activity: Industry Industrial Coking Coal
+                  activity_source: UMD_GHGIA_T_3_15
+                  activity_years: [2017, 2024]
+                  activity_source_name: Industry Industrial Coking Coal
+                  annex_fba: UMD_GHGIA_T_A3_5
+                  annex_year: 2024
+                  weight_source: UMD_GHGIA_T_4_43
+                  weight_years: [2017, 2024]
+                  weight_source_name: Coal Tar Production
                 attribution_method: direct
 
               petroleum_neu_asphalt:
