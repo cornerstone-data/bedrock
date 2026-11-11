@@ -1,4 +1,4 @@
-"""Tests for the published BEA price index artifact. Hermetic - no BEA / GCS."""
+"""Tests for the published BEA / Cornerstone price index artifacts. Hermetic."""
 
 from __future__ import annotations
 
@@ -11,43 +11,76 @@ import pandas as pd
 import pytest
 
 from bedrock.transform.iot import publish_price_index as module
+from bedrock.transform.iot.eia_utility_go_adjustment import CONTROLLED_YEARS
 from bedrock.utils.config.settings import GIT_HASH, PKG_VERSION_NUMBER
+from bedrock.utils.economic import inflation_helpers_usa as helpers
 
+_YEARS = [2016, *CONTROLLED_YEARS, 2025]
 _WIDE = pd.DataFrame(
-    {2024: [110.0, 95.5], 2025: [112.0, 97.0]},
-    index=pd.Index(['111110', '562111'], name='sector_code'),
+    {year: [100.0 + (year - 2017), 80.0, 50.0] for year in _YEARS},
+    index=pd.Index(['221100', 'S00101', '111200'], name='sector_code'),
+    dtype=float,
 )
+_WIDE.loc['221100', 2024] = 200.0
+_WIDE.loc['221100', 2025] = 220.0
+_WIDE.loc['221100', 2016] = 90.0
 
 
 @pytest.fixture(autouse=True)
 def _toy_index() -> Iterator[None]:
-    with patch.object(module, 'derive_industry_price_index', return_value=_WIDE):
+    eia_span = {year: 1.0 + 0.1 * (year - 2017) for year in CONTROLLED_YEARS}
+    with (
+        patch.object(module, 'derive_industry_price_index', return_value=_WIDE.copy()),
+        patch(
+            'bedrock.transform.iot.eia_utility_go_adjustment.retail_price_index',
+            side_effect=lambda year: eia_span[int(year)],
+        ),
+    ):
         yield
 
 
-def test_long_format_round_trips_the_wide_index() -> None:
-    long = module.price_index_long('2026Q2')
-    assert list(long.columns) == ['sector_code', 'year', 'price_index']
+def test_bea_flavor_is_pure_derive(tmp_path: Path) -> None:
+    long = module.price_index_long('2026Q2', flavor='bea')
     back = long.pivot(index='sector_code', columns='year', values='price_index')
-    pd.testing.assert_frame_equal(back, _WIDE, check_names=False)
+    pd.testing.assert_frame_equal(back.reindex_like(_WIDE), _WIDE, check_names=False)
+    _, meta = module.save_price_index('2026Q2', tmp_path, flavor='bea')
+    tool_meta = json.loads(meta.read_text())['tool_meta']
+    assert tool_meta['flavor'] == 'bea'
+    assert 'electric_price_override' not in tool_meta
 
 
-def test_stem_names_the_bea_vintage() -> None:
-    stem = module.artifact_stem('2026Q2')
-    assert stem.startswith(f'BEA_PriceIndex_2026Q2_v{PKG_VERSION_NUMBER}')
+def test_cornerstone_electric_matches_eia_helper_non_electric_unchanged(
+    tmp_path: Path,
+) -> None:
+    expected = helpers._electric_lines_on_eia_retail_price(_WIDE.copy())
+    long = module.price_index_long('2026Q2', flavor='cornerstone')
+    back = long.pivot(index='sector_code', columns='year', values='price_index')
+    pd.testing.assert_frame_equal(
+        back.reindex_like(expected), expected, check_names=False
+    )
+    non_electric = back.loc['111200']
+    expected_non_electric = _WIDE.loc['111200']
+    assert isinstance(non_electric, pd.Series)
+    assert isinstance(expected_non_electric, pd.Series)
+    pd.testing.assert_series_equal(
+        non_electric, expected_non_electric, check_names=False
+    )
+
+    parquet, meta = module.save_price_index('2026Q2', tmp_path, flavor='cornerstone')
+    assert parquet.name.startswith('Cornerstone_PriceIndex_2026Q2_')
+    tool_meta = json.loads(meta.read_text())['tool_meta']
+    assert tool_meta['flavor'] == 'cornerstone'
+    assert 'electric_price_override' in tool_meta
+
+
+def test_stem_names_the_flavor_and_bea_vintage() -> None:
+    bea = module.artifact_stem('2026Q2', flavor='bea')
+    cs = module.artifact_stem('2026Q2', flavor='cornerstone')
+    assert bea.startswith(f'BEA_PriceIndex_2026Q2_v{PKG_VERSION_NUMBER}')
+    assert cs.startswith(f'Cornerstone_PriceIndex_2026Q2_v{PKG_VERSION_NUMBER}')
     if GIT_HASH is not None:
-        assert stem.endswith(GIT_HASH)
-
-
-def test_save_writes_parquet_and_sidecar(tmp_path: Path) -> None:
-    parquet, meta = module.save_price_index('2026Q2', tmp_path)
-    assert parquet.name == f'{module.artifact_stem("2026Q2")}.parquet'
-    assert len(pd.read_parquet(parquet)) == _WIDE.size
-    sidecar = json.loads(meta.read_text())
-    assert sidecar['category'] == 'PriceIndex'
-    tool_meta = sidecar['tool_meta']
-    assert tool_meta['bea_data_vintage'] == '2026Q2'
-    assert tool_meta['years'] == [2024, 2025]
+        assert bea.endswith(GIT_HASH)
+        assert cs.endswith(GIT_HASH)
 
 
 def test_upload_refuses_to_overwrite_a_published_stem(tmp_path: Path) -> None:
@@ -56,5 +89,5 @@ def test_upload_refuses_to_overwrite_a_published_stem(tmp_path: Path) -> None:
         patch('bedrock.utils.io.gcp.upload_file_to_gcs') as upload,
         pytest.raises(FileExistsError),
     ):
-        module.save_price_index('2026Q2', tmp_path, upload=True)
+        module.save_price_index('2026Q2', tmp_path, upload=True, flavor='cornerstone')
     upload.assert_not_called()

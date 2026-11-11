@@ -24,6 +24,9 @@ import pandas as pd
 from bedrock.transform.iot.derived_price_index import derive_industry_price_index
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.economic.inflation_helpers_bea import (
+    REFERENCE_PARQUET_VINTAGE,
+    has_published_cornerstone_price_index,
+    load_published_price_index,
     obtain_inflation_factors_from_reference_data,
 )
 from bedrock.utils.economic.inflation_helpers_useeio import (
@@ -92,17 +95,18 @@ def _industry_price_index_levels() -> pd.DataFrame:
 
     ``useeio_margins``: USEEIOR v1.8.0 ``Detail_CPI_IO_17sch`` (GCS snapshot).
     ``apply_io_year_adjustments``: bedrock-derived industry PI.
-    Otherwise: the BEA index for ``bea_price_index_vintage`` (2025Q2 keeps the
-    ``BEA_PriceIndex`` parquet; later vintages the published index CEDA pins).
+    Otherwise: the published index for ``bea_price_index_vintage`` (2025Q2 keeps
+    the Watershed ``BEA_PriceIndex`` parquet; later vintages load pure BEA, or
+    the Cornerstone stem when ``electric_output_on_retail_revenue`` is on and a
+    Cornerstone pin exists).
     """
     cfg = get_usa_config()
     if cfg.useeio_margins:
         return obtain_useeior_detail_industry_cpi_levels()
-    levels = (
-        derive_industry_price_index()
-        if cfg.apply_io_year_adjustments
-        else obtain_inflation_factors_from_reference_data()
-    )
+    if cfg.apply_io_year_adjustments:
+        levels = derive_industry_price_index()
+    else:
+        levels = _published_levels_for_config()
     if cfg.electric_output_on_retail_revenue:
         levels = _electric_lines_on_eia_retail_price(levels)
     if cfg.electricity_delivery_margin:
@@ -110,11 +114,27 @@ def _industry_price_index_levels() -> pd.DataFrame:
     return levels
 
 
+def _published_levels_for_config() -> pd.DataFrame:
+    """Published vintage levels: Cornerstone when retail-electric and pinned."""
+    cfg = get_usa_config()
+    vintage = cfg.bea_price_index_vintage
+    if (
+        cfg.electric_output_on_retail_revenue
+        and vintage != REFERENCE_PARQUET_VINTAGE
+        and has_published_cornerstone_price_index(vintage)
+    ):
+        return load_published_price_index(vintage, flavor='cornerstone')
+    return obtain_inflation_factors_from_reference_data()
+
+
 def _electric_lines_on_eia_retail_price(levels: pd.DataFrame) -> pd.DataFrame:
     """*levels* with the three electric lines on EIA's average retail price.
 
-    The published price index and :func:`derive_industry_price_index` are
-    unchanged: the published file is shared with CEDA.
+    ``publish_price_index --flavor cornerstone`` applies the same overlay in the
+    Cornerstone artifact CEDA pins. Runtime still applies this when
+    ``electric_output_on_retail_revenue`` is on so the live-derive
+    (``apply_io_year_adjustments``) path matches; on an already-overlaid
+    Cornerstone frame the within-span math is idempotent.
     """
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         BASE_YEAR,
