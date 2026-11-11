@@ -127,7 +127,9 @@ def raw_import_vector(year: int, download_sources_ok: bool = True) -> pd.Series:
     fbs = getFlowBySector(
         f'Trade_Imports_{year}',
         download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
+        # Built from the FBAs at this commit, never downloaded: a published FBS
+        # can predate the code (the 2017 trade FBS did, #1270).
+        download_FBS_if_missing=False,
     )
     return (
         pd.DataFrame(fbs)
