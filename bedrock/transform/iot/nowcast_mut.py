@@ -492,10 +492,14 @@ def _cap_at_purchase(
     commodity's book where :func:`_reconcile_placement` put them; scaling a
     buyer's margins uniformly would move margin between transport and trade.
 
-    Only buyers with a positive purchase and no negative margin cell on the
-    good take part: change in inventories (``F03000``) carries negative
-    margins on negative purchases and is left as placed. A good whose margin
-    exceeds all its positive purchases is left as placed too, for the gate
+    Only buyers with a positive purchase take part. Their negative margin
+    cells - a give-back on a transport mode - stay as placed, and the cap
+    applies to the positive part: it may reach the purchase less those
+    negatives, which is where producers' value reaches zero. Change in
+    inventories (``F03000``) buys both ways: on a negative purchase it is left
+    as placed; on a positive one, with a negative truck margin, it is capped
+    like any other buyer (``312140`` in 2022). A good whose margin exceeds
+    all its positive purchases is left as placed, for the gate
     (:func:`_negative_producer_value`) to name.
     """
     codes = list(placed)
@@ -504,17 +508,19 @@ def _cap_at_purchase(
     over = (stripped - purchaser > _FIT_TOLERANCE) & (purchaser > 0.0)
     for good in over.index[over.any(axis=1)]:
         block = pd.DataFrame({code: placed[code].loc[good] for code in codes}).T
-        live = (purchaser.loc[good] > 0.0) & (block >= 0.0).all(axis=0)
-        block = block.loc[:, live]
-        target = _fill_to_limit(block.sum(axis=0), purchaser.loc[good, live])
+        live = purchaser.loc[good] > 0.0
+        positive = block.loc[:, live].clip(lower=0.0)
+        negative = block.loc[:, live].clip(upper=0.0)
+        limit = purchaser.loc[good, live] - negative.sum(axis=0)
+        target = _fill_to_limit(positive.sum(axis=0), limit)
         if target is None:
             continue
-        rows = block.sum(axis=1)
+        rows = positive.sum(axis=1)
         share = rows / float(rows.sum())
         fallback = pd.DataFrame(
-            {buyer: share for buyer in block.columns}, index=block.index
+            {buyer: share for buyer in positive.columns}, index=positive.index
         )
-        fitted = _fit(block, rows, target, fallback)
+        fitted = _fit(positive, rows, target, fallback) + negative
         for code in codes:
             out[code].loc[good, fitted.columns] = fitted.loc[code]
     return out

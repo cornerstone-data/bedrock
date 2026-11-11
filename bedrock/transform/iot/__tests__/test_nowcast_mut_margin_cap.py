@@ -76,6 +76,31 @@ def test_inventories_and_goods_under_their_purchase_are_left_alone() -> None:
         )
 
 
+def test_a_buyer_with_a_negative_margin_cell_is_capped_too() -> None:
+    """312140 in 2022: F03000 buys 1,169 with 1,549 of wholesale margin and a
+    -9 truck give-back. The truck cell stays, the wholesale is capped at
+    1,178 so producers' value is zero, and the 371 moves to F01000."""
+    buyers = ['F01000', 'F03000']
+    purchaser = pd.DataFrame([[6_000.0, 1_169.0]], index=['312140'], columns=buyers)
+    placed = {
+        '424A00': pd.DataFrame([[1_000.0, 1_549.0]], index=['312140'], columns=buyers),
+        '484000': pd.DataFrame([[50.0, -9.0]], index=['312140'], columns=buyers),
+    }
+    capped = nm._cap_at_purchase(
+        {code: frame * M for code, frame in placed.items()}, purchaser * M
+    )
+
+    assert capped['484000'].at['312140', 'F03000'] == pytest.approx(-9.0 * M)
+    assert capped['424A00'].at['312140', 'F03000'] == pytest.approx(
+        1_178.0 * M, abs=0.1 * M
+    )
+    assert capped['424A00'].at['312140', 'F01000'] == pytest.approx(
+        1_371.0 * M, abs=0.1 * M
+    )
+    producers = purchaser * M - _stripped(capped)
+    assert float(producers.to_numpy().min()) >= -0.1 * M
+
+
 def test_the_excess_cascades_past_a_buyer_it_fills() -> None:
     margin = pd.Series([300.0, 90.0, 10.0], index=['a', 'b', 'c']) * M
     limit = pd.Series([200.0, 100.0, 200.0], index=['a', 'b', 'c']) * M
