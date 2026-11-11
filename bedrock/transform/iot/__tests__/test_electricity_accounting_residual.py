@@ -6,37 +6,6 @@ import pytest
 from bedrock.transform.iot import electricity_accounting_residual as ear
 from bedrock.utils.config.usa_config import USAConfig, get_usa_config
 
-CODE = ear.RESIDUAL_CODE
-
-
-def _tables() -> tuple[pd.DataFrame, pd.DataFrame]:
-    industries = ['221100', 'S00101', 'S00202', '111200', '531ORE']
-    commodities = ['221100', '211000', '531ORE']
-    use = pd.DataFrame(
-        [
-            [5.0, 1.0, 1.0, 40.0, 60.0, 200.0],
-            [20.0, 2.0, 10.0, 15.0, 5.0, 3.0],
-            [4.0, 0.0, 0.0, 5.0, 10.0, 50.0],
-            [10.0, 2.0, 4.0, 20.0, 10.0, 0.0],
-            [61.0, 5.0, 45.0, 40.0, 15.0, 0.0],
-        ],
-        index=[*commodities, 'V00100', 'V00300'],
-        columns=[*industries, 'F01000'],
-    )
-    supply = pd.DataFrame(
-        [
-            [100.0, 10.0, 60.0, 0.0, 0.0, 2.0],
-            [0.0, 0.0, 0.0, 120.0, 0.0, 1.0],
-            [0.0, 0.0, 0.0, 0.0, 100.0, 0.0],
-        ],
-        index=commodities,
-        columns=[*industries, 'MCIF'],
-    )
-    return use, supply
-
-
-PURCHASES = pd.Series({'111200': 4.0, '531ORE': 6.0})
-
 
 def test_the_residual_follows_the_non_fuel_target() -> None:
     """Non-fuel 2017 is 100 - 60 - 10 = 30; it doubles to 60."""
@@ -89,54 +58,6 @@ def test_a_class_below_its_revenue_takes_none() -> None:
 def test_no_excess_raises() -> None:
     with pytest.raises(ValueError, match='no class'):
         ear.buyer_shares(pd.Series({'531ORE': 50.0, '331110': 40.0}), 100.0, 50.0)
-
-
-def test_the_pair_is_added_and_only_buyer_surplus_moves() -> None:
-    use, supply = _tables()
-    new_use, new_supply = ear.split_residual(use, supply, PURCHASES)
-
-    assert new_use.at[CODE, '111200'] == pytest.approx(4.0)
-    assert new_use.at['V00300', '111200'] == pytest.approx(36.0)
-    assert new_use.at['V00300', CODE] == pytest.approx(10.0)
-    assert new_use.at['221100', '111200'] == use.at['221100', '111200']
-    assert new_use.at['211000', '221100'] == use.at['211000', '221100']
-    assert new_use.at['V00300', '221100'] == use.at['V00300', '221100']
-    assert new_use[['111200', '531ORE']].sum().tolist() == pytest.approx(
-        use[['111200', '531ORE']].sum().tolist()
-    )
-    assert new_use.loc[['221100', '211000', '531ORE', CODE], CODE].sum() == 0.0
-    assert new_use.loc['V00300'].sum() == pytest.approx(use.loc['V00300'].sum())
-    assert new_supply.at[CODE, CODE] == pytest.approx(10.0)
-    assert new_supply.at['221100', '221100'] == supply.at['221100', '221100']
-
-
-def test_the_inputs_are_not_changed_in_place() -> None:
-    use, supply = _tables()
-    original = use.copy(), supply.copy()
-    ear.split_residual(use, supply, PURCHASES)
-    pd.testing.assert_frame_equal(use, original[0])
-    pd.testing.assert_frame_equal(supply, original[1])
-
-
-def test_row_and_column_order_is_kept() -> None:
-    use, supply = _tables()
-    new_use, new_supply = ear.split_residual(use, supply, PURCHASES)
-    assert list(new_use.index) == [
-        '221100',
-        '211000',
-        '531ORE',
-        CODE,
-        'V00100',
-        'V00300',
-    ]
-    assert list(new_use.columns)[-2:] == [CODE, 'F01000']
-    assert list(new_supply.columns)[-2:] == [CODE, 'MCIF']
-
-
-def test_a_negative_purchase_raises() -> None:
-    use, supply = _tables()
-    with pytest.raises(ValueError, match='negative purchase'):
-        ear.split_residual(use, supply, pd.Series({'111200': -1.0}))
 
 
 def test_the_pathway_is_off_and_needs_retail_output() -> None:

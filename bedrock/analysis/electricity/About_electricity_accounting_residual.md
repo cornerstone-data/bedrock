@@ -11,7 +11,7 @@ A second pathway for electric power in the nowcast tables. The BEA-based pathway
 | price | EIA retail for the carry, BEA's index for real output | EIA retail for both | EIA retail for both |
 | electric value added | BEA's | BEA's | BEA's less the residual |
 | electric non-fuel inputs | whatever output less value added leaves | squeezed further | follow a target |
-| extra sector | none | none | `S00700`, one commodity and one industry |
+| extra sector | none | none | none (the residual stays in buyers' `V00300`) |
 
 ## Definition
 
@@ -26,7 +26,7 @@ residual             = BEA value added - electric value added, never negative
 - **Input prices** are each commodity's own price factor, weighted by the electric columns' 2017 cells, leaving out the coal, gas and refined petroleum rows. Electricity bought by the industry takes EIA's retail price. The target holds the real input mix per kWh fixed, the same theta = 1 prior as the Step 3 price carry.
 - **Across electric industries** the residual is split by value added.
 - **Across buyers**, commercial and industrial classes split it by that year's bills above EIA revenue, and buyers within a class by that year's bills. Households and exports don't buy it, because household electricity follows EIA residential revenue.
-- **The residual** has no inputs and no emissions. Electric value added plus residual value added equals BEA's, so total value added still equals final demand.
+- **The residual** has no inputs and no emissions. The fall in electric value added equals the sum of the rises in buyers' `V00300`, so total value added still equals final demand.
 
 The industrial class is farms, mining, construction and manufacturing. The commercial class is every other intermediate buyer, so it includes government and transport, which is approximate.
 
@@ -34,15 +34,15 @@ An earlier design sold the residual to electric power. That doesn't work: the el
 
 ## How it reaches the balance
 
-The balance has no row or column for the pair. It sees a transfer of value added that sums to zero (`value_added_transfers`): electric value added falls, and each buyer's rises by what it pays for the residual. Every target built on gross output less value added follows, so no balancing code changes.
+The residual has no row or column in any table. The balance sees a transfer of value added that sums to zero (`value_added_transfers`): electric value added falls, and each buyer's rises by its share. Every target built on gross output less value added follows, so no balancing code changes.
 
-The balance puts each industry's change on its gross operating surplus (`V00300`). The residual stays there through Steps 6 and 7, the delivery split and the released tables, in 2017-2024 (2017 with `electric_output_on_eia_level` on).
+Before the balance, the transfer goes on each industry's gross operating surplus (`V00300`), in `nowcast._reconcile_to_published_vapro`. The balance can then move that row, which is unlocked, so the released surplus includes the transfer but does not isolate it. This holds in 2017-2024 (2017 with `electric_output_on_eia_level` on).
 
 ### Why it stays in surplus (#1271)
 
-Buyers' output is fixed, so whatever they pay for the residual comes out of their real inputs. Booking it as a residual commodity, with a row in each buyer's column, gives the same factors, because the residual has no inputs and no emissions. A separate industry sold to final demand would leave buyers' inputs alone, but final demand is controlled to NIPA, and households and exports follow EIA revenue. So the residual stays a transfer in surplus, and there is no residual sector to overlap with the delivery margin in `42ELEC`.
+Buyers' output is fixed, so whatever they pay for the residual comes out of their real inputs. Booking it as a residual commodity, with a row in each buyer's column, gives the same total factors (`N`), because the residual has no inputs and no emissions. It would not give the same `A`: buyers' columns would gain a residual coefficient, so `A` column sums, direct emissions per dollar of real inputs, and commodity-level or spend-based outputs would differ. Anyone adding a residual commodity later for reporting should check those.
 
-`split_residual` builds the view with the pair added, and raises if an identity breaks. The build doesn't call it.
+A separate industry sold to final demand would leave buyers' inputs alone, but final demand is controlled to NIPA, and households and exports follow EIA revenue. So the residual stays a transfer in surplus, and there is no residual sector to overlap with the delivery margin in `42ELEC`. The unused code that added a residual row and column to the balanced tables was removed in #1273.
 
 Balanced bills can't set the class split, because they come out of the balance this feeds. It uses Step 3's electricity cells, on column totals before the transfer. Commercial's share of the excess:
 
@@ -135,8 +135,8 @@ Trade alone leaves these grades almost unchanged. It does move the 2024 balanced
 | residual amounts, class split, table split, identity checks | done, unit tested |
 | config flag and value-added transfer in Step 5 | done, off by default, on in the v1.0 configs |
 | live balance 2017-2024 | done, published in `v1.0.0_e7715da` |
-| Step 6 and Step 7 | run on the 402-sector tables, checks pass in all eight years. The pair stays out of them |
-| reporting tables with the pair | not planned (#1271); `split_residual` exists but the build doesn't call it |
-| the pair in the taxonomy | not planned (#1271) |
+| Step 6 and Step 7 | run on the 402-sector tables, checks pass in all eight years. No residual row or column; the residual is in buyers' `V00300` |
+| reporting tables with a residual row and column | not planned (#1271); the code was removed in #1273 |
+| a residual sector in the taxonomy | not planned (#1271) |
 | released schema stays at 405 | yes: `A` and `B` read the 402-sector tables, and the residual has no inputs or emissions |
 | evaluation on the IV score and tracker sectors | done on `v1.0.0_79273ed`; repeat on the rebuilt FBS |
