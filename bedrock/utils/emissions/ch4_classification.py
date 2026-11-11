@@ -1,7 +1,7 @@
 """Classify CH4 as fossil vs non-fossil for AR6 GWP selection.
 
 Inventory sources publish undifferentiated Methane. Before applying
-``GWP100_AR6_CEDA``, biogenic rows (agriculture, landfills, wastewater, ...)
+``GWP100_AR6_FULL``, biogenic rows (agriculture, landfills, wastewater, ...)
 must use ``CH4_non_fossil`` (27.0) rather than ``CH4_fossil`` (29.8).
 
 Classification keys on inventory **table family** and model **sector**, not

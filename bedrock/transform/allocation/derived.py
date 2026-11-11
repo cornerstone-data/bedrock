@@ -10,7 +10,7 @@ from bedrock.utils.config.common import load_crosswalk
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.emissions.ch4_classification import apply_ch4_non_fossil_flowable
 from bedrock.utils.emissions.ghg import GHG_MAPPING
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 from bedrock.utils.mapping.sectormapping import (
     get_activitytosector_mapping,
 )
@@ -440,7 +440,7 @@ def load_E_from_flowsa() -> pd.DataFrame:
     apply_ch4_non_fossil_flowable(fbs)
 
     # Convert values to CO2e
-    ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_CEDA.items()}
+    ghg_mapping: dict[str, float] = {k: v for k, v in GWP100_AR6_FULL.items()}
     ghg_mapping['HFCs'] = 1  # should already be in CO2e
     ghg_mapping['PFCs'] = 1  # should already be in CO2e
     fbs['CO2e'] = fbs['FlowAmount'] * fbs['Flowable'].map(ghg_mapping)

@@ -39,7 +39,7 @@ from bedrock.analysis.emissions_source_crosswalk.inventory_fbs_sources import (
     OUTPUT_DIR,
     load_ceda_sources,
 )
-from bedrock.utils.emissions.gwp import GWP100_AR5_CEDA, GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR5_FULL, GWP100_AR6_FULL
 
 CROSSWALK_PATH = Path(__file__).resolve().parent / 'fbs_to_ceda_emissions_source.csv'
 KEYS = ['MetaSources', 'ActivityProducedBy', 'Flowable']
@@ -149,7 +149,7 @@ def split_nested_lines(fbs: pd.DataFrame, shares: pd.DataFrame) -> pd.DataFrame:
 
 
 UNSPECIFIED = 'HFCs and PFCs, unspecified'
-_AR5: dict[str, float] = {str(k): v for k, v in GWP100_AR5_CEDA.items()}
+_AR5: dict[str, float] = {str(k): v for k, v in GWP100_AR5_FULL.items()}
 # FBS species name → AR5 GWP key; the HFC/PFC species an unspecified amount
 # can be split across.
 SPECIES_AR5_KEY = {
@@ -176,7 +176,7 @@ def speciate_unspecified_hfcs(fbs: pd.DataFrame) -> pd.DataFrame:
     sectors, then turned into kg of each species with AR5 GWPs. Amounts with
     no species beside them at all stay unspecified. AR5 CO2e is unchanged.
     """
-    gwp = fbs['Flowable'].map(SPECIES_AR5_KEY).map(GWP100_AR5_CEDA)
+    gwp = fbs['Flowable'].map(SPECIES_AR5_KEY).map(GWP100_AR5_FULL)
     species = fbs[gwp.notna() & (fbs['Unit'] == 'kg')].assign(
         ar5=lambda d: d['FlowAmount'] * gwp[d.index]
     )
@@ -234,7 +234,7 @@ def fbs_keys(fbs: pd.DataFrame) -> pd.DataFrame:
         'Perfluorocyclobutane': 'c-C4F8',
     }
     gwp = fbs['Flowable'].map(
-        lambda f: GWP100_AR6_CEDA.get(gwp_key.get(f, f), 1.0)  # type: ignore[call-overload]
+        lambda f: GWP100_AR6_FULL.get(gwp_key.get(f, f), 1.0)  # type: ignore[call-overload]
     )
     co2e = fbs['FlowAmount'] * gwp.where(fbs['Unit'] == 'kg', 1.0)
     return (

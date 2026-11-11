@@ -30,7 +30,7 @@ from bedrock.transform.flowbyfunctions import (
     load_fba_w_standardized_units,
 )
 from bedrock.transform.ghg import ghgrp_subpart_w
-from bedrock.utils.emissions.gwp import GWP100_AR5, GWP100_AR5_CEDA, GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR5, GWP100_AR5_FULL, GWP100_AR6_FULL
 from bedrock.utils.io.gcp import download_gcs_file
 from bedrock.utils.io.gcp_paths import gcs_extract_input_path
 from bedrock.utils.io.local_extract_input_data import local_dir_for_gcs_sub_bucket
@@ -1342,8 +1342,8 @@ def convert_co2e_to_mt_by_gwp(fba: FlowByActivity, **_kwargs: Any) -> FlowByActi
     """
     params = fba.config['clean_parameter']
     gwp_tables: dict[str, dict[str, float]] = {
-        'AR5': {str(k): float(v) for k, v in GWP100_AR5_CEDA.items()},
-        'AR6': {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()},
+        'AR5': {str(k): float(v) for k, v in GWP100_AR5_FULL.items()},
+        'AR6': {str(k): float(v) for k, v in GWP100_AR6_FULL.items()},
     }
     gwp_table = gwp_tables[params['gwp']]
     gwp_keys = fba['FlowName'].replace(

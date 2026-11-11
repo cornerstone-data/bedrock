@@ -63,7 +63,7 @@ import stewi
 
 from bedrock.transform.ghg import facility_coverage as fc
 from bedrock.transform.ghg.facility_coverage import _drop_outside_geography
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +97,13 @@ CO2 = 'Carbon dioxide'
 #: overstated against the floor.
 GHGRP_GWP = {
     'Carbon Dioxide': 1.0,
-    'Methane': float(GWP100_AR6_CEDA['CH4_fossil']),
-    'Nitrous Oxide': float(GWP100_AR6_CEDA['N2O']),
+    'Methane': float(GWP100_AR6_FULL['CH4_fossil']),
+    'Nitrous Oxide': float(GWP100_AR6_FULL['N2O']),
 }
 FBS_GWP = {
     CO2: 1.0,
-    'Methane': float(GWP100_AR6_CEDA['CH4_non_fossil']),
-    'Nitrous oxide': float(GWP100_AR6_CEDA['N2O']),
+    'Methane': float(GWP100_AR6_FULL['CH4_non_fossil']),
+    'Nitrous oxide': float(GWP100_AR6_FULL['N2O']),
 }
 #: GHGRP subparts left out: electric power generation.
 EXCLUDED_SUBPARTS = frozenset({'D'})

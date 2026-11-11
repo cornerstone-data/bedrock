@@ -36,7 +36,7 @@ from bedrock.analysis.emissions_source_crosswalk.inventory_fbs_sources import (
     OUTPUT_DIR,
     load_ceda_sources,
 )
-from bedrock.utils.emissions.gwp import GWP100_AR5_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR5_FULL
 
 # CEDA snapshot keys under ceda/snapshots/snapshot_data (see ceda/snapshots/releases.py).
 CEDA_SNAPSHOTS = {
@@ -95,7 +95,7 @@ def bedrock_by_source(
     )
     rows = rows[rows['status'] == 'mapped']
 
-    gwp = rows['Flowable'].map(AR5_KEY).map(GWP100_AR5_CEDA)
+    gwp = rows['Flowable'].map(AR5_KEY).map(GWP100_AR5_FULL)
     rows = rows.assign(
         ar5=rows['FlowAmount'] * gwp.where(rows['Unit'] == 'kg', 1.0),
         industry=~rows['SectorProducedBy'].astype(str).str.startswith('F'),
