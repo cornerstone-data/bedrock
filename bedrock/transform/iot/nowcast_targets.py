@@ -241,9 +241,9 @@ def industry_output_target(year: int, gross_output: pd.Series | None = None) -> 
 
     ⚠️ **Use only.** There is no Supply term: the Supply industry column is at
     basic prices and is constrained by T17 instead. Passing ``gross_output``
-    injects the series rather than reading the extracted parquet, which is what
-    makes this testable - the parquet is a pipeline artefact and is not in the
-    repository.
+    injects the series rather than reading the UGO305-A workbook
+    (:func:`published_gross_output`), which is what makes this testable - the
+    workbook is downloaded, not in the repository.
     """
     values = published_gross_output(year) if gross_output is None else gross_output
     return Target.on_margin(
