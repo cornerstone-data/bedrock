@@ -31,43 +31,43 @@ Keep each explanation short and simple. Describe trends in plain words, and don'
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 0.98 → 0.91 → 0.84 → 0.87 → 0.84 → 0.79 → 0.78](images/sector_trends/221100_B.svg) 2017 = 3.9 |
-| **E** | ![E with 2017 = 1: 1.00 → 1.01 → 0.93 → 0.84 → 0.89 → 0.89 → 0.82 → 0.82](images/sector_trends/221100_E.svg) 2017 = 1791 |
-| **E source** | `eGRID` via `Direct` (99%) |
+| **B** | ![B with 2017 = 1: 1.00 → 0.97 → 0.90 → 0.83 → 0.86 → 0.83 → 0.79 → 0.77](images/sector_trends/221100_B.svg) 2017 = 9.6 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.01 → 0.93 → 0.84 → 0.89 → 0.89 → 0.82 → 0.82](images/sector_trends/221100_E.svg) 2017 = 1786 |
+| **E source** | `eGRID` via `Direct` (100%) |
 | **E explanation** | `E` falls 18%, mostly because power plants burn less coal. Coal burned falls 44%, gas burned rises 47%, and wind and solar double from 8% to 16% of generation. EIA's separate count of power-sector CO2 also falls 18%. The largest drops are in 2019, 2020 and 2023, the years coal fell most. The one clear rise is 2021 (+7%), when coal came back as gas prices rose. |
-| **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.03 → 1.00 → 1.03 → 1.05 → 1.03 → 1.05](images/sector_trends/221100_q.svg) 2017 = 455 |
-| **q explanation** | The trend is right, but the level looks too high. `q` rises 5%, close to the 6% rise in kWh sold. In 2024 it is $590bn against $514bn of EIA retail revenue. Household bills match EIA. The extra is on commercial bills ($38bn), industrial bills ($19bn) and electric power's own purchases ($12bn). A separate survey of buildings, CBECS, points the same way: in 2018 buildings report $119bn of electricity, against $178bn in the model for commercial buyers that are mostly buildings. The cause isn't confirmed. |
-| **A explanation** | Small. Own use moves most: 2.37 per $100 of output in 2020, 3.07 in 2021 and 2.05 in 2024, and nothing explains the 2021 step yet. Upstream emissions are only 4-5% of `N_d`, and their trend isn't fully supported, but holding them constant would only end `N_d` at 0.78 of 2017 rather than 0.77. |
-| **L explanation** | Little: 13% of the movement in `N_d`, because the sector's own direct emissions are 95% of its factor. |
-| **Conclusion** | **Trend justified, level open.** `N_d` falls 23%, and EIA's CO2 per kWh also falls 23%, with each year's change within 0.8 points. Less coal explains it, so the trend should not be smoothed. In each year's own dollars the factor falls 38%, because retail prices rise 24%. The open problem is the level: `q` looks too high, so the factor per dollar looks too low. Moving `q` to EIA's level would raise `B` 15-17% in every year and barely change the trend. |
+| **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.03 → 1.00 → 1.04 → 1.07 → 1.04 → 1.07](images/sector_trends/221100_q.svg) 2017 = 186 |
+| **q explanation** | `q` is now generation only, with delivery a sector of its own and output on EIA's level. It rises 7%, close to the 6% rise in kWh sold. The earlier finding, that the whole bill sat above EIA retail revenue ($590bn against $514bn in 2024), was for generation and delivery together, and hasn't been rechecked on the split. |
+| **A explanation** | Small. Own use moves most: 2.12 per $100 of output in 2020, 2.85 in 2021 and 1.79 in 2024, and nothing explains the 2021 step yet. Upstream emissions are 7-10% of `N_d`, and their trend isn't fully supported, but holding them constant would only end `N_d` at 0.79 of 2017 rather than 0.76. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Electric power generation, transmission, and distribution (4.4); Oil and gas extraction bought by Electric power generation, transmission, and distribution (1.9); Coal mining bought by Electric power generation, transmission, and distribution (1.0) |
+| **L explanation** | Little: 18% of the movement in `N_d`, because the sector's own direct emissions are about 90% of its factor. |
+| **Conclusion** | **Trend justified, level open.** `N_d` falls 24%, and EIA's CO2 per kWh falls 23%. Less coal explains it, so the trend should not be smoothed. In each year's own dollars the factor falls 36%, because generation prices rise 21%. The open problem was the level: on the whole bill, `q` looked too high, so the factor per dollar looked too low. Output is now generation only and on EIA's level, so the 2017 factor is 9.6 kg per dollar, against 3.9 for the whole bill. Whether that settles the level hasn't been checked. |
 
 ### 481000 Air transportation
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 0.96 → 0.97 → 1.22 → 1.04 → 0.89 → 0.91 → 0.90](images/sector_trends/481000_B.svg) 2017 = 0.7 |
+| **B** | ![B with 2017 = 1: 1.00 → 0.96 → 0.97 → 1.21 → 1.03 → 0.89 → 0.91 → 0.90](images/sector_trends/481000_B.svg) 2017 = 0.7 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.01 → 1.06 → 0.69 → 0.88 → 0.96 → 1.05 → 1.10](images/sector_trends/481000_E.svg) 2017 = 163 |
 | **E source** | `UMD_GHGIA_T_3_8.direct_jet` via `Direct` (99%); `UMD_GHGIA_T_3_10.direct_non_road` via `Direct` (1%) |
 | **E explanation** | Almost all of `E` is jet fuel. It falls about 35% in 2020, when fewer planes flew during COVID, and recovers about 28% in 2021. |
 | **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.09 → 0.56 → 0.85 → 1.08 → 1.15 → 1.22](images/sector_trends/481000_q.svg) 2017 = 232 |
 | **q explanation** | `q` falls about 48% in 2020 and rebounds about 51% in 2021, more than fuel does, because passenger travel collapsed further than fuel use. So `B` spikes and then unwinds. |
-| **A explanation** | Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (10.9); Oil and gas extraction bought by Petroleum refineries (1.6); Scenic and sightseeing transportation and support activities bought by Air transportation (1.4). The 2020 and 2021 moves come from `E` and `q`, not from purchases. |
+| **A explanation** | Largest cells, gross percent of `N_d`: Petroleum refineries bought by Air transportation (11.4); Oil and gas extraction bought by Petroleum refineries (1.6); Electric power generation, transmission, and distribution bought by Petroleum refineries (1.4). The 2020 and 2021 moves come from `E` and `q`, not from purchases. |
 | **L explanation** | Secondary in 2020 and 2021, and doesn't explain the move in `N`. |
-| **Conclusion** | **Justified.** The 2020 rise in `B` (+22%) and its unwind in 2021 are COVID, so they should not be smoothed. By 2024 `B` is 10% below 2017, with `E` up 10% and `q` up 22%. About two thirds of that fall is less fuel per passenger-mile (down 7%). Planes aren't fuller, at about 83.5% of seats in both years, so this is more efficient flying. The other third is output per passenger-mile rising 4%. That isn't higher profit, because operating margins fall from 12.2% to 5.5%. Still open: whether the 4% is more service per passenger-mile or a price index that lags fares. |
+| **Conclusion** | **Justified.** The 2020 rise in `B` (+21%) and its unwind in 2021 are COVID, so they should not be smoothed. By 2024 `B` is 10% below 2017, with `E` up 10% and `q` up 22%. About two thirds of that fall is less fuel per passenger-mile (down 7%). Planes aren't fuller, at about 83.5% of seats in both years, so this is more efficient flying. The other third is output per passenger-mile rising 4%. That isn't higher profit, because operating margins fall from 12.2% to 5.5%. Still open: whether the 4% is more service per passenger-mile or a price index that lags fares. |
 
 ### 211000 Oil and gas extraction
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 0.92 → 0.87 → 0.87 → 0.76 → 0.70 → 0.63 → 0.62](images/sector_trends/211000_B.svg) 2017 = 1.5 |
+| **B** | ![B with 2017 = 1: 1.00 → 0.92 → 0.87 → 0.86 → 0.76 → 0.70 → 0.63 → 0.62](images/sector_trends/211000_B.svg) 2017 = 1.5 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.12 → 1.02 → 1.01 → 1.02 → 0.99 → 1.00](images/sector_trends/211000_E.svg) 2017 = 353 |
 | **E source** | `UMD_GHGIA_T_3_28` via `Direct` (32%); `UMD_GHGIA_T_3_11.natural_gas_lease_plant` via `GHGRP_NEI_Facilities` (26%); `UMD_GHGIA_T_3_25` via `Direct` (13%) |
 | **E explanation** | `E` stays flat. Process Direct falls -- petroleum-systems CH4 hard (63 to 38 Mt), natgas-systems softer (122 to 108 Mt) -- while lease and plant combustion rises with activity (80 to 105 Mt). The process drop is the national GHGI path, not allocation churn: shares to this sector stay high and oscillation is low. One BEA industry covers both oil and gas products, so those inventory lines do not move together. |
-| **q** | ![q with 2017 = 1: 1.00 → 1.19 → 1.30 → 1.20 → 1.33 → 1.46 → 1.58 → 1.63](images/sector_trends/211000_q.svg) 2017 = 213 |
+| **q** | ![q with 2017 = 1: 1.00 → 1.19 → 1.30 → 1.20 → 1.33 → 1.46 → 1.58 → 1.62](images/sector_trends/211000_q.svg) 2017 = 213 |
 | **q explanation** | `q` rises with BEA gross output for oil and gas (UGO305-A). That dollar series matches EIA crude first-purchase value plus Henry Hub times marketed gas (~1:1 level and growth). Crude and marketed-gas volumes both rise a lot over the span as well, so physical activity is up alongside real dollars. |
-| **A explanation** | Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Oil and gas extraction (11.7); Electric power generation, transmission, and distribution bought by Oil and gas extraction (6.3); Pipeline transportation bought by Oil and gas extraction (5.9). Own use swings hard: 2.57 per $100 of output in 2020, 6.97 in 2022 and 2.82 in 2023. That cell is for the `L`/`N` half only. |
-| **L explanation** | About half the movement in `N_d` (48%). Unresolved. Next check is whether own use overstates 2021-22. |
-| **Conclusion** | **Direct/`B` justified; `L` open.** `B` falls 38% because real `q` rises 63% while `E` stays flat. Flat `E` is GHGI process Direct down and lease/plant up -- not Use churn -- and GO matches EIA production dollars, so the dollar intensity path is E over rising real output. External physical intensity refs agree on direction with smaller magnitudes (different denominator; combined oil+gas, not product-separate). Do not treat 2020 as the headline: commodity `B` barely moves that year. Still open: `L` / own-use 2021-22. |
+| **A explanation** | Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Oil and gas extraction (11.7); Electric power generation, transmission, and distribution bought by Oil and gas extraction (7.6); Pipeline transportation bought by Oil and gas extraction (5.5). Own use swings hard: 2.56 per $100 of output in 2020, 6.95 in 2022 and 2.87 in 2023. That cell is for the `L`/`N` half only. |
+| **L explanation** | About half the movement in `N_d` (49%). Unresolved. Next check is whether own use overstates 2021-22. |
+| **Conclusion** | **Direct/`B` justified; `L` open.** `B` falls 38% because real `q` rises 62% while `E` stays flat. Flat `E` is GHGI process Direct down and lease/plant up -- not Use churn -- and GO matches EIA production dollars, so the dollar intensity path is E over rising real output. External physical intensity refs agree on direction with smaller magnitudes (different denominator; combined oil+gas, not product-separate). Do not treat 2020 as the headline: commodity `B` barely moves that year. Still open: `L` / own-use 2021-22. |
 
 Earlier findings:
 
@@ -91,19 +91,33 @@ Earlier findings:
 - **Justified?:** **not justified** — the complete facility floor for these facilities, GHGRP subpart C **plus the subpart W combustion tables** ([#927](https://github.com/cornerstone-data/bedrock/issues/927), PR #961), holds 113.3-140.2 Mt across 2017-2024 against an allocation of 29.6-90.1 Mt. The sector is allocated **26-67% of the fuel its own facilities reported burning, in every year of the span**
 - **Status:** ⚠️ **Restated on the complete floor.** Read against subpart C alone this was the worst *intermittent* sector, breaching in 2017 and 2020 only; subpart C holds no lease fuel at all, because onshore production reports its combustion under subpart W. On the whole floor it breaches in **all eight years**, with the largest cumulative shortfall in D14 — 589 Mt against 321 Mt for petroleum refineries — and its verdict reads `boundary_offset`, which here means a persistent level defect and not a definition difference. The two defects now separate cleanly: the **level** bias is measured and attributed (#927), the **volatility** is still open. `32551` moves 17.69x on the coefficient and likely shares a cause
 
+### 562212 Solid waste landfilling
+
+| Field | Value |
+|---|---|
+| **B** | ![B with 2017 = 1: 1.00 → 1.11 → 1.13 → 1.14 → 1.06 → 0.89 → 0.94 → 0.90](images/sector_trends/562212_B.svg) 2017 = 11 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.02 → 1.04 → 1.00 → 0.98 → 0.97 → 0.97 → 0.97](images/sector_trends/562212_E.svg) 2017 = 120 |
+| **E source** | `UMD_GHGIA_T_2_S1.direct` via `Direct` (99%); `UMD_GHGIA_T_3_8.petroleum_fuels_diesel` via `Energy_highway_fuel_shares_national` (1%) |
+| **E explanation** | Flat: `E` falls 3%. Nearly all of it (99%) is landfill methane from the inventory. |
+| **q** | ![q with 2017 = 1: 1.00 → 0.91 → 0.92 → 0.87 → 0.92 → 1.08 → 1.05 → 1.10](images/sector_trends/562212_q.svg) 2017 = 11 |
+| **q explanation** | `q` falls 13% by 2020, rises 17% in 2022 and ends 10% above 2017. Before the waste sectors' output was set from their Use, it rose steadily, about 11% over the span. Not yet checked against a physical measure. |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Solid waste landfilling bought by Hazardous waste collection treatment and disposal (1.0); Hazardous waste collection treatment and disposal bought by Solid waste landfilling (0.6); Petroleum refineries bought by Solid waste landfilling (0.2) |
+| **L explanation** | Little: 4% of the movement in `N_d`. |
+| **Conclusion** | **Provisional.** `B` rises 14% by 2020 and ends 10% lower, all from `q`, because `E` is flat. Check the 2022 step in output. |
+
 ### 484000 Truck transportation
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 0.95 → 1.00 → 0.98 → 1.03 → 0.98 → 0.97 → 0.97](images/sector_trends/484000_B.svg) 2017 = 0.47 |
-| **E** | ![E with 2017 = 1: 1.00 → 0.98 → 1.02 → 1.02 → 1.13 → 1.07 → 1.05 → 1.05](images/sector_trends/484000_E.svg) 2017 = 170 |
+| **B** | ![B with 2017 = 1: 1.00 → 0.95 → 1.00 → 0.98 → 1.03 → 0.98 → 0.98 → 0.98](images/sector_trends/484000_B.svg) 2017 = 0.47 |
+| **E** | ![E with 2017 = 1: 1.00 → 0.98 → 1.02 → 1.01 → 1.13 → 1.07 → 1.05 → 1.06](images/sector_trends/484000_E.svg) 2017 = 170 |
 | **E source** | `UMD_GHGIA_T_3_8.petroleum_fuels_diesel` via `Energy_highway_fuel_shares_national` (90%); `UMD_GHGIA_T_3_8.petroleum_fuels_gasoline_trucks` via `Energy_highway_fuel_shares_national` (5%); `UMD_GHGIA_T_A5_5_2` via `Direct` (4%) |
 | **E explanation** | Not yet assessed. |
 | **q** | ![q with 2017 = 1: 1.00 → 1.03 → 1.02 → 1.04 → 1.09 → 1.09 → 1.08 → 1.08](images/sector_trends/484000_q.svg) 2017 = 341 |
 | **q explanation** | Not yet assessed. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Truck transportation (7.1); Electric power generation, transmission, and distribution bought by Truck transportation (7.0); Truck transportation bought by Truck transportation (4.2) |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petroleum refineries bought by Truck transportation (8.0); Electric power generation, transmission, and distribution bought by Truck transportation (6.0); Truck transportation bought by Truck transportation (1.8) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Provisional.** There's no trend to explain: `B` stays within 5% of 2017 every year and ends 3% lower, with `E` up 5% and `q` up 8%. The largest move is 2021, when diesel emissions rise 11%. Check own use, which steps from 4.21 to 6.72 per $100 of output in 2023 and stays there. `L` is 40% of the movement. |
+| **Conclusion** | **Provisional.** There's no trend to explain: `B` stays within 5% of 2017 every year and ends 2% lower, with `E` up 6% and `q` up 8%. The largest move is 2021, when diesel emissions rise 11%. Own use no longer steps up in 2023: it rises steadily from 3.33 per $100 of output in 2017 to 4.50 in 2024. `L` is 46% of the movement. |
 
 ### 324110 Petroleum refineries
 
@@ -115,9 +129,9 @@ Earlier findings:
 | **E explanation** | Not yet assessed. |
 | **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.05 → 0.81 → 0.88 → 0.89 → 0.93 → 0.98](images/sector_trends/324110_q.svg) 2017 = 477 |
 | **q explanation** | Not yet assessed. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petroleum refineries (13.8); Electric power generation, transmission, and distribution bought by Petroleum refineries (9.2); Pipeline transportation bought by Petroleum refineries (5.3) |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petroleum refineries (13.7); Electric power generation, transmission, and distribution bought by Petroleum refineries (13.2); Pipeline transportation bought by Petroleum refineries (5.1) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Provisional.** `B` ends 8% lower. It rises 17% in 2020, when `q` falls 22% and `E` falls 10%, the same COVID pattern as air, so this is likely justified. `E` falls 11% overall. Allocated natural gas (51 to 44 Mt) and petroleum (21 to 14 Mt) fall faster than still gas (99 to 92 Mt), so check them against facility data. `L` is 48% of the movement. Oil and gas inputs go from 30.6 per $100 of output to 33.1 in 2021 and 27.6 in 2023. Electricity goes from 0.82 to 1.50 in 2023 and 1.20 in 2024. The electricity bill looks too high: $11.6bn in 2022 against $3.9bn in the MECS survey. The cause isn't traced yet. |
+| **Conclusion** | **Provisional.** `B` ends 8% lower. It rises 17% in 2020, when `q` falls 22% and `E` falls 10%, the same COVID pattern as air, so this is likely justified. `E` falls 11% overall. Allocated natural gas (51 to 44 Mt) and petroleum (20 to 14 Mt) fall faster than still gas (99 to 92 Mt), so check them against facility data. `L` is 52% of the movement. Oil and gas inputs go from 30.6 per $100 of output to 34.8 in 2021 and 36.5 in 2023. Electricity goes from 0.65 to 1.22 in 2023 and 0.95 in 2024. The electricity bill looks too high: $8.8bn in 2022 against $3.9bn in the MECS survey. The cause isn't traced yet. |
 
 Earlier findings:
 
@@ -135,15 +149,15 @@ Earlier findings:
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 1.19 → 0.96 → 1.13 → 1.46 → 1.47 → 1.20 → 1.25](images/sector_trends/325110_B.svg) 2017 = 0.77 |
-| **E** | ![E with 2017 = 1: 1.00 → 1.10 → 1.02 → 1.02 → 1.23 → 1.24 → 1.26 → 1.31](images/sector_trends/325110_E.svg) 2017 = 51 |
-| **E source** | `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (57%); `UMD_GHGIA_T_4_31` via `Direct` (36%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (6%) |
-| **E explanation** | The rise is supported, but its timing isn't. `E` rises 31%, the same as facility-reported emissions (GHGRP, 21.5 to 28.1 Mt). Ethylene output rises 40%, so emissions per tonne fall about 6%. `E` jumps 20% in 2021 when facility emissions rise 5%. That jump comes from switching survey years for the non-energy share, not from real activity. |
-| **q** | ![q with 2017 = 1: 1.00 → 0.89 → 0.97 → 0.85 → 0.81 → 0.78 → 0.92 → 0.88](images/sector_trends/325110_q.svg) 2017 = 63 |
-| **q explanation** | `q` falls 12%, but `B` doesn't follow `q`. `B` averages the factors of the industries that make the product, and refineries make about a third of it. Petrochemical plants' own real output rises 6%. Ethylene rises 40%, but in EPA's chemical production reports the sector's products as a whole are about flat in tonnes from 2017 to 2023, because propylene, aromatics and styrene fall. Several large new crackers also report as plastics or other organic chemical plants. Refineries' output of the product falls 42% after price, mostly in 2023 and 2024, while their olefins and feedstocks fall 0-9% in those years. BEA's price index swings more than the producer price index from year to year, and that drives the yearly moves in `B`. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petrochemical manufacturing (12.4); Petrochemical manufacturing bought by Petrochemical manufacturing (8.8); Electric power generation, transmission, and distribution bought by Petrochemical manufacturing (6.2) |
+| **B** | ![B with 2017 = 1: 1.00 → 1.18 → 0.97 → 1.14 → 1.47 → 1.46 → 1.38 → 1.28](images/sector_trends/325110_B.svg) 2017 = 0.76 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.10 → 1.03 → 1.03 → 1.24 → 1.25 → 1.30 → 1.35](images/sector_trends/325110_E.svg) 2017 = 51 |
+| **E source** | `UMD_GHGIA_T_3_14.emissions` via `UMD_GHGIA_T_3_15` (58%); `UMD_GHGIA_T_4_31` via `Direct` (36%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (6%) |
+| **E explanation** | The rise is supported, but its timing isn't. `E` rises 35%, against 31% for facility-reported emissions (GHGRP, 21.5 to 28.1 Mt). Ethylene output rises 40%, so emissions per tonne fall about 4%. `E` jumps 20% in 2021 when facility emissions rise 5%. That jump comes from switching survey years for the non-energy share, not from real activity. |
+| **q** | ![q with 2017 = 1: 1.00 → 0.89 → 0.97 → 0.84 → 0.81 → 0.78 → 0.82 → 0.88](images/sector_trends/325110_q.svg) 2017 = 63 |
+| **q explanation** | `q` falls 12%, but `B` doesn't follow `q`. `B` averages the factors of the industries that make the product, and refineries make about a third of it. Petrochemical plants' own real output rises 6%. Ethylene rises 40%, but in EPA's chemical production reports the sector's products as a whole are about flat in tonnes from 2017 to 2023, because propylene, aromatics and styrene fall. Several large new crackers also report as plastics or other organic chemical plants. Refineries' share of the product falls from 33% to 25%, all of it in 2024, while their olefins and feedstocks fall 0-9%. BEA's price index swings more than the producer price index from year to year, and that drives the yearly moves in `B`. |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Petrochemical manufacturing (12.1); Electric power generation, transmission, and distribution bought by Petrochemical manufacturing (9.9); Petrochemical manufacturing bought by Petrochemical manufacturing (5.0) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Mostly justified, two defects.** `B` ends 25% higher. Most of the rise is petrochemical plants, with emissions up 31% and real output up 6%. That fits the physical data: emissions follow ethylene, while the sector's products as a whole are about flat in tonnes. About 8 points come from refineries' share of the product falling in 2023 and 2024 with no source behind it, because refineries emit less per dollar. The 2021 step in the non-energy share also needs fixing. `L` is 34% of the movement, led by oil and gas inputs falling from 13.4 to 9.3 per $100 of output. |
+| **Conclusion** | **Mostly justified, two defects.** `B` ends 28% higher. Most of the rise is petrochemical plants, with emissions up 35% and real output up 6%. That fits the physical data: emissions follow ethylene, while the sector's products as a whole are about flat in tonnes. Refineries' share of the product still falls in 2024 with no source behind it, because refineries emit less per dollar; it no longer falls in 2023. The 2021 step in the non-energy share also needs fixing. `L` is 39% of the movement, led by oil and gas inputs falling from 13.4 to 10.6 per $100 of output. |
 
 ### 531ORE Other real estate
 
@@ -155,51 +169,51 @@ Earlier findings:
 | **E explanation** | Not yet assessed. |
 | **q** | ![q with 2017 = 1: 1.00 → 1.04 → 1.09 → 1.04 → 1.21 → 1.24 → 1.23 → 1.25](images/sector_trends/531ORE_q.svg) 2017 = 1287 |
 | **q explanation** | Not yet assessed. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Other real estate (19.7); Solid waste landfilling bought by Other real estate (4.4); Other real estate bought by Other real estate (3.7) |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Other real estate (13.7); Other real estate bought by Other real estate (3.7); Air transportation bought by Other real estate (2.5) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Provisional, likely not justified.** `B` ends 51% lower, with `E` down 39% and `q` up 25%. `E` is 94% commercial natural gas, shared out using the Use table. Total commercial gas rises 5% (173 to 182 Mt), but this sector's share falls from 31% to 18%. At a constant share `E` would be about flat, so the fall comes from how the gas is shared out, not from measured gas. The sector's gas purchases rise only from $4.9bn to $5.6bn, while all industries' purchases double. `L` is 57% of the movement, led by electricity falling from 2.84 to 1.62 per $100 of output, and this column has no annual source. |
+| **Conclusion** | **Provisional, likely not justified.** `B` ends 51% lower, with `E` down 39% and `q` up 25%. `E` is 94% commercial natural gas, shared out using the Use table. Total commercial gas rises 5% (173 to 182 Mt), but this sector's share falls from 31% to 18%. At a constant share `E` would be about flat, so the fall comes from how the gas is shared out, not from measured gas. The sector's gas purchases go from $4.9bn to $4.7bn, while all industries' purchases rise 66%. `L` is 49% of the movement, led by electricity falling from 2.33 to 1.32 per $100 of output, and this column has no annual source. |
 
 ### 331110 Iron and steel mills and ferroalloy manufacturing
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 0.99 → 0.99 → 0.90 → 0.96 → 0.83 → 0.85 → 0.83](images/sector_trends/331110_B.svg) 2017 = 0.74 |
-| **E** | ![E with 2017 = 1: 1.00 → 1.02 → 0.97 → 0.80 → 0.88 → 0.78 → 0.82 → 0.79](images/sector_trends/331110_E.svg) 2017 = 77 |
-| **E source** | `UMD_GHGIA_T_2_S1.direct` via `Direct` (69%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (19%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (10%) |
-| **E explanation** | The fall is supported in total. Facility-reported emissions (GHGRP) fall 15% (66 to 56 Mt) and `E` falls 21%. Most of the extra fall is coking coal in non-energy use (10.4 to 5.0 Mt), a line that swings in the inventory. The parts differ from the facility data: direct emissions rise (43 to 48 Mt) as direct reduced iron grows, while allocated natural gas falls much faster (21 to 7 Mt) than facility combustion does. Check the boundary between them. The inventory's 2024 production data repeats 2023. |
-| **q** | ![q with 2017 = 1: 1.00 → 1.05 → 0.99 → 0.91 → 0.93 → 0.96 → 0.97 → 0.96](images/sector_trends/331110_q.svg) 2017 = 102 |
-| **q explanation** | About right. `q` falls 4%, against crude steel down 3% and the Federal Reserve production index up 4%. BEA's price index lags the producer price index in 2021-24 (1.25 against 1.52 of 2017 in 2024), so this price needs checking. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Iron and steel mills and ferroalloy manufacturing (10.9); Coal mining bought by Iron and steel mills and ferroalloy manufacturing (6.7); Iron and steel mills and ferroalloy manufacturing bought by Iron and steel mills and ferroalloy manufacturing (5.4) |
+| **B** | ![B with 2017 = 1: 1.00 → 0.98 → 1.02 → 0.95 → 1.00 → 0.90 → 0.91 → 0.88](images/sector_trends/331110_B.svg) 2017 = 0.71 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.02 → 1.00 → 0.85 → 0.91 → 0.85 → 0.87 → 0.84](images/sector_trends/331110_E.svg) 2017 = 74 |
+| **E source** | `UMD_GHGIA_T_2_S1.direct` via `Direct` (69%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (19%); `UMD_GHGIA_T_3_14.emissions` via `UMD_GHGIA_T_3_15` (10%) |
+| **E explanation** | The fall is supported in total. Facility-reported emissions (GHGRP) fall 15% (66 to 56 Mt) and `E` falls 16%. Coking coal in non-energy use, a line that swings in the inventory, is now steadier (7.5 to 6.4 Mt). The parts differ from the facility data: direct emissions rise (43 to 48 Mt) as direct reduced iron grows, while allocated natural gas falls much faster (21 to 7 Mt) than facility combustion does. Check the boundary between them. The inventory's 2024 production data repeats 2023. |
+| **q** | ![q with 2017 = 1: 1.00 → 1.05 → 0.99 → 0.91 → 0.93 → 0.96 → 0.97 → 0.97](images/sector_trends/331110_q.svg) 2017 = 102 |
+| **q explanation** | About right. `q` falls 3%, against crude steel down 3% and the Federal Reserve production index up 4%. BEA's price index lags the producer price index in 2021-24 (1.25 against 1.52 of 2017 in 2024), so this price needs checking. |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Electric power generation, transmission, and distribution bought by Iron and steel mills and ferroalloy manufacturing (17.8); Coal mining bought by Iron and steel mills and ferroalloy manufacturing (5.7); Iron and steel mills and ferroalloy manufacturing bought by Iron and steel mills and ferroalloy manufacturing (5.6) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Mostly justified.** `B` ends 17% lower, with `E` down 21% and `q` down 4%. Using facility emissions and crude steel, it would end about 12% lower, so most of the fall is real. Facility combustion falls 20% while steel falls 3%, as electric arc furnaces grow from 68% to 71% of steel and pig iron falls 8%. The other 5 points or so are the coking coal line. `L` is 52% of the movement: electricity goes from 2.41 per $100 of output to 1.56 in 2021 and back to 2.31, and coal falls from 1.59 to 0.91. |
+| **Conclusion** | **Mostly justified.** `B` ends 12% lower, with `E` down 16% and `q` down 3%. Using facility emissions and crude steel, it would also end about 12% lower, so the fall is real. Facility combustion falls 20% while steel falls 3%, as electric arc furnaces grow from 68% to 71% of steel and pig iron falls 8%. The coking coal line no longer adds to the fall. `L` is 62% of the movement: electricity goes from 2.10 per $100 of output to 1.32 in 2021 and back to 1.85, and coal falls from 1.97 to 1.18. |
 
 ### 325190 Other basic organic chemical manufacturing
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 1.07 → 1.13 → 1.22 → 1.03 → 1.00 → 0.94 → 0.81](images/sector_trends/325190_B.svg) 2017 = 0.63 |
-| **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.08 → 1.06 → 0.90 → 0.90 → 0.87 → 0.89](images/sector_trends/325190_E.svg) 2017 = 75 |
-| **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (44%); `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (22%); `UMD_GHGIA_T_2_S1.direct` via `Direct` (13%) |
-| **E explanation** | Only part is supported. N2O falls from 7.9 to 2.5 Mt, mostly from adipic acid, and that's real. The fossil part isn't: facility-reported emissions (GHGRP) rise 11% (52 to 58 Mt), while natural gas in `E` falls (32 to 30 Mt) and so does non-energy use (18 to 15 Mt). Both step down in 2021, when the survey year changes, while facility emissions rise. |
-| **q** | ![q with 2017 = 1: 1.00 → 0.99 → 0.92 → 0.85 → 0.88 → 0.91 → 0.93 → 1.08](images/sector_trends/325190_q.svg) 2017 = 117 |
-| **q explanation** | `q` rises 8%, nearly all in 2024 (+17%). BEA's own output is flat in 2024. The jump comes from matching output to census sales, where "all other basic organic chemicals" rises 22% from 2022 to 2024, while ethanol falls 18% and all basic chemicals rise 2%. Census doesn't publish the line for 2023. EPA's chemical production reports point to real growth of about 6% by 2023, led by methanol and ethylene glycol from new plants, with ethanol down. So `q` is a little low through 2023 and the 2024 jump overshoots. Price isn't the reason over the span: BEA's price index and the producer price index both rise about 25%. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Other basic organic chemical manufacturing (12.3); Grain farming bought by Other basic organic chemical manufacturing (9.2); Electric power generation, transmission, and distribution bought by Other basic organic chemical manufacturing (5.7) |
+| **B** | ![B with 2017 = 1: 1.00 → 1.08 → 1.10 → 1.18 → 1.00 → 0.96 → 0.90 → 0.82](images/sector_trends/325190_B.svg) 2017 = 0.64 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.04 → 1.02 → 0.86 → 0.86 → 0.83 → 0.84](images/sector_trends/325190_E.svg) 2017 = 76 |
+| **E source** | `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (45%); `UMD_GHGIA_T_3_14.emissions` via `UMD_GHGIA_T_3_15` (21%); `UMD_GHGIA_T_2_S1.direct` via `Direct` (13%) |
+| **E explanation** | Only part is supported. N2O falls from 7.9 to 2.5 Mt, mostly from adipic acid, and that's real. The fossil part isn't: facility-reported emissions (GHGRP) rise 11% (52 to 58 Mt), while natural gas in `E` falls (32 to 30 Mt) and so does non-energy use (19 to 13 Mt). Both step down in 2021, when the survey year changes, while facility emissions rise. |
+| **q** | ![q with 2017 = 1: 1.00 → 0.99 → 0.92 → 0.85 → 0.88 → 0.91 → 0.94 → 1.02](images/sector_trends/325190_q.svg) 2017 = 117 |
+| **q explanation** | `q` rises 2%, with most of it in 2024 (+9%). That 2024 rise was 17% when output followed census sales, where "all other basic organic chemicals" rises 22% from 2022 to 2024 while ethanol falls 18%; output after 2022 now follows BEA's own movement. EPA's chemical production reports point to real growth of about 6% by 2023, led by methanol and ethylene glycol from new plants, with ethanol down, so `q` is a little low through 2023 (0.94 of 2017). Price isn't the reason over the span: BEA's price index and the producer price index both rise about 25%. |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Other basic organic chemical manufacturing (10.3); Grain farming bought by Other basic organic chemical manufacturing (9.4); Electric power generation, transmission, and distribution bought by Other basic organic chemical manufacturing (8.7) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Split.** `B` ends 19% lower. About 7 points are justified, from adipic acid N2O. The rest isn't: about 4 points are allocated fossil emissions falling in 2021 while facility emissions rise, and about 9 are 2024 output overshooting the production reports. Without those, `B` would end about 6% lower. `L` is 39% of the movement: petrochemical inputs (12.4 to 6.2 per $100 of output) and own use (6.5 to 3.0) both halve. |
+| **Conclusion** | **Split.** `B` ends 18% lower. About 7 points are justified, from adipic acid N2O. The rest isn't: allocated fossil emissions fall in 2021 while facility emissions rise, and 2024 output still rises more than the production reports support, though less than before. `L` is 43% of the movement: petrochemical inputs (12.4 to 6.0 per $100 of output) and own use (6.5 to 2.7) both halve. |
 
 ### 325211 Plastics material and resin manufacturing
 
 | Field | Value |
 |---|---|
-| **B** | ![B with 2017 = 1: 1.00 → 1.07 → 1.07 → 1.07 → 1.34 → 1.27 → 1.18 → 1.16](images/sector_trends/325211_B.svg) 2017 = 0.4 |
-| **E** | ![E with 2017 = 1: 1.00 → 1.07 → 1.05 → 1.01 → 1.16 → 1.20 → 1.19 → 1.25](images/sector_trends/325211_E.svg) 2017 = 31 |
-| **E source** | `UMD_GHGIA_T_3_14.emissions` via `EPA_GHGI_NEU` (48%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (44%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (2%) |
-| **E explanation** | Partly supported. Facility-reported emissions (GHGRP) appear to fall (23.4 to 19.2 Mt), but only because adipic acid N2O at these facilities ends (6.0 to 0 Mt), which `E` counts in another sector. Without it they rise 10%. `E` rises more, 25%: natural gas up 19% (14.1 to 16.8 Mt) and non-energy use up 49% (13.8 to 20.6 Mt). Facility data can't check non-energy use, and its share steps up when the survey year changes. |
-| **q** | ![q with 2017 = 1: 1.00 → 1.02 → 0.97 → 0.93 → 0.87 → 0.95 → 1.00 → 1.06](images/sector_trends/325211_q.svg) 2017 = 89 |
+| **B** | ![B with 2017 = 1: 1.00 → 1.06 → 1.06 → 1.05 → 1.30 → 1.23 → 1.17 → 1.14](images/sector_trends/325211_B.svg) 2017 = 0.41 |
+| **E** | ![E with 2017 = 1: 1.00 → 1.07 → 1.04 → 0.99 → 1.12 → 1.15 → 1.16 → 1.23](images/sector_trends/325211_E.svg) 2017 = 32 |
+| **E source** | `UMD_GHGIA_T_3_14.emissions` via `UMD_GHGIA_T_3_15` (48%); `UMD_GHGIA_T_3_11.ng_manufacturing` via `Hybrid_Facility_MECS` (45%); `UMD_GHGIA_T_3_11.petroleum_facility` via `Hybrid_Facility_MECS` (2%) |
+| **E explanation** | Partly supported. Facility-reported emissions (GHGRP) appear to fall (23.4 to 19.2 Mt), but only because adipic acid N2O at these facilities ends (6.0 to 0 Mt), which `E` counts in another sector. Without it they rise 10%. `E` rises more, 23%: natural gas up 19% (14.1 to 16.9 Mt) and non-energy use up 43% (14.3 to 20.4 Mt). Facility data can't check non-energy use, and its share steps up when the survey year changes. |
+| **q** | ![q with 2017 = 1: 1.00 → 1.02 → 0.97 → 0.93 → 0.87 → 0.95 → 0.99 → 1.06](images/sector_trends/325211_q.svg) 2017 = 89 |
 | **q explanation** | Consistent with physical output. `q` rises 6%, against the Federal Reserve production index up 4%. BEA's price index and the producer price index both rise about 16-17%. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Plastics material and resin manufacturing (14.5); Other basic organic chemical manufacturing bought by Plastics material and resin manufacturing (10.4); Electric power generation, transmission, and distribution bought by Plastics material and resin manufacturing (5.1) |
+| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Petrochemical manufacturing bought by Plastics material and resin manufacturing (12.3); Electric power generation, transmission, and distribution bought by Plastics material and resin manufacturing (9.3); Other basic organic chemical manufacturing bought by Plastics material and resin manufacturing (8.2) |
 | **L explanation** | Not yet assessed. |
-| **Conclusion** | **Split.** `B` ends 16% higher, with `E` up 25% and `q` up 6%. Using facility emissions without adipic acid, it would end about 4% higher, so about a quarter of the rise is supported. The rest is mainly the rise in non-energy use, which no annual measure confirms. `L` is 41% of the movement and not yet assessed. |
+| **Conclusion** | **Split.** `B` ends 14% higher, with `E` up 23% and `q` up 6%. Using facility emissions without adipic acid, it would end about 4% higher, so under a third of the rise is supported. The rest is mainly the rise in non-energy use, which no annual measure confirms. `L` is 44% of the movement and not yet assessed. |
 
 ## Earlier findings for sectors not on the current list
 
