@@ -19,7 +19,7 @@ moves T1's per-industry value, T17's right-hand side, the value-added
 allocation weights and the GO control's column targets **together**, so the
 build stays coherent by construction.  ⚠️ The one consumer outside the
 chokepoint is :func:`~bedrock.transform.iot.nowcast_targets.published_gross_output`,
-which reads the extracted FBA parquet — Step 5's assembly must inject
+which reads the unadjusted panel — Step 5's assembly must inject
 :func:`adjusted_gross_output_usd` through ``industry_output_target``'s
 ``gross_output`` parameter, or T1's values and the rest of the build will
 disagree by exactly this adjustment.
@@ -492,7 +492,7 @@ def adjusted_gross_output_usd(year: int) -> pd.Series:
     ⚠️ **This is what Step 5's target assembly must inject** through
     :func:`~bedrock.transform.iot.nowcast_targets.industry_output_target`'s
     ``gross_output`` parameter for 2022+.  ``published_gross_output`` reads the
-    extracted FBA parquet, which does not carry this adjustment; using it for
+    unadjusted panel, which does not carry this adjustment; using it for
     T1 while the rest of the build reads the adjusted panel would open a gap of
     exactly this adjustment.
     """

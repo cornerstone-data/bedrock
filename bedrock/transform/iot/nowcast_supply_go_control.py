@@ -118,6 +118,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import logging
 import typing as ta
 
 import numpy as np
@@ -136,6 +137,8 @@ from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary impo
 from bedrock.utils.taxonomy.mappings.bea_v2017_industry__bea_v2017_summary import (
     load_bea_v2017_industry_to_bea_v2017_summary,
 )
+
+log = logging.getLogger(__name__)
 
 #: The years the control is applied to.  2017 is **excluded on purpose**: see the
 #: module docstring - there the detail split is the published benchmark, which
@@ -268,23 +271,55 @@ def raw_supply_block(year: int, download_sources_ok: bool = False) -> pd.DataFra
     the Supply table's rows are commodities.  Reading them the intuitive way
     round transposes the block, which still balances economy-wide and is
     therefore invisible in every total.
+
+    ⚠️ **The stored table is checked against the workbook before it is used.**
+    ``Detail_Supply_Mix`` and its ``BEA_Summary_Supply`` source are cached under
+    a git-commit version, not under the workbook they were read from, so a
+    cleared local cache can download a copy built from an older BEA release.
+    :func:`seed_workbook_mismatch` compares the block with the summary Supply
+    cells that :func:`~bedrock.extract.iot.io_2017._load_usa_summary_sut` reads.
+    On any mismatch the two tables are rebuilt locally from the workbook and
+    read again; if the rebuilt block still disagrees, this raises.
     """
-    fbs = pd.DataFrame(
-        getFlowBySector(
-            f'Detail_Supply_Mix_{year}',
-            download_FBAs_if_missing=download_sources_ok,
-            download_FBS_if_missing=download_sources_ok,
+    method = f'Detail_Supply_Mix_{year}'
+    block = _read_supply_mix_block(method, download_sources_ok)
+    if seed_workbook_mismatch(block, year).empty:
+        return block
+
+    log.warning(
+        '%s disagrees with the summary Supply workbook; the stored table was '
+        'built from another BEA release. Rebuilding it locally from the workbook.',
+        method,
+    )
+    _rebuild_supply_mix(year)
+    block = _read_supply_mix_block(method, download_sources_ok=False)
+    mismatch = seed_workbook_mismatch(block, year)
+    if not mismatch.empty:
+        raise ValueError(
+            f'{method} still disagrees with the summary Supply workbook after a '
+            f'local rebuild, on {len(mismatch)} summary cell(s). Largest, USD:\n'
+            f'{mismatch.head(10).to_string()}'
         )
-    )
-    block = (
-        fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
-        .sum()
-        .unstack('SectorProducedBy')
-        .astype(float)
-    )
-    return block.reindex(
-        index=list(USA_2017_COMMODITY_CODES), columns=list(USA_2017_INDUSTRY_CODES)
-    ).fillna(0.0)
+    return block
+
+
+def seed_workbook_mismatch(block: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Summary Supply cells where *block* disagrees with the workbook, USD.
+
+    *block* is a detail commodity x industry Supply block, as
+    :func:`raw_supply_block` returns it. It is summed to summary cells and
+    compared with the published summary Supply table for *year*. Returns one
+    row per cell that is off by more than :data:`TOLERANCE_USD`, largest first;
+    an empty frame means the block is on the workbook.
+
+    ⚠️ **Cells the block leaves at zero are not compared.** The block spreads
+    each summary cell over the 2017 detail cells under it. A summary cell with
+    no 2017 detail cell under it has nowhere to go and is dropped: 2 to 5 cells
+    a year, $5m in 2017 and at most $249m (2020). That loss is a property of
+    the attribution, not of a stale cache, so it does not count here. A stale
+    copy moves the cells the block does carry, and those must agree exactly.
+    """
+    return _summary_mismatch(block, _published_summary_supply(int(year)))
 
 
 def seed_commodity_output(
@@ -782,6 +817,79 @@ def main() -> int:
                 print(f'\n=== {year}: groups the control left alone ===')
                 print(skipped[['industries', 'note']].to_string())
     return 0
+
+
+# --- the Supply seed and its workbook check --------------------------------
+
+
+def _read_supply_mix_block(method: str, download_sources_ok: bool) -> pd.DataFrame:
+    """Read the ``Detail_Supply_Mix_<year>`` FBS as a commodity x industry block, USD."""
+    fbs = pd.DataFrame(
+        getFlowBySector(
+            method,
+            download_FBAs_if_missing=download_sources_ok,
+            download_FBS_if_missing=download_sources_ok,
+        )
+    )
+    block = (
+        fbs.groupby(['SectorConsumedBy', 'SectorProducedBy'])['FlowAmount']
+        .sum()
+        .unstack('SectorProducedBy')
+        .astype(float)
+    )
+    return block.reindex(
+        index=list(USA_2017_COMMODITY_CODES), columns=list(USA_2017_INDUSTRY_CODES)
+    ).fillna(0.0)
+
+
+def _rebuild_supply_mix(year: int) -> None:
+    """Rebuild ``BEA_Summary_Supply`` and ``Detail_Supply_Mix`` for *year* locally.
+
+    Both are written to the local cache, newest first, so the next read of the
+    FBS finds the rebuilt copy. The FBA is rebuilt first and the FBS generation
+    then reads it locally; only the 2017 detail attribution source may still be
+    downloaded if it is missing.
+    """
+    from bedrock.extract.generateflowbyactivity import (  # noqa: PLC0415
+        generateFlowByActivity,
+    )
+    from bedrock.transform.flowbysector import FlowBySector  # noqa: PLC0415
+
+    generateFlowByActivity(source='BEA_Summary_Supply', year=int(year))
+    FlowBySector.generateFlowBySector(
+        f'Detail_Supply_Mix_{year}', download_sources_ok=True
+    )
+
+
+def _published_summary_supply(year: int) -> pd.DataFrame:
+    """The workbook's summary Supply table for *year*, as the loader returns it."""
+    from bedrock.extract.iot.io_2017 import _load_usa_summary_sut  # noqa: PLC0415
+
+    return _load_usa_summary_sut('Supply_summary', year)  # type: ignore[arg-type]
+
+
+def _summary_mismatch(block: pd.DataFrame, published: pd.DataFrame) -> pd.DataFrame:
+    """Compare a detail block with a published summary Supply table (million USD).
+
+    See :func:`seed_workbook_mismatch` for which cells count.
+    """
+    rows = pd.Series(block.index, index=block.index).map(_commodity_parent())
+    cols = pd.Series(block.columns, index=block.columns).map(_industry_parent())
+    seeded = block.groupby(rows).sum().T.groupby(cols).sum().T
+
+    workbook = (
+        published.reindex(index=seeded.index, columns=seeded.columns)
+        .apply(pd.to_numeric, errors='coerce')
+        .fillna(0.0)
+        * MILLION_CURRENCY_TO_CURRENCY
+    )
+    cells = pd.DataFrame(
+        {'seed_usd': seeded.stack(), 'workbook_usd': workbook.stack()}
+    ).rename_axis(['commodity_group', 'industry_group'])
+    cells['diff_usd'] = cells['seed_usd'] - cells['workbook_usd']
+    compared = cells[cells['seed_usd'] != 0.0]
+    off = compared[compared['diff_usd'].abs() > TOLERANCE_USD]
+    return off.reindex(off['diff_usd'].abs().sort_values(ascending=False).index)
 
 
 if __name__ == '__main__':
