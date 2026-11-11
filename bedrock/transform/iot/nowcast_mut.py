@@ -330,8 +330,8 @@ def balanced_make_wedge(
     """The Make tax wedge on the balanced taxes, industry x commodity, USD.
 
     Returns the cells and the ``T00TOP``/``T00SUB`` rows they sum to. Step 5
-    moves both the Use table's tax rows and the Supply table's ``TOP``/``SUB``
-    columns - by 89bn $M on ``T00TOP`` in 2022 - so the pre-balance operator
+    moves the Supply table's ``TOP``/``SUB`` detail inside BEA's summary
+    groups and the Use table's tax rows with them, so the pre-balance operator
     (:func:`~bedrock.transform.iot.nowcast_va_taxes.t00top_cells`,
     :func:`~bedrock.transform.iot.nowcast_va_taxes.t00sub_cells`) is only the
     pattern here. Its cells are fitted to the balanced Use rows (so Make's
@@ -346,12 +346,12 @@ def balanced_make_wedge(
     - ``SUB``: each commodity carries its balanced ``SUB``, scaled to the row
       total where the balance left the two a rounding apart.
 
-    ⚠️ The balance moves the rows and the columns separately, so they can
-    disagree on one code - ``531HSO``'s ``T00SUB`` is 2,444 $M in 2017 against
-    a ``SUB`` of 2,206 on the commodity only that industry makes. No cell
-    pattern meets both; the rows win (:func:`_fit`), and the difference stays
-    on that commodity's identity, where it is a Step 5 residual to report
-    rather than a placement to fake.
+    ⚠️ Where the rows and the columns disagree, no cell pattern meets both;
+    the rows win (:func:`_fit`), and the difference stays on that commodity's
+    identity, where it is a Step 5 residual to report rather than a placement
+    to fake. Step 5 now converts the rows from the columns after each Use pass
+    (:func:`~bedrock.transform.iot.nowcast_sut_assembly.tax_row_operator`), so
+    what is left is the last Supply pass's move, not two separate estimates.
     """
     commodities = list(USA_2017_COMMODITY_CODES)
     industries = list(USA_2017_INDUSTRY_CODES)

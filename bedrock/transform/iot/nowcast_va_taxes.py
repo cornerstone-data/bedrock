@@ -192,6 +192,7 @@ import pandas as pd
 from bedrock.transform.iot.nowcast_product_taxes import (
     NAMED_TAX_LINES,
     top_by_level,
+    trade_level_share,
 )
 from bedrock.transform.iot.nowcast_subsidies import (
     INJECTED_TYPE,
@@ -390,7 +391,12 @@ def t00top_row(year: int, block: pd.DataFrame | None = None) -> pd.Series:
     return t00top_cells(year, block=block).sum(axis=1).rename('T00TOP')
 
 
-def t00top_cells(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
+def t00top_cells(
+    year: int,
+    block: pd.DataFrame | None = None,
+    top: pd.Series | None = None,
+    duties: float | None = None,
+) -> pd.DataFrame:
     """:func:`t00top_row` on the Make axes: industry x commodity produced, USD.
 
     The row sums are ``T00TOP``. Each leg keeps the commodity it was allocated
@@ -399,15 +405,25 @@ def t00top_cells(year: int, block: pd.DataFrame | None = None) -> pd.DataFrame:
     trade industry's own output mix (BEA books that tax inside the trade margin,
     so it is trade output), and duties sit on the ``4200ID`` cell. The Make
     conversion places the wedge from these cells (#1161).
+
+    *top* (USD by commodity) and *duties* (the ``MDTY`` total, USD) replace
+    Step 4d's column and the duty extract. The balance passes its current
+    columns here, so the rows it carries stay a conversion of them.
     """
     _guard_year(year)
     industries = list(USA_2017_INDUSTRY_CODES)
     commodities = list(USA_2017_COMMODITY_CODES)
 
-    levels = top_by_level(year)
-    producer = levels['producer_level'].reindex(commodities).fillna(0.0)
-    trade = levels['trade_level'].reindex(commodities).fillna(0.0)
-    duties = float(mdty_detail_usd(year, False).sum())
+    if top is None:
+        levels = top_by_level(year)
+        producer = levels['producer_level'].reindex(commodities).fillna(0.0)
+        trade = levels['trade_level'].reindex(commodities).fillna(0.0)
+    else:
+        column = top.reindex(commodities).fillna(0.0).astype(float)
+        trade = column * trade_level_share().reindex(commodities).fillna(0.0)
+        producer = column - trade
+    if duties is None:
+        duties = float(mdty_detail_usd(year, False).sum())
 
     # ⚠️ ``block`` is the injection point for the GO control's fixed point, not a
     # convenience: passing None must keep the cached path, because every other
@@ -602,6 +618,45 @@ def t00sub_cells(year: int) -> pd.DataFrame:
     cells.index.name = 'industry'
     cells.columns.name = 'commodity'
     return -cells
+
+
+def t00sub_cells_on(year: int, sub: pd.Series, block: pd.DataFrame) -> pd.DataFrame:
+    """:func:`t00sub_cells` moved onto the column *sub*, USD negative.
+
+    *sub* is a ``SUB`` column by commodity, USD negative; *block* is the make
+    block, commodity x industry. Each commodity keeps the seed's split over
+    industries - code identity and the routings - scaled to its *sub* value.
+    A commodity with no seed subsidy takes *block*'s market shares, which is
+    the pattern the Make conversion falls back on for it.
+
+    Raises ``ValueError`` if a subsidised commodity has no seed split and no
+    producer in *block*: that subsidy has no industry to go to.
+    """
+    commodities = list(USA_2017_COMMODITY_CODES)
+    shares = _seed_sub_shares(int(year)).copy()
+    column = sub.reindex(commodities).fillna(0.0).astype(float)
+
+    unseeded = (shares.sum(axis=0) == 0.0) & (column != 0.0)
+    if unseeded.any():
+        fallback = market_shares_of(block).reindex(
+            index=commodities, columns=shares.index
+        )
+        shares.loc[:, unseeded] = fallback.loc[unseeded].T.fillna(0.0).to_numpy()
+        stranded = column[unseeded & (shares.sum(axis=0) == 0.0)]
+        if not stranded.empty:
+            raise ValueError(
+                f'{year} commodities {stranded.index.tolist()} carry subsidy '
+                'but have no seed split and no producer to place it on'
+            )
+    return shares.mul(column, axis=1)
+
+
+@functools.cache
+def _seed_sub_shares(year: int) -> pd.DataFrame:
+    """Each commodity's seed subsidy split over industries; columns sum to 1 or 0."""
+    seed = t00sub_cells(year)
+    total = seed.sum(axis=0)
+    return seed.div(total.where(total != 0.0), axis=1).fillna(0.0)
 
 
 def t00osub_row(year: int) -> pd.Series:
