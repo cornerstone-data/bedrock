@@ -416,10 +416,9 @@ def test_compare_output_and_L_y(
 @pytest.mark.eeio_integration
 @pytest.mark.xfail(
     reason=(
-        'Make and Use disagree on commodity output. The pinned MUT '
-        'v0.5.0_a166975 is the pre-rebuild table ($1.6T, 286 of 405 sectors). '
-        'On the #1162 rebuild (#1170) 15 sectors still fail: the waste '
-        'children (562*, #1165), 331410 and S00402 (q = 0).'
+        'Make and Use disagree on commodity output. On MUT v1.0.0_e7715da '
+        '(2024) 7 sectors fail, $12.4bn: 331410 (+$7.9bn, 46%), S00402 '
+        '(q = 0), 2122A0, 1111A0, 331420, 334118 and 212230.'
     ),
 )
 def test_domestic_L_y_from_use_final_demand_equals_q(
