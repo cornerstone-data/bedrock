@@ -98,6 +98,19 @@ def test_2017_anchoring_reproduces_the_published_cells_in_the_families() -> None
     )
 
 
+def test_computers_keep_their_census_split() -> None:
+    """``3341`` is not anchored: its imports are the raw FBS in every year (#1270)."""
+    assert '3341' not in ANCHORED_FAMILIES
+    for year in (2017, 2024):
+        raw, anchored = raw_import_vector(year), anchored_mcif(year)
+        computers = [c for c in raw.index if str(c).startswith('3341')]
+        pd.testing.assert_series_equal(
+            pd.Series(anchored[computers]),
+            pd.Series(raw[computers]),
+            check_names=False,
+        )
+
+
 def test_single_anchored_rows_leave_their_siblings_raw() -> None:
     """``311910`` is anchored alone; the rest of ``3119`` keeps its Census line."""
     assert '3119' not in ANCHORED_FAMILIES

@@ -79,11 +79,17 @@ EMPTY_GROUP_USD = 1e6
 #: published and relays and controls 0.53x; ``335999`` ran 1.7x and
 #: ``335920`` 0.28x. On the 2012 holdout the carried mix lands within L1 0.049
 #: of published 2017 for both, against 0.398 and 0.520 for the Census split.
+#:
+#: ``3341`` computers was taken out (Wes, 2026-11-11, #1270): on the current
+#: trade extract its Census split matches published 2017 closely - ``334111``
+#: 61.7bn of 107.4bn against 57.8 of 100.6, ``334118`` 40.2 against 37.6 - so
+#: the anchor bought little, and it tied 2018-2024 to a 2017 base. That base
+#: was a stale pre-#1258 trade FBS in the ``e7715da`` build. Its own Census
+#: split now carries every year.
 ANCHORED_FAMILIES: frozenset[str] = frozenset(
     {
         '3254',
         '3344',
-        '3341',
         '3399',
         '3259',
         '3332',
