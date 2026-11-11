@@ -29,7 +29,8 @@ GWP100_AR4 = GWP100["AR4"]
 GWP100_AR5 = GWP100["AR5"]
 GWP100_AR6 = GWP100["AR6"]
 
-IPCC_GHG_CEDA_EXCL_CH4 = ta.Literal[
+# Shared HFC/PFC/NF3 (+ majors excl. CH4) keys for the full species tables.
+_GWPGasExclCH4 = ta.Literal[
     "CO2",
     "N2O",
     "SF6",
@@ -56,12 +57,12 @@ IPCC_GHG_CEDA_EXCL_CH4 = ta.Literal[
     "c-C4F8",
     "NF3",
 ]
-IPCC_GHG_AR5_CEDA = ta.Union[IPCC_GHG_CEDA_EXCL_CH4, ta.Literal["CH4"]]
-IPCC_GHG_AR6_CEDA = ta.Union[
-    IPCC_GHG_CEDA_EXCL_CH4, ta.Literal["CH4_fossil", "CH4_non_fossil"]
-]
+GWPGasAR5 = ta.Union[_GWPGasExclCH4, ta.Literal["CH4"]]
+GWPGasAR6 = ta.Union[_GWPGasExclCH4, ta.Literal["CH4_fossil", "CH4_non_fossil"]]
 
-GWP100_AR5_CEDA: ta.Dict[IPCC_GHG_AR5_CEDA, float] = {
+# Full IPCC + GHG Protocol GWP100 species tables (majors + HFC/PFC/NF3).
+# Distinct from majors-only GWP100_AR5 / GWP100_AR6.
+GWP100_AR5_FULL: ta.Dict[GWPGasAR5, float] = {
     "CO2": GWP100_AR5["CO2"],
     "CH4": GWP100_AR5["CH4"],
     "N2O": GWP100_AR5["N2O"],
@@ -92,7 +93,7 @@ GWP100_AR5_CEDA: ta.Dict[IPCC_GHG_AR5_CEDA, float] = {
     "NF3": 16100,
 }
 
-GWP100_AR6_CEDA: ta.Dict[IPCC_GHG_AR6_CEDA, float] = {
+GWP100_AR6_FULL: ta.Dict[GWPGasAR6, float] = {
     "CO2": GWP100_AR6["CO2"],
     "CH4_fossil": GWP100_AR6["CH4_fossil"],
     "CH4_non_fossil": GWP100_AR6["CH4_non_fossil"],
@@ -123,17 +124,3 @@ GWP100_AR6_CEDA: ta.Dict[IPCC_GHG_AR6_CEDA, float] = {
     "c-C4F8": 10200,
     "NF3": 17400,
 }
-
-
-def derive_ar5_to_ar6_multiplier() -> dict[str, float]:
-    return {
-        **{
-            gas: GWP100_AR6_CEDA[gas] / GWP100_AR5_CEDA[gas]
-            for gas in list(ta.get_args(IPCC_GHG_CEDA_EXCL_CH4))
-        },
-        **{
-            "CH4_fossil": GWP100_AR6_CEDA["CH4_fossil"] / GWP100_AR5_CEDA["CH4"],
-            "CH4_non_fossil": GWP100_AR6_CEDA["CH4_non_fossil"]
-            / GWP100_AR5_CEDA["CH4"],
-        },
-    }

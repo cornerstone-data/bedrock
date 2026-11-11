@@ -43,7 +43,7 @@ from bedrock.extract.stewifbs.facility_combustion import (
 )
 from bedrock.transform.ghg import facility_coverage as fc
 from bedrock.utils.config.config_controllers import temp_usa_config
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +96,8 @@ def ghgrp_by_sector(year: int) -> pd.DataFrame:
     """GHGRP CO2e by BEA detail sector and subpart group, Mt (all but subpart D)."""
     gwp = {
         'CO2': 1.0,
-        'CH4': GWP100_AR6_CEDA['CH4_fossil'],
-        'N2O': GWP100_AR6_CEDA['N2O'],
+        'CH4': GWP100_AR6_FULL['CH4_fossil'],
+        'N2O': GWP100_AR6_FULL['N2O'],
     }
     flows = stewi.getInventory(
         'GHGRP', year=year, stewiformat='flowbyprocess', download_if_missing=True

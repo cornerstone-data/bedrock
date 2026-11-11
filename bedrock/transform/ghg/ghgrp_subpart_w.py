@@ -44,7 +44,7 @@ from bedrock.extract.epa.EPA_GHGRP_SubpartW import (
     facility_id,
     ghgrp_view,
 )
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 from bedrock.utils.logging.flowsa_log import log
 
 #: The two fuel classes a combustion record can fall in, and why the split is
@@ -144,7 +144,7 @@ def subpart_W_combustion(years: tuple[int, ...]) -> pd.DataFrame:
     kilograms to match the ``stewi`` convention, and ``Mscf`` carrying the
     reported volume where it survives :data:`GAS_FACTOR_BAND`.
     """
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     frames = []
     for year in years:
         raw = ghgrp_view(W_COMBUSTION_VIEW, year)

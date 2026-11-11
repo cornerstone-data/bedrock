@@ -74,7 +74,7 @@ Consequences for the published workbook:
 Resolution paths (TODO):
 
 - **A.** Switch bedrock `B` to physical-mass units and ship a real GWP
-  `C` from `bedrock.utils.emissions.gwp.GWP100_AR6_CEDA`.
+  `C` from `bedrock.utils.emissions.gwp.GWP100_AR6_FULL`.
 - **B.** Emit a `B_phys` companion sheet alongside the CO2e `B`, with a
   real GWP `C` keyed to `B_phys`.
 

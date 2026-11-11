@@ -8,7 +8,7 @@ In `useeior`, the `C` matrix is a real GWP characterization matrix
 
 In bedrock (Cornerstone), `B` is already in `kgCO2e / USD` -- AR6 GWPs are
 applied upstream during FBS aggregation in
-`bedrock.transform.allocation.derived` (`fbs['CO2e'] = ... * GWP100_AR6_CEDA`).
+`bedrock.transform.allocation.derived` (`fbs['CO2e'] = ... * GWP100_AR6_FULL`).
 See also `bedrock.utils.math.formulas` (top docstring): `B (g,c) [kgco2e/USD]`.
 
 As a consequence, the bedrock-side `C` returned by
@@ -25,7 +25,7 @@ drop-in `useeior` replacement. Options are documented in
 `bedrock/publish/README.md`:
 
   1. Switch bedrock `B` to physical-mass units and ship a real GWP `C` from
-     `bedrock.utils.emissions.gwp.GWP100_AR6_CEDA`.
+     `bedrock.utils.emissions.gwp.GWP100_AR6_FULL`.
   2. Or, emit a `B_phys` companion sheet alongside the CO2e `B` and a real
      GWP `C` keyed to `B_phys`.
 """
