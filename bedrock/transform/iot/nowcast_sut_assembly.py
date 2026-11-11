@@ -67,6 +67,7 @@ import numpy as np
 import pandas as pd
 
 from bedrock.extract.iot.bea_annual_update import assert_same_bea_annual_update
+from bedrock.extract.iot.io_2017 import _load_usa_summary_sut
 from bedrock.transform.iot.derived_intermediate_and_value_added import (
     detail_gross_output_panel,
 )
@@ -96,7 +97,11 @@ from bedrock.transform.iot.nowcast_mask import (
     published_2017_panel,
 )
 from bedrock.transform.iot.nowcast_supply_go_control import go_controlled_supply_block
-from bedrock.transform.iot.nowcast_sut_gras import SutBalanceResult, engine
+from bedrock.transform.iot.nowcast_sut_gras import (
+    GroupHold,
+    SutBalanceResult,
+    engine,
+)
 from bedrock.transform.iot.nowcast_targets import (
     FD_TARGET_COLUMNS,
     build_target_set,
@@ -104,6 +109,7 @@ from bedrock.transform.iot.nowcast_targets import (
     pce_electricity_cell_target,
     rest_of_world_adjustment_supply_make,
 )
+from bedrock.transform.iot.nowcast_va_taxes import t00sub_cells_on, t00top_cells
 from bedrock.utils.config.settings import (
     FBS_DIR,
     GIT_BRANCH,
@@ -120,6 +126,9 @@ from bedrock.utils.economic.balance.offset import (
 )
 from bedrock.utils.economic.balance.targets import TargetSet
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
+    load_bea_v2017_commodity_to_bea_v2017_summary,
+)
 
 #: Sweep bound for mask-contradicting seed cells, in $M. BEA publishes no cell
 #: below 1 million, so a violation at or under this is rounding, not signal.
@@ -634,6 +643,9 @@ class YearBalance:
     #: The held refinery co-products, when ``pin_refinery_secondaries_at_go_mix``
     #: is on and any cell is held.
     column_pin: ColumnPin | None = None
+    #: The ``TOP``/``SUB`` summary groups at entry, when ``hold_tax_groups``
+    #: is on: published, seed and held sums, $M.
+    tax_groups: pd.DataFrame | None = None
 
 
 def write_column_shares(
@@ -891,14 +903,133 @@ def balance_with_column_pin(
     )
 
 
+#: The Supply tax columns the balance holds to BEA's summary groups.
+HELD_TAX_COLUMNS: tuple[str, ...] = ('TOP', 'SUB')
+
+
+def published_tax_groups(year: int) -> pd.DataFrame:
+    """The summary Supply ``TOP``/``SUB`` columns for *year*, $M, by summary commodity.
+
+    ``SUB`` is negative, as BEA stores it and as the balance carries it.
+    """
+    supply = _load_usa_summary_sut('Supply_summary', year)  # type: ignore[arg-type]
+    supply = supply.rename(columns=lambda c: str(c).strip())
+    groups = set(commodity_groups())
+    frame = supply[list(HELD_TAX_COLUMNS)].apply(pd.to_numeric, errors='coerce')
+    frame.index = [str(i).strip() for i in frame.index]
+    return frame.loc[[g for g in frame.index if g in groups]].fillna(0.0)
+
+
+def commodity_groups() -> pd.Series:
+    """Each detail commodity's summary commodity group."""
+    return pd.Series(
+        {
+            code: parents[0]
+            for code, parents in load_bea_v2017_commodity_to_bea_v2017_summary().items()
+        },
+        name='group',
+    )
+
+
+def hold_seed_on_tax_groups(
+    year: int, supply_seed: pd.DataFrame, mask: SutMask
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """*supply_seed* with ``TOP``/``SUB`` moved onto the published summary groups, $M.
+
+    Within each group, the free cells are scaled so the group sums to its
+    published value; frozen cells keep their seed value. Returns the new seed
+    and one row per column and group: published, seed and held sums, $M. A
+    group with no nonzero free cell cannot be scaled, so it keeps its seed
+    sum and its row shows the miss.
+    """
+    seed = supply_seed.copy()
+    published = published_tax_groups(int(year))
+    group_of = commodity_groups().reindex(seed.index)
+    rows = []
+    for column in HELD_TAX_COLUMNS:
+        cells = seed[column].astype(float)
+        free = mask.free[column]
+        for group, target in published[column].items():
+            members = group_of.eq(str(group))
+            movable = members & free & cells.ne(0.0)
+            fixed = float(cells[members & ~movable].sum())
+            movable_sum = float(cells[movable].sum())
+            if movable_sum != 0.0:
+                scale = (float(target) - fixed) / movable_sum
+                cells[movable] = cells[movable] * scale
+            rows.append(
+                {
+                    'column': column,
+                    'group': group,
+                    'published': float(target),
+                    'seed': fixed + movable_sum,
+                    'held': float(cells[members].sum()),
+                }
+            )
+        seed[column] = cells
+    return seed, pd.DataFrame(rows).set_index(['column', 'group'])
+
+
+def tax_group_holds(year: int, frozen_supply: pd.DataFrame) -> tuple[GroupHold, ...]:
+    """The engine's ``TOP``/``SUB`` group holds: published group sums less frozen, $M."""
+    published = published_tax_groups(int(year))
+    groups = commodity_groups().reindex(frozen_supply.index)
+    holds = []
+    for column in HELD_TAX_COLUMNS:
+        frozen = frozen_supply[column].astype(float).groupby(groups).sum()
+        target = published[column] - frozen.reindex(published.index).fillna(0.0)
+        holds.append(GroupHold(column=column, groups=groups, targets=target))
+    return tuple(holds)
+
+
+def tax_row_operator(
+    year: int, frozen: ta.Mapping[str, pd.DataFrame]
+) -> ta.Callable[[pd.DataFrame], pd.DataFrame]:
+    """The engine's tax operator for *year*: free Supply block to free tax rows, $M.
+
+    The Use ``T00TOP``/``T00SUB`` rows are a conversion of the Supply
+    ``TOP``/``MDTY``/``SUB`` columns, not a separate estimate. The operator
+    adds the *frozen* cells back, converts the whole columns on the current
+    make block (:func:`~bedrock.transform.iot.nowcast_va_taxes.t00top_cells`,
+    :func:`~bedrock.transform.iot.nowcast_va_taxes.t00sub_cells_on`), and
+    returns the rows less their frozen part, by industry. The row totals are
+    the column totals, so T12 and T13 hold by construction.
+    """
+    million = MILLION_CURRENCY_TO_CURRENCY
+
+    def rows(z_supply: pd.DataFrame) -> pd.DataFrame:
+        frozen_use = frozen['use'].astype(float)
+        supply = (z_supply.astype(float) + frozen['supply'].astype(float)) * million
+        industries = [c for c in frozen_use.columns if c in supply.columns]
+        block = supply[industries]
+        top = t00top_cells(
+            int(year),
+            block=block,
+            top=supply['TOP'],
+            duties=float(supply['MDTY'].sum()),
+        ).sum(axis=1)
+        sub = t00sub_cells_on(int(year), supply['SUB'], block).sum(axis=1)
+        converted = pd.DataFrame({'T00TOP': top, 'T00SUB': sub}).T / million
+        converted = converted.reindex(columns=industries).fillna(0.0)
+        return converted - frozen_use.loc[['T00TOP', 'T00SUB'], industries]
+
+    return rows
+
+
 def assemble(
     year: int,
     *,
     fitted: bool = True,
     pce_constraint: PceConstraint | None = None,
     constrain_electricity_pce_cell: bool | None = None,
+    hold_tax_groups: bool = True,
 ) -> YearBalance:
     """Seeds, masks, targets and the dust sweep for *year* - no balance run.
+
+    With *hold_tax_groups*, the Supply ``TOP``/``SUB`` seed is moved onto the
+    published summary groups before the targets are injected
+    (:func:`hold_seed_on_tax_groups`), so the balance starts on the groups it
+    then holds.
 
     The sweep runs **before** the target injection: T18 is injected from the
     seed's own value-added column sums, so sweeping afterwards would shift the
@@ -915,6 +1046,12 @@ def assemble(
     seeds = assemble_seeds(int(year), fitted=fitted)
     masks = assemble_masks(int(year), pce_constraint=mode)
     sweep = conform_seeds(seeds, masks)
+    tax_groups = None
+    if hold_tax_groups:
+        held, tax_groups = hold_seed_on_tax_groups(
+            int(year), seeds['supply'], masks['supply']
+        )
+        seeds = {**seeds, 'supply': held}
     targets = assemble_targets(
         int(year), seeds['use'], seeds['supply'], pce_constraint=mode
     )
@@ -930,6 +1067,7 @@ def assemble(
         result=None,
         balanced=None,
         column_pin=pin,
+        tax_groups=tax_groups,
     )
 
 
@@ -941,17 +1079,25 @@ def balance_year(
     max_outer: int = 20,
     pce_constraint: PceConstraint | None = None,
     constrain_electricity_pce_cell: bool | None = None,
+    convert_tax_rows: bool = True,
+    hold_tax_groups: bool = True,
 ) -> YearBalance:
     """Assemble and balance one year: split, offset, engine, restore.
 
     With held refinery co-products, :func:`balance_with_column_pin` repeats the
     balance until their shares of the balanced column hold.
+
+    *convert_tax_rows* passes :func:`tax_row_operator` to the engine, so the
+    Use ``T00TOP``/``T00SUB`` rows stay a conversion of the Supply columns.
+    *hold_tax_groups* holds ``TOP``/``SUB`` to the published summary groups,
+    with the detail free inside each group (:func:`tax_group_holds`).
     """
     mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     assembled = assemble(
         int(year),
         fitted=fitted,
         pce_constraint=mode,
+        hold_tax_groups=hold_tax_groups,
     )
     band = _pce_eia_band_m(int(year)) if mode == 'eia_band' else None
 
@@ -968,6 +1114,10 @@ def balance_year(
             max_outer=max_outer,
             pce_constraint=mode,
             pce_eia_band_m=band,
+            tax_rows=tax_row_operator(year, frozen) if convert_tax_rows else None,
+            group_holds=(
+                tax_group_holds(year, frozen['supply']) if hold_tax_groups else ()
+            ),
         )
         return out, restore_fixed_blocks(out.blocks, frozen)
 
@@ -984,6 +1134,7 @@ def balance_year(
         result=out,
         balanced=restored,
         column_pin=assembled.column_pin,
+        tax_groups=assembled.tax_groups,
     )
 
 

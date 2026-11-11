@@ -212,4 +212,4 @@ def test_balance_year_calls_assert_post_balance_hygiene(
         _boom,
     )
     with pytest.raises(ValueError, match='hygiene boom'):
-        balance_year(2022)
+        balance_year(2022, hold_tax_groups=False)

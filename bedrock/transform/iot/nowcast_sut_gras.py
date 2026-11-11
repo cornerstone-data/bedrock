@@ -30,6 +30,15 @@ of a column of ``A``. Putting ``+d`` on ``V00300`` and ``-d`` across the free
 sign-flexible commodity cells of the same column **imposes T18 and leaves T1
 exactly where the pass put it**, because the column sum does not move.
 
+**The Use tax rows follow the Supply tax columns.** ``T00TOP``/``T00SUB`` are
+a conversion of ``TOP``/``MDTY``/``SUB`` onto the industry axis, not a
+separate estimate. T12/T13 hold only their totals, so the balance can move
+the rows and the columns apart, and the Make conversion then has no cell
+pattern that meets both. With ``tax_rows`` (the caller's conversion operator),
+:func:`_apply_tax_row_closer` puts the rows back on the conversion of the
+current columns after each Use pass, before T18. The difference goes on
+``V00300``, as in T18's closer, so ``T005`` and ``VAPRO`` do not move.
+
 Soft targets when ``impose_soft`` (default True): T2/T7 are a weighted blend
 from the entry Z; T4 is a column-neutral closer after each Use pass.
 T6/T8/T9 whole-name defer when T12–T14 occupy any of their slots.
@@ -44,11 +53,12 @@ literals match ``nowcast_mask.SUPPLY_BRIDGE_COLUMNS`` and Use VA rows
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from bedrock.utils.economic.balance.gras import GrasBalanceResult, gras_balance
@@ -87,6 +97,21 @@ _PCE_ELEC_COL = 'F01000'
 #: Local Literal — do not import ``PceConstraint`` from ``nowcast_mask``.
 PceConstraintLocal = Literal['none', 'tier1_fixed', 'row_side_target', 'eia_band']
 REQUIRED = ('T1', 'T11')
+
+
+@dataclass(frozen=True)
+class GroupHold:
+    """Hold one Supply column's sums over groups of commodities, $M.
+
+    *groups* maps each commodity (row label) to its group; *targets* is the
+    free part of each group's sum. Inside a group the cells stay free. A
+    group whose free cells are all zero cannot move, so it holds at its
+    current sum instead, and so do commodities with no group.
+    """
+
+    column: str
+    groups: pd.Series
+    targets: pd.Series
 
 
 @dataclass(frozen=True)
@@ -608,6 +633,50 @@ def _apply_t18_closer(
     return z
 
 
+def _apply_tax_row_closer(
+    z_use: pd.DataFrame,
+    mask: SutMask,
+    desired: pd.DataFrame,
+) -> pd.DataFrame:
+    """Put the ``T00TOP``/``T00SUB`` cells on *desired*, the offset on ``V00300``.
+
+    *desired* is rows ``T00TOP``/``T00SUB`` by industry, the free part of the
+    rows the tax operator converts from the current Supply columns. Each moved
+    cell takes ``d`` and ``V00300`` in the same column takes ``-d``, so the
+    column sum (T1) and the value-added total (T18) do not move.
+
+    Copy first: ``_balance_block`` wraps ``result.matrix`` with no copy.
+
+    A cell is skipped when it or ``V00300`` is frozen, or when the move would
+    cross a sign lock. A skip leaves that cell where the pass put it.
+    """
+    z = z_use.copy()
+    free = mask.free
+    lock = mask.sign_lock
+    for row in desired.index:
+        name = str(row)
+        for label in desired.columns:
+            column = str(label)
+            cell = _cell(z, name, column)
+            delta = _cell(desired, name, column) - cell
+            if delta == 0.0:
+                continue
+            if not (bool(free.loc[name, column]) and bool(free.loc[V00300, column])):
+                continue
+            surplus = _cell(z, V00300, column) - delta
+            if _crosses(_cell(lock, name, column), cell + delta) or _crosses(
+                _cell(lock, V00300, column), surplus
+            ):
+                continue
+            z.loc[name, column] = cell + delta
+            z.loc[V00300, column] = surplus
+    return z
+
+
+def _crosses(lock: float, value: float) -> bool:
+    return (lock > 0 and value < 0.0) or (lock < 0 and value > 0.0)
+
+
 def _balance_block(
     z: pd.DataFrame,
     mask: SutMask,
@@ -616,19 +685,84 @@ def _balance_block(
     *,
     rtol: float,
     close_rows_exactly: bool,
+    holds: tuple[GroupHold, ...] = (),
 ) -> tuple[pd.DataFrame, GrasBalanceResult]:
+    x = z.to_numpy(dtype=np.float64)
+    free = mask.free.to_numpy()
+    flex = mask.sign_lock.to_numpy() == 0
+    col = col_t.to_numpy(dtype=np.float64)
+    owner = np.arange(x.shape[1])
+    if holds:
+        x, free, flex, col, owner = _split_held_columns(z, free, flex, col, holds)
     result = gras_balance(
-        matrix=z.to_numpy(dtype=np.float64),
+        matrix=x,
         row_targets=row_t.to_numpy(dtype=np.float64),
-        col_targets=col_t.to_numpy(dtype=np.float64),
-        free_mask=mask.free.to_numpy(),
-        sign_flex=mask.sign_lock.to_numpy() == 0,
+        col_targets=col,
+        free_mask=free,
+        sign_flex=flex,
         rtol=rtol,
         project_infeasible=False,
         close_rows_exactly=close_rows_exactly,
     )
-    balanced = pd.DataFrame(result.matrix, index=z.index, columns=z.columns)
+    merged = np.zeros((x.shape[0], z.shape[1]))
+    np.add.at(merged.T, owner, result.matrix.T)
+    balanced = pd.DataFrame(merged, index=z.index, columns=z.columns)
     return balanced, result
+
+
+def _split_held_columns(
+    z: pd.DataFrame,
+    free: npt.NDArray[np.bool_],
+    flex: npt.NDArray[np.bool_],
+    col: npt.NDArray[np.float64],
+    holds: tuple[GroupHold, ...],
+) -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.bool_],
+    npt.NDArray[np.bool_],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.intp],
+]:
+    """Each held column as one column per group, with the group's target.
+
+    GRAS takes one target per column. Split into groups, a held column takes
+    one target per group, and each row still has exactly one cell for it, so
+    the row identities do not change. ``owner`` maps each split column back
+    to the column it came from.
+    """
+    by_column = {hold.column: hold for hold in holds}
+    xs, frees, flexes, targets, owners = [], [], [], [], []
+    for j, label in enumerate(z.columns):
+        hold = by_column.get(str(label))
+        if hold is None:
+            xs.append(z.iloc[:, j].to_numpy(dtype=np.float64))
+            frees.append(free[:, j])
+            flexes.append(flex[:, j])
+            targets.append(col[j])
+            owners.append(j)
+            continue
+        group_of = hold.groups.reindex(z.index).astype(object)
+        cells = z.iloc[:, j].to_numpy(dtype=np.float64)
+        labels = [*pd.unique(group_of.dropna()), None]
+        for group in labels:
+            rows = (group_of.isna() if group is None else group_of.eq(group)).to_numpy()
+            values = np.where(rows, cells, 0.0)
+            movable = free[:, j] & rows
+            target = float(values.sum())
+            if group is not None and (movable & (values != 0.0)).any():
+                target = float(hold.targets.get(group, target))
+            xs.append(values)
+            frees.append(movable)
+            flexes.append(flex[:, j])
+            targets.append(target)
+            owners.append(j)
+    return (
+        np.column_stack(xs),
+        np.column_stack(frees),
+        np.column_stack(flexes),
+        np.asarray(targets, dtype=np.float64),
+        np.asarray(owners, dtype=np.intp),
+    )
 
 
 def engine(
@@ -643,6 +777,8 @@ def engine(
     impose_soft: bool = True,
     pce_constraint: PceConstraintLocal = 'none',
     pce_eia_band_m: tuple[float, float] | None = None,
+    tax_rows: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
+    group_holds: tuple[GroupHold, ...] = (),
 ) -> SutBalanceResult:
     """Balance Use then Supply against a residual TargetSet.
 
@@ -655,6 +791,17 @@ def engine(
     ``pce_constraint`` (#1008): ``'row_side_target'`` runs the T1008 closer;
     ``'eia_band'`` clips to ``pce_eia_band_m`` ($M). Tier-1 fixed is handled
     by the mask, not here. Closers run after T4 and before T18.
+
+    ``tax_rows`` is the tax operator: it takes the current free Supply block
+    and returns the free part of the ``T00TOP``/``T00SUB`` rows that convert
+    its ``TOP``/``MDTY``/``SUB`` columns, rows by industry, $M. When given,
+    :func:`_apply_tax_row_closer` puts the Use tax rows on it after each Use
+    pass, so the rows follow the columns instead of being balanced apart from
+    them.
+
+    ``group_holds`` holds Supply columns to group sums (:class:`GroupHold`).
+    A held column's group targets replace its column total, so T12/T13's
+    Supply side is then the sum of the groups, and the Use rows follow it.
     """
     if max_outer < 1:
         raise ValueError(f'max_outer must be >= 1, got {max_outer}')
@@ -708,6 +855,8 @@ def engine(
             z_use = _apply_eia_band_closer(
                 z_use, masks['use'], pce_eia_band_m[0], pce_eia_band_m[1]
             )
+        if tax_rows is not None:
+            z_use = _apply_tax_row_closer(z_use, masks['use'], tax_rows(z_supply))
         t18 = _imposed(seen, 'T18')
         if t18 is not None:
             # After T4, never before: T4's closer sheds its compensation onto
@@ -724,6 +873,7 @@ def engine(
             col_t,
             rtol=rtol,
             close_rows_exactly=close_rows_exactly,
+            holds=group_holds,
         )
         blocks['use'] = z_use
         blocks['supply'] = z_supply
