@@ -62,12 +62,12 @@ Keep each explanation short and simple. Describe trends in plain words, and don'
 | **B** | ![B with 2017 = 1: 1.00 → 0.92 → 0.87 → 0.87 → 0.76 → 0.70 → 0.63 → 0.62](images/sector_trends/211000_B.svg) 2017 = 1.5 |
 | **E** | ![E with 2017 = 1: 1.00 → 1.09 → 1.12 → 1.02 → 1.01 → 1.02 → 0.99 → 1.00](images/sector_trends/211000_E.svg) 2017 = 353 |
 | **E source** | `UMD_GHGIA_T_3_28` via `Direct` (32%); `UMD_GHGIA_T_3_11.natural_gas_lease_plant` via `GHGRP_NEI_Facilities` (26%); `UMD_GHGIA_T_3_25` via `Direct` (13%) |
-| **E explanation** | Not yet assessed. |
+| **E explanation** | `E` stays flat. Process Direct falls -- petroleum-systems CH4 hard (63 to 38 Mt), natgas-systems softer (122 to 108 Mt) -- while lease and plant combustion rises with activity (80 to 105 Mt). The process drop is the national GHGI path, not allocation churn: shares to this sector stay high and oscillation is low. One BEA industry covers both oil and gas products, so those inventory lines do not move together. |
 | **q** | ![q with 2017 = 1: 1.00 → 1.19 → 1.30 → 1.20 → 1.33 → 1.46 → 1.58 → 1.63](images/sector_trends/211000_q.svg) 2017 = 213 |
-| **q explanation** | Not yet assessed. |
-| **A explanation** | Not yet assessed. Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Oil and gas extraction (11.7); Electric power generation, transmission, and distribution bought by Oil and gas extraction (6.3); Pipeline transportation bought by Oil and gas extraction (5.9) |
-| **L explanation** | Not yet assessed. |
-| **Conclusion** | **Provisional.** `B` falls 38% because `q` rises 63% while `E` stays flat. Flat `E` hides falling emissions in two inventory lines (122 to 108 Mt and 63 to 38 Mt) and rising lease and plant fuel (80 to 105 Mt). First check `q` against production volumes, because its price index swings from 0.70 to 1.81 of 2017. `L` is 48% of the movement. Own use is the largest `A` cell and swings widely: 2.57 per $100 of output in 2020, 6.97 in 2022 and 2.82 in 2023. Check whether 2021-22 is overstated. |
+| **q explanation** | `q` rises with BEA gross output for oil and gas (UGO305-A). That dollar series matches EIA crude first-purchase value plus Henry Hub times marketed gas (~1:1 level and growth). Crude and marketed-gas volumes both rise a lot over the span as well, so physical activity is up alongside real dollars. |
+| **A explanation** | Largest cells, gross percent of `N_d`: Oil and gas extraction bought by Oil and gas extraction (11.7); Electric power generation, transmission, and distribution bought by Oil and gas extraction (6.3); Pipeline transportation bought by Oil and gas extraction (5.9). Own use swings hard: 2.57 per $100 of output in 2020, 6.97 in 2022 and 2.82 in 2023. That cell is for the `L`/`N` half only. |
+| **L explanation** | About half the movement in `N_d` (48%). Unresolved. Next check is whether own use overstates 2021-22. |
+| **Conclusion** | **Direct/`B` justified; `L` open.** `B` falls 38% because real `q` rises 63% while `E` stays flat. Flat `E` is GHGI process Direct down and lease/plant up -- not Use churn -- and GO matches EIA production dollars, so the dollar intensity path is E over rising real output. External physical intensity refs agree on direction with smaller magnitudes (different denominator; combined oil+gas, not product-separate). Do not treat 2020 as the headline: commodity `B` barely moves that year. Still open: `L` / own-use 2021-22. |
 
 Earlier findings:
 
