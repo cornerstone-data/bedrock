@@ -41,7 +41,7 @@ from bedrock.extract.stewifbs.facility_combustion import (
 )
 from bedrock.transform.ghg import ghgrp_subpart_w
 from bedrock.utils.config.common import load_crosswalk
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 from bedrock.utils.mapping.location import BEA_ECONOMIC_TERRITORY
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ def _drop_outside_geography(
 
 def ghgrp_subpart_C_by_sector(year: int) -> pd.Series:
     """GHGRP subpart C combustion by BEA detail, Mt CO2e, for one year."""
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     to_bea = _naics_to_bea_detail()
     flows = stewi.getInventory(
         'GHGRP', year=year, stewiformat='flowbyprocess', download_if_missing=True
@@ -158,7 +158,7 @@ def ghgrp_process_subparts_by_sector(year: int) -> pd.Series:
     (and the excluded power subpart D): process emissions plus any kiln or
     furnace fuel those subparts report with them (#1060).
     """
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     to_bea = _naics_to_bea_detail()
     flows = stewi.getInventory(
         'GHGRP', year=year, stewiformat='flowbyprocess', download_if_missing=True

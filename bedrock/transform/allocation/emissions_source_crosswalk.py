@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from bedrock.utils.emissions.gwp import GWP100_AR5_CEDA, GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR5_FULL, GWP100_AR6_FULL
 
 DATA_DIR = Path(__file__).resolve().parent / 'data'
 CROSSWALK_PATH = (
@@ -29,7 +29,7 @@ CEDA_SOURCES_PATH = DATA_DIR / 'ceda_emissions_sources.csv'
 KEYS = ['MetaSources', 'ActivityProducedBy', 'Flowable']
 
 UNSPECIFIED = 'HFCs and PFCs, unspecified'
-_AR5: dict[str, float] = {str(k): v for k, v in GWP100_AR5_CEDA.items()}
+_AR5: dict[str, float] = {str(k): v for k, v in GWP100_AR5_FULL.items()}
 SPECIES_AR5_KEY = {
     'HFC-23': 'HFC-23',
     'HFC-32': 'HFC-32',
@@ -88,7 +88,7 @@ def load_crosswalk() -> pd.DataFrame:
 
 def speciate_unspecified_hfcs(fbs: pd.DataFrame) -> pd.DataFrame:
     """Split unspecified HFC/PFC CO2e across species reported beside it (AR5)."""
-    gwp = fbs['Flowable'].map(SPECIES_AR5_KEY).map(GWP100_AR5_CEDA)
+    gwp = fbs['Flowable'].map(SPECIES_AR5_KEY).map(GWP100_AR5_FULL)
     species = fbs[gwp.notna() & (fbs['Unit'] == 'kg')].assign(
         ar5=lambda d: d['FlowAmount'] * gwp[d.index]
     )
@@ -160,8 +160,8 @@ def tag_fbs_rows(fbs: pd.DataFrame, crosswalk: pd.DataFrame) -> pd.DataFrame:
 def add_co2e_columns(fbs: pd.DataFrame) -> pd.DataFrame:
     """Add ``kg``, ``co2e_ar5``, ``co2e_ar6`` from ``FlowAmount`` / ``Unit`` / ``Flowable``."""
     gwp_key = fbs['Flowable'].map(lambda f: _FLOWABLE_GWP_KEY.get(f, f))
-    ar5 = gwp_key.map(lambda k: GWP100_AR5_CEDA.get(k, 1.0))
-    ar6 = gwp_key.map(lambda k: GWP100_AR6_CEDA.get(k, 1.0))
+    ar5 = gwp_key.map(lambda k: GWP100_AR5_FULL.get(k, 1.0))
+    ar6 = gwp_key.map(lambda k: GWP100_AR6_FULL.get(k, 1.0))
     is_kg = fbs['Unit'] == 'kg'
     out = fbs.copy()
     out['kg'] = fbs['FlowAmount'].where(is_kg, other=float('nan'))

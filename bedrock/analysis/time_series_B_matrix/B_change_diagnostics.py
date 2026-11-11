@@ -127,7 +127,7 @@ from bedrock.transform.ghg import ghgrp_self_supplied, ghgrp_subpart_w
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.settings import FBS_DIR, MODULEPATH
 from bedrock.utils.emissions.ch4_classification import apply_ch4_non_fossil_flowable
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 from bedrock.utils.math.formulas import (
     compute_L_matrix,
     rebase_coefficient_matrix,
@@ -489,7 +489,7 @@ def resolve_vintages(
 
 # --- Step 1: FBS -> CO2e, keeping the source columns ------------------------
 
-#: Flowable names as published -> the names :data:`GWP100_AR6_CEDA` is keyed on.
+#: Flowable names as published -> the names :data:`GWP100_AR6_FULL` is keyed on.
 #: Identical to ``load_E_from_flowsa``; kept here because this module needs the
 #: pre-pivot frame, which that function does not return.
 GAS_MAP: dict[str, str] = {
@@ -544,9 +544,9 @@ def fbs_to_co2e(fbs: pd.DataFrame) -> pd.DataFrame:
         mapped = electricity_delivery.move_delivery_flows(mapped)
     apply_ch4_non_fossil_flowable(mapped)
 
-    # Widened to plain str keys: GWP100_AR6_CEDA is typed on a Literal of the
+    # Widened to plain str keys: GWP100_AR6_FULL is typed on a Literal of the
     # gas names it knows, and the two basket rows below are not among them.
-    gwp: dict[str, float] = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp: dict[str, float] = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     gwp['HFCs'] = 1.0  # already CO2e as published
     gwp['PFCs'] = 1.0
     factors = mapped['Flowable'].map(gwp)
@@ -1527,7 +1527,7 @@ def _jurisdiction_class(state: pd.Series) -> pd.Series:
 #: family GHGRP subpart C can be compared against directly.
 COMBUSTION_METASOURCE = 'T_3_11'
 
-#: GHGRP flow names -> the gas names :data:`GWP100_AR6_CEDA` knows. Biogenic CO2
+#: GHGRP flow names -> the gas names :data:`GWP100_AR6_FULL` knows. Biogenic CO2
 #: is deliberately absent: the GHG inventory books it separately, so including
 #: it would compare a fossil allocation against a fossil-plus-biogenic floor.
 GHGRP_FLOW_MAP = {
@@ -1612,7 +1612,7 @@ def ghgrp_subpart_C(years: tuple[int, ...]) -> pd.DataFrame:
     down to 2. In 2022 that resolves 95.7% of subpart C mass on an exact
     6-digit match and 3.6% on a shorter one.
     """
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     to_bea = _naics_to_bea_detail()
     lookup = set(to_bea.index)
 
@@ -1879,7 +1879,7 @@ def ghgrp_facility_floor(years: tuple[int, ...]) -> pd.DataFrame:
     test assumes nothing about which subpart answers which inventory table - see
     :func:`under_attributed_sectors` and #948.
     """
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     columns = []
     for year in ghgrp_served_years(years):
         flows = stewi.getInventory(
@@ -2049,7 +2049,7 @@ def carveout_by_sector(years: tuple[int, ...], by_fuel: bool = False) -> pd.Data
 
     :param by_fuel: return sector x fuel x year instead of sector x year
     """
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     subpart_c = {}
     for year in ghgrp_served_years(years):
         flows = stewi.getInventory(
@@ -2398,7 +2398,7 @@ def facility_combustion(year: int) -> pd.DataFrame:
             )
         )
 
-    gwp = {str(k): float(v) for k, v in GWP100_AR6_CEDA.items()}
+    gwp = {str(k): float(v) for k, v in GWP100_AR6_FULL.items()}
     flows = stewi.getInventory(
         'GHGRP', year, stewiformat='flowbyprocess', download_if_missing=True
     )

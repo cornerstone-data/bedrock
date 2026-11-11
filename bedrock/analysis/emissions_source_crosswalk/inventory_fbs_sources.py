@@ -43,7 +43,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from bedrock.utils.emissions.gwp import GWP100_AR6_CEDA
+from bedrock.utils.emissions.gwp import GWP100_AR6_FULL
 
 OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
 MATCH_THRESHOLD = 0.75
@@ -369,7 +369,7 @@ def _source_comments(method: str) -> dict[str, str]:
 
 def _fbs_totals(method: str) -> pd.DataFrame:
     fbs = _load_fbs(method)
-    gwp_table: dict[str, float] = {str(k): v for k, v in GWP100_AR6_CEDA.items()}
+    gwp_table: dict[str, float] = {str(k): v for k, v in GWP100_AR6_FULL.items()}
     gwp = fbs['Flowable'].map(
         lambda f: gwp_table.get(_GWP_KEY.get(f, _FBS_TO_CEDA_GAS.get(f) or f), 1.0)
     )

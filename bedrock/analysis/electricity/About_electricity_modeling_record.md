@@ -22,6 +22,8 @@ Codes used throughout:
 | `chain_services_seed_across_aies` | on | keeps services electricity cells from jumping at the 2023 survey change | #1030 |
 | `move_data_processing_electricity_on_lbnl` | on | moves data processing's electricity on LBNL's data center series | #1035 |
 | `implement_electricity_reallocation`, `_disaggregation`, `_mixed_units`, `_reaggregation` | off by default | generation, transmission and distribution split; not part of the nowcast tables | methods Discussions #88 and #90 |
+| `electricity_delivery_margin` | on, since #1261 | splits electric power into `221100` generation and `42ELEC` delivery after Step 7, with delivery as a margin that differs by buyer (section 13) | #902, #1217, #1223 |
+| `electric_output_on_eia_level`, `electricity_accounting_residual` | on, since #1261 | electric output follows EIA retail revenue, and the value added above it moves to buyers' surplus in Step 5 | #1199, #1271 |
 
 ## 2. How BEA builds electric gross output
 
@@ -214,6 +216,7 @@ Open since #1009 and not filed separately. Section 2 gives a fit-based answer. A
 | How much each A cell moves `N`, and the electricity row across commodities | `nowcasting/About_the_L_flux_priority.md` |
 | Electricity emissions source: eGRID, Puerto Rico, 2017 | #911, #913, #914, #947 |
 | Gas distribution's factor with the delivery margin | section 12, #1223 |
+| Checks on the generation and delivery split, 2017-2024 | section 13, `current/eia_gtd/electricity_split_checks.py`, #903, #1217 |
 
 ## 11. Electric power in the B tracker
 
@@ -343,3 +346,59 @@ Limits of this check:
 - The Make table and outputs come from `2026_usa_cornerstone_v1_0` for 2024. Emissions are from the snapshot `c9b69d94` that the #1223 diagnostics compare against. The model totals are from those diagnostics.
 - The inputs move in proportion to electric power's whole input mix, so the gas distribution industry now buys some coal and fuel oil ($0.18bn of coal mining). The commodity's upstream already came 11% from that mix before the step, so it hardly changes: oil and gas extraction contributes 0.034 kg CO2e/$ both before and after. Electricity's contribution rises from 0.019 to 0.024, from the delivery split's change to the electricity factor, not from this step.
 - `S00203`'s share is estimated from its commodity's factor, 0.084, and doesn't change.
+
+## 13. The generation and delivery split passes its checks on the release build
+
+The split (section 1, `electricity_delivery_margin`) was checked for every year 2017-2024 on the combined rebuild `v1.0.0_e7715da`, the build the v1.0 configs are pinned to. Each check builds the year's model with the split and, where it compares, without it.
+
+```
+python -m bedrock.analysis.electricity.current.eia_gtd.electricity_split_checks --years 2017-2024 --mut-vintage v1.0.0_e7715da --check
+```
+
+All nine checks pass in all eight years:
+
+| check | what it tests |
+|---|---|
+| class kWh | residential, commercial, industrial and transportation kWh each equal EIA Table 2.2 sales |
+| bills | each buyer's generation plus delivery equals its bill |
+| negative delivery | no buyer has negative delivery. A buyer priced below generation is floored at zero delivery and listed |
+| emissions | total direct emissions are the same with and without the split, and generation per kWh is the same for every buyer that isn't floored |
+| output | generation plus delivery, less the line losses delivery buys from generation, equals electric power's output before the split |
+| average factor | the purchaser-price factor for the average buyer is within 10% of the factor without the split |
+| prices | the kWh-weighted industrial price is within 2.5% of EIA's, and the manufacturing price equals MECS at the 2022 survey |
+| prices don't depend on bills | doubling every bill leaves buyer prices, class kWh and the generation price unchanged |
+| compensation | delivery's share of electric compensation equals the payroll share of NAICS 22112 in QCEW |
+
+The tables also balance. The check that commodity output equals what final demand requires through the domestic Leontief inverse (`q = L_dom y`) was run for 2017-2024 on the same build (#1270). Generation and delivery pass in every year. The sectors that fail are the metals chain and a few small cases, traced in #1270 to negative domestic use, not to this split.
+
+Results from the same run, kg CO2e per $:
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| average buyer, with the split | 4.92 | 4.78 | 4.43 | 4.07 | 4.11 | 3.57 | 3.19 | 3.07 |
+| without the split | 4.81 | 4.68 | 4.34 | 3.98 | 4.02 | 3.48 | 3.12 | 3.00 |
+| residential | 4.12 | 3.97 | 3.68 | 3.36 | 3.41 | 2.94 | 2.56 | 2.43 |
+| commercial | 4.66 | 4.60 | 4.20 | 3.90 | 3.87 | 3.53 | 3.28 | 3.17 |
+| industrial | 7.78 | 7.54 | 7.13 | 6.74 | 6.86 | 5.40 | 4.80 | 4.76 |
+| generation alone, at producer price | 10.65 | 11.20 | 10.48 | 9.91 | 9.42 | 7.91 | 6.63 | 6.66 |
+| delivery alone | 0.51 | 0.42 | 0.42 | 0.38 | 0.42 | 0.35 | 0.33 | 0.33 |
+
+The average buyer's factor sits 2-3% above the factor without the split in every year. Industrial buyers pay about 1.9 times the residential factor per dollar, because they pay less per kWh and so buy more kWh, and more emissions, per dollar.
+
+| | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| industrial price, ours, ¢/kWh | 6.80 | 6.81 | 6.75 | 6.79 | 7.25 | 8.33 | 8.16 | 8.26 |
+| EIA industrial price, ¢/kWh | 6.88 | 6.92 | 6.81 | 6.67 | 7.18 | 8.32 | 8.04 | 8.13 |
+| buyers floored at zero delivery | 7 | 2 | 2 | 3 | 6 | 1 | 2 | 3 |
+| their bills, $bn | 2.79 | 0.86 | 1.05 | 0.59 | 3.05 | 0.20 | 0.61 | 1.54 |
+
+Two review items from #1217:
+
+- **Electric power's purchases from itself stay in generation in full.** They were $9.9bn in 2024. This is power bought from other generators for resale, the wholesale trading BEA counts in electric output. Delivery buys only line losses from generation, so moving these purchases would count resold power as a delivery cost.
+- **The accounting residual stays a transfer.** It isn't a sector in the released model. In Step 5 it moves electric value added above what EIA revenue supports into buyers' operating surplus, before the split runs, and the split then divides what remains. Whether it should become a sector beside `42ELEC`, and whether the two overlap for commercial and industrial buyers, is #1271.
+
+Limits:
+
+- The "without the split" factor is the same build with only `electricity_delivery_margin` off, not the released v1.0.0-rc factor.
+- The 10% bound on the average factor and the 2.5% bound on the industrial price are set in the check, not taken from a source.
+- Factors by class aren't bounded, because no bound has been defined. They are reported here so a later build can be compared.

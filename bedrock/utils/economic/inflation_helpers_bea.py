@@ -1,7 +1,9 @@
-"""BEA industry price index for the configured ``bea_price_index_vintage``.
+"""BEA / Cornerstone industry price index for the configured vintage.
 
 2025Q2 reads the Watershed-derived parquet; later vintages read the index
-bedrock publishes (publish_price_index), the same object CEDA pins.
+bedrock publishes (``publish_price_index``). The pure BEA family and the
+Cornerstone family (BEA derive plus model overlays) are separate stems; CEDA
+pins the Cornerstone stem for model-facing inflate.
 """
 
 from __future__ import annotations
@@ -12,8 +14,9 @@ import pandas as pd
 
 from bedrock.extract.iot.gdp import BeaDataVersion
 from bedrock.transform.iot.publish_price_index import (
-    ARTIFACT_NAME,
     GCS_EXTRACT_OUTPUT_DIR,
+    PriceIndexFlavor,
+    artifact_name,
 )
 from bedrock.utils.config.settings import FBA_DIR
 from bedrock.utils.config.usa_config import get_usa_config
@@ -32,22 +35,26 @@ INFLATION_FACTOR_DATA_GCS_PATH = gcs_extract_input_path("BEA_PriceIndex")
 #: and v0.5 margins do not move.
 REFERENCE_PARQUET_VINTAGE: BeaDataVersion = "2025Q2"
 
-#: Published stem per later vintage, under ``extract/output-data``. Pinned, and
-#: the same stem CEDA pins in ``ceda/utils/inflation.py``, so both read one file.
+#: Pure-BEA published stem per later vintage, under ``extract/output-data``.
 PUBLISHED_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
     "2026Q2": "BEA_PriceIndex_2026Q2_v0.5.0_a166975",
+}
+
+#: Cornerstone published stem (BEA derive + overlays such as EIA electric).
+PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
+    "2026Q2": "Cornerstone_PriceIndex_2026Q2_v1.0.0_983121d",
 }
 
 
 def obtain_inflation_factors_from_reference_data(
     vintage: BeaDataVersion | None = None,
 ) -> pd.DataFrame:
-    """Wide sector x year price index; ``vintage`` defaults to the config's."""
+    """Wide sector x year pure-BEA price index; ``vintage`` defaults to config."""
     if vintage is None:
         vintage = get_usa_config().bea_price_index_vintage
     if vintage == REFERENCE_PARQUET_VINTAGE:
         return _load_reference_parquet()
-    return load_published_price_index(vintage)
+    return load_published_price_index(vintage, flavor='bea')
 
 
 def _load_reference_parquet() -> pd.DataFrame:
@@ -78,17 +85,36 @@ def _load_reference_parquet() -> pd.DataFrame:
     return price_index
 
 
-def load_published_price_index(vintage: BeaDataVersion) -> pd.DataFrame:
-    """Wide sector x year index from the published ``vintage`` (publish_price_index)."""
-    stem = PUBLISHED_PRICE_INDEX_STEMS.get(vintage)
+def load_published_price_index(
+    vintage: BeaDataVersion,
+    *,
+    flavor: PriceIndexFlavor,
+) -> pd.DataFrame:
+    """Wide sector x year index from the published ``vintage`` / ``flavor``.
+
+    ``flavor`` is required so callers choose BEA vs Cornerstone explicitly
+    (same rule as ``publish_price_index --flavor``).
+    """
+    stems = (
+        PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS
+        if flavor == 'cornerstone'
+        else PUBLISHED_PRICE_INDEX_STEMS
+    )
+    stem = stems.get(vintage)
+    name = artifact_name(flavor)
     if stem is None:
-        raise KeyError(
-            f"No published BEA price index pinned for {vintage}. Publish it "
-            "with bedrock.transform.iot.publish_price_index --upload and add "
-            "its stem to PUBLISHED_PRICE_INDEX_STEMS."
+        pin_map = (
+            'PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS'
+            if flavor == 'cornerstone'
+            else 'PUBLISHED_PRICE_INDEX_STEMS'
         )
-    if not stem.startswith(f"{ARTIFACT_NAME}_{vintage}_"):
-        raise ValueError(f"{stem} is pinned as {vintage} but names another")
+        raise KeyError(
+            f"No published {name} price index pinned for {vintage}. Publish it "
+            f"with bedrock.transform.iot.publish_price_index --flavor {flavor} "
+            f"--upload and add its stem to {pin_map}."
+        )
+    if not stem.startswith(f"{name}_{vintage}_"):
+        raise ValueError(f"{stem} is pinned as {flavor}/{vintage} but names another")
     path = os.path.join(FBA_DIR, f"{stem}.parquet")
     if not os.path.exists(path):
         download_gcs_file(f"{stem}.parquet", GCS_EXTRACT_OUTPUT_DIR, path)
@@ -97,3 +123,8 @@ def load_published_price_index(vintage: BeaDataVersion) -> pd.DataFrame:
     )
     price_index.columns = price_index.columns.astype(int)
     return price_index
+
+
+def has_published_cornerstone_price_index(vintage: BeaDataVersion) -> bool:
+    """True when a Cornerstone stem is pinned for ``vintage``."""
+    return vintage in PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS

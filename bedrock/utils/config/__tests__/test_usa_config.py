@@ -426,7 +426,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
     electricity flags its MUT was built with and the delivery sector.
 
     Named ``2026_usa_cornerstone_v1_0_{year}``. Each member pins
-    ``GHG_national_Cornerstone_{year}_v1.0.0_038e753``. The unsuffixed
+    ``GHG_national_Cornerstone_{year}_v1.0.0_e7715da``. The unsuffixed
     ``2026_usa_cornerstone_v1_0`` (live ``CANONICAL_USA_CONFIG``) matches
     the 2024 series member. ``2025_usa_cornerstone_v0_6`` keeps the
     facilities-transportation 2024 pin for the v0.6 release / waterfall FINAL.
@@ -444,9 +444,9 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
     assert not cfg.deflate_x_to_detail_io_year_for_B
     assert cfg.bea_price_index_vintage == '2026Q2'
     assert cfg.cornerstone_ghg_fbs_filename == (
-        f'GHG_national_Cornerstone_{year}_v1.0.0_038e753.parquet'
+        f'GHG_national_Cornerstone_{year}_v1.0.0_e7715da.parquet'
     )
-    assert cfg.nowcast_mut_vintage == 'v1.0.0_e5fa35b'
+    assert cfg.nowcast_mut_vintage == 'v1.0.0_e7715da'
     electricity_flags = {
         'electric_output_on_retail_revenue',
         'electricity_accounting_residual',
@@ -457,7 +457,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'electricity_delivery_margin',
     }
     assert all(getattr(cfg, flag) for flag in electricity_flags)
-    # Fixes merged 2026-11-10 for the next rebuild (#1249).
+    # Fixes merged 2026-11-10, rebuilt in v1.0.0_e7715da (#1249).
     rebuild_flags = {
         'fill_withheld_aies_codes',
         'hold_aies_outliers_on_bea',
@@ -501,7 +501,7 @@ def test_v1_0_release_yaml_matches_2024_series_member() -> None:
     y2024 = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0_2024.yaml')
     assert base.model_dump() == y2024.model_dump()
     assert base.cornerstone_ghg_fbs_filename == (
-        'GHG_national_Cornerstone_2024_v1.0.0_038e753.parquet'
+        'GHG_national_Cornerstone_2024_v1.0.0_e7715da.parquet'
     )
     set_global_usa_config('2026_usa_cornerstone_v1_0.yaml')
     assert _select_cornerstone_ghg_fbs_base_name() == 'GHG_national_Cornerstone_2024'
