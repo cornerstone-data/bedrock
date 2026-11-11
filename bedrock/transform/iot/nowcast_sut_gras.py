@@ -796,8 +796,8 @@ def engine(
     and returns the free part of the ``T00TOP``/``T00SUB`` rows that convert
     its ``TOP``/``MDTY``/``SUB`` columns, rows by industry, $M. When given,
     :func:`_apply_tax_row_closer` puts the Use tax rows on it after each Use
-    pass, so the rows follow the columns instead of being balanced apart from
-    them.
+    pass, and once more after the last Supply pass, so the rows follow the
+    columns instead of being balanced apart from them.
 
     ``group_holds`` holds Supply columns to group sums (:class:`GroupHold`).
     A held column's group targets replace its column total, so T12/T13's
@@ -889,6 +889,14 @@ def engine(
                 run_pair(True)
                 t11_err = _t11_max_abs(t11, z_use, z_supply)
             break
+
+    if tax_rows is not None:
+        # The last Supply pass moved the tax columns after the last closer, so
+        # put the rows on the final columns too. The closer moves only the tax
+        # rows and V00300 within a column: column sums, T18 and the commodity
+        # rows T11 reads stay where they are.
+        z_use = _apply_tax_row_closer(z_use, masks['use'], tax_rows(z_supply))
+        blocks['use'] = z_use
 
     return SutBalanceResult(
         blocks=blocks,

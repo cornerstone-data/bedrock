@@ -126,6 +126,7 @@ from bedrock.utils.economic.balance.offset import (
 )
 from bedrock.utils.economic.balance.targets import TargetSet
 from bedrock.utils.economic.units import MILLION_CURRENCY_TO_CURRENCY
+from bedrock.utils.logging.flowsa_log import log
 from bedrock.utils.taxonomy.mappings.bea_v2017_commodity__bea_v2017_summary import (
     load_bea_v2017_commodity_to_bea_v2017_summary,
 )
@@ -941,6 +942,9 @@ def hold_seed_on_tax_groups(
     and one row per column and group: published, seed and held sums, $M. A
     group with no nonzero free cell cannot be scaled, so it keeps its seed
     sum and its row shows the miss.
+
+    A group whose scale would be negative, flipping the sign of every movable
+    cell in it, keeps its seed too, with a warning.
     """
     seed = supply_seed.copy()
     published = published_tax_groups(int(year))
@@ -956,7 +960,21 @@ def hold_seed_on_tax_groups(
             movable_sum = float(cells[movable].sum())
             if movable_sum != 0.0:
                 scale = (float(target) - fixed) / movable_sum
-                cells[movable] = cells[movable] * scale
+                if scale < 0.0:
+                    # A negative scale flips every movable cell's sign: the
+                    # seed and the published group disagree on direction.
+                    log.warning(
+                        "%s %s group %s: the seed's movable cells sum to %s $M "
+                        'but the group needs %s $M from them; scaling would '
+                        'flip their sign, so the group keeps its seed.',
+                        year,
+                        column,
+                        group,
+                        f'{movable_sum:,.1f}',
+                        f'{float(target) - fixed:,.1f}',
+                    )
+                else:
+                    cells[movable] = cells[movable] * scale
             rows.append(
                 {
                     'column': column,

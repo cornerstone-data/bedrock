@@ -112,7 +112,7 @@ def _targets(use: pd.DataFrame) -> TargetSet:
     return TargetSet.of(t1, t11)
 
 
-def test_the_engine_runs_the_closer_after_every_use_pass() -> None:
+def test_the_engine_runs_the_closer_after_every_use_pass_and_at_the_end() -> None:
     use = _use()
     supply = pd.DataFrame({'i1': [9.0]}, index=['c1'])
     masks = {'use': SutMask.from_pattern(use), 'supply': SutMask.from_pattern(supply)}
@@ -132,7 +132,9 @@ def test_the_engine_runs_the_closer_after_every_use_pass() -> None:
         atol=1e-9,
     )
     restored = restore_fixed_blocks(out.blocks, frozen)
-    assert len(seen) == out.outer_iterations
+    # Once per Use pass, and once more on the last Supply pass's columns.
+    assert len(seen) == out.outer_iterations + 1
+    pd.testing.assert_frame_equal(seen[-1], out.blocks['supply'])
     assert restored['use'].at['T00TOP', 'i1'] == pytest.approx(2.5)
     assert restored['use'].at['T00SUB', 'i1'] == pytest.approx(-0.5)
     assert float(restored['use']['i1'].sum()) == pytest.approx(
@@ -280,3 +282,31 @@ def test_a_frozen_seed_cell_keeps_its_value(published: None) -> None:
     )
     assert held.at['c1', 'TOP'] == 1.0
     assert held.at['c2', 'TOP'] == pytest.approx(2.0)
+
+
+def test_a_group_whose_scale_would_flip_its_sign_keeps_its_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """g1's seed TOP is +2 but the group is published at -3: no flip, a warning."""
+    monkeypatch.setattr(asm, 'commodity_groups', lambda: GROUPS)
+    monkeypatch.setattr(
+        asm,
+        'published_tax_groups',
+        lambda year: pd.DataFrame(
+            {'TOP': [-3.0, 1.0], 'SUB': [0.0, 0.0]}, index=['g1', 'g2']
+        ),
+    )
+    warned: list[str] = []
+    monkeypatch.setattr(
+        asm.log, 'warning', lambda message, *args: warned.append(message % args)
+    )
+    supply = _supply().assign(SUB=0.0)
+    held, report = asm.hold_seed_on_tax_groups(
+        2022, supply, SutMask.from_pattern(supply)
+    )
+
+    pd.testing.assert_series_equal(
+        held.loc[['c1', 'c2'], 'TOP'], supply.loc[['c1', 'c2'], 'TOP']
+    )
+    assert report.loc[('TOP', 'g1'), 'held'] == pytest.approx(2.0)
+    assert any('flip their sign' in w for w in warned)
