@@ -87,7 +87,12 @@ def derive_Y_and_trade_usa() -> SingleRegionYtotAndTradeVectorSet:
 
 @functools.cache
 def derive_y_for_national_accounting_balance_usa() -> pd.Series[float]:
-    """y for the national accounting balance: y_nab = (y_tot - y_imp) + exports."""
+    """The back-computed ``y_nab = (I - A_dom) q``, snapshotted as ``y_nab_USA``.
+
+    ⚠️ **Not an independent final demand**: ``L_dom @ y_nab = q`` by
+    construction, so it cannot test the national balance. The balance uses
+    ``derive_y_dom_from_use_final_demand``, read from the Use table (#1077).
+    """
     if _reaggregation_published():
         return derive_y_nab_reaggregated()
     return derive_y_nab()
