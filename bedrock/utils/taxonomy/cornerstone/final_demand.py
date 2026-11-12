@@ -48,3 +48,11 @@ FINAL_DEMAND_DESC: ta.Dict[FINAL_DEMAND, str] = {
     'F10N00': 'State and local: Gross investment in intellectual property products',
     'F10S00': 'State and local: Gross investment in structures',
 }
+
+# A Cornerstone column, not in BEA's tables: sales that BEA records as negative
+# intermediate purchases (used goods, government sales from stocks). The model
+# sets negative intermediate cells to zero, and this column carries them, so the
+# published U rows still add up to commodity output (#1270). It is kept out of
+# FINAL_DEMANDS because the BEA-sourced Y has no such column.
+NEGATIVE_PURCHASE_SALES_CODE = 'F09000'
+NEGATIVE_PURCHASE_SALES_DESC = 'Sales recorded as negative intermediate purchases'

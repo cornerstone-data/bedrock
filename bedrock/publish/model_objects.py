@@ -95,9 +95,30 @@ def get_V() -> pd.DataFrame:
     return derive_V()
 
 
+def _with_negative_purchase_sales(
+    fd: pd.DataFrame, sales: pd.Series, code: str
+) -> pd.DataFrame:
+    """``fd`` plus the column of sales BEA records as negative purchases (#1270).
+
+    ``derive_U_set`` sets those cells to zero, so the column puts them back on
+    the final-demand side and each published U row still sums to output.
+    """
+    column = sales.reindex(fd.index, fill_value=0.0)
+    if abs(column.sum() - sales.sum()) > 1.0:
+        raise ValueError(
+            f'{code}: {sales.sum() - column.sum():,.0f} of negative-purchase '
+            'sales sit on rows the final-demand block does not have'
+        )
+    return fd.assign(**{code: column})
+
+
 @functools.cache
 def get_U() -> pd.DataFrame:
-    from bedrock.utils.taxonomy.cornerstone.final_demand import FINAL_DEMANDS
+    from bedrock.transform.eeio.usa_matrices import derive_negative_purchase_sales
+    from bedrock.utils.taxonomy.cornerstone.final_demand import (
+        FINAL_DEMANDS,
+        NEGATIVE_PURCHASE_SALES_CODE,
+    )
 
     if _reaggregation_efs_active():
         from bedrock.transform.eeio.usa_matrices import (
@@ -108,7 +129,11 @@ def get_U() -> pd.DataFrame:
 
         uset = derive_U_set_reaggregated()
         intermediate = uset.Udom + uset.Uimp
-        fd_block = derive_disagg_Ytot_reaggregated()[list(FINAL_DEMANDS)]
+        fd_block = _with_negative_purchase_sales(
+            derive_disagg_Ytot_reaggregated()[list(FINAL_DEMANDS)],
+            derive_negative_purchase_sales(),
+            NEGATIVE_PURCHASE_SALES_CODE,
+        )
         return assemble_extended_U(
             intermediate=intermediate,
             fd=fd_block,
@@ -124,7 +149,11 @@ def get_U() -> pd.DataFrame:
 
     uset = derive_U_set()
     intermediate = uset.Udom + uset.Uimp
-    fd_block = derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)]
+    fd_block = _with_negative_purchase_sales(
+        derive_disagg_Ytot_with_trade()[list(FINAL_DEMANDS)],
+        derive_negative_purchase_sales(),
+        NEGATIVE_PURCHASE_SALES_CODE,
+    )
     return assemble_extended_U(
         intermediate=intermediate,
         fd=fd_block,
