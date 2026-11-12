@@ -308,23 +308,6 @@ def derive_q() -> pd.Series[float]:
     return q
 
 
-def _scrap_share(industries: pd.Index, x: pd.Series[float]) -> pd.Series[float]:
-    """Each industry's scrap output (BEA's ``S00401``) as a share of its output."""
-    scrap_detail = load_detail_V_usa().loc[:, 'S00401']
-    scrap_fraction = industry_corresp() @ scrap_detail
-    if get_usa_config().implement_electricity_disaggregation:
-        parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
-        scrap_fraction = scrap_fraction.drop(
-            ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
-        )
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            scrap_fraction.loc[code] = parent_scrap
-    # The delivery sector has no scrap: the reindex below gives it zero.
-    scrap_fraction = scrap_fraction.reindex(industries, fill_value=0.0)
-    x_aligned = x.reindex(industries, fill_value=0.0)
-    return (scrap_fraction / x_aligned).fillna(0.0)
-
-
 @functools.cache
 def derive_Vnorm_scrap_corrected(
     apply_inflation: bool | None = None,
@@ -348,7 +331,22 @@ def derive_Vnorm_scrap_corrected(
 
     Vnorm = compute_Vnorm_matrix(V=V, q=q)
 
-    V_scrap_corrected = Vnorm.divide(1.0 - _scrap_share(V.index, x), axis=0)
+    scrap_detail = load_detail_V_usa().loc[:, 'S00401']
+    scrap_fraction = industry_corresp() @ scrap_detail
+    if get_usa_config().implement_electricity_disaggregation:
+        parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
+        scrap_fraction = scrap_fraction.drop(
+            ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
+        )
+        for code in ELECTRICITY_DISAGG_SECTORS:
+            scrap_fraction.loc[code] = parent_scrap
+    # The delivery sector has no scrap: the reindex below gives it zero.
+    scrap_fraction = scrap_fraction.reindex(V.index, fill_value=0.0)
+    x_aligned = x.reindex(V.index, fill_value=0.0)
+
+    V_scrap_corrected = Vnorm.divide(
+        (1.0 - (scrap_fraction / x_aligned).fillna(0.0)), axis=0
+    )
     V_scrap_corrected = V_scrap_corrected.reindex(
         index=V.index, columns=V.columns, fill_value=0.0
     )
@@ -1037,31 +1035,6 @@ def derive_negative_purchase_sales() -> pd.Series[float]:
     return out
 
 
-def derive_scrap_correction() -> pd.Series[float]:
-    """By commodity, the scrap correction for the national balance.
-
-    ``derive_Vnorm_scrap_corrected`` takes scrap (``S00401``) out of each
-    industry's output and charges all of its inputs to its other products,
-    dividing its market shares by ``1 - s``, with ``s`` its scrap share. So
-    ``A q`` counts industry ``j``'s purchases of commodity ``i`` at
-    ``U[i, j] / (1 - s_j)``, not ``U[i, j]``, and the Use row no longer adds up
-    to ``q``. This returns the difference, ``-sum_j U[i, j] s_j / (1 - s_j)``,
-    for the final demand the national balance reads. Values are zero or
-    negative.
-
-    It is a model correction, not a transaction, so it is not a published
-    final-demand column. It is largest where scrap-making industries buy
-    heavily: hazardous waste (``562HAZ``), which buys mainly from itself, and
-    iron and steel (``331110``) (#1270).
-    """
-    V = derive_V()
-    s = _scrap_share(V.index, compute_x(V=V))
-    Udom = derive_U_set().Udom
-    out = -Udom.mul((s / (1.0 - s)).reindex(Udom.columns, fill_value=0.0)).sum(axis=1)
-    out.index.name = 'sector'
-    return out
-
-
 def derive_y_dom_from_use_final_demand() -> pd.Series[float]:
     """Domestic final demand plus exports, read from the Use table.
 
@@ -1072,17 +1045,13 @@ def derive_y_dom_from_use_final_demand() -> pd.Series[float]:
     ``L_dom @ y`` reproduces ``q`` only when Make and Use agree on each
     commodity's output. Negatives are kept, as in the published tables.
 
-    It also includes two corrections for what the model does to U:
-    ``derive_negative_purchase_sales``, the sales BEA records as negative
-    intermediate purchases, which ``derive_U_set`` takes out of U; and
-    ``derive_scrap_correction``, for the inputs the scrap correction in A moves
-    onto scrap-making industries' other products.
+    It also includes ``derive_negative_purchase_sales``: the sales BEA records
+    as negative intermediate purchases, which ``derive_U_set`` takes out of U.
     """
     Y = derive_Ytot_full_cs_matrix()
     Uimp = derive_U_with_negatives().Uimp
     y = Y.sum(axis=1).add(Uimp.sum(axis=1), fill_value=0.0)
     y = y.add(derive_negative_purchase_sales(), fill_value=0.0)
-    y = y.add(derive_scrap_correction(), fill_value=0.0)
     y.index.name = 'sector'
     return y
 
