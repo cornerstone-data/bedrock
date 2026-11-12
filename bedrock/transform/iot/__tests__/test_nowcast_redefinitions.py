@@ -195,6 +195,35 @@ def test_close_rows_never_reopens_anchor_zeroed_cells() -> None:
     assert closed.sum(axis=1)['1111A0'] == pytest.approx(105.0 * M)
 
 
+def test_close_rows_never_pushes_an_emptied_cell_negative() -> None:
+    """An overshooting row gives back only from the cells that gained (#1270)."""
+    before = pd.DataFrame(
+        [[100.0 * M, 50.0 * M, 10.0 * M]], index=['541100'], columns=INDUSTRIES
+    )
+    # 1111A0 is carried near zero; 1111B0 gains far more than the row loses
+    carried = pd.DataFrame(
+        [[1.0 * M, 200.0 * M, 10.0 * M]], index=['541100'], columns=INDUSTRIES
+    )
+    closed = _close_rows(carried, before)
+    assert closed.sum(axis=1)['541100'] == pytest.approx(160.0 * M)
+    assert closed.at['541100', '1111A0'] == pytest.approx(1.0 * M)
+    assert closed.at['541100', '1111B0'] == pytest.approx(149.0 * M)
+    assert closed.at['541100', '111200'] == pytest.approx(10.0 * M)
+
+
+def test_close_rows_keeps_every_cell_between_before_and_carried() -> None:
+    rng = np.random.default_rng(0)
+    before = pd.DataFrame(
+        rng.uniform(0, 100, (3, 3)) * M, index=COMMODITIES, columns=INDUSTRIES
+    )
+    carried = before * rng.uniform(0, 2, (3, 3))
+    closed = _close_rows(carried, before)
+    pd.testing.assert_series_equal(closed.sum(axis=1), before.sum(axis=1))
+    low = np.minimum(before, carried) - 1e-6
+    high = np.maximum(before, carried) + 1e-6
+    assert ((closed >= low) & (closed <= high)).all().all()
+
+
 def test_va_closure_never_flips_a_negative_column() -> None:
     use_before = _full_use()
     # an industry with negative total value added, like transit at 2017
