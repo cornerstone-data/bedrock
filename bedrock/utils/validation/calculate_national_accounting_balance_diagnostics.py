@@ -104,6 +104,39 @@ def _percent_diff_vs_denominator(
     )
 
 
+def _commodity_balance(
+    *,
+    B: pd.DataFrame,
+    Adom: pd.DataFrame,
+    q: pd.Series[float],
+    y: pd.Series[float],
+) -> pd.DataFrame:
+    """``E_c`` against ``B_c L ŷ`` by commodity, with the dollar gap behind it.
+
+    ``E_c = d ∘ q`` is the industry emissions on the commodity axis,
+    ``E_i x̂⁻¹ V`` (USEEIO 2's ``(C_m E_i′)′``), because ``B`` is already
+    ``(E/x) V q̂⁻¹``. With an independent ``y`` the gap is
+    ``d ∘ (q − L_dom y)``: the economic check weighted by each commodity's
+    direct factor (#1077, #1270).
+    """
+    from bedrock.utils.math.formulas import compute_d, compute_L_matrix
+
+    d = compute_d(B=B).astype(float).reindex(Adom.index, fill_value=0.0)
+    q = q.astype(float).reindex(Adom.index, fill_value=0.0)
+    Ly = compute_L_matrix(A=Adom) @ y.astype(float).reindex(Adom.index, fill_value=0.0)
+    return pd.DataFrame(
+        {
+            "index": Adom.index,
+            "q ($bn)": q / 1e9,
+            "L_dom y ($bn)": Ly / 1e9,
+            "q - L_dom y ($bn)": (q - Ly) / 1e9,
+            "E_c (MtCO2e)": d * q / 1e9,
+            "BLy (MtCO2e)": d * Ly / 1e9,
+            "E_c - BLy (MtCO2e)": d * (q - Ly) / 1e9,
+        }
+    ).reset_index(drop=True)
+
+
 def calculate_national_accounting_balance_diagnostics(
     sheet_id: str,
 ) -> None:
@@ -113,18 +146,28 @@ def calculate_national_accounting_balance_diagnostics(
     IO framework) matches sum(E_orig) (total original emissions data)
     at the national level.
 
-    BLy = diag(d) @ L @ y_nab
+    BLy = diag(d) @ L @ y
     Where:
     - d = compute_d(B) = column sums of B (direct emissions per $ output)
     - L = Leontief inverse (total requirements matrix)
-    - y_nab = final demand vector for national accounting balance
+    - y = domestic final demand read from the Use table
+      (``derive_y_dom_from_use_final_demand``), independent of ``A`` and ``q``
 
     If the model is balanced, sum(BLy) should equal sum(E_orig).
+
+    ⚠️ **The back-computed ``y_nab = (I − A_dom) q`` cannot test this**:
+    ``L_dom y_nab = q`` by construction, so ``BLy = d ∘ q`` for any tables.
+    It is kept for ``BLy_new_vs_BLy_old``, whose baseline is the
+    ``y_nab_USA`` snapshot, and for the electricity mixed-units and
+    reaggregated paths, which have no independent ``y`` on their axis.
 
     Writes:
 
     - ``BLy_and_E_orig_diffs``: USA totals only (live BLy vs snapshot ``E``).
-      **Skipped** when ``diagnostics_baseline_source == 'gcs_useeio_xlsx'`` (no
+      This is a total check against the pinned industry inventory, not the
+      commodity identity: ``sum(E)`` and ``sum(E_c)`` differ only by scrap and
+      ``Vnorm`` noise, and where ``BLy`` misses, ``E_c_vs_BLy_by_commodity``
+      says which commodities. **Skipped** when ``diagnostics_baseline_source == 'gcs_useeio_xlsx'`` (no
       ``E_old`` for the Excel baseline path).
     - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from the
       baseline (parquet ``B_USA`` / ``Adom_USA`` / ``y_nab_USA`` at
@@ -136,6 +179,9 @@ def calculate_national_accounting_balance_diagnostics(
       the dollar year of that ``y_old`` (see ``_cornerstone_y_nab_dollar_year``),
       not blindly to ``model_base_year``. Snapshot baselines leave ``B_old``
       unchanged: snapshot ``B`` and ``y_nab`` already share one dollar year.
+    - ``E_c_vs_BLy_by_commodity``: ``E_c`` against ``B_c L ŷ`` by commodity,
+      with ``q − L_dom y`` in dollars (:func:`_commodity_balance`). Written on
+      the monetary, unreaggregated path only.
     """
     # Late-binding imports - depend on global config
     from bedrock.transform.eeio.derived import (
@@ -152,6 +198,7 @@ def calculate_national_accounting_balance_diagnostics(
         derive_Aq_reaggregated,
         derive_B_mixed_units,
         derive_B_reaggregated,
+        derive_y_dom_from_use_final_demand,
         derive_y_nab_mixed_units,
         derive_y_nab_reaggregated,
     )
@@ -161,6 +208,7 @@ def calculate_national_accounting_balance_diagnostics(
 
     logger.info("------ Calculating national accounting balance diagnostics ------")
 
+    independent_y = False
     if electricity_mixed_units_enabled():
         B_new = derive_B_mixed_units()
         Aq_set = derive_Aq_mixed_units()
@@ -173,9 +221,18 @@ def calculate_national_accounting_balance_diagnostics(
         B_new = derive_B_usa()
         Aq_set = derive_Aq_usa()
         y_new = derive_y_for_national_accounting_balance_usa()
+        independent_y = True
 
     logger.info("1. Calculating BLy (live)...")
+    # BLy against the back-computed y_nab, for the like-for-like baseline tab.
     BLy_new = _compute_bly_series(B=B_new, Adom=Aq_set.Adom, y=y_new)
+    if independent_y:
+        y_use = derive_y_dom_from_use_final_demand().reindex(
+            Aq_set.Adom.index, fill_value=0.0
+        )
+        BLy_balance = _compute_bly_series(B=B_new, Adom=Aq_set.Adom, y=y_use)
+    else:
+        BLy_balance = BLy_new
 
     cfg = get_usa_config()
     if cfg.diagnostics_baseline_source != "gcs_useeio_xlsx":
@@ -183,7 +240,7 @@ def calculate_national_accounting_balance_diagnostics(
         E_orig = load_configured_snapshot("E_USA_ES")
         E_orig_by_sector = ta.cast("pd.Series[float]", E_orig.sum(axis=0))
 
-        BLy_total = float(BLy_new.sum())
+        BLy_total = float(BLy_balance.sum())
         E_orig_total = float(E_orig_by_sector.sum())
         diff = BLy_total - E_orig_total
         perc_diff = diff / E_orig_total if E_orig_total != 0 else 0.0
@@ -204,6 +261,15 @@ def calculate_national_accounting_balance_diagnostics(
                     mixed_note,
                 )
             comparison_data["note"] = [mixed_note]
+        elif not independent_y:
+            comparison_data["note"] = [
+                "y back-computed as (I - A_dom) q: the total holds by construction"
+            ]
+        else:
+            comparison_data["note"] = [
+                "total check against the industry inventory; the commodity "
+                "identity is E_c_vs_BLy_by_commodity"
+            ]
 
         logger.info("3. Writing BLy vs E (national totals)...")
         comparison = pd.DataFrame(
@@ -298,3 +364,12 @@ def calculate_national_accounting_balance_diagnostics(
         bly_diff_out,
         clean_nans=True,
     )
+
+    if independent_y:
+        logger.info("6. Writing E_c vs BLy by commodity (independent y)...")
+        update_sheet_tab(
+            sheet_id,
+            "E_c_vs_BLy_by_commodity",
+            _commodity_balance(B=B_new, Adom=Aq_set.Adom, q=Aq_set.scaled_q, y=y_use),
+            clean_nans=True,
+        )
