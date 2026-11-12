@@ -316,11 +316,19 @@ def scrap_share_of_output() -> pd.Series[float]:
     sums. Where ``x`` is BEA gross output, which includes scrap, B divides the
     market shares by ``1 - s`` (``derive_B_via_vnorm``, #1293).
 
-    A parent's scrap is shared across the electricity children by output.
+    A BEA industry split into several Cornerstone industries (the waste
+    children of ``562000``, the electricity children) shares its scrap across
+    them **by output**, not by the correspondence's equal weights. So every
+    child gets its parent's scrap share, as in USEEIO's waste disaggregation.
     """
     V = derive_V()
     x = compute_x(V=V)
-    scrap = industry_corresp() @ load_detail_V_usa().loc[:, 'S00401']
+    corresp = industry_corresp()
+    by_output = corresp.gt(0).mul(x.reindex(corresp.index).fillna(0.0), axis=0)
+    totals = by_output.sum(axis=0)
+    # A BEA industry whose children have no output keeps the correspondence.
+    weights = by_output.div(totals.where(totals > 0), axis=1).fillna(corresp)
+    scrap = weights @ load_detail_V_usa().loc[:, 'S00401']
     if get_usa_config().implement_electricity_disaggregation:
         parent = float(scrap.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
         scrap = scrap.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
