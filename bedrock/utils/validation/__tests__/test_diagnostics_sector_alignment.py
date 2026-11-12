@@ -252,3 +252,25 @@ def test_get_aligned_sector_desc_electricity() -> None:
     assert desc_off[ELECTRICITY_AGGREGATE_SECTOR] == 'Electricity'
     assert '221121' not in desc_off
     assert '221122' not in desc_off
+
+
+def test_the_delivery_sector_is_compared_against_nothing() -> None:
+    old = pd.DataFrame({'v': [1.0, 2.0]}, index=pd.Index(['221100', '425000']))
+    new = pd.DataFrame(
+        {'v': [0.5, 2.0, 0.1]}, index=pd.Index(['221100', '425000', '42ELEC'])
+    )
+    efs = EfsForDiagnostics(
+        D_new=new,
+        N_new=new.copy(),
+        D_old=OldEfSet(raw=old, inflated=old.copy()),
+        N_old=OldEfSet(raw=old.copy(), inflated=old.copy()),
+    )
+
+    result, active = align_efs_across_schemas(efs)
+
+    assert active['42ELEC'] == 'new-only (electricity delivery)'
+    assert pd.isna(result.N_old.raw.loc['42ELEC', 'v'])
+    assert result.N_old.raw.loc['425000', 'v'] == 2.0
+    assert get_aligned_sector_desc()['42ELEC'] == (
+        'Electricity transmission and distribution'
+    )

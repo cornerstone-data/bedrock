@@ -44,6 +44,21 @@ CORNERSTONE_INDUSTRIES_ELEC: list[str] = _replace_sector_in_list(
     ELECTRICITY_DISAGG_SECTORS,
 )
 
+#: Electricity delivery. No BEA code maps to it: the electricity split creates it.
+#: With ``electricity_delivery_margin`` on it is sector 406, after
+#: every BEA-mapped sector, so no other sector changes position.
+ELECTRICITY_DELIVERY_SECTOR = "42ELEC"
+ELECTRICITY_DELIVERY_NAME = "Electricity transmission and distribution"
+
+CORNERSTONE_COMMODITIES_DELIVERY: list[str] = [
+    *CORNERSTONE_COMMODITIES,
+    ELECTRICITY_DELIVERY_SECTOR,
+]
+CORNERSTONE_INDUSTRIES_DELIVERY: list[str] = [
+    *CORNERSTONE_INDUSTRIES,
+    ELECTRICITY_DELIVERY_SECTOR,
+]
+
 CornerstoneMatrixKind = ta.Literal["V", "U", "A", "B", "X", "Q"]
 
 
@@ -51,15 +66,24 @@ def _electricity_disaggregation_active() -> bool:
     return get_usa_config().implement_electricity_disaggregation
 
 
+def electricity_delivery_sector_active() -> bool:
+    """Whether the active config appends ``42ELEC`` to the sector axis."""
+    return get_usa_config().electricity_delivery_margin
+
+
 def active_cornerstone_commodities() -> list[str]:
     if _electricity_disaggregation_active():
         return CORNERSTONE_COMMODITIES_ELEC
+    if electricity_delivery_sector_active():
+        return CORNERSTONE_COMMODITIES_DELIVERY
     return CORNERSTONE_COMMODITIES
 
 
 def active_cornerstone_industries() -> list[str]:
     if _electricity_disaggregation_active():
         return CORNERSTONE_INDUSTRIES_ELEC
+    if electricity_delivery_sector_active():
+        return CORNERSTONE_INDUSTRIES_DELIVERY
     return CORNERSTONE_INDUSTRIES
 
 

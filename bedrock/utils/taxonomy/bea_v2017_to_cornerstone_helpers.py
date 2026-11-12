@@ -9,8 +9,10 @@ import pandas as pd
 
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.schemas.cornerstone_schemas import (
+    CORNERSTONE_COMMODITIES_DELIVERY,
     CORNERSTONE_COMMODITIES_ELEC,
     ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DELIVERY_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
 )
 from bedrock.utils.taxonomy.bea.v2017_commodity_summary import (
@@ -79,6 +81,16 @@ def load_bea_v2017_summary_to_cornerstone() -> (
             for summary_code, sectors in mapping_raw.items()
         }
         return expanded_mapping
+    if get_usa_config().electricity_delivery_margin:
+        # Delivery is part of BEA's electricity, so it joins electricity's summary.
+        return {
+            summary_code: (
+                [*sectors, ELECTRICITY_DELIVERY_SECTOR]
+                if isinstance(sectors, list) and ELECTRICITY_AGGREGATE_SECTOR in sectors
+                else cast(list[str], sectors)
+            )
+            for summary_code, sectors in mapping_raw.items()
+        }
     return cast(dict[BEA_2017_COMMODITY_SUMMARY_CODE, list[str]], mapping_raw)
 
 
@@ -95,11 +107,13 @@ def _replace_sector_in_cornerstone_summary_list(
 
 def get_bea_v2017_summary_to_cornerstone_corresp_df() -> pd.DataFrame:
     summary_to_cornerstone = load_bea_v2017_summary_to_cornerstone()
-    cornerstone_index = (
-        CORNERSTONE_COMMODITIES_ELEC
-        if get_usa_config().implement_electricity_disaggregation
-        else list(COMMODITIES)
-    )
+    cfg = get_usa_config()
+    if cfg.implement_electricity_disaggregation:
+        cornerstone_index = CORNERSTONE_COMMODITIES_ELEC
+    elif cfg.electricity_delivery_margin:
+        cornerstone_index = CORNERSTONE_COMMODITIES_DELIVERY
+    else:
+        cornerstone_index = list(COMMODITIES)
     corresp_df = create_correspondence_matrix(summary_to_cornerstone).reindex(
         index=cornerstone_index,
         columns=USA_2017_SUMMARY_INDUSTRY_CODES,

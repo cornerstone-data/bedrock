@@ -114,6 +114,7 @@ from bedrock.utils.math.split_using_aggregated_weights import (
 from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
+    active_cornerstone_commodities,
     validate_cornerstone,
 )
 from bedrock.utils.schemas.single_region_types import (
@@ -339,15 +340,7 @@ def derive_Vnorm_scrap_corrected(
         )
         for code in ELECTRICITY_DISAGG_SECTORS:
             scrap_fraction.loc[code] = parent_scrap
-    if get_usa_config().electricity_delivery_margin:
-        from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
-            BROKERS_HOST,
-            DELIVERY_SLOT,
-        )
-
-        scrap_fraction = scrap_fraction.copy()
-        scrap_fraction.loc[BROKERS_HOST] += scrap_fraction.loc[DELIVERY_SLOT]
-        scrap_fraction.loc[DELIVERY_SLOT] = 0.0
+    # The delivery sector has no scrap: the reindex below gives it zero.
     scrap_fraction = scrap_fraction.reindex(V.index, fill_value=0.0)
     x_aligned = x.reindex(V.index, fill_value=0.0)
 
@@ -772,16 +765,16 @@ def derive_A_margin() -> pd.DataFrame:
         )
     if get_usa_config().electricity_delivery_margin:
         from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
-            BROKERS_HOST,
-            DELIVERY_SLOT,
+            DELIVERY_CODE,
             GENERATION_SECTOR,
             active_delivery_split,
             delivery_margin_rate,
         )
 
-        A_margin.loc[BROKERS_HOST, :] += A_margin.loc[DELIVERY_SLOT, :]
-        A_margin.loc[DELIVERY_SLOT, :] = 0.0
-        A_margin.at[DELIVERY_SLOT, GENERATION_SECTOR] = delivery_margin_rate(
+        # Delivery carries no trade margin of its own: its column stays zero.
+        sectors = active_cornerstone_commodities()
+        A_margin = A_margin.reindex(index=sectors, columns=sectors, fill_value=0.0)
+        A_margin.at[DELIVERY_CODE, GENERATION_SECTOR] = delivery_margin_rate(
             active_delivery_split()
         )
     A_margin.index.name = 'sector'

@@ -285,17 +285,17 @@ def model_facts(year: int, mut_vintage: str | None) -> tuple[ta.Any, ModelFacts]
                     *pipe.derive_U_after_waste(),
                     pipe.derive_VA_after_waste(),
                 )
-                gen, slot = ed.GENERATION_SECTOR, ed.DELIVERY_SLOT
+                gen, delivery = ed.GENERATION_SECTOR, ed.DELIVERY_CODE
                 out['before'] = float(pd.Series(v.loc[gen], dtype=float)[gen])
                 split = ed.active_delivery_split()
                 v_after = ed.restructured_tables()[0]
                 out['split'] = split
                 value = ed.restructured_tables()[3]
                 comp = pd.Series(value.loc[ed.COMPENSATION_ROW], dtype=float)
-                out['compensation'] = (float(comp[ed.DELIVERY_SLOT]), float(comp[gen]))
+                out['compensation'] = (float(comp[delivery]), float(comp[gen]))
                 out['after'] = float(
                     pd.Series(v_after.loc[gen], dtype=float)[gen]
-                    + pd.Series(v_after.loc[slot], dtype=float)[slot]
+                    + pd.Series(v_after.loc[delivery], dtype=float)[delivery]
                 )
             return out
 
@@ -303,7 +303,7 @@ def model_facts(year: int, mut_vintage: str | None) -> tuple[ta.Any, ModelFacts]
     split = on['split']
     facts = ModelFacts(
         n_generation=float(on['n'][ed.GENERATION_SECTOR]),
-        n_delivery=float(on['n'][ed.DELIVERY_SLOT]),
+        n_delivery=float(on['n'][ed.DELIVERY_CODE]),
         n_today=float(off['n'][ed.GENERATION_SECTOR]),
         emissions_on=on['emissions'],
         emissions_off=off['emissions'],

@@ -597,3 +597,12 @@ def test_electricity_reaggregation_xor_mixed_units() -> None:
             },
             strict=True,
         )
+
+
+def test_the_delivery_sector_needs_the_nowcast_tables() -> None:
+    base = _load_usa_config_from_file_name('2026_usa_cornerstone_v1_0.yaml')
+    assert base.electricity_delivery_margin
+    with pytest.raises(ValueError, match='usa_detail_io_source nowcast'):
+        USAConfig.model_validate(
+            base.model_dump() | {'usa_detail_io_source': 'bea_published'}
+        )
