@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import pandas as pd
 
+from bedrock.extract.census.Census_USATrade import NONMONETARY_GOLD_ACTIVITY
 from bedrock.extract.flowbyactivity import FlowByActivity
 from bedrock.transform.trade.utilities import (
     AEROSPACE_PARENT,
     CENSUS_CROSSWALK_CSV,
     FAMILY_PARENT_NOTE,
     census_family_parents,
+    consolidate_export_activities_fba,
     consolidate_import_activities,
     consolidate_import_activities_fba,
 )
@@ -131,6 +133,15 @@ def test_the_two_directions_fold_aerospace_differently() -> None:
     parents = census_family_parents()
     assert AEROSPACE_PARENT not in parents
     assert '3364' not in set(parents.values())
+
+
+def test_both_trade_hooks_drop_gold() -> None:
+    """BEA's I-O accounts leave gold out of trade; the Census FBA keeps it (#1270)."""
+    fba = _fba([NONMONETARY_GOLD_ACTIVITY, '331410'], [900.0, 100.0])
+    for hook in (consolidate_import_activities_fba, consolidate_export_activities_fba):
+        out = hook(fba)
+        assert NONMONETARY_GOLD_ACTIVITY not in set(out['ActivityProducedBy'])
+        assert out['FlowAmount'].sum() == 100.0
 
 
 def test_the_hook_keeps_the_config() -> None:

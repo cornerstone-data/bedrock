@@ -14,6 +14,7 @@ import pandas as pd
 
 from bedrock.extract.census.Census_USATrade import (
     HS2716_ELECTRICAL_ENERGY,
+    NONMONETARY_GOLD_ACTIVITY,
     hs2716_unit_value_usd_per_mwh,
 )
 from bedrock.extract.disaggregation.egrid_generation import (
@@ -248,6 +249,20 @@ def consolidate_vehicle_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByA
     return _as_fba(fba, consolidate_vehicle_activities(pd.DataFrame(fba)))
 
 
+def drop_nonmonetary_gold(frame: pd.DataFrame) -> pd.DataFrame:
+    """Census trade without gold, as BEA's I-O accounts treat it (#1270).
+
+    The Census FBA keeps gold (HS ``7108``) on its own activity so it
+    reconciles to Census; BEA removes ITA gold exports and imports from the
+    NIPA and I-O accounts. See ``bedrock.extract.census.Census_USATrade``.
+    """
+    if frame.empty or 'ActivityProducedBy' not in frame.columns:
+        return frame
+    return frame.loc[
+        frame['ActivityProducedBy'].astype(str) != NONMONETARY_GOLD_ACTIVITY
+    ]
+
+
 def consolidate_import_activities(frame: pd.DataFrame) -> pd.DataFrame:
     """Relabel every Census activity onto its family parent (#763).
 
@@ -255,7 +270,11 @@ def consolidate_import_activities(frame: pd.DataFrame) -> pd.DataFrame:
     ``336112`` are simply one family among 62, and ``336110`` - which is all
     Census publishes from 2023 - folds to the same parent, so the 2022/2023
     axis change stops mattering for every family rather than just for vehicles.
+
+    Gold is dropped first (:func:`drop_nonmonetary_gold`), so the Trade
+    Imports FBS and the duty rate in ``duties`` both leave it out.
     """
+    frame = drop_nonmonetary_gold(frame)
     parents = census_family_parents()
     if frame.empty or 'ActivityProducedBy' not in frame.columns:
         return frame
@@ -300,8 +319,10 @@ def consolidate_export_activities_fba(fba: FlowByActivity, **_: Any) -> FlowByAc
       publishes every aerospace leaf directly, so there is no residual to
       split and no reason to overwrite an observation. What is wrong there is
       the c.i.f.-versus-``MCIF`` *level*, which is #670's, not a split.
+
+    Gold is dropped first (:func:`drop_nonmonetary_gold`).
     """
-    frame = consolidate_vehicle_activities(pd.DataFrame(fba))
+    frame = consolidate_vehicle_activities(drop_nonmonetary_gold(pd.DataFrame(fba)))
     return _as_fba(
         fba, consolidate_activities(frame, AEROSPACE_CHILDREN, AEROSPACE_PARENT)
     )
