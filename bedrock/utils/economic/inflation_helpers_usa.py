@@ -423,12 +423,10 @@ def get_vnorm_adjusted_commodity_price_ratio(
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
     # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted
-    # *average*, not a weighted *sum*. Scrap correction in
-    # `derive_Vnorm_scrap_corrected` is a row-axis scaling that
-    # leaves column sums slightly > 1 — using the un-renormalized form would
-    # produce a non-1 ratio at year=year (off by the column-sum drift, ~5–7%).
-    # Done locally here rather than upstream because A/B matrix consumers want
-    # the un-renormalized scrap-corrected V_norm.
+    # *average*, not a weighted *sum*. `derive_Vnorm_scrap_corrected` returns the
+    # plain market shares (#1293), whose columns already sum to 1, so this is a
+    # guard: it keeps the ratio at 1 for year = year if the shares ever change.
+    # B's gross-output path scales them by 1 / (1 - s) separately.
     column_sums = Vnorm.sum(axis=0)
     weights = Vnorm.divide(column_sums.where(column_sums > 1e-9, 1.0), axis=1)
     commodity_ratio = aligned @ weights
