@@ -47,6 +47,9 @@ jobs:
       - name: Rebuild ${{ matrix.year }}
         env:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          # load_env_file_key reads the source's api_name, case and all.
+          USDA_Quickstats: ${{ secrets.USDA_QUICKSTATS }}
         run: |
           uv run python scripts/rebuild_nowcast_year.py --year ${{ matrix.year }}
 

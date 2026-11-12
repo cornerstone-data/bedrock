@@ -7,9 +7,12 @@ Every year builds from the published 2017 benchmark, never from another
 nowcast year, so the years run independently (one CI job each,
 ``.github/workflows/rebuild_nowcast.yml``).
 
-Every FlowByActivity and FlowBySector is built from source at this commit.
-Nothing built is downloaded: a published copy can predate the code (the 2017
-trade FBS did, #1270). Raw inputs still come from GCS and the source APIs.
+FlowByActivity and FlowBySector tables are built from source at this commit,
+not downloaded: a published copy can predate the code (the 2017 trade FBS
+did, #1270). The exceptions are the loaders that download on purpose
+(``download_FBA_if_missing=True``, such as the Census expense surveys). Raw
+inputs come from GCS and the source APIs, which need the Census, EIA and
+USDA keys.
 Nothing is uploaded either; the job keeps the outputs as a workflow artifact.
 
 Steps 5-7 run under ``2026_usa_cornerstone_v1_0``, then the year's Energy and
