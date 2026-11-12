@@ -1,0 +1,64 @@
+name: rebuild_nowcast
+
+# Rebuild the nowcast tables and the Energy + GHG FBS at this commit, one job
+# per year (scripts/rebuild_nowcast_year.py). Every year builds from the 2017
+# benchmark, so the jobs run in parallel. Nothing is uploaded to GCS: each job
+# keeps its outputs as a workflow artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Years to rebuild, as a JSON list"
+        required: true
+        type: string
+        default: "[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]"
+  push:
+    branches:
+      - nowcast_rebuild_on_ci
+
+env:
+  FORCE_COLOR: 2
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        year: ${{ fromJSON(github.event.inputs.years || '[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Rebuild ${{ matrix.year }}
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        run: |
+          uv run python scripts/rebuild_nowcast_year.py --year ${{ matrix.year }}
+
+      - name: Keep the outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rebuild-${{ matrix.year }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            bedrock/transform/output_data/*_${{ matrix.year }}_v*
+            bedrock/transform/output_data/Trade_*_2017_v*
+            bedrock/extract/output_data/Census_USATrade_${{ matrix.year }}_v*
+            bedrock/extract/output_data/Nowcast_Detail_Use_AfterRedef_${{ matrix.year }}_v*

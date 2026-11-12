@@ -57,3 +57,5 @@ chain_transport_margins_across_aies: True
 cap_margins_at_purchase: True
 # Refinery co-product Supply cells held at the GO mix through GRAS (#1237).
 pin_refinery_secondaries_at_go_mix: True
+# Air freight revenue at the AIES level from 2023 (#1251, #1274).
+air_margin_on_aies_level: True
