@@ -1023,10 +1023,20 @@ def derive_y_dom_from_use_final_demand() -> pd.Series[float]:
     takes. Unlike ``derive_y_nab`` it never sees ``A`` or ``q``, so
     ``L_dom @ y`` reproduces ``q`` only when Make and Use agree on each
     commodity's output. Negatives are kept, as in the published tables.
+
+    BEA records some sales as negative intermediate purchases: industries
+    selling used goods (``S00402``, e.g. airlines selling aircraft) and federal
+    nondefense government selling farm commodities from its stocks (``1111A0``
+    bought by ``S00600``). ``derive_U_set`` sets these cells to zero, so they are
+    added to final demand here, and the Use row still adds up to ``q`` (#1270).
+    Only cells whose Use value is itself negative move. A cell that is negative
+    only because imports exceed use stays out, so that error still shows.
     """
     Y = derive_Ytot_full_cs_matrix()
-    Uimp = derive_U_with_negatives().Uimp
-    y = Y.sum(axis=1).add(Uimp.sum(axis=1), fill_value=0.0)
+    uset = derive_U_with_negatives()
+    y = Y.sum(axis=1).add(uset.Uimp.sum(axis=1), fill_value=0.0)
+    sold = uset.Udom.where((uset.Udom + uset.Uimp) < 0, 0.0).clip(upper=0.0)
+    y = y.add(sold.sum(axis=1), fill_value=0.0)
     y.index.name = 'sector'
     return y
 
