@@ -417,8 +417,8 @@ def test_compare_output_and_L_y(
 @pytest.mark.xfail(
     reason=(
         'Make and Use disagree on commodity output. On MUT v1.0.0_8365fa4 '
-        '(2024), with the F09000 sales in y: 334118 (+4.4%, imports above '
-        'use) and S00402 ($4M on q = 0).'
+        '(2024) one sector fails: 334118 (+4.4%), whose imports exceed its '
+        'use. 2017-2023 pass.'
     ),
 )
 def test_domestic_L_y_from_use_final_demand_equals_q(
@@ -600,3 +600,20 @@ def test_total_lci_equals_e(canonical_usa_config: None) -> None:
         f'total LCI≈E failed ({len(result.failing_sectors)} cells): '
         f'{result.failing_sectors[:20]}'
     )
+
+
+def test_output_vs_leontief_skips_the_accounting_sectors() -> None:
+    """S00402 has no output, so q = L @ y isn't checked for it (#1270)."""
+    sectors = ['1111A0', 'S00402']
+    L = pd.DataFrame(np.eye(2), index=sectors, columns=sectors)
+    q = pd.Series([100.0, 0.0], index=sectors)
+
+    off_on_used_goods = compare_output_vs_leontief_x_demand(
+        output=q, L=L, y=pd.Series([100.0, -6.0e6], index=sectors)
+    )
+    assert off_on_used_goods.passed
+
+    off_on_oilseeds = compare_output_vs_leontief_x_demand(
+        output=q, L=L, y=pd.Series([103.0, 0.0], index=sectors)
+    )
+    assert not off_on_oilseeds.passed

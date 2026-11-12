@@ -28,6 +28,12 @@ logger = logging.getLogger(__name__)
 # (e.g. S00402 used goods) compare |diff| against atol instead of (diff / q).
 _VALIDATE_RESULT_ATOL = 1e-4
 
+# BEA's accounting rows: scrap, used and secondhand goods, noncomparable
+# imports and the rest-of-world adjustment. They have no output of their own
+# (S00402's q is 0), so q = L @ y can't hold for them and isn't checked, as in
+# USEEIO 2. Of the four, only S00402 is a Cornerstone commodity today (#1270).
+ACCOUNTING_SECTORS: frozenset[str] = frozenset({'S00300', 'S00401', 'S00402', 'S00900'})
+
 
 @dc.dataclass
 class DiagnosticResult:
@@ -347,7 +353,7 @@ def compare_output_vs_leontief_x_demand(
     Compares the total sector output (commodity or industry) against
     the model result calculation of L @ y.
     Pass/fail: ``|diff| <= tolerance * |value| + atol`` for all sectors (see
-    ``validate_result``).
+    ``validate_result``) except the ``ACCOUNTING_SECTORS``, which aren't checked.
 
     Parameters
     ----------
@@ -387,8 +393,14 @@ def compare_output_vs_leontief_x_demand(
     output_check = backcompute_q_from_L_and_y(L=L, y=y)
     name = "compare output and L * y"
 
+    # L @ y uses every sector; only the comparison leaves the accounting rows out.
+    checked = output.index.difference(list(ACCOUNTING_SECTORS), sort=False)
     d_result = validate_result(
-        name, output, output_check, tolerance=tolerance, include_details=include_details
+        name,
+        output.loc[checked],
+        output_check.loc[checked],
+        tolerance=tolerance,
+        include_details=include_details,
     )
 
     return d_result
