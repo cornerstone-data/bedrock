@@ -62,6 +62,14 @@ GHG_METHODS = (
     'Energy_industrial_distillate_national_{y}',
     'GHG_national_Cornerstone_{y}',
 )
+#: GHGI tables the GHG FBS read that no source config here generates any more:
+#: they exist only as published flowsa FBAs, the copies a local build reads.
+PUBLISHED_ONLY_FBAS = (
+    'EPA_GHGI_T_3_25',
+    'EPA_GHGI_T_5_17',
+    'EPA_GHGI_T_5_18',
+    'EPA_GHGI_T_5_19',
+)
 #: The Census FBA must match the HS10 product-code totals to within this ($).
 HS10_TOLERANCE = 2e8
 
@@ -154,6 +162,22 @@ def run_step(module: str, *args: str) -> None:
         raise SystemExit(rc)
 
 
+def fetch_published_only_fbas() -> None:
+    """Download the FBAs nothing here can generate, every year GCS holds."""
+    from bedrock.extract.generateflowbyactivity import _download_fba_from_gcs
+    from bedrock.utils.validation.exceptions import APIError
+
+    for source in PUBLISHED_ONLY_FBAS:
+        got = []
+        for year in range(2012, 2025):
+            try:
+                _download_fba_from_gcs(source, str(year))
+                got.append(year)
+            except APIError:
+                pass
+        log(f'  {source}: published copies for {got}')
+
+
 def build_ghg(year: int, mut: str, tag: str) -> None:
     """The year's Nowcast Use FBA from this run's MUT, then the Energy and GHG FBS."""
     from bedrock.extract.flowbyactivity import getFlowByActivity
@@ -205,6 +229,7 @@ def main() -> None:
         from bedrock.utils.config import common
 
         common.download_fba_on_api_error = False
+        fetch_published_only_fbas()
         build_ghg(year, mut, tag)
         log(f'GHG DONE {year}: build {mut}; nothing uploaded')
         return
