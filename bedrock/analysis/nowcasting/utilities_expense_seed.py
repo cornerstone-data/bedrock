@@ -174,7 +174,7 @@ import requests
 #: PUDL release and revises past years (``v2026.8.0`` to the November release
 #: moved 2024 fuel cost +0.09% and 2016-2024 resale revenue +0.02-0.05%), so
 #: the balanced SUT pin could not be rebuilt in CI.  ``v2026.8.0`` is what
-#: ``v1.0.0_e7715da`` was built on; move it only with a rebuild and re-pin.
+#: ``v1.0.0_8365fa4`` was built on; move it only with a rebuild and re-pin.
 PUDL = 'https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.8.0'
 
 #: EIA form 923, every fuel receipt at every reporting power plant, 2008-2024,

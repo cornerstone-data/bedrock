@@ -56,6 +56,7 @@ import argparse
 import json
 import posixpath
 import sys
+import traceback
 import typing as ta
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -1342,6 +1343,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         except Exception as error:  # noqa: BLE001 - report and continue the span
             print(f'{year}: FAILED - {type(error).__name__}: {error}')
+            traceback.print_exc()
             failures += 1
             continue
         assert balance.result is not None

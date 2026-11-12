@@ -416,9 +416,9 @@ def test_compare_output_and_L_y(
 @pytest.mark.eeio_integration
 @pytest.mark.xfail(
     reason=(
-        'Make and Use disagree on commodity output. On MUT v1.0.0_e7715da '
-        '(2024) 7 sectors fail, $12.4bn: 331410 (+$7.9bn, 46%), S00402 '
-        '(q = 0), 2122A0, 1111A0, 331420, 334118 and 212230.'
+        'Make and Use disagree on commodity output. On MUT v1.0.0_8365fa4 '
+        '(2024) 3 sectors fail, $2.9bn: S00402 (q = 0, +$2.0bn), 1111A0 '
+        '(+1.4%) and 334118 (+4.4%).'
     ),
 )
 def test_domestic_L_y_from_use_final_demand_equals_q(
