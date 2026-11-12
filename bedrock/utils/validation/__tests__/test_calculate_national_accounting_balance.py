@@ -164,8 +164,10 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
             "E_orig (MtCO2e)",
             "BLy - E_orig (MtCO2e)",
             "(BLy - E_orig) / E_orig (%)",
+            "note",
         }
         assert set(e_df.columns) == expected_cols
+        assert "E_c_vs_BLy_by_commodity" in str(e_df["note"].iloc[0])
 
         assert e_df["BLy (MtCO2e)"].iloc[0] == pytest.approx(6.0)
         assert e_df["E_orig (MtCO2e)"].iloc[0] == pytest.approx(9.0)

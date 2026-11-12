@@ -164,7 +164,10 @@ def calculate_national_accounting_balance_diagnostics(
     Writes:
 
     - ``BLy_and_E_orig_diffs``: USA totals only (live BLy vs snapshot ``E``).
-      **Skipped** when ``diagnostics_baseline_source == 'gcs_useeio_xlsx'`` (no
+      This is a total check against the pinned industry inventory, not the
+      commodity identity: ``sum(E)`` and ``sum(E_c)`` differ only by scrap and
+      ``Vnorm`` noise, and where ``BLy`` misses, ``E_c_vs_BLy_by_commodity``
+      says which commodities. **Skipped** when ``diagnostics_baseline_source == 'gcs_useeio_xlsx'`` (no
       ``E_old`` for the Excel baseline path).
     - ``BLy_new_vs_BLy_old``: per-sector live BLy vs BLy recomputed from the
       baseline (parquet ``B_USA`` / ``Adom_USA`` / ``y_nab_USA`` at
@@ -261,6 +264,11 @@ def calculate_national_accounting_balance_diagnostics(
         elif not independent_y:
             comparison_data["note"] = [
                 "y back-computed as (I - A_dom) q: the total holds by construction"
+            ]
+        else:
+            comparison_data["note"] = [
+                "total check against the industry inventory; the commodity "
+                "identity is E_c_vs_BLy_by_commodity"
             ]
 
         logger.info("3. Writing BLy vs E (national totals)...")
