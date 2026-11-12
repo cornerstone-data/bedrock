@@ -13,6 +13,7 @@ row must be the **producer-price** one, and the spread must be restricted to
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 
 import numpy as np
@@ -37,6 +38,12 @@ from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_IMPORT_CODE,
 )
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
+
+logger = logging.getLogger(__name__)
+
+#: Imports above positive use by less than this ($) are rounding, not a row
+#: whose domestic use has gone negative.
+IMPORTS_ABOVE_USE_TOLERANCE: float = 1.0 * MILLION_CURRENCY_TO_CURRENCY
 
 # --- the allocation --------------------------------------------------------
 
@@ -76,7 +83,57 @@ def import_matrix_from_use(
     table.loc[commodities, USA_2017_FINAL_DEMAND_IMPORT_CODE] = -control.to_numpy()
     table.index.name = 'row'
     table.columns.name = 'column'
+
+    above = imports_above_use(use_producer, control)
+    if not above.empty:
+        logger.warning(
+            'imports exceed positive use on %d commodities, %.0f $M in all, so '
+            'every domestic use cell on those rows is negative (#1270): %s',
+            len(above),
+            above['excess'].sum() / MILLION_CURRENCY_TO_CURRENCY,
+            {
+                code: round(excess / MILLION_CURRENCY_TO_CURRENCY)
+                for code, excess in above['excess'].head(10).items()
+            },
+        )
     return table
+
+
+def imports_above_use(use_producer: pd.DataFrame, imports: pd.Series) -> pd.DataFrame:
+    """Commodities whose imports exceed their positive use. USD, largest first.
+
+    The allocation gives every positive cell the same import share, imports
+    over positive use, so domestic use (Use minus Import) on a row can go
+    negative only two ways. A cell whose Use is itself negative gets no
+    imports and stays negative; those are BEA's own entries, sales booked as
+    negative purchases (used goods in ``S00402``, oilseeds in ``S00600``),
+    and are not flagged. A row whose imports exceed its positive use pushes
+    **every** cell negative, and that is a data error: domestic output smaller
+    than exports. On ``v1.0.0_e7715da`` it was ``331410`` (gold in Census
+    trade, #1275), ``334610`` in 2017 (a stale trade FBS, #1278), ``334118``
+    and ``336111``.
+
+    Columns: ``imports``, ``positive_use`` (over :data:`ALLOCATION_COLUMNS`)
+    and ``excess``.
+    """
+    commodities = list(USA_2017_COMMODITY_CODES)
+    columns = [c for c in ALLOCATION_COLUMNS if c in use_producer.columns]
+    positive_use = (
+        use_producer.reindex(index=commodities)[columns]
+        .astype(float)
+        .clip(lower=0.0)
+        .sum(axis=1)
+    )
+    control = imports.reindex(commodities).astype(float).fillna(0.0)
+    frame = pd.DataFrame(
+        {
+            'imports': control,
+            'positive_use': positive_use,
+            'excess': control - positive_use,
+        }
+    )
+    above = frame[frame['excess'] > IMPORTS_ABOVE_USE_TOLERANCE]
+    return above.sort_values('excess', ascending=False)
 
 
 def allocation_weights(use_producer: pd.DataFrame) -> pd.DataFrame:

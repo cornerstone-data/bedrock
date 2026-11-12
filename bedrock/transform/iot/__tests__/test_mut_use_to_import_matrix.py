@@ -10,6 +10,8 @@ BEA's table rather than of our code.
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -29,6 +31,7 @@ from bedrock.transform.iot.mut_use_to_import_matrix import (
     allocation_weights,
     import_control,
     import_matrix_from_use,
+    imports_above_use,
     proportionality_strain,
     published_import_control,
     published_import_matrix,
@@ -187,6 +190,47 @@ def test_the_matrix_has_the_axes_the_published_table_has() -> None:
 
     assert list(table.index) == list(published.index)
     assert list(table.columns) == list(published.columns)
+
+
+def test_imports_above_use_flags_only_rows_that_go_negative_throughout() -> None:
+    """A row over its positive use is flagged; BEA's negative sales cells are not."""
+    use = _use_table(
+        {
+            (FIRST, BUYER): 60.0 * MILLION,
+            (FIRST, OTHER_BUYER): 40.0 * MILLION,
+            # a negative purchase, BEA's way of booking a sale: not a row excess
+            (SECOND, BUYER): 100.0 * MILLION,
+            (SECOND, OTHER_BUYER): -30.0 * MILLION,
+        }
+    )
+    above = imports_above_use(
+        use, _control({FIRST: 130.0 * MILLION, SECOND: 90.0 * MILLION})
+    )
+
+    assert list(above.index) == [FIRST]
+    assert above.at[FIRST, 'excess'] == pytest.approx(30.0 * MILLION)
+    assert above.at[FIRST, 'positive_use'] == pytest.approx(100.0 * MILLION)
+
+
+def test_the_matrix_warns_when_imports_exceed_use(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The bedrock logger does not propagate to the root logger caplog listens on.
+    monkeypatch.setattr(logging.getLogger('bedrock'), 'propagate', True)
+    with caplog.at_level(logging.WARNING):
+        import_matrix_from_use(
+            _use_table({(FIRST, BUYER): 100.0 * MILLION}),
+            _control({FIRST: 400.0 * MILLION}),
+        )
+    assert 'imports exceed positive use on 1 commodities' in caplog.text
+    assert FIRST in caplog.text
+
+
+def test_the_published_2017_tables_have_no_row_above_its_use() -> None:
+    """BEA's own allocation never needs imports above use; ours shouldn't either."""
+    assert imports_above_use(
+        published_mut_use_2017(), published_import_control(2017)
+    ).empty
 
 
 def test_a_commodity_with_no_use_takes_none_of_the_control() -> None:
