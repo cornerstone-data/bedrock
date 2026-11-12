@@ -1,11 +1,14 @@
 """Rebuild one nowcast year at this commit: trade, Steps 5-7, then Energy and GHG FBS.
 
 Usage:
-  uv run python scripts/rebuild_nowcast_year.py --year 2024
+  uv run python scripts/rebuild_nowcast_year.py --year 2024 --stage tables
+  uv run python scripts/rebuild_nowcast_year.py --year 2024 --stage ghg
 
-Every year builds from the published 2017 benchmark, never from another
-nowcast year, so the years run independently (one CI job each,
-``.github/workflows/rebuild_nowcast.yml``).
+The tables (trade, Steps 5-7) of every year build from the published 2017
+benchmark, never from another nowcast year, so they run one CI job a year
+(``.github/workflows/rebuild_nowcast.yml``). The Energy and GHG FBS do read
+other years: manufacturing energy is a MECS year shared out on that year's
+Use table. So the ``ghg`` stage runs once every year's tables are in place.
 
 FlowByActivity and FlowBySector tables are built from source at this commit,
 not downloaded: a published copy can predate the code (the 2017 trade FBS
@@ -176,17 +179,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--year', type=int, required=True)
     parser.add_argument(
-        '--ghg-only', action='store_true', help='the Energy and GHG part alone'
+        '--stage',
+        choices=('tables', 'ghg'),
+        required=True,
+        help='tables: trade and Steps 5-7. ghg: the Energy and GHG FBS, which '
+        'need every year\'s tables first (manufacturing energy for 2023 is '
+        'MECS 2022 shared out on the 2022 Use table)',
     )
     args = parser.parse_args()
     year = args.year
-    if args.ghg_only:
-        from bedrock.utils.config import common
-
-        common.download_fba_on_api_error = False
-        tag = git_hash()
-        build_ghg(year, f'v1.0.0_{tag}', tag)
-        return
 
     if subprocess.run(
         ['git', 'status', '--porcelain', '--untracked-files=no'],
@@ -197,7 +198,16 @@ def main() -> None:
         raise SystemExit('working tree is dirty; the build hash would lie')
     tag = git_hash()
     mut = f'v1.0.0_{tag}'
-    log(f'{year} at {tag}; build {mut}')
+    log(f'{year} {args.stage} at {tag}; build {mut}')
+
+    if args.stage == 'ghg':
+        os.environ['USA_CONFIG_FILE'] = f'2026_usa_cornerstone_v1_0_{year}.yaml'
+        from bedrock.utils.config import common
+
+        common.download_fba_on_api_error = False
+        build_ghg(year, mut, tag)
+        log(f'GHG DONE {year}: build {mut}; nothing uploaded')
+        return
 
     os.environ['USA_CONFIG_FILE'] = SPAN_CONFIG
     from bedrock.utils.config import common
@@ -213,17 +223,7 @@ def main() -> None:
         built_here(TRANSFORM, f'Balanced_Detail_{table}_{year}', tag)
     run_step('bedrock.transform.iot.nowcast_mut', '--year', str(year))
     run_step('bedrock.transform.iot.nowcast_redefinitions', '--year', str(year))
-
-    # A new process, so nothing cached under the span config carries over.
-    env = {**os.environ, 'USA_CONFIG_FILE': f'2026_usa_cornerstone_v1_0_{year}.yaml'}
-    rc = subprocess.run(
-        [sys.executable, __file__, '--year', str(year), '--ghg-only'],
-        cwd=REPO,
-        env=env,
-    ).returncode
-    if rc:
-        raise SystemExit(rc)
-    log(f'YEAR DONE {year}: build {mut}; nothing uploaded')
+    log(f'TABLES DONE {year}: build {mut}; nothing uploaded')
 
 
 if __name__ == '__main__':
