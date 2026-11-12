@@ -3,10 +3,10 @@ description: "Set up Python and install dependencies"
 runs:
   using: "composite"
   steps:
-    - name: Set up Python 3.11.13
+    - name: Set up Python 3.11.18
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11.13
+        python-version: 3.11.18
 
     - name: Install uv
       run: |
