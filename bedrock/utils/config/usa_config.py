@@ -279,6 +279,14 @@ class USAConfig(BaseModel):
     # direct purchases, so its own use goes from $23bn to $35bn (#890). See
     # nowcast_transport_margins.chained_control_total.
     chain_transport_margins_across_aies: bool = False  # DRI: WesIngwersen
+    # Take air freight revenue from 2023 at the level AIES publishes, instead
+    # of moving 2022's SAS revenue on FAF air ton-miles. The volume bridge puts
+    # 2023 at 1.35x 2017 while BEA's published air margin is at 2.14x and AIES
+    # revenue at 2.32x, so our air margin falls to 0.63 of BEA's in 2023 and
+    # 0.58 in 2024. On the AIES level, BEA's margin is 0.54-0.58 of revenue in
+    # 2023-2024, the same range as 2017-2020 (#1251). See
+    # nowcast_transport_margins.mode_freight_revenue.
+    air_margin_on_aies_level: bool = False  # DRI: WesIngwersen
     # Hold each buyer's Step 6 margins to its purchase. Reconciling the
     # margins to the Supply give-up scales every buyer of a good alike, so a
     # high-rate buyer's producers' value goes negative: 84 cells and -$701M in
