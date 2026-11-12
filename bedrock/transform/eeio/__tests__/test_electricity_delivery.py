@@ -7,6 +7,7 @@ import pytest
 
 from bedrock.transform.eeio import electricity_delivery as ed
 from bedrock.transform.eeio import electricity_price as ep
+from bedrock.utils.schemas import cornerstone_schemas as cs
 
 
 def _split(generation: float = 5.0) -> ed.DeliverySplit:
@@ -207,10 +208,13 @@ def test_a_missing_year_in_the_window_raises() -> None:
         ep.pooled_resale_price(2022, pd.Series({2022: 1.0}), pd.Series({2022: 1.0}))
 
 
-# --- the tables with a delivery sector (#1216, #1217) --------------------------------
+# --- the tables with a delivery sector ----------------------------------------------
 
-G, D, HOST = ed.GENERATION_SECTOR, ed.DELIVERY_SLOT, ed.BROKERS_HOST
-COMMODITIES = [G, D, HOST, '211000', '531ORE']
+G, E = ed.GENERATION_SECTOR, ed.DELIVERY_CODE
+#: Wholesale agents and brokers, and the wholesaler they once merged into.
+BROKERS, HOST = '425000', '423A00'
+COMMODITIES = [G, BROKERS, HOST, '211000', '531ORE']
+TABLES = ('V', 'Udom', 'Uimp', 'VA', 'Y')
 
 
 def _tables() -> (
@@ -220,7 +224,7 @@ def _tables() -> (
     v = pd.DataFrame(0.0, index=COMMODITIES, columns=COMMODITIES)
     for code, out in {
         G: 100.0,
-        D: 10.0,
+        BROKERS: 10.0,
         HOST: 40.0,
         '211000': 30.0,
         '531ORE': 80.0,
@@ -231,14 +235,14 @@ def _tables() -> (
     udom.loc['531ORE', G] = 15.0  # non-fuel
     udom.loc[G, G] = 5.0  # own purchases
     udom.loc[G, '531ORE'] = 30.0  # a buyer
-    udom.loc[D, '531ORE'] = 2.0  # brokers' existing sale
+    udom.loc[BROKERS, '531ORE'] = 2.0  # brokers' sale
     uimp = pd.DataFrame(0.0, index=COMMODITIES, columns=COMMODITIES)
     va = pd.DataFrame(
         {c: [v.loc[c, c] - udom[c].sum()] for c in COMMODITIES}, index=['V00100']
     )
     y = pd.DataFrame(0.0, index=COMMODITIES, columns=['F01000', 'F05000'])
     y.loc[G, 'F01000'] = 65.0
-    y.loc[D, 'F01000'] = 8.0
+    y.loc[BROKERS, 'F01000'] = 8.0
     y.loc[G, 'F05000'] = -1.0
     return v, udom, uimp, va, y
 
@@ -260,20 +264,36 @@ def _restructured() -> tuple[pd.DataFrame, ...]:
     return ed.restructure_tables(*_tables(), _delivery_split(), 0.6)
 
 
-def test_brokers_merge_into_the_host() -> None:
-    v, udom, _, va, y = _restructured()
-    assert v.at[HOST, HOST] == pytest.approx(50.0)
-    assert udom.at[HOST, '531ORE'] == pytest.approx(2.0)
-    assert y.at[HOST, 'F01000'] == pytest.approx(8.0)
-    assert va.at['V00100', HOST] == pytest.approx(50.0)
+def test_the_tables_gain_the_sector_last() -> None:
+    v, udom, uimp, va, y = _restructured()
+    for frame in (v, udom, uimp):
+        assert frame.index[-1] == E and frame.columns[-1] == E
+    assert va.columns[-1] == E and y.index[-1] == E
+
+
+@pytest.mark.parametrize('code', [BROKERS, HOST])
+@pytest.mark.parametrize('position', range(len(TABLES)))
+def test_brokers_and_their_old_host_keep_their_data(code: str, position: int) -> None:
+    before = _tables()[position]
+    after = _restructured()[position]
+    if code in before.index:
+        pd.testing.assert_series_equal(
+            pd.Series(after.loc[code], dtype=float).reindex(before.columns),
+            pd.Series(before.loc[code], dtype=float),
+        )
+    if code in before.columns:
+        pd.testing.assert_series_equal(
+            pd.Series(after[code], dtype=float).reindex(before.index),
+            pd.Series(before[code], dtype=float),
+        )
 
 
 def test_each_buyers_bill_divides_between_the_two_rows() -> None:
     _, udom, _, _, y = _restructured()
     assert udom.at[G, '531ORE'] == pytest.approx(10.0)
-    assert udom.at[D, '531ORE'] == pytest.approx(20.0)
+    assert udom.at[E, '531ORE'] == pytest.approx(20.0)
     assert y.at[G, 'F01000'] == pytest.approx(15.0)
-    assert y.at[D, 'F01000'] == pytest.approx(50.0)
+    assert y.at[E, 'F01000'] == pytest.approx(50.0)
 
 
 def test_imports_stay_on_generation() -> None:
@@ -283,21 +303,21 @@ def test_imports_stay_on_generation() -> None:
 def test_fuel_and_own_purchases_stay_with_generation() -> None:
     _, udom, _, _, _ = _restructured()
     assert udom.at['211000', G] == pytest.approx(20.0)
-    assert udom.at['211000', D] == 0.0
+    assert udom.at['211000', E] == 0.0
     assert udom.at[G, G] == pytest.approx(5.0)
 
 
 def test_other_inputs_divide_by_the_share() -> None:
     _, udom, _, _, _ = _restructured()
-    assert udom.at['531ORE', D] == pytest.approx(9.0)
+    assert udom.at['531ORE', E] == pytest.approx(9.0)
     assert udom.at['531ORE', G] == pytest.approx(6.0)
 
 
 def test_delivery_buys_line_losses_from_generation() -> None:
-    assert _restructured()[1].at[G, D] == pytest.approx(2.0)
+    assert _restructured()[1].at[G, E] == pytest.approx(2.0)
 
 
-@pytest.mark.parametrize('code', [G, D, HOST])
+@pytest.mark.parametrize('code', [G, E, BROKERS, HOST])
 def test_each_column_adds_up_to_its_output(code: str) -> None:
     v, udom, uimp, va, _ = _restructured()
     total = udom[code].sum() + uimp[code].sum() + va[code].sum()
@@ -307,7 +327,7 @@ def test_each_column_adds_up_to_its_output(code: str) -> None:
 def test_output_rises_only_by_the_losses_sold() -> None:
     v0 = _tables()[0]
     v = _restructured()[0]
-    assert v.loc[G].sum() + v.loc[D].sum() == pytest.approx(v0.loc[G].sum() + 2.0)
+    assert v.loc[G].sum() + v.loc[E].sum() == pytest.approx(v0.loc[G].sum() + 2.0)
 
 
 def test_total_value_added_is_unchanged() -> None:
@@ -317,7 +337,7 @@ def test_total_value_added_is_unchanged() -> None:
 
 def test_value_added_divides_by_what_each_column_leaves() -> None:
     _, _, _, va, _ = _restructured()
-    assert va.at['V00100', D] == pytest.approx(70.0 - 2.0 - 9.0)
+    assert va.at['V00100', E] == pytest.approx(70.0 - 2.0 - 9.0)
     assert va.at['V00100', G] == pytest.approx(60.0 - 59.0)
 
 
@@ -334,22 +354,30 @@ def test_a_buyer_in_no_table_raises() -> None:
         ed.restructure_tables(*_tables(), ed.DeliverySplit(frame, 5.0, 0.04), 0.6)
 
 
-def test_sf6_moves_to_delivery_and_other_gases_stay() -> None:
+def test_a_named_index_keeps_its_name() -> None:
+    frame = pd.DataFrame({'x': [1.0]}, index=pd.Index([G], name='sector'))
+    out = ed.add_delivery_sector(frame, rows=True, columns=False)
+    assert out.index.name == 'sector'
+
+
+def test_sf6_moves_to_delivery_and_other_gases_and_brokers_stay() -> None:
     e = pd.DataFrame(
-        {G: [100.0, 3.0], D: [1.0, 0.5], HOST: [2.0, 0.0]}, index=['CO2', 'SF6']
+        {G: [100.0, 3.0], BROKERS: [1.0, 0.5], HOST: [2.0, 0.0]},
+        index=['CO2', 'SF6'],
     )
     out = ed.move_delivery_emissions(e)
     assert out.at['CO2', G] == pytest.approx(100.0)
     assert out.at['SF6', G] == 0.0
-    assert out.at['SF6', D] == pytest.approx(3.0)
-    assert out.at['CO2', HOST] == pytest.approx(3.0)
+    assert out.at['SF6', E] == pytest.approx(3.0)
+    pd.testing.assert_series_equal(out[BROKERS], e[BROKERS])
+    pd.testing.assert_series_equal(out[HOST], e[HOST])
     assert out.sum().sum() == pytest.approx(e.sum().sum())
 
 
 def test_long_flows_move_the_same_way_as_the_table() -> None:
     flows = pd.DataFrame(
         {
-            'SectorProducedBy': [G, G, D, D, HOST],
+            'SectorProducedBy': [G, G, BROKERS, BROKERS, HOST],
             'Flowable': ['CO2', 'SF6', 'CO2', 'SF6', 'CO2'],
             'FlowAmount': [100.0, 3.0, 1.0, 0.5, 2.0],
         }
@@ -369,6 +397,17 @@ def test_long_flows_move_the_same_way_as_the_table() -> None:
             )
 
 
+def test_long_flows_move_sf6_under_its_full_name() -> None:
+    flows = pd.DataFrame(
+        {
+            'SectorProducedBy': [G, G, BROKERS],
+            'Flowable': ['Sulfur hexafluoride', 'Carbon dioxide', 'Carbon dioxide'],
+        }
+    )
+    moved = ed.move_delivery_flows(flows)
+    assert moved['SectorProducedBy'].tolist() == [E, G, BROKERS]
+
+
 def test_the_share_comes_from_delivery_against_other_production_costs() -> None:
     share = ed.non_fuel_delivery_share(
         {
@@ -383,16 +422,17 @@ def test_the_share_comes_from_delivery_against_other_production_costs() -> None:
     assert share == pytest.approx(0.5)
 
 
-def test_margins_keep_what_the_purchaser_pays() -> None:
+def test_margins_keep_what_the_purchaser_pays_and_brokers_keep_theirs() -> None:
     margins = pd.DataFrame(
         {"Producers' Value": [100.0, 4.0, 6.0], 'Wholesale': [0.0, 1.0, 2.0]},
-        index=[G, D, HOST],
+        index=[G, BROKERS, HOST],
     )
     out = ed.restructure_margins(margins, rate=1.5)
     assert out.at[G, "Producers' Value"] == pytest.approx(40.0)
     assert out.at[G, 'Electricity delivery'] == pytest.approx(60.0)
-    assert out.at[HOST, "Producers' Value"] == pytest.approx(10.0)
-    assert out.at[D, 'Wholesale'] == 0.0
+    assert out.at[BROKERS, "Producers' Value"] == pytest.approx(4.0)
+    assert out.at[HOST, "Producers' Value"] == pytest.approx(6.0)
+    assert out.loc[E].sum() == 0.0
 
 
 def test_the_margin_rate_leaves_out_own_purchases() -> None:
@@ -401,13 +441,27 @@ def test_the_margin_rate_leaves_out_own_purchases() -> None:
 
 def test_labels_change_only_with_the_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ed, 'delivery_margin_on', lambda: False)
-    assert ed.published_label(D, 'Brokers') == (D, 'Brokers')
+    assert ed.published_label(G, 'Electricity') == (G, 'Electricity')
     monkeypatch.setattr(ed, 'delivery_margin_on', lambda: True)
-    assert ed.published_label(D, 'Brokers')[0] == ed.DELIVERY_CODE
-    assert ed.published_label('531ORE', 'Other real estate') == (
-        '531ORE',
-        'Other real estate',
+    assert ed.published_label(E, '') == (
+        E,
+        'Electricity transmission and distribution',
     )
+    assert ed.published_label(G, 'Electricity')[1] == 'Electricity generation'
+    assert ed.published_label(BROKERS, 'Brokers') == (BROKERS, 'Brokers')
+
+
+def test_the_axis_gains_the_sector_last(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cs, '_electricity_disaggregation_active', lambda: False)
+    monkeypatch.setattr(cs, 'electricity_delivery_sector_active', lambda: True)
+    for active, base in (
+        (cs.active_cornerstone_commodities(), cs.CORNERSTONE_COMMODITIES),
+        (cs.active_cornerstone_industries(), cs.CORNERSTONE_INDUSTRIES),
+    ):
+        assert len(active) == len(base) + 1 == 406
+        assert active[:-1] == base and active[-1] == E
+    monkeypatch.setattr(cs, 'electricity_delivery_sector_active', lambda: False)
+    assert cs.active_cornerstone_commodities() == cs.CORNERSTONE_COMMODITIES
 
 
 def _electric_value() -> 'pd.Series[float]':
@@ -442,14 +496,3 @@ def test_the_payroll_share_is_delivery_over_electric_power() -> None:
     assert all(0.5 < s < 0.7 for s in shares)
     with pytest.raises(ValueError, match='no payroll'):
         ed.delivery_payroll_share(2016)
-
-
-def test_long_flows_move_sf6_under_its_full_name() -> None:
-    flows = pd.DataFrame(
-        {
-            'SectorProducedBy': ['221100', '221100', '425000'],
-            'Flowable': ['Sulfur hexafluoride', 'Carbon dioxide', 'Carbon dioxide'],
-        }
-    )
-    moved = ed.move_delivery_flows(flows)
-    assert moved['SectorProducedBy'].tolist() == ['425000', '221100', '423A00']

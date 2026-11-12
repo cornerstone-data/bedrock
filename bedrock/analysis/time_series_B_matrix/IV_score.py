@@ -60,9 +60,13 @@ import numpy as np
 import pandas as pd
 
 from bedrock.analysis.time_series_B_matrix import B_change_diagnostics as bcd
-from bedrock.transform.eeio.electricity_delivery import PUBLISHED_LABELS
+from bedrock.transform.eeio.electricity_delivery import (
+    DELIVERY_CODE,
+    PUBLISHED_LABELS,
+)
 from bedrock.utils.config.config_controllers import temp_usa_config
 from bedrock.utils.config.usa_config import get_usa_config
+from bedrock.utils.schemas.cornerstone_schemas import ELECTRICITY_DELIVERY_NAME
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRY_DESC
 
 logger = logging.getLogger(__name__)
@@ -95,6 +99,8 @@ def delivery_margin_on() -> bool:
 
 def sector_name(code: str) -> str:
     """The name of a sector in this run's schema."""
+    if code == DELIVERY_CODE:
+        return ELECTRICITY_DELIVERY_NAME
     if delivery_margin_on() and code in PUBLISHED_LABELS:
         return PUBLISHED_LABELS[code][1]
     return ta.cast(ta.Mapping[str, str], INDUSTRY_DESC).get(code, code)

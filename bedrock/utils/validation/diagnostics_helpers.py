@@ -26,6 +26,8 @@ from bedrock.utils.economic.inflation_helpers_bea import (
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
     ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DELIVERY_NAME,
+    ELECTRICITY_DELIVERY_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
 )
 from bedrock.utils.snapshots.loader import (
@@ -185,6 +187,7 @@ def get_aligned_sector_desc() -> ta.Dict[str, str]:
             desc[str(code)] = name
     if get_usa_config().implement_electricity_disaggregation:
         desc.update(_ELECTRICITY_DISAGG_SECTOR_DESC)
+    desc[ELECTRICITY_DELIVERY_SECTOR] = ELECTRICITY_DELIVERY_NAME
     return desc
 
 
@@ -206,6 +209,8 @@ def compute_active_mapped_sectors(
       - ``old-only (aluminum)`` / ``new-only (aluminum)`` – aluminum split
       - ``old-only (electricity aggregate)`` – old aggregate that was disaggregated
       - ``new-only (electricity subsector)`` – new subsectors of the above
+      - ``new-only (electricity delivery)`` – ``42ELEC``, which a 405-sector
+        baseline does not have; it is compared against nothing
     """
     waste_old, waste_new = _waste_disagg()
     old_idx = set(old_ef.index)
@@ -242,6 +247,9 @@ def compute_active_mapped_sectors(
                 )
                 for c in ELECTRICITY_DISAGG_SECTORS:
                     active[c] = 'new-only (electricity subsector)'
+
+    if ELECTRICITY_DELIVERY_SECTOR in new_idx - old_idx:
+        active[ELECTRICITY_DELIVERY_SECTOR] = 'new-only (electricity delivery)'
 
     return active
 
