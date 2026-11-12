@@ -15,9 +15,6 @@ on:
         required: true
         type: string
         default: "[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]"
-  push:
-    branches:
-      - nowcast_rebuild_on_ci
 
 env:
   FORCE_COLOR: 2
