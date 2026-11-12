@@ -280,7 +280,9 @@ def _trade_fbs_commodity_vector(method: str, download_sources_ok: bool) -> pd.Se
     fbs = getFlowBySector(
         method,
         download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
+        # Built from the FBAs at this commit, never downloaded: a published FBS
+        # can predate the code (the 2017 trade FBS did, #1270).
+        download_FBS_if_missing=False,
     )
     frame = pd.DataFrame(fbs)
     _assert_no_unproduced_mass(frame, method)
@@ -345,7 +347,9 @@ def _inventories_fbs_commodity_vector(
     fbs = getFlowBySector(
         method,
         download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
+        # Built from the FBAs at this commit, never downloaded: a published FBS
+        # can predate the code (the 2017 trade FBS did, #1270).
+        download_FBS_if_missing=False,
     )
     return (
         pd.DataFrame(fbs)

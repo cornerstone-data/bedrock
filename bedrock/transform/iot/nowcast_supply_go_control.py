@@ -828,7 +828,9 @@ def _read_supply_mix_block(method: str, download_sources_ok: bool) -> pd.DataFra
         getFlowBySector(
             method,
             download_FBAs_if_missing=download_sources_ok,
-            download_FBS_if_missing=download_sources_ok,
+            # Built from the FBAs at this commit, never downloaded: a published FBS
+            # can predate the code (the 2017 trade FBS did, #1270).
+            download_FBS_if_missing=False,
         )
     )
     block = (

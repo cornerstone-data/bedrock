@@ -99,7 +99,9 @@ def census_goods_mcif_by_detail(
     fbs = getFlowBySector(
         f'Trade_Imports_{year}',
         download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
+        # Built from the FBAs at this commit, never downloaded: a published FBS
+        # can predate the code (the 2017 trade FBS did, #1270).
+        download_FBS_if_missing=False,
     )
     goods = fbs.loc[fbs['MetaSources'].astype(str).str.startswith(_CENSUS)]
     return (
