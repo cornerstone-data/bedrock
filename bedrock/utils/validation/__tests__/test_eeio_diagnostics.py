@@ -570,6 +570,21 @@ def test_domestic_lci_equals_e(canonical_usa_config: None) -> None:
 
 
 @pytest.mark.eeio_integration
+def test_b_times_q_conserves_emissions(canonical_usa_config: None) -> None:
+    """``B @ q`` sums to E: commodity factors neither add nor lose emissions.
+
+    It failed by 4.0 Mt when the scrap correction divided market shares by
+    ``1 - s`` on an ``x`` that already excluded scrap (#1293). The LCI≈E test
+    above can't see that, because it puts the same market shares on both sides.
+    """
+    B = derive_B()
+    q = derive_Aq_scaled().scaled_q
+    assert float((B.reindex(columns=q.index, fill_value=0.0) @ q).sum()) == (
+        pytest.approx(float(derive_E_usa().values.sum()), rel=1e-9)
+    )
+
+
+@pytest.mark.eeio_integration
 @pytest.mark.xfail(
     reason=(
         'Cornerstone total LCI≈E uses y_trade (ytot/trade), not IO-balanced '

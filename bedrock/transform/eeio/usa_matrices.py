@@ -112,8 +112,6 @@ from bedrock.utils.math.split_using_aggregated_weights import (
     split_vector_using_agg_ratio,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
-    ELECTRICITY_AGGREGATE_SECTOR,
-    ELECTRICITY_DISAGG_SECTORS,
     active_cornerstone_commodities,
     validate_cornerstone,
 )
@@ -313,7 +311,16 @@ def derive_Vnorm_scrap_corrected(
     apply_inflation: bool | None = None,
     target_year: int = 0,
 ) -> pd.DataFrame:
-    """Scrap-corrected V norm. Inflation is applied via ``derive_V``.
+    """Market shares ``V q̂⁻¹``, net of scrap. Inflation is applied via ``derive_V``.
+
+    USEEIO divides market shares by ``1 - s``, with ``s`` scrap's share of an
+    industry's output **including** scrap, so that the industry's inputs and
+    emissions land on its other products. The Cornerstone Make table has no
+    scrap: ``S00401`` maps with weight 0, so ``x`` is already output without
+    scrap, and ``U / x`` and ``E / x`` already land on the other products.
+    Dividing by ``1 - s`` again would count scrap twice (#1293). The plain
+    market shares give exactly USEEIO's A and B:
+    ``U x_incl⁻¹ V_n / (1 - scrap / x_incl) = U x_excl⁻¹ V_n``.
 
     When ``target_year`` is not positive and inflation is on, uses
     ``USAConfig.model_base_year``.
@@ -327,27 +334,8 @@ def derive_Vnorm_scrap_corrected(
 
     V = derive_V(use_inflation, effective_year)
     q = compute_q(V=V)
-    x = compute_x(V=V)
 
-    Vnorm = compute_Vnorm_matrix(V=V, q=q)
-
-    scrap_detail = load_detail_V_usa().loc[:, 'S00401']
-    scrap_fraction = industry_corresp() @ scrap_detail
-    if get_usa_config().implement_electricity_disaggregation:
-        parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
-        scrap_fraction = scrap_fraction.drop(
-            ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
-        )
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            scrap_fraction.loc[code] = parent_scrap
-    # The delivery sector has no scrap: the reindex below gives it zero.
-    scrap_fraction = scrap_fraction.reindex(V.index, fill_value=0.0)
-    x_aligned = x.reindex(V.index, fill_value=0.0)
-
-    V_scrap_corrected = Vnorm.divide(
-        (1.0 - (scrap_fraction / x_aligned).fillna(0.0)), axis=0
-    )
-    V_scrap_corrected = V_scrap_corrected.reindex(
+    V_scrap_corrected = compute_Vnorm_matrix(V=V, q=q).reindex(
         index=V.index, columns=V.columns, fill_value=0.0
     )
     validate_cornerstone(V_scrap_corrected, 'V')
