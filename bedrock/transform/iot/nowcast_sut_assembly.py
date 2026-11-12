@@ -437,10 +437,18 @@ def assemble_supply_seed(year: int) -> pd.DataFrame:
 
 
 def assemble_seeds(year: int, *, fitted: bool = True) -> dict[str, pd.DataFrame]:
-    return {
-        'use': assemble_use_seed(int(year), fitted=fitted),
-        'supply': assemble_supply_seed(int(year)),
-    }
+    from bedrock.transform.iot.nowcast_vehicle_pair import (  # noqa: PLC0415
+        split_vehicle_pair_imports,
+    )
+
+    use = assemble_use_seed(int(year), fitted=fitted)
+    supply = assemble_supply_seed(int(year))
+    # The car row's imports are set so that it balances; see the module (#1270).
+    commodities = list(balance_commodities())
+    supply.loc[commodities] = split_vehicle_pair_imports(
+        use.loc[commodities], supply.loc[commodities]
+    )
+    return {'use': use, 'supply': supply}
 
 
 def assemble_masks(
