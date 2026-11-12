@@ -181,6 +181,15 @@ Trigger the `generate_snapshots` workflow manually:
 
 Wait for the success notification in `#alerts-bedrock`. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>/`.
 
+Then cut the year series on the same SHA. Run the workflow once for each year, 2017 to 2024:
+
+- `config_name`: `2026_usa_cornerstone_v1_0_<year>`
+- `snapshot_prefix_override`: `<sha>_2026_usa_cornerstone_v1_0_<year>`, where `<sha>` is the full commit SHA of the canonical run
+
+Do not leave the override blank. Without it, each year writes to `snapshots/<sha>/` and replaces the canonical snapshot. The eight runs can go at the same time. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>_2026_usa_cornerstone_v1_0_<year>/`. The 2024 member has the same config as the canonical one, so its outputs should match `snapshots/<sha>/`.
+
+No code in this repo reads the year prefixes. Time-series analyses outside the repo use them, so cut all eight whenever the canonical snapshot moves.
+
 **A4. Open the snapshot bump PR.**
 On a new branch, make exactly these changes (and nothing else — keep the bump PR mechanical and reviewable in under a minute):
 
@@ -189,7 +198,9 @@ On a new branch, make exactly these changes (and nothing else — keep the bump 
 - [ ] [`bedrock/utils/config/usa_config.py`](../config/usa_config.py) — extend the `snapshot_version_or_git_sha: Literal[...]` to include the new SHA, with a trailing comment noting the release label (e.g. `# v0.4.0`). Do **not** remove old SHAs — atomic configs and test fixtures may still reference them.
 - [ ] [`bedrock/utils/validation/diagnostics_baseline.py`](../validation/diagnostics_baseline.py) — when the release is a common diagnostics comparison target, add a short alias to `NAMED_BASELINES` (e.g. `'v0.4': releases.v0_4_0`, `'v0.4.0': releases.v0_4_0`). Operators can always pass the raw SHA via `--baseline` once the `Literal` includes it; the alias is for convenience (`--baseline v0.4`).
 - [ ] Title: `release: snapshot bump (anticipated v0.X.Y)`
-- [ ] Description: short summary of the output delta vs. the previous snapshot, plus the GCS URL `gs://cornerstone-default/snapshots/<new_sha>/`.
+- [ ] Description: short summary of the output delta vs. the previous snapshot, plus the GCS URL `gs://cornerstone-default/snapshots/<new_sha>/` and the eight year-series prefixes from A3.
+
+`.SNAPSHOT_KEY` and `releases.py` record only the canonical SHA. The year-series prefixes follow from it (`<sha>_<config_name>`), so they need no entry of their own.
 
 **A5. Verify before merging.**
 On the bump PR's branch, the USA snapshot integration tests should pass against the new snapshot:
