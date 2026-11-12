@@ -186,7 +186,7 @@ Then cut the year series on the same SHA. Run the workflow once for each year, 2
 - `config_name`: `2026_usa_cornerstone_v1_0_<year>`
 - `snapshot_prefix_override`: `<sha>_2026_usa_cornerstone_v1_0_<year>`, where `<sha>` is the full commit SHA of the canonical run
 
-Do not leave the override blank. Without it, each year writes to `snapshots/<sha>/` and replaces the canonical snapshot. The eight runs can go at the same time. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>_2026_usa_cornerstone_v1_0_<year>/`. The 2024 member has the same config as the canonical one, so its outputs should match `snapshots/<sha>/`.
+Do not leave the override blank. Without it, each year writes to `snapshots/<sha>/` and replaces the canonical snapshot. The eight runs can go at the same time. Artifacts will be at `gs://cornerstone-default/snapshots/<sha>_2026_usa_cornerstone_v1_0_<year>/`. A5 checks the 2024 member against the canonical snapshot.
 
 No code in this repo reads the year prefixes. Time-series analyses outside the repo use them, so cut all eight whenever the canonical snapshot moves.
 
@@ -203,7 +203,15 @@ On a new branch, make exactly these changes (and nothing else — keep the bump 
 `.SNAPSHOT_KEY` and `releases.py` record only the canonical SHA. The year-series prefixes follow from it (`<sha>_<config_name>`), so they need no entry of their own.
 
 **A5. Verify before merging.**
-On the bump PR's branch, the USA snapshot integration tests should pass against the new snapshot:
+First, check that the year series reproduces the canonical snapshot. `2026_usa_cornerstone_v1_0` and `2026_usa_cornerstone_v1_0_2024` resolve to the same fields (`test_v1_0_release_yaml_matches_2024_series_member`), and both runs used one SHA. So every object in the 2024 member must match the canonical one:
+
+```bash
+uv run python -m bedrock.utils.snapshots.compare_snapshots <sha> <sha>_2026_usa_cornerstone_v1_0_2024
+```
+
+Do not merge the bump if the command fails. A difference means the build does not reproduce on one SHA, and every year in the series is in doubt. Values may differ by 1e-9 at most (relative or absolute), because two runners can differ in the last bits of a float sum. Indexes, columns and dtypes must be identical.
+
+Then, on the bump PR's branch, the USA snapshot integration tests should pass against the new snapshot:
 
 ```bash
 uv run pytest bedrock/transform/__tests__/test_usa.py -m eeio_integration
