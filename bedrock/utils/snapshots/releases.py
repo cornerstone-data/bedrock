@@ -105,7 +105,17 @@ v1_0_0_pre_electricity_flags = (
 # petroleum and oil and gas seeds (#1187), and the trade fixes (#1179, #1180).
 # GHG_national_Cornerstone_{year}_v1.0.0_edf6e0e is rebuilt on that MUT, with
 # the non-energy use split from #1201.
-v1_0_0 = "c9b69d94a20aecc8d858738eb87093e26e612dbe"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
+v1_0_0_pre_406 = (
+    "c9b69d94a20aecc8d858738eb87093e26e612dbe"  # config: 2026_usa_cornerstone_v1_0
+)
+
+# Output change: the v1.0 configs load the nowcast MUT v1.0.0_8365fa4, the
+# 2017-2024 rebuild on GitHub Actions (#1286): gold left out of Census trade
+# (#1275), Step 7 closing Use rows on same-sign changes (#1277), every Step 5
+# flow-by-sector table built at the commit (#1278) and air freight on the AIES
+# level (#1274). Electricity delivery is its own sector, 42ELEC (406, #1283).
+# GHG_national_Cornerstone_{year}_v1.0.0_8365fa4 is rebuilt on that MUT.
+v1_0_0 = "7533da280bfc9e943065306ba37630228046713d"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -130,6 +140,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v0_6_0: 2024,
     v1_0_0_rc: 2024,
     v1_0_0_pre_electricity_flags: 2024,
+    v1_0_0_pre_406: 2024,
     v1_0_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,

@@ -29,6 +29,10 @@ jobs:
           service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
 
       - name: Run tests (cornerstone-usa)
+        env:
+          # Waste match_io / AIES industry-mix (and other Census FBAs) need this
+          # when the parquet is not yet on gs://…/flowsa/FlowByActivity/.
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
           uv run pytest -v -m "eeio_integration and not fbs_regeneration"
 
@@ -75,6 +79,10 @@ jobs:
           service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
 
       - name: Run tests (nowcast balance)
+        env:
+          # Waste match_io / AIES industry-mix (and other Census FBAs) need this
+          # when the parquet is not yet on gs://…/flowsa/FlowByActivity/.
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
           uv run pytest -v -m nowcast_integration
 
