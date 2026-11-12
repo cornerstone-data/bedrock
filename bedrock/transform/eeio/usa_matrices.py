@@ -112,6 +112,8 @@ from bedrock.utils.math.split_using_aggregated_weights import (
     split_vector_using_agg_ratio,
 )
 from bedrock.utils.schemas.cornerstone_schemas import (
+    ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DISAGG_SECTORS,
     active_cornerstone_commodities,
     validate_cornerstone,
 )
@@ -304,6 +306,30 @@ def derive_q() -> pd.Series[float]:
     q = compute_q(V=derive_V())
     validate_cornerstone(q, 'Q')
     return q
+
+
+def scrap_share_of_output() -> pd.Series[float]:
+    """Each industry's scrap (``S00401``) over its output **including** scrap.
+
+    That is USEEIO's ``s``. The Cornerstone Make has no scrap, so
+    ``derive_Vnorm_scrap_corrected`` needs no adjustment where ``x`` is its row
+    sums. Where ``x`` is BEA gross output, which includes scrap, B divides the
+    market shares by ``1 - s`` (``derive_B_via_vnorm``, #1293).
+
+    A parent's scrap is shared across the electricity children by output.
+    """
+    V = derive_V()
+    x = compute_x(V=V)
+    scrap = industry_corresp() @ load_detail_V_usa().loc[:, 'S00401']
+    if get_usa_config().implement_electricity_disaggregation:
+        parent = float(scrap.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
+        scrap = scrap.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
+        children = [c for c in ELECTRICITY_DISAGG_SECTORS if c in x.index]
+        child_x = float(x.reindex(children).sum())
+        for code in children:
+            scrap.loc[code] = parent * float(x[code]) / child_x if child_x else 0.0
+    scrap = scrap.reindex(V.index, fill_value=0.0)
+    return (scrap / (x.reindex(V.index, fill_value=0.0) + scrap)).fillna(0.0)
 
 
 @functools.cache
@@ -822,6 +848,12 @@ def derive_B_via_vnorm() -> pd.DataFrame:
     else:
         x = derive_x_after_redefinition() if cfg.use_ghg_year_x_in_B else derive_x()
     Vnorm = derive_Vnorm_scrap_corrected()
+    if cfg.usa_detail_io_source != 'nowcast' and (
+        cfg.deflate_x_to_detail_io_year_for_B or cfg.use_ghg_year_x_in_B
+    ):
+        # BEA gross output includes scrap, so the scrap correction applies here,
+        # as in USEEIO: divide by 1 - s with s over output including scrap (#1293).
+        Vnorm = Vnorm.divide(1.0 - scrap_share_of_output(), axis=0)
     Bi = E.divide(x, axis=1).fillna(0.0)
     B = Bi @ Vnorm
     validate_cornerstone(B, 'B')
