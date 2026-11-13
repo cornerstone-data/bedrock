@@ -531,3 +531,61 @@ It establishes the direction, not the size of the nowcast gain, which depends on
 how good our `Y_pur` is against BEA's purchaser values.
 
 **Answered by:** BEA (same correspondent as the 2026-08-31 courier reply).
+
+---
+
+## 2026-11-13 — Which trade series BEA uses for hospital exports
+
+**Question put by Wes:** 2026-11-02, by email to Billy Jolliff (#658): which
+international trade series BEA uses for exports of hospital services (`622000`).
+Our export rows had no published ITA series that moves the way BEA's hospital
+exports do, so hospitals had been set to BEA's published summary instead
+(#1180).
+
+**Answered:** a late reply received 2026-11-13 (forwarded by Wes).
+
+### What BEA said
+
+> Listed are the exports series from ITA Table 2.1 that are used to calculate
+> exports for the hospital industry:
+>
+> - Exports of Health Services (Line 100)
+> - A portion of Technical, Trade-Related, and Other Business Services
+>   (Line 77)
+
+### What it changed
+
+Nothing in the build. It confirms the reason the hospital row is set to the
+published summary.
+
+1. **Most of the hospital row is an unpublished share of Line 77.** Line 100
+   is ITA's health services (`Health`, from BEA's BE-125 survey). It is
+   suppressed for 2017-2021 and is $0.97, $0.77 and $0.82 billion in
+   2022-2024. BEA's hospital exports are $2.8 billion in 2017 and
+   $14.1 billion in 2024, so Line 100 can account for at most about a
+   twentieth of the row. The rest comes from Line 77 (`TechTradeRelatedOth`).
+2. **The share is not fixed, so no published series can stand in for it.**
+   Line 77 grows from $36.2 billion in 2017 to $54.0 billion in 2024, and it
+   falls in 2020 ($34.7 billion) while hospital exports keep rising. Hospitals'
+   part of Line 77 goes from at most about 8% in 2017 to about 25% in 2024.
+   That fits the 2009 IO manual (ch. 7): BEA assigns services that several
+   industries export to the industry of the reporting firm, using survey
+   records it does not publish by type. We cannot rebuild that split, so
+   `622000` stays on the published summary `F040` (`SUMMARY_CONTROLLED_EXPORTS`
+   in `bedrock/transform/trade/utilities.py`).
+3. **Line 100 is not only hospitals.** Where it is published, ITA health
+   services is close to BEA's ambulatory plus nursing and residential exports
+   (`621` + `623`: $990, $816 and $861 million in 2022-2024). BEA lists it for
+   hospitals too, so it is likely spread across all three health summary rows.
+   All three are set to the published summary on exports, so this does not
+   change anything in the build.
+4. **The rows Line 77's other parts feed get the hospital share's growth.** Our
+   export bridge sends Line 77's component series to other rows, such as
+   engineering (`541300`), leasing (`532*`), trade-related services
+   (`425000`) and waste treatment (`562000`). If hospitals take a growing part of the line in
+   BEA's tables, those rows grow faster in ours than in BEA's. Conditioning
+   service exports on the published summary (#1250, PR #1303, flag off) caps
+   this by summary row. Look for it when grading that rebuild.
+
+**Answered by:** BEA (reply to Wes's 2026-11-02 email to Billy Jolliff; the
+correspondent was not named in the forward).
