@@ -576,7 +576,8 @@ class USAConfig(BaseModel):
             and not self.electricity_accounting_residual
         ):
             raise ValueError(
-                'electric_output_on_eia_level requires electricity_accounting_residual'
+                'electric_output_on_eia_level requires '
+                'electricity_accounting_residual'
             )
         if self.electricity_delivery_margin and (
             self.implement_electricity_disaggregation

@@ -737,7 +737,7 @@ def go_controlled_supply_block(
     raise ValueError(
         f'the {year} tax wedge did not settle in {WEDGE_PASSES} passes; the last '
         f'moved {moved:,.0f} USD on some industry against a tolerance of '
-        f"{WEDGE_TOLERANCE:,.0f}. T00TOP is allocated on this block's market "
+        f'{WEDGE_TOLERANCE:,.0f}. T00TOP is allocated on this block\'s market '
         f'shares, so target and answer chase each other - a wedge that will not '
         f'settle means the fit is moving market shares far more than expected.'
     )

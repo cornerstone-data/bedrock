@@ -180,7 +180,7 @@ def resolve_pce_constraint(
     mode = get_usa_config().electricity_pce_constraint_mode
     if mode == 'none':
         raise ValueError(
-            'constrain_electricity_pce_cell=True requires '
+            "constrain_electricity_pce_cell=True requires "
             "electricity_pce_constraint_mode != 'none'"
         )
     return mode

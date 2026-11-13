@@ -266,13 +266,13 @@ def published_sub_by_group(year: int) -> pd.Series:
         raise ValueError(
             f'The {year} summary Supply SUB column is positive on '
             f'{sorted(groups.index[groups > 0])}. BEA stores this column negative; '
-            f"a positive cell means the workbook was read on the Use table's sign "
+            f'a positive cell means the workbook was read on the Use table\'s sign '
             f'convention.'
         )
     if abs(float(groups.sum()) - total) > _ROUNDING_TOLERANCE:
         raise ValueError(
             f'The {year} summary Supply SUB groups sum to {groups.sum():,.0f} USD '
-            f"against the workbook's own T017 of {total:,.0f}. A group row is "
+            f'against the workbook\'s own T017 of {total:,.0f}. A group row is '
             f'being dropped or double-read.'
         )
     return groups.rename('SUB')
@@ -320,7 +320,7 @@ def published_sub_by_commodity() -> pd.Series:
         raise ValueError(
             f'The published 2017 Supply SUB column is positive on '
             f'{sorted(column.index[column > 0])}. BEA stores this column negative; '
-            f"a positive cell means the workbook was read on the Use table's sign "
+            f'a positive cell means the workbook was read on the Use table\'s sign '
             f'convention, which doubles the subsidy wedge in T015.'
         )
     return column

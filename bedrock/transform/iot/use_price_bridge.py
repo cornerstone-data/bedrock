@@ -646,7 +646,7 @@ def _strip_sales_tax(
                 f'{int(cells.to_numpy().sum())} cells, by '
                 f'{over.where(cells, 0.0).to_numpy().sum():,.0f} USD (first '
                 f'{cells.any(axis=1).idxmax()}), which would leave a negative '
-                'tax-free margin; the fiscal layer was restricted to another '
+                "tax-free margin; the fiscal layer was restricted to another "
                 "table's margins."
             )
         out[kind] = amounts[kind] - tax

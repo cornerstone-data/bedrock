@@ -230,7 +230,7 @@ def v00200_row(va_block: pd.DataFrame) -> pd.Series:
             positive = sorted(values.index[flagged])
             raise ValueError(
                 f'{row} is positive on {len(positive)} industries '
-                f"({positive[:5]}). This block is on BEA's published sign "
+                f'({positive[:5]}). This block is on BEA\'s published sign '
                 f'convention, where the subsidy rows are subtracted; the build '
                 f'stores them negative and adds them. Summing a BEA-signed '
                 f'block overstates V00200 by twice the subsidy total.'

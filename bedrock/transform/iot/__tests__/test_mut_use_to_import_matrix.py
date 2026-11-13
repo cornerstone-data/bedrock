@@ -177,9 +177,9 @@ def test_f05000_is_written_negative_and_the_seven_columns_zero() -> None:
     )
 
     assert table.loc[FIRST, USA_2017_FINAL_DEMAND_IMPORT_CODE] == pytest.approx(-400.0)
-    assert (table[list(ZERO_IMPORT_FINAL_DEMAND_CODES)].to_numpy() == 0.0).all(), (
-        'BEA measured these at zero; they belong in the frame as zeros'
-    )
+    assert (
+        table[list(ZERO_IMPORT_FINAL_DEMAND_CODES)].to_numpy() == 0.0
+    ).all(), 'BEA measured these at zero; they belong in the frame as zeros'
 
 
 def test_the_matrix_has_the_axes_the_published_table_has() -> None:

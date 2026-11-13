@@ -68,9 +68,9 @@ def test_the_chained_years_hold_the_manufacturing_total_not_the_groups(
         ), year
         got = adjusted.loc[members, year].groupby(parents[members]).sum()
         want = raw.loc[members, year].groupby(parents[members]).sum()
-        assert float((got - want).abs().sum()) > 10_000.0, (
-            f'{year}: no group moved; the chain is a no-op'
-        )
+        assert (
+            float((got - want).abs().sum()) > 10_000.0
+        ), f'{year}: no group moved; the chain is a no-op'
 
 
 def test_nothing_before_2022_and_nothing_outside_manufacturing_moves(
