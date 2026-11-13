@@ -14,13 +14,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from bedrock.extract.disaggregation import derive_waste_weights as dww
+from bedrock.extract.disaggregation import disagg_weights as dw
 from bedrock.extract.disaggregation.disagg_weights import DisaggWeights
-from bedrock.transform.allocation.derived import load_E_from_flowsa
-from bedrock.transform.eeio import (
-    usa_expansion,
-)
 from bedrock.extract.disaggregation.waste_weight_types import (
     WeightDerivationProvenance,
+)
+from bedrock.transform.allocation.derived import load_E_from_flowsa
+from bedrock.transform.eeio import (
+    sector_disagg_pipeline as sdp,
+)
+from bedrock.transform.eeio import (
+    usa_expansion,
 )
 from bedrock.transform.eeio.sector_disagg_pipeline import (
     _WASTE_NEW_CODES,
@@ -150,10 +155,6 @@ class TestWeightProvider:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """#1312 / #1269: match_io + calendar 2017 must not hit bundled CSVs."""
-        from bedrock.extract.disaggregation import derive_waste_weights as dww
-        from bedrock.extract.disaggregation import disagg_weights as dw
-        from bedrock.transform.eeio import sector_disagg_pipeline as sdp
-
         derived = object()
         prov = WeightDerivationProvenance(
             target_year=2017,
@@ -163,12 +164,16 @@ class TestWeightProvider:
         )
         derive_calls: list[int] = []
 
-        def _derive(year: int, **_k: object) -> tuple[object, WeightDerivationProvenance]:
+        def _derive(
+            year: int, **_k: object
+        ) -> tuple[object, WeightDerivationProvenance]:
             derive_calls.append(year)
             return derived, prov
 
         def _load_forbidden(*_a: object, **_k: object) -> object:
-            raise AssertionError("bundled load_disagg_weights must not run under match_io")
+            raise AssertionError(
+                "bundled load_disagg_weights must not run under match_io"
+            )
 
         monkeypatch.setattr(dww, "derive_waste_weights", _derive)
         monkeypatch.setattr(dw, "load_disagg_weights", _load_forbidden)
@@ -199,10 +204,6 @@ class TestWeightProvider:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Explicit / default waste_weights_year=2017 stays on Cornerstone CSVs."""
-        from bedrock.extract.disaggregation import derive_waste_weights as dww
-        from bedrock.extract.disaggregation import disagg_weights as dw
-        from bedrock.transform.eeio import sector_disagg_pipeline as sdp
-
         bundled = object()
 
         def _derive_forbidden(*_a: object, **_k: object) -> object:
