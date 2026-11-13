@@ -348,3 +348,26 @@ def test_held_imports_keep_each_group_where_the_rows_would_move_them() -> None:
     assert held.loc[['c1', 'c2'], 'MCIF'].sum() == pytest.approx(4.0, abs=1e-6)
     assert held.at['c3', 'MCIF'] == pytest.approx(2.0, abs=1e-6)
     pd.testing.assert_series_equal(held.sum(axis=1), rows, check_names=False)
+
+
+# --- fixed service exports (#1250) ------------------------------------------
+
+
+def test_service_export_cells_are_fixed_and_goods_stay_free(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        asm,
+        'commodity_groups',
+        lambda: pd.Series({'c1': '514', 'c2': '325', 'c3': '561'}),
+    )
+    use = pd.DataFrame(
+        {'i1': [1.0, 1.0, 1.0], 'F04000': [2.0, 3.0, 0.0]}, index=['c1', 'c2', 'c3']
+    )
+    zero = pd.DataFrame(False, index=use.index, columns=use.columns)
+    mask = SutMask(
+        structural_zero=zero, fixed_value=zero.copy(), sign_lock=zero.astype(int)
+    )
+    fixed = asm.fix_service_exports(mask, use).fixed_value
+    assert fixed['F04000'].to_dict() == {'c1': True, 'c2': False, 'c3': True}
+    assert not fixed['i1'].any()
