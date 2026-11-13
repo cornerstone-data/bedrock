@@ -1014,6 +1014,27 @@ def derive_y_nab() -> pd.Series[float]:
     return backcompute_y_from_A_and_q(A=aq.Adom, q=aq.scaled_q)
 
 
+def derive_negative_purchase_sales() -> pd.Series[float]:
+    """By commodity, the sales BEA records as negative intermediate purchases.
+
+    Examples are industries selling used goods (``S00402``, e.g. airlines
+    selling aircraft) and federal nondefense government selling farm
+    commodities from its stocks (``1111A0`` bought by ``S00600``).
+    ``derive_U_set`` sets these cells to zero. The Use-side final demand and
+    the published U's ``F09000`` column carry them instead, so each Use row
+    still adds up to ``q`` (#1270). Values are negative.
+
+    Only domestic cells whose Use value is itself negative count. A cell that
+    is negative only because imports exceed use is an error, not a sale, so it
+    stays out and still shows.
+    """
+    uset = derive_U_with_negatives()
+    sold = uset.Udom.where((uset.Udom + uset.Uimp) < 0, 0.0).clip(upper=0.0)
+    out = sold.sum(axis=1)
+    out.index.name = 'sector'
+    return out
+
+
 def derive_y_dom_from_use_final_demand() -> pd.Series[float]:
     """Domestic final demand plus exports, read from the Use table.
 
@@ -1023,10 +1044,14 @@ def derive_y_dom_from_use_final_demand() -> pd.Series[float]:
     takes. Unlike ``derive_y_nab`` it never sees ``A`` or ``q``, so
     ``L_dom @ y`` reproduces ``q`` only when Make and Use agree on each
     commodity's output. Negatives are kept, as in the published tables.
+
+    It also includes ``derive_negative_purchase_sales``: the sales BEA records
+    as negative intermediate purchases, which ``derive_U_set`` takes out of U.
     """
     Y = derive_Ytot_full_cs_matrix()
     Uimp = derive_U_with_negatives().Uimp
     y = Y.sum(axis=1).add(Uimp.sum(axis=1), fill_value=0.0)
+    y = y.add(derive_negative_purchase_sales(), fill_value=0.0)
     y.index.name = 'sector'
     return y
 

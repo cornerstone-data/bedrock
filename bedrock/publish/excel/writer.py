@@ -236,10 +236,13 @@ def _build_final_demand_meta_df() -> pd.DataFrame:
     from bedrock.utils.taxonomy.cornerstone.final_demand import (
         FINAL_DEMAND_DESC,
         FINAL_DEMANDS,
+        NEGATIVE_PURCHASE_SALES_CODE,
+        NEGATIVE_PURCHASE_SALES_DESC,
     )
 
     return pd.DataFrame(
         [{'Code': code, 'Name': FINAL_DEMAND_DESC[code]} for code in FINAL_DEMANDS]
+        + [{'Code': NEGATIVE_PURCHASE_SALES_CODE, 'Name': NEGATIVE_PURCHASE_SALES_DESC}]
     )
 
 

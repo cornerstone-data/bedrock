@@ -333,6 +333,15 @@ def test_get_U_commodity_axis_is_parent_not_children(
         'bedrock.transform.eeio.usa_matrices.derive_VA_reaggregated',
         lambda: va,
     )
+    monkeypatch.setattr(
+        'bedrock.transform.eeio.usa_matrices.derive_negative_purchase_sales',
+        # On the 407 axis, as derive_U_with_negatives is when disaggregation is on.
+        lambda: pd.Series(
+            0.0,
+            index=[c for c in commodities if c != ELECTRICITY_AGGREGATE]
+            + list(ELECTRICITY_DISAGG_SECTORS),
+        ),
+    )
     model_objects.get_U.cache_clear()
     try:
         u = model_objects.get_U()
