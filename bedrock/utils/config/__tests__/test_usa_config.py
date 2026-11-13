@@ -455,9 +455,10 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'hold_electric_gas_on_eia',
         'electric_output_on_eia_level',
         'electricity_delivery_margin',
+        'commercial_kwh_follow_intermediate_inputs',
     }
     assert all(getattr(cfg, flag) for flag in electricity_flags)
-    # Fixes merged 2026-11-10 and 11-11, rebuilt in v1.0.0_fd271dc (#1249).
+    # Rebuild flag set for the live v1.0 MUT (includes #1303 / #1306 holds).
     rebuild_flags = {
         'fill_withheld_aies_codes',
         'hold_aies_outliers_on_bea',
@@ -467,6 +468,9 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'pin_refinery_secondaries_at_go_mix',
         'air_margin_on_aies_level',
         'trade_margin_receivers_follow_supply',
+        'hold_services_seed_at_last_sas_year',
+        'hold_imports_on_summary_groups',
+        'condition_service_exports_on_summary',
     }
     assert all(getattr(cfg, flag) for flag in rebuild_flags)
 
