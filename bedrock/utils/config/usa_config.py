@@ -312,8 +312,10 @@ class USAConfig(BaseModel):
     hold_imports_on_summary_groups: bool = False  # DRI: WesIngwersen
     # Scale each service summary group of exports (F04000) to BEA's summary
     # Use F040, keeping the ITA growth blends only for the detail split. The
-    # blends drift about 40% on 514, 561 and 55 by 2024 (#1250). See
-    # nowcast_fd_conditioning.condition_service_exports_on_summary.
+    # blends drift about 40% on 514, 561 and 55 by 2024 (#1250). The Step 5
+    # balance then keeps those cells fixed. See
+    # nowcast_fd_conditioning.condition_service_exports_on_summary and
+    # nowcast_sut_assembly.fix_service_exports.
     condition_service_exports_on_summary: bool = False  # DRI: WesIngwersen
     # Smooth each manufacturing industry's share of the expense seed's survey
     # total across the survey changes (census 2017 -> ASM 2018-21 -> census
