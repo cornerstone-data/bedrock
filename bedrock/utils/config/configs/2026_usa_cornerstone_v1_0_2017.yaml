@@ -1,9 +1,10 @@
 # Cornerstone 2026 model - v1.0, calendar year 2017.
 #
 # Same methodology as 2026_usa_cornerstone_v1_0 for year 2017.
-# nowcast_mut_vintage v1.0.0_8365fa4 is the 2017-2024 rebuild on the 2026 BEA
+# nowcast_mut_vintage v1.0.0_fd271dc is the 2017-2024 rebuild on the 2026 BEA
 # annual update, with electric output on EIA's 2017 level and the 2026-11-10
-# fixes below (#1249).
+# fixes below (#1249), the balance and export fixes of 11-12 (#1270, #1293)
+# and the trade margin receivers (#1194).
 # bea_price_index_vintage 2026Q2 is the index those tables were built with. The
 # GHG loader returns GHG_national_Cornerstone_2017.
 # cornerstone_ghg_fbs_filename names the GCS object loaded for E. When
@@ -21,7 +22,7 @@ iot_before_or_after_redefinition: after
 # Data selection
 #####
 usa_detail_io_source: nowcast
-nowcast_mut_vintage: 'v1.0.0_8365fa4'
+nowcast_mut_vintage: 'v1.0.0_fd271dc'
 usa_base_io_data_year: 2017
 usa_ghg_data_year: 2017
 bea_price_index_vintage: '2026Q2'
@@ -29,7 +30,7 @@ bea_price_index_vintage: '2026Q2'
 #####
 # Methodology selection
 #####
-cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2017_v1.0.0_8365fa4.parquet
+cornerstone_ghg_fbs_filename: GHG_national_Cornerstone_2017_v1.0.0_fd271dc.parquet
 apply_io_year_adjustments: False
 implement_waste_disaggregation: True
 waste_weights_year: match_io
@@ -46,7 +47,7 @@ hold_electric_gas_on_eia: True
 # applied after Step 7.
 electric_output_on_eia_level: True
 electricity_delivery_margin: True
-# Fixes merged 2026-11-10, rebuilt together in v1.0.0_8365fa4 (#1249).
+# Fixes merged 2026-11-10, rebuilt together in v1.0.0_fd271dc (#1249).
 # AIES output chain (#1231): withheld codes, 325190 on BEA, gas distribution.
 fill_withheld_aies_codes: True
 hold_aies_outliers_on_bea: True
@@ -59,3 +60,6 @@ cap_margins_at_purchase: True
 pin_refinery_secondaries_at_go_mix: True
 # Air freight revenue at the AIES level from 2023 (#1251, #1274).
 air_margin_on_aies_level: True
+# Spread each year's trade margin over the goods by their own supply, not by
+# frozen 2017 shares (#1194, #1260).
+trade_margin_receivers_follow_supply: True

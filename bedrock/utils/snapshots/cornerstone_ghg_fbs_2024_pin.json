@@ -2,6 +2,6 @@
   "method": "GHG_national_Cornerstone_2024",
   "usa_config": "2026_usa_cornerstone_v1_0",
   "gcs_sub_bucket": "transform/output_data",
-  "filename": "GHG_national_Cornerstone_2024_v1.0.0_8365fa4.parquet",
-  "sha256": "067cd99beb43b586e26135387d4bd273ad98812e8684a1e3e43e60f1aa88d4d1"
+  "filename": "GHG_national_Cornerstone_2024_v1.0.0_fd271dc.parquet",
+  "sha256": "f846719311e07765a06f7b0ce1cd6f0e09bc48caf51bd9ab3238d7a6de148b5d"
 }
