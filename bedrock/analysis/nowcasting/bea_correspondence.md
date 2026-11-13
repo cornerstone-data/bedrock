@@ -542,7 +542,8 @@ Our export rows had no published ITA series that moves the way BEA's hospital
 exports do, so hospitals had been set to BEA's published summary instead
 (#1180).
 
-**Answered:** a late reply received 2026-11-13 (forwarded by Wes).
+**Answered:** a late reply from William Jolliff, received 2026-11-13
+(forwarded by Wes).
 
 ### What BEA said
 
@@ -587,5 +588,4 @@ published summary.
    service exports on the published summary (#1250, PR #1303, flag off) caps
    this by summary row. Look for it when grading that rebuild.
 
-**Answered by:** BEA (reply to Wes's 2026-11-02 email to Billy Jolliff; the
-correspondent was not named in the forward).
+**Answered by:** William (Billy) Jolliff, Bureau of Economic Analysis.
