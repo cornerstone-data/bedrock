@@ -308,12 +308,53 @@ def derive_q() -> pd.Series[float]:
     return q
 
 
+def scrap_share_of_output() -> pd.Series[float]:
+    """Each industry's scrap (``S00401``) over its output **including** scrap.
+
+    That is USEEIO's ``s``. The Cornerstone Make has no scrap, so
+    ``derive_Vnorm_scrap_corrected`` needs no adjustment where ``x`` is its row
+    sums. Where ``x`` is BEA gross output, which includes scrap, B divides the
+    market shares by ``1 - s`` (``derive_B_via_vnorm``, #1293).
+
+    A BEA industry split into several Cornerstone industries (the waste
+    children of ``562000``, the electricity children) shares its scrap across
+    them **by output**, not by the correspondence's equal weights. So every
+    child gets its parent's scrap share, as in USEEIO's waste disaggregation.
+    """
+    V = derive_V()
+    x = compute_x(V=V)
+    corresp = industry_corresp()
+    by_output = corresp.gt(0).mul(x.reindex(corresp.index).fillna(0.0), axis=0)
+    totals = by_output.sum(axis=0)
+    # A BEA industry whose children have no output keeps the correspondence.
+    weights = by_output.div(totals.where(totals > 0), axis=1).fillna(corresp)
+    scrap = weights @ load_detail_V_usa().loc[:, 'S00401']
+    if get_usa_config().implement_electricity_disaggregation:
+        parent = float(scrap.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
+        scrap = scrap.drop(ELECTRICITY_AGGREGATE_SECTOR, errors='ignore')
+        children = [c for c in ELECTRICITY_DISAGG_SECTORS if c in x.index]
+        child_x = float(x.reindex(children).sum())
+        for code in children:
+            scrap.loc[code] = parent * float(x[code]) / child_x if child_x else 0.0
+    scrap = scrap.reindex(V.index, fill_value=0.0)
+    return (scrap / (x.reindex(V.index, fill_value=0.0) + scrap)).fillna(0.0)
+
+
 @functools.cache
 def derive_Vnorm_scrap_corrected(
     apply_inflation: bool | None = None,
     target_year: int = 0,
 ) -> pd.DataFrame:
-    """Scrap-corrected V norm. Inflation is applied via ``derive_V``.
+    """Market shares ``V q̂⁻¹``, net of scrap. Inflation is applied via ``derive_V``.
+
+    USEEIO divides market shares by ``1 - s``, with ``s`` scrap's share of an
+    industry's output **including** scrap, so that the industry's inputs and
+    emissions land on its other products. The Cornerstone Make table has no
+    scrap: ``S00401`` maps with weight 0, so ``x`` is already output without
+    scrap, and ``U / x`` and ``E / x`` already land on the other products.
+    Dividing by ``1 - s`` again would count scrap twice (#1293). The plain
+    market shares give exactly USEEIO's A and B:
+    ``U x_incl⁻¹ V_n / (1 - scrap / x_incl) = U x_excl⁻¹ V_n``.
 
     When ``target_year`` is not positive and inflation is on, uses
     ``USAConfig.model_base_year``.
@@ -327,27 +368,8 @@ def derive_Vnorm_scrap_corrected(
 
     V = derive_V(use_inflation, effective_year)
     q = compute_q(V=V)
-    x = compute_x(V=V)
 
-    Vnorm = compute_Vnorm_matrix(V=V, q=q)
-
-    scrap_detail = load_detail_V_usa().loc[:, 'S00401']
-    scrap_fraction = industry_corresp() @ scrap_detail
-    if get_usa_config().implement_electricity_disaggregation:
-        parent_scrap = float(scrap_fraction.get(ELECTRICITY_AGGREGATE_SECTOR, 0.0))
-        scrap_fraction = scrap_fraction.drop(
-            ELECTRICITY_AGGREGATE_SECTOR, errors='ignore'
-        )
-        for code in ELECTRICITY_DISAGG_SECTORS:
-            scrap_fraction.loc[code] = parent_scrap
-    # The delivery sector has no scrap: the reindex below gives it zero.
-    scrap_fraction = scrap_fraction.reindex(V.index, fill_value=0.0)
-    x_aligned = x.reindex(V.index, fill_value=0.0)
-
-    V_scrap_corrected = Vnorm.divide(
-        (1.0 - (scrap_fraction / x_aligned).fillna(0.0)), axis=0
-    )
-    V_scrap_corrected = V_scrap_corrected.reindex(
+    V_scrap_corrected = compute_Vnorm_matrix(V=V, q=q).reindex(
         index=V.index, columns=V.columns, fill_value=0.0
     )
     validate_cornerstone(V_scrap_corrected, 'V')
@@ -834,6 +856,12 @@ def derive_B_via_vnorm() -> pd.DataFrame:
     else:
         x = derive_x_after_redefinition() if cfg.use_ghg_year_x_in_B else derive_x()
     Vnorm = derive_Vnorm_scrap_corrected()
+    if cfg.usa_detail_io_source != 'nowcast' and (
+        cfg.deflate_x_to_detail_io_year_for_B or cfg.use_ghg_year_x_in_B
+    ):
+        # BEA gross output includes scrap, so the scrap correction applies here,
+        # as in USEEIO: divide by 1 - s with s over output including scrap (#1293).
+        Vnorm = Vnorm.divide(1.0 - scrap_share_of_output(), axis=0)
     Bi = E.divide(x, axis=1).fillna(0.0)
     B = Bi @ Vnorm
     validate_cornerstone(B, 'B')

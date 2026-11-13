@@ -60,6 +60,12 @@ def test_useeio_b_adjust_divide_transform_steps(
         lambda original_year, target_year: ratio,
     )
     monkeypatch.setattr(dc, "derive_Vnorm_scrap_corrected", lambda: vnorm)
+    # Gross output includes scrap, so this branch divides by 1 - s (#1293).
+    monkeypatch.setattr(
+        dc,
+        "scrap_share_of_output",
+        lambda: pd.Series([0.1, 0.0], index=["I1", "I2"]),
+    )
 
     try:
         out = dc.derive_B_via_vnorm()
@@ -69,10 +75,10 @@ def test_useeio_b_adjust_divide_transform_steps(
 
     # Step 1: adjusted x = x_nominal / ratio = [125, 160]
     # Step 2: Bi = E / adjusted x = [0.08, 0.125]
-    # Step 3: B = Bi @ I = Bi
+    # Step 3: B = Bi @ (I / (1 - s)), with s = [0.1, 0]
     expected = pd.DataFrame(
         [
-            [0.08, 0.125],  # CO2
+            [0.08 / 0.9, 0.125],  # CO2
             [0.0, 0.0],  # CH4
             [0.0, 0.0],  # N2O
             [0.0, 0.0],  # HFCs
