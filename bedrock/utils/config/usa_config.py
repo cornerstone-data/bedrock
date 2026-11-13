@@ -196,21 +196,22 @@ class USAConfig(BaseModel):
     # before that, a rebuild no longer reproduces the pinned tables. See
     # bedrock/analysis/electricity/About_electricity_modeling_record.md.
     electric_output_on_retail_revenue: bool = False  # DRI: WesIngwersen
-    # Electricity generation and a buyer-specific delivery sector (#902), in the slot
-    # of 425000, which merges into 423A00. Applied after Step 7; no nowcast rebuild.
+    # Electricity generation and a buyer-specific delivery sector, 42ELEC, appended
+    # to the axis as sector 406. Applied after Step 7; no nowcast rebuild. Needs the
+    # nowcast tables.
     electricity_delivery_margin: bool = False  # DRI: WesIngwersen
     # Second pathway for electric power; needs the flag above. Electric non-fuel
     # inputs follow 2017 cells x input prices x EIA kWh, and what is left of BEA's
-    # electric value added moves to a residual commodity and industry (S00700)
-    # sold to commercial and industrial buyers. Keeps electric inputs from being
-    # squeezed by pinned value added. OFF, and not to be set in a build that
-    # publishes tables: Steps 6 and 7 do not read the pair yet. See
+    # electric value added moves to commercial and industrial buyers' operating
+    # surplus (V00300), where it stays in the released tables (#1271). Keeps
+    # electric inputs from being squeezed by pinned value added. OFF by default,
+    # on in the v1.0 configs. See
     # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
     electricity_accounting_residual: bool = False  # DRI: WesIngwersen
     # Starts electric output from EIA's level rather than BEA's 2017 level, and
     # moves the difference to the accounting residual, including in 2017. Needs
     # the flag above. Takes out what commercial and industrial buyers paid in
-    # 2017 above EIA revenue. OFF. See
+    # 2017 above EIA revenue. OFF by default, on in the v1.0 configs. See
     # bedrock/analysis/electricity/About_electricity_accounting_residual.md.
     electric_output_on_eia_level: bool = False  # DRI: WesIngwersen
     # Hold electric power's total purchases of oil and gas extraction (211000)
@@ -279,6 +280,14 @@ class USAConfig(BaseModel):
     # direct purchases, so its own use goes from $23bn to $35bn (#890). See
     # nowcast_transport_margins.chained_control_total.
     chain_transport_margins_across_aies: bool = False  # DRI: WesIngwersen
+    # Take air freight revenue from 2023 at the level AIES publishes, instead
+    # of moving 2022's SAS revenue on FAF air ton-miles. The volume bridge puts
+    # 2023 at 1.35x 2017 while BEA's published air margin is at 2.14x and AIES
+    # revenue at 2.32x, so our air margin falls to 0.63 of BEA's in 2023 and
+    # 0.58 in 2024. On the AIES level, BEA's margin is 0.54-0.58 of revenue in
+    # 2023-2024, the same range as 2017-2020 (#1251). See
+    # nowcast_transport_margins.mode_freight_revenue.
+    air_margin_on_aies_level: bool = False  # DRI: WesIngwersen
     # Hold each buyer's Step 6 margins to its purchase. Reconciling the
     # margins to the Supply give-up scales every buyer of a good alike, so a
     # high-rate buyer's producers' value goes negative: 84 cells and -$701M in
@@ -562,10 +571,11 @@ class USAConfig(BaseModel):
         if self.electricity_delivery_margin and (
             self.implement_electricity_disaggregation
             or not self.implement_waste_disaggregation
+            or self.usa_detail_io_source != 'nowcast'
         ):
             raise ValueError(
                 'electricity_delivery_margin replaces the G/T/D ladder and needs '
-                'implement_waste_disaggregation'
+                'implement_waste_disaggregation and usa_detail_io_source nowcast'
             )
         return self
 
@@ -695,7 +705,8 @@ class USAConfig(BaseModel):
         'e10c75f542b0c9b24692f6524a53073e091d54dc',  # v0.6.0
         '326ae5d8922ad69347c360314be541935a374a4b',  # v1.0.0-rc
         '7f0bdab6e7d12f17a9c2a61437a22af1df7bed30',  # v1.0.0, before the electricity flags
-        'c9b69d94a20aecc8d858738eb87093e26e612dbe',  # v1.0.0 (current .SNAPSHOT_KEY)
+        'c9b69d94a20aecc8d858738eb87093e26e612dbe',  # v1.0.0, before 42ELEC (406)
+        '7533da280bfc9e943065306ba37630228046713d',  # v1.0.0 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property

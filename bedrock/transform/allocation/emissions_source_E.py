@@ -32,6 +32,7 @@ from bedrock.transform.eeio.sector_disagg_pipeline import (
 from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_INDUSTRIES,
+    CORNERSTONE_INDUSTRIES_DELIVERY,
     CORNERSTONE_INDUSTRIES_ELEC,
 )
 from bedrock.utils.taxonomy.cornerstone.industries import INDUSTRIES
@@ -57,6 +58,8 @@ def _published_industry_columns() -> list[str]:
         return [str(s) for s in CORNERSTONE_INDUSTRIES_ELEC]
     if electricity_reaggregation_enabled():
         return [str(s) for s in CORNERSTONE_INDUSTRIES]
+    if usa.electricity_delivery_margin:
+        return [str(s) for s in CORNERSTONE_INDUSTRIES_DELIVERY]
     return [str(s) for s in INDUSTRIES]
 
 
@@ -104,7 +107,7 @@ def _mapped_rows() -> pd.DataFrame:
     if mapped['ceda_source'].str.contains(';').any():
         raise ValueError('mapped rows must not list multiple ceda_source codes')
     if get_usa_config().electricity_delivery_margin:
-        # The same moves as E by gas: brokers to their host, SF6 to delivery.
+        # The same move as E by gas: SF6 to delivery.
         from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
             move_delivery_flows,
         )

@@ -70,3 +70,33 @@ identity gate the implementation must carry.
 
 Still to design: the value-added rows, the after-redefinitions margins and
 import tables, and the S00102/S00203 government-enterprise reallocation.
+
+## 4. `redef_span_closure_probe.py` — close each row on the cells that moved its way
+
+The Use carry overshoots or undershoots each commodity row, and the row is
+closed back to its before total. The first closure spread the net change over
+every changed cell by |delta|, so an overshooting row also took from the cells
+the carry had nearly emptied. At detail in 2024 that left 146 negative Use
+cells (-$7.6bn) against 8 from the carry alone. In legal services `541100`,
+aerospace `33641A` went from $1,808M to $15M (2017 ratio 0.008) and then to
+-$447M (#1270).
+
+Closing on the same-sign cells only (an overshooting row gives back from the
+cells that gained, an undershooting row from the cells that lost) keeps every
+cell between its before and carried values. Same instrument as section 3,
+cell L1 as % of after-table mass:
+
+| year | carry, no closure | all-delta closure | same-sign closure |
+|-----:|---:|---:|---:|
+| 2018 | 0.269% | **0.255%** | 0.261% |
+| 2019 | 0.406% | 0.352% | **0.323%** |
+| 2020 | 0.798% | 0.740% | **0.659%** |
+| 2021 | 0.985% | 0.806% | **0.678%** |
+| 2022 | 0.824% | 0.717% | **0.664%** |
+| 2023 | 0.937% | 0.828% | **0.732%** |
+| 2024 | 1.062% | 0.947% | **0.774%** |
+
+Same-sign wins 2019-2024 by 8-18%, with 2018 a tie, and it has fewer bad cells
+(off by >10% and >$100M) in every year after 2018. Negative cells fall from
+13-15 to 5-7 a year from 2020. At detail on the `e7715da` before tables, it
+leaves only the 8 negative cells already in Step 6's tables.

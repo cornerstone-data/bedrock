@@ -64,7 +64,8 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 import pandas as pd
 
@@ -181,9 +182,9 @@ def _build_commodities_meta_df() -> pd.DataFrame:
                 'Code_Loc': f'{code}/{PUBLISH_LOCATION}',
                 'Location': PUBLISH_LOCATION,
                 # The code stays on the matrix axes; only the name changes here.
-                'Name': published_label(code, COMMODITY_DESC[code])[1],
+                'Name': published_label(code, _sector_names(COMMODITY_DESC)[code])[1],
             }
-            for code in COMMODITIES
+            for code in _with_delivery_sector(COMMODITIES)
         ]
     )
 
@@ -200,21 +201,48 @@ def _build_industries_meta_df() -> pd.DataFrame:
                 'Code': code,
                 'Code_Loc': f'{code}/{PUBLISH_LOCATION}',
                 'Location': PUBLISH_LOCATION,
-                'Name': INDUSTRY_DESC[code],
+                'Name': _sector_names(INDUSTRY_DESC)[code],
             }
-            for code in INDUSTRIES
+            for code in _with_delivery_sector(INDUSTRIES)
         ]
     )
+
+
+def _with_delivery_sector(codes: Sequence[str]) -> list[str]:
+    """*codes*, with ``42ELEC`` last when the config adds the delivery sector."""
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        ELECTRICITY_DELIVERY_SECTOR,
+        electricity_delivery_sector_active,
+    )
+
+    out = [str(code) for code in codes]
+    if electricity_delivery_sector_active():
+        out.append(ELECTRICITY_DELIVERY_SECTOR)
+    return out
+
+
+def _sector_names(desc: Mapping[Any, str]) -> dict[str, str]:
+    """*desc* with the delivery sector's name, which no BEA code carries."""
+    from bedrock.utils.schemas.cornerstone_schemas import (  # noqa: PLC0415
+        ELECTRICITY_DELIVERY_NAME,
+        ELECTRICITY_DELIVERY_SECTOR,
+    )
+
+    names = {str(code): name for code, name in desc.items()}
+    return {**names, ELECTRICITY_DELIVERY_SECTOR: ELECTRICITY_DELIVERY_NAME}
 
 
 def _build_final_demand_meta_df() -> pd.DataFrame:
     from bedrock.utils.taxonomy.cornerstone.final_demand import (
         FINAL_DEMAND_DESC,
         FINAL_DEMANDS,
+        NEGATIVE_PURCHASE_SALES_CODE,
+        NEGATIVE_PURCHASE_SALES_DESC,
     )
 
     return pd.DataFrame(
         [{'Code': code, 'Name': FINAL_DEMAND_DESC[code]} for code in FINAL_DEMANDS]
+        + [{'Code': NEGATIVE_PURCHASE_SALES_CODE, 'Name': NEGATIVE_PURCHASE_SALES_DESC}]
     )
 
 

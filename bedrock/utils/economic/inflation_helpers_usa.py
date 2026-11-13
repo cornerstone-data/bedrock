@@ -41,9 +41,11 @@ from bedrock.utils.schemas.cornerstone_schemas import (
     CORNERSTONE_COMMODITIES_ELEC,
     CORNERSTONE_INDUSTRIES_ELEC,
     ELECTRICITY_AGGREGATE_SECTOR,
+    ELECTRICITY_DELIVERY_SECTOR,
     ELECTRICITY_DISAGG_SECTORS,
     active_cornerstone_commodities,
     active_cornerstone_industries,
+    electricity_delivery_sector_active,
 )
 from bedrock.utils.taxonomy.bea.matrix_mappings import (
     USA_GROSS_INDUSTRY_OUTPUT_YEARS,
@@ -153,11 +155,13 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     """*levels* with generation and delivery each on its own EIA price (#1217).
 
     With ``electricity_delivery_margin`` on, ``221100`` sells kWh at the generation
-    price and the delivery sector in its slot sells the rest of each bill. On these
-    prices their real output follows kWh, so their factors follow emissions per kWh.
+    price and the delivery sector sells the rest of each bill. On these prices their
+    real output follows kWh, so their factors follow emissions per kWh.
+
+    Delivery gets a new line that starts from electricity's published index.
     """
     from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
-        DELIVERY_SLOT,
+        DELIVERY_CODE,
         GENERATION_SECTOR,
     )
     from bedrock.transform.eeio.electricity_price import (  # noqa: PLC0415
@@ -168,6 +172,9 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
         BASE_YEAR,
     )
 
+    if DELIVERY_CODE not in levels.index:
+        levels = levels.copy()
+        levels.loc[DELIVERY_CODE] = levels.loc[GENERATION_SECTOR]
     out = _lines_on_relative_price(
         levels,
         [GENERATION_SECTOR],
@@ -175,7 +182,7 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     )
     return _lines_on_relative_price(
         out,
-        [DELIVERY_SLOT],
+        [DELIVERY_CODE],
         lambda year: delivery_price(year) / delivery_price(BASE_YEAR),
     )
 
@@ -234,6 +241,8 @@ def get_industry_price_ratio(original_year: int, target_year: int) -> pd.Series[
         # COMMODITIES order diverges at 351/405 positions, so the target
         # list is load-bearing despite the function's name.
         target_codes = CORNERSTONE_COMMODITIES
+    if electricity_delivery_sector_active():
+        target_codes = [*target_codes, ELECTRICITY_DELIVERY_SECTOR]
     pi_ratio: pd.Series[float] = price_index[target_year] / price_index[original_year]
 
     # Start with direct reindex (codes shared with BEA detail get their own ratio)
@@ -414,12 +423,10 @@ def get_vnorm_adjusted_commodity_price_ratio(
     aligned = industry_ratio.reindex(Vnorm.index, fill_value=1.0)
 
     # Normalize V_norm columns to sum to 1 so the dot-product is a true weighted
-    # *average*, not a weighted *sum*. Scrap correction in
-    # `derive_Vnorm_scrap_corrected` is a row-axis scaling that
-    # leaves column sums slightly > 1 — using the un-renormalized form would
-    # produce a non-1 ratio at year=year (off by the column-sum drift, ~5–7%).
-    # Done locally here rather than upstream because A/B matrix consumers want
-    # the un-renormalized scrap-corrected V_norm.
+    # *average*, not a weighted *sum*. `derive_Vnorm_scrap_corrected` returns the
+    # plain market shares (#1293), whose columns already sum to 1, so this is a
+    # guard: it keeps the ratio at 1 for year = year if the shares ever change.
+    # B's gross-output path scales them by 1 / (1 - s) separately.
     column_sums = Vnorm.sum(axis=0)
     weights = Vnorm.divide(column_sums.where(column_sums > 1e-9, 1.0), axis=1)
     commodity_ratio = aligned @ weights
@@ -816,9 +823,10 @@ def _indexed_industry_pi(year: int) -> pd.Series[float]:
     fallback for cornerstone-only codes (mirrors the per-year half of
     ``get_industry_price_ratio``).
 
-    Indexed on ``active_cornerstone_industries()`` (405, or industries-elec when
-    electricity is disaggregated). V_norm.T @ pi_industry in the ITA flow needs
-    industry granularity matching the active Make/Use axis.
+    Indexed on ``active_cornerstone_industries()`` (405, industries-elec when
+    electricity is disaggregated, or 406 with the delivery sector). V_norm.T @
+    pi_industry in the ITA flow needs industry granularity matching the active
+    Make/Use axis.
 
     Codes with no parent in the upstream PI fall back to 100 (BEA convention
     2017 = 100); any ratio against another year that also falls back is 1.0.
@@ -826,7 +834,10 @@ def _indexed_industry_pi(year: int) -> pd.Series[float]:
     price_index = _industry_price_index_levels()
 
     pi_year: pd.Series[float] = price_index[year]
-    series = pi_year.reindex(CORNERSTONE_INDUSTRIES).astype(float)
+    codes = list(CORNERSTONE_INDUSTRIES)
+    if electricity_delivery_sector_active():
+        codes.append(ELECTRICITY_DELIVERY_SECTOR)
+    series = pi_year.reindex(codes).astype(float)
     parent_map = _usa_to_bea_price_parent()
     for child, parent_code in parent_map.items():
         if (

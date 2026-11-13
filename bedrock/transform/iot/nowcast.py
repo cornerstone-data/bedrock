@@ -280,7 +280,9 @@ def _trade_fbs_commodity_vector(method: str, download_sources_ok: bool) -> pd.Se
     fbs = getFlowBySector(
         method,
         download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
+        # Built from the FBAs at this commit, never downloaded: a published FBS
+        # can predate the code (the 2017 trade FBS did, #1270).
+        download_FBS_if_missing=False,
     )
     frame = pd.DataFrame(fbs)
     _assert_no_unproduced_mass(frame, method)
@@ -345,7 +347,9 @@ def _inventories_fbs_commodity_vector(
     fbs = getFlowBySector(
         method,
         download_FBAs_if_missing=download_sources_ok,
-        download_FBS_if_missing=download_sources_ok,
+        # Built from the FBAs at this commit, never downloaded: a published FBS
+        # can predate the code (the 2017 trade FBS did, #1270).
+        download_FBS_if_missing=False,
     )
     return (
         pd.DataFrame(fbs)
@@ -457,7 +461,9 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     F03000 is Inventories_<year> for every year in ``INVENTORIES_YEARS``
     (#529, #746); 2024 is all-zero.
     F04000 is mapped Trade_Exports_<year> Detail mass for every year in
-    ``TRADE_OVERLAY_YEARS``. S00900/F04000 uses the rest-of-world identity
+    ``TRADE_OVERLAY_YEARS``, with the computers and pharmaceutical families anchored on the
+    published 2017 cells (:mod:`~bedrock.transform.iot.nowcast_export_anchoring`,
+    #1270). S00900/F04000 uses the rest-of-world identity
     against frozen 2017 Supply T016.
 
     The seventeen NIPA-built columns are **conditioned on the published annual
@@ -475,12 +481,18 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     y = _nipa_final_demand_block(pd.DataFrame(fbs), int(year))
 
     if year in TRADE_OVERLAY_YEARS:
+        from bedrock.transform.iot.nowcast_export_anchoring import (  # noqa: PLC0415
+            anchored_exports,
+            published_2017_exports,
+        )
         from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
             s00300_f02n00_usd,
         )
 
-        exports = _trade_fbs_commodity_vector(
-            f'Trade_Exports_{year}', download_sources_ok
+        exports = anchored_exports(
+            _trade_fbs_commodity_vector(f'Trade_Exports_{year}', download_sources_ok),
+            _trade_fbs_commodity_vector('Trade_Exports_2017', download_sources_ok),
+            published_2017_exports(),
         )
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))

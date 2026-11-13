@@ -33,11 +33,19 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         B_old: pd.DataFrame | None = None,
         Adom_old: pd.DataFrame | None = None,
         y_old: pd.Series[float] | None = None,
+        y_use: pd.Series[float] | None = None,
+        q: pd.Series[float] | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Run NAB diagnostics; return (BLy_vs_E_df, BLy_new_vs_old_df)."""
+        """Run NAB diagnostics; return (BLy_vs_E_df, BLy_new_vs_old_df).
+
+        *y* is the back-computed ``y_nab``; *y_use* the independent final
+        demand (defaults to *y*, so the two agree unless a test says not).
+        """
         B_old = B if B_old is None else B_old
         Adom_old = Adom if Adom_old is None else Adom_old
         y_old = y if y_old is None else y_old
+        y_use = y if y_use is None else y_use
+        self.commodity_tab = pd.DataFrame()
 
         def fake_load_snapshot(name: str, key: str) -> pd.DataFrame | pd.Series:
             if name == "B_USA":
@@ -52,11 +60,20 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
 
         mock_Aq = MagicMock()
         mock_Aq.Adom = Adom
+        mock_Aq.scaled_q = y_use if q is None else q
 
         with (
             patch(
                 "bedrock.transform.eeio.sector_disagg_pipeline.electricity_mixed_units_enabled",
                 return_value=False,
+            ),
+            patch(
+                "bedrock.transform.eeio.sector_disagg_pipeline.electricity_reaggregation_enabled",
+                return_value=False,
+            ),
+            patch(
+                "bedrock.transform.eeio.usa_matrices.derive_y_dom_from_use_final_demand",
+                return_value=y_use,
             ),
             patch(
                 "bedrock.transform.eeio.derived.derive_B_usa",
@@ -89,11 +106,43 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
         ):
             calculate_national_accounting_balance_diagnostics(sheet_id="test_sheet")
 
-        assert mock_update_sheet.call_count == 2
+        assert mock_update_sheet.call_count == 3
         calls = mock_update_sheet.call_args_list
         assert calls[0][0][1] == "BLy_and_E_orig_diffs"
         assert calls[1][0][1] == "BLy_new_vs_BLy_old"
+        assert calls[2][0][1] == "E_c_vs_BLy_by_commodity"
+        self.commodity_tab = calls[2][0][2]
         return calls[0][0][2], calls[1][0][2]
+
+    def test_balance_uses_the_independent_final_demand(self) -> None:
+        """The national total and commodity tab use y from the Use table (#1077).
+
+        With ``A = 0`` and ``B = I``, ``L = I`` and ``d = 1``. The
+        back-computed ``y_nab`` equals ``q`` and would close exactly;
+        the Use-table ``y`` is short on ``1111B0``, and the balance shows it.
+        """
+        idx = pd.Index(SECTORS)
+        n = len(SECTORS)
+        B = pd.DataFrame(np.eye(n), index=idx, columns=idx)
+        Adom = pd.DataFrame(np.zeros((n, n)), index=idx, columns=idx)
+        q = pd.Series([1e9, 2e9, 3e9], index=idx)
+        y_use = pd.Series([1e9, 1.5e9, 3e9], index=idx)
+        E_orig = pd.DataFrame([[1e9, 2e9, 3e9]], index=["CO2"], columns=idx)
+
+        e_df, bly_diff_df = self._run_diagnostics_with_mocked_data(
+            B, Adom, q, E_orig, y_use=y_use, q=q
+        )
+
+        assert e_df["BLy (MtCO2e)"].iloc[0] == pytest.approx(5.5)
+        assert e_df["BLy - E_orig (MtCO2e)"].iloc[0] == pytest.approx(-0.5)
+        # the like-for-like baseline tab stays on the back-computed y_nab
+        assert bly_diff_df["BLy_new (MtCO2e)"].sum() == pytest.approx(6.0)
+
+        tab = self.commodity_tab.set_index("index")
+        assert tab.at["1111B0", "q - L_dom y ($bn)"] == pytest.approx(0.5)
+        assert tab.at["1111B0", "E_c - BLy (MtCO2e)"] == pytest.approx(0.5)
+        assert tab["E_c (MtCO2e)"].sum() == pytest.approx(6.0)
+        assert tab.loc[["1111A0", "221100"], "E_c - BLy (MtCO2e)"].abs().max() == 0.0
 
     def test_bly_vs_e_national_only(self) -> None:
         """BLy_and_E_orig_diffs is a single USA row."""
@@ -115,8 +164,10 @@ class TestCalculateNationalAccountingBalanceDiagnostics:
             "E_orig (MtCO2e)",
             "BLy - E_orig (MtCO2e)",
             "(BLy - E_orig) / E_orig (%)",
+            "note",
         }
         assert set(e_df.columns) == expected_cols
+        assert "E_c_vs_BLy_by_commodity" in str(e_df["note"].iloc[0])
 
         assert e_df["BLy (MtCO2e)"].iloc[0] == pytest.approx(6.0)
         assert e_df["E_orig (MtCO2e)"].iloc[0] == pytest.approx(9.0)

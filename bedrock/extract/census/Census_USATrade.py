@@ -71,6 +71,23 @@ and ``imports/hs`` at ``HS10`` and assigned to NAICS in the parse, every year
 on the 2024 concordance; see
 :mod:`bedrock.extract.census.census_trade_concordance`. The output keeps the
 NAICS activities and flow names of the ``naics`` endpoints.
+
+Gold is not trade (#1270)
+-------------------------
+Heading ``7108`` (gold, unwrought, semi-manufactured or powder) is kept out
+of the NAICS assignment in both directions and booked on its own activity,
+:data:`NONMONETARY_GOLD_ACTIVITY`, so the FBA still reconciles to Census's
+product-code totals. The Trade FBS drop that activity
+(``trade.utilities.drop_nonmonetary_gold``), which is where the BEA concept
+applies: BEA removes ITA gold exports and imports in moving to the NIPA and
+I-O accounts, because gold bought as an investment is not part of GDP (BEA I-O
+manual, chapter 7 appendix, "Nonmonetary Gold in the National Income and
+Product Accounts"). Census assigns ``7108`` to ``331410`` nonferrous
+smelting, where it was $19.0bn of $23.8bn exports and $10.6bn of $30.6bn
+imports in 2017. Without it the row is $4.8bn and $20.0bn, against BEA's
+published $4.1bn and $19.1bn. With it, the balance squeezed ``331410``'s
+intermediate use below the imports assigned to industries, and
+``q = L_dom y`` failed by the negative remainder.
 """
 
 from __future__ import annotations
@@ -118,6 +135,13 @@ _EXPORT_FLOW_DESCRIPTIONS = {
 }
 
 TradeDirection = Literal['exports', 'imports']
+
+#: HS heading for gold, which BEA excludes from trade (module docstring).
+NONMONETARY_GOLD_HEADING = '7108'
+
+#: The FBA activity gold is booked on instead of a NAICS code. Not a NAICS
+#: code on purpose: nothing maps it, and the Trade FBS drop it.
+NONMONETARY_GOLD_ACTIVITY = 'HS7108'
 
 _HS2716 = '2716000000'
 HS2716_ELECTRICAL_ENERGY = _HS2716
@@ -297,6 +321,17 @@ def _parse_hs10(
         }
     frames = []
     for flow_name, values in series.items():
+        gold = values.index.str.startswith(NONMONETARY_GOLD_HEADING)
+        gold_total = float(values[gold].sum())
+        log.info(
+            'Census_USATrade %s %s: %.0f $M of gold (HS %s) booked on %s',
+            year,
+            flow_name,
+            gold_total / 1e6,
+            NONMONETARY_GOLD_HEADING,
+            NONMONETARY_GOLD_ACTIVITY,
+        )
+        values = values[~gold]
         totals, by_rule = assign_trade_to_naics(
             values,
             own=own,
@@ -310,6 +345,10 @@ def _parse_hs10(
             flow_name,
             (by_rule / 1e6).round(0).to_dict(),
         )
+        if gold_total:
+            totals = pd.concat(
+                [totals, pd.Series({NONMONETARY_GOLD_ACTIVITY: gold_total})]
+            )
         frames.append(
             pd.DataFrame(
                 {

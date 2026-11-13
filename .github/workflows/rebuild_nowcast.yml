@@ -1,0 +1,115 @@
+name: rebuild_nowcast
+
+# Rebuild the nowcast tables and the Energy + GHG FBS at this commit
+# (scripts/rebuild_nowcast_year.py). Stage one builds each year's tables from
+# the 2017 benchmark, one job a year in parallel. Stage two builds each year's
+# Energy and GHG FBS on every year's tables, since manufacturing energy is a
+# MECS year shared out on that year's Use table. Nothing is uploaded to GCS:
+# the outputs are kept as workflow artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Years to rebuild, as a JSON list"
+        required: true
+        type: string
+        default: "[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]"
+
+env:
+  FORCE_COLOR: 2
+
+jobs:
+  tables:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        year: ${{ fromJSON(github.event.inputs.years || '[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Tables ${{ matrix.year }}
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          # load_env_file_key reads the source's api_name, case and all.
+          USDA_Quickstats: ${{ secrets.USDA_QUICKSTATS }}
+        run: |
+          uv run python scripts/rebuild_nowcast_year.py --year ${{ matrix.year }} --stage tables
+
+      - name: Keep the tables
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tables-${{ matrix.year }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            bedrock/transform/output_data/*_${{ matrix.year }}_v*
+            bedrock/extract/output_data/Census_USATrade_${{ matrix.year }}_v*
+
+  ghg:
+    needs: tables
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        year: ${{ fromJSON(github.event.inputs.years || '[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python and install dependencies
+        uses: ./.github/actions/setup-python
+
+      - name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          project_id: cornerstone-data
+          workload_identity_provider: projects/75718421862/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-cornerstone@cornerstone-data.iam.gserviceaccount.com
+
+      - name: Every year's tables
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tables-*
+          merge-multiple: true
+          path: bedrock
+
+      - name: Energy and GHG ${{ matrix.year }}
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          USDA_Quickstats: ${{ secrets.USDA_QUICKSTATS }}
+        run: |
+          uv run python scripts/rebuild_nowcast_year.py --year ${{ matrix.year }} --stage ghg
+
+      - name: Keep the Energy and GHG FBS
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghg-${{ matrix.year }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            bedrock/transform/output_data/Energy_*_${{ matrix.year }}_v*
+            bedrock/transform/output_data/GHG_national_Cornerstone_${{ matrix.year }}_v*
+            bedrock/extract/output_data/Nowcast_Detail_Use_AfterRedef_*_v*

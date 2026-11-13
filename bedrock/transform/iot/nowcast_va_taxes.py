@@ -701,7 +701,13 @@ def t00osub_row(year: int) -> pd.Series:
     # the final-demand columns and T017, none of which are industry groups
     published = published[published.index.isin(set(group_of.values()))]
 
-    fbs = getFlowBySector(f'NIPA_VA_compensation_{year}', download_FBS_if_missing=True)
+    # Built at this commit, never downloaded: a published FBS can predate the
+    # code (the 2017 trade FBS did, #1270).
+    fbs = getFlowBySector(
+        f'NIPA_VA_compensation_{year}',
+        download_FBAs_if_missing=True,
+        download_FBS_if_missing=False,
+    )
     compensation = (
         (pd.DataFrame(fbs).groupby('SectorConsumedBy')['FlowAmount'].sum())
         .reindex(industries)

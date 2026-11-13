@@ -951,7 +951,13 @@ def mode_freight_revenue(mode_name: str, year: int) -> float:
                 f'revenue, so the released total would understate the control.'
             )
         return float(rows['FlowAmount'].sum())
-    if mode_name == 'air' and int(year) > _AIR_LAST_OBSERVED_REVENUE_YEAR:
+    # With ``air_margin_on_aies_level`` set, air takes AIES's published level
+    # from 2023 through the SAS/AIES path below, like water (#1251).
+    if (
+        mode_name == 'air'
+        and int(year) > _AIR_LAST_OBSERVED_REVENUE_YEAR
+        and not _air_on_aies_level()
+    ):
         return air_freight_revenue_rebased(year)
     if mode_name in _SAS_FREIGHT_NAICS:
         codes = _SAS_FREIGHT_NAICS[mode_name]
@@ -1062,7 +1068,23 @@ def air_freight_revenue_rebased(year: int) -> float:
 
 #: Last year air's freight revenue is taken as published. AIES 2023 is
 #: contradicted by air's own volume series - see :func:`air_revenue_from_volume`.
+#: ``air_margin_on_aies_level`` takes the AIES level from 2023 instead.
 _AIR_LAST_OBSERVED_REVENUE_YEAR = 2022
+
+
+def _air_on_aies_level() -> bool:
+    """Whether air's freight revenue takes the AIES level from 2023 (#1251).
+
+    ❌ **The volume bridge misses BEA by 37-42%.** It puts air freight revenue
+    at 1.35x its 2017 level in 2023 and 1.33x in 2024. BEA's published air
+    margin is at 2.14x and 2.27x, and AIES revenue at 2.32x and 2.29x. ✅ On the
+    AIES level, BEA's margin is 0.54-0.58 of air freight revenue in 2023-2024,
+    inside its 2017-2020 range of 0.51-0.61. So BEA builds on the AIES level
+    that :func:`air_revenue_from_volume` sets aside.
+    """
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().air_margin_on_aies_level
 
 
 def air_revenue_from_volume(year: int) -> float:
@@ -1212,7 +1234,8 @@ def mode_control_total(
 #: Rail is on STB throughout. Pipeline also moves to AIES, but its four NAICS
 #: items still partition the industry there and the margin stays at 0.96-0.99
 #: of BEA's. Air is on its own volume path after
-#: ``_AIR_LAST_OBSERVED_REVENUE_YEAR``, not on an AIES revenue series.
+#: ``_AIR_LAST_OBSERVED_REVENUE_YEAR``, or on the AIES level with
+#: ``air_margin_on_aies_level``; it is not chained either way.
 CHAINED_ACROSS_AIES_MODES: tuple[str, ...] = ('truck', 'water')
 
 
