@@ -200,6 +200,13 @@ class USAConfig(BaseModel):
     # to the axis as sector 406. Applied after Step 7; no nowcast rebuild. Needs the
     # nowcast tables.
     electricity_delivery_margin: bool = False  # DRI: WesIngwersen
+    # Within the commercial class of that split, give each industry kWh in
+    # proportion to its 2017 bill moved on its SAS electricity bill through 2022
+    # and on its other intermediate inputs after that (AIES years aren't read),
+    # or else on its other intermediate inputs throughout, instead of its bill. Class kWh stay on EIA, and bills, other classes and
+    # the tables don't change; only commercial buyers' generation and delivery
+    # shares move (#899, #705). See electricity_delivery.commercial_kwh_basis.
+    commercial_kwh_follow_intermediate_inputs: bool = False  # DRI: WesIngwersen
     # Second pathway for electric power; needs the flag above. Electric non-fuel
     # inputs follow 2017 cells x input prices x EIA kWh, and what is left of BEA's
     # electric value added moves to commercial and industrial buyers' operating
