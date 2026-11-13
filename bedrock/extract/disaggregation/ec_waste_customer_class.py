@@ -31,6 +31,13 @@ CUSTOMER_CLASS_CODES: tuple[str, ...] = (
     "813B00",
 )
 
+#: Economic Census vintages for waste who-buys (ecnclcust), same quinquennial
+#: span as ``Census_EC.PXI_VINTAGES``. Interior match_io years blend between
+#: these with ``interpolate_shares`` (shipped geometric form).
+EC_CLCUST_VINTAGES: tuple[int, int] = (2017, 2022)
+
+_EQUAL_SHARE_NOTE_MARKER = "equal-share fallback"
+
 # Default Use row-sum path — never emitted as IndustryCode rows.
 BUSINESS_FIRMS_LABEL = "Business firms and farms"
 
@@ -278,6 +285,125 @@ def build_customer_class_rows_from_ec_fba(fba: pd.DataFrame) -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows)
+
+
+def ec_clcust_blend_t(target_year: int) -> float | None:
+    """Return blend ``t`` in ``(0, 1)`` for interior census years, else ``None``.
+
+    Matches ``Census_EC.pxi_weights_for_year``: ``t = (year - 2017) / 5``,
+    endpoints hold their own vintage.
+    """
+    base_year, end_year = EC_CLCUST_VINTAGES
+    if int(target_year) <= base_year or int(target_year) >= end_year:
+        return None
+    return (int(target_year) - base_year) / (end_year - base_year)
+
+
+def _is_equal_share_fallback_note(note: str) -> bool:
+    """True only when the builder stamped the equal-share fallback marker.
+
+    Do not infer fallback from a numeric 1/n mix: a real census class can be
+    uniform, and holding that side would skip a legitimate blend.
+    """
+    return _EQUAL_SHARE_NOTE_MARKER in str(note)
+
+
+def blend_business_firms_shares(base: pd.Series, end: pd.Series, t: float) -> pd.Series:
+    """Geometric share blend of Business-firms row-sum child mixes (PxI form)."""
+    from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
+        interpolate_shares,
+    )
+
+    base_df = base.reindex(WASTE_CHILDREN).astype(float).fillna(0.0).to_frame(0)
+    end_df = end.reindex(WASTE_CHILDREN).astype(float).fillna(0.0).to_frame(0)
+    blended = interpolate_shares(base_df, end_df, float(t))[0]
+    total = float(blended.sum())
+    if total <= 0:
+        return base.reindex(WASTE_CHILDREN).astype(float).fillna(0.0)
+    return blended / total
+
+
+def blend_customer_class_share_rows(
+    base_rows: pd.DataFrame, end_rows: pd.DataFrame, t: float
+) -> pd.DataFrame:
+    """Blend special customer-class Use rows between two EC vintages.
+
+    Holds a class to the real census when the other vintage is an equal-share
+    fallback (same spirit as PxI holding missing cells rather than blending
+    toward zero / uniform).
+    """
+    from bedrock.analysis.nowcasting.inputs_structure import (  # noqa: PLC0415
+        interpolate_shares,
+    )
+
+    def _pivot(rows: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
+        notes = (
+            rows.drop_duplicates(subset=["IndustryCode"])
+            .set_index("IndustryCode")["Note"]
+            .astype(str)
+            .to_dict()
+        )
+        wide = (
+            rows.pivot_table(
+                index="CommodityCode",
+                columns="IndustryCode",
+                values="PercentUsed",
+                aggfunc="sum",
+            )
+            .reindex(index=list(WASTE_CHILDREN), columns=list(CUSTOMER_CLASS_CODES))
+            .astype(float)
+            .fillna(0.0)
+        )
+        return wide, notes
+
+    base_wide, base_notes = _pivot(base_rows)
+    end_wide, end_notes = _pivot(end_rows)
+    for code in CUSTOMER_CLASS_CODES:
+        b_eq = _is_equal_share_fallback_note(base_notes.get(code, ""))
+        e_eq = _is_equal_share_fallback_note(end_notes.get(code, ""))
+        if b_eq and not e_eq:
+            base_wide[code] = end_wide[code]
+            base_notes[code] = end_notes[code]
+        elif e_eq and not b_eq:
+            end_wide[code] = base_wide[code]
+            end_notes[code] = base_notes[code]
+
+    blended = interpolate_shares(base_wide, end_wide, float(t))
+    out_rows: list[dict[str, object]] = []
+    for code in CUSTOMER_CLASS_CODES:
+        note = end_notes.get(code) or base_notes.get(code) or _class_note(code)
+        for child in WASTE_CHILDREN:
+            out_rows.append(
+                {
+                    "IndustryCode": code,
+                    "CommodityCode": child,
+                    "PercentUsed": float(blended.loc[child, code]),
+                    "Note": note,
+                }
+            )
+    return pd.DataFrame(out_rows)
+
+
+def blend_business_firms_row_sum_shares_from_ec_fbas(
+    fba_base: pd.DataFrame, fba_end: pd.DataFrame, t: float
+) -> pd.Series:
+    """Business-firms row-sum shares blended from two loaded EC FBAs."""
+    return blend_business_firms_shares(
+        build_business_firms_row_sum_shares_from_ec_fba(fba_base),
+        build_business_firms_row_sum_shares_from_ec_fba(fba_end),
+        t,
+    )
+
+
+def blend_customer_class_rows_from_ec_fbas(
+    fba_base: pd.DataFrame, fba_end: pd.DataFrame, t: float
+) -> pd.DataFrame:
+    """Special customer-class Use rows blended from two loaded EC FBAs."""
+    return blend_customer_class_share_rows(
+        build_customer_class_rows_from_ec_fba(fba_base),
+        build_customer_class_rows_from_ec_fba(fba_end),
+        t,
+    )
 
 
 def customer_class_shares_from_ec_fba(fba: pd.DataFrame) -> pd.DataFrame | None:

@@ -8,6 +8,8 @@ import pytest
 from bedrock.extract.disaggregation.ec_waste_customer_class import (
     BUSINESS_FIRMS_LABEL,
     CUSTOMER_CLASS_CODES,
+    blend_business_firms_shares,
+    blend_customer_class_share_rows,
     build_business_firms_row_sum_shares_from_ec_fba,
     build_customer_class_rows_from_ec_fba,
 )
@@ -94,3 +96,64 @@ def test_build_business_firms_raises_when_empty() -> None:
     ]
     with pytest.raises(ValueError, match="Business firms"):
         build_business_firms_row_sum_shares_from_ec_fba(fba)
+
+
+def test_blend_business_firms_shares_lies_between_at_t() -> None:
+    """Interior blend must sit between census endpoints (PxI geometric form)."""
+    base = pd.Series(0.0, index=WASTE_CHILDREN, dtype=float)
+    end = pd.Series(0.0, index=WASTE_CHILDREN, dtype=float)
+    base["562212"] = 0.2
+    base["562111"] = 0.8
+    end["562212"] = 0.5
+    end["562111"] = 0.5
+    mid = blend_business_firms_shares(base, end, 0.4)
+    assert float(mid.sum()) == pytest.approx(1.0)
+    assert float(base["562212"]) < float(mid["562212"]) < float(end["562212"])
+    assert float(end["562111"]) < float(mid["562111"]) < float(base["562111"])
+
+
+def test_blend_customer_class_holds_equal_share_fallback() -> None:
+    """Do not pull a real census class toward the other vintage's 1/n fallback."""
+    children = list(WASTE_CHILDREN)
+    n = len(children)
+
+    def _rows(code: str, shares: dict[str, float], note: str) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {
+                    "IndustryCode": code,
+                    "CommodityCode": child,
+                    "PercentUsed": float(shares.get(child, 0.0)),
+                    "Note": note,
+                }
+                for child in children
+            ]
+        )
+
+    real = {c: 0.0 for c in children}
+    real["562212"] = 0.7
+    real["562111"] = 0.3
+    uniform = {c: 1.0 / n for c in children}
+    base = _rows("F01000", real, "Commodity disaggregation, Household consumers")
+    end = _rows(
+        "F01000",
+        uniform,
+        "Commodity disaggregation, customer class (equal-share fallback)",
+    )
+    # Pad remaining codes so pivot has full CUSTOMER_CLASS_CODES.
+    for code in CUSTOMER_CLASS_CODES:
+        if code == "F01000":
+            continue
+        base = pd.concat(
+            [base, _rows(code, uniform, "Commodity disaggregation, pad")],
+            ignore_index=True,
+        )
+        end = pd.concat(
+            [end, _rows(code, uniform, "Commodity disaggregation, pad")],
+            ignore_index=True,
+        )
+
+    out = blend_customer_class_share_rows(base, end, 0.4)
+    hh = out[out["IndustryCode"] == "F01000"].set_index("CommodityCode")["PercentUsed"]
+    assert float(hh["562212"]) == pytest.approx(0.7)
+    assert float(hh["562111"]) == pytest.approx(0.3)
