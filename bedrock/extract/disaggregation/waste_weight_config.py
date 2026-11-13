@@ -49,11 +49,14 @@ def resolved_waste_weights_year(cfg: USAConfig) -> int:
 
 
 def effective_waste_disagg_config(cfg: USAConfig) -> EEIOWasteDisaggConfig:
-    """Resolve waste weight files for *cfg*.
+    """Resolve waste weight CSV paths for *cfg* when the pipeline loads files.
 
     Precedence:
     1. before-redefinition IO → USEEIOR v1.8.0 (USEEIO parity); year-derive forbidden
-    2. else → bundled Cornerstone CSVs (after-redefinition default / year==2017 path)
+    2. else → bundled Cornerstone CSVs (explicit / default ``waste_weights_year: 2017``)
+
+    ``waste_weights_year: match_io`` does not use this path for production weights;
+    ``get_waste_disagg_weights`` derives instead (including calendar 2017).
     """
     if cfg.iot_before_or_after_redefinition == "before":
         from bedrock.extract.disaggregation.useeior_waste_weights import (  # noqa: PLC0415

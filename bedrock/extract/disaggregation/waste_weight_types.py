@@ -31,6 +31,10 @@ class WeightDerivationProvenance:
     aies_source_year: int | None = None
     aies_table: Literal["EXP01", "BASIC"] | None = None
     mut_dollar_year: int | None = None
+    # When match_io blends EC who-buys between census vintages (PxI rule).
+    ec_blend_t: float | None = None
+    ec_blend_base_year: int | None = None
+    ec_blend_end_year: int | None = None
     fallback_notes: list[str] = field(default_factory=list)
     naics_map_version: str = ""
 
@@ -43,6 +47,9 @@ class WeightDerivationProvenance:
             "aies_source_year": self.aies_source_year,
             "aies_table": self.aies_table,
             "mut_dollar_year": self.mut_dollar_year,
+            "ec_blend_t": self.ec_blend_t,
+            "ec_blend_base_year": self.ec_blend_base_year,
+            "ec_blend_end_year": self.ec_blend_end_year,
             "fallback_notes": list(self.fallback_notes),
             "naics_map_version": self.naics_map_version,
         }

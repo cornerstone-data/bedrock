@@ -16,8 +16,12 @@ from bedrock.extract.disaggregation.disagg_weights import (
 )
 from bedrock.extract.disaggregation.ec_waste_customer_class import (
     CUSTOMER_CLASS_CODES,
+    EC_CLCUST_VINTAGES,
+    blend_business_firms_row_sum_shares_from_ec_fbas,
+    blend_customer_class_rows_from_ec_fbas,
     build_business_firms_row_sum_shares_from_ec_fba,
     customer_class_shares_from_ec_fba,
+    ec_clcust_blend_t,
     load_bundled_customer_class_rows,
     load_census_ec_fba,
 )
@@ -286,22 +290,67 @@ def derive_waste_weights(
     # One Census_EC FBA load feeds Business-firms Use row-sum and special
     # customer-class rows. Never SAS Table 2 for default row-sum.
     # Success for Business firms is recorded by ``ec_source_year`` only.
+    # Under match_io, interior years between EC_CLCUST_VINTAGES blend who-buys
+    # with the same interpolate_shares rule as Census_EC.pxi_weights_for_year.
     ec_fba: pd.DataFrame | None = None
-    try:
-        ec_fba = load_census_ec_fba(ec_year)
-        row_shares = build_business_firms_row_sum_shares_from_ec_fba(ec_fba)
-        use = _replace_row_sum(use, row_shares)
-    except Exception as exc:
-        if _match_io_active():
+    blend_t = (
+        ec_clcust_blend_t(target_year)
+        if (_match_io_active() and ec_2022_wired)
+        else None
+    )
+    if blend_t is not None:
+        base_y, end_y = EC_CLCUST_VINTAGES
+        try:
+            fba_base = load_census_ec_fba(base_y)
+            fba_end = load_census_ec_fba(end_y)
+            row_shares = blend_business_firms_row_sum_shares_from_ec_fbas(
+                fba_base, fba_end, blend_t
+            )
+            use = _replace_row_sum(use, row_shares)
+            blended_rows = blend_customer_class_rows_from_ec_fbas(
+                fba_base, fba_end, blend_t
+            )
+            use = _replace_customer_class(use, blended_rows)
+            prov.ec_blend_t = blend_t
+            prov.ec_blend_base_year = base_y
+            prov.ec_blend_end_year = end_y
+        except Exception as exc:
             raise RuntimeError(
-                "EC Business firms Use row-sum failed under "
-                f"match_io ({type(exc).__name__}: {exc}); refusing SAS Table 2 / "
+                "EC who-buys blend failed under match_io "
+                f"({type(exc).__name__}: {exc}); refusing single-vintage / "
                 "bundled fallback"
             ) from exc
-        prov.fallback_notes.append(
-            f"EC Business firms row-sum failed ({type(exc).__name__}); "
-            "keeping bundled 2017 Use row-sum (not SAS Table 2)"
+    else:
+        try:
+            ec_fba = load_census_ec_fba(ec_year)
+            row_shares = build_business_firms_row_sum_shares_from_ec_fba(ec_fba)
+            use = _replace_row_sum(use, row_shares)
+        except Exception as exc:
+            if _match_io_active():
+                raise RuntimeError(
+                    "EC Business firms Use row-sum failed under "
+                    f"match_io ({type(exc).__name__}: {exc}); refusing SAS Table 2 / "
+                    "bundled fallback"
+                ) from exc
+            prov.fallback_notes.append(
+                f"EC Business firms row-sum failed ({type(exc).__name__}); "
+                "keeping bundled 2017 Use row-sum (not SAS Table 2)"
+            )
+
+        # EC customer-class from the same FBA when available; else freeze bundled 2017.
+        ec_rows: pd.DataFrame | None = (
+            customer_class_shares_from_ec_fba(ec_fba) if ec_fba is not None else None
         )
+        if ec_rows is not None:
+            use = _replace_customer_class(use, ec_rows)
+        else:
+            _ = load_bundled_customer_class_rows(str(_BUNDLED_USE))
+            prov.ec_source_year = 2017
+            if target_year >= 2022:
+                prov.fallback_notes.append(
+                    f"EC {ec_year} customer-class load failed; "
+                    "frozen at bundled 2017 rows"
+                )
 
     # RCRA intersection
     try:
@@ -313,18 +362,6 @@ def derive_waste_weights(
             f"RCRA intersection load failed for year {rcra_year} "
             f"(CRHW_national_{rcra_year}): {type(exc).__name__}: {exc}"
         ) from exc
-
-    # EC customer-class from the same FBA when available; else freeze bundled 2017.
-    ec_rows = customer_class_shares_from_ec_fba(ec_fba) if ec_fba is not None else None
-    if ec_rows is not None:
-        use = _replace_customer_class(use, ec_rows)
-    else:
-        _ = load_bundled_customer_class_rows(str(_BUNDLED_USE))
-        prov.ec_source_year = 2017
-        if target_year >= 2022:
-            prov.fallback_notes.append(
-                f"EC {ec_year} customer-class load failed; frozen at bundled 2017 rows"
-            )
 
     weights = build_disagg_weights_from_long_format(
         use,

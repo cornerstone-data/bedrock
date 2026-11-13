@@ -202,3 +202,42 @@ def test_single_ec_fba_reused_for_customer_class(
     m.derive_waste_weights(2022)
     assert load_calls["n"] == 1
     assert seen["fba"] is fake_fba
+
+
+def test_match_io_interior_year_blends_both_ec_vintages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1312: match_io 2018-2021 loads EC 2017 and 2022 and records blend t."""
+    _stub_common_derive(monkeypatch)
+    monkeypatch.setattr(m, "_match_io_active", lambda: True)
+    years: list[int] = []
+
+    def _load(year: int) -> pd.DataFrame:
+        years.append(int(year))
+        return pd.DataFrame({"year": [year]})
+
+    def _blend_row(_a: object, _b: object, t: float) -> pd.Series:
+        assert t == pytest.approx(0.4)
+        return _uniform()
+
+    def _blend_cc(_a: object, _b: object, t: float) -> pd.DataFrame:
+        assert t == pytest.approx(0.4)
+        return pd.DataFrame(
+            {
+                "IndustryCode": ["F01000"],
+                "CommodityCode": ["562212"],
+                "PercentUsed": [1.0],
+                "Note": ["blended"],
+            }
+        )
+
+    monkeypatch.setattr(m, "load_census_ec_fba", _load)
+    monkeypatch.setattr(
+        m, "blend_business_firms_row_sum_shares_from_ec_fbas", _blend_row
+    )
+    monkeypatch.setattr(m, "blend_customer_class_rows_from_ec_fbas", _blend_cc)
+    _weights, prov = m.derive_waste_weights(2019)
+    assert years == [2017, 2022]
+    assert prov.ec_blend_t == pytest.approx(0.4)
+    assert prov.ec_blend_base_year == 2017
+    assert prov.ec_blend_end_year == 2022
