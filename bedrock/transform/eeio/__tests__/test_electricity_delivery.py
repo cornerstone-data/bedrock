@@ -524,12 +524,11 @@ def _commercial_split(basis: pd.Series | None) -> pd.DataFrame:
 def test_a_commercial_basis_moves_kwh_between_commercial_buyers_only() -> None:
     off = _commercial_split(None)
     on = _commercial_split(pd.Series({'531ORE': 15.0e9, '445000': 5.0e9}))
-    assert float(on.at['531ORE', 'kwh']) / float(
-        on.at['445000', 'kwh']
-    ) == pytest.approx(3.0)
+    kwh = pd.Series(on['kwh'], dtype=float)
+    assert kwh['531ORE'] / kwh['445000'] == pytest.approx(3.0)
     commercial = on['class'] == 'Commercial'
-    assert on.loc[commercial, 'kwh'].sum() == pytest.approx(200e6 * 1000.0)
-    pd.testing.assert_series_equal(off.loc['331110'], on.loc['331110'])
+    assert kwh[commercial].sum() == pytest.approx(200e6 * 1000.0)
+    pd.testing.assert_frame_equal(off.loc[['331110']], on.loc[['331110']])
     pd.testing.assert_series_equal(on['bill'], off['bill'])
 
 
@@ -539,26 +538,53 @@ def test_a_commercial_buyer_missing_from_the_basis_keeps_its_bill() -> None:
     pd.testing.assert_series_equal(on['kwh'], off['kwh'])
 
 
-def test_the_basis_is_the_2017_bill_moved_on_inputs_or_on_the_survey(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.fixture
+def _basis_inputs(monkeypatch: pytest.MonkeyPatch) -> tuple[pd.DataFrame, pd.DataFrame]:
     base = pd.DataFrame(
-        {'bill_usd': [2.0, 4.0, 1.0], 'other_inputs_usd': [10.0, 20.0, 5.0]},
+        {
+            'bill_2017_usd': [2.0, 4.0, 1.0],
+            'other_inputs_2017_usd': [10.0, 20.0, 5.0],
+            'other_inputs_2022_usd': [26.0, 24.0, 6.0],
+        },
         index=pd.Index(['531ORE', '445000', '518200'], name='industry'),
     )
-    monkeypatch.setattr(ed, 'commercial_electricity_2017', lambda: base)
+    monkeypatch.setattr(ed, 'commercial_electricity_base', lambda: base)
+    path = (1.1, 1.2, 1.3, 1.4, 1.5)  # 2018-2022
     monkeypatch.setattr(
-        st,
-        'electricity_spending_index',
-        lambda code, year: 1.5 if code == '531ORE' else None,
+        ed, 'survey_electricity_path', lambda code: path if code == '531ORE' else None
     )
     monkeypatch.setattr(ni, 'pinned_electricity_buyers', lambda year: ['518200'])
     use = pd.DataFrame(
         {'531ORE': [1.0, 39.0], '445000': [3.0, 27.0], '518200': [1.0, 9.0]},
         index=[ed.GENERATION_SECTOR, '541100'],
     )
-    imports = use * 0.0
-    basis = ed.commercial_kwh_basis(use, imports, 2024)
-    assert basis['531ORE'] == pytest.approx(2.0 * 1.5)  # survey bill growth
+    return use, use * 0.0
+
+
+def test_a_survey_year_moves_the_2017_bill_on_the_survey(
+    _basis_inputs: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    basis = ed.commercial_kwh_basis(*_basis_inputs, 2020)
+    assert basis['531ORE'] == pytest.approx(2.0 * 1.3)
     assert basis['445000'] == pytest.approx(4.0 * 27.0 / 20.0)  # other inputs
+
+
+def test_after_the_survey_the_2022_value_moves_on_other_inputs(
+    _basis_inputs: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    basis = ed.commercial_kwh_basis(*_basis_inputs, 2024)
+    assert basis['531ORE'] == pytest.approx(2.0 * 1.5 * 39.0 / 26.0)
+    assert basis['445000'] == pytest.approx(4.0 * 27.0 / 20.0)
     assert '518200' not in basis.index  # pinned on its own series
+
+
+def test_a_survey_withheld_in_any_year_gives_no_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = {2018: 1.0, 2019: 1.1, 2020: None, 2021: 1.2, 2022: 1.3}
+    monkeypatch.setattr(
+        st, 'electricity_spending_index', lambda code, year: values[year]
+    )
+    ed.survey_electricity_path.cache_clear()
+    assert ed.survey_electricity_path('532400') is None
+    ed.survey_electricity_path.cache_clear()

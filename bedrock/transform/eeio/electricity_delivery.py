@@ -189,25 +189,48 @@ def other_intermediate_inputs(udom: pd.DataFrame, uimp: pd.DataFrame) -> pd.Seri
     return total - electricity
 
 
-COMMERCIAL_ELECTRICITY_2017_CSV = (
+COMMERCIAL_ELECTRICITY_BASE_CSV = (
     Path(__file__).parents[1]
     / 'allocation'
     / 'data'
-    / 'commercial_electricity_2017.csv'
+    / 'commercial_electricity_base.csv'
 )
+
+#: The survey years the basis reads: the SAS through its last year. AIES years
+#: aren't read (#899): from 2023 to 2024, purchased electricity moves beyond any
+#: SAS-era year in 20 of 48 survey industries (warehousing x3.7, legal x0.53), and
+#: other items grow 40-80% in many, so a ratio inside the AIES isn't safe either.
+SURVEY_ELECTRICITY_YEARS = tuple(range(2018, 2023))
 
 
 @functools.cache
-def commercial_electricity_2017() -> pd.DataFrame:
-    """Each industry's 2017 bill and other intermediate inputs, USD.
+def commercial_electricity_base() -> pd.DataFrame:
+    """Each industry's 2017 bill, and its other intermediate inputs in 2017 and 2022, USD.
 
-    From the model's own 2017 tables
-    (:mod:`~bedrock.utils.mapping.write_commercial_electricity_2017`), so the basis
-    equals the bill in 2017.
+    From the model's own tables
+    (:mod:`~bedrock.utils.mapping.write_commercial_electricity_base`), so the basis
+    equals the bill in 2017 and has no step at 2022.
     """
     return pd.read_csv(
-        COMMERCIAL_ELECTRICITY_2017_CSV, index_col='industry', dtype={'industry': str}
+        COMMERCIAL_ELECTRICITY_BASE_CSV, index_col='industry', dtype={'industry': str}
     ).astype(float)
+
+
+@functools.cache
+def survey_electricity_path(industry: str) -> tuple[float, ...] | None:
+    """The industry's survey electricity bill against 2017, one per survey year.
+
+    ``None`` unless the survey reaches the industry in every year of
+    :data:`SURVEY_ELECTRICITY_YEARS`: a buyer that loses its survey part way would
+    switch rules and take a step the survey didn't observe.
+    """
+    from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415
+        electricity_spending_index,
+    )
+
+    path = [electricity_spending_index(industry, y) for y in SURVEY_ELECTRICITY_YEARS]
+    observed = [v for v in path if v is not None]
+    return tuple(observed) if len(observed) == len(path) else None
 
 
 def commercial_kwh_basis(
@@ -217,11 +240,11 @@ def commercial_kwh_basis(
 
     Its 2017 bill moved on one of two observations:
 
-    - **its survey electricity bill**, where the services survey publishes one
-      (:func:`~bedrock.analysis.nowcasting.services_transport_expense_seed.electricity_spending_index`,
-      chained at the 2023 change of survey);
-    - otherwise **its other intermediate inputs**, so its kWh keep pace with what it
-      buys.
+    - **its survey electricity bill**, where the services survey publishes one in
+      every SAS year (:func:`survey_electricity_path`). After the last SAS year, its
+      2022 value moves on its other intermediate inputs from 2022;
+    - otherwise **its other intermediate inputs** from 2017, so its kWh keep pace
+      with what it buys.
 
     A buyer's bill share otherwise moves with balancing that knows nothing of kWh:
     other real estate's fell from 20.5% to 13.5% of EIA commercial revenue over
@@ -229,23 +252,26 @@ def commercial_kwh_basis(
     changes, because the class's kWh are still scaled to EIA.
 
     Buyers whose electricity cell is pinned on its own physical series keep their
-    bill: data processing moves on LBNL's data center kWh (#1035).
+    kWh: data processing moves on LBNL's data center kWh (#1035).
     """
-    from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415
-        electricity_spending_index,
-    )
     from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
         pinned_electricity_buyers,
     )
 
-    base = commercial_electricity_2017()
-    bills = pd.Series(base['bill_usd'], dtype=float)
+    base = commercial_electricity_base()
+    bills = pd.Series(base['bill_2017_usd'], dtype=float)
     other = other_intermediate_inputs(udom, uimp).reindex(base.index)
-    basis = bills * other / base['other_inputs_usd']
+    basis = bills * other / base['other_inputs_2017_usd']
+    last = SURVEY_ELECTRICITY_YEARS[-1]
+    since_last = other / base['other_inputs_2022_usd']
     for industry in base.index:
-        survey = electricity_spending_index(str(industry), int(year))
-        if survey is not None:
-            basis[industry] = bills[industry] * survey
+        path = survey_electricity_path(str(industry))
+        if path is None or int(year) <= 2017:
+            continue
+        if int(year) <= last:
+            basis[industry] = bills[industry] * path[int(year) - 2018]
+        else:
+            basis[industry] = bills[industry] * path[-1] * since_last[industry]
     pinned = [c for c in pinned_electricity_buyers(int(year)) if c in basis.index]
     return basis.drop(index=pinned).dropna()
 
