@@ -19,6 +19,8 @@ from bedrock.transform.iot.nowcast_fd_conditioning import (
     EMPTY_GROUP_USD,
     _commodity_to_summary,
     condition_fd_on_summary,
+    condition_service_exports_on_summary,
+    is_service_group,
     summary_condition_factors,
 )
 
@@ -81,3 +83,28 @@ def test_empty_and_sign_flipped_groups_hold_at_one(y: pd.DataFrame) -> None:
 def test_years_outside_the_workbook_are_refused(y: pd.DataFrame) -> None:
     with pytest.raises(ValueError, match='summary Use SUT'):
         summary_condition_factors(y, 2025)
+
+
+# --- service exports (#1250) ------------------------------------------------
+
+
+def test_service_exports_land_on_the_published_rows_and_goods_stay() -> None:
+    groups = _commodity_to_summary()
+    exports = pd.Series(2.0e9, index=groups.index)
+    out = condition_service_exports_on_summary(exports, YEAR)
+    published = _load_usa_summary_sut('Use_SUT_summary', YEAR)  # type: ignore[arg-type]
+    published = published.apply(pd.to_numeric, errors='coerce').fillna(0.0) * 1e6
+    ours = out.groupby(groups).sum()
+    for group in ('514', '561', '55', '5412OP'):
+        assert is_service_group(group)
+        assert ours[group] == pytest.approx(published.at[group, 'F040'], rel=1e-9)
+    goods = groups.map(lambda g: not is_service_group(g))
+    pd.testing.assert_series_equal(out[goods], exports[goods])
+    within = groups.eq('5412OP')
+    assert out[within].nunique() == 1  # the detail split inside a group holds
+
+
+def test_service_groups_exclude_goods_government_and_accounting_rows() -> None:
+    assert not any(is_service_group(g) for g in ('111CA', '22', '23', '325', 'GFGD'))
+    assert not any(is_service_group(g) for g in ('Other', 'Used'))
+    assert all(is_service_group(g) for g in ('42', '481', '523', '81'))

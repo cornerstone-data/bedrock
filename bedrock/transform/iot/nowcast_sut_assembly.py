@@ -914,12 +914,45 @@ def published_tax_groups(year: int) -> pd.DataFrame:
 
     ``SUB`` is negative, as BEA stores it and as the balance carries it.
     """
+    return _published_supply_groups(int(year), HELD_TAX_COLUMNS)
+
+
+def _published_supply_groups(year: int, columns: Sequence[str]) -> pd.DataFrame:
+    """Summary Supply *columns* for *year*, $M, by summary commodity."""
     supply = _load_usa_summary_sut('Supply_summary', year)  # type: ignore[arg-type]
     supply = supply.rename(columns=lambda c: str(c).strip())
     groups = set(commodity_groups())
-    frame = supply[list(HELD_TAX_COLUMNS)].apply(pd.to_numeric, errors='coerce')
+    frame = supply[list(columns)].apply(pd.to_numeric, errors='coerce')
     frame.index = [str(i).strip() for i in frame.index]
     return frame.loc[[g for g in frame.index if g in groups]].fillna(0.0)
+
+
+#: The Supply import column the balance can hold to BEA's summary groups.
+HELD_IMPORT_COLUMN = 'MCIF'
+
+
+def published_import_groups(year: int) -> pd.Series:
+    """The summary Supply ``MCIF`` column for *year*, $M, by summary commodity."""
+    return _published_supply_groups(int(year), (HELD_IMPORT_COLUMN,))[
+        HELD_IMPORT_COLUMN
+    ]
+
+
+def import_group_holds(year: int, frozen_supply: pd.DataFrame) -> tuple[GroupHold, ...]:
+    """The engine's ``MCIF`` group hold: published group sums less frozen, $M.
+
+    #785 already scales each summary group of the seed's imports to BEA's
+    summary ``MCIF``, but the balance otherwise holds imports only as one soft
+    column total (T7), so the row identities move them between groups. In
+    2017, service imports enter at the published $267.2bn and leave at
+    $247.0bn (#1288). Held by group, they keep the published sums and the
+    detail split inside each group stays free.
+    """
+    groups = commodity_groups().reindex(frozen_supply.index)
+    frozen = frozen_supply[HELD_IMPORT_COLUMN].astype(float).groupby(groups).sum()
+    published = published_import_groups(int(year))
+    target = published - frozen.reindex(published.index).fillna(0.0)
+    return (GroupHold(column=HELD_IMPORT_COLUMN, groups=groups, targets=target),)
 
 
 def commodity_groups() -> pd.Series:
@@ -1035,6 +1068,38 @@ def tax_row_operator(
     return rows
 
 
+#: The Use column whose service cells are fixed when exports are conditioned.
+EXPORT_COLUMN = 'F04000'
+
+
+def fix_service_exports(mask: SutMask, use: pd.DataFrame) -> SutMask:
+    """New Use mask with the service ``F04000`` cells Tier-1 fixed against *use*.
+
+    With ``condition_service_exports_on_summary``, the seed's service exports
+    already sit on BEA's summary ``F040`` groups (#1250). The balance
+    otherwise moves them freely: on ``v1.0.0_fd271dc`` it took pipelines'
+    (``486``) error from 47 to 527 $M a year, and banking's (``521CI``) from
+    51 to 673. Fixed, they leave the balance as conditioned, and the rows
+    close on their other cells. Structural zeros stay structural.
+    """
+    from bedrock.transform.iot.nowcast_fd_conditioning import (  # noqa: PLC0415
+        is_service_group,
+    )
+
+    groups = commodity_groups().reindex(mask.index)
+    service = groups.map(lambda g: isinstance(g, str) and is_service_group(g))
+    rows = service.fillna(False).astype(bool) & ~mask.structural_zero[EXPORT_COLUMN]
+    fixed = mask.fixed_value.copy()
+    fixed.loc[rows, EXPORT_COLUMN] = True
+    out = SutMask(
+        structural_zero=mask.structural_zero,
+        fixed_value=fixed,
+        sign_lock=mask.sign_lock,
+    )
+    out.validate_against(use)
+    return out
+
+
 def assemble(
     year: int,
     *,
@@ -1057,6 +1122,9 @@ def assemble(
     When ``pin_refinery_secondaries_at_go_mix`` is on, the Supply seed is then
     rewritten so held co-product cells enter GRAS at seed share times the
     T17-at-seed column pin, and Tier-1 is overlaid from that held list.
+
+    When ``condition_service_exports_on_summary`` is on, the service export
+    cells are Tier-1 fixed too (:func:`fix_service_exports`).
     """
     # Gross output and the summary supply-use controls must be one BEA annual
     # update; the targets balance one against the other (#1157).
@@ -1077,6 +1145,8 @@ def assemble(
     seeds, masks, pin = apply_refinery_secondaries_go_mix_pin(
         int(year), seeds, masks, targets
     )
+    if get_usa_config().condition_service_exports_on_summary:
+        masks = {**masks, 'use': fix_service_exports(masks['use'], seeds['use'])}
     return YearBalance(
         year=int(year),
         seeds=seeds,
@@ -1100,6 +1170,7 @@ def balance_year(
     constrain_electricity_pce_cell: bool | None = None,
     convert_tax_rows: bool = True,
     hold_tax_groups: bool = True,
+    hold_import_groups: bool | None = None,
 ) -> YearBalance:
     """Assemble and balance one year: split, offset, engine, restore.
 
@@ -1110,7 +1181,11 @@ def balance_year(
     Use ``T00TOP``/``T00SUB`` rows stay a conversion of the Supply columns.
     *hold_tax_groups* holds ``TOP``/``SUB`` to the published summary groups,
     with the detail free inside each group (:func:`tax_group_holds`).
+    *hold_import_groups* does the same for ``MCIF`` (:func:`import_group_holds`);
+    it defaults to the ``hold_imports_on_summary_groups`` config flag.
     """
+    if hold_import_groups is None:
+        hold_import_groups = get_usa_config().hold_imports_on_summary_groups
     mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     assembled = assemble(
         int(year),
@@ -1135,7 +1210,12 @@ def balance_year(
             pce_eia_band_m=band,
             tax_rows=tax_row_operator(year, frozen) if convert_tax_rows else None,
             group_holds=(
-                tax_group_holds(year, frozen['supply']) if hold_tax_groups else ()
+                (tax_group_holds(year, frozen['supply']) if hold_tax_groups else ())
+                + (
+                    import_group_holds(year, frozen['supply'])
+                    if hold_import_groups
+                    else ()
+                )
             ),
         )
         return out, restore_fixed_blocks(out.blocks, frozen)

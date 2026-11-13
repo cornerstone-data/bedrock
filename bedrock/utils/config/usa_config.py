@@ -304,6 +304,19 @@ class USAConfig(BaseModel):
     # and a purchaser-to-producer ratio of 0.011 (#1194). See
     # nowcast_trade_margins.supply_following_weight.
     trade_margin_receivers_follow_supply: bool = False  # DRI: WesIngwersen
+    # Hold the Step 5 balance's imports (MCIF) to BEA's summary Supply MCIF by
+    # summary group, as TOP/SUB are held, instead of one soft column total.
+    # The row identities otherwise pull service imports off the published
+    # groups: 2017 enters at $267.2bn and leaves at $247.0bn (#1288). See
+    # nowcast_sut_assembly.import_group_holds.
+    hold_imports_on_summary_groups: bool = False  # DRI: WesIngwersen
+    # Scale each service summary group of exports (F04000) to BEA's summary
+    # Use F040, keeping the ITA growth blends only for the detail split. The
+    # blends drift about 40% on 514, 561 and 55 by 2024 (#1250). The Step 5
+    # balance then keeps those cells fixed. See
+    # nowcast_fd_conditioning.condition_service_exports_on_summary and
+    # nowcast_sut_assembly.fix_service_exports.
+    condition_service_exports_on_summary: bool = False  # DRI: WesIngwersen
     # Smooth each manufacturing industry's share of the expense seed's survey
     # total across the survey changes (census 2017 -> ASM 2018-21 -> census
     # 2022 -> AIES): ASM shares benchmarked to both censuses, a 3-year centred

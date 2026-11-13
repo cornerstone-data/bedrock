@@ -175,12 +175,17 @@ def _to_summary() -> pd.Series:
 
 
 def service_rows() -> list[str]:
-    """Summary commodity rows from ``42`` onward, without government."""
-    goods = ('111', '113', '21', '22', '23', '3')
-    return sorted(
-        {s for s in _to_summary() if not s.startswith(goods) and not s.startswith('G')}
-        - set(SEPARATE_ROWS)
+    """Summary commodity rows from ``42`` onward, without government.
+
+    The same cut the build conditions service exports on
+    (:func:`~bedrock.transform.iot.nowcast_fd_conditioning.is_service_group`),
+    so the grader and the conditioning can't disagree on what a service is.
+    """
+    from bedrock.transform.iot.nowcast_fd_conditioning import (  # noqa: PLC0415
+        is_service_group,
     )
+
+    return sorted({s for s in _to_summary() if is_service_group(s)})
 
 
 def default_build() -> str:

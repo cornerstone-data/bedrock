@@ -494,6 +494,14 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
             _trade_fbs_commodity_vector('Trade_Exports_2017', download_sources_ok),
             published_2017_exports(),
         )
+        from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+        if get_usa_config().condition_service_exports_on_summary:
+            from bedrock.transform.iot.nowcast_fd_conditioning import (  # noqa: PLC0415
+                condition_service_exports_on_summary,
+            )
+
+            exports = condition_service_exports_on_summary(exports, int(year))
         y['F04000'] = exports.reindex(y.index).fillna(0.0)
         pce = float(pd.to_numeric(y.loc['S00900', 'F01000'], errors='raise'))
         y.loc['S00900', 'F04000'] = -pce + _s00900_export_identity_usd()
