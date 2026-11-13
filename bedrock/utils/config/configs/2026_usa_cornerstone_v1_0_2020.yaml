@@ -59,3 +59,6 @@ cap_margins_at_purchase: True
 pin_refinery_secondaries_at_go_mix: True
 # Air freight revenue at the AIES level from 2023 (#1251, #1274).
 air_margin_on_aies_level: True
+# Spread each year's trade margin over the goods by their own supply, not by
+# frozen 2017 shares (#1194, #1260).
+trade_margin_receivers_follow_supply: True

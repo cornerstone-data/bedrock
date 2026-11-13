@@ -54,6 +54,7 @@ FLAGS = (
     'cap_margins_at_purchase',
     'pin_refinery_secondaries_at_go_mix',
     'air_margin_on_aies_level',
+    'trade_margin_receivers_follow_supply',
 )
 AFTER_MUT = 'Nowcast_Detail_Use_AfterRedef'
 GHG_METHODS = (

@@ -466,6 +466,7 @@ def test_v1_0_yearly_yamls_load(year: int) -> None:
         'cap_margins_at_purchase',
         'pin_refinery_secondaries_at_go_mix',
         'air_margin_on_aies_level',
+        'trade_margin_receivers_follow_supply',
     }
     assert all(getattr(cfg, flag) for flag in rebuild_flags)
 
