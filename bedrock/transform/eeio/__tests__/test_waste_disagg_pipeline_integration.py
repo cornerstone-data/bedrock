@@ -19,6 +19,9 @@ from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio import (
     usa_expansion,
 )
+from bedrock.extract.disaggregation.waste_weight_types import (
+    WeightDerivationProvenance,
+)
 from bedrock.transform.eeio.sector_disagg_pipeline import (
     _WASTE_NEW_CODES,
     _derive_waste_balanced_io,
@@ -32,6 +35,7 @@ from bedrock.transform.eeio.sector_disagg_pipeline import (
     electricity_disaggregation_enabled,
     electricity_reaggregation_enabled,
     electricity_reallocation_enabled,
+    get_waste_disagg_provenance,
     get_waste_disagg_weights,
     sector_disagg_active,
 )
@@ -53,9 +57,11 @@ from bedrock.transform.eeio.usa_matrices import (
 )
 from bedrock.transform.eeio.waste_disaggregation import compute_waste_q_targets
 from bedrock.utils.config.usa_config import (
+    _load_usa_config_from_file_name,
     get_usa_config,
     reset_usa_config,
     set_global_usa_config,
+    set_global_usa_config_object,
 )
 from bedrock.utils.economic.inflation_helpers_usa import (
     clear_usa_inflation_caches,
@@ -139,6 +145,83 @@ class TestWeightProvider:
         result2 = get_waste_disagg_weights()
         assert result2 is not None
         assert isinstance(result2, DisaggWeights)
+
+    def test_match_io_year_2017_derives_not_bundled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#1312 / #1269: match_io + calendar 2017 must not hit bundled CSVs."""
+        from bedrock.extract.disaggregation import derive_waste_weights as dww
+        from bedrock.extract.disaggregation import disagg_weights as dw
+        from bedrock.transform.eeio import sector_disagg_pipeline as sdp
+
+        derived = object()
+        prov = WeightDerivationProvenance(
+            target_year=2017,
+            rcra_source_year=2017,
+            ec_source_year=2017,
+            fallback_notes=["test-derive"],
+        )
+        derive_calls: list[int] = []
+
+        def _derive(year: int, **_k: object) -> tuple[object, WeightDerivationProvenance]:
+            derive_calls.append(year)
+            return derived, prov
+
+        def _load_forbidden(*_a: object, **_k: object) -> object:
+            raise AssertionError("bundled load_disagg_weights must not run under match_io")
+
+        monkeypatch.setattr(dww, "derive_waste_weights", _derive)
+        monkeypatch.setattr(dw, "load_disagg_weights", _load_forbidden)
+        monkeypatch.setattr(sdp, "_disagg_weights", dw)
+
+        _clear_all_caches()
+        reset_usa_config(should_reset_env_var=True)
+        cfg = _load_usa_config_from_file_name(
+            "test_usa_config_waste_disagg.yaml"
+        ).model_copy(
+            update={
+                "waste_weights_year": "match_io",
+                "usa_base_io_data_year": 2017,
+                "model_base_year": 2017,
+                "usa_ghg_data_year": 2017,
+            }
+        )
+        set_global_usa_config_object(cfg, source_label="test_match_io_2017")
+
+        assert get_waste_disagg_weights() is derived
+        assert derive_calls == [2017]
+        got = get_waste_disagg_provenance()
+        assert got is not None
+        assert got.rcra_source_year == 2017
+        assert "bundled 2017 CSVs" not in " ".join(got.fallback_notes)
+
+    def test_explicit_waste_weights_year_2017_loads_bundled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Explicit / default waste_weights_year=2017 stays on Cornerstone CSVs."""
+        from bedrock.extract.disaggregation import derive_waste_weights as dww
+        from bedrock.extract.disaggregation import disagg_weights as dw
+        from bedrock.transform.eeio import sector_disagg_pipeline as sdp
+
+        bundled = object()
+
+        def _derive_forbidden(*_a: object, **_k: object) -> object:
+            raise AssertionError("derive_waste_weights must not run for explicit 2017")
+
+        def _load(*_a: object, **_k: object) -> object:
+            return bundled
+
+        monkeypatch.setattr(dww, "derive_waste_weights", _derive_forbidden)
+        monkeypatch.setattr(dw, "load_disagg_weights", _load)
+        monkeypatch.setattr(sdp, "_disagg_weights", dw)
+
+        _setup_config("test_usa_config_waste_disagg")
+        assert get_usa_config().waste_weights_year == 2017
+        assert get_waste_disagg_weights() is bundled
+        got = get_waste_disagg_provenance()
+        assert got is not None
+        assert got.rcra_source_year == 2012
+        assert any("bundled 2017 CSVs" in n for n in got.fallback_notes)
 
 
 # ---------------------------------------------------------------------------
