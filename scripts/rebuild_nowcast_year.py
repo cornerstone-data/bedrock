@@ -240,7 +240,7 @@ def main() -> None:
     common.download_fba_on_api_error = False
     check_flags()
 
-    # 2017 is the import anchor every later year is conditioned against.
+    # 2017 is the import and export anchor every later year is conditioned against.
     build_trade(sorted({2017, year}), tag)
 
     run_step('bedrock.transform.iot.nowcast_sut_assembly', '--years', str(year))

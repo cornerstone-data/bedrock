@@ -461,7 +461,7 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
     F03000 is Inventories_<year> for every year in ``INVENTORIES_YEARS``
     (#529, #746); 2024 is all-zero.
     F04000 is mapped Trade_Exports_<year> Detail mass for every year in
-    ``TRADE_OVERLAY_YEARS``, with the computers family anchored on the
+    ``TRADE_OVERLAY_YEARS``, with the computers and pharmaceutical families anchored on the
     published 2017 cells (:mod:`~bedrock.transform.iot.nowcast_export_anchoring`,
     #1270). S00900/F04000 uses the rest-of-world identity
     against frozen 2017 Supply T016.
@@ -482,14 +482,14 @@ def derive_initial_Y_pur(year: int, download_sources_ok: bool = False) -> pd.Dat
 
     if year in TRADE_OVERLAY_YEARS:
         from bedrock.transform.iot.nowcast_export_anchoring import (  # noqa: PLC0415
-            anchor_family_exports,
+            anchored_exports,
             published_2017_exports,
         )
         from bedrock.transform.iot.nowcast_s00300_use import (  # noqa: PLC0415
             s00300_f02n00_usd,
         )
 
-        exports = anchor_family_exports(
+        exports = anchored_exports(
             _trade_fbs_commodity_vector(f'Trade_Exports_{year}', download_sources_ok),
             _trade_fbs_commodity_vector('Trade_Exports_2017', download_sources_ok),
             published_2017_exports(),
