@@ -204,12 +204,11 @@ conversion and redefinition steps need is already loadable** — no new extract 
   before→after transform.
 - [`inflation_helpers_usa.py`](../../utils/economic/inflation_helpers_usa.py) —
   bedrock's own commodity-inflation approach, referenced by #497.
-- [`Detail_Supply_Mix.yaml`](../../transform/iot/Detail_Supply_Mix.yaml) /
-  [`Detail_Use_SUT.yaml`](../../transform/iot/Detail_Use_SUT.yaml) — existing FBS methods that
-  disaggregate a **Summary SUT** to detail using 2017 detail proportions. Their own headers warn *"The
-  resulting tables do not reflect valid balanced Supply/Use tables"*, so they are not the deliverable —
-  but they are a ready-made **fallback seed / cross-check** for any SUT block we can't source directly,
-  and they already encode which codes to exclude from each framework.
+- [`Detail_Supply_Mix.yaml`](../../transform/iot/Detail_Supply_Mix.yaml) — FBS method that
+  disaggregates published summary domestic output onto the 2017 detail mix for the nowcast Supply
+  seed (`nowcast_supply_go_control` → `assemble`). The method header warns the output is not a
+  valid balanced Supply table; balanced Use comes from `Balanced_Detail_Use_SUT`, not a parallel
+  summary→detail Use FBS.
 
 **Not in bedrock, to be ported:** commodity mix / intermediate nowcasting
 (`CalculateIntermediateUseAndCommodityMix.R`, per #497). The Step 5 **engine**
