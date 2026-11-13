@@ -307,8 +307,10 @@ def derive_waste_weights(
                 fba_base, fba_end, blend_t
             )
             use = _replace_row_sum(use, row_shares)
-            ec_rows = blend_customer_class_rows_from_ec_fbas(fba_base, fba_end, blend_t)
-            use = _replace_customer_class(use, ec_rows)
+            blended_rows = blend_customer_class_rows_from_ec_fbas(
+                fba_base, fba_end, blend_t
+            )
+            use = _replace_customer_class(use, blended_rows)
             prov.ec_blend_t = blend_t
             prov.ec_blend_base_year = base_y
             prov.ec_blend_end_year = end_y
@@ -336,7 +338,7 @@ def derive_waste_weights(
             )
 
         # EC customer-class from the same FBA when available; else freeze bundled 2017.
-        ec_rows = (
+        ec_rows: pd.DataFrame | None = (
             customer_class_shares_from_ec_fba(ec_fba) if ec_fba is not None else None
         )
         if ec_rows is not None:

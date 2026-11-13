@@ -8,6 +8,7 @@ rows — see ``build_business_firms_row_sum_shares_from_ec_fba``.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import cast
 
 import pandas as pd
 
@@ -377,7 +378,7 @@ def blend_customer_class_share_rows(
                 {
                     "IndustryCode": code,
                     "CommodityCode": child,
-                    "PercentUsed": float(blended.loc[child, code]),
+                    "PercentUsed": float(cast(float, blended.loc[child, code])),
                     "Note": note,
                 }
             )
