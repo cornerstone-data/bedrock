@@ -5,8 +5,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from bedrock.analysis.nowcasting import services_transport_expense_seed as st
 from bedrock.transform.eeio import electricity_delivery as ed
 from bedrock.transform.eeio import electricity_price as ep
+from bedrock.transform.iot import nowcast_intermediate as ni
 from bedrock.utils.schemas import cornerstone_schemas as cs
 
 
@@ -496,3 +498,67 @@ def test_the_payroll_share_is_delivery_over_electric_power() -> None:
     assert all(0.5 < s < 0.7 for s in shares)
     with pytest.raises(ValueError, match='no payroll'):
         ed.delivery_payroll_share(2016)
+
+
+# --- commercial kWh on another basis (#899, #705) ------------------------------------
+
+
+def _commercial_split(basis: pd.Series | None) -> pd.DataFrame:
+    bills = pd.Series({'531ORE': 10.0e9, '445000': 10.0e9, '331110': 6.0e9})
+    classes = pd.Series(
+        {'531ORE': 'Commercial', '445000': 'Commercial', '331110': 'Industrial'}
+    )
+    prices = pd.Series({'531ORE': 10.0, '445000': 10.0, '331110': 6.0})
+    return ed.split_bills(
+        bills,
+        classes,
+        prices,
+        {'Commercial': 200e6, 'Industrial': 100e6},
+        5.0,
+        export_mwh=0.0,
+        losses_mwh=0.0,
+        commercial_basis=basis,
+    ).buyers
+
+
+def test_a_commercial_basis_moves_kwh_between_commercial_buyers_only() -> None:
+    off = _commercial_split(None)
+    on = _commercial_split(pd.Series({'531ORE': 15.0e9, '445000': 5.0e9}))
+    assert float(on.at['531ORE', 'kwh']) / float(
+        on.at['445000', 'kwh']
+    ) == pytest.approx(3.0)
+    commercial = on['class'] == 'Commercial'
+    assert on.loc[commercial, 'kwh'].sum() == pytest.approx(200e6 * 1000.0)
+    pd.testing.assert_series_equal(off.loc['331110'], on.loc['331110'])
+    pd.testing.assert_series_equal(on['bill'], off['bill'])
+
+
+def test_a_commercial_buyer_missing_from_the_basis_keeps_its_bill() -> None:
+    off = _commercial_split(None)
+    on = _commercial_split(pd.Series({'531ORE': 10.0e9}))
+    pd.testing.assert_series_equal(on['kwh'], off['kwh'])
+
+
+def test_the_basis_is_the_2017_bill_moved_on_inputs_or_on_the_survey(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base = pd.DataFrame(
+        {'bill_usd': [2.0, 4.0, 1.0], 'other_inputs_usd': [10.0, 20.0, 5.0]},
+        index=pd.Index(['531ORE', '445000', '518200'], name='industry'),
+    )
+    monkeypatch.setattr(ed, 'commercial_electricity_2017', lambda: base)
+    monkeypatch.setattr(
+        st,
+        'electricity_spending_index',
+        lambda code, year: 1.5 if code == '531ORE' else None,
+    )
+    monkeypatch.setattr(ni, 'pinned_electricity_buyers', lambda year: ['518200'])
+    use = pd.DataFrame(
+        {'531ORE': [1.0, 39.0], '445000': [3.0, 27.0], '518200': [1.0, 9.0]},
+        index=[ed.GENERATION_SECTOR, '541100'],
+    )
+    imports = use * 0.0
+    basis = ed.commercial_kwh_basis(use, imports, 2024)
+    assert basis['531ORE'] == pytest.approx(2.0 * 1.5)  # survey bill growth
+    assert basis['445000'] == pytest.approx(4.0 * 27.0 / 20.0)  # other inputs
+    assert '518200' not in basis.index  # pinned on its own series

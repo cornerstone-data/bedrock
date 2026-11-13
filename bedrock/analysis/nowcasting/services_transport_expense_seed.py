@@ -1211,6 +1211,52 @@ def _chained_index(naics: str, year: int, base_year: int) -> pd.Series:
     return sas.reindex(codes, fill_value=1.0) * aies.reindex(codes, fill_value=1.0)
 
 
+#: The survey item that observes a service industry's electricity bill.
+ELECTRICITY_ITEM = 'Purchased electricity'
+
+
+def _item_ratio(
+    naics: str, item: str, year: int, base_year: int, panel: pd.DataFrame
+) -> float | None:
+    """*item*'s value in *year* over *base_year* for *naics*; None if either is missing."""
+    rows = panel[(panel['naics'] == naics) & (panel['item'] == item)]
+    values = rows.groupby('year')['value'].sum(min_count=1)
+    base, later = values.get(base_year), values.get(year)
+    if base is None or later is None or not (base > 0.0 and later > 0.0):
+        return None
+    return float(later) / float(base)
+
+
+def electricity_spending_index(
+    industry: str, year: int, base_year: int = 2017
+) -> float | None:
+    """A BEA industry's survey electricity bill in *year* against *base_year*.
+
+    The bill's own growth, not :func:`relative_index`'s growth relative to the
+    industry's whole input bill. ``None`` where no survey industry reaches the
+    BEA industry or the item is withheld in either year.
+
+    ⚠️ **Chained at the survey change**, as :func:`_chained_index` chains the
+    seed: an AIES year takes :data:`LAST_SAS_YEAR`'s ratio, moved only by AIES's
+    own ratio from its first year, so no ratio crosses the change in population.
+    Purchased electricity jumps across it for some industries (management
+    consulting x3.1 from SAS 2022 to AIES 2023).
+    """
+    naics = _bea_to_survey_industry().get(str(industry))
+    if naics is None:
+        return None
+    if int(year) in AIES_OBSERVED_YEARS and _chain_across_aies():
+        sas = _item_ratio(
+            naics, ELECTRICITY_ITEM, LAST_SAS_YEAR, base_year, _panel_for(LAST_SAS_YEAR)
+        )
+        first = AIES_OBSERVED_YEARS[0]
+        if sas is None or int(year) == first:
+            return sas
+        aies = _item_ratio(naics, ELECTRICITY_ITEM, int(year), first, _panel_for(year))
+        return None if aies is None else sas * aies
+    return _item_ratio(naics, ELECTRICITY_ITEM, int(year), base_year, _panel_for(year))
+
+
 def services_transport_seed(
     year: int, base_year: int = 2017, allow_survey_change: bool = True
 ) -> pd.DataFrame:

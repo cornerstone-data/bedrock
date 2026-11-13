@@ -132,8 +132,15 @@ def split_bills(
     generation_price: float,
     export_mwh: float,
     losses_mwh: float,
+    commercial_basis: pd.Series | None = None,
 ) -> DeliverySplit:
-    """Split *bills* (USD) at *generation_price* (¢/kWh). See the module docstring."""
+    """Split *bills* (USD) at *generation_price* (¢/kWh). See the module docstring.
+
+    *commercial_basis* (USD by buyer) re-divides the kWh its commercial buyers would
+    have on their bills among themselves, in proportion to the basis
+    (:func:`commercial_kwh_basis`). Commercial buyers it leaves out keep exactly the
+    kWh their bill gives them.
+    """
     bills = bills[bills > 0].astype(float)
     frame = pd.DataFrame({'bill': bills, 'class': classes.reindex(bills.index)})
     frame['price'] = prices.reindex(bills.index)
@@ -145,8 +152,14 @@ def split_bills(
         missing = frame.loc[members, 'price'].isna()
         if bool(missing.any()):
             raise ValueError(f'no price for {list(members[missing])[:5]}')
-        raw = frame.loc[members, 'bill'] / (frame.loc[members, 'price'] / 100.0)
-        frame.loc[members, 'kwh'] = raw * (class_mwh[cls] * 1000.0 / float(raw.sum()))
+        price = frame.loc[members, 'price'] / 100.0
+        raw = frame.loc[members, 'bill'] / price
+        kwh = raw * (class_mwh[cls] * 1000.0 / float(raw.sum()))
+        if cls == COMMERCIAL and commercial_basis is not None:
+            moved = members.intersection(commercial_basis.index)
+            target = commercial_basis[moved] / price[moved]
+            kwh[moved] = target * (float(kwh[moved].sum()) / float(target.sum()))
+        frame.loc[members, 'kwh'] = kwh
     exports = frame.index[frame['class'] == EXPORTS]
     if len(exports) > 0:
         share = frame.loc[exports, 'bill'] / float(frame.loc[exports, 'bill'].sum())
@@ -167,7 +180,79 @@ def line_losses_mwh(
     return max(float(generation_mwh) - float(end_use_mwh) - float(export_mwh), 0.0)
 
 
-def delivery_split(year: int, bills: pd.Series) -> DeliverySplit:
+def other_intermediate_inputs(udom: pd.DataFrame, uimp: pd.DataFrame) -> pd.Series:
+    """Each industry's intermediate inputs other than electricity, USD."""
+    total = udom.astype(float).sum(axis=0) + uimp.astype(float).sum(axis=0)
+    electricity = pd.Series(udom.loc[GENERATION_SECTOR], dtype=float) + pd.Series(
+        uimp.loc[GENERATION_SECTOR], dtype=float
+    )
+    return total - electricity
+
+
+COMMERCIAL_ELECTRICITY_2017_CSV = (
+    Path(__file__).parents[1]
+    / 'allocation'
+    / 'data'
+    / 'commercial_electricity_2017.csv'
+)
+
+
+@functools.cache
+def commercial_electricity_2017() -> pd.DataFrame:
+    """Each industry's 2017 bill and other intermediate inputs, USD.
+
+    From the model's own 2017 tables
+    (:mod:`~bedrock.utils.mapping.write_commercial_electricity_2017`), so the basis
+    equals the bill in 2017.
+    """
+    return pd.read_csv(
+        COMMERCIAL_ELECTRICITY_2017_CSV, index_col='industry', dtype={'industry': str}
+    ).astype(float)
+
+
+def commercial_kwh_basis(
+    udom: pd.DataFrame, uimp: pd.DataFrame, year: int
+) -> pd.Series:
+    """What each industry's commercial kWh are in proportion to, USD (#899, #705).
+
+    Its 2017 bill moved on one of two observations:
+
+    - **its survey electricity bill**, where the services survey publishes one
+      (:func:`~bedrock.analysis.nowcasting.services_transport_expense_seed.electricity_spending_index`,
+      chained at the 2023 change of survey);
+    - otherwise **its other intermediate inputs**, so its kWh keep pace with what it
+      buys.
+
+    A buyer's bill share otherwise moves with balancing that knows nothing of kWh:
+    other real estate's fell from 20.5% to 13.5% of EIA commercial revenue over
+    2017-2024 while its inputs grew 47%. Only the split between commercial buyers
+    changes, because the class's kWh are still scaled to EIA.
+
+    Buyers whose electricity cell is pinned on its own physical series keep their
+    bill: data processing moves on LBNL's data center kWh (#1035).
+    """
+    from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415
+        electricity_spending_index,
+    )
+    from bedrock.transform.iot.nowcast_intermediate import (  # noqa: PLC0415
+        pinned_electricity_buyers,
+    )
+
+    base = commercial_electricity_2017()
+    bills = pd.Series(base['bill_usd'], dtype=float)
+    other = other_intermediate_inputs(udom, uimp).reindex(base.index)
+    basis = bills * other / base['other_inputs_usd']
+    for industry in base.index:
+        survey = electricity_spending_index(str(industry), int(year))
+        if survey is not None:
+            basis[industry] = bills[industry] * survey
+    pinned = [c for c in pinned_electricity_buyers(int(year)) if c in basis.index]
+    return basis.drop(index=pinned).dropna()
+
+
+def delivery_split(
+    year: int, bills: pd.Series, commercial_basis: pd.Series | None = None
+) -> DeliverySplit:
     """The split for *year* from a buyer's bills in USD."""
     from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
         egrid_mwh_for_io_year,
@@ -206,6 +291,7 @@ def delivery_split(year: int, bills: pd.Series) -> DeliverySplit:
             float(sales['Total End Use']),
             export_mwh,
         ),
+        commercial_basis,
     )
 
 
@@ -501,7 +587,12 @@ def _delivery_state() -> tuple[
         pipe.derive_VA_after_waste(),
     )
     y = pipe.derive_y_after_waste()
-    split = delivery_split(year, electricity_bills(udom, y))
+    basis = (
+        commercial_kwh_basis(udom, uimp, year)
+        if get_usa_config().commercial_kwh_follow_intermediate_inputs
+        else None
+    )
+    split = delivery_split(year, electricity_bills(udom, y), basis)
     share = non_fuel_delivery_share(_year_expenses(year))
     return split, restructure_tables(
         v, udom, uimp, va, y, split, share, delivery_payroll_share(year)
