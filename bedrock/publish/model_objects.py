@@ -121,6 +121,9 @@ def get_U() -> pd.DataFrame:
     )
 
     if _reaggregation_efs_active():
+        from bedrock.transform.eeio.sector_disagg_pipeline import (
+            reaggregate_electricity_children_y,
+        )
         from bedrock.transform.eeio.usa_matrices import (
             derive_disagg_Ytot_reaggregated,
             derive_U_set_reaggregated,
@@ -131,7 +134,10 @@ def get_U() -> pd.DataFrame:
         intermediate = uset.Udom + uset.Uimp
         fd_block = _with_negative_purchase_sales(
             derive_disagg_Ytot_reaggregated()[list(FINAL_DEMANDS)],
-            derive_negative_purchase_sales(),
+            # Sum any sales on the G/T/D children into 221100, as the FD block does.
+            reaggregate_electricity_children_y(
+                derive_negative_purchase_sales().to_frame()
+            ).iloc[:, 0],
             NEGATIVE_PURCHASE_SALES_CODE,
         )
         return assemble_extended_U(
