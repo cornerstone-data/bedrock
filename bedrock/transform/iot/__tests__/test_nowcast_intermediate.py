@@ -854,6 +854,42 @@ def test_services_seed_chains_across_the_survey_change(
     assert float((indexed_2023 - chained_2022).abs().to_numpy().max()) > 0.0
 
 
+@needs_census
+def test_the_held_seed_takes_no_aies_movement_and_trucking_follows_warehousing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the hold, 2024 is 2023, and trucking's electricity follows warehousing's.
+
+    #1304: AIES 2024 against AIES 2023 isn't used. Trucking's electricity cell
+    takes warehousing's electricity index, so in 2022 the two cells move by about
+    the same factor against their own 2017 shares.
+    """
+    from bedrock.analysis.nowcasting import (  # noqa: PLC0415
+        services_transport_expense_seed as st,
+    )
+
+    monkeypatch.setattr(st, '_hold_at_last_sas_year', lambda: True)
+    pd.testing.assert_frame_equal(
+        st.services_transport_seed(2024), st.services_transport_seed(2023)
+    )
+
+    use = st._use_2017_detail()
+    held = st.services_transport_seed(2022)
+    elec = st.ELECTRICITY_COMMODITY
+
+    def share_change(seed: pd.DataFrame, industry: str) -> float:
+        column = pd.Series(seed[industry], dtype=float)
+        base = pd.Series(use[industry], dtype=float)
+        return (column[elec] / column.sum()) / (base[elec] / base.sum())
+
+    monkeypatch.setattr(st, '_hold_at_last_sas_year', lambda: False)
+    own = st.services_transport_seed(2022)
+    assert share_change(own, '484000') != pytest.approx(share_change(held, '484000'))
+    assert share_change(held, '484000') == pytest.approx(
+        share_change(held, '493000'), rel=0.05
+    )
+
+
 # --- electric power's refined petroleum on price (#922) ------------------------
 
 

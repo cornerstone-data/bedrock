@@ -271,6 +271,12 @@ class USAConfig(BaseModel):
     # cut every buyer ~16% to close it (trade -24%). See
     # bedrock.analysis.nowcasting.services_transport_expense_seed.
     chain_services_seed_across_aies: bool = True  # DRI: WesIngwersen
+    # With the chain on, hold every AIES year on 2022's SAS relative index
+    # instead of moving 2024 on AIES 2024/2023. That step isn't safe inside
+    # the AIES either: purchased electricity moves beyond any SAS-era year in
+    # 20 of 48 survey industries (warehousing x3.7, legal x0.53), and other
+    # items grow 40-80% in one year in many (#1304).
+    hold_services_seed_at_last_sas_year: bool = False  # DRI: WesIngwersen
     # Chain the truck and water transport margins across the SAS -> AIES
     # change: 2023 keeps 2022's margin as a share of the mode's gross output,
     # and 2024 moves on AIES's own 2024/2023 revenue. AIES's Table 8 covers
