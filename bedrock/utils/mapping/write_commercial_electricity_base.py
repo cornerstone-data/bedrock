@@ -23,6 +23,7 @@ Run::
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -31,8 +32,11 @@ OUTPUT = Path('bedrock/transform/allocation/data/commercial_electricity_base.csv
 CONFIG_TEMPLATE = '2026_usa_cornerstone_v1_0_{year}'
 
 
-def _year_tables(year: int) -> tuple[pd.Series, pd.Series]:
-    """The domestic electricity bill and the other inputs per industry for *year*, USD."""
+def _year_tables(year: int, vintage: str | None) -> tuple[pd.Series, pd.Series]:
+    """The domestic electricity bill and the other inputs per industry for *year*, USD.
+
+    *vintage* names the nowcast tables to read; the year's config pin by default.
+    """
     from bedrock.analysis.electricity.current.eia_gtd.electricity_split_checks import (  # noqa: PLC0415
         CACHE_MODULES,
     )
@@ -45,8 +49,11 @@ def _year_tables(year: int) -> tuple[pd.Series, pd.Series]:
         temp_usa_config,
     )
 
+    overrides = {} if vintage is None else {'nowcast_mut_vintage': vintage}
     with temp_usa_config(
-        CONFIG_TEMPLATE.format(year=year), cache_bearing_modules=CACHE_MODULES
+        CONFIG_TEMPLATE.format(year=year),
+        cache_bearing_modules=CACHE_MODULES,
+        **overrides,
     ):
         _, udom, uimp, _ = reallocate_electricity_coproduction(
             pipe.derive_V_after_waste(),
@@ -58,10 +65,10 @@ def _year_tables(year: int) -> tuple[pd.Series, pd.Series]:
     return bill, other
 
 
-def base() -> pd.DataFrame:
+def base(vintage: str | None = None) -> pd.DataFrame:
     """The base-year columns per industry, USD, from the v1.0 tables."""
-    bill_2017, other_2017 = _year_tables(2017)
-    _, other_2022 = _year_tables(2022)
+    bill_2017, other_2017 = _year_tables(2017, vintage)
+    _, other_2022 = _year_tables(2022, vintage)
     frame = pd.DataFrame(
         {
             'bill_2017_usd': bill_2017,
@@ -75,7 +82,12 @@ def base() -> pd.DataFrame:
 
 
 def main() -> None:
-    frame = base()
+    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    parser.add_argument(
+        '--vintage',
+        help='nowcast tables to read, e.g. v1.0.0_54dbcea; the pin by default',
+    )
+    frame = base(parser.parse_args().vintage)
     frame.to_csv(OUTPUT)
     print(
         f'{len(frame)} industries, 2017 bills ${frame["bill_2017_usd"].sum() / 1e9:,.1f}bn'
