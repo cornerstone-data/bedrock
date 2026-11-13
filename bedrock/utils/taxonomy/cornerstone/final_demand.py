@@ -53,6 +53,9 @@ FINAL_DEMAND_DESC: ta.Dict[FINAL_DEMAND, str] = {
 # intermediate purchases (used goods, government sales from stocks). The model
 # sets negative intermediate cells to zero, and this column carries them, so the
 # published U rows still add up to commodity output (#1270). It is kept out of
-# FINAL_DEMANDS because the BEA-sourced Y has no such column.
+# FINAL_DEMANDS because the BEA-sourced Y has no such column. Its values are
+# negative: a sale, recorded the way BEA records it.
 NEGATIVE_PURCHASE_SALES_CODE = 'F09000'
-NEGATIVE_PURCHASE_SALES_DESC = 'Sales recorded as negative intermediate purchases'
+NEGATIVE_PURCHASE_SALES_DESC = (
+    'Sales recorded as negative intermediate purchases (values are negative)'
+)
