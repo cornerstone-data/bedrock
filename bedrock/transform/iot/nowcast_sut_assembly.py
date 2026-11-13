@@ -180,7 +180,7 @@ def resolve_pce_constraint(
     mode = get_usa_config().electricity_pce_constraint_mode
     if mode == 'none':
         raise ValueError(
-            "constrain_electricity_pce_cell=True requires "
+            'constrain_electricity_pce_cell=True requires '
             "electricity_pce_constraint_mode != 'none'"
         )
     return mode
@@ -914,12 +914,45 @@ def published_tax_groups(year: int) -> pd.DataFrame:
 
     ``SUB`` is negative, as BEA stores it and as the balance carries it.
     """
+    return _published_supply_groups(int(year), HELD_TAX_COLUMNS)
+
+
+def _published_supply_groups(year: int, columns: Sequence[str]) -> pd.DataFrame:
+    """Summary Supply *columns* for *year*, $M, by summary commodity."""
     supply = _load_usa_summary_sut('Supply_summary', year)  # type: ignore[arg-type]
     supply = supply.rename(columns=lambda c: str(c).strip())
     groups = set(commodity_groups())
-    frame = supply[list(HELD_TAX_COLUMNS)].apply(pd.to_numeric, errors='coerce')
+    frame = supply[list(columns)].apply(pd.to_numeric, errors='coerce')
     frame.index = [str(i).strip() for i in frame.index]
     return frame.loc[[g for g in frame.index if g in groups]].fillna(0.0)
+
+
+#: The Supply import column the balance can hold to BEA's summary groups.
+HELD_IMPORT_COLUMN = 'MCIF'
+
+
+def published_import_groups(year: int) -> pd.Series:
+    """The summary Supply ``MCIF`` column for *year*, $M, by summary commodity."""
+    return _published_supply_groups(int(year), (HELD_IMPORT_COLUMN,))[
+        HELD_IMPORT_COLUMN
+    ]
+
+
+def import_group_holds(year: int, frozen_supply: pd.DataFrame) -> tuple[GroupHold, ...]:
+    """The engine's ``MCIF`` group hold: published group sums less frozen, $M.
+
+    #785 already scales each summary group of the seed's imports to BEA's
+    summary ``MCIF``, but the balance otherwise holds imports only as one soft
+    column total (T7), so the row identities move them between groups. In
+    2017, service imports enter at the published $267.2bn and leave at
+    $247.0bn (#1288). Held by group, they keep the published sums and the
+    detail split inside each group stays free.
+    """
+    groups = commodity_groups().reindex(frozen_supply.index)
+    frozen = frozen_supply[HELD_IMPORT_COLUMN].astype(float).groupby(groups).sum()
+    published = published_import_groups(int(year))
+    target = published - frozen.reindex(published.index).fillna(0.0)
+    return (GroupHold(column=HELD_IMPORT_COLUMN, groups=groups, targets=target),)
 
 
 def commodity_groups() -> pd.Series:
@@ -1100,6 +1133,7 @@ def balance_year(
     constrain_electricity_pce_cell: bool | None = None,
     convert_tax_rows: bool = True,
     hold_tax_groups: bool = True,
+    hold_import_groups: bool | None = None,
 ) -> YearBalance:
     """Assemble and balance one year: split, offset, engine, restore.
 
@@ -1110,7 +1144,11 @@ def balance_year(
     Use ``T00TOP``/``T00SUB`` rows stay a conversion of the Supply columns.
     *hold_tax_groups* holds ``TOP``/``SUB`` to the published summary groups,
     with the detail free inside each group (:func:`tax_group_holds`).
+    *hold_import_groups* does the same for ``MCIF`` (:func:`import_group_holds`);
+    it defaults to the ``hold_imports_on_summary_groups`` config flag.
     """
+    if hold_import_groups is None:
+        hold_import_groups = get_usa_config().hold_imports_on_summary_groups
     mode = resolve_pce_constraint(pce_constraint, constrain_electricity_pce_cell)
     assembled = assemble(
         int(year),
@@ -1135,7 +1173,12 @@ def balance_year(
             pce_eia_band_m=band,
             tax_rows=tax_row_operator(year, frozen) if convert_tax_rows else None,
             group_holds=(
-                tax_group_holds(year, frozen['supply']) if hold_tax_groups else ()
+                (tax_group_holds(year, frozen['supply']) if hold_tax_groups else ())
+                + (
+                    import_group_holds(year, frozen['supply'])
+                    if hold_import_groups
+                    else ()
+                )
             ),
         )
         return out, restore_fixed_blocks(out.blocks, frozen)

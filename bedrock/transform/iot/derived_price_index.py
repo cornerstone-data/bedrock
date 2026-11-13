@@ -47,18 +47,18 @@ START_YEAR = 2012
 #: release, so the final year is the mean of the quarters the summary table
 #: has published for it -- Q1-Q2 in a Q2 release, not a full year.
 END_YEAR_BY_VINTAGE: dict[BeaDataVersion, int] = {
-    "2025Q2": 2025,
-    "2026Q2": 2026,
+    '2025Q2': 2025,
+    '2026Q2': 2026,
 }
-SECTOR_CODE_COL = "sector_code"
+SECTOR_CODE_COL = 'sector_code'
 DISAGGREGATED_CODES = [
-    "562111",  # Solid waste collection
-    "562HAZ",  # Hazardous waste collection treatment and disposal
-    "562212",  # Solid waste landfilling
-    "562213",  # Solid waste combustors and incinerators
-    "562910",  # Remediation services
-    "562920",  # Material separation/recovery facilities
-    "562OTH",  # Other waste collection and treatment services
+    '562111',  # Solid waste collection
+    '562HAZ',  # Hazardous waste collection treatment and disposal
+    '562212',  # Solid waste landfilling
+    '562213',  # Solid waste combustors and incinerators
+    '562910',  # Remediation services
+    '562920',  # Material separation/recovery facilities
+    '562OTH',  # Other waste collection and treatment services
 ]
 
 
@@ -89,14 +89,14 @@ def _combine_pi_detail_summary(end_year: int, vintage: BeaDataVersion) -> pd.Dat
             pi_summary=_aggregate_latest_pi_summary_quarterly__annual(end_year, vintage)
         ),
         on=SECTOR_CODE_COL,
-        how="left",
+        how='left',
     )
     YEAR_COLS = pi.columns.difference(
         pd.Index([SECTOR_CODE_COL, SECTOR_NAME_COL, SECTOR_SUMMARY_CODE_COL])
     )
 
-    waste_pi = pi[pi[SECTOR_CODE_COL] == "562000"]
-    assert waste_pi.shape[0] == 1, "found multiple aggregated waste rows"
+    waste_pi = pi[pi[SECTOR_CODE_COL] == '562000']
+    assert waste_pi.shape[0] == 1, 'found multiple aggregated waste rows'
 
     waste_disaggregated = pd.concat(
         [waste_pi.assign(sector_code=code) for code in DISAGGREGATED_CODES],
@@ -125,7 +125,7 @@ def _aggregate_detail_pi(vintage: BeaDataVersion) -> pd.DataFrame:
         .pipe(lambda ser: ser[ser > 1])
         .index.tolist()
     )
-    print(f"handling duplicated codes {duplicated_codes}")
+    print(f'handling duplicated codes {duplicated_codes}')
 
     pi_detail_reagg = pi_detail.loc[
         ~pi_detail[SECTOR_CODE_COL].isin(duplicated_codes),
@@ -148,11 +148,11 @@ def _aggregate_detail_pi(vintage: BeaDataVersion) -> pd.DataFrame:
         pi_agg = wgt_avg_pi.to_frame().transpose().assign(sector_code=code)
         pi_detail_reagg = pd.concat([pi_detail_reagg, pi_agg], ignore_index=True)
 
-    assert pi_detail_reagg[SECTOR_CODE_COL].is_unique, "found duplicate secotr codes"
+    assert pi_detail_reagg[SECTOR_CODE_COL].is_unique, 'found duplicate secotr codes'
     assert_sets_equal(
-        expected=set(BEA_2017_INDUSTRY_CODES) | {"335220"},
+        expected=set(BEA_2017_INDUSTRY_CODES) | {'335220'},
         actual=set(pi_detail_reagg[SECTOR_CODE_COL]),
-        if_fail="exception",
+        if_fail='exception',
     )
     return pi_detail_reagg
 

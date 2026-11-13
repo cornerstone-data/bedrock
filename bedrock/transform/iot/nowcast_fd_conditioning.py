@@ -28,10 +28,13 @@ final demand, so every misplaced final-demand dollar lands in the interior
 targets otherwise) and large fixes on FD-owned rows — custom programming's
 2023 residual fell 76 -> 30bn $M in the counterfactual.
 
-⚠️ ``F03000`` and ``F04000`` are NOT conditioned. Inventories and exports are
-their own sourced constructions (#746, #729/#771) with their own graders;
+⚠️ ``F03000`` and ``F04000`` are NOT conditioned here. Inventories and exports
+are their own sourced constructions (#746, #729/#771) with their own graders;
 their summary-level standing is recorded in the About doc, and exports are
-bl-young's lane.
+bl-young's lane. With ``condition_service_exports_on_summary`` set, the
+**service** rows of ``F04000`` are conditioned the same way
+(:func:`condition_service_exports_on_summary`, #1250); goods exports stay on
+Census trade.
 
 Guards, in the order applied per (group, column):
 
@@ -95,6 +98,68 @@ def _commodity_to_summary() -> pd.Series:
     return pd.Series({code: parents[0] for code, parents in mapping.items()})
 
 
+def _group_factors(ours: pd.Series, pub: pd.Series) -> tuple[pd.Series, float, float]:
+    """published / ours per group, with the guards; plus the USD each guard left."""
+    empty = ours.abs() < EMPTY_GROUP_USD
+    flipped = ~empty & (np.sign(ours) != np.sign(pub)) & (pub.abs() >= 1.0)
+    factor = (pub / ours.replace(0.0, np.nan)).fillna(1.0)
+    factor[empty | flipped] = 1.0
+    unreachable = float(pub[empty].abs().sum())
+    sign_held = float((pub - ours)[flipped].abs().sum())
+    return factor, unreachable, sign_held
+
+
+#: Summary groups whose exports stay on Census goods trade: agriculture to
+#: manufacturing, and government. ``Other`` and ``Used`` are accounting rows.
+GOODS_SUMMARY_PREFIXES: tuple[str, ...] = ('111', '113', '21', '22', '23', '3', 'G')
+ACCOUNTING_SUMMARY_ROWS: tuple[str, ...] = ('Other', 'Used')
+
+
+def is_service_group(group: str) -> bool:
+    """Whether summary commodity *group* is a service row (``42`` onward)."""
+    return not str(group).startswith(GOODS_SUMMARY_PREFIXES) and (
+        str(group) not in ACCOUNTING_SUMMARY_ROWS
+    )
+
+
+def condition_service_exports_on_summary(exports: pd.Series, year: int) -> pd.Series:
+    """*exports* with each service group scaled to the summary Use ``F040``, USD.
+
+    Service exports are each row's published 2017 value moved by a blend of
+    ITA categories (#771). The blends drift by about 40% on data processing
+    (``514``), administrative and support (``561``) and management of
+    companies (``55``) by 2024, and the balance barely moves exports, so the
+    drift reaches the tables (#1250). BEA publishes the summary rows every
+    year, so each service group is held to them; the blends only split a
+    group between its detail rows. Goods rows and rows with no summary group
+    are returned unchanged, and the guards of :func:`summary_condition_factors`
+    apply.
+    """
+    if year not in SUMMARY_SUT_YEARS:
+        raise ValueError(
+            f'the summary Use SUT covers {SUMMARY_SUT_YEARS[0]}-'
+            f'{SUMMARY_SUT_YEARS[-1]}; got {year}'
+        )
+    groups = _commodity_to_summary().reindex(exports.index)
+    service = groups.map(lambda g: isinstance(g, str) and is_service_group(g))
+    service = service.fillna(False).astype(bool)
+    published = _load_usa_summary_sut('Use_SUT_summary', year)  # type: ignore[arg-type]
+    published = published.apply(pd.to_numeric, errors='coerce').fillna(0.0) * 1e6
+    ours = exports[service].groupby(groups[service]).sum()
+    pub = published['F040'].reindex(ours.index).fillna(0.0)
+    factor, unreachable, sign_held = _group_factors(ours, pub)
+    if unreachable or sign_held:
+        logger.info(
+            'service export conditioning %s: %.0fM published unreachable (our '
+            'group empty), %.0fM held on sign disagreement',
+            year,
+            unreachable / 1e6,
+            sign_held / 1e6,
+        )
+    per_row = groups.map(factor).where(service, 1.0).astype(float).fillna(1.0)
+    return exports * per_row
+
+
 def summary_condition_factors(y: pd.DataFrame, year: int) -> pd.DataFrame:
     """Summary group x column scale factors for ``y`` at ``year``, guards applied.
 
@@ -119,13 +184,10 @@ def summary_condition_factors(y: pd.DataFrame, year: int) -> pd.DataFrame:
         # The summary workbooks truncate the codes to four characters
         # (F01000 -> F010).
         pub = published[column[:4]].reindex(ours.index).fillna(0.0)
-        empty = ours.abs() < EMPTY_GROUP_USD
-        flipped = ~empty & (np.sign(ours) != np.sign(pub)) & (pub.abs() >= 1.0)
-        factor = (pub / ours.replace(0.0, np.nan)).fillna(1.0)
-        factor[empty | flipped] = 1.0
+        factor, missed, held = _group_factors(ours, pub)
         factors[column] = factor
-        unreachable += float(pub[empty].abs().sum())
-        sign_held += float((pub - ours)[flipped].abs().sum())
+        unreachable += missed
+        sign_held += held
     if unreachable or sign_held:
         logger.info(
             'FD conditioning %s: %.0fM published unreachable (our group '

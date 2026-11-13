@@ -148,9 +148,9 @@ def test_converged_columns_land_on_their_go_share(controlled: pd.DataFrame) -> N
     # note, so selecting on the note excluded all 19 manufacturing groups and
     # left this test passing while checking none of them.
     fitted_groups = set(diagnostics.index[~diagnostics['kept_seed']])
-    assert (
-        fitted_groups & gc.released_groups()
-    ), 'no released group reached the GO-share check; the selector is wrong again'
+    assert fitted_groups & gc.released_groups(), (
+        'no released group reached the GO-share check; the selector is wrong again'
+    )
     wedge = gc._wedge(YEAR, controlled)
     target = gc.gross_output_at_basic(YEAR, wedge)
 
@@ -256,9 +256,9 @@ def test_released_groups_is_the_union_over_every_conditioner() -> None:
 
     assert config.chain_manufacturing_on_aies
     assert config.rebase_utility_gross_output_on_eia
-    assert released == aies_released() | {
-        '22'
-    }, 'the union picked up a group no conditioner claims'
+    assert released == aies_released() | {'22'}, (
+        'the union picked up a group no conditioner claims'
+    )
     # manufacturing's groups plus utilities, and nothing else
     assert all(group.startswith('3') or group == '22' for group in released), sorted(
         released

@@ -310,3 +310,41 @@ def test_a_group_whose_scale_would_flip_its_sign_keeps_its_seed(
     )
     assert report.loc[('TOP', 'g1'), 'held'] == pytest.approx(2.0)
     assert any('flip their sign' in w for w in warned)
+
+
+# --- the import hold (#1288) ------------------------------------------------
+
+
+def test_the_import_hold_targets_the_published_groups_less_frozen(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(asm, 'commodity_groups', lambda: GROUPS)
+    monkeypatch.setattr(
+        asm, 'published_import_groups', lambda year: pd.Series({'g1': 5.0, 'g2': 3.0})
+    )
+    frozen = pd.DataFrame({'i1': 0.0, 'MCIF': [0.0, 1.5, 0.0]}, index=GROUPS.index)
+    (hold,) = asm.import_group_holds(2017, frozen)
+    assert hold.column == 'MCIF'
+    assert hold.targets.to_dict() == pytest.approx({'g1': 3.5, 'g2': 3.0})
+
+
+def test_held_imports_keep_each_group_where_the_rows_would_move_them() -> None:
+    """The rows want c1 and c2 to lose 2 of supply and c3 to gain 2; without
+    the hold, imports move from g1 to g2; held, i1 absorbs it instead."""
+    supply = pd.DataFrame(
+        {'i1': [4.0, 4.0, 2.0], 'MCIF': [2.0, 2.0, 2.0]}, index=['c1', 'c2', 'c3']
+    )
+    rows = pd.Series({'c1': 5.0, 'c2': 5.0, 'c3': 6.0})
+    cols = pd.Series({'i1': 10.0, 'MCIF': 6.0})
+    mask = SutMask.from_pattern(supply)
+    hold = GroupHold('MCIF', GROUPS, pd.Series({'g1': 4.0, 'g2': 2.0}))
+    free, _ = _balance_block(
+        supply, mask, rows, cols, rtol=1e-12, close_rows_exactly=True
+    )
+    held, _ = _balance_block(
+        supply, mask, rows, cols, rtol=1e-12, close_rows_exactly=True, holds=(hold,)
+    )
+    assert free.loc[['c1', 'c2'], 'MCIF'].sum() < 4.0
+    assert held.loc[['c1', 'c2'], 'MCIF'].sum() == pytest.approx(4.0, abs=1e-6)
+    assert held.at['c3', 'MCIF'] == pytest.approx(2.0, abs=1e-6)
+    pd.testing.assert_series_equal(held.sum(axis=1), rows, check_names=False)

@@ -1375,7 +1375,7 @@ def joint_mode_fit() -> pd.DataFrame:
     if float(unreached.sum()) > 0.01 * float(column_margin.sum()):
         raise ValueError(
             f'the joint fit cannot reach {unreached.sum():,.0f} USD of the '
-            f'published column on the modes\' combined support - the mode '
+            f"published column on the modes' combined support - the mode "
             f'crosswalks exclude commodities BEA says receive transport margin.'
         )
     return fitted

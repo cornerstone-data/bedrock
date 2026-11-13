@@ -219,7 +219,7 @@ def _conform_use_sut(use: pd.DataFrame, rest_of_world_pce: float) -> pd.DataFram
     if rest_of_world_pce > 0:
         raise ValueError(
             f'rest-of-world PCE adjustment is {rest_of_world_pce:,.0f} USD; '
-            'it removes nonresidents\' spending, so it cannot be positive'
+            "it removes nonresidents' spending, so it cannot be positive"
         )
     commodities = list(USA_2017_COMMODITY_CODES)
     unexpected = set(commodities) - set(use.index) - {'4200ID', 'S00900'}
@@ -726,8 +726,8 @@ def _negative_producer_value(
     if enforce and float(-short.min()) > GATE_ATOL:
         raise AssertionError(
             f"{year} producers' value is ${-report['worst_usd_m']:,.3f}M below "
-            f"zero at {report['worst_cell']} with the margin cap on; the "
-            f"{good} margin given up exceeds what its buyers purchase, which "
+            f'zero at {report["worst_cell"]} with the margin cap on; the '
+            f'{good} margin given up exceeds what its buyers purchase, which '
             'is a Step 5 balance to fix, not a placement'
         )
     return report

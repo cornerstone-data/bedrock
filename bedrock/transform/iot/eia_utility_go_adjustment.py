@@ -576,8 +576,7 @@ def check() -> int:
     for code in HELD_OUT:
         if code in CONTROLLED:  # fixed list: the retail basis may add S00101, S00202
             failures.append(
-                f'{code} is in HELD_OUT and must not be controlled: '
-                f'{HELD_OUT[code]}'
+                f'{code} is in HELD_OUT and must not be controlled: {HELD_OUT[code]}'
             )
 
     table = report()

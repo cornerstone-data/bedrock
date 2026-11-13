@@ -488,7 +488,7 @@ def restrict_to_cells(
     if not shifted.empty:
         logger.warning(
             'Sales tax of %s USD on %d commodities (largest %s, %s USD) has no '
-            'room in the target table\'s trade margins and moved to the '
+            "room in the target table's trade margins and moved to the "
             'producer-level tax (top_rest).',
             f'{shifted.sum():,.0f}',
             len(shifted),

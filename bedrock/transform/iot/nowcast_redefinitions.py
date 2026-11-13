@@ -480,8 +480,7 @@ def _stored_before(
     matches = sorted(directory.glob(pattern), key=lambda p: p.stat().st_mtime)
     if not matches:
         raise FileNotFoundError(
-            f'no {pattern} in {directory}; '
-            'run bedrock.transform.iot.nowcast_mut first'
+            f'no {pattern} in {directory}; run bedrock.transform.iot.nowcast_mut first'
         )
     return pd.read_parquet(matches[-1]), matches[-1].name
 
@@ -556,7 +555,7 @@ def save_after_redef(
                 'before_inputs': before_inputs or [],
                 'primary_source_meta': source_lineage(before_inputs or [], directory),
                 'method': (
-                    'Make: 2017 detail movement pattern on the year\'s own '
+                    "Make: 2017 detail movement pattern on the year's own "
                     'cells; Use: 2017 cell-ratio carry with commodity-row '
                     'closure and VA column closure; FD invariant; imports '
                     're-allocated along the after-redef rows (#816 rule)'
