@@ -127,9 +127,11 @@ def _waste_weights_cache_key(cfg: Any) -> tuple[Any, ...]:
 def get_waste_disagg_weights() -> DisaggWeights | None:
     """Return waste disaggregation weights if the feature is enabled, else None.
 
-    When ``waste_weights_year`` resolves to a year other than 2017 (and IO is
-    after-redefinition), derives weights in-memory. Before-redef always uses
-    USEEIOR v1.8 bundled path via ``effective_waste_disagg_config``.
+    After-redefinition ``waste_weights_year: match_io`` always derives weights
+    (including calendar 2017 via BR 2017), so the time series does not seam onto
+    the bundled workbook's 2012 RCRA intersection. Explicit / default
+    ``waste_weights_year: 2017`` still loads Cornerstone-bundled CSVs. Before-redef
+    always uses USEEIOR v1.8 via ``effective_waste_disagg_config``.
     """
     cfg = get_usa_config()
     if not cfg.implement_waste_disaggregation:
@@ -156,7 +158,18 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
             fallback_notes=["before-redef USEEIOR v1.8 weights"],
             naics_map_version=NAICS_MAP_VERSION,
         )
-    elif weights_year == 2017:
+    elif cfg.waste_weights_year == "match_io" or weights_year != 2017:
+        from bedrock.extract.disaggregation.derive_waste_weights import (  # noqa: PLC0415
+            derive_waste_weights,
+        )
+
+        weights, prov = derive_waste_weights(
+            weights_year,
+            mut_dollar_year=int(cfg.usa_base_io_data_year),
+            ec_2022_wired=True,
+        )
+        _WASTE_PROVENANCE_CACHE[key] = prov
+    else:
         resolved_cfg = _resolve_waste_cfg_paths(effective_waste_disagg_config(cfg))
         weights = _disagg_weights.load_disagg_weights(
             resolved_cfg,
@@ -175,17 +188,6 @@ def get_waste_disagg_weights() -> DisaggWeights | None:
             naics_map_version=NAICS_MAP_VERSION,
             mut_dollar_year=int(cfg.usa_base_io_data_year),
         )
-    else:
-        from bedrock.extract.disaggregation.derive_waste_weights import (  # noqa: PLC0415
-            derive_waste_weights,
-        )
-
-        weights, prov = derive_waste_weights(
-            weights_year,
-            mut_dollar_year=int(cfg.usa_base_io_data_year),
-            ec_2022_wired=True,
-        )
-        _WASTE_PROVENANCE_CACHE[key] = prov
 
     _WASTE_WEIGHTS_CACHE[key] = weights
     return weights
