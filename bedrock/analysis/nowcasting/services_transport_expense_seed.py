@@ -1168,18 +1168,43 @@ def _chain_across_aies() -> bool:
     return get_usa_config().chain_services_seed_across_aies
 
 
+#: The electricity commodity of the Use rows the seed moves.
+ELECTRICITY_COMMODITY = '221100'
+
+#: Industries whose electricity cell moves on another industry's survey index
+#: under ``hold_services_seed_at_last_sas_year`` (#1304). Trucking's electricity
+#: is its terminals and depots, buildings like warehousing's: its fleet isn't
+#: electrified (Wes, 2026-11-13). Its own survey item steps x1.5 from AIES 2023
+#: to 2024, beyond any SAS-era year. CBECS gives warehouses 13,107 kWh per worker
+#: in 2018, against BEA's 2017 implied 15,283 for warehousing and 17,394 for
+#: trucking.
+ELECTRICITY_PROXY_INDUSTRIES = {'484000': '493000'}
+
+
+def _hold_at_last_sas_year() -> bool:
+    from bedrock.utils.config.usa_config import get_usa_config  # noqa: PLC0415
+
+    return get_usa_config().hold_services_seed_at_last_sas_year
+
+
 def _chained_index(naics: str, year: int, base_year: int) -> pd.Series:
     """:data:`LAST_SAS_YEAR`'s SAS index, moved on AIES's own ratios to *year*.
 
     ``index(2022 vs base)`` on the SAS panel, times ``index(year vs 2023)`` on
     the AIES panel. A commodity only one side reaches keeps that side's index
     (the other contributes 1.0, no movement).
+
+    ⚠️ With ``hold_services_seed_at_last_sas_year``, every AIES year takes the SAS
+    index alone (#1304). From 2023 to 2024 the AIES moves purchased electricity
+    beyond any SAS-era year in 20 of 48 survey industries, and many industries'
+    other items grow 40-80% in that one year, so the relative index divides by a
+    bill that changes for reasons other than growth.
     """
     sas = relative_index(
         naics, LAST_SAS_YEAR, base_year=base_year, panel=_panel_for(LAST_SAS_YEAR)
     )
     first = AIES_OBSERVED_YEARS[0]
-    if year == first:
+    if year == first or _hold_at_last_sas_year():
         return sas
     aies = relative_index(naics, year, base_year=first, panel=_panel_for(year))
     codes = sas.index.union(aies.index)
@@ -1245,12 +1270,20 @@ def services_transport_seed(
     chained = year in AIES_OBSERVED_YEARS and _chain_across_aies()
     panel = _panel_for(LAST_SAS_YEAR if chained else year)
 
+    def survey_index(naics: str) -> pd.Series:
+        if chained:
+            return _chained_index(naics, year, base_year)
+        return relative_index(naics, year, base_year=base_year, panel=panel)
+
     for industry in columns:
         naics = _bea_to_survey_industry()[industry]
-        if chained:
-            index = _chained_index(naics, year, base_year)
-        else:
-            index = relative_index(naics, year, base_year=base_year, panel=panel)
+        index = survey_index(naics)
+        proxy = ELECTRICITY_PROXY_INDUSTRIES.get(industry)
+        if proxy is not None and _hold_at_last_sas_year():
+            borrowed = survey_index(_bea_to_survey_industry()[proxy])
+            if ELECTRICITY_COMMODITY in borrowed.index:
+                index = index.copy()
+                index[ELECTRICITY_COMMODITY] = borrowed[ELECTRICITY_COMMODITY]
         if index.empty:
             continue
         touched = [code for code in index.index if code in seed.index]
