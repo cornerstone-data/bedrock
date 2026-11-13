@@ -223,12 +223,17 @@ def survey_electricity_path(industry: str) -> tuple[float, ...] | None:
     ``None`` unless the survey reaches the industry in every year of
     :data:`SURVEY_ELECTRICITY_YEARS`: a buyer that loses its survey part way would
     switch rules and take a step the survey didn't observe.
+
+    An industry in ``ELECTRICITY_PROXY_INDUSTRIES`` takes its proxy's path, as the
+    services seed does: trucking takes warehousing's (#1304).
     """
     from bedrock.analysis.nowcasting.services_transport_expense_seed import (  # noqa: PLC0415
+        ELECTRICITY_PROXY_INDUSTRIES,
         electricity_spending_index,
     )
 
-    path = [electricity_spending_index(industry, y) for y in SURVEY_ELECTRICITY_YEARS]
+    source = ELECTRICITY_PROXY_INDUSTRIES.get(industry, industry)
+    path = [electricity_spending_index(source, y) for y in SURVEY_ELECTRICITY_YEARS]
     observed = [v for v in path if v is not None]
     return tuple(observed) if len(observed) == len(path) else None
 
