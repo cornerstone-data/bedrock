@@ -21,6 +21,11 @@ part of the chain: the global model in ``ceda`` gives imported inputs their sour
 countries' factors. ``IV_full_L`` keeps the score on the full ``L`` and ``N`` for
 comparison.
 
+``V_Nd`` is the same volatility on each commodity's real ``N_d``, the factor users
+get. ``V`` only sees a commodity's own emissions, so it can't register what moves
+in its supply chain: a service sector's ``B`` is its own fuel and refrigerants,
+and its electricity reaches it through ``L_dom``.
+
 ``w_k`` is how much each commodity's ``N`` counts and sums to 1 each year. See
 :data:`WEIGHT_SCHEMES`, or pass any weights of your own. With ``equal`` weights
 ``IV_j`` reads as: in a typical year, the move in this factor shifts the average
@@ -341,6 +346,11 @@ def iv_table(
     table['I'] = importance(span, shares, weights)
     table = table.join(V)
     table['IV'] = table['I'] * table['V'] * 100
+    # The same volatility on the commodity's total domestic factor. A service
+    # sector's B is its own fuel and refrigerants, so what it buys, electricity
+    # above all, moves only N_d (#1305).
+    N_real = bcd.N_total(span, real=True).reindex(index).fillna(0.0)
+    table['V_Nd'] = volatility(N_real, trend_weight)['V']
     table['rank'] = table['IV'].rank(ascending=False, method='min').astype(int)
     table['IV_trend'] = table['I'] * table['median_change'].abs() * 100
     table['IV_full_L'] = (
