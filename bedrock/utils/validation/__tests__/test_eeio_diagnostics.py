@@ -414,13 +414,6 @@ def test_compare_output_and_L_y(
 
 
 @pytest.mark.eeio_integration
-@pytest.mark.xfail(
-    reason=(
-        'Make and Use disagree on commodity output. On MUT v1.0.0_8365fa4 '
-        '(2024) one sector fails: 334118 (+4.4%), whose imports exceed its '
-        'use. 2017-2023 pass.'
-    ),
-)
 def test_domestic_L_y_from_use_final_demand_equals_q(
     canonical_usa_config: None,
 ) -> None:

@@ -4,12 +4,12 @@
   "usa_config": "2026_usa_cornerstone_v1_0",
   "tables": {
     "use": {
-      "filename": "Balanced_Detail_Use_SUT_2024_v1.0.0_8365fa4.parquet",
-      "sha256": "db0dfdb2e23efa4511e1d54c57570ddfc0aa842a6f148cb753f487ce6ee5f889"
+      "filename": "Balanced_Detail_Use_SUT_2024_v1.0.0_fd271dc.parquet",
+      "sha256": "2a6130da528c889723a82261c029608927245afdac8d541e8bd71ee16c0d29e9"
     },
     "supply": {
-      "filename": "Balanced_Detail_Supply_2024_v1.0.0_8365fa4.parquet",
-      "sha256": "68e283b2f1f76936cb825d467ac5c8e6fb919c10f26d6a95bc7f99ea9543460a"
+      "filename": "Balanced_Detail_Supply_2024_v1.0.0_fd271dc.parquet",
+      "sha256": "cc9d68deb93f96aae21d2da8776c743ce942c449d4d005d123cadce1aaa14abc"
     }
   }
 }
