@@ -20,8 +20,8 @@ historical v05 US ladder G2 / G3 / G4 / FINAL (plot registries only).
 
 Pins are sheet ``N_new`` x canonical q (``waterfall_progression --sheet-n-new``).
 Live values equal the sheet values except where ``EXPECTED_LIVE_N_NEW``
-overrides (G1-G3 from the 2026 BEA annual update #1167; G1/G4/G5/FINAL also
-after the 7533da28 snapshot).
+overrides (G1-G3 from the 2026 BEA annual update #1167; all eight live
+configs after the scrap correction in #1293).
 Early G1* sheets are the 2026-10-02 remint on ``main`` in the v0.5 Diagnostics
 Drive folder. US ladder G2-G5 sheets are the 2026-10-12 USEEIO cut on
 ``dfe743bc`` in the v0.6 Diagnostics Drive folder. FINAL is the 2026-10-13
@@ -66,17 +66,19 @@ EXPECTED_SHEET_N_NEW = {
 # - G1, G2 and G3 read BEA's published tables, whose release is fixed in code,
 #   not in the config. #1167 moved them to the 2026 annual update (gross output
 #   and the summary supply-use tables), which raises N by 0.7-1.0%.
-# - G1, G4, G5 and FINAL also pick up a further ~4-5.5e-4 kg/USD after the
-#   7533da28 snapshot (406-sector model on v1.0.0_8365fa4); G4/G5/FINAL pin
-#   MUT and GHG FBS, so the residual is an unpinned shared input.
+# - All eight live configs drop ~1-5e-4 kg/USD after the scrap correction in
+#   #1293 (BEA gross-output x includes scrap; Vnorm is divided by 1 - s). Sheets
+#   are not reminted for that path change.
 EXPECTED_LIVE_N_NEW = {
     **EXPECTED_SHEET_N_NEW,
-    'v03_waterfall_useeio_g1_schema_ghg': 0.3141438,
-    'v06_waterfall_g2_methods': 0.2403652,
-    'v06_waterfall_g3_data': 0.2420125,
-    'v06_waterfall_g4_nowcast': 0.2214442,
-    'v06_waterfall_g5_facilities': 0.2224323,
-    '2025_usa_cornerstone_v0_6': 0.2260400,
+    'v03_waterfall_useeio_g1_schema_ghg': 0.3137580,
+    'v03_waterfall_ceda_g1a_schema_ghg': 0.2531323,
+    'v03_waterfall_ceda_g1b_waste_disagg': 0.2551639,
+    'v06_waterfall_g2_methods': 0.2400074,
+    'v06_waterfall_g3_data': 0.2416648,
+    'v06_waterfall_g4_nowcast': 0.2210805,
+    'v06_waterfall_g5_facilities': 0.2220768,
+    '2025_usa_cornerstone_v0_6': 0.2256817,
 }
 
 # Assessment USEEIO-track bars (diagnostics columns x canonical v0.6 q).
