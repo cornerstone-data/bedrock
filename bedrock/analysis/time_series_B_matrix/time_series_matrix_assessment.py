@@ -64,8 +64,8 @@ AbsKind = Literal['Mt', 'intensity']
 #: Constant-dollar year for real B/N (and default normalization year).
 DOLLAR_YEAR = 2017
 
-FBS_VINTAGE = 'v1.0.0_fd271dc'
-MUT_VINTAGE = 'v1.0.0_fd271dc'
+FBS_VINTAGE = 'v1.0.0_2b1164f'
+MUT_VINTAGE = 'v1.0.0_2b1164f'
 #: Year-stem GHG FBS basename template (matches ``2026_usa_cornerstone_v1_0_{year}``).
 FBS_STEM = 'GHG_national_Cornerstone_{year}'
 
