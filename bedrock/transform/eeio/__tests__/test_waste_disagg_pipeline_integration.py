@@ -59,6 +59,7 @@ from bedrock.transform.eeio.usa_matrices import (
     derive_x_after_redefinition,
     derive_y_nab,
     derive_Ytot_matrix_set,
+    scrap_share_of_output,
 )
 from bedrock.transform.eeio.waste_disaggregation import compute_waste_q_targets
 from bedrock.utils.config.usa_config import (
@@ -588,10 +589,13 @@ class TestPipelineB:
             actual = derive_B_via_vnorm()
 
             x = derive_x_after_redefinition() if cfg.use_ghg_year_x_in_B else derive_x()
-            expected = (
-                load_E_from_flowsa().divide(x, axis=1).fillna(0.0)
-                @ derive_Vnorm_scrap_corrected()
-            )
+            Vnorm = derive_Vnorm_scrap_corrected()
+            # Mirror derive_B_via_vnorm: BEA gross-output x includes scrap (#1293).
+            if cfg.usa_detail_io_source != 'nowcast' and (
+                cfg.deflate_x_to_detail_io_year_for_B or cfg.use_ghg_year_x_in_B
+            ):
+                Vnorm = Vnorm.divide(1.0 - scrap_share_of_output(), axis=0)
+            expected = load_E_from_flowsa().divide(x, axis=1).fillna(0.0) @ Vnorm
         finally:
             _teardown()
 
