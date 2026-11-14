@@ -1,7 +1,4 @@
-"""BEA summary-level IO helpers for Cornerstone year-scaling and related callers.
-
-``io_2012`` remains available for analysis that needs 2012 detail tables.
-"""
+"""BEA summary-level IO helpers for Cornerstone year-scaling and related callers."""
 
 from __future__ import annotations
 
