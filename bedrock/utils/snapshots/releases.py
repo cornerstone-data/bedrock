@@ -115,7 +115,16 @@ v1_0_0_pre_406 = (
 # flow-by-sector table built at the commit (#1278) and air freight on the AIES
 # level (#1274). Electricity delivery is its own sector, 42ELEC (406, #1283).
 # GHG_national_Cornerstone_{year}_v1.0.0_8365fa4 is rebuilt on that MUT.
-v1_0_0 = "7533da280bfc9e943065306ba37630228046713d"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
+v1_0_0_pre_2b1164f = (
+    "7533da280bfc9e943065306ba37630228046713d"  # config: 2026_usa_cornerstone_v1_0
+)
+
+# Output change: the v1.0 configs load the nowcast MUT v1.0.0_2b1164f (#1314):
+# summary trade holds (#1303), commercial electricity kWh on survey inputs
+# (#1305), services seed / truck electricity (#1306), and calendar-2017 waste
+# weights (#1312). GHG_national_Cornerstone_{year}_v1.0.0_2b1164f is rebuilt on
+# that MUT.
+v1_0_0 = "6386198c6ef331516636ae7af340d6cd540d761f"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -141,6 +150,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v1_0_0_rc: 2024,
     v1_0_0_pre_electricity_flags: 2024,
     v1_0_0_pre_406: 2024,
+    v1_0_0_pre_2b1164f: 2024,
     v1_0_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,
