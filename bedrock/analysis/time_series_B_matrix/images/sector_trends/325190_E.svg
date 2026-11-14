@@ -89,13 +89,13 @@ L 346.752 14.336
    </g>
    <g id="line2d_9">
     <path d="M 40.32 62.976 
-L 84.096 58.66906 
-L 127.872 61.092192 
-L 171.648 61.7654 
-L 215.424 69.744303 
-L 259.2 70.442584 
-L 302.976 71.797903 
-L 346.752 71.115281 
+L 84.096 58.668096 
+L 127.872 61.094063 
+L 171.648 61.764192 
+L 215.424 69.738238 
+L 259.2 70.448161 
+L 302.976 71.786615 
+L 346.752 71.152323 
 " clip-path="url(#pb651a34248)" style="fill: none; stroke: #2a8ea3; stroke-width: 3; stroke-linecap: square"/>
    </g>
    <g id="line2d_10">
@@ -113,11 +113,11 @@ z
 " style="stroke: #2a8ea3"/>
     </defs>
     <g>
-     <use xlink:href="#mb5a1d39b3e" x="346.752" y="71.115281" style="fill: #2a8ea3; stroke: #2a8ea3"/>
+     <use xlink:href="#mb5a1d39b3e" x="346.752" y="71.152323" style="fill: #2a8ea3; stroke: #2a8ea3"/>
     </g>
    </g>
    <g id="text_6">
-    <text style="font-size: 14px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start; fill: #768390" x="356.752" y="74.978406" transform="rotate(-0 356.752 74.978406)">0.83</text>
+    <text style="font-size: 14px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start; fill: #768390" x="356.752" y="75.015448" transform="rotate(-0 356.752 75.015448)">0.83</text>
    </g>
   </g>
  </g>

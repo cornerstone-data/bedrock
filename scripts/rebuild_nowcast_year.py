@@ -55,6 +55,9 @@ FLAGS = (
     'pin_refinery_secondaries_at_go_mix',
     'air_margin_on_aies_level',
     'trade_margin_receivers_follow_supply',
+    'hold_services_seed_at_last_sas_year',
+    'hold_imports_on_summary_groups',
+    'condition_service_exports_on_summary',
 )
 AFTER_MUT = 'Nowcast_Detail_Use_AfterRedef'
 GHG_METHODS = (

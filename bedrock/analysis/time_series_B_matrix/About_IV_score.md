@@ -7,9 +7,10 @@ change or as a modeling problem. It does not say why a factor moved;
 [`About_sector_deep_dive.md`](About_sector_deep_dive.md) is the next step for a
 flagged factor.
 
-Code: `IV_score.py`. Results below use GHG FBS `v1.0.0_e7715da` and MUT
-`v1.0.0_e7715da`, the combined 2017-2024 rebuild (#1249). How the ranking moved
-from the earlier build is under
+Code: `IV_score.py`. Results below use GHG FBS `v1.0.0_2b1164f` and MUT
+`v1.0.0_2b1164f`, the v1.0 pin rebuild with #1303 / #1305 / #1306 / #1312 on.
+How the ranking moved from earlier builds is under
+[Change from the `e7715da` build](#change-from-the-e7715da-build) and
 [Change from the `5514c3b` build](#change-from-the-5514c3b-build).
 
 ## Calculation
@@ -78,33 +79,34 @@ score under all four named weightings.
 
 ## Results, equal weights
 
-The score is concentrated. The median is 0.005 across 405 commodities.
+The score is concentrated. The median is 0.005 across 405 commodities. The
+summed score is 8.28.
 
 | Top commodities | Share of summed score |
 |---|---|
-| 1 | 16.7% |
-| 10 | 39.6% |
-| 30 | 61.9% |
-| 100 | 83.5% |
+| 1 | 17.1% |
+| 10 | 39.5% |
+| 30 | 61.6% |
+| 100 | 83.2% |
 
-The top 30 hold 75.0% of emissions on the `B q` basis. The top 15:
+The top 30 hold 76.7% of emissions on the `B q` basis. The top 15:
 
 | Rank | Code | Commodity | IV | I | V | Trend per year | Peak year | Net change |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 221100 | Electric power | 1.40 | 30.8% | 0.045 | -2.9% | 2021 | -0.26 |
-| 2 | 331110 | Iron and steel mills | 0.27 | 4.6% | 0.058 | -1.7% | 2022 | -0.13 |
+| 1 | 221100 | Electric power | 1.42 | 31.0% | 0.046 | -2.5% | 2021 | -0.26 |
+| 2 | 331110 | Iron and steel mills | 0.26 | 4.6% | 0.057 | -1.7% | 2022 | -0.13 |
 | 3 | 325110 | Petrochemicals | 0.26 | 1.7% | 0.154 | -0.2% | 2021 | 0.25 |
-| 4 | 211000 | Oil and gas extraction | 0.25 | 2.9% | 0.089 | -8.0% | 2024 | -0.47 |
-| 5 | 1111B0 | Grain farming | 0.25 | 2.7% | 0.091 | -0.7% | 2022 | 0.00 |
-| 6 | 562212 | Solid waste landfilling | 0.22 | 2.5% | 0.089 | +0.5% | 2022 | -0.11 |
-| 7 | 481000 | Air transportation | 0.19 | 1.6% | 0.119 | -1.3% | 2020 | -0.11 |
-| 8 | 212100 | Coal mining | 0.16 | 1.5% | 0.111 | -3.5% | 2020 | -0.04 |
-| 9 | 325211 | Plastics and resin | 0.16 | 1.8% | 0.093 | -1.0% | 2021 | 0.13 |
-| 10 | 325190 | Other basic organic chemicals | 0.16 | 1.8% | 0.091 | -3.8% | 2021 | -0.20 |
-| 11 | 324110 | Petroleum refineries | 0.16 | 1.9% | 0.081 | -2.7% | 2020 | -0.08 |
-| 12 | 325120 | Industrial gases | 0.15 | 1.2% | 0.126 | -2.4% | 2020 | -0.29 |
-| 13 | 531ORE | Other real estate | 0.14 | 1.1% | 0.128 | -7.8% | 2020 | -0.71 |
-| 14 | 484000 | Truck transportation | 0.13 | 3.4% | 0.039 | -0.3% | 2021 | -0.02 |
+| 4 | 211000 | Oil and gas extraction | 0.25 | 2.8% | 0.088 | -7.9% | 2020 | -0.47 |
+| 5 | 1111B0 | Grain farming | 0.25 | 2.7% | 0.090 | -0.9% | 2022 | 0.00 |
+| 6 | 481000 | Air transportation | 0.18 | 1.5% | 0.118 | -1.3% | 2020 | -0.10 |
+| 7 | 325190 | Other basic organic chemicals | 0.17 | 1.8% | 0.098 | -4.5% | 2021 | -0.20 |
+| 8 | 212100 | Coal mining | 0.16 | 1.5% | 0.112 | -3.2% | 2020 | -0.04 |
+| 9 | 324110 | Petroleum refineries | 0.16 | 1.9% | 0.082 | -2.7% | 2020 | -0.08 |
+| 10 | 325211 | Plastics and resin | 0.15 | 1.7% | 0.088 | -0.2% | 2021 | 0.13 |
+| 11 | 325120 | Industrial gases | 0.14 | 1.1% | 0.126 | -2.3% | 2020 | -0.29 |
+| 12 | 531ORE | Other real estate | 0.13 | 1.1% | 0.119 | -6.9% | 2020 | -0.51 |
+| 13 | 484000 | Truck transportation | 0.13 | 3.4% | 0.039 | -0.6% | 2019 | -0.05 |
+| 14 | 562212 | Solid waste landfilling | 0.13 | 2.4% | 0.053 | -3.2% | 2023 | -0.22 |
 | 15 | 327310 | Cement | 0.12 | 1.7% | 0.072 | -0.0% | 2022 | -0.17 |
 
 The trend is the median annual change, `median_change`. Net change is the sum of
@@ -114,11 +116,11 @@ Each year's share of the squared, `I`-weighted movement around the median:
 
 | | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 |
 |---|---|---|---|---|---|---|---|
-| All commodities | 4.3% | 19.4% | 25.4% | 32.7% | 7.4% | 8.3% | 2.5% |
-| Without electric power | 12.7% | 6.9% | 21.7% | 22.3% | 22.0% | 7.3% | 7.1% |
+| All commodities | 3.4% | 20.1% | 28.3% | 29.3% | 5.3% | 11.8% | 1.8% |
+| Without electric power | 12.3% | 7.7% | 23.6% | 22.9% | 18.8% | 8.4% | 6.4% |
 
-2021 is still the largest year, but electric power no longer dominates it: its
-2019 and 2020 moves count for nearly as much.
+2021 is still the largest year; 2020 is close behind. Without electric power,
+2020 leads and 2022 stays large.
 
 ## Steady trends
 
@@ -130,16 +132,16 @@ the median. The top of the list under equal weights:
 
 | Code | Commodity | `IV_trend` | Trend per year | Years with trend |
 |---|---|---|---|---|
-| 221100 | Electric power | 0.89 | -2.9% | 6 |
-| 211000 | Oil and gas extraction | 0.23 | -8.0% | 7 |
-| 531ORE | Other real estate | 0.08 | -7.8% | 6 |
+| 221100 | Electric power | 0.78 | -2.5% | 6 |
+| 211000 | Oil and gas extraction | 0.22 | -7.9% | 7 |
+| 325190 | Other basic organic chemicals | 0.08 | -4.5% | 4 |
+| 531ORE | Other real estate | 0.08 | -6.9% | 5 |
+| 562212 | Solid waste landfilling | 0.08 | -3.2% | 6 |
 | 331110 | Iron and steel mills | 0.08 | -1.7% | 4 |
-| 325190 | Other basic organic chemicals | 0.07 | -3.8% | 4 |
-| 1121A0 | Beef cattle ranching | 0.06 | -3.6% | 7 |
+| 1121A0 | Beef cattle ranching | 0.06 | -3.7% | 7 |
 | 322130 | Paperboard mills | 0.05 | +7.2% | 6 |
 | 324110 | Petroleum refineries | 0.05 | -2.7% | 6 |
-| 212100 | Coal mining | 0.05 | -3.5% | 4 |
-| 325120 | Industrial gases | 0.03 | -2.4% | 4 |
+| 212100 | Coal mining | 0.05 | -3.2% | 4 |
 
 Counting the trend keeps 28 of the top 30 from a trend weight of 0. Oil and gas
 extraction moves from rank 16 to 4, and beef cattle from 46 to 26.
@@ -160,9 +162,9 @@ ranks second under the three that are not equal.
 
 | Weighting | Of the equal-weight top 30, kept | Entering the top 30 |
 |---|---|---|
-| `final_demand` | 22 | state and local government (education), depository credit, other financial investment, pipelines, motor vehicle dealers, nondepository credit, residential maintenance, lime and gypsum |
-| `output` | 23 | depository credit, state and local government (education), other financial investment, pipelines, nondepository credit, services to buildings, lime and gypsum |
-| `footprint` | 22 | state and local government (education), pipelines, vegetable farming, natural gas distribution, fruit and tree nut farming, dairy cattle, mining support, other animal production |
+| `final_demand` | 22 | state and local government (education), depository credit, other financial investment, funds and trusts, motor vehicle dealers, nondepository credit, residential maintenance, lime and gypsum |
+| `output` | 23 | depository credit, state and local government (education), other financial investment, funds and trusts, nondepository credit, services to buildings, lime and gypsum |
+| `footprint` | 23 | state and local government (education), vegetable farming, fruit and tree nut farming, dairy cattle, other animal production, mining support, natural gas distribution |
 
 The commodities that leave are mostly small emitters whose rank came from their
 own `N_d`, such as alumina, forestry and private households.
@@ -182,11 +184,23 @@ domestic basis and ranking on it keeps 18 of this top 30.
   (rank 3 on the own-`N_d` measure, 36 here), vegetable farming (4, 35), pulp
   mills (5, 38), schools (7, 47), storage batteries (12, 44).
 
+## Change from the `e7715da` build
+
+Against GHG FBS / MUT `v1.0.0_e7715da` (#1249 / #1267), the equal-weight summed
+score is 8.28 against 8.41, and 28 of the top 30 stay. The largest move:
+
+| Code | Commodity | IV before | IV now | Rank before | Rank now | Why |
+|---|---|---|---|---|---|---|
+| 562212 | Solid waste landfilling | 0.22 | 0.13 | 6 | 14 | Calendar-2017 match_io waste weights (#1312) cut the 2017-2018 `B` jump. Peak year moves from 2022 to 2023; `V` falls from 0.089 to 0.053. The 2022 output step (#1269) remains. |
+
+Most other top-15 scores move by a few hundredths. Share by year shifts toward
+2020 and 2023 and away from 2021 and 2022.
+
 ## Change from the `5514c3b` build
 
-The earlier results used GHG FBS `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. The
-summed score fell from 10.63 to 8.41, and 28 of the top 30 stay. The largest
-moves:
+The earlier results used GHG FBS `v1.0.0_79273ed` and MUT `v1.0.0_5514c3b`. On
+the `e7715da` cut the summed score fell from 10.63 to 8.41, and 28 of the top 30
+stayed. The largest moves on that cut:
 
 | Code | Commodity | IV before | IV now | Rank before | Rank now | Why |
 |---|---|---|---|---|---|---|
