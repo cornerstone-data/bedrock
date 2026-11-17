@@ -1,9 +1,12 @@
 # IV score
 
-The IV score gives each commodity's emission factor `B` one number over
-2017-2024. It is high when `B` moves, jumps or trends and when that `B` drives
-the domestic total factors `N_d`. It selects the factors to check as real-world
-change or as a modeling problem. It does not say why a factor moved;
+The IV score gives each commodity's domestic total factor `N_d` one number over
+2017-2024. It is high when that `N_d` moves, jumps or trends and when users rely
+on it. Each move splits into a part from each emission factor `B` and a part
+from the domestic supply chain `L_dom`, so the score also says where to look.
+A second list ranks the `B` values themselves by how much they move the `N_d`
+values. Together they select the factors to check as real-world change or as a
+modeling problem. Neither says why a factor moved;
 [`About_sector_deep_dive.md`](About_sector_deep_dive.md) is the next step for a
 flagged factor.
 
@@ -14,6 +17,45 @@ How the ranking moved from earlier builds is under
 [Change from the `5514c3b` build](#change-from-the-5514c3b-build).
 
 ## Calculation
+
+### The `N_d` score
+
+```
+IV_Nd_k = w_k * V_k * 100
+
+N_d   = B L_dom, with L_dom = (I - Adom)^-1, B and L_dom in constant 2017 dollars
+d_kt  = (N_d_kt - N_d_kt-1) / mean(N_d_kt, N_d_kt-1)
+m_k   = median over years of d_kt
+V_k   = sqrt(mean over years of (d_kt - m_k)^2 + trend_weight * m_k^2)
+```
+
+`V_k` is the same volatility as the `B` score below, applied to the factor users
+get. It counts movement from every `B` in the chain and from `L_dom`. `w_k` is how
+much each `N_d` counts, from [Weighting the N values](#weighting-the-n-values),
+and sums to 1. The summed score is the weighted average movement of `N_d`, in
+percentage points a year.
+
+**Where the movement comes from.** Each year's change splits exactly into a part
+from each `B` and a part from `L_dom`, using two-year means on both sides:
+
+```
+d_kt  = sum_j b_jkt + l_kt
+b_jkt = (B_jt - B_jt-1) * mean(L_dom_jkt, L_dom_jkt-1) / mean(N_d_kt, N_d_kt-1)
+l_kt  = sum_j mean(B_jt, B_jt-1) * (L_dom_jkt - L_dom_jkt-1) / mean(N_d_kt, N_d_kt-1)
+```
+
+`IV_Nd.csv` reports, for each `N_d`:
+
+| Column | Meaning |
+|---|---|
+| `B_part` | share of the movement that comes from `B`; the rest comes from `L_dom`. Annual moves are summed as absolute values, as in the tracker's driving factor |
+| `own_B_part` | share from the commodity's own `B` |
+| `top_B`, `top_B_part` | the `B` that moves this `N_d` most, and its share of the movement from `B` |
+
+### The `B` score
+
+The emission factors to investigate are ranked on how much each `B` moves the
+`N_d` values:
 
 ```
 IV_j = I_j * V_j * 100
@@ -62,6 +104,11 @@ as: in a typical year, the move in this factor shifts the average commodity's
 `N_d` by this many percentage points. The score has no pass or fail threshold; it
 is a ranking.
 
+**Same measure, from the other side.** Scoring each `B` on its actual parts
+`b_jk`, as `100 * sum_k w_k V(b_jk)`, keeps 28 of this score's top 30 under
+spend weights, with scores within 0.02. The `B` score already measures how much
+each `B` moves the `N_d` values; what it leaves out is `L_dom`.
+
 ## Weighting the N values
 
 The weights are open, to reflect which `N` values matter to users.
@@ -78,6 +125,42 @@ example a list of the `N` values users rely on most. `IV_score.csv` carries the
 score under all four named weightings.
 
 ## Results, equal weights
+
+### `N_d` score
+
+With equal weights the `N_d` score ranks on `V` alone. The summed score is 10.22:
+the average `N_d` moves 10.2 percentage points in a typical year, against 8.28 for
+the summed `B` score. The score is spread out. The top 30 hold 21.3% of the sum
+and the top 100 hold 47.0%.
+
+Most of the movement comes from `L_dom`. `B` gives the larger part for 92 of 404
+`N_d` values, and the median `B_part` is 38%. Electric power is the `B` that moves
+215 of the 404 most; across those, `B` gives a median 33% of the movement. Only 2
+of this top 30 are in the `B` score's top 30. The top 15:
+
+| Rank | Code | Commodity | IV_Nd | V | Trend per year | Peak year | `B` part | Top `B` | Emissions, Mt |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 336111 | Automobile manufacturing | 0.17 | 0.689 | -7.7% | 2019 | 14% | own | 0.73 |
+| 2 | 425000 | Wholesale electronic markets and agents | 0.13 | 0.514 | +3.0% | 2020 | 13% | own | 0.42 |
+| 3 | 336991 | Motorcycle, bicycle, and parts | 0.12 | 0.491 | +8.4% | 2019 | 4% | 221100 | 0.03 |
+| 4 | 334610 | Magnetic and optical media | 0.11 | 0.431 | -6.8% | 2022 | 6% | 221100 | 0.00 |
+| 5 | 335912 | Primary batteries | 0.09 | 0.367 | -18.4% | 2022 | 15% | own | 0.02 |
+| 6 | 114000 | Fishing, hunting and trapping | 0.09 | 0.351 | -10.6% | 2021 | 40% | own | 0.30 |
+| 7 | 334112 | Computer storage devices | 0.09 | 0.351 | +7.9% | 2019 | 13% | own | 0.02 |
+| 8 | 334111 | Electronic computers | 0.08 | 0.331 | +9.1% | 2019 | 10% | 221100 | 0.00 |
+| 9 | 541940 | Veterinary services | 0.08 | 0.328 | -15.7% | 2024 | 8% | 1111B0 | 0.09 |
+| 10 | 814000 | Private households | 0.08 | 0.317 | +3.8% | 2018 | 100% | own | 0.01 |
+| 11 | 325414 | Biological products | 0.08 | 0.307 | -20.1% | 2023 | 14% | own | 0.63 |
+| 12 | 33641A | Space vehicle propulsion units | 0.08 | 0.301 | -7.4% | 2024 | 19% | own | 0.26 |
+| 13 | 337122 | Nonupholstered wood household furniture | 0.07 | 0.301 | -6.5% | 2023 | 9% | own | 0.07 |
+| 14 | 483000 | Water transportation | 0.06 | 0.255 | -3.3% | 2021 | 88% | own | 32.22 |
+| 15 | 111300 | Fruit and tree nut farming | 0.06 | 0.252 | +2.4% | 2021 | 42% | own | 12.46 |
+
+"Own" means the commodity's own `B` moves its `N_d` most. Under equal weights the
+top is mostly small manufacturers whose `N_d` moves through `L_dom`. Electric
+power's own `N_d` ranks 324, with `V` 0.055, 84% of it from its own `B`.
+
+### `B` score
 
 The score is concentrated. The median is 0.005 across 405 commodities. The
 summed score is 8.28.
@@ -124,7 +207,7 @@ Each year's share of the squared, `I`-weighted movement around the median:
 
 ## Steady trends
 
-The score counts a trend, but a steady trend in a low-importance factor still
+The `B` score counts a trend, but a steady trend in a low-importance factor still
 ranks low. `IV_score_steady_trends.csv` ranks every commodity on the trend alone,
 `IV_trend = I_j * |m_j| * 100`, so these can be justified as real change or
 flagged. `years_with_trend` counts the years, of seven, moving the same way as
@@ -148,7 +231,7 @@ extraction moves from rank 16 to 4, and beef cattle from 46 to 26.
 
 ## How much the basis matters
 
-Electric power ranks first and 28 of the top 30 stay when the score is computed
+Electric power ranks first and 28 of the top 30 stay when the `B` score is computed
 on the full `L` and `N`, but scores change where the path runs through imports.
 Oil and gas extraction falls to 58% of its full-`L` score, alumina to 59% and
 metal ore mining to 63%. Nonferrous metals leaves the top 30, from rank 29 to 158,
@@ -157,8 +240,22 @@ enter.
 
 ## How much the weighting matters
 
-Electric power ranks first under all four weightings, and oil and gas extraction
-ranks second under the three that are not equal.
+The `N_d` score depends on the weighting far more than the `B` score does. Of the
+equal-weight top 30, 3 stay under each of the other weightings.
+
+| Weighting | Summed `IV_Nd` | Top 5 | Top 30: median `B` part, top `B` is electric power |
+|---|---|---|---|
+| `equal` | 10.22 | automobiles, wholesale electronic markets, motorcycles, optical media, primary batteries | 18%, 8 |
+| `final_demand` | 9.09 | owner-occupied housing, tenant-occupied housing, hospitals, motor vehicle dealers, state and local government (other) | 29%, 22 |
+| `output` | 9.59 | depository credit, other real estate, owner-occupied housing, insurance carriers, tenant-occupied housing | 30%, 21 |
+| `footprint` | 7.69 | electric power, refineries, air transportation, animal slaughtering, state and local government (other) | 45%, 15 |
+
+Under the three dollar or emissions weightings, the top is large services and
+housing. Their `N_d` moves mostly through `L_dom`, and where it moves through `B`,
+mostly through electric power's.
+
+For the `B` score, electric power ranks first under all four weightings, and oil
+and gas extraction ranks second under the three that are not equal.
 
 | Weighting | Of the equal-weight top 30, kept | Entering the top 30 |
 |---|---|---|
@@ -236,7 +333,9 @@ cached source tables built on older code, and the rebuild regenerated them.
   series returns to where it started, and 0 means it moved one way. Both are
   measured around the median or on the annual changes, and neither depends on the
   trend weight.
-- **The score covers `B` only.** Movement in `L_dom` is not scored.
+- **The `B` score covers `B` only.** The `N_d` score counts `L_dom` and splits it
+  out, but does not say which input coefficients moved, or whether a move in
+  `L_dom` is real or comes from the deflators.
 - **Excluded emissions.** `F01000` (about 1,450 Mt) has no commodity output, so
   it has no `B`. `531110` (about 0.01 Mt) is not on the 405-commodity `B` axis.
 
@@ -252,4 +351,5 @@ uv run python -m bedrock.analysis.time_series_B_matrix.IV_score --trend-weight 0
 
 The vintages come from the year configs, which must agree across the span. The
 span and `L_dom` are cached under `output/` per FBS and MUT pair, and results go to
-`output/IV_score/`.
+`output/IV_score/`: `IV_Nd.csv` for the `N_d` score and `IV_score.csv` for the
+`B` score, which the deep-dive triage reads.

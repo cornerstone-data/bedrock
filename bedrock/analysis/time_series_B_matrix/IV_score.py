@@ -1,9 +1,30 @@
-"""IV score: one number per ``B`` over 2017-2024, importance times volatility.
+"""IV score: how much each commodity's ``N_d`` moves over 2017-2024, and why.
 
-The score ranks commodity emission factors for review. It is high when a
-factor moves or jumps and when that factor drives ``N``. It does not say why a
-factor moved; :mod:`~bedrock.analysis.time_series_B_matrix.B_change_diagnostics`
-splits a flagged factor into ``E``, ``x`` and ``Vnorm``.
+The headline ranks the published factors ``N_d`` on their own movement, weighted
+by how much each counts to users. Each move splits exactly into a part from each
+``B`` and a part from ``L_dom``, so the table names what to check. It does not
+say why a factor moved;
+:mod:`~bedrock.analysis.time_series_B_matrix.B_change_diagnostics` splits a
+flagged ``B`` into ``E``, ``x`` and ``Vnorm``.
+
+::
+
+    IV_Nd_k = w_k * V_k * 100
+
+    N_d   = B L_dom, B and L_dom in constant 2017 dollars
+    d_kt  = (N_d_kt - N_d_kt-1) / mean(N_d_kt, N_d_kt-1)
+    V_k   = V on d_k, as below
+    d_kt  = sum_j b_jkt + l_kt
+    b_jkt = (B_jt - B_jt-1) * mean(L_dom_jkt, L_dom_jkt-1) / mean(N_d_kt, N_d_kt-1)
+    l_kt  = sum_j mean(B_jt, B_jt-1) (L_dom_jkt - L_dom_jkt-1) / mean(N_d_kt, ...)
+
+The summed ``IV_Nd`` is the weighted mean movement of ``N_d``, in percentage
+points a year.
+
+The emission factors to investigate are ranked on the per-``B`` score below. It
+measures the same thing from the other side: summing ``w_k`` times the
+volatility of ``b_jk`` over ``k`` gives it within a few hundredths, because
+``b_jkt`` is about ``S_jkt d_jt``.
 
 ::
 
@@ -323,6 +344,81 @@ def largest_n_move(span: bcd.Span, targets: pd.Index) -> pd.DataFrame:
     )
 
 
+def n_d_split(
+    span: bcd.Span, targets: pd.Index
+) -> tuple[np.ndarray, np.ndarray, pd.DataFrame]:
+    """Each annual change in real ``N_d`` split into ``B`` and ``L_dom`` parts.
+
+    Returns ``b`` (year, emitter, target), ``l_dom`` (year, target) and real ``N_d``
+    (commodity by year). Two-year means on both sides make the split exact:
+    ``b.sum(axis=1) + l_dom`` is :func:`annual_change` of ``N_d``.
+    """
+    L = bcd.L_real(span)
+    years = sorted(L)
+    index = L[years[0]].index
+    B = bcd.B_total(span, real=True).reindex(index).fillna(0.0)[years]
+    N = pd.DataFrame({year: B[year] @ L[year] for year in years})
+    b = np.zeros((len(years) - 1, len(index), len(targets)))
+    l_dom = np.zeros((len(years) - 1, len(targets)))
+    for t, (prior, current) in enumerate(zip(years, years[1:])):
+        L_prior = L[prior].loc[:, targets].to_numpy()
+        L_current = L[current].loc[:, targets].to_numpy()
+        N_mean = (N.loc[targets, prior] + N.loc[targets, current]).to_numpy() / 2
+        dB = (B[current] - B[prior]).to_numpy()
+        B_mean = (B[current] + B[prior]).to_numpy() / 2
+        b[t] = dB[:, None] * (L_prior + L_current) / 2 / N_mean
+        l_dom[t] = (B_mean[:, None] * (L_current - L_prior)).sum(axis=0) / N_mean
+    return b, l_dom, N
+
+
+def n_d_table(
+    span: bcd.Span,
+    targets: pd.Index,
+    weights: str | pd.Series = 'equal',
+    trend_weight: float = DEFAULT_TREND_WEIGHT,
+) -> pd.DataFrame:
+    """One row per ``N_d``, sorted on ``IV_Nd``, the headline under *weights*.
+
+    - ``B_part``: the share of the movement, annual moves summed as absolute
+      values, that comes from ``B``; the rest is ``L_dom``
+    - ``own_B_part``: the share from the commodity's own ``B``
+    - ``top_B``, ``top_B_part``: the ``B`` that moves this ``N_d`` most, and its
+      share of the movement from ``B``
+    """
+    b, l_dom, N = n_d_split(span, targets)
+    index = N.index
+    V = volatility(N.loc[targets], trend_weight)
+    from_B = np.abs(b.sum(axis=1)).sum(axis=0)
+    from_L = np.abs(l_dom).sum(axis=0)
+    own = b[:, index.get_indexer(targets), np.arange(len(targets))]
+    by_emitter = np.abs(b).sum(axis=0)
+    top = by_emitter.argmax(axis=0)
+
+    table = pd.DataFrame(index=targets)
+    table['name'] = [sector_name(str(k)) for k in targets]
+    w = n_weights(span, targets, weights).mean(axis=1)
+    table['w'] = w
+    table['IV_Nd'] = w * V['V'] * 100
+    table = table.join(V.rename(columns={'V': 'V_Nd'}))
+    table['rank'] = table['IV_Nd'].rank(ascending=False, method='min').astype(int)
+    table['B_part'] = from_B / (from_B + from_L)
+    table['own_B_part'] = np.abs(own).sum(axis=0) / (from_B + from_L)
+    table['top_B'] = [str(index[j]) for j in top]
+    table['top_B_name'] = [sector_name(str(index[j])) for j in top]
+    table['top_B_part'] = by_emitter[top, np.arange(len(targets))] / by_emitter.sum(
+        axis=0
+    )
+    for scheme in WEIGHT_SCHEMES:
+        table[f'IV_Nd_{scheme}'] = (
+            n_weights(span, targets, scheme).mean(axis=1) * V['V'] * 100
+        )
+    B_nominal = bcd.B_total(span, real=False).reindex(targets).fillna(0.0)
+    table['mean_emissions_Mt'] = (B_nominal * span.q.reindex(targets).fillna(0.0)).mean(
+        axis=1
+    ) / 1e9
+    return table.sort_values('IV_Nd', ascending=False).rename_axis(index='commodity')
+
+
 def iv_table(
     span: bcd.Span,
     full_span: bcd.Span,
@@ -413,6 +509,16 @@ def check(span: bcd.Span) -> None:
     assert gap < 1e-9, f'footprint importance is not the emissions share: {gap:.1e}'
     logger.info('OK  footprint importance is the emissions share (gap %.1e)', gap)
 
+    targets = shares[min(shares)].columns
+    b, l_dom, N = n_d_split(span, targets)
+    N_check = bcd.N_total(span, real=True).reindex(N.index)[N.columns]
+    gap = float((N - N_check).abs().max().max() / N_check.abs().max().max())
+    assert gap < 1e-9, f'B L_dom is not N_total on the real basis: {gap:.1e}'
+    d = annual_change(N.loc[targets]).to_numpy().T
+    gap = float(np.abs(b.sum(axis=1) + l_dom - d).max())
+    assert gap < 1e-9, f'the B and L_dom parts do not add to the N_d change: {gap:.1e}'
+    logger.info('OK  the B and L_dom parts add to each N_d change (gap %.1e)', gap)
+
     years = sorted(span.L)
     test_series = {
         'flat': [1.0] * 8,
@@ -442,18 +548,22 @@ def main(
     span = domestic_span(full_span)
     logger.info('FBS %s, MUT %s', span.vintages.fbs, span.vintages.mut)
     table = iv_table(span, full_span, weights, trend_weight)
+    n_d = n_d_table(span, n_shares(span)[min(span.L)].columns, weights, trend_weight)
     by_year = movement_by_year(span, table)
     steady = table.sort_values('IV_trend', ascending=False)[
         ['name', 'IV_trend', 'I', 'median_change', 'years_with_trend', 'net_change']
     ]
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    n_d.to_csv(out_dir / 'IV_Nd.csv')
     table.to_csv(out_dir / 'IV_score.csv')
     by_year.to_csv(out_dir / 'IV_score_by_year.csv')
     steady.to_csv(out_dir / 'IV_score_steady_trends.csv')
 
+    columns = ['name', 'IV_Nd', 'V_Nd', 'median_change', 'B_part', 'top_B']
+    logger.info('Top 30 N_d:\n%s', n_d[columns].head(30).round(3).to_string())
     columns = ['name', 'IV', 'I', 'V', 'peak_year', 'jump_share', 'oscillation']
-    logger.info('Top 30:\n%s', table[columns].head(30).round(3).to_string())
+    logger.info('Top 30 B:\n%s', table[columns].head(30).round(3).to_string())
     logger.info('Largest steady trends:\n%s', steady.head(15).round(3).to_string())
     logger.info('Share by year:\n%s', by_year.round(3).to_string())
     return table
