@@ -363,9 +363,11 @@ def n_d_split(
     for t, (prior, current) in enumerate(zip(years, years[1:])):
         L_prior = L[prior].loc[:, targets].to_numpy()
         L_current = L[current].loc[:, targets].to_numpy()
-        N_mean = (N.loc[targets, prior] + N.loc[targets, current]).to_numpy() / 2
-        dB = (B[current] - B[prior]).to_numpy()
-        B_mean = (B[current] + B[prior]).to_numpy() / 2
+        N_mean = (N.loc[targets, prior] + N.loc[targets, current]).to_numpy(
+            dtype=float
+        ) / 2
+        dB = (B[current] - B[prior]).to_numpy(dtype=float)
+        B_mean = (B[current] + B[prior]).to_numpy(dtype=float) / 2
         b[t] = dB[:, None] * (L_prior + L_current) / 2 / N_mean
         l_dom[t] = (B_mean[:, None] * (L_current - L_prior)).sum(axis=0) / N_mean
     return b, l_dom, N
