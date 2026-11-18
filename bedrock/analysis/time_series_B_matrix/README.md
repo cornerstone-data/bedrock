@@ -6,7 +6,7 @@ and it will change as the model's years change.
 
 ## Start here
 
-1. **Pick the sectors:** [`IV_score.py`](IV_score.py) ranks every commodity. Read
+1. **Pick the sectors:** [`IV_score.py`](IV_score.py) ranks every `N_d` and every `B`. Read
    [`About_IV_score.md`](About_IV_score.md) for what the score means.
 2. **See what moved:** [`sector_deep_dive_triage.py`](sector_deep_dive_triage.py) shows
    `E`, `q`, and whether `B` or `L` drives each sector.
@@ -35,7 +35,7 @@ the ones the log uses.
 | `B` | Direct emission factor by commodity, `(E / x) @ Vnorm` |
 | `A`, `L` | Direct requirements and the Leontief inverse |
 | `L_dom`, `N_d` | `L` from domestic `A` only, and the total factor `B L_dom` |
-| IV score | Importance times volatility; high means check this factor first |
+| IV score | Volatility of each `N_d`, weighted by how much it counts, split into its `B` and `L_dom` parts; the `B` score ranks the emission factors on importance times volatility |
 
 ## Files
 
