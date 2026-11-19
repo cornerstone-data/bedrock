@@ -698,13 +698,12 @@ def fill_suppressed_feedstock(
     ):
         code = str(targets.at[idx, 'ActivityConsumedBy'])
         flow = str(targets.at[idx, 'FlowName'])
-        unit = str(targets.at[idx, 'Unit'])
         for other in order:
             ref = other_surveys[other]
             hit = ref[
                 (ref['ActivityConsumedBy'] == code)
                 & (ref['FlowName'] == flow)
-                & (ref['Unit'].astype(str) == unit)
+                & (ref['Unit'].astype(str) == str(targets.at[idx, 'Unit']))
                 & ~ref['Suppressed'].isin(SUPPRESSED_CODES)
             ]
             if hit.empty:
@@ -721,13 +720,12 @@ def fill_suppressed_feedstock(
             if room is not None:
                 value = min(value, max(room, 0.0))
             filled[(code, flow)] = value
-            log.info(
-                f'MECS {year} Table 2.1 {code} {flow}: suppressed '
-                f'{targets.at[idx, "Suppressed"]} filled with {value:.1f} {unit} '
-                f'from MECS {other} x GHGRP CO2 ratio {ratio:.3f}'
-                + (f' (parent room {room:.1f})' if room is not None else '')
-            )
             break
+    if filled:
+        log.info(
+            f'MECS {year} Table 2.1: filled {len(filled)} suppressed feedstock '
+            f'cells from other MECS x GHGRP CO2 ratios'
+        )
     for (code, flow), value in filled.items():
         rows = mask & (fba['ActivityConsumedBy'] == code) & (fba['FlowName'] == flow)
         fba.loc[rows, 'FlowAmount'] = value
@@ -832,6 +830,12 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             f'clean_source year {prior_cfg_year} != clean_parameter.prior_year '
             f'{prior_year}'
         )
+    log.info(
+        f'MECS annual path (flat+λ): inventory {inventory_year}, '
+        f'anchor {anchor_year}, prior {prior_year} from {prior_name}; '
+        f'λ=0 for {sorted(lambda_zero_flownames) or "—"} and '
+        f'suppressed/fill/missing prior cells'
+    )
 
     flow_col = 'Flowable' if 'Flowable' in fba.columns else 'FlowName'
     code_col = 'ActivityConsumedBy'
@@ -913,21 +917,12 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             supp = prior_supp.get((code, flow))
             if flow in lambda_zero_flownames:
                 lam = 0.0
-                reason = f'FlowName {flow} in lambda_zero_flownames'
             elif supp in SUPPRESSED_CODES or supp == GHGRP_FILL_MARKER or supp == '*':
                 lam = 0.0
-                reason = f'prior Suppressed={supp!r}'
             elif sa <= 0 or sp <= 0:
                 lam = 0.0
-                reason = 'missing/zero anchor or prior amount'
             else:
                 lam = 1.0
-                reason = 'both numeric'
-            if lam == 0.0 and sa > 0:
-                log.info(
-                    f'MECS annual path λ=0 for {code} {flow} '
-                    f'(inventory {inventory_year}): {reason}'
-                )
             # flat path: path(t)=1, path(prior)=1
             if sa <= 0:
                 weights[code] = 0.0
