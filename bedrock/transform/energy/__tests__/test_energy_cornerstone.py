@@ -302,10 +302,6 @@ def test_scale_household_petroleum_to_transport_share(
 def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
     method = load_yaml_dict(f'Energy_manufacturing_national_nowcast_{year}', 'FBS')
     assert method['year'] == year
-    # #1210: MECS 2022 anchor (+ A5.1-S2) and Use split_year 2022 for all years.
-    assert method['mecs_year'] == 2022
-    assert method['split_year'] == 2022
-    umd_annex = 'UMD_GHGIA_T_A5_1_S2'
     energy_dir = Path(__file__).resolve().parents[1]
     yaml_text = (
         energy_dir / f'Energy_manufacturing_national_nowcast_{year}.yaml'
@@ -323,7 +319,9 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
         is multiply_bea_by_mecs_petroleum_energy_fraction
     )
     transport = use_sets['neu_transport']
-    assert umd_annex in transport['clean_source']
+    ((_, umd_config),) = transport['clean_source'].items()
+    assert umd_config['year'] == year
+    assert transport['clean_parameter']['year'] == year
     assert (
         transport['clean_fba_after_attribution']
         is scale_household_petroleum_to_transport_share
@@ -337,19 +335,13 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
         'table_2_1',
         'table_2_1_ng',
     }
-    assert mecs_sets['table_2_1_ng']['clean_fba'] == [
-        keep_chemical_manufacturing,
-        apply_mecs_annual_share_path,
-    ]
+    assert mecs_sets['table_2_1_ng']['clean_fba'] is keep_chemical_manufacturing
     for set_name in mecs_sets:
-        assert mecs_sets[set_name]['clean_fba'] in (
-            apply_mecs_annual_share_path,
-            [keep_chemical_manufacturing, apply_mecs_annual_share_path],
-        )
+        assert mecs_sets[set_name]['clean_fba_w_sec'] is apply_mecs_annual_share_path
         attr = mecs_sets[set_name]['attribution_source'][
             'Nowcast_Detail_Use_AfterRedef'
         ]
-        assert attr['year'] == 2022
+        assert attr['year'] == method['split_year']
         assert attr['attribution_method'] == 'equal'
 
 
