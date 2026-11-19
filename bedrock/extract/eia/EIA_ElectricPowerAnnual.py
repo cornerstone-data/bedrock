@@ -38,10 +38,21 @@ _CENSUS_DIVISIONS = frozenset(
 
 
 def electric_power_annual_url_helper(
-    *, build_url: str, config: dict[str, Any], **_: Any
+    *, build_url: str, config: dict[str, Any], **_: Any  # noqa: ARG001
 ) -> list[str]:
-    """Resolve download URL from ``edition_year`` (publication ZIP), not data ``years``."""
-    return [build_url.replace('__edition_year__', str(config['edition_year']))]
+    """Resolve download URL for the configured publication edition.
+
+    EIA serves the current edition as ``xls/epa.zip`` and moves prior editions
+    under ``archive/{year}/xls/epa-{year}.zip``. Local cache and GCS always use
+    ``epa-{edition_year}.zip`` (:func:`_zip_basename`), independent of this URL.
+    ``config`` is required by the flowsa url_replace signature.
+    """
+    if '__edition_year__' not in build_url:
+        return [build_url]
+    # Current edition is unversioned; archived editions keep the year in the name.
+    # When bumping ``edition_year`` after a new EPA release, HTTP refresh hits
+    # ``epa.zip`` and the call writes it to ``epa-{edition_year}.zip``.
+    return [build_url.replace('epa-__edition_year__.zip', 'epa.zip')]
 
 
 def _zip_basename(config: dict[str, Any]) -> str:
@@ -115,6 +126,17 @@ def _first_matching_row(df: pd.DataFrame, marker: str, *, col: int = 0) -> int |
     if len(matches) == 0:
         return None
     return int(matches[0])
+
+
+def _first_year_header_row(df: pd.DataFrame, *, col: int = 1) -> int | None:
+    """Return the first row whose column ``col`` matches ``Year YYYY``, or None."""
+    for i in range(len(df)):
+        cell = df.iloc[i, col]
+        if pd.isna(cell):
+            continue
+        if _YEAR_HEADER_RE.match(str(cell).strip()):
+            return i
+    return None
 
 
 def _base_fba_rows(
@@ -215,7 +237,7 @@ def _parse_state_sector_price(
     Workbook columns are typically two recent years only (e.g. 2023 and 2024).
     """
     sector_row = _first_matching_row(df, 'Residential', col=1)
-    year_row = _first_matching_row(df, 'Year 2024', col=1)
+    year_row = _first_year_header_row(df, col=1)
     if sector_row is None or year_row is None:
         return pd.DataFrame()
     state_fips = _state_fips_lookup()

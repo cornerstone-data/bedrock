@@ -15,14 +15,16 @@ from bedrock.transform.iot.eia_utility_go_adjustment import CONTROLLED_YEARS
 from bedrock.utils.config.settings import GIT_HASH, PKG_VERSION_NUMBER
 from bedrock.utils.economic import inflation_helpers_usa as helpers
 
-_YEARS = [2016, *CONTROLLED_YEARS, 2025]
+_LAST = CONTROLLED_YEARS[-1]
+_AFTER = _LAST + 1
+_YEARS = [2016, *CONTROLLED_YEARS, _AFTER]
 _WIDE = pd.DataFrame(
     {year: [100.0 + (year - 2017), 80.0, 50.0] for year in _YEARS},
     index=pd.Index(['221100', 'S00101', '111200'], name='sector_code'),
     dtype=float,
 )
-_WIDE.loc['221100', 2024] = 200.0
-_WIDE.loc['221100', 2025] = 220.0
+_WIDE.loc['221100', _LAST] = 200.0
+_WIDE.loc['221100', _AFTER] = 220.0
 _WIDE.loc['221100', 2016] = 90.0
 
 
