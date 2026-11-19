@@ -202,8 +202,10 @@ if ta.TYPE_CHECKING:  # pragma: no cover
 BASE_YEAR = 2017
 
 #: Years the control is defined for. Table 8.3 and Tables 2.2/2.3/2.4 all run
-#: the full span in the 2024 Electric Power Annual edition.
-CONTROLLED_YEARS = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024)
+#: the full span in the 2025 Electric Power Annual edition. Extend this tuple
+#: (with the EIA extract years) when publishing a dollar year the next EPA
+#: edition covers; do not leave electric on BEA once EIA exists (#1207).
+CONTROLLED_YEARS = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025)
 
 #: Electric industries that share the wholesale wedge. Their published gross
 #: output sets each one's share of it at the base year.

@@ -137,6 +137,10 @@ def _electric_lines_on_eia_retail_price(levels: pd.DataFrame) -> pd.DataFrame:
     ``electric_output_on_retail_revenue`` is on so the live-derive
     (``apply_io_year_adjustments``) path matches; on an already-overlaid
     Cornerstone frame the within-span math is idempotent.
+
+    Span follows ``CONTROLLED_YEARS`` (EIA Electric Power Annual coverage).
+    Extend that span when publishing a dollar year EIA covers; years after the
+    span keep BEA's change on the EIA-based last year (#1207).
     """
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         BASE_YEAR,

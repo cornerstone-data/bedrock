@@ -244,19 +244,21 @@ def test_the_retail_basis_needs_the_rebase_on() -> None:
 def test_price_lines_follow_eia_and_keep_their_seams_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """On EIA 2017-2024; BEA's change after; other sectors and the input untouched."""
+    """On EIA through CONTROLLED_YEARS; BEA's change after; other sectors untouched."""
     from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
 
+    last = ug.CONTROLLED_YEARS[-1]
+    after = last + 1
     span = {year: 1.0 + 0.1 * (year - 2017) for year in ug.CONTROLLED_YEARS}
     monkeypatch.setattr(ug, 'retail_price_index', lambda year: span[int(year)])
-    years = [2016, *ug.CONTROLLED_YEARS, 2025]
+    years = [2016, *ug.CONTROLLED_YEARS, after]
     levels = pd.DataFrame(
         {year: [100.0, 80.0, 50.0] for year in years},
         index=['221100', 'S00101', '111200'],
         dtype=float,
     )
-    levels.loc['221100', 2024] = 200.0
-    levels.loc['221100', 2025] = 220.0
+    levels.loc['221100', last] = 200.0
+    levels.loc['221100', after] = 220.0
     levels.loc['221100', 2016] = 90.0
     original = levels.copy()
 
@@ -266,9 +268,11 @@ def test_price_lines_follow_eia_and_keep_their_seams_closed(
     assert out.at['221100', 2017] == pytest.approx(100.0)
     assert out.at['221100', 2022] == pytest.approx(150.0)
     assert out.at['S00101', 2022] == pytest.approx(120.0)
-    assert out.at['221100', 2024] == pytest.approx(170.0)
-    # BEA's +10% from 2024 to 2025 on the new 2024 level; 2016 as published.
-    assert out.at['221100', 2025] == pytest.approx(187.0)
+    assert out.at['221100', last] == pytest.approx(100.0 * span[last])
+    # BEA's +10% from last to after on the EIA-based last level; 2016 as published.
+    assert out.at['221100', after] == pytest.approx(
+        220.0 * (100.0 * span[last] / 200.0)
+    )
     assert out.at['221100', 2016] == pytest.approx(90.0)
     pd.testing.assert_frame_equal(out.loc[['111200']], original.loc[['111200']])
 
