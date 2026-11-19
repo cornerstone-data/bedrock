@@ -207,7 +207,7 @@ def map_fbs_sectors_to_model_schema(fbs: pd.DataFrame) -> pd.DataFrame:
     """Map FBS NAICS sectors into the active model schema.
 
     Expands mixed-digit NAICS to NAICS_6 with a 1:1 first-match helper
-    mapping, then maps into Cornerstone/CEDA activities.
+    mapping, then maps into Cornerstone activities.
     """
 
     # Prepare NAICS:NAICS_6 expansion used for non-weighted mapping flows.
