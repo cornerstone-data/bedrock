@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.eia.EIA_MECS import (
+    apply_mecs_annual_share_path,
     keep_chemical_manufacturing,
     keep_industrial_petroleum_consumers,
     multiply_bea_by_mecs_petroleum_energy_fraction,
@@ -297,20 +298,14 @@ def test_scale_household_petroleum_to_transport_share(
     assert by_activity['481000'] == pytest.approx(10.0)
 
 
-@pytest.mark.parametrize(
-    ('year', 'split_year', 'umd_annex'),
-    [
-        (2018, 2017, 'UMD_GHGIA_T_A5_1_S6'),
-        (2022, 2022, 'UMD_GHGIA_T_A5_1_S2'),
-    ],
-)
-def test_energy_manufacturing_yaml_nowcast_hybrid_nests(
-    year: int, split_year: int, umd_annex: str
-) -> None:
+@pytest.mark.parametrize('year', [2018, 2022])
+def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
     method = load_yaml_dict(f'Energy_manufacturing_national_nowcast_{year}', 'FBS')
     assert method['year'] == year
-    assert method['mecs_year'] == year
-    assert method['split_year'] == split_year
+    # #1210: MECS 2022 anchor (+ A5.1-S2) and Use split_year 2022 for all years.
+    assert method['mecs_year'] == 2022
+    assert method['split_year'] == 2022
+    umd_annex = 'UMD_GHGIA_T_A5_1_S2'
     energy_dir = Path(__file__).resolve().parents[1]
     yaml_text = (
         energy_dir / f'Energy_manufacturing_national_nowcast_{year}.yaml'
@@ -342,12 +337,19 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(
         'table_2_1',
         'table_2_1_ng',
     }
-    assert mecs_sets['table_2_1_ng']['clean_fba'] is keep_chemical_manufacturing
+    assert mecs_sets['table_2_1_ng']['clean_fba'] == [
+        keep_chemical_manufacturing,
+        apply_mecs_annual_share_path,
+    ]
     for set_name in mecs_sets:
+        assert mecs_sets[set_name]['clean_fba'] in (
+            apply_mecs_annual_share_path,
+            [keep_chemical_manufacturing, apply_mecs_annual_share_path],
+        )
         attr = mecs_sets[set_name]['attribution_source'][
             'Nowcast_Detail_Use_AfterRedef'
         ]
-        assert attr['year'] == split_year
+        assert attr['year'] == 2022
         assert attr['attribution_method'] == 'equal'
 
 
