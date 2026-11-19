@@ -1,15 +1,16 @@
 # Manufacturing energy FBS for GHG nowcast inventory year 2022.
-# MECS survey year 2022; NowcastMUT after-redef Use at 2022.
+# MECS anchor 2022 + prior 2018 flat+λ annual path (#1210); Use split census 2022.
 # Replicates CEDA allocation steps as quantity weights: MECS mapped with
 # parent-incomplete-child + Cornerstone_2025
 
 !include:Cornerstone_2025_target.yaml
 year: &use_year 2022
+mecs_anchor_year: &mecs_anchor_year 2022
+mecs_prior_year: &mecs_prior_year 2018
+# Alias for transport/UMD refs that previously tracked the MECS survey year.
 mecs_year: &mecs_year 2022
-# Year of the Use table that splits each MECS total into its detail industries
-# (#1053). A census year, not use_year: the nowcast fuel cells churn from year
-# to year, and splitting on them passed that churn into every GHG FBS. It
-# changes once, at the MECS 2018 -> 2022 switch.
+# Census Use that splits MECS parents (#1053 / #1210): locked to 2022 with the
+# MECS 2022 anchor (no 2017→2022 cliff at inventory 2021).
 split_year: &split_year 2022
 geoscale: national
 
@@ -23,14 +24,20 @@ _attribution_sources:
                            'F06E00', 'F07E00', 'F10E00', 'F02R00']
     attribution_method: equal
 
+# Shared by MECS activity cleans + petrol Other fraction (#1210).
+_mecs_annual_path: &mecs_annual_path
+  inventory_year: *use_year
+  anchor_year: *mecs_anchor_year
+  prior_year: *mecs_prior_year
+
 source_names:
   EIA_MECS_Energy:
-    year: *mecs_year
+    year: *mecs_anchor_year
     activity_to_sector_mapping: Cornerstone_2025
     selection_fields:
-      Location: '00000'
+      Location: &mecs_location '00000'
       Description: [Table 2.1, Table 3.1]
-    exclusion_fields:
+    exclusion_fields: &mecs_excl
       ActivityConsumedBy: '31-33'
     clean_fba_before_activity_sets:
       # Suppressed feedstock cells from the other survey x GHGRP (#1200)
@@ -38,9 +45,18 @@ source_names:
       - !script_function:EIA_MECS estimate_suppressed_mecs_energy
     activity_sets:
       table_3_1_coal:
-        selection_fields:
+        selection_fields: &mecs_t31_coal
           Description: Table 3.1
           FlowName: Coal
+        clean_fba: !script_function:EIA_MECS apply_mecs_annual_share_path
+        clean_source:
+          EIA_MECS_Energy:
+            year: *mecs_prior_year
+            selection_fields:
+              Location: *mecs_location
+              <<: *mecs_t31_coal
+            exclusion_fields: *mecs_excl
+        clean_parameter: *mecs_annual_path
         attribution_method: proportional
         attribution_source:
           Nowcast_Detail_Use_AfterRedef:
@@ -48,9 +64,18 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'212100': ''}
       table_3_1_ng:
-        selection_fields:
+        selection_fields: &mecs_t31_ng
           Description: Table 3.1
           FlowName: Natural Gas
+        clean_fba: !script_function:EIA_MECS apply_mecs_annual_share_path
+        clean_source:
+          EIA_MECS_Energy:
+            year: *mecs_prior_year
+            selection_fields:
+              Location: *mecs_location
+              <<: *mecs_t31_ng
+            exclusion_fields: *mecs_excl
+        clean_parameter: *mecs_annual_path
         attribution_method: proportional
         attribution_source:
           Nowcast_Detail_Use_AfterRedef:
@@ -58,11 +83,20 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'221200': ''}
       table_2_1:
-        selection_fields:
+        selection_fields: &mecs_t21
           Description: Table 2.1
           FlowName:
             'Hydrocarbon Gas Liquids, excluding natural gasoline': HGL
             Other: Petroleum
+        clean_fba: !script_function:EIA_MECS apply_mecs_annual_share_path
+        clean_source:
+          EIA_MECS_Energy:
+            year: *mecs_prior_year
+            selection_fields:
+              Location: *mecs_location
+              <<: *mecs_t21
+            exclusion_fields: *mecs_excl
+        clean_parameter: *mecs_annual_path
         attribution_method: proportional
         attribution_source:
           Nowcast_Detail_Use_AfterRedef:
@@ -70,10 +104,20 @@ source_names:
             selection_fields:
               ActivityProducedBy: {'324110': ''}
       table_2_1_ng:
-        selection_fields:
+        selection_fields: &mecs_t21_ng
           Description: Table 2.1
           FlowName: Natural Gas
-        clean_fba: !script_function:EIA_MECS keep_chemical_manufacturing
+        clean_fba:
+          - !script_function:EIA_MECS keep_chemical_manufacturing
+          - !script_function:EIA_MECS apply_mecs_annual_share_path
+        clean_source:
+          EIA_MECS_Energy:
+            year: *mecs_prior_year
+            selection_fields:
+              Location: *mecs_location
+              <<: *mecs_t21_ng
+            exclusion_fields: *mecs_excl
+        clean_parameter: *mecs_annual_path
         attribution_method: proportional
         attribution_source:
           Nowcast_Detail_Use_AfterRedef:
@@ -101,14 +145,14 @@ source_names:
         clean_fba: !script_function:EIA_MECS keep_industrial_petroleum_consumers
         clean_source:
           EIA_MECS_Energy:
-            year: *mecs_year
+            year: *mecs_anchor_year
             selection_fields:
-              Location: '00000'
+              Location: *mecs_location
               FlowName: Other
               Description: [Table 2.1, Table 3.1]
-            exclusion_fields:
-              ActivityConsumedBy: '31-33'
+            exclusion_fields: *mecs_excl
             estimate_suppressed: !script_function:EIA_MECS estimate_suppressed_mecs_energy
+        clean_parameter: *mecs_annual_path
         clean_fba_after_attribution: !script_function:EIA_MECS multiply_bea_by_mecs_petroleum_energy_fraction
         attribution_method: direct
       neu_coal_coke:
@@ -130,7 +174,7 @@ source_names:
           FlowName: Transport
           Class: Money
         clean_source:
-          UMD_GHGIA_T_A5_1_S2:
+          UMD_GHGIA_T_A5_1_S6:
             year: *mecs_year
             selection_fields:
               Unit: TBtu

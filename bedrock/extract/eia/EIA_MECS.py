@@ -785,6 +785,176 @@ def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByAc
     return fba.query("ActivityConsumedBy.str.startswith('325')").reset_index(drop=True)
 
 
+def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    '''
+    clean_fba: 2022-anchored flat+λ annual path for MECS sector amounts (#1210).
+
+    Primary *fba* is the anchor survey (already suppress-filled). Prior survey
+    is loaded only from YAML ``clean_source`` (must match ``prior_year``).
+    Years, span, ``after_anchor``, and ``lambda_zero_flownames`` come from
+    ``clean_parameter`` — nothing hard-coded. ``path`` must be ``flat``.
+    '''
+    params = fba.config['clean_parameter']
+    inventory_year = int(params['inventory_year'])
+    anchor_year = int(params['anchor_year'])
+    prior_year = int(params['prior_year'])
+    span = int(params.get('path_span', anchor_year - prior_year))
+    if span <= 0:
+        raise ValueError(
+            f'apply_mecs_annual_share_path path_span must be > 0, got {span}'
+        )
+    after_anchor = str(params.get('after_anchor', 'hold'))
+    if after_anchor not in ('hold', 'follow'):
+        raise ValueError(
+            f'apply_mecs_annual_share_path after_anchor must be hold or follow, '
+            f'got {after_anchor!r}'
+        )
+    path_mode = str(params.get('path', 'flat'))
+    if path_mode != 'flat':
+        raise ValueError(
+            f'apply_mecs_annual_share_path only supports path=flat, got {path_mode!r}'
+        )
+    # flat path: after_anchor hold|follow both keep share_a for t >= anchor.
+    lambda_zero_flownames = {
+        str(x) for x in params.get('lambda_zero_flownames', ('Other', 'Petroleum'))
+    }
+
+    clean_source = fba.config['clean_source']
+    if isinstance(clean_source, str):
+        raise ValueError(
+            'apply_mecs_annual_share_path requires clean_source as a mapping '
+            'with year (prior survey FBA declared in YAML)'
+        )
+    ((prior_name, prior_cfg),) = clean_source.items()
+    prior_cfg_year = int(prior_cfg['year'])
+    if prior_cfg_year != prior_year:
+        raise ValueError(
+            f'clean_source year {prior_cfg_year} != clean_parameter.prior_year '
+            f'{prior_year}'
+        )
+
+    flow_col = 'Flowable' if 'Flowable' in fba.columns else 'FlowName'
+    code_col = 'ActivityConsumedBy'
+
+    prior = FlowByActivity(
+        getFlowByActivity(prior_name, prior_year),
+        full_name=prior_name,
+        config={
+            **get_catalog_info(prior_name),
+            **prior_cfg,
+            'year': prior_year,
+            'activity_to_sector_mapping': fba.config.get('activity_to_sector_mapping'),
+            'target_schema_year': fba.config.get('target_schema_year'),
+            'industry_spec': fba.config.get('industry_spec'),
+        },
+    )
+    # Fill then capture suppress flags before estimate drops Suppressed.
+    prior = fill_suppressed_mecs_feedstock_with_ghgrp(prior)
+    prior_flags = prior[[code_col, 'FlowName', 'Suppressed']].copy()
+    prior = estimate_suppressed_mecs_energy(prior)
+    prior = prior.select_by_fields(
+        selection_fields=prior_cfg.get('selection_fields'),
+        exclusion_fields=prior_cfg.get('exclusion_fields'),
+    )
+    # Match primary column name after FlowName→Flowable / selection renames.
+    if flow_col == 'Flowable' and 'Flowable' not in prior.columns:
+        prior = prior.rename(columns={'FlowName': 'Flowable'})
+    prior_flow = 'Flowable' if 'Flowable' in prior.columns else 'FlowName'
+
+    # Map prior suppress flags through the same FlowName renames as selection.
+    sel_flows = (prior_cfg.get('selection_fields') or {}).get('FlowName')
+    flag_flow = prior_flags['FlowName'].astype(str)
+    if isinstance(sel_flows, dict):
+        flag_flow = flag_flow.replace(sel_flows)
+    prior_flags = prior_flags.assign(_flow=flag_flow)
+    prior_supp = {
+        (str(r[code_col]), str(r['_flow'])): r['Suppressed']
+        for _, r in prior_flags.iterrows()
+    }
+
+    prior_amt = (
+        prior.groupby([prior[code_col].astype(str), prior[prior_flow].astype(str)])[
+            'FlowAmount'
+        ]
+        .sum()
+        .astype(float)
+    )
+
+    out = fba.copy()
+    new_amounts = out['FlowAmount'].astype(float).copy()
+
+    for flow_key, idx in out.groupby(
+        out[flow_col].astype(str), sort=False
+    ).groups.items():
+        flow = str(flow_key)
+        anchor_rows = out.loc[idx]
+        a_amt = (
+            anchor_rows.groupby(anchor_rows[code_col].astype(str))['FlowAmount']
+            .sum()
+            .astype(float)
+        )
+        # Only NAICS present on the current activity-set FBA (e.g. chem-only NG).
+        codes = [str(c) for c in sorted(a_amt.index)]
+        a_sum = float(a_amt.sum())
+        p_vals = {
+            c: (
+                float(prior_amt.loc[(c, flow)]) if (c, flow) in prior_amt.index else 0.0
+            )
+            for c in codes
+        }
+        p_sum = float(sum(p_vals.values()))
+        share_a = {c: (float(a_amt.loc[c]) / a_sum if a_sum else 0.0) for c in codes}
+        share_p = {c: (p_vals[c] / p_sum if p_sum else 0.0) for c in codes}
+
+        weights: dict[str, float] = {}
+        for code in codes:
+            sa = share_a[code]
+            sp = share_p[code]
+            supp = prior_supp.get((code, flow))
+            if flow in lambda_zero_flownames:
+                lam = 0.0
+                reason = f'FlowName {flow} in lambda_zero_flownames'
+            elif supp in SUPPRESSED_CODES or supp == GHGRP_FILL_MARKER or supp == '*':
+                lam = 0.0
+                reason = f'prior Suppressed={supp!r}'
+            elif sa <= 0 or sp <= 0:
+                lam = 0.0
+                reason = 'missing/zero anchor or prior amount'
+            else:
+                lam = 1.0
+                reason = 'both numeric'
+            if lam == 0.0 and sa > 0:
+                log.info(
+                    f'MECS annual path λ=0 for {code} {flow} '
+                    f'(inventory {inventory_year}): {reason}'
+                )
+            # flat path: path(t)=1, path(prior)=1
+            if sa <= 0:
+                weights[code] = 0.0
+                continue
+            if inventory_year >= anchor_year:
+                weights[code] = sa
+            else:
+                adjust = (sp / sa) if sa else 1.0
+                if adjust <= 0:
+                    adjust = 1.0
+                w = lam * min(anchor_year - inventory_year, span) / span
+                weights[code] = sa * (adjust**w)
+
+        w_sum = float(sum(weights.values()))
+        if w_sum <= 0 or a_sum <= 0:
+            continue
+        # Preserve this flow's total on the anchor FBA (attribution weights).
+        scale = {c: a_sum * (weights[c] / w_sum) for c in codes}
+        for i in idx:
+            code = str(out.at[i, code_col])
+            # Split group total across duplicate rows for the same NAICS×flow.
+            n_dup = int((anchor_rows[code_col].astype(str) == code).sum())
+            new_amounts.at[i] = scale.get(code, 0.0) / n_dup if n_dup else 0.0
+
+    return out.assign(FlowAmount=new_amounts)
+
+
 def keep_industrial_petroleum_consumers(
     fba: FlowByActivity, **_kwargs: Any
 ) -> FlowByActivity:
@@ -813,6 +983,10 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
     purchases times MECS Other energy fraction Table 3.1 / (Table 2.1 + Table 3.1).
     MECS ratios are mapped via Cornerstone_2025 and joined on SectorConsumedBy;
     sectors with no MECS line use 1.0.
+
+    When ``clean_parameter`` has inventory/anchor/prior years, Other amounts are
+    put on the #1210 flat+λ annual path before the fraction (YAML declares prior
+    via ``prior_year``; ``clean_source`` year is the anchor survey).
     '''
     clean_source = fba.config['clean_source']
     if isinstance(clean_source, str):
@@ -821,6 +995,7 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
         ((name, src_config),) = clean_source.items()
     year = int(src_config['year'])
     target_year = fba.config['target_schema_year']
+    params = fba.config.get('clean_parameter') or {}
     mecs = FlowByActivity(
         getFlowByActivity(name, year),
         full_name=name,
@@ -833,23 +1008,55 @@ def multiply_bea_by_mecs_petroleum_energy_fraction(
             'industry_spec': fba.config['industry_spec'],
         },
     )
-    mecs = (
-        mecs.function_socket('estimate_suppressed')
-        .select_by_fields()
-        .convert_units_and_flows()
-        .reset_index(drop=True)
-        .reset_index(names='group_id')
-        .assign(group_total=lambda x: x.FlowAmount)
-    )
+    if {'inventory_year', 'anchor_year', 'prior_year'} <= set(params):
+        prior_year = int(params['prior_year'])
+        path_cfg = {
+            **mecs.config,
+            'clean_source': {
+                name: {
+                    **{k: v for k, v in src_config.items() if k != 'year'},
+                    'year': prior_year,
+                }
+            },
+            'clean_parameter': {
+                **params,
+                'path': params.get('path', 'flat'),
+                'after_anchor': params.get('after_anchor', 'hold'),
+                'lambda_zero_flownames': params.get(
+                    'lambda_zero_flownames', ['Other', 'Petroleum']
+                ),
+            },
+        }
+        mecs = FlowByActivity(pd.DataFrame(mecs), full_name=name, config=path_cfg)
+        mecs = fill_suppressed_mecs_feedstock_with_ghgrp(mecs)
+        mecs = estimate_suppressed_mecs_energy(mecs)
+        mecs = mecs.select_by_fields()
+        mecs = apply_mecs_annual_share_path(mecs)
+        mecs = (
+            mecs.convert_units_and_flows()
+            .reset_index(drop=True)
+            .reset_index(names='group_id')
+            .assign(group_total=lambda x: x.FlowAmount)
+        )
+    else:
+        mecs = (
+            mecs.function_socket('estimate_suppressed')
+            .select_by_fields()
+            .convert_units_and_flows()
+            .reset_index(drop=True)
+            .reset_index(names='group_id')
+            .assign(group_total=lambda x: x.FlowAmount)
+        )
     sector_col = 'SectorConsumedBy'
+    desc_col = 'Description'
     t21 = (
-        mecs.query("Description == 'Table 2.1'")
+        mecs.query(f"{desc_col} == 'Table 2.1'")
         .map_to_sectors(target_year=target_year)
         .groupby(sector_col)['FlowAmount']
         .sum()
     )
     t31 = (
-        mecs.query("Description == 'Table 3.1'")
+        mecs.query(f"{desc_col} == 'Table 3.1'")
         .map_to_sectors(target_year=target_year)
         .groupby(sector_col)['FlowAmount']
         .sum()
