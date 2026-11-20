@@ -818,7 +818,8 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     variance from the MECS RSE (Spread), with '*' cells at 100%;
     a remainder piece adds the variance of its top published descendants. A
     reported 0 has no variance. lambda = 0 (the piece keeps its anchor share)
-    where the prior cell is suppressed, GHGRP-filled or missing; where the
+    where the anchor piece is 0; where the prior cell is suppressed,
+    GHGRP-filled or missing; where the
     piece's published descendants differ between surveys, so its remainder
     covers different industries; and for ``lambda_zero_flownames`` (Petroleum:
     2018 MECS Other includes hydrogen, which 2022 reports in its own column).
@@ -1007,6 +1008,9 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             supp = prior_supp.get((code, flow))
             if flow in lambda_zero_flownames:
                 reason = f'{flow} in lambda_zero_flownames'
+            elif sa <= 0:
+                # A 0 group has no rows to scale, so a share given to it is lost.
+                reason = 'zero in anchor'
             elif supp in SUPPRESSED_CODES or supp == GHGRP_FILL_MARKER:
                 reason = f'prior {supp}'
             elif (code, flow) not in amounts[prior_year] or not p_sum:
