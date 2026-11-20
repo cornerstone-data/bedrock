@@ -806,9 +806,10 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
 
     Both surveys are loaded from ``clean_source`` (the prior survey's selection)
     and get the same fill, estimate, selection, unit conversion and remainders as
-    the pipeline gives the anchor, without sector mapping. Prior-survey codes are
-    recoded to the anchor's NAICS vintage (NAICS_Year_Concordance, e.g. 2017
-    322121 + 322122 -> 2022 322120) and summed. Pieces match on MECS code
+    the pipeline gives the anchor, without sector mapping. Prior-survey codes, and
+    the codes on the mapped rows, are recoded to the anchor's NAICS vintage
+    (NAICS_Year_Concordance, e.g. 2017 322121 + 322122 -> 2022 322120); prior
+    pieces that land on one code are summed. Pieces match on MECS code
     (ActivityConsumedBy) and Flowable. Each scaled piece multiplies FlowAmount and
     group_total on every row of its group_id. Prior-only pieces are not added.
 
@@ -846,10 +847,11 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     )
     concordance.columns = pd.Index(['prior', 'anchor'])
     n_targets = concordance.groupby('prior')['anchor'].nunique()
+    split_codes = set(n_targets.index[n_targets > 1])
     recode = {
         p: a
         for p, a in zip(concordance['prior'], concordance['anchor'])
-        if p != a and n_targets[p] == 1
+        if p != a and p not in split_codes
     }
 
     amounts: dict[int, dict[tuple[str, str], float]] = {}
@@ -931,6 +933,13 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                 desc,
             )
             continue
+        split = sorted({c for c, _ in piece_amt if c in split_codes})
+        if split:
+            raise ValueError(
+                f'{source_name} {year}: NAICS {naics_by_year[prior_year]} codes '
+                f'{", ".join(split)} split across several NAICS '
+                f'{naics_by_year[anchor_year]} codes; no one-to-many recode'
+            )
         amounts[year], variances[year], descendants[year] = {}, {}, {}
         for (c, f), amt in piece_amt.items():
             key = (recode.get(c, c), f)
@@ -950,10 +959,20 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                 f'recoded to {naics_by_year[anchor_year]} for {", ".join(merged)}'
             )
 
+    split = sorted(set(fba['ActivityConsumedBy'].astype(str)) & split_codes)
+    if split:
+        raise ValueError(
+            f'{fba.full_name}: mapped NAICS codes {", ".join(split)} split across '
+            f'several NAICS {naics_by_year[anchor_year]} codes; no one-to-many recode'
+        )
+    # Mapped rows can carry the prior vintage's codes (2022 322120 arrives as
+    # 322121), so they are recoded like the prior survey before matching.
     groups = fba.drop_duplicates('group_id')[
         ['group_id', 'ActivityConsumedBy', 'Flowable', 'group_total']
     ].assign(
-        ActivityConsumedBy=lambda x: x['ActivityConsumedBy'].astype(str),
+        ActivityConsumedBy=lambda x: x['ActivityConsumedBy']
+        .astype(str)
+        .map(lambda c: recode.get(c, c)),
         Flowable=lambda x: x['Flowable'].astype(str),
     )
     if groups.duplicated(['ActivityConsumedBy', 'Flowable']).any():
