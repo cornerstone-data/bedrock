@@ -172,8 +172,8 @@ source_names:
           FlowName: Transport
           Class: Money
         clean_source:
-          UMD_GHGIA_T_A5_1_S1:
-            year: 2023
+          UMD_GHGIA_T_A5_1_5:
+            year: *use_year
             selection_fields:
               Unit: TBtu
               ActivityConsumedBy: Residential
