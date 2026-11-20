@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from bedrock.extract.eia.EIA_MECS import (
+    apply_mecs_annual_share_path,
     keep_chemical_manufacturing,
     keep_industrial_petroleum_consumers,
     multiply_bea_by_mecs_petroleum_energy_fraction,
@@ -297,20 +298,10 @@ def test_scale_household_petroleum_to_transport_share(
     assert by_activity['481000'] == pytest.approx(10.0)
 
 
-@pytest.mark.parametrize(
-    ('year', 'split_year', 'umd_annex'),
-    [
-        (2018, 2017, 'UMD_GHGIA_T_A5_1_S6'),
-        (2022, 2022, 'UMD_GHGIA_T_A5_1_S2'),
-    ],
-)
-def test_energy_manufacturing_yaml_nowcast_hybrid_nests(
-    year: int, split_year: int, umd_annex: str
-) -> None:
+@pytest.mark.parametrize('year', [2018, 2022])
+def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
     method = load_yaml_dict(f'Energy_manufacturing_national_nowcast_{year}', 'FBS')
     assert method['year'] == year
-    assert method['mecs_year'] == year
-    assert method['split_year'] == split_year
     energy_dir = Path(__file__).resolve().parents[1]
     yaml_text = (
         energy_dir / f'Energy_manufacturing_national_nowcast_{year}.yaml'
@@ -328,7 +319,9 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(
         is multiply_bea_by_mecs_petroleum_energy_fraction
     )
     transport = use_sets['neu_transport']
-    assert umd_annex in transport['clean_source']
+    ((_, umd_config),) = transport['clean_source'].items()
+    assert umd_config['year'] == year
+    assert transport['clean_parameter']['year'] == year
     assert (
         transport['clean_fba_after_attribution']
         is scale_household_petroleum_to_transport_share
@@ -344,10 +337,11 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(
     }
     assert mecs_sets['table_2_1_ng']['clean_fba'] is keep_chemical_manufacturing
     for set_name in mecs_sets:
+        assert mecs_sets[set_name]['clean_fba_w_sec'] is apply_mecs_annual_share_path
         attr = mecs_sets[set_name]['attribution_source'][
             'Nowcast_Detail_Use_AfterRedef'
         ]
-        assert attr['year'] == split_year
+        assert attr['year'] == method['split_year']
         assert attr['attribution_method'] == 'equal'
 
 

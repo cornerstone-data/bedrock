@@ -19,9 +19,16 @@ from requests import Response
 from bedrock.extract.eia.EIA_CBECS_Land import calculate_total_facility_land_area
 from bedrock.extract.flowbyactivity import FlowByActivity, getFlowByActivity
 from bedrock.extract.generateflowbyactivity import generateFlowByActivity
-from bedrock.transform.flowbyclean import load_prepare_clean_source
+from bedrock.transform.flowbyclean import (
+    define_parentincompletechild_descendants,
+    load_prepare_clean_source,
+)
 from bedrock.transform.flowbyfunctions import assign_fips_location_system
-from bedrock.utils.config.common import WITHDRAWN_KEYWORD, get_catalog_info
+from bedrock.utils.config.common import (
+    WITHDRAWN_KEYWORD,
+    get_catalog_info,
+    load_crosswalk,
+)
 from bedrock.utils.economic.units import (
     HEATING_OIL_MMBTU_PER_GALLON,
     PROPANE_MMBTU_PER_GALLON,
@@ -698,13 +705,12 @@ def fill_suppressed_feedstock(
     ):
         code = str(targets.at[idx, 'ActivityConsumedBy'])
         flow = str(targets.at[idx, 'FlowName'])
-        unit = str(targets.at[idx, 'Unit'])
         for other in order:
             ref = other_surveys[other]
             hit = ref[
                 (ref['ActivityConsumedBy'] == code)
                 & (ref['FlowName'] == flow)
-                & (ref['Unit'].astype(str) == unit)
+                & (ref['Unit'].astype(str) == str(targets.at[idx, 'Unit']))
                 & ~ref['Suppressed'].isin(SUPPRESSED_CODES)
             ]
             if hit.empty:
@@ -721,13 +727,12 @@ def fill_suppressed_feedstock(
             if room is not None:
                 value = min(value, max(room, 0.0))
             filled[(code, flow)] = value
-            log.info(
-                f'MECS {year} Table 2.1 {code} {flow}: suppressed '
-                f'{targets.at[idx, "Suppressed"]} filled with {value:.1f} {unit} '
-                f'from MECS {other} x GHGRP CO2 ratio {ratio:.3f}'
-                + (f' (parent room {room:.1f})' if room is not None else '')
-            )
             break
+    if filled:
+        log.info(
+            f'MECS {year} Table 2.1: filled {len(filled)} suppressed feedstock '
+            f'cells from other MECS x GHGRP CO2 ratios'
+        )
     for (code, flow), value in filled.items():
         rows = mask & (fba['ActivityConsumedBy'] == code) & (fba['FlowName'] == flow)
         fba.loc[rows, 'FlowAmount'] = value
@@ -783,6 +788,282 @@ def mecs_distillate_to_gallons(fba: FlowByActivity, **_kwargs: Any) -> FlowByAct
 def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     '''Keep MECS NAICS 325 (chemicals) and descendants. CEDA NEU NG is chemicals-only.'''
     return fba.query("ActivityConsumedBy.str.startswith('325')").reset_index(drop=True)
+
+
+def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    '''
+    clean_fba_w_sec: 2022-anchored annual path for MECS amounts (#1210).
+
+    Runs after map_to_sectors, so each MECS row is already its
+    parent-incomplete-child remainder (define_parentincompletechild_descendants):
+    pieces do not overlap, and a parent's total is the sum of its pieces in every
+    year. Within each fuel, a piece's share moves from the anchor survey toward
+    the prior survey with w = lambda x min(anchor - t, span) / span: as
+    share_a x (share_p / share_a) ^ w when both shares are above 0, and as
+    share_a + w x (share_p - share_a) when one survey reports 0. Shares are
+    renormalized so the fuel total keeps the anchor value. From the anchor year
+    on, *fba* is returned unchanged.
+
+    Both surveys are loaded from ``clean_source`` (the prior survey's selection)
+    and get the same fill, estimate, selection, unit conversion and remainders as
+    the pipeline gives the anchor, without sector mapping. Prior-survey codes, and
+    the codes on the mapped rows, are recoded to the anchor's NAICS vintage
+    (NAICS_Year_Concordance, e.g. 2017 322121 + 322122 -> 2022 322120); prior
+    pieces that land on one code are summed. Pieces match on MECS code
+    (ActivityConsumedBy) and Flowable. Each scaled piece multiplies FlowAmount and
+    group_total on every row of its group_id. Prior-only pieces are not added.
+
+    lambda = max(0, 1 - (v_a + v_p) / (share_p - share_a) ^ 2): the part of the
+    survey-to-survey change larger than its sampling noise. v is the share
+    variance from the MECS RSE (Spread), with '*' cells at 100%;
+    a remainder piece adds the variance of its top published descendants. A
+    reported 0 has no variance. lambda = 0 (the piece keeps its anchor share)
+    where the anchor piece is 0; where the prior cell is suppressed,
+    GHGRP-filled or missing; where the
+    piece's published descendants differ between surveys, so its remainder
+    covers different industries; and for ``lambda_zero_flownames`` (Petroleum:
+    2018 MECS Other includes hydrogen, which 2022 reports in its own column).
+    '''
+    params = fba.config['clean_parameter']
+    inventory_year = int(params['inventory_year'])
+    anchor_year = int(params['anchor_year'])
+    prior_year = int(params['prior_year'])
+    if inventory_year >= anchor_year:
+        return fba
+    span = anchor_year - prior_year
+    lambda_zero_flownames = set(params['lambda_zero_flownames'])
+    ((source_name, source_cfg),) = fba.config['clean_source'].items()
+    naics_by_year = get_catalog_info(source_name)['activity_schema']['naics']['by_year']
+    concordance = (
+        load_crosswalk('NAICS_Year_Concordance')[
+            [
+                f'NAICS_{naics_by_year[prior_year]}_Code',
+                f'NAICS_{naics_by_year[anchor_year]}_Code',
+            ]
+        ]
+        .dropna()
+        .astype(str)
+        .apply(lambda col: col.str.strip())
+        .drop_duplicates()
+    )
+    concordance.columns = pd.Index(['prior', 'anchor'])
+    n_targets = concordance.groupby('prior')['anchor'].nunique()
+    split_codes = set(n_targets.index[n_targets > 1])
+    recode = {
+        p: a
+        for p, a in zip(concordance['prior'], concordance['anchor'])
+        if p != a and p not in split_codes
+    }
+
+    amounts: dict[int, dict[tuple[str, str], float]] = {}
+    variances: dict[int, dict[tuple[str, str], float]] = {}
+    descendants: dict[int, dict[tuple[str, str], frozenset[str]]] = {}
+    prior_supp: dict[tuple[str, str], Any] = {}
+    for year in (anchor_year, prior_year):
+        filled = fill_suppressed_mecs_feedstock_with_ghgrp(
+            FlowByActivity.return_FBA(
+                full_name=source_name,
+                year=year,
+                config={
+                    **get_catalog_info(source_name),
+                    **{
+                        k: v
+                        for k, v in fba.config.items()
+                        if k not in ('clean_fba', 'clean_fba_w_sec', 'clean_source')
+                    },
+                    **source_cfg,
+                    'year': year,
+                },
+            )
+        )
+        # Selection renames FlowName (Other -> Petroleum) and keeps Suppressed.
+        flags = filled.select_by_fields()
+        supp_by_key = dict(
+            zip(
+                zip(
+                    flags['ActivityConsumedBy'].astype(str),
+                    flags['FlowName'].astype(str),
+                ),
+                flags['Suppressed'],
+            )
+        )
+        raw = (
+            estimate_suppressed_mecs_energy(filled)
+            .select_by_fields()
+            .convert_units_and_flows()
+            .reset_index(drop=True)
+        )
+        raw_keys = list(
+            zip(raw['ActivityConsumedBy'].astype(str), raw['Flowable'].astype(str))
+        )
+        if len(set(raw_keys)) != len(raw_keys):
+            raise ValueError(
+                f'{source_name} {year}: more than one row per MECS code and fuel'
+            )
+        rse = (pd.to_numeric(raw['Spread'], errors='coerce').fillna(0.0) / 100).mask(
+            np.array([supp_by_key.get(k) == '*' for k in raw_keys]), 1.0
+        )
+        raw_var = dict(zip(raw_keys, (rse * raw['FlowAmount'].astype(float)) ** 2))
+        survey = define_parentincompletechild_descendants(
+            raw.reset_index(names='group_id').assign(group_total=lambda x: x.FlowAmount)
+        )
+        keys = list(
+            zip(
+                survey['ActivityConsumedBy'].astype(str), survey['Flowable'].astype(str)
+            )
+        )
+        desc = {
+            k: frozenset(str(d).split()) for k, d in zip(keys, survey['descendants'])
+        }
+        piece_amt = dict(zip(keys, survey['FlowAmount'].astype(float)))
+        # A remainder's variance: its own cell plus its top published descendants
+        # (a descendant under another listed descendant is already inside it).
+        piece_var = {
+            (c, f): raw_var[(c, f)]
+            + sum(
+                raw_var.get((d, f), 0.0)
+                for d in ds
+                if not any(d != o and d.startswith(o) for o in ds)
+            )
+            for (c, f), ds in desc.items()
+        }
+        if year == anchor_year:
+            amounts[year], variances[year], descendants[year] = (
+                piece_amt,
+                piece_var,
+                desc,
+            )
+            continue
+        split = sorted({c for c, _ in piece_amt if c in split_codes})
+        if split:
+            raise ValueError(
+                f'{source_name} {year}: NAICS {naics_by_year[prior_year]} codes '
+                f'{", ".join(split)} split across several NAICS '
+                f'{naics_by_year[anchor_year]} codes; no one-to-many recode'
+            )
+        amounts[year], variances[year], descendants[year] = {}, {}, {}
+        for (c, f), amt in piece_amt.items():
+            key = (recode.get(c, c), f)
+            amounts[year][key] = amounts[year].get(key, 0.0) + amt
+            variances[year][key] = variances[year].get(key, 0.0) + piece_var[(c, f)]
+            descendants[year][key] = descendants[year].get(key, frozenset()) | {
+                recode.get(d, d) for d in desc[(c, f)]
+            }
+        for (c, f), s in supp_by_key.items():
+            key = (recode.get(c, c), f)
+            if key not in prior_supp or s in SUPPRESSED_CODES or s == GHGRP_FILL_MARKER:
+                prior_supp[key] = s
+        merged = sorted({recode[c] for c, _ in piece_amt if c in recode})
+        if merged:
+            log.info(
+                f'{source_name} {year}: NAICS {naics_by_year[prior_year]} codes '
+                f'recoded to {naics_by_year[anchor_year]} for {", ".join(merged)}'
+            )
+
+    split = sorted(set(fba['ActivityConsumedBy'].astype(str)) & split_codes)
+    if split:
+        raise ValueError(
+            f'{fba.full_name}: mapped NAICS codes {", ".join(split)} split across '
+            f'several NAICS {naics_by_year[anchor_year]} codes; no one-to-many recode'
+        )
+    # Mapped rows can carry the prior vintage's codes (2022 322120 arrives as
+    # 322121), so they are recoded like the prior survey before matching.
+    groups = fba.drop_duplicates('group_id')[
+        ['group_id', 'ActivityConsumedBy', 'Flowable', 'group_total']
+    ].assign(
+        ActivityConsumedBy=lambda x: x['ActivityConsumedBy']
+        .astype(str)
+        .map(lambda c: recode.get(c, c)),
+        Flowable=lambda x: x['Flowable'].astype(str),
+    )
+    if groups.duplicated(['ActivityConsumedBy', 'Flowable']).any():
+        raise ValueError(
+            f'{fba.full_name}: more than one group_id per MECS code and fuel'
+        )
+
+    factor: dict[Any, float] = {}
+    lambda_zero: dict[str, list[str]] = {}
+    lambdas: list[str] = []
+    for flow_key, by_flow in groups.groupby('Flowable'):
+        flow = str(flow_key)
+        a_amt = dict(zip(by_flow['ActivityConsumedBy'], by_flow['group_total']))
+        a_sum = float(sum(a_amt.values()))
+        p_amt = {c: amounts[prior_year].get((c, flow), 0.0) for c in a_amt}
+        p_sum = float(sum(p_amt.values()))
+        if a_sum <= 0:
+            continue
+        prior_only = sorted(
+            c
+            for (c, f), v in amounts[prior_year].items()
+            if f == flow and c not in a_amt and v > 0 and prior_supp.get((c, f)) != '*'
+        )
+        if prior_only:
+            log.warning(
+                f'{fba.full_name} MECS path {flow}: prior-only pieces not added: '
+                f'{", ".join(prior_only)}'
+            )
+        weights: dict[str, float] = {}
+        for code, a in a_amt.items():
+            sa = float(a) / a_sum
+            supp = prior_supp.get((code, flow))
+            if flow in lambda_zero_flownames:
+                reason = f'{flow} in lambda_zero_flownames'
+            elif sa <= 0:
+                # A 0 group has no rows to scale, so a share given to it is lost.
+                reason = 'zero in anchor'
+            elif supp in SUPPRESSED_CODES or supp == GHGRP_FILL_MARKER:
+                reason = f'prior {supp}'
+            elif (code, flow) not in amounts[prior_year] or not p_sum:
+                reason = 'missing in prior'
+            elif descendants[anchor_year].get((code, flow)) != descendants[
+                prior_year
+            ].get((code, flow)):
+                reason = 'descendants differ'
+            else:
+                reason = ''
+            if reason:
+                lambda_zero.setdefault(reason, []).append(code)
+                weights[code] = sa
+                continue
+            sp = p_amt[code] / p_sum
+            noise = (
+                variances[anchor_year].get((code, flow), 0.0) / a_sum**2
+                + variances[prior_year][(code, flow)] / p_sum**2
+            )
+            lam = max(0.0, 1.0 - noise / (sp - sa) ** 2) if sp != sa else 0.0
+            w = lam * min(anchor_year - inventory_year, span) / span
+            weights[code] = (
+                sa * (sp / sa) ** w if sa > 0 and sp > 0 else sa + w * (sp - sa)
+            )
+            if max(sa, sp) >= 0.01:
+                lambdas.append(f'{flow} {code} {lam:.2f}')
+        w_sum = float(sum(weights.values()))
+        for gid, code, a in zip(
+            by_flow['group_id'], by_flow['ActivityConsumedBy'], by_flow['group_total']
+        ):
+            factor[gid] = a_sum * weights[code] / w_sum / float(a) if a else 1.0
+
+    log.info(
+        f'{fba.full_name} MECS path {inventory_year} (anchor {anchor_year}, '
+        f'prior {prior_year}) lambda=0: '
+        + '; '.join(
+            (
+                f'{reason}: all'
+                if reason.endswith('lambda_zero_flownames')
+                else f'{reason}: {", ".join(sorted(codes))}'
+            )
+            for reason, codes in lambda_zero.items()
+        )
+        or 'none'
+    )
+    log.info(
+        f'{fba.full_name} MECS path {inventory_year} lambda (share >= 1%): '
+        + (', '.join(lambdas) or 'none')
+    )
+    scale = fba['group_id'].map(factor).fillna(1.0)
+    return fba.assign(
+        FlowAmount=fba['FlowAmount'] * scale, group_total=fba['group_total'] * scale
+    )
 
 
 def keep_industrial_petroleum_consumers(
