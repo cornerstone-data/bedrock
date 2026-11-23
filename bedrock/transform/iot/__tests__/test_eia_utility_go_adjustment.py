@@ -286,6 +286,10 @@ def test_generation_and_delivery_take_their_own_prices(
     generation = {year: 4.0 + 0.4 * (year - 2017) for year in ug.CONTROLLED_YEARS}
     monkeypatch.setattr(ep, 'generation_price', lambda year: generation[int(year)])
     monkeypatch.setattr(ep, 'delivery_price', lambda year: 6.0)
+    # Span is bounded by the 861 pool end, not by probing generation_price.
+    monkeypatch.setattr(
+        helpers, '_eia_861_resale_last_year', lambda: max(ug.CONTROLLED_YEARS)
+    )
     years = list(ug.CONTROLLED_YEARS)
     levels = pd.DataFrame(
         {year: [100.0, 50.0, 80.0] for year in years},

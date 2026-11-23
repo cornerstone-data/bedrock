@@ -164,11 +164,15 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
 
     Delivery gets a new line that starts from electricity's published index.
 
-    Within-span years are the longest ``CONTROLLED_YEARS`` prefix where
-    ``generation_price`` resolves (EIA-861 sales-for-resale pool). That series can
-    lag Electric Power Annual retail: years after the 861 span keep BEA's change on
-    the last resolved EIA-based level, including a calendar year retail already
-    covers.
+    Within-span years are ``CONTROLLED_YEARS`` through the last year of the EIA-861
+    sales-for-resale pool (``generation_price`` / ``delivery_price``). That pool can
+    lag Electric Power Annual retail. After the 861 span, each line keeps the
+    *incoming* year-to-year change on the last 861-based level: when
+    ``electric_output_on_retail_revenue`` ran first in
+    :func:`_industry_price_index_levels`, a year retail already covers (e.g. 2025)
+    therefore follows EIA retail change, not BEA; only years past the retail span
+    (e.g. 2026) use BEA. A gap inside the 861 pool raises from
+    ``generation_price`` rather than truncating the span.
     """
     from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
         DELIVERY_CODE,
@@ -186,7 +190,7 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
         levels = levels.copy()
         levels.loc[DELIVERY_CODE] = levels.loc[GENERATION_SECTOR]
     # delivery_price subtracts generation_price, so the 861 pool bounds both lines.
-    span = _controlled_years_while_price_resolves(levels, generation_price)
+    span = _controlled_years_through_861_resale(levels)
     out = _lines_on_relative_price(
         levels,
         [GENERATION_SECTOR],
@@ -201,26 +205,37 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     )
 
 
-def _controlled_years_while_price_resolves(
-    levels: pd.DataFrame,
-    price: ta.Callable[[int], float],
-) -> tuple[int, ...]:
-    """Longest ``CONTROLLED_YEARS`` prefix on *levels* where *price* returns a value."""
+def _eia_861_resale_last_year() -> int:
+    """Latest calendar year present in both EIA-861 sales-for-resale series."""
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        resale_revenue,
+        resale_volume,
+    )
+
+    return int(min(resale_revenue().index.max(), resale_volume().index.max()))
+
+
+def _controlled_years_through_861_resale(levels: pd.DataFrame) -> tuple[int, ...]:
+    """``CONTROLLED_YEARS`` on *levels* through the EIA-861 sales-for-resale pool end.
+
+    Bounds the gen/delivery overlay by the pool's last year so a missing year
+    inside the pool raises from ``generation_price`` instead of silently ending
+    the span early.
+    """
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         CONTROLLED_YEARS,
     )
 
-    years: list[int] = []
-    for year in CONTROLLED_YEARS:
-        if year not in levels.columns:
-            continue
-        try:
-            price(int(year))
-        except ValueError:
-            break
-        years.append(int(year))
+    last = _eia_861_resale_last_year()
+    years = [
+        int(year)
+        for year in CONTROLLED_YEARS
+        if year in levels.columns and int(year) <= last
+    ]
     if not years:
-        raise ValueError('no CONTROLLED_YEARS on levels where the EIA price resolves')
+        raise ValueError(
+            'no CONTROLLED_YEARS on levels through the EIA-861 sales-for-resale pool'
+        )
     return tuple(years)
 
 
