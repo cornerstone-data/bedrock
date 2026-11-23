@@ -163,6 +163,12 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     real output follows kWh, so their factors follow emissions per kWh.
 
     Delivery gets a new line that starts from electricity's published index.
+
+    Within-span years are the longest ``CONTROLLED_YEARS`` prefix where
+    ``generation_price`` resolves (EIA-861 sales-for-resale pool). That series can
+    lag Electric Power Annual retail: years after the 861 span keep BEA's change on
+    the last resolved EIA-based level, including a calendar year retail already
+    covers.
     """
     from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
         DELIVERY_CODE,
@@ -179,37 +185,71 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     if DELIVERY_CODE not in levels.index:
         levels = levels.copy()
         levels.loc[DELIVERY_CODE] = levels.loc[GENERATION_SECTOR]
+    # delivery_price subtracts generation_price, so the 861 pool bounds both lines.
+    span = _controlled_years_while_price_resolves(levels, generation_price)
     out = _lines_on_relative_price(
         levels,
         [GENERATION_SECTOR],
         lambda year: generation_price(year) / generation_price(BASE_YEAR),
+        span=span,
     )
     return _lines_on_relative_price(
         out,
         [DELIVERY_CODE],
         lambda year: delivery_price(year) / delivery_price(BASE_YEAR),
+        span=span,
     )
+
+
+def _controlled_years_while_price_resolves(
+    levels: pd.DataFrame,
+    price: ta.Callable[[int], float],
+) -> tuple[int, ...]:
+    """Longest ``CONTROLLED_YEARS`` prefix on *levels* where *price* returns a value."""
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        CONTROLLED_YEARS,
+    )
+
+    years: list[int] = []
+    for year in CONTROLLED_YEARS:
+        if year not in levels.columns:
+            continue
+        try:
+            price(int(year))
+        except ValueError:
+            break
+        years.append(int(year))
+    if not years:
+        raise ValueError('no CONTROLLED_YEARS on levels where the EIA price resolves')
+    return tuple(years)
 
 
 def _lines_on_relative_price(
     levels: pd.DataFrame,
     codes: ta.Iterable[str],
     relative: ta.Callable[[int], float],
+    span: ta.Sequence[int] | None = None,
 ) -> pd.DataFrame:
-    """*levels* with *codes* at the base year's level times *relative*, over EIA's span.
+    """*levels* with *codes* at the base year's level times *relative*, over *span*.
 
-    A year after the span keeps BEA's change from the span's last year, and a year
-    before it stays as published, so neither side has a seam at 2017 or 2024.
+    *span* defaults to ``CONTROLLED_YEARS`` (Electric Power Annual retail coverage).
+    Callers whose EIA series ends earlier (generation / delivery on 861) pass that
+    shorter span. A year after the span keeps BEA's change from the span's last
+    year, and a year before it stays as published, so neither side has a seam at
+    the first or last spanned year.
     """
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         BASE_YEAR,
         CONTROLLED_YEARS,
     )
 
+    controlled = (
+        tuple(int(year) for year in span) if span is not None else CONTROLLED_YEARS
+    )
     out = levels.copy()
-    last = CONTROLLED_YEARS[-1]
+    last = controlled[-1]
     relative_by_year = {
-        year: relative(year) for year in CONTROLLED_YEARS if year in out.columns
+        year: relative(year) for year in controlled if year in out.columns
     }
     for code in (code for code in codes if code in out.index):
         published = pd.Series(levels.loc[code], dtype=float)
