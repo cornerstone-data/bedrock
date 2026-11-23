@@ -163,6 +163,16 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     real output follows kWh, so their factors follow emissions per kWh.
 
     Delivery gets a new line that starts from electricity's published index.
+
+    Within-span years are ``CONTROLLED_YEARS`` through the last year of the EIA-861
+    sales-for-resale pool (``generation_price`` / ``delivery_price``). That pool can
+    lag Electric Power Annual retail. After the 861 span, each line keeps the
+    *incoming* year-to-year change on the last 861-based level: when
+    ``electric_output_on_retail_revenue`` ran first in
+    :func:`_industry_price_index_levels`, a year retail already covers (e.g. 2025)
+    therefore follows EIA retail change, not BEA; only years past the retail span
+    (e.g. 2026) use BEA. A gap inside the 861 pool raises from
+    ``generation_price`` rather than truncating the span.
     """
     from bedrock.transform.eeio.electricity_delivery import (  # noqa: PLC0415
         DELIVERY_CODE,
@@ -179,37 +189,82 @@ def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame
     if DELIVERY_CODE not in levels.index:
         levels = levels.copy()
         levels.loc[DELIVERY_CODE] = levels.loc[GENERATION_SECTOR]
+    # delivery_price subtracts generation_price, so the 861 pool bounds both lines.
+    span = _controlled_years_through_861_resale(levels)
     out = _lines_on_relative_price(
         levels,
         [GENERATION_SECTOR],
         lambda year: generation_price(year) / generation_price(BASE_YEAR),
+        span=span,
     )
     return _lines_on_relative_price(
         out,
         [DELIVERY_CODE],
         lambda year: delivery_price(year) / delivery_price(BASE_YEAR),
+        span=span,
     )
+
+
+def _eia_861_resale_last_year() -> int:
+    """Latest calendar year present in both EIA-861 sales-for-resale series."""
+    from bedrock.analysis.nowcasting.utilities_expense_seed import (  # noqa: PLC0415
+        resale_revenue,
+        resale_volume,
+    )
+
+    return int(min(resale_revenue().index.max(), resale_volume().index.max()))
+
+
+def _controlled_years_through_861_resale(levels: pd.DataFrame) -> tuple[int, ...]:
+    """``CONTROLLED_YEARS`` on *levels* through the EIA-861 sales-for-resale pool end.
+
+    Bounds the gen/delivery overlay by the pool's last year so a missing year
+    inside the pool raises from ``generation_price`` instead of silently ending
+    the span early.
+    """
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        CONTROLLED_YEARS,
+    )
+
+    last = _eia_861_resale_last_year()
+    years = [
+        int(year)
+        for year in CONTROLLED_YEARS
+        if year in levels.columns and int(year) <= last
+    ]
+    if not years:
+        raise ValueError(
+            'no CONTROLLED_YEARS on levels through the EIA-861 sales-for-resale pool'
+        )
+    return tuple(years)
 
 
 def _lines_on_relative_price(
     levels: pd.DataFrame,
     codes: ta.Iterable[str],
     relative: ta.Callable[[int], float],
+    span: ta.Sequence[int] | None = None,
 ) -> pd.DataFrame:
-    """*levels* with *codes* at the base year's level times *relative*, over EIA's span.
+    """*levels* with *codes* at the base year's level times *relative*, over *span*.
 
-    A year after the span keeps BEA's change from the span's last year, and a year
-    before it stays as published, so neither side has a seam at 2017 or 2024.
+    *span* defaults to ``CONTROLLED_YEARS`` (Electric Power Annual retail coverage).
+    Callers whose EIA series ends earlier (generation / delivery on 861) pass that
+    shorter span. A year after the span keeps BEA's change from the span's last
+    year, and a year before it stays as published, so neither side has a seam at
+    the first or last spanned year.
     """
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         BASE_YEAR,
         CONTROLLED_YEARS,
     )
 
+    controlled = (
+        tuple(int(year) for year in span) if span is not None else CONTROLLED_YEARS
+    )
     out = levels.copy()
-    last = CONTROLLED_YEARS[-1]
+    last = controlled[-1]
     relative_by_year = {
-        year: relative(year) for year in CONTROLLED_YEARS if year in out.columns
+        year: relative(year) for year in controlled if year in out.columns
     }
     for code in (code for code in codes if code in out.index):
         published = pd.Series(levels.loc[code], dtype=float)
