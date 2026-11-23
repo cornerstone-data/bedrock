@@ -42,7 +42,7 @@ PUBLISHED_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
 
 #: Cornerstone published stem (BEA derive + overlays such as EIA electric).
 PUBLISHED_CORNERSTONE_PRICE_INDEX_STEMS: dict[BeaDataVersion, str] = {
-    "2026Q2": "Cornerstone_PriceIndex_2026Q2_v1.0.0_983121d",
+    "2026Q2": "Cornerstone_PriceIndex_2026Q2_v1.0.0_360b426",
 }
 
 
