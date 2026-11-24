@@ -26,6 +26,7 @@ _WIDE = pd.DataFrame(
 _WIDE.loc['221100', _LAST] = 200.0
 _WIDE.loc['221100', _AFTER] = 220.0
 _WIDE.loc['221100', 2016] = 90.0
+_EPM = (1.065, 202608, (1, 2, 3, 4, 5, 6, 7, 8))
 
 
 @pytest.fixture(autouse=True)
@@ -36,6 +37,10 @@ def _toy_index() -> Iterator[None]:
         patch(
             'bedrock.transform.iot.eia_utility_go_adjustment.retail_price_index',
             side_effect=lambda year: eia_span[int(year)],
+        ),
+        patch(
+            'bedrock.extract.disaggregation.egrid_generation.epm_same_months_retail_price_change',
+            return_value=_EPM,
         ),
     ):
         yield

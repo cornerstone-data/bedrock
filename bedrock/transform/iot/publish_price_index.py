@@ -101,19 +101,35 @@ def _apply_cornerstone_overlays(levels: pd.DataFrame) -> pd.DataFrame:
 
 
 def _cornerstone_overlay_meta() -> dict[str, object]:
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        epm_same_months_retail_price_change,
+    )
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         CONTROLLED_YEARS,
         ELECTRIC_INDUSTRIES,
     )
 
-    return {
+    last = int(CONTROLLED_YEARS[-1])
+    change, edition_month, months_used = epm_same_months_retail_price_change(
+        last + 1, last
+    )
+    meta: dict[str, object] = {
         'electric_price_override': 'EIA average retail (retail_price_index)',
         'electric_industries': list(ELECTRIC_INDUSTRIES),
         'electric_controlled_years': [int(y) for y in CONTROLLED_YEARS],
-        'electric_after_span': (
-            "BEA year-to-year change on the EIA-based level at the span's last year"
-        ),
     }
+    if change is not None:
+        meta['electric_after_span'] = (
+            'shared EPM same-months retail price change on the Annual last year'
+        )
+        meta['electric_epm_edition'] = int(edition_month)
+        meta['electric_epm_months'] = [int(m) for m in months_used]
+    else:
+        meta['electric_after_span'] = (
+            "shared 221100 BEA year-to-year change on the EIA-based level "
+            "at the span's last year"
+        )
+    return meta
 
 
 def price_index_long(

@@ -244,13 +244,24 @@ def test_the_retail_basis_needs_the_rebase_on() -> None:
 def test_price_lines_follow_eia_and_keep_their_seams_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """On EIA through CONTROLLED_YEARS; BEA's change after; other sectors untouched."""
+    """On EIA through CONTROLLED_YEARS; shared EPM change after; other sectors untouched."""
+    from bedrock.extract.disaggregation import egrid_generation as eg  # noqa: PLC0415
     from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
 
     last = ug.CONTROLLED_YEARS[-1]
     after = last + 1
     span = {year: 1.0 + 0.1 * (year - 2017) for year in ug.CONTROLLED_YEARS}
     monkeypatch.setattr(ug, 'retail_price_index', lambda year: span[int(year)])
+    epm_change = 1.065
+    monkeypatch.setattr(
+        eg,
+        'epm_same_months_retail_price_change',
+        lambda after_year, base_year: (
+            epm_change,
+            202608,
+            (1, 2, 3, 4, 5, 6, 7, 8),
+        ),
+    )
     years = [2016, *ug.CONTROLLED_YEARS, after]
     levels = pd.DataFrame(
         {year: [100.0, 80.0, 50.0] for year in years},
@@ -269,12 +280,77 @@ def test_price_lines_follow_eia_and_keep_their_seams_closed(
     assert out.at['221100', 2022] == pytest.approx(150.0)
     assert out.at['S00101', 2022] == pytest.approx(120.0)
     assert out.at['221100', last] == pytest.approx(100.0 * span[last])
-    # BEA's +10% from last to after on the EIA-based last level; 2016 as published.
-    assert out.at['221100', after] == pytest.approx(
-        220.0 * (100.0 * span[last] / 200.0)
-    )
+    # Shared EPM multiplier on each code's EIA-based last year (2017 bases differ here).
+    assert out.at['221100', after] == pytest.approx(100.0 * span[last] * epm_change)
+    assert out.at['S00101', after] == pytest.approx(80.0 * span[last] * epm_change)
     assert out.at['221100', 2016] == pytest.approx(90.0)
     pd.testing.assert_frame_equal(out.loc[['111200']], original.loc[['111200']])
+
+
+@pytest.mark.usefixtures('_retail_basis')
+def test_electric_after_span_shares_one_epm_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """All three electric codes share one after-span level from EPM."""
+    from bedrock.extract.disaggregation import egrid_generation as eg  # noqa: PLC0415
+    from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
+
+    last = ug.CONTROLLED_YEARS[-1]
+    after = last + 1
+    monkeypatch.setattr(ug, 'retail_price_index', lambda year: 1.0)
+    monkeypatch.setattr(
+        eg,
+        'epm_same_months_retail_price_change',
+        lambda after_year, base_year: (1.065, 202608, (1, 2, 3, 4, 5, 6, 7, 8)),
+    )
+    years = [*ug.CONTROLLED_YEARS, after]
+    levels = pd.DataFrame(
+        {year: [100.0, 100.0, 100.0] for year in years},
+        index=list(ug.ELECTRIC_INDUSTRIES),
+        dtype=float,
+    )
+    levels.loc['S00101', after] = 131.6
+    levels.loc['S00202', after] = 105.5
+    levels.loc['221100', after] = 105.1
+
+    out = helpers._electric_lines_on_eia_retail_price(levels)
+
+    shared = 100.0 * 1.065
+    for code in ug.ELECTRIC_INDUSTRIES:
+        assert out.at[code, after] == pytest.approx(shared)
+
+
+@pytest.mark.usefixtures('_retail_basis')
+def test_electric_after_span_falls_back_to_shared_221100_bea(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Empty EPM months: all three take 221100's BEA change, not each code's own."""
+    from bedrock.extract.disaggregation import egrid_generation as eg  # noqa: PLC0415
+    from bedrock.utils.economic import inflation_helpers_usa as helpers  # noqa: PLC0415
+
+    last = ug.CONTROLLED_YEARS[-1]
+    after = last + 1
+    monkeypatch.setattr(ug, 'retail_price_index', lambda year: 1.0)
+    monkeypatch.setattr(
+        eg,
+        'epm_same_months_retail_price_change',
+        lambda after_year, base_year: (None, 202608, ()),
+    )
+    years = [*ug.CONTROLLED_YEARS, after]
+    levels = pd.DataFrame(
+        {year: [100.0, 100.0, 100.0] for year in years},
+        index=list(ug.ELECTRIC_INDUSTRIES),
+        dtype=float,
+    )
+    levels.loc['221100', after] = 105.0
+    levels.loc['S00101', after] = 131.6
+    levels.loc['S00202', after] = 110.0
+
+    out = helpers._electric_lines_on_eia_retail_price(levels)
+
+    shared = 100.0 * (105.0 / 100.0)
+    for code in ug.ELECTRIC_INDUSTRIES:
+        assert out.at[code, after] == pytest.approx(shared)
 
 
 def test_generation_and_delivery_take_their_own_prices(
