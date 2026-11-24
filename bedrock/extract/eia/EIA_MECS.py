@@ -798,18 +798,19 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     per (ActivityConsumedBy, Flowable). A survey cell is published only when
     snapshotted Suppressed is null; D, Q, *, GHGRP, and any other flag are
     missing for shares, RSE, and published children. Both sides published with
-    the same published children use the RSE lambda path from the 2022 share
-    toward 2018 (inventory years before the anchor). One side missing, or
-    published children that differ, takes the published side as a flat level in
-    every inventory year (including 2022+). Neither published keeps the mapped
-    row. Shares renormalize to the mapped fuel total.
+    matching published children (or the anchor has at least as many) use the
+    RSE lambda path from the 2022 share toward 2018 (inventory years before the
+    anchor). One side missing, or the prior published a finer child split the
+    anchor lacks, takes that published side as a flat level in every inventory
+    year (including 2022+). Neither published keeps the mapped row. Shares
+    renormalize to the mapped fuel total.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
     land on one code. Published 2022 Hydrogen is folded into the Petroleum share
-    numerator only; the fuel total stays mapped Other. When a group_id already
-    has several SectorConsumedBy values and published 2018 amounts on those
-    same NAICS codes hit more than one of them, FlowAmount follows those
-    amounts; group_total stays the activity total.
+    numerator only; the fuel total stays mapped Other. A group_id that fans out
+    to several sectors, all published in the prior survey for that fuel, is
+    split into one group_id per sector by those amounts (e.g. 336111/336112), so
+    Use attribution passes it through.
     '''
     params = fba.config['clean_parameter']
     inventory_year = int(params['inventory_year'])
@@ -1042,10 +1043,12 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             desc_a = descendants[anchor_year].get((code, flow), frozenset())
             desc_p = descendants[prior_year].get((code, flow), frozenset())
             children_differ = desc_a != desc_p
+            # Prior only when it published a finer split the anchor lacks (e.g. 3121).
+            prior_finer = children_differ and len(desc_p) > len(desc_a)
             if mapped_amt[code] <= 0 and not (flow == 'Petroleum' and a_share_amt > 0):
                 reason = 'zero in anchor'
                 weights[code] = 0.0
-            elif a_pub and p_pub and not children_differ:
+            elif a_pub and p_pub and not prior_finer:
                 if inventory_year >= anchor_year:
                     reason = 'anchor level'
                     weights[code] = sa
@@ -1063,10 +1066,10 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                     )
                     if max(sa, sp) >= 0.01:
                         lambdas.append(f'{flow} {code} {lam:.2f}')
-            elif p_pub and (not a_pub or children_differ):
+            elif p_pub and (not a_pub or prior_finer):
                 reason = (
                     'prior level; children differ'
-                    if children_differ
+                    if prior_finer
                     else 'prior level; anchor unpublished'
                 )
                 weights[code] = p_amt[code] / p_sum if p_sum else 0.0
@@ -1104,7 +1107,8 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
         FlowAmount=fba['FlowAmount'] * scale, group_total=fba['group_total'] * scale
     )
 
-    # Sector mix: leaf NAICS in 2018 match SectorConsumedBy (e.g. 336111/336112).
+    # One-to-many fan-out (e.g. 336110 -> 336111/336112): when 2018 published
+    # every sector, give each its own group_id so Use attribution keeps the split.
     if (
         prior_for_sectors is None
         or prior_for_sectors.empty
@@ -1119,31 +1123,31 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
         .groupby(['ActivityConsumedBy', 'Flowable'], sort=False)['FlowAmount']
         .sum()
     )
-    flow_amounts = out['FlowAmount'].astype(float).copy()
+    out = out.reset_index(drop=True)
+    next_id = int(out['group_id'].max()) + 1
     for gid, sub in out.groupby('group_id'):
-        sectors = [str(s) for s in sub['SectorConsumedBy'].dropna().unique()]
-        if len(sectors) <= 1:
+        sectors = sub['SectorConsumedBy'].astype(str).tolist()
+        if len(sectors) <= 1 or len(set(sectors)) != len(sectors):
             continue
         flow = str(sub['Flowable'].iloc[0])
         prior_parts = {s: float(sector_amt.get((s, flow), 0.0)) for s in sectors}
-        if sum(v > 0 for v in prior_parts.values()) <= 1:
+        if min(prior_parts.values()) <= 0:
             continue
         activity_total = float(sub['group_total'].iloc[0])
         part_sum = float(sum(prior_parts.values()))
-        if part_sum <= 0 or activity_total == 0:
-            continue
-        for idx, sector in zip(sub.index, sub['SectorConsumedBy'].astype(str)):
-            flow_amounts.at[idx] = activity_total * prior_parts[sector] / part_sum
+        for idx, sector in zip(sub.index, sectors):
+            amount = activity_total * prior_parts[sector] / part_sum
+            out.at[idx, 'FlowAmount'] = amount
+            out.at[idx, 'group_total'] = amount
+            out.at[idx, 'ActivityConsumedBy'] = sector
+            out.at[idx, 'group_id'] = next_id
+            next_id += 1
         log.info(
-            f'{fba.full_name} MECS path {inventory_year}: sector mix from '
-            f'{prior_year} on group_id {str(gid)} ({flow}): '
-            + ', '.join(
-                f'{s}={prior_parts[s] / part_sum:.3f}'
-                for s in sectors
-                if prior_parts[s]
-            )
+            f'{fba.full_name} MECS path {inventory_year}: split group_id '
+            f'{str(gid)} ({flow}) by {prior_year}: '
+            + ', '.join(f'{s}={prior_parts[s] / part_sum:.3f}' for s in sectors)
         )
-    return out.assign(FlowAmount=flow_amounts)
+    return out
 
 
 def keep_industrial_petroleum_consumers(
