@@ -174,26 +174,29 @@ def _electric_lines_on_eia_retail_price(levels: pd.DataFrame) -> pd.DataFrame:
     out = out.copy()
     if change is not None:
         for code in codes:
-            out.at[code, first_after] = float(out.at[code, last]) * float(change)
-        for year in after_years:
-            if int(year) == first_after:
-                continue
-            for code in codes:
-                published_first = float(levels.at[code, first_after])
-                out.at[code, year] = (
-                    float(levels.at[code, year])
-                    * float(out.at[code, first_after])
-                    / published_first
+            rebased = pd.Series(out.loc[code], dtype=float)
+            published = pd.Series(levels.loc[code], dtype=float)
+            rebased[first_after] = float(rebased[last]) * float(change)
+            for year in after_years:
+                if int(year) == first_after:
+                    continue
+                rebased[year] = (
+                    float(published[year])
+                    * float(rebased[first_after])
+                    / float(published[first_after])
                 )
+            out.loc[code] = rebased
         return out
 
     if '221100' not in levels.index:
         raise KeyError('221100 required for electric after-span BEA fallback')
-    published_221100 = levels.loc['221100']
+    published_221100 = pd.Series(levels.loc['221100'], dtype=float)
     for year in after_years:
         bea_change = float(published_221100[year]) / float(published_221100[last])
         for code in codes:
-            out.at[code, year] = float(out.at[code, last]) * bea_change
+            rebased = pd.Series(out.loc[code], dtype=float)
+            rebased[year] = float(rebased[last]) * bea_change
+            out.loc[code] = rebased
     return out
 
 
