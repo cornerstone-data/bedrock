@@ -1,0 +1,46 @@
+author: US Energy Information Administration
+source_name: Electric Power Monthly
+source_url: https://www.eia.gov/electricity/monthly/
+bib_id: EIA_ElectricPowerMonthly
+api_name: EIA_ElectricPowerMonthly
+api_key_required: false
+format: xlsx
+url:
+  # EIA serves Chapter 5 as per-table XLS. url_replace_fxn expands both tables.
+  base_url: https://www.eia.gov/electricity/monthly/xls/__table__.xlsx
+url_replace_fxn: !script_function:EIA_ElectricPowerMonthly electric_power_monthly_url_helper
+call_response_fxn: !script_function:EIA_ElectricPowerMonthly electric_power_monthly_call
+gcs_fxn: !script_function:EIA_ElectricPowerMonthly electric_power_monthly_load_gcs
+parse_response_fxn: !script_function:EIA_ElectricPowerMonthly electric_power_monthly_parse
+# false: electric_power_monthly_load_gcs (local extract-input, then GCS).
+# true: electric_power_monthly_call (HTTP download from EIA).
+# Local: bedrock/extract/input_data/EIA_ElectricPowerMonthly/{edition_month}/table_5_01.xlsx
+extract_data_from_raw_sources: false
+# edition_month: EPM data month on the release page (YYYYMM); local/GCS subfolder.
+# August 2026 edition (released October 2026) covers monthly sales/revenue through August 2026.
+edition_month: 202608
+call_all_years: true
+# years: calendar years of monthly rows needed for same-months after-span (base + after).
+years:
+  - 2025
+  - 2026
+
+tables:
+  table_5_01:
+    layout: monthly_sector
+    table_label: Table 5.1 Sales of Electricity to Ultimate Customers
+    flow_name: electricity
+    unit: MWh
+    # Sheet is thousand megawatthours.
+    flow_amount_scale: 1000
+    class: Energy
+    flow_type: TECHNOSPHERE_FLOW
+  table_5_02:
+    layout: monthly_sector
+    table_label: Table 5.2 Revenue from Sales of Electricity to Ultimate Customers
+    flow_name: electricity
+    unit: USD
+    # Sheet is million dollars (matches Annual Table 2.3 scale).
+    flow_amount_scale: 1000000
+    class: Money
+    flow_type: TECHNOSPHERE_FLOW

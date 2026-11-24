@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import re
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -460,3 +461,98 @@ def eia_retail_revenue_usd(year: int, customer_class: str = 'Total') -> float:
             f'Table 2.3 has no Total Electric Industry {customer_class!r} for {year}'
         )
     return float(rows['FlowAmount'].iloc[0])
+
+
+# ---------------------------------------------------------------------------
+# EIA Electric Power Monthly (Tables 5.1 / 5.2) for retail after-span
+# ---------------------------------------------------------------------------
+
+
+def _epm_fba(year: int) -> pd.DataFrame:
+    from bedrock.extract.flowbyactivity import getFlowByActivity  # noqa: PLC0415
+
+    return getFlowByActivity('EIA_ElectricPowerMonthly', year)
+
+
+def _epm_edition_month() -> int:
+    from bedrock.utils.config.common import load_yaml_dict  # noqa: PLC0415
+
+    config = load_yaml_dict('EIA_ElectricPowerMonthly', flowbytype='FBA')
+    return int(config['edition_month'])
+
+
+_EPM_MONTH_RE = re.compile(r';\s*month=(\d{1,2})\b', re.IGNORECASE)
+
+
+def _epm_month_from_description(description: object) -> int | None:
+    match = _EPM_MONTH_RE.search(str(description))
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
+def _epm_with_month(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    out['_epm_month'] = out['Description'].map(_epm_month_from_description)
+    return out
+
+
+def _epm_months_present(df: pd.DataFrame, year: int, table_fragment: str) -> set[int]:
+    table = _epm_with_month(df.loc[_table_mask(df, year, table_fragment)])
+    months = table['_epm_month'].dropna().astype(int)
+    return set(months.tolist())
+
+
+def _epm_retail_price_for_months(
+    fba: pd.DataFrame, year: int, months: set[int]
+) -> float:
+    """Revenue / sales over RETAIL_SALES_CLASSES for the given months, USD/MWh."""
+    from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
+        RETAIL_SALES_CLASSES,
+    )
+
+    def _sum(table_fragment: str) -> float:
+        table = _epm_with_month(fba.loc[_table_mask(fba, year, table_fragment)])
+        rows = table.loc[
+            (table['ActivityProducedBy'] == 'Total Electric Industry')
+            & (table['ActivityConsumedBy'].isin(RETAIL_SALES_CLASSES))
+            & (table['_epm_month'].isin(months))
+        ]
+        return float(rows['FlowAmount'].sum())
+
+    sales_sum = _sum('Table 5.1')
+    if sales_sum <= 0:
+        raise ValueError(
+            f'EPM Table 5.1 retail sales non-positive for {year} months {sorted(months)}'
+        )
+    return _sum('Table 5.2') / sales_sum
+
+
+@functools.cache
+def epm_same_months_retail_price_change(
+    after_year: int, base_year: int
+) -> tuple[float | None, int, tuple[int, ...]]:
+    """EPM same-months retail price change from *base_year* to *after_year*.
+
+    Returns ``(change, edition_month, months_used)``. ``change`` is None when
+    the after-year has no monthly rows in common with the base year (caller
+    falls back to shared 221100 BEA change). Uses every after-year month present
+    in the archived EPM edition, intersected with the same months in the base
+    year. Does not use workbook YTD blocks.
+    """
+    edition_month = _epm_edition_month()
+    after = _epm_fba(after_year)
+    base = _epm_fba(base_year)
+    months_used = tuple(
+        sorted(
+            _epm_months_present(after, after_year, 'Table 5.1')
+            & _epm_months_present(base, base_year, 'Table 5.1')
+        )
+    )
+    if not months_used:
+        return None, edition_month, ()
+    months_set = set(months_used)
+    change = _epm_retail_price_for_months(
+        after, after_year, months_set
+    ) / _epm_retail_price_for_months(base, base_year, months_set)
+    return float(change), edition_month, months_used

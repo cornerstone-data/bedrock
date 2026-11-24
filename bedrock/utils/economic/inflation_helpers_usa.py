@@ -139,20 +139,65 @@ def _electric_lines_on_eia_retail_price(levels: pd.DataFrame) -> pd.DataFrame:
     Cornerstone frame the within-span math is idempotent.
 
     Span follows ``CONTROLLED_YEARS`` (EIA Electric Power Annual coverage).
-    Extend that span when publishing a dollar year EIA covers; years after the
-    span keep BEA's change on the EIA-based last year (#1207).
+    Within-span years use Annual retail. The first year after the span takes one
+    shared Electric Power Monthly same-months change on the Annual last year for
+    every electric code; later after-span years keep each code's published change
+    pivoted off that shared first-after level. When EPM has no overlapping months,
+    all three codes take ``221100``'s BEA change instead of each code's own.
     """
+    from bedrock.extract.disaggregation.egrid_generation import (  # noqa: PLC0415
+        epm_same_months_retail_price_change,
+    )
     from bedrock.transform.iot.eia_utility_go_adjustment import (  # noqa: PLC0415
         BASE_YEAR,
+        CONTROLLED_YEARS,
         ELECTRIC_INDUSTRIES,
         retail_price_index,
     )
 
-    return _lines_on_relative_price(
+    out = _lines_on_relative_price(
         levels,
         ELECTRIC_INDUSTRIES,
         lambda year: retail_price_index(year) / retail_price_index(BASE_YEAR),
     )
+    last = CONTROLLED_YEARS[-1]
+    first_after = last + 1
+    after_years = [year for year in out.columns if int(year) > last]
+    if not after_years:
+        return out
+
+    codes = [code for code in ELECTRIC_INDUSTRIES if code in out.index]
+    if not codes:
+        return out
+
+    change, _, _ = epm_same_months_retail_price_change(first_after, last)
+    out = out.copy()
+    if change is not None:
+        for code in codes:
+            rebased = pd.Series(out.loc[code], dtype=float)
+            published = pd.Series(levels.loc[code], dtype=float)
+            rebased[first_after] = float(rebased[last]) * float(change)
+            for year in after_years:
+                if int(year) == first_after:
+                    continue
+                rebased[year] = (
+                    float(published[year])
+                    * float(rebased[first_after])
+                    / float(published[first_after])
+                )
+            out.loc[code] = rebased
+        return out
+
+    if '221100' not in levels.index:
+        raise KeyError('221100 required for electric after-span BEA fallback')
+    published_221100 = pd.Series(levels.loc['221100'], dtype=float)
+    for year in after_years:
+        bea_change = float(published_221100[year]) / float(published_221100[last])
+        for code in codes:
+            rebased = pd.Series(out.loc[code], dtype=float)
+            rebased[year] = float(rebased[last]) * bea_change
+            out.loc[code] = rebased
+    return out
 
 
 def _generation_and_delivery_on_eia_prices(levels: pd.DataFrame) -> pd.DataFrame:
