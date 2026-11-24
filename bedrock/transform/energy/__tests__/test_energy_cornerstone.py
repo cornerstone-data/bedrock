@@ -330,7 +330,7 @@ def test_energy_manufacturing_yaml_nowcast_hybrid_nests(year: int) -> None:
     mecs = method['source_names']['EIA_MECS_Energy']
     mecs_sets = mecs['activity_sets']
     assert set(mecs_sets) == {
-        'table_3_1_coal',
+        'table_3_2_coal',
         'table_3_1_ng',
         'table_2_1',
         'table_2_1_ng',
