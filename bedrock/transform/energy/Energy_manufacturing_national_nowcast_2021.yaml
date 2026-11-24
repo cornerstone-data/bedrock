@@ -45,8 +45,7 @@ source_names:
       table_3_2_coal:
         selection_fields: &mecs_t32_coal
           Description: Table 3.2
-          FlowName:
-            'Coal | million short tons': Coal
+          FlowName: Coal
         clean_fba_w_sec: !script_function:EIA_MECS apply_mecs_annual_share_path
         clean_source:
           EIA_MECS_Energy:
