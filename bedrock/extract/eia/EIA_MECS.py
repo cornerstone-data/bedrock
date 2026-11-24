@@ -798,12 +798,12 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     per (ActivityConsumedBy, Flowable). A survey cell is published only when
     snapshotted Suppressed is null; D, Q, *, GHGRP, and any other flag are
     missing for shares, RSE, and published children. Both sides published with
-    matching published children (or the anchor has at least as many) use the
-    RSE lambda path from the 2022 share toward 2018 (inventory years before the
-    anchor). One side missing, or the prior published a finer child split the
-    anchor lacks, takes that published side as a flat level in every inventory
-    year (including 2022+). Neither published keeps the mapped row. Shares
-    renormalize to the mapped fuel total.
+    matching published children use the RSE lambda path from the 2022 share
+    toward 2018 (inventory years before the anchor). One side missing, or the
+    prior published a child that the mapped set does not carry (folded into the
+    parent, e.g. 3121), takes that published side as a flat level in every
+    inventory year (including 2022+). Neither published keeps the mapped row.
+    Shares renormalize to the mapped fuel total.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
     land on one code. Published 2022 Hydrogen is folded into the Petroleum share
@@ -1042,9 +1042,11 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             sa = a_share_amt / a_sum if a_sum else 0.0
             desc_a = descendants[anchor_year].get((code, flow), frozenset())
             desc_p = descendants[prior_year].get((code, flow), frozenset())
-            children_differ = desc_a != desc_p
-            # Prior only when it published a finer split the anchor lacks (e.g. 3121).
-            prior_finer = children_differ and len(desc_p) > len(desc_a)
+            # Prior only when a prior-published child is absent from the mapped
+            # set and folds into the parent (e.g. 3121); extras that already
+            # have their own mapped rows do not force prior (e.g. chemical 325).
+            prior_extra = desc_p - desc_a
+            prior_finer = bool(prior_extra) and any(d not in a_amt for d in prior_extra)
             if mapped_amt[code] <= 0 and not (flow == 'Petroleum' and a_share_amt > 0):
                 reason = 'zero in anchor'
                 weights[code] = 0.0
