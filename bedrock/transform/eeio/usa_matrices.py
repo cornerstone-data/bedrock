@@ -38,6 +38,7 @@ from bedrock.extract.iot.detail_io import (
     load_detail_value_added_usa,
     load_detail_Ytot_usa,
 )
+from bedrock.extract.iot.nowcast_mut_storage import load_nowcast_detail_Yimp_usa
 from bedrock.transform.allocation.derived import load_E_from_flowsa
 from bedrock.transform.eeio.bea_intermediates import (
     bea_Aq,
@@ -988,8 +989,32 @@ def _disaggregate_and_inflate_vector(
     )
 
 
+def _nowcast_y_at_model_base_year(v: pd.Series[float]) -> pd.Series[float]:
+    """A nowcast final-demand vector, repriced from its year to the model's."""
+    cfg = get_usa_config()
+    return inflate_q_or_y_with_industry_pi(
+        v,
+        original_year=cfg.usa_base_io_data_year,
+        target_year=cfg.model_base_year,
+    )
+
+
 def derive_Y_and_trade_scaled() -> SingleRegionYtotAndTradeVectorSet:
-    """Year-scaled Y, exports, imports."""
+    """Year-scaled Y, exports, imports.
+
+    With nowcast tables, the nowcast's own year of each, in ``model_base_year``
+    USD. With BEA's published tables, the summary tables' ``usa_io_data_year``
+    on the 2017 detail pattern, repriced.
+    """
+    if get_usa_config().usa_detail_io_source == 'nowcast':
+        yset = derive_Ytot_matrix_set()
+        return SingleRegionYtotAndTradeVectorSet(
+            ytot=_nowcast_y_at_model_base_year(yset.ytot),
+            exports=_nowcast_y_at_model_base_year(yset.exports),
+            imports=_nowcast_y_at_model_base_year(
+                handle_negative_vector_values(yset.imports)
+            ),
+        )
     detail_2017 = derive_Ytot_matrix_set()
     summary_Y = derive_summary_Ytot_usa_matrix_set(get_usa_config().usa_io_data_year)
     cfg = get_usa_config()
@@ -1107,7 +1132,14 @@ def derive_y_nab_reaggregated() -> pd.Series[float]:
 
 
 def derive_ydom_and_yimp() -> SingleRegionYVectorSet:
-    """Split ytot into ydom and yimp using summary ratios."""
+    """Split ytot into ydom and yimp.
+
+    With nowcast tables, the nowcast year's final demand, split by its own
+    Import table. With BEA's published tables, the 2022 summary ytot and import
+    ratios, on the 2017 detail pattern.
+    """
+    if get_usa_config().usa_detail_io_source == 'nowcast':
+        return _derive_nowcast_ydom_and_yimp()
     summary_2022_ytot = derive_summary_Ytot_usa_matrix_set(2022).ytot
     summary_2022_yimp = derive_summary_Yimp_usa(2022).sum(axis=1)
 
@@ -1127,6 +1159,25 @@ def derive_ydom_and_yimp() -> SingleRegionYVectorSet:
         corresp_df=summary_corresp,
     )
     return SingleRegionYVectorSet(ydom=ydom, yimp=yimp)
+
+
+def _derive_nowcast_ydom_and_yimp() -> SingleRegionYVectorSet:
+    """The nowcast year's ytot, split commodity by commodity on its Import table.
+
+    The import share is taken in BEA's commodities and mapped as a ratio, so a
+    commodity split into Cornerstone sectors passes its share to each of them.
+    """
+    trade = [USA_2017_FINAL_DEMAND_EXPORT_CODE, USA_2017_FINAL_DEMAND_IMPORT_CODE]
+    used = load_detail_Ytot_usa().drop(columns=trade).sum(axis=1)
+    imported = load_nowcast_detail_Yimp_usa().sum(axis=1)
+    to_cornerstone = commodity_corresp()
+    ytot = _nowcast_y_at_model_base_year(derive_Ytot_matrix_set().ytot)
+    used_cs = to_cornerstone @ used.reindex(to_cornerstone.columns).fillna(0.0)
+    imported_cs = to_cornerstone @ imported.reindex(to_cornerstone.columns).fillna(0.0)
+    share = (imported_cs / used_cs.where(used_cs > 0.0)).clip(0.0, 1.0)
+    share = share.reindex(ytot.index).fillna(0.0)
+    yimp = ytot * share
+    return SingleRegionYVectorSet(ydom=ytot - yimp, yimp=yimp)
 
 
 def _disaggregate_ytot_matrix_set(
