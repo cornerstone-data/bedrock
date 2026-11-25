@@ -289,7 +289,14 @@ def test_prior_level_unpublished_capped_at_parent_pic_room(
     assert totals['325'] + totals['325110'] + totals['325120'] == pytest.approx(130.0)
     assert sum(totals.values()) == pytest.approx(130.0)
     # No hard-coded NAICS in the path (cap is tree-general).
-    src = inspect.getsource(mecs_mod.apply_mecs_annual_share_path)
+    src = '\n'.join(
+        inspect.getsource(fn)
+        for fn in (
+            mecs_mod.apply_mecs_annual_share_path,
+            mecs_mod._mecs_path_factors,
+            mecs_mod._cap_prior_level_unpublished,
+        )
+    )
     assert '325120' not in src
 
 
