@@ -984,13 +984,14 @@ def _cap_prior_level_unpublished(
     full_name: str,
     inventory_year: int,
 ) -> float:
-    '''Cap prior-level unpublished children at the anchor parent's PIC remainder.'''
-    # Cap prior-level unpublished kids at the anchor parent's PIC remainder.
+    '''Cap prior-level unpublished children at published-parent minus published kids.'''
+    # Room = PIC remainder + claimant fills (published parent − published
+    # children). Remainder alone is wrong: the D fill already sits on the
+    # child row, so remainder can be 0 and a naive cap would wipe the child.
     # Scale claimant weights so post-renorm amounts equal room (naive
     # room/claimed then renorm would re-inflate them).
     if prior_level_unpub and w_sum > 0:
         for parent in sorted(a_amt, key=len, reverse=True):
-            room = amounts[anchor_year].get((parent, flow), 0.0)
             claimants = [
                 c
                 for c in prior_level_unpub
@@ -1004,7 +1005,12 @@ def _cap_prior_level_unpublished(
                 )
                 == parent
             ]
-            if not claimants or room < 0:
+            if not claimants:
+                continue
+            room = amounts[anchor_year].get((parent, flow), 0.0) + sum(
+                amounts[anchor_year].get((c, flow), 0.0) for c in claimants
+            )
+            if room <= 0:
                 continue
             claimed = sum(fuel_total * weights[c] / w_sum for c in claimants)
             if claimed <= room or claimed <= 0:
@@ -1236,8 +1242,9 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     into the parent, e.g. 3121), takes that published side as a flat level in
     every inventory year (including 2022+). Neither published keeps the mapped
     row. Prior-level unpublished children are then capped so their provisional
-    amounts do not exceed the nearest mapped parent's anchor PIC remainder;
-    weights renormalize so the mapped fuel total is unchanged.
+    amounts do not exceed the nearest mapped parent's unpublished pool
+    (PIC remainder + those children's anchor fills); weights renormalize so
+    the mapped fuel total is unchanged.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
     land on one code. Petroleum weights stay on mapped Other (MECS 2022 Other);

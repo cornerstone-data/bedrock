@@ -264,8 +264,11 @@ def test_anchor_unpublished_uses_prior_share_in_2022(
 def test_prior_level_unpublished_capped_at_parent_pic_room(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Wes 325120-shaped: published parent 100, published child 70, D child with
-    # prior 40 wants more than PIC room 30. Cap then renorm; fuel preserved.
+    # Wes-shaped: published parent 100, published child 70, D child fill 40
+    # (PIC remainder after subtracting the fill is 0). Room must be
+    # remainder + claimant fills = 30 (published parent − published kids),
+    # not remainder alone (0 would wipe the child). Prior 50 wants more
+    # than room; cap then renorm; fuel preserved.
     anchor = [
         ('325', 100.0, None),
         ('325110', 70.0, None),
@@ -274,20 +277,23 @@ def test_prior_level_unpublished_capped_at_parent_pic_room(
     prior = [
         ('325', 100.0, None),
         ('325110', 50.0, None),
-        ('325120', 40.0, None),
+        ('325120', 50.0, None),
     ]
     _patch_loads(monkeypatch, {2022: _raw(anchor, 'HGL'), 2018: _raw(prior, 'HGL')})
+    # Mapped fill for the D child is positive; parent remainder row is 0 so
+    # a remainder-only room would zero the child (the 0a49f2f bug).
     fba = _mapped(
-        {'325': 30.0, '325110': 70.0, '325120': 30.0},
+        {'325': 0.0, '325110': 70.0, '325120': 40.0},
         'HGL',
         2022,
         sectors={},
     )
     totals = _group_totals(apply_mecs_annual_share_path(fba))
     assert totals['325120'] == pytest.approx(30.0)
+    assert totals['325120'] > 0.0
     assert totals['325120'] <= 30.0
-    assert totals['325'] + totals['325110'] + totals['325120'] == pytest.approx(130.0)
-    assert sum(totals.values()) == pytest.approx(130.0)
+    assert totals['325'] + totals['325110'] + totals['325120'] == pytest.approx(110.0)
+    assert sum(totals.values()) == pytest.approx(110.0)
     # No hard-coded NAICS in the path (cap is tree-general).
     src = '\n'.join(
         inspect.getsource(fn)
