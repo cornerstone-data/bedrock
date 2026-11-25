@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Sequence
 from typing import Any
 
 import pandas as pd
 import pytest
 
+from bedrock.extract.eia import EIA_MECS as mecs_mod
 from bedrock.extract.eia.EIA_MECS import (
     GHGRP_FILL_MARKER,
     apply_mecs_annual_share_path,
@@ -253,9 +255,42 @@ def test_anchor_unpublished_uses_prior_share_in_2022(
     # 325110 is D in the anchor but still a mapped row, so parent 325 does not
     # take prior_finer. 325110 prior 0.3 + 325/325190 anchor 0.3 each → renorm
     # by 0.9 so 325110 is ~33.3 of the mapped fuel total (not the D fill 40).
+    # Cap does not bind: prior claim ~33.3 <= parent PIC room 70.
     assert totals['325110'] == pytest.approx(100.0 * 0.3 / 0.9)
     assert totals['325110'] < 40.0
     assert sum(totals.values()) == pytest.approx(100.0)
+
+
+def test_prior_level_unpublished_capped_at_parent_pic_room(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Wes 325120-shaped: published parent 100, published child 70, D child with
+    # prior 40 wants more than PIC room 30. Cap then renorm; fuel preserved.
+    anchor = [
+        ('325', 100.0, None),
+        ('325110', 70.0, None),
+        ('325120', 40.0, 'D'),
+    ]
+    prior = [
+        ('325', 100.0, None),
+        ('325110', 50.0, None),
+        ('325120', 40.0, None),
+    ]
+    _patch_loads(monkeypatch, {2022: _raw(anchor, 'HGL'), 2018: _raw(prior, 'HGL')})
+    fba = _mapped(
+        {'325': 30.0, '325110': 70.0, '325120': 30.0},
+        'HGL',
+        2022,
+        sectors={},
+    )
+    totals = _group_totals(apply_mecs_annual_share_path(fba))
+    assert totals['325120'] == pytest.approx(30.0)
+    assert totals['325120'] <= 30.0
+    assert totals['325'] + totals['325110'] + totals['325120'] == pytest.approx(130.0)
+    assert sum(totals.values()) == pytest.approx(130.0)
+    # No hard-coded NAICS in the path (cap is tree-general).
+    src = inspect.getsource(mecs_mod.apply_mecs_annual_share_path)
+    assert '325120' not in src
 
 
 def test_children_differ_uses_prior_level(

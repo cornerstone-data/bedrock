@@ -805,7 +805,9 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     or the prior published a child that the mapped set does not carry (folded
     into the parent, e.g. 3121), takes that published side as a flat level in
     every inventory year (including 2022+). Neither published keeps the mapped
-    row. Shares renormalize to the mapped fuel total.
+    row. Prior-level unpublished children are then capped so their provisional
+    amounts do not exceed the nearest mapped parent's anchor PIC remainder;
+    weights renormalize so the mapped fuel total is unchanged.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
     land on one code. Petroleum weights stay on mapped Other (MECS 2022 Other);
@@ -1045,6 +1047,8 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                 f'{", ".join(prior_only)}'
             )
         weights: dict[str, float] = {}
+        # Prior-level codes with unpublished anchor: cap at parent PIC room.
+        prior_level_unpub: set[str] = set()
         for code, a_share_amt in a_amt.items():
             a_pub = (code, flow) in published[anchor_year]
             p_pub = (code, flow) in published[prior_year] or any(
@@ -1091,6 +1095,8 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                     else 'prior level; anchor unpublished'
                 )
                 weights[code] = p_amt[code] / p_sum if p_sum else 0.0
+                if not a_pub:
+                    prior_level_unpub.add(code)
             elif a_pub:
                 reason = 'anchor level; prior unpublished'
                 weights[code] = sa
@@ -1100,6 +1106,45 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             if reason:
                 level_reasons.setdefault(reason, []).append(code)
         w_sum = float(sum(weights.values()))
+        # Cap prior-level unpublished kids at the anchor parent's PIC remainder.
+        # Scale claimant weights so post-renorm amounts equal room (naive
+        # room/claimed then renorm would re-inflate them).
+        if prior_level_unpub and w_sum > 0:
+            for parent in sorted(a_amt, key=len, reverse=True):
+                room = amounts[anchor_year].get((parent, flow), 0.0)
+                claimants = [
+                    c
+                    for c in prior_level_unpub
+                    if c in weights
+                    and c != parent
+                    and c.startswith(parent)
+                    and max(
+                        (a for a in a_amt if c.startswith(a) and a != c),
+                        key=len,
+                        default=None,
+                    )
+                    == parent
+                ]
+                if not claimants or room < 0:
+                    continue
+                claimed = sum(fuel_total * weights[c] / w_sum for c in claimants)
+                if claimed <= room or claimed <= 0:
+                    continue
+                w_claim = sum(weights[c] for c in claimants)
+                w_other = w_sum - w_claim
+                cap_scale = (
+                    (room * w_other) / (w_claim * (fuel_total - room))
+                    if w_other > 0 and fuel_total > room
+                    else 0.0
+                )
+                for c in claimants:
+                    weights[c] *= cap_scale
+                w_sum = float(sum(weights.values()))
+                log.info(
+                    f'{fba.full_name} MECS path {inventory_year} {flow}: '
+                    f'capped prior-level {", ".join(sorted(claimants))} '
+                    f'under {parent} to room {room:g} (was {claimed:g})'
+                )
         for gid, code, a in zip(
             by_flow['group_id'], by_flow['ActivityConsumedBy'], by_flow['group_total']
         ):
