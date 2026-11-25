@@ -808,11 +808,11 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     row. Shares renormalize to the mapped fuel total.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
-    land on one code. Published 2022 Hydrogen is folded into the Petroleum share
-    numerator only; the fuel total stays mapped Other. A group_id that fans out
-    to several sectors, all published in the prior survey for that fuel, is
-    split into one group_id per sector by those amounts (e.g. 336111/336112), so
-    Use attribution passes it through.
+    land on one code. Petroleum weights stay on mapped Other (MECS 2022 Other);
+    published 2022 Hydrogen enters only the survey compare / lambda (Other+H2
+    vs 2018 Other). A group_id that fans out to several sectors, all published
+    in the prior survey for that fuel, is split into one group_id per sector by
+    those amounts (e.g. 336111/336112), so Use attribution passes it through.
     '''
     params = fba.config['clean_parameter']
     inventory_year = int(params['inventory_year'])
@@ -998,22 +998,23 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
         fuel_total = float(sum(mapped_amt.values()))
         if fuel_total <= 0:
             continue
-        # Petroleum: fold published 2022 Hydrogen into the share numerator only.
+        # Petroleum weights use mapped Other only. Published 2022 Hydrogen
+        # enters compare amounts / variance for lambda only (vs 2018 Other).
         a_amt = dict(mapped_amt)
-        if flow == 'Petroleum':
-            for code in list(a_amt):
-                h2 = amounts[anchor_year].get((code, 'Hydrogen'), 0.0)
-                if (code, 'Hydrogen') in published[anchor_year]:
-                    variances[anchor_year][(code, 'Petroleum')] = variances[
-                        anchor_year
-                    ].get((code, 'Petroleum'), 0.0) + variances[anchor_year].get(
-                        (code, 'Hydrogen'), 0.0
-                    )
-                if (code, 'Petroleum') not in published[anchor_year]:
-                    a_amt[code] = h2
-                else:
-                    a_amt[code] = a_amt[code] + h2
         a_sum = float(sum(a_amt.values()))
+        compare_amt = dict(a_amt)
+        compare_var = {c: variances[anchor_year].get((c, flow), 0.0) for c in a_amt}
+        if flow == 'Petroleum':
+            for code in a_amt:
+                if (code, 'Hydrogen') not in published[anchor_year]:
+                    continue
+                compare_amt[code] = compare_amt[code] + amounts[anchor_year].get(
+                    (code, 'Hydrogen'), 0.0
+                )
+                compare_var[code] = compare_var[code] + variances[anchor_year].get(
+                    (code, 'Hydrogen'), 0.0
+                )
+        compare_sum = float(sum(compare_amt.values()))
         p_amt = {c: amounts[prior_year].get((c, flow), 0.0) for c in a_amt}
         # Children the prior published that the mapped activity set does not
         # carry as their own row fold into the parent for the prior level.
@@ -1035,11 +1036,7 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             )
         weights: dict[str, float] = {}
         for code, a_share_amt in a_amt.items():
-            a_pub = (code, flow) in published[anchor_year] or (
-                flow == 'Petroleum'
-                and (code, 'Hydrogen') in published[anchor_year]
-                and a_share_amt > 0
-            )
+            a_pub = (code, flow) in published[anchor_year]
             p_pub = (code, flow) in published[prior_year] or any(
                 (d, flow) in published[prior_year]
                 for d in descendants[prior_year].get((code, flow), frozenset())
@@ -1053,7 +1050,7 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             # have their own mapped rows do not force prior (e.g. chemical 325).
             prior_extra = desc_p - desc_a
             prior_finer = bool(prior_extra) and any(d not in a_amt for d in prior_extra)
-            if mapped_amt[code] <= 0 and not (flow == 'Petroleum' and a_share_amt > 0):
+            if mapped_amt[code] <= 0:
                 reason = 'zero in anchor'
                 weights[code] = 0.0
             elif a_pub and p_pub and not prior_finer:
@@ -1063,11 +1060,14 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                 else:
                     reason = ''
                     sp = p_amt[code] / p_sum if p_sum else 0.0
+                    sa_c = compare_amt[code] / compare_sum if compare_sum else 0.0
                     noise = (
-                        variances[anchor_year].get((code, flow), 0.0) / a_sum**2
+                        compare_var[code] / compare_sum**2
                         + variances[prior_year].get((code, flow), 0.0) / p_sum**2
                     )
-                    lam = max(0.0, 1.0 - noise / (sp - sa) ** 2) if sp != sa else 0.0
+                    lam = (
+                        max(0.0, 1.0 - noise / (sp - sa_c) ** 2) if sp != sa_c else 0.0
+                    )
                     w = lam * min(anchor_year - inventory_year, span) / span
                     weights[code] = (
                         sa * (sp / sa) ** w if sa > 0 and sp > 0 else sa + w * (sp - sa)
