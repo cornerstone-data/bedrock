@@ -7,8 +7,8 @@
 year: &use_year 2023
 mecs_anchor_year: &mecs_anchor_year 2022
 mecs_prior_year: &mecs_prior_year 2018
-# Census Use that splits MECS parents (#1053 / #1210): locked to 2022 with the
-# MECS 2022 anchor (no 2017→2022 cliff at inventory 2021).
+# Census Use that splits MECS parents (#1053). 2022 census Use from inventory
+# 2021, the year main switches the MECS survey to 2022.
 split_year: &split_year 2022
 geoscale: national
 

@@ -1,5 +1,5 @@
 # Manufacturing energy FBS for GHG nowcast inventory year 2019.
-# MECS anchor 2022 + prior 2018 flat+λ annual path (#1210); Use split census 2022.
+# MECS anchor 2022 + prior 2018 flat+λ annual path (#1210); Use split census 2017.
 # Replicates CEDA allocation steps as quantity weights: MECS mapped with
 # parent-incomplete-child + Cornerstone_2025
 
@@ -7,9 +7,9 @@
 year: &use_year 2019
 mecs_anchor_year: &mecs_anchor_year 2022
 mecs_prior_year: &mecs_prior_year 2018
-# Census Use that splits MECS parents (#1053 / #1210): locked to 2022 with the
-# MECS 2022 anchor (no 2017→2022 cliff at inventory 2021).
-split_year: &split_year 2022
+# Census Use that splits MECS parents (#1053). Inventory years through 2020
+# use the 2017 benchmark Use; 2021+ use 2022, when main switches MECS to 2022.
+split_year: &split_year 2017
 geoscale: national
 
 _attribution_sources:
