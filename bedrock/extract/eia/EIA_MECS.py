@@ -1059,19 +1059,15 @@ def _mecs_path_factors(
         if fuel_total <= 0:
             continue
         # Petroleum weights use mapped Other only. Published 2022 Hydrogen
-        # enters compare amounts / variance for lambda only (vs 2018 Other).
+        # enters compare amounts for the lambda gap only (vs 2018 Other).
         a_amt = dict(mapped_amt)
         a_sum = float(sum(a_amt.values()))
         compare_amt = dict(a_amt)
-        compare_var = {c: variances[anchor_year].get((c, flow), 0.0) for c in a_amt}
         if flow == 'Petroleum':
             for code in a_amt:
                 if (code, 'Hydrogen') not in published[anchor_year]:
                     continue
                 compare_amt[code] = compare_amt[code] + amounts[anchor_year].get(
-                    (code, 'Hydrogen'), 0.0
-                )
-                compare_var[code] = compare_var[code] + variances[anchor_year].get(
                     (code, 'Hydrogen'), 0.0
                 )
         compare_sum = float(sum(compare_amt.values()))
@@ -1123,10 +1119,7 @@ def _mecs_path_factors(
                     reason = ''
                     sp = p_amt[code] / p_sum if p_sum else 0.0
                     sa_c = compare_amt[code] / compare_sum if compare_sum else 0.0
-                    noise = (
-                        compare_var[code] / compare_sum**2
-                        + variances[prior_year].get((code, flow), 0.0) / p_sum**2
-                    )
+                    noise = variances[prior_year].get((code, flow), 0.0) / p_sum**2
                     lam = (
                         max(0.0, 1.0 - noise / (sp - sa_c) ** 2) if sp != sa_c else 0.0
                     )
@@ -1236,8 +1229,9 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     100%). D, Q, GHGRP, and any other flag are unpublished (variance 0). Filled
     and * amounts still enter the parent/child split so a withheld child is
     subtracted from its parent (e.g. 2018 plastics HGL). Both sides published
-    with matching published children use the RSE lambda path from the 2022
-    share toward 2018 (inventory years before the anchor). One side missing,
+    with matching published children use the lambda path from the 2022 share
+    toward 2018, with lambda from the 2018 share variance only (inventory
+    years before the anchor). One side missing,
     or the prior published a child that the mapped set does not carry (folded
     into the parent, e.g. 3121), takes that published side as a flat level in
     every inventory year (including 2022+). Neither published keeps the mapped

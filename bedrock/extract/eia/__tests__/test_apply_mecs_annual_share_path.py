@@ -123,9 +123,9 @@ def _group_totals(out: pd.DataFrame) -> dict[str, float]:
     )
 
 
-def _path_weight(sa: float, sp: float, va: float, vp: float, w: float) -> float:
-    '''Expected weight: lambda from shares and share variances, times w.'''
-    lam = max(0.0, 1.0 - (va + vp) / (sp - sa) ** 2) if sp != sa else 0.0
+def _path_weight(sa: float, sp: float, _va: float, vp: float, w: float) -> float:
+    '''Expected weight: lambda from the 2018 share variance and the share gap, times w.'''
+    lam = max(0.0, 1.0 - vp / (sp - sa) ** 2) if sp != sa else 0.0
     if sa > 0 and sp > 0:
         return float(sa * (sp / sa) ** (lam * w))
     return sa + lam * w * (sp - sa)
@@ -499,13 +499,13 @@ def test_petroleum_hydrogen_compare_sets_lambda_path_keeps_other_shares(
     compare_sum = 121.0
     prior_sum = 100.0
     weights: dict[str, float] = {}
-    for code, sa, sp, compare_amt, compare_var, prior_var in (
-        ('325', 0.3, 0.2, 30.0, 25.0 + 4.0 + 2.25, 25.0 + 2.25 + 6.25),
-        ('325110', 0.4, 0.3, 40.0, 4.0, 2.25),
-        ('325190', 0.3, 0.5, 51.0, 2.25 + 1.1025, 6.25),
+    for code, sa, sp, compare_amt, prior_var in (
+        ('325', 0.3, 0.2, 30.0, 25.0 + 2.25 + 6.25),
+        ('325110', 0.4, 0.3, 40.0, 2.25),
+        ('325190', 0.3, 0.5, 51.0, 6.25),
     ):
         sa_c = compare_amt / compare_sum
-        noise = compare_var / compare_sum**2 + prior_var / prior_sum**2
+        noise = prior_var / prior_sum**2
         lam = max(0.0, 1.0 - noise / (sp - sa_c) ** 2)
         weights[code] = float(sa * (sp / sa) ** lam)
     totals = _group_totals(
