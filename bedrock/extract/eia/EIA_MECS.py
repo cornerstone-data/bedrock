@@ -795,9 +795,9 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     clean_fba_w_sec: 2022-anchored annual path for MECS amounts (#1210 / #1318).
 
     Runs after map_to_sectors on parent-incomplete-child remainders. One weight
-    per (ActivityConsumedBy, Flowable). A survey cell is published only when
-    snapshotted Suppressed is null; D, Q, *, GHGRP, and any other flag are
-    unpublished for the level rule and for RSE (their variance is 0). Filled
+    per (ActivityConsumedBy, Flowable). A survey cell is published for the level
+    rule when Suppressed is null or ``*`` (below 0.5 → amount 0.25 with RSE
+    100%). D, Q, GHGRP, and any other flag are unpublished (variance 0). Filled
     and * amounts still enter the parent/child split so a withheld child is
     subtracted from its parent (e.g. 2018 plastics HGL). Both sides published
     with matching published children use the RSE lambda path from the 2022
@@ -893,15 +893,21 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             raise ValueError(
                 f'{source_name} {year}: more than one row per MECS code and fuel'
             )
-        # Keep filled/* in parent/child amounts; unpublished only for level/RSE.
-        pub_mask = np.array([pd.isna(supp_by_key.get(k)) for k in raw_keys], dtype=bool)
-        rse = pd.to_numeric(raw['Spread'], errors='coerce').fillna(0.0) / 100
-        raw_var = {
-            k: float(v if pub else 0.0)
-            for k, v, pub in zip(
-                raw_keys, (rse * raw['FlowAmount'].astype(float)) ** 2, pub_mask
-            )
-        }
+        # * is published (0.25, RSE 100%); D/Q/GHGRP stay unpublished for level.
+        supp_flags = [supp_by_key.get(k) for k in raw_keys]
+        pub_mask = np.array([pd.isna(s) or s == '*' for s in supp_flags], dtype=bool)
+        spread_rse = pd.to_numeric(raw['Spread'], errors='coerce').fillna(0.0) / 100
+        amounts_arr = raw['FlowAmount'].astype(float)
+        raw_var = {}
+        for k, amt, spr, pub, s in zip(
+            raw_keys, amounts_arr, spread_rse, pub_mask, supp_flags
+        ):
+            if not pub:
+                raw_var[k] = 0.0
+            elif s == '*':
+                raw_var[k] = float(amt**2)
+            else:
+                raw_var[k] = float((spr * amt) ** 2)
         if raw.empty:
             piece_amt, piece_var, desc = {}, {}, {}
         else:
@@ -930,7 +936,11 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                 )
                 for (c, f), ds in desc.items()
             }
-        pub_keys = {k for k in piece_amt if pd.isna(supp_by_key.get(k))}
+        pub_keys = {
+            k
+            for k in piece_amt
+            if pd.isna(supp_by_key.get(k)) or supp_by_key.get(k) == '*'
+        }
         if year == prior_year:
             pub_raw = raw.loc[pub_mask]
             prior_for_sectors = pub_raw.copy() if not pub_raw.empty else None

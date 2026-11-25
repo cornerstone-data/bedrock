@@ -324,11 +324,92 @@ def test_children_differ_keeps_anchor_when_prior_extra_kid_is_mapped(
     )
 
 
+def test_star_anchor_paths_not_flat_prior_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Wes #1318 (5): 2022 * is 0.25 with RSE 100%, not unpublished → RSE path.
+    anchor = [
+        ('335', 100.0, None),
+        ('3351', 8.0, None),
+        ('3359', 0.25, '*'),
+    ]
+    prior = [
+        ('335', 100.0, None),
+        ('3351', 20.0, None),
+        ('3359', 8.0, None),
+    ]
+    _patch_loads(monkeypatch, {2022: _raw(anchor, 'HGL'), 2018: _raw(prior, 'HGL')})
+    # Mapped remainders after PIC: 335=91.75, 3351=8, 3359=0.25.
+    mapped = {'335': 91.75, '3351': 8.0, '3359': 0.25}
+    fba = _mapped(mapped, 'HGL', 2018, sectors={})
+    totals = _group_totals(apply_mecs_annual_share_path(fba))
+    a_sum = 100.0
+    p_sum = 100.0
+    # * variance = (1.0 * 0.25)^2; remainder vars include children.
+    weights = {
+        '335': _path_weight(
+            0.9175,
+            0.72,
+            (25.0 + (0.05 * 8.0) ** 2 + 0.25**2) / a_sum**2,
+            (25.0 + (0.05 * 20.0) ** 2 + (0.05 * 8.0) ** 2) / p_sum**2,
+            1.0,
+        ),
+        '3351': _path_weight(
+            0.08, 0.2, (0.05 * 8.0) ** 2 / a_sum**2, (0.05 * 20.0) ** 2 / p_sum**2, 1.0
+        ),
+        '3359': _path_weight(
+            0.0025, 0.08, 0.25**2 / a_sum**2, (0.05 * 8.0) ** 2 / p_sum**2, 1.0
+        ),
+    }
+    assert totals == pytest.approx(_expected(weights, total=100.0))
+    # Not frozen on the 2018 share (would be 8 after renorm to fuel total).
+    assert totals['3359'] != pytest.approx(8.0)
+
+
+def test_star_prior_paths_not_flat_anchor_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Reverse of Wes 335: 2018 * / 2022 published → path, not forever-2022.
+    anchor = [
+        ('325', 100.0, None),
+        ('325212', 8.0, None),
+        ('325211', 30.0, None),
+    ]
+    prior = [
+        ('325', 100.0, None),
+        ('325212', 0.25, '*'),
+        ('325211', 30.0, None),
+    ]
+    _patch_loads(monkeypatch, {2022: _raw(anchor, 'HGL'), 2018: _raw(prior, 'HGL')})
+    mapped = {'325': 62.0, '325212': 8.0, '325211': 30.0}
+    fba = _mapped(mapped, 'HGL', 2018, sectors={})
+    totals = _group_totals(apply_mecs_annual_share_path(fba))
+    a_sum = 100.0
+    p_sum = 100.0
+    weights = {
+        '325': _path_weight(
+            0.62,
+            0.6975,
+            (25.0 + (0.05 * 8.0) ** 2 + (0.05 * 30.0) ** 2) / a_sum**2,
+            (25.0 + 0.25**2 + (0.05 * 30.0) ** 2) / p_sum**2,
+            1.0,
+        ),
+        '325212': _path_weight(
+            0.08, 0.0025, (0.05 * 8.0) ** 2 / a_sum**2, 0.25**2 / p_sum**2, 1.0
+        ),
+        '325211': _path_weight(
+            0.3, 0.3, (0.05 * 30.0) ** 2 / a_sum**2, (0.05 * 30.0) ** 2 / p_sum**2, 1.0
+        ),
+    }
+    assert totals == pytest.approx(_expected(weights, total=100.0))
+    assert totals['325212'] != pytest.approx(8.0)
+
+
 def test_petroleum_2022_weights_stay_on_other_not_hydrogen(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Wes #1318 (2): H2 must not change 2022 petroleum weights. 325190 Other is
-    # * (unpublished); published H2 stays compare-only.
+    # Wes #1318 (2): H2 must not change 2022 petroleum weights. * Other is
+    # published (0.25); published H2 stays compare-only.
     anchor_other = [('325', 100.0, None), ('325110', 40.0, None), ('325190', 0.25, '*')]
     anchor_h2 = [('325190', 21.0, None)]
     prior = [('325', 100.0, None), ('325110', 30.0, None), ('325190', 50.0, None)]
@@ -340,15 +421,10 @@ def test_petroleum_2022_weights_stay_on_other_not_hydrogen(
         {'325': 30.0, '325110': 40.0, '325190': 0.25}, 'Petroleum', 2022, sectors={}
     )
     totals = _group_totals(apply_mecs_annual_share_path(fba))
-    # * Other is unpublished → prior level for 325190; H2 does not inflate it.
-    weights = {
-        '325': 30.0 / 70.25,
-        '325110': 40.0 / 70.25,
-        '325190': 0.5,
-    }
-    assert totals == pytest.approx(_expected(weights, total=70.25))
-    # Not the mapped * placeholder, and not an H2-numerator fold (~H2 share).
-    assert totals['325190'] > 0.25
+    # * Other published → 2022 Other shares; H2 does not inflate 325190.
+    assert totals == pytest.approx(
+        {'325': 30.0, '325110': 40.0, '325190': 0.25}, abs=1e-9
+    )
 
 
 def test_petroleum_hydrogen_compare_sets_lambda_path_keeps_other_shares(
