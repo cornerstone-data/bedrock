@@ -306,6 +306,68 @@ def test_prior_level_unpublished_capped_at_parent_pic_room(
     assert '325120' not in src
 
 
+def test_anchor_unpublished_paths_toward_room_before_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Same Wes-shaped D child as the cap test: prior share exceeds PIC room.
+    # Before the anchor, path from prior toward room (no hard cap) so 2018
+    # keeps more of the published 2018 share than the 2022 capped amount.
+    anchor = [
+        ('325', 100.0, None),
+        ('325110', 70.0, None),
+        ('325120', 40.0, 'D'),
+    ]
+    prior = [
+        ('325', 100.0, None),
+        ('325110', 50.0, None),
+        ('325120', 50.0, None),
+    ]
+    _patch_loads(monkeypatch, {2022: _raw(anchor, 'HGL'), 2018: _raw(prior, 'HGL')})
+    mapped = {'325': 0.0, '325110': 70.0, '325120': 40.0}
+    at_2018 = _group_totals(
+        apply_mecs_annual_share_path(_mapped(mapped, 'HGL', 2018, sectors={}))
+    )
+    at_2022 = _group_totals(
+        apply_mecs_annual_share_path(_mapped(mapped, 'HGL', 2022, sectors={}))
+    )
+    assert at_2022['325120'] == pytest.approx(30.0)
+    assert at_2018['325120'] > at_2022['325120']
+    assert sum(at_2018.values()) == pytest.approx(110.0)
+    # Mid year sits between 2018 (near prior) and 2022 (room).
+    at_2020 = _group_totals(
+        apply_mecs_annual_share_path(_mapped(mapped, 'HGL', 2020, sectors={}))
+    )
+    assert at_2018['325120'] >= at_2020['325120'] >= at_2022['325120']
+
+
+def test_anchor_unpublished_under_room_stays_near_prior_before_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # D in 2022 but prior share fits in the parent PIC room → path end equals
+    # prior (min(sp, s_room) = sp); the D child's weight stays on the 2018
+    # share while published siblings still path.
+    anchor = [('325', 100.0, None), ('325110', 40.0, 'D'), ('325190', 30.0, None)]
+    _patch_loads(monkeypatch, {2022: _raw(anchor, 'HGL'), 2018: _raw(PRIOR_RAW, 'HGL')})
+    mapped = {'325': 30.0, '325110': 40.0, '325190': 30.0}
+    at_2018 = _group_totals(
+        apply_mecs_annual_share_path(_mapped(mapped, 'HGL', 2018, sectors={}))
+    )
+    at_2022 = _group_totals(
+        apply_mecs_annual_share_path(_mapped(mapped, 'HGL', 2022, sectors={}))
+    )
+    # Cap does not bind at 2022 (prior claim ~33.3 <= room 70).
+    assert at_2022['325110'] == pytest.approx(100.0 * 0.3 / 0.9)
+    # Room for 325110 is 70; s_end = min(0.3, 0.7) = 0.3 → flat prior weight.
+    # Sibling 325/325190 still path, so renorm differs from 2022.
+    weights = {
+        '325': _path_weight(0.3, 0.2, 0.0, PRIOR_VAR['325'] / 1e4, 1.0),
+        '325110': 0.3,
+        '325190': _path_weight(0.3, 0.5, 0.0, PRIOR_VAR['325190'] / 1e4, 1.0),
+    }
+    assert at_2018 == pytest.approx(_expected(weights))
+    assert sum(at_2018.values()) == pytest.approx(100.0)
+
+
 def test_children_differ_uses_prior_level(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

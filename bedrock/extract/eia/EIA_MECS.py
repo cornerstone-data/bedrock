@@ -1091,8 +1091,11 @@ def _mecs_path_factors(
                 f'{", ".join(prior_only)}'
             )
         weights: dict[str, float] = {}
-        # Prior-level codes with unpublished anchor: cap at parent PIC room.
+        # Prior-level codes with unpublished anchor: path toward PIC room before
+        # the anchor; flat prior + cap at/after the anchor.
         prior_level_unpub: set[str] = set()
+        # code -> (a_pub, p_pub, prior_finer, sa)
+        code_meta: dict[str, tuple[bool, bool, bool, float]] = {}
         for code, a_share_amt in a_amt.items():
             a_pub = (code, flow) in published[anchor_year]
             p_pub = (code, flow) in published[prior_year] or any(
@@ -1108,6 +1111,36 @@ def _mecs_path_factors(
             # have their own mapped rows do not force prior (e.g. chemical 325).
             prior_extra = desc_p - desc_a
             prior_finer = bool(prior_extra) and any(d not in a_amt for d in prior_extra)
+            code_meta[code] = (a_pub, p_pub, prior_finer, sa)
+            if mapped_amt[code] > 0 and p_pub and not a_pub and not prior_finer:
+                prior_level_unpub.add(code)
+        # PIC room (parent remainder + claimant fills), split by prior shares.
+        room_amt_by_code: dict[str, float] = {}
+        if prior_level_unpub:
+            for parent in sorted(a_amt, key=len, reverse=True):
+                claimants = [
+                    c
+                    for c in prior_level_unpub
+                    if c != parent
+                    and c.startswith(parent)
+                    and max(
+                        (a for a in a_amt if c.startswith(a) and a != c),
+                        key=len,
+                        default=None,
+                    )
+                    == parent
+                ]
+                if not claimants:
+                    continue
+                room = amounts[anchor_year].get((parent, flow), 0.0) + sum(
+                    amounts[anchor_year].get((c, flow), 0.0) for c in claimants
+                )
+                sp_sum = sum((p_amt[c] / p_sum if p_sum else 0.0) for c in claimants)
+                for c in claimants:
+                    sp_c = p_amt[c] / p_sum if p_sum else 0.0
+                    room_amt_by_code[c] = room * (sp_c / sp_sum) if sp_sum > 0 else 0.0
+        for code in a_amt:
+            a_pub, p_pub, prior_finer, sa = code_meta[code]
             if mapped_amt[code] <= 0:
                 reason = 'zero in anchor'
                 weights[code] = 0.0
@@ -1129,15 +1162,43 @@ def _mecs_path_factors(
                     )
                     if max(sa, sp) >= 0.01:
                         lambdas.append(f'{flow} {code} {lam:.2f}')
-            elif p_pub and (not a_pub or prior_finer):
-                reason = (
-                    'prior level; children differ'
-                    if prior_finer
-                    else 'prior level; anchor unpublished'
-                )
+            elif p_pub and prior_finer:
+                reason = 'prior level; children differ'
                 weights[code] = p_amt[code] / p_sum if p_sum else 0.0
-                if not a_pub:
-                    prior_level_unpub.add(code)
+            elif p_pub and not a_pub:
+                sp = p_amt[code] / p_sum if p_sum else 0.0
+                s_room = (
+                    room_amt_by_code[code] / fuel_total
+                    if code in room_amt_by_code and fuel_total
+                    else 0.0
+                )
+                # Late end is min(prior, room): walk down only when prior
+                # exceeds the 2022 pool; otherwise stay on prior (matches
+                # flat prior + cap when the cap does not bind).
+                s_end = min(sp, s_room)
+                if inventory_year >= anchor_year:
+                    reason = 'prior level; anchor unpublished'
+                    weights[code] = sp
+                else:
+                    reason = ''
+                    noise = (
+                        variances[prior_year].get((code, flow), 0.0) / p_sum**2
+                        if p_sum
+                        else 0.0
+                    )
+                    lam = (
+                        max(0.0, 1.0 - noise / (sp - s_end) ** 2)
+                        if sp != s_end
+                        else 0.0
+                    )
+                    w = lam * min(anchor_year - inventory_year, span) / span
+                    weights[code] = (
+                        s_end * (sp / s_end) ** w
+                        if s_end > 0 and sp > 0
+                        else s_end + w * (sp - s_end)
+                    )
+                    if max(s_end, sp) >= 0.01:
+                        lambdas.append(f'{flow} {code} {lam:.2f}')
             elif a_pub:
                 reason = 'anchor level; prior unpublished'
                 weights[code] = sa
@@ -1147,18 +1208,20 @@ def _mecs_path_factors(
             if reason:
                 level_reasons.setdefault(reason, []).append(code)
         w_sum = float(sum(weights.values()))
-        w_sum = _cap_prior_level_unpublished(
-            weights,
-            w_sum,
-            prior_level_unpub,
-            a_amt,
-            amounts,
-            anchor_year,
-            flow,
-            fuel_total,
-            full_name,
-            inventory_year,
-        )
+        # Cap only at/after the anchor; early years use the path above.
+        if inventory_year >= anchor_year:
+            w_sum = _cap_prior_level_unpublished(
+                weights,
+                w_sum,
+                prior_level_unpub,
+                a_amt,
+                amounts,
+                anchor_year,
+                flow,
+                fuel_total,
+                full_name,
+                inventory_year,
+            )
         for gid, code, a in zip(
             by_flow['group_id'], by_flow['ActivityConsumedBy'], by_flow['group_total']
         ):
@@ -1231,14 +1294,15 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     subtracted from its parent (e.g. 2018 plastics HGL). Both sides published
     with matching published children use the lambda path from the 2022 share
     toward 2018, with lambda from the 2018 share variance only (inventory
-    years before the anchor). One side missing,
-    or the prior published a child that the mapped set does not carry (folded
-    into the parent, e.g. 3121), takes that published side as a flat level in
-    every inventory year (including 2022+). Neither published keeps the mapped
-    row. Prior-level unpublished children are then capped so their provisional
-    amounts do not exceed the nearest mapped parent's unpublished pool
-    (PIC remainder + those children's anchor fills); weights renormalize so
-    the mapped fuel total is unchanged.
+    years before the anchor). Prior published and anchor unpublished (D / Q /
+    GHGRP) path from the 2018 share toward the PIC room share (min of prior
+    and room; lambda from the 2018 variance only) before the anchor; at/after
+    the anchor they take the flat prior share and are capped to the parent's
+    unpublished pool (PIC remainder + those children's anchor fills). Prior
+    finer (a prior-published child folded into the parent, e.g. 3121) stays a
+    flat prior level every year. Anchor published and prior unpublished keeps
+    the anchor share. Neither published keeps the mapped row. Weights
+    renormalize so the mapped fuel total is unchanged.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
     land on one code. Petroleum weights stay on mapped Other (MECS 2022 Other);
