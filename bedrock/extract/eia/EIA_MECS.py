@@ -785,6 +785,82 @@ def mecs_distillate_to_gallons(fba: FlowByActivity, **_kwargs: Any) -> FlowByAct
     )
 
 
+def blend_census_use_years(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
+    '''
+    clean_fba_before_mapping on the Use that splits MECS parents (#1210).
+
+    Moves the split from the 2017 benchmark Use to the 2022 census-year Use
+    along a straight line, so the split has no step at 2021. *fba* is the
+    late-year Use. Each commodity row is taken as shares of its row total in
+    both years, so price and output growth between the years cancel, and
+    blended as v x 2017 + (1 - v) x 2022 with
+    v = (late_year - inventory_year) / (late_year - early_year), clipped to
+    [0, 1]. Rows are rescaled to the late-year row total. A cell in only one
+    year counts as 0 in the other.
+    '''
+    params = fba.config['use_blend']
+    early_year = int(params['early_year'])
+    late_year = int(params['late_year'])
+    inventory_year = int(params['inventory_year'])
+    v = min(max((late_year - inventory_year) / (late_year - early_year), 0.0), 1.0)
+    if v == 0.0:
+        return fba
+    early = FlowByActivity.return_FBA(
+        full_name=fba.full_name,
+        year=early_year,
+        config={**fba.config, 'year': early_year},
+    )
+    keys = ['ActivityProducedBy', 'ActivityConsumedBy']
+
+    def _shares(df: pd.DataFrame) -> pd.Series:
+        amounts = (
+            df.assign(**{k: df[k].astype(str) for k in keys})
+            .groupby(keys)['FlowAmount']
+            .sum()
+        )
+        totals = amounts.groupby(level='ActivityProducedBy').transform('sum')
+        return (amounts / totals.where(totals != 0)).fillna(0.0)
+
+    late_share, early_share = _shares(fba), _shares(early)
+    blended = (v * early_share).add((1 - v) * late_share, fill_value=0.0)
+    late_total = (
+        fba.assign(ActivityProducedBy=fba['ActivityProducedBy'].astype(str))
+        .groupby('ActivityProducedBy')['FlowAmount']
+        .sum()
+    )
+    amount = (
+        blended
+        * late_total.reindex(
+            blended.index.get_level_values('ActivityProducedBy')
+        ).to_numpy()
+    )
+    template = fba.assign(**{k: fba[k].astype(str) for k in keys}).drop_duplicates(keys)
+    early_only = early.assign(**{k: early[k].astype(str) for k in keys}).merge(
+        template[keys], on=keys, how='left', indicator=True
+    )
+    early_only = early_only[early_only['_merge'] == 'left_only'].drop(columns='_merge')
+    # Plain frames: a concat of FlowBy frames carries empty metadata, which
+    # the constructor would keep over the config passed below.
+    rows = pd.concat(
+        [pd.DataFrame(template), pd.DataFrame(early_only)], ignore_index=True
+    )
+    rows['FlowAmount'] = (
+        amount.reindex(pd.MultiIndex.from_frame(rows[keys])).fillna(0.0).to_numpy()
+    )
+    # A cell blended to 0 (only in the year with weight 0) is dropped, as the
+    # source Use never carries it; a 0 row would change which sectors exist.
+    rows = rows[rows['FlowAmount'] != 0]
+    if 'Year' in rows.columns:
+        rows['Year'] = fba['Year'].iloc[0]
+    log.info(
+        f'{fba.full_name} {late_year}: split Use blended with {early_year} at '
+        f'v = {v:.2f} for inventory year {inventory_year}'
+    )
+    return FlowByActivity(
+        rows.reset_index(drop=True), full_name=fba.full_name, config=fba.config
+    )
+
+
 def keep_chemical_manufacturing(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivity:
     '''Keep MECS NAICS 325 (chemicals) and descendants. CEDA NEU NG is chemicals-only.'''
     return fba.query("ActivityConsumedBy.str.startswith('325')").reset_index(drop=True)
@@ -1157,9 +1233,9 @@ def _mecs_path_factors(
                         max(0.0, 1.0 - noise / (sp - sa_c) ** 2) if sp != sa_c else 0.0
                     )
                     w = lam * min(anchor_year - inventory_year, span) / span
-                    weights[code] = (
-                        sa * (sp / sa) ** w if sa > 0 and sp > 0 else sa + w * (sp - sa)
-                    )
+                    # Linear in share: a geometric step puts most of a large
+                    # survey-to-survey ratio in the first year (32519 Other).
+                    weights[code] = sa + w * (sp - sa)
                     if max(sa, sp) >= 0.01:
                         lambdas.append(f'{flow} {code} {lam:.2f}')
             elif p_pub and prior_finer:
@@ -1192,11 +1268,7 @@ def _mecs_path_factors(
                         else 0.0
                     )
                     w = lam * min(anchor_year - inventory_year, span) / span
-                    weights[code] = (
-                        s_end * (sp / s_end) ** w
-                        if s_end > 0 and sp > 0
-                        else s_end + w * (sp - s_end)
-                    )
+                    weights[code] = s_end + w * (sp - s_end)
                     if max(s_end, sp) >= 0.01:
                         lambdas.append(f'{flow} {code} {lam:.2f}')
             elif a_pub:
@@ -1293,8 +1365,8 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     and * amounts still enter the parent/child split so a withheld child is
     subtracted from its parent (e.g. 2018 plastics HGL). Both sides published
     with matching published children use the lambda path from the 2022 share
-    toward 2018, with lambda from the 2018 share variance only (inventory
-    years before the anchor). Prior published and anchor unpublished (D / Q /
+    toward 2018, linear in share, with lambda from the 2018 share variance only
+    (inventory years before the anchor). Prior published and anchor unpublished (D / Q /
     GHGRP) path from the 2018 share toward the PIC room share (min of prior
     and room; lambda from the 2018 variance only) before the anchor; at/after
     the anchor they take the flat prior share and are capped to the parent's

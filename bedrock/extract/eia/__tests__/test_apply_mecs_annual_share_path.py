@@ -126,8 +126,6 @@ def _group_totals(out: pd.DataFrame) -> dict[str, float]:
 def _path_weight(sa: float, sp: float, _va: float, vp: float, w: float) -> float:
     '''Expected weight: lambda from the 2018 share variance and the share gap, times w.'''
     lam = max(0.0, 1.0 - vp / (sp - sa) ** 2) if sp != sa else 0.0
-    if sa > 0 and sp > 0:
-        return float(sa * (sp / sa) ** (lam * w))
     return sa + lam * w * (sp - sa)
 
 
@@ -569,7 +567,7 @@ def test_petroleum_hydrogen_compare_sets_lambda_path_keeps_other_shares(
         sa_c = compare_amt / compare_sum
         noise = prior_var / prior_sum**2
         lam = max(0.0, 1.0 - noise / (sp - sa_c) ** 2)
-        weights[code] = float(sa * (sp / sa) ** lam)
+        weights[code] = sa + lam * (sp - sa)
     totals = _group_totals(
         apply_mecs_annual_share_path(_mapped(mapped, 'Petroleum', 2018, sectors={}))
     )
@@ -608,6 +606,31 @@ def test_zero_anchor_piece_keeps_fuel_total(
     totals = _group_totals(apply_mecs_annual_share_path(fba))
     assert totals['325'] == 0.0
     assert sum(totals.values()) == pytest.approx(70.0)
+
+
+def test_large_survey_ratio_moves_in_equal_yearly_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 325190 falls from 50 to 0.25 (a 200x ratio, like 32519 Other); with RSE 0
+    # lambda is 1, so the share moves the same amount every year.
+    anchor = [('325', 100.0, None), ('325110', 40.0, None), ('325190', 0.25, None)]
+    prior = [('325', 100.0, None), ('325110', 30.0, None), ('325190', 50.0, None)]
+    raw = {
+        2022: _raw(anchor, 'HGL').assign(Spread=0.0),
+        2018: _raw(prior, 'HGL').assign(Spread=0.0),
+    }
+    _patch_loads(monkeypatch, raw)
+    mapped = {'325': 59.75, '325110': 40.0, '325190': 0.25}
+    share = {}
+    for year in (2018, 2019, 2020, 2021, 2022):
+        totals = _group_totals(
+            apply_mecs_annual_share_path(_mapped(mapped, 'HGL', year, sectors={}))
+        )
+        share[year] = totals['325190'] / sum(totals.values())
+    steps = [share[y] - share[y + 1] for y in (2018, 2019, 2020, 2021)]
+    assert share[2018] == pytest.approx(0.5)
+    assert share[2022] == pytest.approx(0.0025)
+    assert steps == pytest.approx([steps[0]] * 4)
 
 
 def test_reported_zero_in_prior_fades_in_linearly(
