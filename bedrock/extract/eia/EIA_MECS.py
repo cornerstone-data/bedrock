@@ -797,13 +797,15 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
     Runs after map_to_sectors on parent-incomplete-child remainders. One weight
     per (ActivityConsumedBy, Flowable). A survey cell is published only when
     snapshotted Suppressed is null; D, Q, *, GHGRP, and any other flag are
-    missing for shares, RSE, and published children. Both sides published with
-    matching published children use the RSE lambda path from the 2022 share
-    toward 2018 (inventory years before the anchor). One side missing, or the
-    prior published a child that the mapped set does not carry (folded into the
-    parent, e.g. 3121), takes that published side as a flat level in every
-    inventory year (including 2022+). Neither published keeps the mapped row.
-    Shares renormalize to the mapped fuel total.
+    unpublished for the level rule and for RSE (their variance is 0). Filled
+    and * amounts still enter the parent/child split so a withheld child is
+    subtracted from its parent (e.g. 2018 plastics HGL). Both sides published
+    with matching published children use the RSE lambda path from the 2022
+    share toward 2018 (inventory years before the anchor). One side missing,
+    or the prior published a child that the mapped set does not carry (folded
+    into the parent, e.g. 3121), takes that published side as a flat level in
+    every inventory year (including 2022+). Neither published keeps the mapped
+    row. Shares renormalize to the mapped fuel total.
 
     Prior codes are recoded to the anchor NAICS vintage and summed when several
     land on one code. Published 2022 Hydrogen is folded into the Petroleum share
@@ -891,13 +893,15 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             raise ValueError(
                 f'{source_name} {year}: more than one row per MECS code and fuel'
             )
+        # Keep filled/* in parent/child amounts; unpublished only for level/RSE.
         pub_mask = np.array([pd.isna(supp_by_key.get(k)) for k in raw_keys], dtype=bool)
-        raw = raw.loc[pub_mask].reset_index(drop=True)
-        raw_keys = list(
-            zip(raw['ActivityConsumedBy'].astype(str), raw['Flowable'].astype(str))
-        )
         rse = pd.to_numeric(raw['Spread'], errors='coerce').fillna(0.0) / 100
-        raw_var = dict(zip(raw_keys, (rse * raw['FlowAmount'].astype(float)) ** 2))
+        raw_var = {
+            k: float(v if pub else 0.0)
+            for k, v, pub in zip(
+                raw_keys, (rse * raw['FlowAmount'].astype(float)) ** 2, pub_mask
+            )
+        }
         if raw.empty:
             piece_amt, piece_var, desc = {}, {}, {}
         else:
@@ -926,9 +930,10 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
                 )
                 for (c, f), ds in desc.items()
             }
-        pub_keys = set(piece_amt)
+        pub_keys = {k for k in piece_amt if pd.isna(supp_by_key.get(k))}
         if year == prior_year:
-            prior_for_sectors = raw.copy() if not raw.empty else None
+            pub_raw = raw.loc[pub_mask]
+            prior_for_sectors = pub_raw.copy() if not pub_raw.empty else None
         if year == anchor_year:
             amounts[year], variances[year], descendants[year] = (
                 piece_amt,
@@ -953,7 +958,8 @@ def apply_mecs_annual_share_path(fba: FlowByActivity, **_kwargs: Any) -> FlowByA
             descendants[year][key] = descendants[year].get(key, frozenset()) | {
                 recode.get(d, d) for d in desc[(c, f)]
             }
-            published[year].add(key)
+            if (c, f) in pub_keys:
+                published[year].add(key)
         merged = sorted({recode[c] for c, _ in piece_amt if c in recode})
         if merged:
             log.info(
