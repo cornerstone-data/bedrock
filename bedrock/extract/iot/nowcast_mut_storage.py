@@ -46,6 +46,8 @@ from bedrock.utils.config.usa_config import get_usa_config
 from bedrock.utils.taxonomy.bea.v2017_commodity import USA_2017_COMMODITY_CODES
 from bedrock.utils.taxonomy.bea.v2017_final_demand import (
     USA_2017_FINAL_DEMAND_CODES,
+    USA_2017_FINAL_DEMAND_EXPORT_CODE,
+    USA_2017_FINAL_DEMAND_IMPORT_CODE,
 )
 from bedrock.utils.taxonomy.bea.v2017_industry import USA_2017_INDUSTRY_CODES
 from bedrock.utils.taxonomy.bea.v2017_value_added import USA_2017_VALUE_ADDED_CODES
@@ -271,6 +273,23 @@ def _as_uimp_view(imports: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _as_yimp_view(imports: pd.DataFrame) -> pd.DataFrame:
+    """Imports for final demand, commodity x final-demand category, trade dropped.
+
+    Commodities the stored Import table does not carry are not imported.
+    """
+    domestic = [
+        c
+        for c in USA_2017_FINAL_DEMAND_CODES
+        if c
+        not in (USA_2017_FINAL_DEMAND_EXPORT_CODE, USA_2017_FINAL_DEMAND_IMPORT_CODE)
+    ]
+    df = imports.reindex(index=list(USA_2017_COMMODITY_CODES))[domestic]
+    df = df.astype(float).fillna(0.0)
+    df.index = USA_2017_COMMODITY_INDEX.copy()
+    return df
+
+
 def _as_margins_view(margins: pd.DataFrame) -> pd.DataFrame:
     """The published five-column Margins layout, sliced from the stored table.
 
@@ -294,6 +313,10 @@ def load_nowcast_detail_Utot_usa() -> pd.DataFrame:
 
 def load_nowcast_detail_Uimp_usa() -> pd.DataFrame:
     return _as_uimp_view(_stored('Import'))
+
+
+def load_nowcast_detail_Yimp_usa() -> pd.DataFrame:
+    return _as_yimp_view(_stored('Import'))
 
 
 def load_nowcast_detail_margins_usa() -> pd.DataFrame:
