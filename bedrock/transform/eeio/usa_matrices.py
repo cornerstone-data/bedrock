@@ -1008,12 +1008,19 @@ def derive_Y_and_trade_scaled() -> SingleRegionYtotAndTradeVectorSet:
     """
     if get_usa_config().usa_detail_io_source == 'nowcast':
         yset = derive_Ytot_matrix_set()
+        imports = _nowcast_y_at_model_base_year(
+            handle_negative_vector_values(yset.imports)
+        )
+        if electricity_disaggregation_enabled():
+            from bedrock.transform.eeio.electricity_gtd_allocation import (  # noqa: PLC0415
+                collapse_electricity_imports_onto_generation,
+            )
+
+            imports = collapse_electricity_imports_onto_generation(imports)
         return SingleRegionYtotAndTradeVectorSet(
             ytot=_nowcast_y_at_model_base_year(yset.ytot),
             exports=_nowcast_y_at_model_base_year(yset.exports),
-            imports=_nowcast_y_at_model_base_year(
-                handle_negative_vector_values(yset.imports)
-            ),
+            imports=imports,
         )
     detail_2017 = derive_Ytot_matrix_set()
     summary_Y = derive_summary_Ytot_usa_matrix_set(get_usa_config().usa_io_data_year)
@@ -1166,7 +1173,17 @@ def _derive_nowcast_ydom_and_yimp() -> SingleRegionYVectorSet:
 
     The import share is taken in BEA's commodities and mapped as a ratio, so a
     commodity split into Cornerstone sectors passes its share to each of them.
+
+    Refuses ``implement_electricity_disaggregation``: ``commodity_corresp`` only
+    carries BEA ``221100``, so G/T/D children would get import share 0 via
+    ``reindex(...).fillna(0)`` and electricity final demand would look fully
+    domestic.
     """
+    if electricity_disaggregation_enabled():
+        raise NotImplementedError(
+            'nowcast ydom/yimp split does not map BEA 221100 import shares onto '
+            'G/T/D children (221110/221121/221122); refuse until that mapping exists'
+        )
     trade = [USA_2017_FINAL_DEMAND_EXPORT_CODE, USA_2017_FINAL_DEMAND_IMPORT_CODE]
     used = load_detail_Ytot_usa().drop(columns=trade).sum(axis=1)
     imported = load_nowcast_detail_Yimp_usa().sum(axis=1)
