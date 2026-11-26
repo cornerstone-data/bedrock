@@ -1,5 +1,5 @@
 # Manufacturing energy FBS for GHG nowcast inventory year 2020.
-# MECS anchor 2022 + prior 2018 flat+λ annual path (#1210); Use split census 2017.
+# MECS anchor 2022 + prior 2018 flat+λ annual path (#1210); Use split blended 2017 to 2022.
 # Replicates CEDA allocation steps as quantity weights: MECS mapped with
 # parent-incomplete-child + Cornerstone_2025
 
@@ -7,14 +7,20 @@
 year: &use_year 2020
 mecs_anchor_year: &mecs_anchor_year 2022
 mecs_prior_year: &mecs_prior_year 2018
-# Census Use that splits MECS parents (#1053). Inventory years through 2020
-# use the 2017 benchmark Use; 2021+ use 2022, when main switches MECS to 2022.
-split_year: &split_year 2017
+# Census Use that splits MECS parents (#1053 / #1210): 2022 census Use,
+# blended with the 2017 benchmark Use along a straight line before 2022
+# (blend_census_use_years), so the split has no step at 2021.
+split_year: &split_year 2022
 geoscale: national
 
 _attribution_sources:
   Nowcast_use: &nowcast_use
     year: *split_year
+    clean_fba_before_mapping: !script_function:EIA_MECS blend_census_use_years
+    use_blend:
+      inventory_year: *use_year
+      early_year: 2017
+      late_year: *split_year
     activity_to_sector_mapping: Cornerstone_2025
     exclusion_fields:
       # Match GHG nowcast Use attribution (FD columns only)

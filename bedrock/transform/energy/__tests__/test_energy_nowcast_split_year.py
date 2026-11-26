@@ -1,4 +1,7 @@
-"""The MECS child split uses a census-year Use table, not each nowcast year's (#1053)."""
+"""The MECS child split uses census-year Use tables, not each nowcast year's (#1053).
+
+The 2022 census Use is blended with the 2017 benchmark Use before 2022 (#1210).
+"""
 
 from __future__ import annotations
 
@@ -16,10 +19,14 @@ def test_mecs_split_anchored_on_census_year() -> None:
             re.search(r'mecs_anchor_year: &mecs_anchor_year (\d{4})', text).group(1)  # type: ignore[union-attr]
         )
         split = int(re.search(r'split_year: &split_year (\d{4})', text).group(1))  # type: ignore[union-attr]
-        # Inventory years on the 2018 MECS survey split on the 2017 benchmark
-        # Use; 2021+ (MECS 2022 on main) split on 2022. The quantity anchor stays 2022.
+        # Every year splits on 2022 Use blended with the 2017 benchmark Use, so
+        # the split has no step at 2021. The quantity anchor stays 2022.
         assert anchor == 2022, path.name
-        assert split == (2017 if year <= 2020 else 2022), path.name
+        assert split == 2022, path.name
         nowcast = text.split('Nowcast_use:', 1)[1].split('_mecs_annual_path:', 1)[0]
         assert 'year: *split_year' in nowcast, path.name
-        assert 'year: *use_year' not in nowcast, path.name
+        # The Use year itself is never the nowcast year (inventory_year is).
+        assert not re.search(r'(?m)^\s+year: \*use_year', nowcast), path.name
+        assert 'EIA_MECS blend_census_use_years' in nowcast, path.name
+        assert 'inventory_year: *use_year' in nowcast, path.name
+        assert 'early_year: 2017' in nowcast, path.name
