@@ -187,7 +187,18 @@ Annex:
         data_reliability: 4
 
   "Annex 5":
-      # A5.1-S1..S7 - annual Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type
+      # A5.1-5 is the 2024 table; A5.1-S1..S7 are 2023 back to 2017.
+      # Same columns: adjusted consumption (TBtu) and CO2 emissions by fuel type.
+      "A5-1-5":
+        "year": "2024"
+        "class": "Energy"
+        "unit": "TBtu"
+        "emission_compartment": "air"
+        "emission": "CO2"
+        "emission_unit": "MMT CO2e"
+        "emission_class": "Chemicals"
+        "desc": "Table A5.1-5: 2024 Adjusted Energy Consumption Data and CO2 Emissions from Fossil Fuel Combustion by Fuel Type"
+
       "A5-1-S1":
         "year": "2023"
         "class": "Energy"
