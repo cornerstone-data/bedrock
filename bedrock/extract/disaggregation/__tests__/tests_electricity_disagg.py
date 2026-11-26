@@ -10,6 +10,7 @@ import pytest
 
 import bedrock.transform.eeio.usa_matrices as usa_matrices
 from bedrock.extract.disaggregation.egrid_generation import (
+    eia_table_2_2_end_use_mwh,
     eia_table_2_14_export_mwh,
     eia_table_2_14_year_for_egrid_year,
     load_egrid_flowbyfacility,
@@ -177,3 +178,51 @@ def test_eia_table_2_14_year_for_egrid_year_when_table_lags() -> None:
             assert eia_table_2_14_year_for_egrid_year(2022) == 2022
     finally:
         eia_table_2_14_year_for_egrid_year.cache_clear()
+
+
+def test_eia_table_2_2_end_use_mwh_omits_solar_direct_use_from_teu() -> None:
+    """Published TEU includes SDU; grid TEU for losses / class shares must not (#1323)."""
+    year = 2024
+    amounts = {
+        'Residential': 10.0,
+        'Commercial': 20.0,
+        'Industrial': 30.0,
+        'Transportation': 4.0,
+        'Direct Use': 6.0,
+        'Solar Direct Use': 50.0,
+        'Total End Use': 120.0,  # sales + Direct Use + SDU
+    }
+    fba = pd.DataFrame(
+        [
+            {
+                'Year': year,
+                'Description': 'Table 2.2 Sales and direct use',
+                'ActivityProducedBy': 'Total Electric Industry',
+                'ActivityConsumedBy': key,
+                'FlowAmount': amount,
+            }
+            for key, amount in amounts.items()
+        ]
+    )
+    grid = sum(
+        amounts[k]
+        for k in (
+            'Residential',
+            'Commercial',
+            'Industrial',
+            'Transportation',
+            'Direct Use',
+        )
+    )
+
+    eia_table_2_2_end_use_mwh.cache_clear()
+    try:
+        with patch(
+            'bedrock.extract.disaggregation.egrid_generation._epa_fba',
+            return_value=fba,
+        ):
+            out = eia_table_2_2_end_use_mwh(year)
+    finally:
+        eia_table_2_2_end_use_mwh.cache_clear()
+
+    assert out['Total End Use'] == grid

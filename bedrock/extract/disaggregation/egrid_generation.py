@@ -225,6 +225,14 @@ _TABLE_2_2_KEYS: tuple[str, ...] = (
     'Direct Use',
     'Total End Use',
 )
+_TABLE_2_2_GRID_END_USE_PARTS: tuple[str, ...] = (
+    'Residential',
+    'Commercial',
+    'Industrial',
+    'Transportation',
+    'Direct Use',
+)
+_TABLE_2_2_SOLAR_DIRECT_USE = 'Solar Direct Use'
 _TABLE_3_1_TOTAL_PRODUCER = 'Total (all sectors)'
 
 
@@ -246,25 +254,43 @@ def _table_mask(df: pd.DataFrame, year: int, table_fragment: str) -> pd.Series:
     return (df['Year'] == year) & desc.str.contains(table_fragment, na=False)
 
 
+def _table_2_2_flow_mwh(table: pd.DataFrame, key: str, year: int) -> float:
+    rows = table.loc[table['ActivityConsumedBy'] == key]
+    if rows.empty:
+        raise ValueError(f'Table 2.2 missing {key!r} for year {year}')
+    tei = rows.loc[rows['ActivityProducedBy'] == 'Total Electric Industry']
+    if not tei.empty:
+        return float(tei['FlowAmount'].iloc[0])
+    return float(rows['FlowAmount'].sum())
+
+
 @functools.cache
 def eia_table_2_2_end_use_mwh(year: int) -> dict[str, float]:
-    """EIA Table 2.2 sales + Direct Use + Total End Use, MWh.
+    """EIA Table 2.2 sales + Direct Use + grid Total End Use, MWh.
 
     Do not require ActivityProducedBy == 'Total Electric Industry' for every
     key: Direct Use / Total End Use may be other provider rows.
+
+    ``Total End Use`` is reconstructed as the four retail classes plus classic
+    Direct Use. Published Table 2.2 Total End Use can also include Solar Direct
+    Use (estimated behind-the-meter / small-scale self-consumption from the
+    2025 Electric Power Annual onward). That series sits outside plant eGRID
+    and outside IO purchases from ``221100``, so including it in the loss and
+    class-share denominator understates line losses and dilutes class MWh.
+    Solar Direct Use stays in the FBA; when present it is returned under its
+    own key for diagnostics and is not added to class pools.
     """
     df = _epa_fba(year)
     table = df.loc[_table_mask(df, year, 'Table 2.2')]
-    out: dict[str, float] = {}
-    for key in _TABLE_2_2_KEYS:
-        rows = table.loc[table['ActivityConsumedBy'] == key]
-        if rows.empty:
-            raise ValueError(f'Table 2.2 missing {key!r} for year {year}')
-        tei = rows.loc[rows['ActivityProducedBy'] == 'Total Electric Industry']
-        if not tei.empty:
-            out[key] = float(tei['FlowAmount'].iloc[0])
-        else:
-            out[key] = float(rows['FlowAmount'].sum())
+    out: dict[str, float] = {
+        key: _table_2_2_flow_mwh(table, key, year) for key in _TABLE_2_2_KEYS
+    }
+    out['Total End Use'] = sum(out[key] for key in _TABLE_2_2_GRID_END_USE_PARTS)
+    sdu_rows = table.loc[table['ActivityConsumedBy'] == _TABLE_2_2_SOLAR_DIRECT_USE]
+    if not sdu_rows.empty:
+        out[_TABLE_2_2_SOLAR_DIRECT_USE] = _table_2_2_flow_mwh(
+            table, _TABLE_2_2_SOLAR_DIRECT_USE, year
+        )
     if out['Total End Use'] <= 0:
         raise ValueError(f'Table 2.2 Total End Use non-positive for year {year}')
     if 'Direct Use' not in out:
