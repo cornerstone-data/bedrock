@@ -796,7 +796,10 @@ def blend_census_use_years(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivit
     blended as v x 2017 + (1 - v) x 2022 with
     v = (late_year - inventory_year) / (late_year - early_year), clipped to
     [0, 1]. Rows are rescaled to the late-year row total. A cell in only one
-    year counts as 0 in the other.
+    year counts as 0 in the other. Columns the method's ``exclusion_fields``
+    drop (final demand) are dropped first, so they are not in the row totals:
+    their share of a row differs between the years (coal exports are 19% of
+    the 2017 row and 31.5% of the 2022 row), which would tilt the blend.
     '''
     params = fba.config['use_blend']
     early_year = int(params['early_year'])
@@ -811,6 +814,19 @@ def blend_census_use_years(fba: FlowByActivity, **_kwargs: Any) -> FlowByActivit
         config={**fba.config, 'year': early_year},
     )
     keys = ['ActivityProducedBy', 'ActivityConsumedBy']
+    excluded = {
+        field: [str(x) for x in (vals if isinstance(vals, list) else [vals])]
+        for field, vals in fba.config.get('exclusion_fields', {}).items()
+        if field in keys
+    }
+
+    def _drop_excluded(df: FlowByActivity) -> FlowByActivity:
+        keep = pd.Series(True, index=df.index)
+        for field, vals in excluded.items():
+            keep &= ~df[field].astype(str).isin(vals)
+        return df.loc[keep]
+
+    fba, early = _drop_excluded(fba), _drop_excluded(early)
 
     def _shares(df: pd.DataFrame) -> pd.Series:
         amounts = (

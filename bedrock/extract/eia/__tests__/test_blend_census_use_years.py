@@ -35,13 +35,16 @@ def _use(year: int, rows: list[tuple[str, str, float]]) -> pd.DataFrame:
 
 
 def _late(
-    inventory_year: int, use: dict[int, list[tuple[str, str, float]]] = USE
+    inventory_year: int,
+    use: dict[int, list[tuple[str, str, float]]] = USE,
+    exclusion_fields: dict[str, Any] | None = None,
 ) -> FlowByActivity:
     return FlowByActivity(
         _use(2022, use[2022]),
         full_name='Nowcast_Detail_Use_AfterRedef',
         config={
             'year': 2022,
+            'exclusion_fields': exclusion_fields or {},
             'use_blend': {
                 'inventory_year': inventory_year,
                 'early_year': 2017,
@@ -92,6 +95,36 @@ def test_cell_in_one_year_only_counts_as_zero_in_the_other(
     # v = 0.6: 325120 = 0.6 x 0.5 = 0.3 of the row; 325110 = 0.6 x 0.5 + 0.4.
     assert out['325120'] == pytest.approx(30.0)
     assert out['325110'] == pytest.approx(70.0)
+
+
+def test_excluded_final_demand_is_not_in_the_row_totals(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Exports (F04000) are 20% of the 2017 row and 50% of the 2022 row. The
+    # two industries split 80/20 in 2017 and 40/60 in 2022 either way, so the
+    # blend must still be linear in those intermediate shares.
+    use = {
+        2017: [
+            ('212100', '325110', 64.0),
+            ('212100', '325190', 16.0),
+            ('212100', 'F04000', 20.0),
+        ],
+        2022: [
+            ('212100', '325110', 40.0),
+            ('212100', '325190', 60.0),
+            ('212100', 'F04000', 100.0),
+        ],
+    }
+    _patch_early(monkeypatch, use)
+    out = _amounts(
+        blend_census_use_years(
+            _late(2020, use, {'ActivityConsumedBy': ['F03000', 'F04000']})
+        )
+    )
+    assert 'F04000' not in out
+    # v = 0.4: 0.4 x 0.8 + 0.6 x 0.4 = 0.56, not tilted toward either year.
+    assert out['325110'] / sum(out.values()) == pytest.approx(0.56)
+    assert sum(out.values()) == pytest.approx(100.0)
 
 
 def test_late_year_and_after_return_the_late_use(
