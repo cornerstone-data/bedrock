@@ -124,7 +124,17 @@ v1_0_0_pre_2b1164f = (
 # (#1305), services seed / truck electricity (#1306), and calendar-2017 waste
 # weights (#1312). GHG_national_Cornerstone_{year}_v1.0.0_2b1164f is rebuilt on
 # that MUT.
-v1_0_0 = "6386198c6ef331516636ae7af340d6cd540d761f"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
+v1_0_0_pre_bad59cf = (
+    "6386198c6ef331516636ae7af340d6cd540d761f"  # config: 2026_usa_cornerstone_v1_0
+)
+
+# Output change: electricity price / after-span stack (#1317 EIA retail through
+# 2025, #1319 / #1322 / #1325 / #1326 gen-delivery PI and EPM after-span), solar
+# direct-use out of grid TEU (#1324), MECS shares on 2022 with annual path
+# (#1318 / #1210) and Use blend (#1329), US final demand from the nowcast year
+# (#1328), and the live pin to MUT/Energy/GHG v1.0.0_bad59cf (#1332). Snapshot
+# cut on #1332 merge commit f7ffe6ffe.
+v1_0_0 = "f7ffe6ffe08416c8d366ad0ad70e305be8426e96"  # config: 2026_usa_cornerstone_v1_0; matches .SNAPSHOT_KEY
 
 # Intermediate snapshot SHAs (atomic configs, test fixtures — not release labels)
 TEST_config_default = (
@@ -151,6 +161,7 @@ EF_DOLLAR_YEAR_BY_SNAPSHOT_KEY: dict[str, int] = {
     v1_0_0_pre_electricity_flags: 2024,
     v1_0_0_pre_406: 2024,
     v1_0_0_pre_2b1164f: 2024,
+    v1_0_0_pre_bad59cf: 2024,
     v1_0_0: 2024,
     TEST_config_default: 2023,
     TEST_fbs_schema: 2023,

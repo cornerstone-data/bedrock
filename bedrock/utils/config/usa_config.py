@@ -734,7 +734,8 @@ class USAConfig(BaseModel):
         '7f0bdab6e7d12f17a9c2a61437a22af1df7bed30',  # v1.0.0, before the electricity flags
         'c9b69d94a20aecc8d858738eb87093e26e612dbe',  # v1.0.0, before 42ELEC (406)
         '7533da280bfc9e943065306ba37630228046713d',  # v1.0.0, before MUT v1.0.0_2b1164f
-        '6386198c6ef331516636ae7af340d6cd540d761f',  # v1.0.0 (current .SNAPSHOT_KEY)
+        '6386198c6ef331516636ae7af340d6cd540d761f',  # v1.0.0, before MUT/Energy/GHG v1.0.0_bad59cf
+        'f7ffe6ffe08416c8d366ad0ad70e305be8426e96',  # v1.0.0-rc2 (current .SNAPSHOT_KEY)
     ] = 'v0'
 
     @property
